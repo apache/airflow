@@ -77,10 +77,10 @@ from airflow.models.variable import Variable
 from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.notifications.basenotifier import BaseNotifier
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import BranchPythonOperator, PythonOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import BranchPythonOperator, PythonOperator
+from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.sensors.base import BaseSensorOperator
-from airflow.sensors.python import PythonSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.settings import TIMEZONE, TracebackSessionForTests
 from airflow.stats import Stats
@@ -229,7 +229,7 @@ class TestTaskInstance:
 
         # no dag assigned
         assert not op.has_dag()
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             getattr(op, "dag")
 
         # no improper assignment
@@ -239,7 +239,7 @@ class TestTaskInstance:
         op.dag = dag
 
         # no reassignment
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError):
             op.dag = dag2
 
         # but assigning the same dag is ok
@@ -261,7 +261,7 @@ class TestTaskInstance:
         assert [i.has_dag() for i in [op1, op2, op3, op4]] == [False, False, True, True]
 
         # can't combine operators with no dags
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError):
             op1.set_downstream(op2)
 
         # op2 should infer dag from op1
@@ -270,9 +270,9 @@ class TestTaskInstance:
         assert op2.dag is dag
 
         # can't assign across multiple DAGs
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             op1.set_downstream(op4)
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             op1.set_downstream([op3, op4])
 
     def test_bitshift_compose_operators(self, dag_maker):
@@ -3828,7 +3828,7 @@ class TestTaskInstance:
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_get_current_context_works_in_template(self, dag_maker):
         def user_defined_macro():
-            from airflow.operators.python import get_current_context
+            from airflow.providers.standard.operators.python import get_current_context
 
             get_current_context()
 
@@ -3993,7 +3993,6 @@ class TestTaskInstance:
             "hostname": "some_unique_hostname",
             "id": str(uuid6.uuid7()),
             "unixname": "some_unique_unixname",
-            "job_id": 1234,
             "pool": "some_fake_pool_id",
             "pool_slots": 25,
             "queue": "some_queue_id",
@@ -4004,6 +4003,7 @@ class TestTaskInstance:
             "rendered_map_index": None,
             "queued_by_job_id": 321,
             "pid": 123,
+            "last_heartbeat_at": run_date + datetime.timedelta(hours=1, seconds=4),
             "executor": "some_executor",
             "executor_config": {"Some": {"extra": "information"}},
             "external_executor_id": "some_executor_id",

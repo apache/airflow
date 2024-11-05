@@ -360,7 +360,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ["ruff==0.7.1"]
+        additional_dependencies: ["ruff==0.7.2"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^performance/tests/test_.*.py
       - id: ruff-format
         name: Run 'ruff format'
@@ -370,7 +370,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ["ruff==0.7.1"]
+        additional_dependencies: ["ruff==0.7.2"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py$
       - id: replace-bad-characters
         name: Replace bad characters
@@ -658,6 +658,8 @@ repos:
           ^docs/exts/removemarktransform.py$|
           ^newsfragments/41761.significant.rst$|
           ^scripts/ci/pre_commit/vendor_k8s_json_schema.py$|
+          ^scripts/ci/docker-compose/integration-keycloak.yml$|
+          ^scripts/ci/docker-compose/keycloak/keycloak-entrypoint.sh$|
           ^tests/|
           ^providers/tests/|
           ^.pre-commit-config\.yaml$|
@@ -722,7 +724,7 @@ repos:
         files: >
           (?x)
           ^providers/src/airflow/providers/.*\.py$
-        exclude: ^.*/.*_vendor/|providers/src/airflow/providers/standard/operators/bash.py
+        exclude: ^.*/.*_vendor/|providers/src/airflow/providers/standard/operators/bash.py|providers/src/airflow/providers/standard/operators/python.py
       - id: check-get-lineage-collector-providers
         language: python
         name: Check providers import hook lineage code from compat
@@ -1189,6 +1191,8 @@ repos:
           ^airflow/utils/helpers.py$ |
           ^providers/src/airflow/providers/ |
           ^(providers/)?tests/ |
+          task_sdk/src/airflow/sdk/definitions/dag.py$ |
+          task_sdk/src/airflow/sdk/definitions/node.py$ |
           ^dev/.*\.py$ |
           ^scripts/.*\.py$ |
           ^docker_tests/.*$ |

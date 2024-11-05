@@ -1,0 +1,24 @@
+Removed Deprecated Python Version Identifiers from the ``airflow`` Module
+
+Python version check constants, such as ``PY36``, ``PY37``, and others, have been removed from the ``airflow``
+module. To check Python versions, please use the ``sys.version_info`` attribute directly instead.
+
+Before:
+
+.. code-block:: python
+
+    from airflow import PY36
+
+    if PY36:
+        # perform some action
+        ...
+
+After:
+
+.. code-block:: python
+
+    import sys
+
+    if sys.version_info >= (3, 6):
+        # perform some action
+        ...

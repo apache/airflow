@@ -32,10 +32,9 @@ from airflow.models.backfill import (
     BackfillDagRun,
     BackfillDagRunExceptionReason,
     ReprocessBehavior,
-    _cancel_backfill,
     _create_backfill,
 )
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -321,41 +320,6 @@ def test_active_dag_run(dag_maker, session):
             reverse=False,
             dag_run_conf={"this": "param"},
         )
-
-
-def test_cancel_backfill(dag_maker, session):
-    """
-    Queued runs should be marked *failed*.
-    Every other dag run should be left alone.
-    """
-    with dag_maker(schedule="@daily") as dag:
-        PythonOperator(task_id="hi", python_callable=print)
-    b = _create_backfill(
-        dag_id=dag.dag_id,
-        from_date=timezone.datetime(2021, 1, 1),
-        to_date=timezone.datetime(2021, 1, 5),
-        max_active_runs=2,
-        reverse=False,
-        dag_run_conf={},
-    )
-    query = (
-        select(DagRun)
-        .join(BackfillDagRun.dag_run)
-        .where(BackfillDagRun.backfill_id == b.id)
-        .order_by(BackfillDagRun.sort_ordinal)
-    )
-    dag_runs = session.scalars(query).all()
-    dates = [str(x.logical_date.date()) for x in dag_runs]
-    expected_dates = ["2021-01-01", "2021-01-02", "2021-01-03", "2021-01-04", "2021-01-05"]
-    assert dates == expected_dates
-    assert all(x.state == DagRunState.QUEUED for x in dag_runs)
-    dag_runs[0].state = "running"
-    session.commit()
-    _cancel_backfill(backfill_id=b.id)
-    session.expunge_all()
-    dag_runs = session.scalars(query).all()
-    states = [x.state for x in dag_runs]
-    assert states == ["running", "failed", "failed", "failed", "failed"]
 
 
 def create_next_run(

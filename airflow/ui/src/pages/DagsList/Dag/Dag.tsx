@@ -16,21 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Box,
-  Button,
-  Progress,
-  Tab,
-  TabList,
-  TabPanel,
-  TabPanels,
-  Tabs,
-} from "@chakra-ui/react";
+import { Box, Button, Tabs } from "@chakra-ui/react";
 import { FiChevronsLeft } from "react-icons/fi";
 import { Link as RouterLink, useParams } from "react-router-dom";
 
-import { useDagServiceGetDagDetails } from "openapi/queries";
+import {
+  useDagServiceGetDagDetails,
+  useDagsServiceRecentDagRuns,
+} from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { ProgressBar } from "src/components/ui";
 
 import { Header } from "./Header";
 
@@ -45,43 +40,52 @@ export const Dag = () => {
     dagId: dagId ?? "",
   });
 
+  // TODO: replace with with a list dag runs by dag id request
+  const {
+    data: runsData,
+    error: runsError,
+    isLoading: isLoadingRuns,
+  } = useDagsServiceRecentDagRuns({ dagIdPattern: dagId ?? "" });
+
+  const runs =
+    runsData?.dags.find((dagWithRuns) => dagWithRuns.dag_id === dagId)
+      ?.latest_dag_runs ?? [];
+
   return (
     <Box>
-      <Button
-        as={RouterLink}
-        color="blue.400"
-        leftIcon={<FiChevronsLeft />}
-        to="/dags"
-        variant="link"
-      >
-        Back to all dags
+      <Button asChild colorPalette="blue" variant="ghost">
+        <RouterLink to="/dags">
+          <FiChevronsLeft />
+          Back to all dags
+        </RouterLink>
       </Button>
-      <Header dag={dag} dagId={dagId} />
-      <ErrorAlert error={error} />
-      <Progress
-        isIndeterminate
+      <Header dag={dag} dagId={dagId} latestRun={runs[0]} />
+      <ErrorAlert error={error ?? runsError} />
+      <ProgressBar
         size="xs"
-        visibility={isLoading ? "visible" : "hidden"}
+        visibility={isLoading || isLoadingRuns ? "visible" : "hidden"}
       />
-      <Tabs>
-        <TabList>
-          <Tab>Overview</Tab>
-          <Tab>Runs</Tab>
-          <Tab>Tasks</Tab>
-        </TabList>
+      <Tabs.Root>
+        <Tabs.List>
+          <Tabs.Trigger value="overview">Overview</Tabs.Trigger>
+          <Tabs.Trigger value="runs">Runs</Tabs.Trigger>
+          <Tabs.Trigger value="tasks">Tasks</Tabs.Trigger>
+          <Tabs.Trigger value="events">Events</Tabs.Trigger>
+        </Tabs.List>
 
-        <TabPanels>
-          <TabPanel>
-            <p>one!</p>
-          </TabPanel>
-          <TabPanel>
-            <p>two!</p>
-          </TabPanel>
-          <TabPanel>
-            <p>three!</p>
-          </TabPanel>
-        </TabPanels>
-      </Tabs>
+        <Tabs.Content value="overview">
+          <p>one!</p>
+        </Tabs.Content>
+        <Tabs.Content value="runs">
+          <p>two!</p>
+        </Tabs.Content>
+        <Tabs.Content value="tasks">
+          <p>three!</p>
+        </Tabs.Content>
+        <Tabs.Content value="events">
+          <p>four!</p>
+        </Tabs.Content>
+      </Tabs.Root>
     </Box>
   );
 };

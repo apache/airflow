@@ -476,7 +476,7 @@ You can still add uv support for pre-commit if you use pipx using the commands:
 
     pipx install pre-commit
     pipx inject
-    pipx inject pre-commit pre-commit-uv
+    pipx inject prepare_breeze_and_image
 
 Also, if you already use ``uvx`` instead of ``pipx``, use this command:
 

@@ -175,3 +175,133 @@ class TestGetEventLog(TestEventLogsEndpoint):
         }
 
         assert response.json() == expected_json
+
+
+class TestGetEventLogs(TestEventLogsEndpoint):
+    @pytest.mark.parametrize(
+        "query_params, expected_status_code, expected_total_entries, expected_events",
+        [
+            (
+                {},
+                200,
+                4,
+                [EVENT_NORMAL, EVENT_WITH_OWNER, TASK_INSTANCE_EVENT, EVENT_WITH_OWNER_AND_TASK_INSTANCE],
+            ),
+            # offset, limit
+            (
+                {"offset": 1, "limit": 2},
+                200,
+                4,
+                [EVENT_WITH_OWNER, TASK_INSTANCE_EVENT],
+            ),
+            # equal filter
+            (
+                {"event": EVENT_NORMAL},
+                200,
+                1,
+                [EVENT_NORMAL],
+            ),
+            (
+                {"event": EVENT_WITH_OWNER},
+                200,
+                1,
+                [EVENT_WITH_OWNER],
+            ),
+            (
+                {"task_id": TASK_ID},
+                200,
+                2,
+                [TASK_INSTANCE_EVENT, EVENT_WITH_OWNER_AND_TASK_INSTANCE],
+            ),
+            # multiple equal filters
+            (
+                {"event": EVENT_WITH_OWNER, "owner": OWNER},
+                200,
+                1,
+                [EVENT_WITH_OWNER],
+            ),
+            (
+                {"event": EVENT_WITH_OWNER_AND_TASK_INSTANCE, "task_id": TASK_ID, "run_id": DAG_RUN_ID},
+                200,
+                1,
+                [EVENT_WITH_OWNER_AND_TASK_INSTANCE],
+            ),
+            # list filter
+            (
+                {"excluded_events": [EVENT_NORMAL, EVENT_WITH_OWNER]},
+                200,
+                2,
+                [TASK_INSTANCE_EVENT, EVENT_WITH_OWNER_AND_TASK_INSTANCE],
+            ),
+            (
+                {"included_events": [EVENT_NORMAL, EVENT_WITH_OWNER]},
+                200,
+                2,
+                [EVENT_NORMAL, EVENT_WITH_OWNER],
+            ),
+            # multiple list filters
+            (
+                {"excluded_events": [EVENT_NORMAL], "included_events": [EVENT_WITH_OWNER]},
+                200,
+                1,
+                [EVENT_WITH_OWNER],
+            ),
+            # before, after filters
+            (
+                {"before": "2024-06-15T00:00:00Z"},
+                200,
+                0,
+                [],
+            ),
+            (
+                {"after": "2024-06-15T00:00:00Z"},
+                200,
+                4,
+                [EVENT_NORMAL, EVENT_WITH_OWNER, TASK_INSTANCE_EVENT, EVENT_WITH_OWNER_AND_TASK_INSTANCE],
+            ),
+            # order_by
+            (
+                {"order_by": "-id"},
+                200,
+                4,
+                [EVENT_WITH_OWNER_AND_TASK_INSTANCE, TASK_INSTANCE_EVENT, EVENT_WITH_OWNER, EVENT_NORMAL],
+            ),
+            (
+                {"order_by": "execution_date"},
+                200,
+                4,
+                [TASK_INSTANCE_EVENT, EVENT_WITH_OWNER_AND_TASK_INSTANCE, EVENT_NORMAL, EVENT_WITH_OWNER],
+            ),
+            # combination of query parameters
+            (
+                {"offset": 1, "excluded_events": ["non_existed_event"], "order_by": "event"},
+                200,
+                4,
+                [EVENT_WITH_OWNER_AND_TASK_INSTANCE, EVENT_NORMAL, TASK_INSTANCE_EVENT],
+            ),
+            (
+                {"excluded_events": [EVENT_NORMAL], "included_events": [EVENT_WITH_OWNER], "order_by": "-id"},
+                200,
+                1,
+                [EVENT_WITH_OWNER],
+            ),
+            (
+                {"map_index": -1, "try_number": 0, "order_by": "event", "limit": 1},
+                200,
+                2,
+                [EVENT_WITH_OWNER_AND_TASK_INSTANCE],
+            ),
+        ],
+    )
+    def test_get_event_logs(
+        self, test_client, query_params, expected_status_code, expected_total_entries, expected_events
+    ):
+        response = test_client.get("/public/eventLogs/", params=query_params)
+        assert response.status_code == expected_status_code
+        if expected_status_code != 200:
+            return
+
+        resp_json = response.json()
+        assert resp_json["total_entries"] == expected_total_entries
+        for event_log, expected_event in zip(resp_json["event_logs"], expected_events):
+            assert event_log["event"] == expected_event

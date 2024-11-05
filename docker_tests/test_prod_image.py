@@ -171,7 +171,6 @@ class TestPythonPackages:
         "sftp/ssh": ["paramiko", "sshtunnel"],
         "slack": ["slack_sdk"],
         "statsd": ["statsd"],
-        "virtualenv": ["virtualenv"],
     }
 
     @pytest.mark.skipif(os.environ.get("TEST_SLIM_IMAGE") == "true", reason="Skipped with slim image")

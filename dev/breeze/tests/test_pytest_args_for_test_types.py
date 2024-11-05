@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import pytest
 
-from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION
 from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, convert_test_type_to_pytest_args
 
 
@@ -64,7 +63,7 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         ),
         (
             "System",
-            ["tests/system"],
+            [],
             False,
         ),
         (
@@ -110,7 +109,7 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         (
             "PlainAsserts",
             [
-                "tests/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context",
+                "providers/tests/standard/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context",
                 "--assert=plain",
             ],
             False,
@@ -123,28 +122,28 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         (
             "PythonVenv",
             [
-                "tests/operators/test_python.py::TestPythonVirtualenvOperator",
+                "providers/tests/standard/operators/test_python.py::TestPythonVirtualenvOperator",
             ],
             False,
         ),
         (
             "BranchPythonVenv",
             [
-                "tests/operators/test_python.py::TestBranchPythonVirtualenvOperator",
+                "providers/tests/standard/operators/test_python.py::TestBranchPythonVirtualenvOperator",
             ],
             False,
         ),
         (
             "ExternalPython",
             [
-                "tests/operators/test_python.py::TestExternalPythonOperator",
+                "providers/tests/standard/operators/test_python.py::TestExternalPythonOperator",
             ],
             False,
         ),
         (
             "BranchExternalPython",
             [
-                "tests/operators/test_python.py::TestBranchExternalPythonOperator",
+                "providers/tests/standard/operators/test_python.py::TestBranchExternalPythonOperator",
             ],
             False,
         ),
@@ -347,7 +346,6 @@ def test_folders_for_parallel_test_types(
         convert_parallel_types_to_folders(
             parallel_test_types_list=parallel_test_types.split(" "),
             skip_provider_tests=skip_provider_tests,
-            python_version=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         )
         == folders
     )

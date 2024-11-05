@@ -117,6 +117,32 @@ as a sub-folder of the ``airflow.providers`` package, add the ``provider.yaml`` 
 in development mode - then capabilities of your provider will be discovered by airflow and you will see
 the provider among other providers in ``airflow providers`` command output.
 
+
+Local Development Release of a Specific Provider
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When you develop a provider, you can release it locally and test it in your Airflow environment. This should
+be accomplished using breeze. Choose a suffix for the release such as "dev1" and run the breeze build for
+that provider. Remember Provider IDs use a dot ('.') for directory separators so the Provider ID for the
+Microsoft Azure provider is 'microsoft.azure'. This can be provided in the PACKAGE_LIST environment variable
+or passed on the command line.
+
+``export PACKAGE_LIST=microsoft.azure``
+
+Then build the provider (you don't need to pass the package ID if you set the environment variable above):
+
+```bash
+breeze release-management prepare-provider-packages \
+    --package-format both --version-suffix-for-pypi=dev1 \
+    --skip-tag-check microsoft.azure
+```
+
+Finally, copy the wheel file from the dist directory to the a directory your airflow deployment can use.
+If this is ~/airflow/test-airflow/local_providers, you can use the following command:
+
+``cp dist/apache_airflow_providers_microsoft_azure-10.5.2+dev1-py3-none-any.whl ~/airflow/test-airflow/local_providers/``
+
+
 Naming Conventions for provider packages
 ----------------------------------------
 
@@ -133,6 +159,7 @@ The rules are as follows:
   further split into sub-packages (for example 'apache' package has 'cassandra', 'druid' ... providers ) out
   of which several different provider packages are produced (apache.cassandra, apache.druid). This is
   case when the providers are connected under common umbrella but very loosely coupled on the code level.
+  Please note the separator of the provider-package ID is a period, not a dash like the package names in PyPI(microsoft.azure vs apache-airflow-providers-microsoft-azure).
 
 * In some cases the package can have sub-packages but they are all delivered as single provider
   package (for example 'google' package contains 'ads', 'cloud' etc. sub-packages). This is in case

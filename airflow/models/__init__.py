@@ -30,7 +30,6 @@ __all__ = [
     "DagBag",
     "DagWarning",
     "DagModel",
-    "DagPickle",
     "DagRun",
     "DagTag",
     "DbCallbackRequest",
@@ -90,7 +89,6 @@ __lazy_imports = {
     "Connection": "airflow.models.connection",
     "DagBag": "airflow.models.dagbag",
     "DagModel": "airflow.models.dag",
-    "DagPickle": "airflow.models.dagpickle",
     "DagRun": "airflow.models.dagrun",
     "DagTag": "airflow.models.dag",
     "DagWarning": "airflow.models.dagwarning",
@@ -119,7 +117,6 @@ if TYPE_CHECKING:
     from airflow.models.connection import Connection
     from airflow.models.dag import DAG, DagModel, DagTag
     from airflow.models.dagbag import DagBag
-    from airflow.models.dagpickle import DagPickle
     from airflow.models.dagrun import DagRun
     from airflow.models.dagwarning import DagWarning
     from airflow.models.db_callback_request import DbCallbackRequest

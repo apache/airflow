@@ -8,9 +8,12 @@ import {
 
 import {
   AssetService,
+  BackfillService,
   ConnectionService,
   DagRunService,
   DagService,
+  DagSourceService,
+  DagWarningService,
   DagsService,
   DashboardService,
   EventLogService,
@@ -18,13 +21,16 @@ import {
   PluginService,
   PoolService,
   ProviderService,
+  TaskInstanceService,
   VariableService,
   VersionService,
 } from "../requests/services.gen";
 import {
+  BackfillPostBody,
   DAGPatchBody,
   DAGRunPatchBody,
   DagRunState,
+  DagWarningType,
   PoolPatchBody,
   PoolPostBody,
   VariableBody,
@@ -166,6 +172,72 @@ export const useDagsServiceRecentDagRuns = <
         paused,
         tags,
       }) as TData,
+    ...options,
+  });
+/**
+ * List Backfills
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useBackfillServiceListBackfills = <
+  TData = Common.BackfillServiceListBackfillsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    limit,
+    offset,
+    orderBy,
+  }: {
+    dagId: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseBackfillServiceListBackfillsKeyFn(
+      { dagId, limit, offset, orderBy },
+      queryKey,
+    ),
+    queryFn: () =>
+      BackfillService.listBackfills({ dagId, limit, offset, orderBy }) as TData,
+    ...options,
+  });
+/**
+ * Get Backfill
+ * @param data The data for the request.
+ * @param data.backfillId
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useBackfillServiceGetBackfill = <
+  TData = Common.BackfillServiceGetBackfillDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    backfillId,
+  }: {
+    backfillId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseBackfillServiceGetBackfillKeyFn(
+      { backfillId },
+      queryKey,
+    ),
+    queryFn: () => BackfillService.getBackfill({ backfillId }) as TData,
     ...options,
   });
 /**
@@ -409,71 +481,6 @@ export const useConnectionServiceGetConnections = <
     ...options,
   });
 /**
- * Get Variable
- * Get a variable entry.
- * @param data The data for the request.
- * @param data.variableKey
- * @returns VariableResponse Successful Response
- * @throws ApiError
- */
-export const useVariableServiceGetVariable = <
-  TData = Common.VariableServiceGetVariableDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    variableKey,
-  }: {
-    variableKey: string;
-  },
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseVariableServiceGetVariableKeyFn(
-      { variableKey },
-      queryKey,
-    ),
-    queryFn: () => VariableService.getVariable({ variableKey }) as TData,
-    ...options,
-  });
-/**
- * Get Variables
- * Get all Variables entries.
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @returns VariableCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useVariableServiceGetVariables = <
-  TData = Common.VariableServiceGetVariablesDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    limit,
-    offset,
-    orderBy,
-  }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  } = {},
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseVariableServiceGetVariablesKeyFn(
-      { limit, offset, orderBy },
-      queryKey,
-    ),
-    queryFn: () =>
-      VariableService.getVariables({ limit, offset, orderBy }) as TData,
-    ...options,
-  });
-/**
  * Get Dag Run
  * @param data The data for the request.
  * @param data.dagId
@@ -505,6 +512,166 @@ export const useDagRunServiceGetDagRun = <
     ...options,
   });
 /**
+ * Get Dag Source
+ * Get source code using file token.
+ * @param data The data for the request.
+ * @param data.fileToken
+ * @param data.accept
+ * @returns DAGSourceResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagSourceServiceGetDagSource = <
+  TData = Common.DagSourceServiceGetDagSourceDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    accept,
+    fileToken,
+  }: {
+    accept?: string;
+    fileToken: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagSourceServiceGetDagSourceKeyFn(
+      { accept, fileToken },
+      queryKey,
+    ),
+    queryFn: () =>
+      DagSourceService.getDagSource({ accept, fileToken }) as TData,
+    ...options,
+  });
+/**
+ * Get Event Log
+ * @param data The data for the request.
+ * @param data.eventLogId
+ * @returns EventLogResponse Successful Response
+ * @throws ApiError
+ */
+export const useEventLogServiceGetEventLog = <
+  TData = Common.EventLogServiceGetEventLogDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    eventLogId,
+  }: {
+    eventLogId: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseEventLogServiceGetEventLogKeyFn(
+      { eventLogId },
+      queryKey,
+    ),
+    queryFn: () => EventLogService.getEventLog({ eventLogId }) as TData,
+    ...options,
+  });
+/**
+ * Get Event Logs
+ * Get all Event Logs.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.taskId
+ * @param data.runId
+ * @param data.mapIndex
+ * @param data.tryNumber
+ * @param data.owner
+ * @param data.event
+ * @param data.excludedEvents
+ * @param data.includedEvents
+ * @param data.before
+ * @param data.after
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns EventLogCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useEventLogServiceGetEventLogs = <
+  TData = Common.EventLogServiceGetEventLogsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    after,
+    before,
+    dagId,
+    event,
+    excludedEvents,
+    includedEvents,
+    limit,
+    mapIndex,
+    offset,
+    orderBy,
+    owner,
+    runId,
+    taskId,
+    tryNumber,
+  }: {
+    after?: string;
+    before?: string;
+    dagId?: string;
+    event?: string;
+    excludedEvents?: string[];
+    includedEvents?: string[];
+    limit?: number;
+    mapIndex?: number;
+    offset?: number;
+    orderBy?: string;
+    owner?: string;
+    runId?: string;
+    taskId?: string;
+    tryNumber?: number;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseEventLogServiceGetEventLogsKeyFn(
+      {
+        after,
+        before,
+        dagId,
+        event,
+        excludedEvents,
+        includedEvents,
+        limit,
+        mapIndex,
+        offset,
+        orderBy,
+        owner,
+        runId,
+        taskId,
+        tryNumber,
+      },
+      queryKey,
+    ),
+    queryFn: () =>
+      EventLogService.getEventLogs({
+        after,
+        before,
+        dagId,
+        event,
+        excludedEvents,
+        includedEvents,
+        limit,
+        mapIndex,
+        offset,
+        orderBy,
+        owner,
+        runId,
+        taskId,
+        tryNumber,
+      }) as TData,
+    ...options,
+  });
+/**
  * Get Health
  * @returns HealthInfoSchema Successful Response
  * @throws ApiError
@@ -520,6 +687,85 @@ export const useMonitorServiceGetHealth = <
   useQuery<TData, TError>({
     queryKey: Common.UseMonitorServiceGetHealthKeyFn(queryKey),
     queryFn: () => MonitorService.getHealth() as TData,
+    ...options,
+  });
+/**
+ * List Dag Warnings
+ * Get a list of DAG warnings.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.warningType
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns DAGWarningCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagWarningServiceListDagWarnings = <
+  TData = Common.DagWarningServiceListDagWarningsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    limit,
+    offset,
+    orderBy,
+    warningType,
+  }: {
+    dagId?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    warningType?: DagWarningType;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn(
+      { dagId, limit, offset, orderBy, warningType },
+      queryKey,
+    ),
+    queryFn: () =>
+      DagWarningService.listDagWarnings({
+        dagId,
+        limit,
+        offset,
+        orderBy,
+        warningType,
+      }) as TData,
+    ...options,
+  });
+/**
+ * Get Plugins
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @returns PluginCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const usePluginServiceGetPlugins = <
+  TData = Common.PluginServiceGetPluginsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    limit,
+    offset,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UsePluginServiceGetPluginsKeyFn(
+      { limit, offset },
+      queryKey,
+    ),
+    queryFn: () => PluginService.getPlugins({ limit, offset }) as TData,
     ...options,
   });
 /**
@@ -616,34 +862,148 @@ export const useProviderServiceGetProviders = <
     ...options,
   });
 /**
- * Get Plugins
+ * Get Task Instance
+ * Get task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @returns TaskInstanceResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceGetTaskInstance = <
+  TData = Common.TaskInstanceServiceGetTaskInstanceDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    taskId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    taskId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceKeyFn(
+      { dagId, dagRunId, taskId },
+      queryKey,
+    ),
+    queryFn: () =>
+      TaskInstanceService.getTaskInstance({ dagId, dagRunId, taskId }) as TData,
+    ...options,
+  });
+/**
+ * Get Mapped Task Instance
+ * Get task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.mapIndex
+ * @returns TaskInstanceResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceGetMappedTaskInstance = <
+  TData = Common.TaskInstanceServiceGetMappedTaskInstanceDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    taskId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceKeyFn(
+      { dagId, dagRunId, mapIndex, taskId },
+      queryKey,
+    ),
+    queryFn: () =>
+      TaskInstanceService.getMappedTaskInstance({
+        dagId,
+        dagRunId,
+        mapIndex,
+        taskId,
+      }) as TData,
+    ...options,
+  });
+/**
+ * Get Variable
+ * Get a variable entry.
+ * @param data The data for the request.
+ * @param data.variableKey
+ * @returns VariableResponse Successful Response
+ * @throws ApiError
+ */
+export const useVariableServiceGetVariable = <
+  TData = Common.VariableServiceGetVariableDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    variableKey,
+  }: {
+    variableKey: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseVariableServiceGetVariableKeyFn(
+      { variableKey },
+      queryKey,
+    ),
+    queryFn: () => VariableService.getVariable({ variableKey }) as TData,
+    ...options,
+  });
+/**
+ * Get Variables
+ * Get all Variables entries.
  * @param data The data for the request.
  * @param data.limit
  * @param data.offset
- * @returns PluginCollectionResponse Successful Response
+ * @param data.orderBy
+ * @returns VariableCollectionResponse Successful Response
  * @throws ApiError
  */
-export const usePluginServiceGetPlugins = <
-  TData = Common.PluginServiceGetPluginsDefaultResponse,
+export const useVariableServiceGetVariables = <
+  TData = Common.VariableServiceGetVariablesDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
     limit,
     offset,
+    orderBy,
   }: {
     limit?: number;
     offset?: number;
+    orderBy?: string;
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UsePluginServiceGetPluginsKeyFn(
-      { limit, offset },
+    queryKey: Common.UseVariableServiceGetVariablesKeyFn(
+      { limit, offset, orderBy },
       queryKey,
     ),
-    queryFn: () => PluginService.getPlugins({ limit, offset }) as TData,
+    queryFn: () =>
+      VariableService.getVariables({ limit, offset, orderBy }) as TData,
     ...options,
   });
 /**
@@ -666,31 +1026,78 @@ export const useVersionServiceGetVersion = <
     ...options,
   });
 /**
- * Get Event Log
+ * Create Backfill
  * @param data The data for the request.
- * @param data.eventLogId
- * @returns EventLogResponse Successful Response
+ * @param data.requestBody
+ * @returns unknown Successful Response
  * @throws ApiError
  */
-export const useEventLogServiceGetEventLog = <
-  TData = Common.EventLogServiceGetEventLogDefaultResponse,
+export const useBackfillServiceCreateBackfill = <
+  TData = Common.BackfillServiceCreateBackfillMutationResult,
   TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
+  TContext = unknown,
 >(
-  {
-    eventLogId,
-  }: {
-    eventLogId: number;
-  },
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: BackfillPostBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
 ) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseEventLogServiceGetEventLogKeyFn(
-      { eventLogId },
-      queryKey,
-    ),
-    queryFn: () => EventLogService.getEventLog({ eventLogId }) as TData,
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: BackfillPostBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      BackfillService.createBackfill({
+        requestBody,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Post Pool
+ * Create a Pool.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns PoolResponse Successful Response
+ * @throws ApiError
+ */
+export const usePoolServicePostPool = <
+  TData = Common.PoolServicePostPoolMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: PoolPostBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: PoolPostBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      PoolService.postPool({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -733,15 +1140,14 @@ export const useVariableServicePostVariable = <
     ...options,
   });
 /**
- * Post Pool
- * Create a Pool.
+ * Pause Backfill
  * @param data The data for the request.
- * @param data.requestBody
- * @returns PoolResponse Successful Response
+ * @param data.backfillId
+ * @returns unknown Successful Response
  * @throws ApiError
  */
-export const usePoolServicePostPool = <
-  TData = Common.PoolServicePostPoolMutationResult,
+export const useBackfillServicePauseBackfill = <
+  TData = Common.BackfillServicePauseBackfillMutationResult,
   TError = unknown,
   TContext = unknown,
 >(
@@ -750,7 +1156,7 @@ export const usePoolServicePostPool = <
       TData,
       TError,
       {
-        requestBody: PoolPostBody;
+        backfillId: unknown;
       },
       TContext
     >,
@@ -761,12 +1167,90 @@ export const usePoolServicePostPool = <
     TData,
     TError,
     {
-      requestBody: PoolPostBody;
+      backfillId: unknown;
     },
     TContext
   >({
-    mutationFn: ({ requestBody }) =>
-      PoolService.postPool({ requestBody }) as unknown as Promise<TData>,
+    mutationFn: ({ backfillId }) =>
+      BackfillService.pauseBackfill({
+        backfillId,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Unpause Backfill
+ * @param data The data for the request.
+ * @param data.backfillId
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useBackfillServiceUnpauseBackfill = <
+  TData = Common.BackfillServiceUnpauseBackfillMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        backfillId: unknown;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      backfillId: unknown;
+    },
+    TContext
+  >({
+    mutationFn: ({ backfillId }) =>
+      BackfillService.unpauseBackfill({
+        backfillId,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Cancel Backfill
+ * @param data The data for the request.
+ * @param data.backfillId
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useBackfillServiceCancelBackfill = <
+  TData = Common.BackfillServiceCancelBackfillMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        backfillId: unknown;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      backfillId: unknown;
+    },
+    TContext
+  >({
+    mutationFn: ({ backfillId }) =>
+      BackfillService.cancelBackfill({
+        backfillId,
+      }) as unknown as Promise<TData>,
     ...options,
   });
 /**
@@ -903,53 +1387,6 @@ export const useDagServicePatchDag = <
     ...options,
   });
 /**
- * Patch Variable
- * Update a variable by key.
- * @param data The data for the request.
- * @param data.variableKey
- * @param data.requestBody
- * @param data.updateMask
- * @returns VariableResponse Successful Response
- * @throws ApiError
- */
-export const useVariableServicePatchVariable = <
-  TData = Common.VariableServicePatchVariableMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        requestBody: VariableBody;
-        updateMask?: string[];
-        variableKey: string;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      requestBody: VariableBody;
-      updateMask?: string[];
-      variableKey: string;
-    },
-    TContext
-  >({
-    mutationFn: ({ requestBody, updateMask, variableKey }) =>
-      VariableService.patchVariable({
-        requestBody,
-        updateMask,
-        variableKey,
-      }) as unknown as Promise<TData>,
-    ...options,
-  });
-/**
  * Patch Dag Run State
  * Modify a DAG Run.
  * @param data The data for the request.
@@ -1048,6 +1485,53 @@ export const usePoolServicePatchPool = <
     ...options,
   });
 /**
+ * Patch Variable
+ * Update a variable by key.
+ * @param data The data for the request.
+ * @param data.variableKey
+ * @param data.requestBody
+ * @param data.updateMask
+ * @returns VariableResponse Successful Response
+ * @throws ApiError
+ */
+export const useVariableServicePatchVariable = <
+  TData = Common.VariableServicePatchVariableMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: VariableBody;
+        updateMask?: string[];
+        variableKey: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: VariableBody;
+      updateMask?: string[];
+      variableKey: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody, updateMask, variableKey }) =>
+      VariableService.patchVariable({
+        requestBody,
+        updateMask,
+        variableKey,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Delete Dag
  * Delete the specific DAG.
  * @param data The data for the request.
@@ -1120,45 +1604,6 @@ export const useConnectionServiceDeleteConnection = <
     mutationFn: ({ connectionId }) =>
       ConnectionService.deleteConnection({
         connectionId,
-      }) as unknown as Promise<TData>,
-    ...options,
-  });
-/**
- * Delete Variable
- * Delete a variable entry.
- * @param data The data for the request.
- * @param data.variableKey
- * @returns void Successful Response
- * @throws ApiError
- */
-export const useVariableServiceDeleteVariable = <
-  TData = Common.VariableServiceDeleteVariableMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        variableKey: string;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      variableKey: string;
-    },
-    TContext
-  >({
-    mutationFn: ({ variableKey }) =>
-      VariableService.deleteVariable({
-        variableKey,
       }) as unknown as Promise<TData>,
     ...options,
   });
@@ -1240,5 +1685,44 @@ export const usePoolServiceDeletePool = <
   >({
     mutationFn: ({ poolName }) =>
       PoolService.deletePool({ poolName }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Delete Variable
+ * Delete a variable entry.
+ * @param data The data for the request.
+ * @param data.variableKey
+ * @returns void Successful Response
+ * @throws ApiError
+ */
+export const useVariableServiceDeleteVariable = <
+  TData = Common.VariableServiceDeleteVariableMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        variableKey: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      variableKey: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ variableKey }) =>
+      VariableService.deleteVariable({
+        variableKey,
+      }) as unknown as Promise<TData>,
     ...options,
   });

@@ -36,12 +36,11 @@ from sqlalchemy import (
     desc,
     func,
     select,
-    update,
 )
 from sqlalchemy.orm import relationship, validates
 from sqlalchemy_jsonfield import JSONField
 
-from airflow.api_connexion.exceptions import Conflict, NotFound
+from airflow.api_connexion.exceptions import NotFound
 from airflow.exceptions import AirflowException
 from airflow.models.base import Base, StringID
 from airflow.settings import json
@@ -87,7 +86,7 @@ class Backfill(Base):
     dag_id = Column(StringID(), nullable=False)
     from_date = Column(UtcDateTime, nullable=False)
     to_date = Column(UtcDateTime, nullable=False)
-    dag_run_conf = Column(JSONField(json=json), nullable=True)
+    dag_run_conf = Column(JSONField(json=json), nullable=False, default={})
     is_paused = Column(Boolean, default=False)
     """
     Controls whether new dag runs will be created for this backfill.
@@ -333,33 +332,3 @@ def _create_backfill(
                 info,
             )
     return br
-
-
-def _cancel_backfill(backfill_id) -> Backfill:
-    with create_session() as session:
-        b: Backfill = session.get(Backfill, backfill_id)
-        if b.completed_at is not None:
-            raise Conflict("Backfill is already completed.")
-
-        b.completed_at = timezone.utcnow()
-
-        # first, pause
-        if not b.is_paused:
-            b.is_paused = True
-
-        session.commit()
-
-        from airflow.models import DagRun
-
-        # now, let's mark all queued dag runs as failed
-        query = (
-            update(DagRun)
-            .where(
-                DagRun.id.in_(select(BackfillDagRun.dag_run_id).where(BackfillDagRun.backfill_id == b.id)),
-                DagRun.state == DagRunState.QUEUED,
-            )
-            .values(state=DagRunState.FAILED)
-            .execution_options(synchronize_session=False)
-        )
-        session.execute(query)
-    return b

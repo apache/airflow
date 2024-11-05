@@ -123,7 +123,7 @@ def run_scheduler_job(with_db_reset=False) -> None:
 
     if with_db_reset:
         reset_db()
-    job_runner = SchedulerJobRunner(job=Job(), subdir=DAG_FOLDER, do_pickle=False, num_runs=3)
+    job_runner = SchedulerJobRunner(job=Job(), subdir=DAG_FOLDER, num_runs=3)
     run_job(job=job_runner.job, execute_callable=job_runner._execute)
 
 

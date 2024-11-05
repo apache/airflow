@@ -40,6 +40,7 @@ from airflow.models.taskinstance import (
 )
 from airflow.serialization.pydantic.dag import DagModelPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
+from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.xcom import XCOM_RETURN_KEY
@@ -83,6 +84,7 @@ PydanticOperator = Annotated[
 class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     """Serializable representation of the TaskInstance ORM SqlAlchemyModel used by internal API."""
 
+    id: str
     task_id: str
     dag_id: str
     run_id: str
@@ -96,7 +98,6 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     max_tries: int
     hostname: str
     unixname: str
-    job_id: Optional[int]
     pool: str
     pool_slots: int
     queue: str
@@ -105,6 +106,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     custom_operator_name: Optional[str]
     queued_dttm: Optional[datetime]
     queued_by_job_id: Optional[int]
+    last_heartbeat_at: Optional[datetime] = None
     pid: Optional[int]
     executor: Optional[str]
     executor_config: Any
@@ -138,7 +140,6 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         self,
         mark_success: bool = False,
         test_mode: bool = False,
-        job_id: str | None = None,
         pool: str | None = None,
         raise_on_defer: bool = False,
         session: Session | None = None,
@@ -147,7 +148,6 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
             ti=self,
             mark_success=mark_success,
             test_mode=test_mode,
-            job_id=job_id,
             pool=pool,
             raise_on_defer=raise_on_defer,
             session=session,
@@ -251,6 +251,12 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         from airflow.models.taskinstance import _refresh_from_db
 
         _refresh_from_db(task_instance=self, session=session, lock_for_update=lock_for_update)
+
+    def update_heartbeat(self):
+        """Update the recorded heartbeat for this task to "now"."""
+        from airflow.models.taskinstance import _update_ti_heartbeat
+
+        return _update_ti_heartbeat(self.id, timezone.utcnow())
 
     def set_duration(self) -> None:
         """Set task instance duration."""
@@ -441,7 +447,6 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         ignore_ti_state: bool = False,
         mark_success: bool = False,
         test_mode: bool = False,
-        job_id: str | None = None,
         pool: str | None = None,
         external_executor_id: str | None = None,
         session: Session | None = None,
@@ -457,7 +462,6 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
             mark_success=mark_success,
             test_mode=test_mode,
             hostname=get_hostname(),
-            job_id=job_id,
             pool=pool,
             external_executor_id=external_executor_id,
             session=session,
@@ -482,9 +486,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         wait_for_past_depends_before_skipping: bool = False,
         ignore_ti_state: bool = False,
         local: bool = False,
-        pickle_id: int | None = None,
         raw: bool = False,
-        job_id: str | None = None,
         pool: str | None = None,
         cfg_path: str | None = None,
     ) -> list[str]:
@@ -502,9 +504,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
             wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
             ignore_ti_state=ignore_ti_state,
             local=local,
-            pickle_id=pickle_id,
             raw=raw,
-            job_id=job_id,
             pool=pool,
             cfg_path=cfg_path,
         )

@@ -118,8 +118,10 @@ existing code to use other variables instead.
 Deprecated Variable                     Description
 =====================================   ==========================================================================
 ``{{ execution_date }}``                the execution date (logical date), same as ``logical_date``
-``{{ next_execution_date }}``           the logical date of the next scheduled run (if applicable);
-                                        you may be able to use ``data_interval_end`` instead
+``{{ next_execution_date }}``           the logical date of the next scheduled run,
+                                        you may be able to use ``data_interval_end`` instead; for manually
+                                        triggered dagruns that aren't on a schedule, ``next_execution_date`` is
+                                        set to ``logical_date``
 ``{{ next_ds }}``                       the next execution date as ``YYYY-MM-DD`` if exists, else ``None``
 ``{{ next_ds_nodash }}``                the next execution date as ``YYYYMMDD`` if exists, else ``None``
 ``{{ prev_execution_date }}``           the logical date of the previous scheduled run (if applicable)

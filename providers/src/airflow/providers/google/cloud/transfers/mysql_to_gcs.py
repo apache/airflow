@@ -23,7 +23,16 @@ import base64
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
-from MySQLdb.constants import FIELD_TYPE
+try:
+    from MySQLdb.constants import FIELD_TYPE
+except ImportError:
+    raise RuntimeError(
+        "You do not have `mysqlclient` package installed. "
+        "Please install it with `pip install mysqlclient` and make sure you have system "
+        "mysql libraries installed, as well as well as `pkg-config` system package "
+        "installed in case you see compilation error during installation."
+    )
+
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook

@@ -26,8 +26,8 @@ from airflow.exceptions import AirflowTaskTimeout
 from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 

@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
@@ -37,7 +37,9 @@ connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
 @connections_router.delete(
     "/{connection_id}",
     status_code=204,
-    responses=create_openapi_http_exception_doc([401, 403, 404]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
+    ),
 )
 async def delete_connection(
     connection_id: str,
@@ -47,14 +49,18 @@ async def delete_connection(
     connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
 
     if connection is None:
-        raise HTTPException(404, f"The Connection with connection_id: `{connection_id}` was not found")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"The Connection with connection_id: `{connection_id}` was not found"
+        )
 
     session.delete(connection)
 
 
 @connections_router.get(
     "/{connection_id}",
-    responses=create_openapi_http_exception_doc([401, 403, 404]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
+    ),
 )
 async def get_connection(
     connection_id: str,
@@ -64,14 +70,18 @@ async def get_connection(
     connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
 
     if connection is None:
-        raise HTTPException(404, f"The Connection with connection_id: `{connection_id}` was not found")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"The Connection with connection_id: `{connection_id}` was not found"
+        )
 
     return ConnectionResponse.model_validate(connection, from_attributes=True)
 
 
 @connections_router.get(
     "/",
-    responses=create_openapi_http_exception_doc([401, 403, 404]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
+    ),
 )
 async def get_connections(
     limit: QueryLimit,

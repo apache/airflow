@@ -16,17 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  IconButton,
-  Link,
-  Menu,
-  MenuButton,
-  MenuItem,
-  MenuList,
-} from "@chakra-ui/react";
+import { Link } from "@chakra-ui/react";
 import { FiBookOpen } from "react-icons/fi";
 
-import { navButtonProps } from "./navButtonProps";
+import { Menu } from "src/components/ui";
+
+import { NavButton } from "./NavButton";
 
 const links = [
   {
@@ -44,24 +39,23 @@ const links = [
 ];
 
 export const DocsButton = () => (
-  <Menu placement="right">
-    <MenuButton
-      as={IconButton}
-      icon={<FiBookOpen size="1.75rem" />}
-      {...navButtonProps}
-    />
-    <MenuList>
+  <Menu.Root positioning={{ placement: "right" }}>
+    <Menu.Trigger asChild>
+      <NavButton icon={<FiBookOpen size="1.75rem" />} title="Docs" />
+    </Menu.Trigger>
+    <Menu.Content>
       {links.map((link) => (
-        <MenuItem
-          aria-label={link.title}
-          as={Link}
-          href={link.href}
-          key={link.title}
-          target="_blank"
-        >
-          {link.title}
-        </MenuItem>
+        <Menu.Item asChild key={link.title} value={link.title}>
+          <Link
+            aria-label={link.title}
+            href={link.href}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            {link.title}
+          </Link>
+        </Menu.Item>
       ))}
-    </MenuList>
-  </Menu>
+    </Menu.Content>
+  </Menu.Root>
 );

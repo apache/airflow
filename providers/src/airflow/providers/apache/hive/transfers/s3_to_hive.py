@@ -22,6 +22,7 @@ from __future__ import annotations
 import bz2
 import gzip
 import os
+import shutil
 import tempfile
 from collections.abc import Sequence
 from tempfile import NamedTemporaryFile, TemporaryDirectory
@@ -31,7 +32,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
-from airflow.utils.compression import uncompress_file
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -277,3 +277,20 @@ class S3ToHiveOperator(BaseOperator):
             for line in f_in:
                 f_out.write(line)
         return fn_output
+
+
+def uncompress_file(input_file_name, file_extension, dest_dir):
+    """Uncompress gz and bz2 files."""
+    if file_extension.lower() not in (".gz", ".bz2"):
+        raise NotImplementedError(
+            f"Received {file_extension} format. Only gz and bz2 files can currently be uncompressed."
+        )
+    if file_extension.lower() == ".gz":
+        fmodule = gzip.GzipFile
+    elif file_extension.lower() == ".bz2":
+        fmodule = bz2.BZ2File
+    with fmodule(input_file_name, mode="rb") as f_compressed, NamedTemporaryFile(
+        dir=dest_dir, mode="wb", delete=False
+    ) as f_uncompressed:
+        shutil.copyfileobj(f_compressed, f_uncompressed)
+    return f_uncompressed.name
