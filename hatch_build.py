@@ -246,7 +246,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     "devel-static-checks": [
         "black>=23.12.0",
         "pre-commit>=3.5.0",
-        "ruff==0.7.1",
+        "ruff==0.7.2",
         "yamllint>=1.33.0",
     ],
     "devel-tests": [
@@ -431,6 +431,7 @@ DEPENDENCIES = [
     # The issue tracking it is https://github.com/apache/airflow/issues/28723
     "sqlalchemy>=1.4.36,<2.0",
     "sqlalchemy-jsonfield>=1.0",
+    "sqlalchemy-utils>=0.41.2",
     "tabulate>=0.7.5",
     "tenacity>=8.0.0,!=8.2.0",
     "termcolor>=1.1.0",

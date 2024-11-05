@@ -112,7 +112,7 @@ with DAG(
     #       Run the example a second time and see that it re-uses it and is faster.
     VENV_CACHE_PATH = tempfile.gettempdir()
 
-    @task.branch_virtualenv(requirements=["numpy~=1.24.4"], venv_cache_path=VENV_CACHE_PATH)
+    @task.branch_virtualenv(requirements=["numpy~=1.26.0"], venv_cache_path=VENV_CACHE_PATH)
     def branching_virtualenv(choices) -> str:
         import random
 
@@ -132,7 +132,7 @@ with DAG(
     for option in options:
 
         @task.virtualenv(
-            task_id=f"venv_{option}", requirements=["numpy~=1.24.4"], venv_cache_path=VENV_CACHE_PATH
+            task_id=f"venv_{option}", requirements=["numpy~=1.26.0"], venv_cache_path=VENV_CACHE_PATH
         )
         def some_venv_task():
             import numpy as np

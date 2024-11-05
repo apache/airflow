@@ -54,10 +54,10 @@ from airflow.models.asset import (
 )
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DAG, DagModel
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
@@ -156,8 +156,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         -1 for unlimited times.
     :param scheduler_idle_sleep_time: The number of seconds to wait between
         polls of running processors
-    :param do_pickle: once a DAG object is obtained by executing the Python
-        file, whether to serialize the DAG object to the DB
     :param log: override the default Logger
     """
 
@@ -170,7 +168,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         num_runs: int = conf.getint("scheduler", "num_runs"),
         num_times_parse_dags: int = -1,
         scheduler_idle_sleep_time: float = conf.getfloat("scheduler", "scheduler_idle_sleep_time"),
-        do_pickle: bool = False,
         log: logging.Logger | None = None,
     ):
         super().__init__(job)
@@ -186,8 +183,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
         self._task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
-
-        self.do_pickle = do_pickle
 
         self._enable_tracemalloc = conf.getboolean("scheduler", "enable_tracemalloc")
         if self._enable_tracemalloc:
@@ -639,7 +634,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
             command = ti.command_as_list(
                 local=True,
-                pickle_id=ti.dag_model.pickle_id,
             )
 
             priority = ti.priority_weight
@@ -923,9 +917,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         executor_class, _ = ExecutorLoader.import_default_executor_cls()
 
-        # DAGs can be pickled for easier remote execution by some executors
-        pickle_dags = self.do_pickle and executor_class.supports_pickling
-
         self.log.info("Processing each file at most %s times", self.num_times_parse_dags)
 
         # When using sqlite, we do not use async_mode
@@ -940,7 +931,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 max_runs=self.num_times_parse_dags,
                 processor_timeout=processor_timeout,
                 dag_ids=[],
-                pickle_dags=pickle_dags,
                 async_mode=async_mode,
             )
 
@@ -1348,7 +1338,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_model.dag_id)
                 continue
 
-            dag_hash = self.dagbag.dags_hash.get(dag.dag_id)
+            latest_dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
 
             data_interval = dag.get_next_data_interval(dag_model)
             # Explicitly check if the DagRun already exists. This is an edge case
@@ -1368,7 +1358,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         data_interval=data_interval,
                         external_trigger=False,
                         session=session,
-                        dag_hash=dag_hash,
+                        dag_version=latest_dag_version,
                         creating_job_id=self.job.id,
                         triggered_by=DagRunTriggeredByType.TIMETABLE,
                     )
@@ -1427,7 +1417,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
 
-            dag_hash = self.dagbag.dags_hash.get(dag.dag_id)
+            latest_dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
 
             # Explicitly check if the DagRun already exists. This is an edge case
             # where a Dag Run is created but `DagModel.next_dagrun` and `DagModel.next_dagrun_create_after`
@@ -1482,7 +1472,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     state=DagRunState.QUEUED,
                     external_trigger=False,
                     session=session,
-                    dag_hash=dag_hash,
+                    dag_version=latest_dag_version,
                     creating_job_id=self.job.id,
                     triggered_by=DagRunTriggeredByType.ASSET,
                 )
@@ -1760,17 +1750,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         Return True if we determine that DAG still exists.
         """
-        latest_version = SerializedDagModel.get_latest_version_hash(dag_run.dag_id, session=session)
-        if dag_run.dag_hash == latest_version:
+        latest_dag_version = DagVersion.get_latest_version(dag_run.dag_id, session=session)
+        if TYPE_CHECKING:
+            assert latest_dag_version
+        if dag_run.dag_version_id == latest_dag_version.id:
             self.log.debug("DAG %s not changed structure, skipping dagrun.verify_integrity", dag_run.dag_id)
             return True
-
-        dag_run.dag_hash = latest_version
 
         # Refresh the DAG
         dag_run.dag = self.dagbag.get_dag(dag_id=dag_run.dag_id, session=session)
         if not dag_run.dag:
             return False
+
+        dag_run.dag_version = latest_dag_version
 
         # Verify integrity also takes care of session.flush
         dag_run.verify_integrity(session=session)
@@ -2051,7 +2043,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         In case one of DagProcessors is stopped (in case there are multiple of them
         for different dag folders), its dags are never marked as inactive.
-        Also remove dags from SerializedDag table.
         Executed on schedule only if [scheduler]standalone_dag_processor is True.
         """
         self.log.debug("Checking dags not parsed within last %s seconds.", self._dag_stale_not_seen_duration)
@@ -2066,7 +2057,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.log.info("Found (%d) stales dags not parsed after %s.", len(stale_dags), limit_lpt)
         for dag in stale_dags:
             dag.is_active = False
-            SerializedDagModel.remove_dag(dag_id=dag.dag_id, session=session)
         session.flush()
 
     @provide_session
