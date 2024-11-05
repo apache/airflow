@@ -16,13 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import contextmanager
 from itertools import chain
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import Mock
 
 import pytest
-from flask import Flask
+from flask import Flask, g
 
 from airflow.exceptions import AirflowConfigException, AirflowException
 
@@ -72,6 +73,13 @@ IS_AUTHORIZED_METHODS_SIMPLE = {
 }
 
 
+@contextmanager
+def user_set(app, user):
+    g.user = user
+    yield
+    g.user = None
+
+
 @pytest.fixture
 def auth_manager():
     return FabAuthManager(None)
@@ -114,12 +122,24 @@ class TestFabAuthManager:
         assert auth_manager.get_user_display_name() == expected
 
     @mock.patch("flask_login.utils._get_user")
-    def test_get_user(self, mock_current_user, auth_manager):
+    def test_get_user(self, mock_current_user, minimal_app_for_auth_api, auth_manager):
         user = Mock()
         user.is_anonymous.return_value = True
         mock_current_user.return_value = user
+        with minimal_app_for_auth_api.app_context():
+            assert auth_manager.get_user() == user
 
-        assert auth_manager.get_user() == user
+    @mock.patch("flask_login.utils._get_user")
+    def test_get_user_from_flask_g(self, mock_current_user, minimal_app_for_auth_api, auth_manager):
+        session_user = Mock()
+        session_user.is_anonymous = True
+        mock_current_user.return_value = session_user
+
+        flask_g_user = Mock()
+        flask_g_user.is_anonymous = False
+        with minimal_app_for_auth_api.app_context():
+            with user_set(minimal_app_for_auth_api, flask_g_user):
+                assert auth_manager.get_user() == flask_g_user
 
     @pytest.mark.db_test
     @mock.patch.object(FabAuthManager, "get_user")
