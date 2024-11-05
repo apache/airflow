@@ -229,7 +229,7 @@ class WinRMHook(BaseHook):
 
     def run(
         self,
-        command: str | None = None,
+        command: str,
         ps_path: str | None = None,
         output_encoding: str = "utf-8",
         return_output: bool = True,
