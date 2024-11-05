@@ -32,6 +32,7 @@ from airflow.models import Base, Connection
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
+from airflow.models.errors import ParseImportError
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 
@@ -111,6 +112,18 @@ class _OnlyActiveFilter(BaseParam[bool]):
         return self.set_value(only_active)
 
 
+class _DagIdsFilter(BaseParam[list[str]]):
+    """Filter on multi-valued dag_ids param for DagRun."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value and self.skip_none:
+            return select.where(DagRun.dag_id.in_(self.value))
+        return select
+
+    def depends(self, dag_ids: list[str] = Query(None)) -> _DagIdsFilter:
+        return self.set_value(dag_ids)
+
+
 class _SearchParam(BaseParam[str]):
     """Search on attribute."""
 
@@ -158,6 +171,7 @@ class SortParam(BaseParam[str]):
         "last_run_state": DagRun.state,
         "last_run_start_date": DagRun.start_date,
         "connection_id": Connection.conn_id,
+        "import_error_id": ParseImportError.id,
     }
 
     def __init__(
@@ -323,6 +337,7 @@ class _DagIdFilter(BaseParam[str]):
 
 # Common Safe DateTime
 DateTimeQuery = Annotated[str, AfterValidator(_safe_parse_datetime)]
+
 # DAG
 QueryLimit = Annotated[_LimitFilter, Depends(_LimitFilter().depends)]
 QueryOffset = Annotated[_OffsetFilter, Depends(_OffsetFilter().depends)]
@@ -337,10 +352,14 @@ QueryDagIdPatternSearchWithNone = Annotated[
 ]
 QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter().depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter().depends)]
+
 # DagRun
 QueryLastDagRunStateFilter = Annotated[_LastDagRunStateFilter, Depends(_LastDagRunStateFilter().depends)]
+QueryDagIdsFilter = Annotated[_DagIdsFilter, Depends(_DagIdsFilter().depends)]
+
 # DAGWarning
 QueryDagIdInDagWarningFilter = Annotated[_DagIdFilter, Depends(_DagIdFilter(DagWarning.dag_id).depends)]
 QueryWarningTypeFilter = Annotated[_WarningTypeFilter, Depends(_WarningTypeFilter().depends)]
+
 # DAGTags
 QueryDagTagPatternSearch = Annotated[_DagTagNamePatternSearch, Depends(_DagTagNamePatternSearch().depends)]

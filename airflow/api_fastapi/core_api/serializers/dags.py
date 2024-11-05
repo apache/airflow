@@ -43,9 +43,7 @@ class DAGResponse(BaseModel):
     is_paused: bool
     is_active: bool
     last_parsed_time: datetime | None
-    last_pickled: datetime | None
     last_expired: datetime | None
-    pickle_id: datetime | None
     default_view: str | None
     fileloc: str
     description: str | None

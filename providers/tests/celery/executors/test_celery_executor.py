@@ -110,9 +110,6 @@ class TestCeleryExecutor:
         db.clear_db_runs()
         db.clear_db_jobs()
 
-    def test_supports_pickling(self):
-        assert CeleryExecutor.supports_pickling
-
     def test_supports_sentry(self):
         assert CeleryExecutor.supports_sentry
 

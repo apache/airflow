@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from airflow.api_fastapi.common.router import AirflowRouter
 
-health_router = AirflowRouter(tags=["Task SDK"])
+health_router = AirflowRouter(tags=["Health"])
 
 
 @health_router.get("/health")

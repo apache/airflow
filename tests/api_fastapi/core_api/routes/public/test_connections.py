@@ -169,3 +169,122 @@ class TestGetConnections(TestConnectionEndpoint):
         body = response.json()
         assert body["total_entries"] == expected_total_entries
         assert [connection["connection_id"] for connection in body["connections"]] == expected_ids
+
+
+class TestPostConnection(TestConnectionEndpoint):
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE},
+            {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "extra": None},
+            {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "extra": "{}"},
+            {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "extra": '{"key": "value"}'},
+            {
+                "connection_id": TEST_CONN_ID,
+                "conn_type": TEST_CONN_TYPE,
+                "description": "test_description",
+                "host": "test_host",
+                "login": "test_login",
+                "schema": "test_schema",
+                "port": 8080,
+                "extra": '{"key": "value"}',
+            },
+        ],
+    )
+    def test_post_should_respond_200(self, test_client, session, body):
+        response = test_client.post("/public/connections/", json=body)
+        assert response.status_code == 201
+        connection = session.query(Connection).all()
+        assert len(connection) == 1
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"connection_id": "****", "conn_type": TEST_CONN_TYPE},
+            {"connection_id": "test()", "conn_type": TEST_CONN_TYPE},
+            {"connection_id": "this_^$#is_invalid", "conn_type": TEST_CONN_TYPE},
+            {"connection_id": "iam_not@#$_connection_id", "conn_type": TEST_CONN_TYPE},
+        ],
+    )
+    def test_post_should_respond_400_for_invalid_conn_id(self, test_client, body):
+        response = test_client.post("/public/connections/", json=body)
+        assert response.status_code == 400
+        connection_id = body["connection_id"]
+        assert response.json() == {
+            "detail": f"The key '{connection_id}' has to be made of "
+            "alphanumeric characters, dashes, dots and underscores exclusively",
+        }
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE},
+        ],
+    )
+    def test_post_should_respond_already_exist(self, test_client, body):
+        response = test_client.post("/public/connections/", json=body)
+        assert response.status_code == 201
+        # Another request
+        response = test_client.post("/public/connections/", json=body)
+        assert response.status_code == 409
+        assert response.json() == {
+            "detail": f"Connection with connection_id: `{TEST_CONN_ID}` already exists",
+        }
+
+    @pytest.mark.enable_redact
+    @pytest.mark.parametrize(
+        "body, expected_response",
+        [
+            (
+                {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "password": "test-password"},
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "description": None,
+                    "extra": None,
+                    "host": None,
+                    "login": None,
+                    "password": "***",
+                    "port": None,
+                    "schema": None,
+                },
+            ),
+            (
+                {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "password": "?>@#+!_%()#"},
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "description": None,
+                    "extra": None,
+                    "host": None,
+                    "login": None,
+                    "password": "***",
+                    "port": None,
+                    "schema": None,
+                },
+            ),
+            (
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "password": "A!rF|0wi$aw3s0m3",
+                    "extra": '{"password": "test-password"}',
+                },
+                {
+                    "connection_id": TEST_CONN_ID,
+                    "conn_type": TEST_CONN_TYPE,
+                    "description": None,
+                    "extra": '{"password": "***"}',
+                    "host": None,
+                    "login": None,
+                    "password": "***",
+                    "port": None,
+                    "schema": None,
+                },
+            ),
+        ],
+    )
+    def test_post_should_response_201_redacted_password(self, test_client, body, expected_response):
+        response = test_client.post("/public/connections/", json=body)
+        assert response.status_code == 201
+        assert response.json() == expected_response
