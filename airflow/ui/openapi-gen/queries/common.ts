@@ -8,10 +8,12 @@ import {
   DagRunService,
   DagService,
   DagSourceService,
+  DagStatsService,
   DagWarningService,
   DagsService,
   DashboardService,
   EventLogService,
+  ImportErrorService,
   MonitorService,
   PluginService,
   PoolService,
@@ -359,6 +361,112 @@ export const UseEventLogServiceGetEventLogKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useEventLogServiceGetEventLogKey, ...(queryKey ?? [{ eventLogId }])];
+export type EventLogServiceGetEventLogsDefaultResponse = Awaited<
+  ReturnType<typeof EventLogService.getEventLogs>
+>;
+export type EventLogServiceGetEventLogsQueryResult<
+  TData = EventLogServiceGetEventLogsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useEventLogServiceGetEventLogsKey = "EventLogServiceGetEventLogs";
+export const UseEventLogServiceGetEventLogsKeyFn = (
+  {
+    after,
+    before,
+    dagId,
+    event,
+    excludedEvents,
+    includedEvents,
+    limit,
+    mapIndex,
+    offset,
+    orderBy,
+    owner,
+    runId,
+    taskId,
+    tryNumber,
+  }: {
+    after?: string;
+    before?: string;
+    dagId?: string;
+    event?: string;
+    excludedEvents?: string[];
+    includedEvents?: string[];
+    limit?: number;
+    mapIndex?: number;
+    offset?: number;
+    orderBy?: string;
+    owner?: string;
+    runId?: string;
+    taskId?: string;
+    tryNumber?: number;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useEventLogServiceGetEventLogsKey,
+  ...(queryKey ?? [
+    {
+      after,
+      before,
+      dagId,
+      event,
+      excludedEvents,
+      includedEvents,
+      limit,
+      mapIndex,
+      offset,
+      orderBy,
+      owner,
+      runId,
+      taskId,
+      tryNumber,
+    },
+  ]),
+];
+export type ImportErrorServiceGetImportErrorDefaultResponse = Awaited<
+  ReturnType<typeof ImportErrorService.getImportError>
+>;
+export type ImportErrorServiceGetImportErrorQueryResult<
+  TData = ImportErrorServiceGetImportErrorDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useImportErrorServiceGetImportErrorKey =
+  "ImportErrorServiceGetImportError";
+export const UseImportErrorServiceGetImportErrorKeyFn = (
+  {
+    importErrorId,
+  }: {
+    importErrorId: number;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useImportErrorServiceGetImportErrorKey,
+  ...(queryKey ?? [{ importErrorId }]),
+];
+export type ImportErrorServiceGetImportErrorsDefaultResponse = Awaited<
+  ReturnType<typeof ImportErrorService.getImportErrors>
+>;
+export type ImportErrorServiceGetImportErrorsQueryResult<
+  TData = ImportErrorServiceGetImportErrorsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useImportErrorServiceGetImportErrorsKey =
+  "ImportErrorServiceGetImportErrors";
+export const UseImportErrorServiceGetImportErrorsKeyFn = (
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useImportErrorServiceGetImportErrorsKey,
+  ...(queryKey ?? [{ limit, offset, orderBy }]),
+];
 export type MonitorServiceGetHealthDefaultResponse = Awaited<
   ReturnType<typeof MonitorService.getHealth>
 >;
@@ -572,8 +680,27 @@ export const UseVersionServiceGetVersionKeyFn = (queryKey?: Array<unknown>) => [
   useVersionServiceGetVersionKey,
   ...(queryKey ?? []),
 ];
+export type DagStatsServiceGetDagStatsDefaultResponse = Awaited<
+  ReturnType<typeof DagStatsService.getDagStats>
+>;
+export type DagStatsServiceGetDagStatsQueryResult<
+  TData = DagStatsServiceGetDagStatsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagStatsServiceGetDagStatsKey = "DagStatsServiceGetDagStats";
+export const UseDagStatsServiceGetDagStatsKeyFn = (
+  {
+    dagIds,
+  }: {
+    dagIds?: string[];
+  } = {},
+  queryKey?: Array<unknown>,
+) => [useDagStatsServiceGetDagStatsKey, ...(queryKey ?? [{ dagIds }])];
 export type BackfillServiceCreateBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.createBackfill>
+>;
+export type ConnectionServicePostConnectionMutationResult = Awaited<
+  ReturnType<typeof ConnectionService.postConnection>
 >;
 export type PoolServicePostPoolMutationResult = Awaited<
   ReturnType<typeof PoolService.postPool>

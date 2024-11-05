@@ -8,10 +8,12 @@ import {
   DagRunService,
   DagService,
   DagSourceService,
+  DagStatsService,
   DagWarningService,
   DagsService,
   DashboardService,
   EventLogService,
+  ImportErrorService,
   MonitorService,
   PluginService,
   PoolService,
@@ -454,6 +456,149 @@ export const prefetchUseEventLogServiceGetEventLog = (
     queryFn: () => EventLogService.getEventLog({ eventLogId }),
   });
 /**
+ * Get Event Logs
+ * Get all Event Logs.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.taskId
+ * @param data.runId
+ * @param data.mapIndex
+ * @param data.tryNumber
+ * @param data.owner
+ * @param data.event
+ * @param data.excludedEvents
+ * @param data.includedEvents
+ * @param data.before
+ * @param data.after
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns EventLogCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseEventLogServiceGetEventLogs = (
+  queryClient: QueryClient,
+  {
+    after,
+    before,
+    dagId,
+    event,
+    excludedEvents,
+    includedEvents,
+    limit,
+    mapIndex,
+    offset,
+    orderBy,
+    owner,
+    runId,
+    taskId,
+    tryNumber,
+  }: {
+    after?: string;
+    before?: string;
+    dagId?: string;
+    event?: string;
+    excludedEvents?: string[];
+    includedEvents?: string[];
+    limit?: number;
+    mapIndex?: number;
+    offset?: number;
+    orderBy?: string;
+    owner?: string;
+    runId?: string;
+    taskId?: string;
+    tryNumber?: number;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseEventLogServiceGetEventLogsKeyFn({
+      after,
+      before,
+      dagId,
+      event,
+      excludedEvents,
+      includedEvents,
+      limit,
+      mapIndex,
+      offset,
+      orderBy,
+      owner,
+      runId,
+      taskId,
+      tryNumber,
+    }),
+    queryFn: () =>
+      EventLogService.getEventLogs({
+        after,
+        before,
+        dagId,
+        event,
+        excludedEvents,
+        includedEvents,
+        limit,
+        mapIndex,
+        offset,
+        orderBy,
+        owner,
+        runId,
+        taskId,
+        tryNumber,
+      }),
+  });
+/**
+ * Get Import Error
+ * Get an import error.
+ * @param data The data for the request.
+ * @param data.importErrorId
+ * @returns ImportErrorResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseImportErrorServiceGetImportError = (
+  queryClient: QueryClient,
+  {
+    importErrorId,
+  }: {
+    importErrorId: number;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseImportErrorServiceGetImportErrorKeyFn({
+      importErrorId,
+    }),
+    queryFn: () => ImportErrorService.getImportError({ importErrorId }),
+  });
+/**
+ * Get Import Errors
+ * Get all import errors.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns ImportErrorCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseImportErrorServiceGetImportErrors = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({
+      limit,
+      offset,
+      orderBy,
+    }),
+    queryFn: () =>
+      ImportErrorService.getImportErrors({ limit, offset, orderBy }),
+  });
+/**
  * Get Health
  * @returns HealthInfoSchema Successful Response
  * @throws ApiError
@@ -730,4 +875,24 @@ export const prefetchUseVersionServiceGetVersion = (queryClient: QueryClient) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseVersionServiceGetVersionKeyFn(),
     queryFn: () => VersionService.getVersion(),
+  });
+/**
+ * Get Dag Stats
+ * Get Dag statistics.
+ * @param data The data for the request.
+ * @param data.dagIds
+ * @returns DagStatsCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagStatsServiceGetDagStats = (
+  queryClient: QueryClient,
+  {
+    dagIds,
+  }: {
+    dagIds?: string[];
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }),
+    queryFn: () => DagStatsService.getDagStats({ dagIds }),
   });

@@ -151,7 +151,7 @@ from airflow_breeze.utils.provider_dependencies import (
     generate_providers_metadata_for_package,
     get_related_providers,
 )
-from airflow_breeze.utils.python_versions import check_python_version, get_python_version_list
+from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
 from airflow_breeze.utils.run_utils import (
     run_command,
@@ -230,7 +230,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "24.3.1"
-AIRFLOW_UV_VERSION = "0.4.29"
+AIRFLOW_UV_VERSION = "0.4.30"
 AIRFLOW_USE_UV = False
 # TODO: automate thsese as well
 WHEEL_VERSION = "0.44.0"
@@ -530,7 +530,6 @@ def prepare_airflow_packages(
     version_suffix_for_pypi: str,
     use_local_hatch: bool,
 ):
-    check_python_version()
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -576,7 +575,6 @@ def prepare_airflow_task_sdk_packages(
     package_format: str,
     use_local_hatch: bool,
 ):
-    check_python_version()
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -907,7 +905,6 @@ def prepare_provider_packages(
     skip_tag_check: bool,
     version_suffix_for_pypi: str,
 ):
-    check_python_version(release_provider_packages=True)
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -3182,7 +3179,6 @@ def prepare_helm_chart_tarball(
 ) -> None:
     import yaml
 
-    check_python_version()
     chart_yaml_file_content = CHART_YAML_FILE.read_text()
     chart_yaml_dict = yaml.safe_load(chart_yaml_file_content)
     version_in_chart = chart_yaml_dict["version"]
@@ -3324,8 +3320,6 @@ def prepare_helm_chart_tarball(
 @option_dry_run
 @option_verbose
 def prepare_helm_chart_package(sign_email: str):
-    check_python_version()
-
     import yaml
 
     from airflow_breeze.utils.kubernetes_utils import (

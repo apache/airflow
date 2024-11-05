@@ -138,6 +138,7 @@ class TestDagRunEndpoint:
             session.add(dag_instance)
         dag = DAG(dag_id=dag_id, schedule=None, params={"validated_number": Param(1, minimum=1, maximum=10)})
         self.app.dag_bag.bag_dag(dag)
+        self.app.dag_bag.sync_to_db()
         return dag_instance
 
     def _create_test_dag_run(self, state=DagRunState.RUNNING, extra_dag=False, commit=True, idx_start=1):

@@ -13,3 +13,7 @@ As part of this change the following breaking changes have occurred:
   There were two build in options for this, Standard (the default) which used Fork or a new process as appropriate, and CGroupRunner to launch tasks in a new CGroup (not usable inside docker or Kubernetes).
 
   With the move of the execution time code into the TaskSDK we are using this opportunity to reduce complexity for seldom used features.
+
+- Shipping DAGs via pickle is no longer supported
+
+  This was a feature that was not widely used and was a security risk. It has been removed.

@@ -199,3 +199,12 @@ class State:
     A list of states indicating that a task can be adopted or reset by a scheduler job
     if it was queued by another scheduler job that is not running anymore.
     """
+
+    ran_and_finished_states = frozenset(
+        [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED]
+    )
+    """
+    A list of states indicating that a task has run and finished. This excludes states like
+    removed and upstream_failed. Skipped is included because a user can raise a
+    AirflowSkipException in a task and it will be marked as skipped.
+    """

@@ -22,10 +22,8 @@ import copy
 import functools
 import logging
 import pathlib
-import pickle
 import sys
 import time
-import traceback
 from collections import defaultdict
 from contextlib import ExitStack
 from datetime import datetime, timedelta
@@ -87,8 +85,7 @@ from airflow.models.asset import (
 )
 from airflow.models.base import Base, StringID
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dagcode import DagCode
-from airflow.models.dagpickle import DagPickle
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
 from airflow.models.taskinstance import (
     Context,
@@ -260,7 +257,7 @@ def _create_orm_dagrun(
     conf,
     state,
     run_type,
-    dag_hash,
+    dag_version,
     creating_job_id,
     data_interval,
     backfill_id,
@@ -276,7 +273,7 @@ def _create_orm_dagrun(
         conf=conf,
         state=state,
         run_type=run_type,
-        dag_hash=dag_hash,
+        dag_version=dag_version,
         creating_job_id=creating_job_id,
         data_interval=data_interval,
         triggered_by=triggered_by,
@@ -427,6 +424,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
         An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
     :param dag_display_name: The display name of the DAG which appears on the UI.
+    :param version_name: The version name to use in storing the dag to the DB.
     """
 
     partial: bool = False
@@ -738,14 +736,6 @@ class DAG(TaskSDKDag, LoggingMixin):
     @property
     def timetable_summary(self) -> str:
         return self.timetable.summary
-
-    @property
-    def pickle_id(self) -> int | None:
-        return self._pickle_id
-
-    @pickle_id.setter
-    def pickle_id(self, value: int) -> None:
-        self._pickle_id = value
 
     @property
     def relative_fileloc(self) -> pathlib.Path:
@@ -1549,35 +1539,6 @@ class DAG(TaskSDKDag, LoggingMixin):
             print("Cancelled, nothing was cleared.")
         return count
 
-    def pickle_info(self):
-        d = {}
-        d["is_picklable"] = True
-        try:
-            dttm = timezone.utcnow()
-            pickled = pickle.dumps(self)
-            d["pickle_len"] = len(pickled)
-            d["pickling_duration"] = str(timezone.utcnow() - dttm)
-        except Exception as e:
-            self.log.debug(e)
-            d["is_picklable"] = False
-            d["stacktrace"] = traceback.format_exc()
-        return d
-
-    @provide_session
-    def pickle(self, session=NEW_SESSION) -> DagPickle:
-        dag = session.scalar(select(DagModel).where(DagModel.dag_id == self.dag_id).limit(1))
-        dp = None
-        if dag and dag.pickle_id:
-            dp = session.scalar(select(DagPickle).where(DagPickle.id == dag.pickle_id).limit(1))
-        if not dp or dp.pickle != self:
-            dp = DagPickle(dag=self)
-            session.add(dp)
-            self.last_pickled = timezone.utcnow()
-            session.commit()
-            self.pickle_id = dp.id
-
-        return dp
-
     def cli(self):
         """Exposes a CLI specific to this DAG."""
         check_cycle(self)
@@ -1748,7 +1709,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         conf: dict | None = None,
         run_type: DagRunType | None = None,
         session: Session = NEW_SESSION,
-        dag_hash: str | None = None,
+        dag_version: DagVersion | None = None,
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
         backfill_id: int | None = None,
@@ -1768,7 +1729,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         :param conf: Dict containing configuration/parameters to pass to the DAG
         :param creating_job_id: id of the job creating this DagRun
         :param session: database session
-        :param dag_hash: Hash of Serialized DAG
+        :param dag_version: The DagVersion object for this run
         :param data_interval: Data interval of the DagRun
         :param backfill_id: id of the backfill run if one exists
         """
@@ -1840,7 +1801,7 @@ class DAG(TaskSDKDag, LoggingMixin):
             conf=conf,
             state=state,
             run_type=run_type,
-            dag_hash=dag_hash,
+            dag_version=dag_version,
             creating_job_id=creating_job_id,
             backfill_id=backfill_id,
             data_interval=data_interval,
@@ -1873,7 +1834,6 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         orm_dags = dag_op.add_dags(session=session)
         dag_op.update_dags(orm_dags, processor_subdir=processor_subdir, session=session)
-        DagCode.bulk_sync_to_db((dag.fileloc for dag in dags), session=session)
 
         asset_op = AssetModelOperation.collect(dag_op.dags)
 
@@ -2041,13 +2001,9 @@ class DagModel(Base):
     is_active = Column(Boolean, default=False)
     # Last time the scheduler started
     last_parsed_time = Column(UtcDateTime)
-    # Last time this DAG was pickled
-    last_pickled = Column(UtcDateTime)
     # Time when the DAG last received a refresh signal
     # (e.g. the DAG's "refresh" button was clicked in the web UI)
     last_expired = Column(UtcDateTime)
-    # Foreign key to the latest pickle_id
-    pickle_id = Column(Integer)
     # The location of the file containing the DAG object
     # Note: Do not depend on fileloc pointing to a file; in the case of a
     # packaged DAG, it will point to the subpath of the DAG within the
@@ -2112,6 +2068,9 @@ class DagModel(Base):
     )
     NUM_DAGS_PER_DAGRUN_QUERY = airflow_conf.getint(
         "scheduler", "max_dagruns_to_create_per_loop", fallback=10
+    )
+    dag_versions = relationship(
+        "DagVersion", back_populates="dag_model", cascade="all, delete, delete-orphan"
     )
 
     def __init__(self, **kwargs):
@@ -2319,9 +2278,10 @@ class DagModel(Base):
         dag_statuses = {}
         for dag_id, records in by_dag.items():
             dag_statuses[dag_id] = {x.asset.uri: True for x in records}
-        ser_dags = session.scalars(
-            select(SerializedDagModel).where(SerializedDagModel.dag_id.in_(dag_statuses.keys()))
-        ).all()
+        ser_dags = SerializedDagModel.get_latest_serialized_dags(
+            dag_ids=list(dag_statuses.keys()), session=session
+        )
+
         for ser_dag in ser_dags:
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
@@ -2496,6 +2456,7 @@ def _get_or_create_dagrun(
     if dr:
         session.delete(dr)
         session.commit()
+    dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
     dr = dag.create_dagrun(
         state=DagRunState.RUNNING,
         execution_date=execution_date,
@@ -2505,6 +2466,7 @@ def _get_or_create_dagrun(
         conf=conf,
         data_interval=data_interval,
         triggered_by=triggered_by,
+        dag_version=dag_version,
     )
     log.info("created dagrun %s", dr)
     return dr
