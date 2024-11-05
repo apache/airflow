@@ -1580,6 +1580,62 @@ export const $DagRunType = {
   description: "Class with DagRun types.",
 } as const;
 
+export const $DagStatsCollectionResponse = {
+  properties: {
+    dags: {
+      items: {
+        $ref: "#/components/schemas/DagStatsResponse",
+      },
+      type: "array",
+      title: "Dags",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["dags", "total_entries"],
+  title: "DagStatsCollectionResponse",
+  description: "DAG Stats Collection serializer for responses.",
+} as const;
+
+export const $DagStatsResponse = {
+  properties: {
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    stats: {
+      items: {
+        $ref: "#/components/schemas/DagStatsStateResponse",
+      },
+      type: "array",
+      title: "Stats",
+    },
+  },
+  type: "object",
+  required: ["dag_id", "stats"],
+  title: "DagStatsResponse",
+  description: "DAG Stats serializer for responses.",
+} as const;
+
+export const $DagStatsStateResponse = {
+  properties: {
+    state: {
+      $ref: "#/components/schemas/DagRunState",
+    },
+    count: {
+      type: "integer",
+      title: "Count",
+    },
+  },
+  type: "object",
+  required: ["state", "count"],
+  title: "DagStatsStateResponse",
+  description: "DagStatsState serializer for responses.",
+} as const;
+
 export const $DagTagPydantic = {
   properties: {
     name: {
