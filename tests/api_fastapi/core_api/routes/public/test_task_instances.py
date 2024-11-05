@@ -401,7 +401,6 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
                 f"/print_the_context/{map_index}",
             )
             assert response.status_code == 200
-
             assert response.json() == {
                 "dag_id": "example_python_operator",
                 "duration": 10000.0,
@@ -449,7 +448,7 @@ class TestGetMappedTaskInstance(TestTaskInstanceEndpoint):
 
 class TestGetTaskInstanceTryDetails(TestTaskInstanceEndpoint):
     def test_should_respond_200_get_task_instance_try_details(self, test_client, session):
-        self.create_task_instances(session, task_instances=[{"state": State.SUCCESS, "try_number": 1}])
+        self.create_task_instances(session, task_instances=[{"state": State.RUNNING, "try_number": 1}])
         response = test_client.get(
             "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1"
         )
