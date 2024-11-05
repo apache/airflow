@@ -66,10 +66,10 @@ class EdgeExecutor(BaseExecutor):
         except NoSuchTableError:
             pass
 
-        # version 0.6.0rc1 added new column need_concurrency
-        if edge_job_columns and "need_concurrency" not in edge_job_columns:
+        # version 0.6.0rc1 added new column need_capacity
+        if edge_job_columns and "need_capacity" not in edge_job_columns:
             with engine.connect() as conn:
-                add_column_ddl = DDL("ALTER TABLE edge_job COLUMN need_concurrency INTEGER DEFAULT 1")
+                add_column_ddl = DDL("ALTER TABLE edge_job ADD COLUMN need_capacity INTEGER DEFAULT 1")
                 conn.execute(add_column_ddl)
 
     @provide_session
@@ -102,7 +102,7 @@ class EdgeExecutor(BaseExecutor):
                 try_number=key.try_number,
                 state=TaskInstanceState.QUEUED,
                 queue=queue or DEFAULT_QUEUE,
-                need_concurrency=executor_config.get("need_concurrency", 1) if executor_config else 1,
+                need_capacity=executor_config.get("need_capacity", 1) if executor_config else 1,
                 command=str(command),
             )
         )

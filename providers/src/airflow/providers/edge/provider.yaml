@@ -78,9 +78,9 @@ config:
         type: integer
         example: "10"
         default: "30"
-      worker_concurrency:
+      worker_capacity:
         description: |
-          The concurrency that will be used when starting workers with the
+          The capacity that will be used when starting workers with the
           ``airflow edge worker`` command. This defines the number of task instances that
           a worker will take, so size up your workers based on the resources on
           your worker box and the nature of your tasks

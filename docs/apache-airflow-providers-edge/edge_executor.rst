@@ -99,7 +99,8 @@ is included in the provider package and install it on the webserver and use the
 
 Some caveats:
 
-- Tasks can consume resources. Make sure your worker has enough resources to run ``worker_concurrency`` tasks
+- Tasks can consume resources. Make sure your worker has enough resources to run ``worker_capacity`` tasks
+- Make sure that the ``need_capacity`` of a Tasks matches with the ``worker_capacity`` of the worker
 - Queue names are limited to 256 characters
 
 See :doc:`apache-airflow:administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
@@ -210,18 +211,18 @@ could take thousands of tasks without a problem), or from an environment
 perspective (you want a worker running from a specific location where required
 infrastructure is available).
 
-Concurrency slots handling
---------------------------
+Capacity handling
+-----------------
 
-Some task may need more resources than other tasks, to handled these use cases the Edge worker supports
-concurrency slots. The logic behind this is the same as the pool slot feature
+Some task may need more resources than other tasks, to handle these use case the Edge worker supports
+capacity handling. The logic behind this is the same as the pool slot feature
 see :doc:`apache-airflow:administration-and-deployment/pools`.
-If a task needs more resource, the need_concurrency value can be increased. The value can be used to block
-other task from being executed in parallel on the same worker. The need_concurrency value works together
-with the concurrency value of the worker. A need_concurrency of 2 and a worker concurrency of 3 means
-that a worker which executes this task can only execute a job with a need_concurrency of 1 in parallel.
+If a task needs more resource, the need_capacity value can be increased. The value can be used to block
+other task from being executed in parallel on the same worker. The need_capacity value works together
+with the capacity value of the worker. A need_capacity of 2 and a worker capacity of 3 means
+that a worker which executes this task can only execute a job with a need_capacity of 1 in parallel.
 
-Here is an example setting concurrency slots for a task:
+Here is an example setting capacity slots for a task:
 
 .. code-block:: python
 
@@ -235,14 +236,14 @@ Here is an example setting concurrency slots for a task:
     from airflow.settings import AIRFLOW_HOME
 
     with DAG(
-        dag_id="example_concurrency_slots",
+        dag_id="example_edge_capacity",
         schedule=None,
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         catchup=False,
         tags=["example"],
     ) as dag:
         executor_config_template = {
-            "need_concurrency": 2,
+            "need_capacity": 2,
         }
 
         @task(executor="EdgeExecutor", executor_config=executor_config_template)
