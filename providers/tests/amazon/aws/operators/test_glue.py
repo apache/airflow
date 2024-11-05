@@ -207,7 +207,6 @@ class TestGlueJobOperator:
         mock_print_job_logs.assert_not_called()
         assert glue.job_name == JOB_NAME
 
-
     @mock.patch.object(GlueJobHook, "print_job_logs")
     @mock.patch.object(GlueJobHook, "job_completion")
     @mock.patch.object(GlueJobHook, "initialize_job")
