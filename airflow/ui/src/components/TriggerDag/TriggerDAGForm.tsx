@@ -29,7 +29,7 @@ import {
 import { autocompletion } from "@codemirror/autocomplete";
 import { json } from "@codemirror/lang-json";
 import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
-import CodeMirror, { lineNumbers } from "@uiw/react-codemirror";
+import CodeMirror, { type Extension, lineNumbers } from "@uiw/react-codemirror";
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 
@@ -189,8 +189,8 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                         outline: "none",
                         padding: "2px",
                       }}
-                       
-                      theme={colorMode === "dark" ? githubDark : githubLight}
+
+                      theme={colorMode === "dark" ? githubDark as Extension : githubLight as Extension}
                     />
                     {!isValidJson() && (
                       <Box color="red.500" mt={2}>

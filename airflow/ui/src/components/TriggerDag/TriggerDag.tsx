@@ -21,7 +21,7 @@ type DagParams = {
   configJson: string;
   dagId: string;
   logicalDate: string;
-  runId?: string;
+  runId: string;
 };
 
 export const TriggerDag = (dagParams: DagParams) => {
