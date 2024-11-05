@@ -22,6 +22,7 @@ from airflow.api_fastapi.core_api.routes.public.backfills import backfills_route
 from airflow.api_fastapi.core_api.routes.public.connections import connections_router
 from airflow.api_fastapi.core_api.routes.public.dag_run import dag_run_router
 from airflow.api_fastapi.core_api.routes.public.dag_sources import dag_sources_router
+from airflow.api_fastapi.core_api.routes.public.dag_stats import dag_stats_router
 from airflow.api_fastapi.core_api.routes.public.dag_warning import dag_warning_router
 from airflow.api_fastapi.core_api.routes.public.dags import dags_router
 from airflow.api_fastapi.core_api.routes.public.event_logs import event_logs_router
@@ -52,3 +53,4 @@ public_router.include_router(task_instances_router)
 public_router.include_router(variables_router)
 public_router.include_router(variables_router)
 public_router.include_router(version_router)
+public_router.include_router(dag_stats_router)
