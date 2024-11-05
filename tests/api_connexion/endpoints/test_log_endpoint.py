@@ -243,7 +243,9 @@ class TestGetLog:
 
         assert (
             response.data.decode("utf-8")
-            == f"localhost\n*** Found local files:\n***   * {expected_filename}\n{log_content}\n"
+            == f"localhost\n INFO - ::group::Log message source details\n\
+            *** Found local files:\n***   * {expected_filename}\n{log_content}\n\
+             INFO - ::endgroup::\n"
         )
 
     @pytest.mark.parametrize(
@@ -300,7 +302,9 @@ class TestGetLog:
         log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
         assert (
             response.data.decode("utf-8")
-            == f"localhost\n*** Found local files:\n***   * {expected_filename}\n{log_content}\n"
+            == f"localhost\n INFO - ::group::Log message source details\n\
+            *** Found local files:\n***   * {expected_filename}\n{log_content}\n\
+             INFO - ::endgroup::\n"
         )
 
     @pytest.mark.parametrize("try_number", [1, 2])

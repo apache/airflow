@@ -176,9 +176,9 @@ class TestLogView:
         ti.state = TaskInstanceState.SUCCESS
         stream = task_log_reader.read_log_stream(ti=ti, try_number=1, metadata={})
         assert list(stream) == [
-            "localhost\n*** Found local files:\n"
+            "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-            "try_number=1.\n"
+            "try_number=1.\n INFO - ::endgroup::\n"
         ]
 
     def test_test_test_read_log_stream_should_read_all_logs(self):
@@ -186,17 +186,17 @@ class TestLogView:
         self.ti.state = TaskInstanceState.SUCCESS  # Ensure mocked instance is completed to return stream
         stream = task_log_reader.read_log_stream(ti=self.ti, try_number=None, metadata={})
         assert list(stream) == [
-            "localhost\n*** Found local files:\n"
+            "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-            "try_number=1."
+            "try_number=1. INFO - ::endgroup::\n"
             "\n",
-            "localhost\n*** Found local files:\n"
+            "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
-            "try_number=2."
+            "try_number=2. INFO - ::endgroup::\n"
             "\n",
-            "localhost\n*** Found local files:\n"
+            "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
-            "try_number=3."
+            "try_number=3. INFO - ::endgroup::\n"
             "\n",
         ]
 
