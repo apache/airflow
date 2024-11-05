@@ -95,37 +95,6 @@ class TestDagVersion:
         assert version.dag_id == dag1_id
         assert version.version == "my_version-1"
 
-    def test_get_latest_dag_versions(self, dag_maker, session):
-        # first dag
-        version_name = "test_v"
-        with dag_maker("dag1", version_name=version_name) as dag:
-            EmptyOperator(task_id="task1")
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag)
-        with dag_maker("dag1", version_name=version_name) as dag:
-            EmptyOperator(task_id="task1")
-            EmptyOperator(task_id="task2")
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag)
-        # second dag
-        version_name2 = "test_v2"
-        with dag_maker("dag2", version_name=version_name2) as dag:
-            EmptyOperator(task_id="task1")
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag)
-        with dag_maker("dag2", version_name=version_name2) as dag:
-            EmptyOperator(task_id="task1")
-            EmptyOperator(task_id="task2")
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag)
-
-        # Total versions should be 4
-        assert session.scalar(select(func.count()).select_from(DagVersion)) == 4
-
-        latest_versions_for_the_dags = {f"{version_name}-2", f"{version_name2}-2"}
-        latest_versions = DagVersion.get_latest_dag_versions(["dag1", "dag2"])
-        assert latest_versions_for_the_dags == {x.version for x in latest_versions}
-
     @pytest.mark.need_serialized_dag
     def test_version_property(self, dag_maker):
         version_name = "my_version"

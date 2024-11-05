@@ -23,7 +23,7 @@ from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 import airflow.example_dags as example_dags_module
 from airflow.assets import Asset
@@ -31,6 +31,7 @@ from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel as SDM
+from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import json
@@ -284,3 +285,31 @@ class TestSerializedDagModel:
         first_hashes = get_hash_set()
         # assert that the hashes are the same
         assert first_hashes == get_hash_set()
+
+    def test_get_latest_serdag_versions(self, dag_maker, session):
+        # first dag
+        with dag_maker("dag1") as dag:
+            EmptyOperator(task_id="task1")
+        dag.sync_to_db()
+        SDM.write_dag(dag)
+        with dag_maker("dag1") as dag:
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+        dag.sync_to_db()
+        SDM.write_dag(dag)
+        # second dag
+        with dag_maker("dag2") as dag:
+            EmptyOperator(task_id="task1")
+        dag.sync_to_db()
+        SDM.write_dag(dag)
+        with dag_maker("dag2") as dag:
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+        dag.sync_to_db()
+        SDM.write_dag(dag)
+
+        # Total serdags should be 4
+        assert session.scalar(select(func.count()).select_from(SDM)) == 4
+
+        latest_versions = SDM.get_latest_serialized_dags(dag_ids=["dag1", "dag2"], session=session)
+        assert len(latest_versions) == 2

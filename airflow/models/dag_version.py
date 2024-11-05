@@ -21,7 +21,7 @@ import logging
 from typing import TYPE_CHECKING
 
 import uuid6
-from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint, func, select
+from sqlalchemy import Column, ForeignKey, Integer, UniqueConstraint, select
 from sqlalchemy.orm import relationship
 from sqlalchemy_utils import UUIDType
 
@@ -165,32 +165,3 @@ class DagVersion(Base):
         if self.version_name:
             name = f"{self.version_name}-{self.version_number}"
         return name
-
-    @classmethod
-    @provide_session
-    def get_latest_dag_versions(
-        cls, *, dag_ids: list[str], session: Session = NEW_SESSION
-    ) -> list[DagVersion]:
-        """
-        Get the latest version of DAGs.
-
-        :param dag_ids: The list of DAG IDs.
-        :param session: The database session.
-        :return: The latest version of the DAGs.
-        """
-        # Subquery to get the latest version number per dag_id
-        latest_version_subquery = (
-            session.query(cls.dag_id, func.max(cls.created_at).label("created_at"))
-            .filter(cls.dag_id.in_(dag_ids))
-            .group_by(cls.dag_id)
-            .subquery()
-        )
-        latest_versions = session.scalars(
-            select(cls)
-            .join(
-                latest_version_subquery,
-                cls.created_at == latest_version_subquery.c.created_at,
-            )
-            .where(cls.dag_id.in_(dag_ids))
-        ).all()
-        return latest_versions or []

@@ -85,7 +85,6 @@ from airflow.models.asset import (
 )
 from airflow.models.base import Base, StringID
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dagcode import DagCode
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
 from airflow.models.taskinstance import (
@@ -2258,6 +2257,7 @@ class DagModel(Base):
         you should ensure that any scheduling decisions are made in a single transaction -- as soon as the
         transaction is committed it will be unlocked.
         """
+        from airflow.models.serialized_dag import SerializedDagModel
 
         def dag_ready(dag_id: str, cond: BaseAsset, statuses: dict) -> bool | None:
             # if dag was serialized before 2.9 and we *just* upgraded,
@@ -2278,8 +2278,9 @@ class DagModel(Base):
         dag_statuses = {}
         for dag_id, records in by_dag.items():
             dag_statuses[dag_id] = {x.asset.uri: True for x in records}
-        dag_versions = DagVersion.get_latest_dag_versions(dag_ids=list(dag_statuses.keys()), session=session)
-        ser_dags = [x.serialized_dag for x in dag_versions]
+        ser_dags = SerializedDagModel.get_latest_serialized_dags(
+            dag_ids=list(dag_statuses.keys()), session=session
+        )
 
         for ser_dag in ser_dags:
             dag_id = ser_dag.dag_id
