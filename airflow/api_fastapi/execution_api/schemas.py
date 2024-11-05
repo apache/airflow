@@ -112,3 +112,10 @@ TIStateUpdate = Annotated[
     ],
     Discriminator(ti_state_discriminator),
 ]
+
+
+class TIHeartbeatInfo(BaseModel):
+    """Schema for TaskInstance heartbeat endpoint."""
+
+    hostname: str
+    unixname: str

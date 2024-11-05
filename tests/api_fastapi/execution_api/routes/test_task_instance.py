@@ -192,3 +192,133 @@ class TestTIUpdateState:
             response = client.patch(f"/execution/task_instance/{ti.id}/state", json=payload)
             assert response.status_code == 500
             assert response.json()["detail"] == "Database error occurred"
+
+
+class TestTIHealthEndpoint:
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    @pytest.mark.parametrize(
+        ("hostname", "unixname", "expected_status_code", "expected_detail"),
+        [
+            # Case: Successful heartbeat
+            ("random-hostname", "random-unixname", 204, None),
+            # Case: Conflict due to hostname mismatch
+            (
+                "wrong-hostname",
+                "random-unixname",
+                409,
+                {
+                    "reason": "running_elsewhere",
+                    "message": "TI is already running elsewhere",
+                    "current_hostname": "random-hostname",
+                    "current_unixname": "random-unixname",
+                },
+            ),
+            # Case: Conflict due to unixname mismatch
+            (
+                "random-hostname",
+                "wrong-unixname",
+                409,
+                {
+                    "reason": "running_elsewhere",
+                    "message": "TI is already running elsewhere",
+                    "current_hostname": "random-hostname",
+                    "current_unixname": "random-unixname",
+                },
+            ),
+        ],
+    )
+    @mock.patch("airflow.utils.timezone.utcnow")
+    def test_ti_heartbeat(
+        self,
+        mock_utcnow,
+        client,
+        session,
+        create_task_instance,
+        hostname,
+        unixname,
+        expected_status_code,
+        expected_detail,
+    ):
+        """Test the TI heartbeat endpoint for various scenarios including conflicts."""
+
+        time_now = timezone.parse("2024-10-31T12:00:00Z")
+        mock_utcnow.return_value = time_now
+
+        ti = create_task_instance(
+            task_id="test_ti_heartbeat",
+            state=State.RUNNING,
+            hostname="random-hostname",
+            unixname="random-unixname",
+            session=session,
+        )
+        session.commit()
+        task_instance_id = ti.id
+
+        response = client.put(
+            f"/execution/task_instance/{task_instance_id}/heartbeat",
+            json={"hostname": hostname, "unixname": unixname},
+        )
+
+        assert response.status_code == expected_status_code
+
+        if expected_status_code == 204:
+            # If successful, ensure last_heartbeat_at is updated
+            session.refresh(ti)
+            assert ti.last_heartbeat_at == time_now
+            assert response.text == ""
+        else:
+            # If there's an error, check the error detail
+            assert response.json()["detail"] == expected_detail
+
+    def test_ti_heartbeat_non_existent_task(self, client, session, create_task_instance):
+        """Test that a 404 error is returned when the Task Instance does not exist."""
+
+        task_instance_id = "0182e924-0f1e-77e6-ab50-e977118bc139"
+
+        # Pre-condition: the Task Instance does not exist
+        assert session.scalar(select(TaskInstance.id).where(TaskInstance.id == task_instance_id)) is None
+
+        response = client.put(
+            f"/execution/task_instance/{task_instance_id}/heartbeat",
+            json={"hostname": "random-hostname", "unixname": "random-unixname"},
+        )
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == {
+            "reason": "not_found",
+            "message": "Task Instance not found",
+        }
+
+    @pytest.mark.parametrize(
+        "ti_state",
+        [State.SUCCESS, State.FAILED],
+    )
+    def test_ti_heartbeat_when_task_not_running(self, client, session, create_task_instance, ti_state):
+        """Test that a 409 error is returned when the Task Instance is not in RUNNING state."""
+
+        ti = create_task_instance(
+            task_id="test_ti_heartbeat_when_task_not_running",
+            state=ti_state,
+            hostname="random-hostname",
+            unixname="random-unixname",
+            session=session,
+        )
+        session.commit()
+        task_instance_id = ti.id
+
+        response = client.put(
+            f"/execution/task_instance/{task_instance_id}/heartbeat",
+            json={"hostname": "random-hostname", "unixname": "random-unixname"},
+        )
+
+        assert response.status_code == 409
+        assert response.json()["detail"] == {
+            "reason": "not_running",
+            "message": "TI is no longer in the running state and task should terminate",
+            "current_state": ti_state,
+        }

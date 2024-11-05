@@ -1194,6 +1194,8 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
         on_retry_callback=None,
         email=None,
         map_index=-1,
+        hostname=None,
+        unixname=None,
         **kwargs,
     ) -> TaskInstance:
         from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
@@ -1243,7 +1245,10 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
         ti.state = state
         ti.external_executor_id = external_executor_id
         ti.map_index = map_index
-
+        if hostname:
+            ti.hostname = hostname
+        if unixname:
+            ti.unixname = unixname
         dag_maker.session.flush()
         return ti
 
