@@ -69,6 +69,7 @@ class DagVersion(Base):
     )
 
     def __repr__(self):
+        """Represent the object as a string."""
         return f"<DagVersion {self.dag_id} {self.version}>"
 
     @classmethod
@@ -81,7 +82,17 @@ class DagVersion(Base):
         version_number: int = 1,
         session: Session = NEW_SESSION,
     ) -> DagVersion:
-        """Write a new DagVersion into database."""
+        """
+        Write a new DagVersion into database.
+
+        Checks if a version of the DAG exists and increments the version number if it does.
+
+        :param dag_id: The DAG ID.
+        :param version_name: The version name.
+        :param version_number: The version number.
+        :param session: The database session.
+        :return: The DagVersion object.
+        """
         existing_dag_version = session.scalar(
             with_row_locks(cls._latest_version_select(dag_id), of=DagVersion, session=session, nowait=True)
         )
@@ -102,11 +113,24 @@ class DagVersion(Base):
 
     @classmethod
     def _latest_version_select(cls, dag_id: str) -> Select:
+        """
+        Get the select object to get the latest version of the DAG.
+
+        :param dag_id: The DAG ID.
+        :return: The select object.
+        """
         return select(cls).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
 
     @classmethod
     @provide_session
-    def get_latest_version(cls, dag_id: str, session: Session = NEW_SESSION) -> DagVersion | None:
+    def get_latest_version(cls, dag_id: str, *, session: Session = NEW_SESSION) -> DagVersion | None:
+        """
+        Get the latest version of the DAG.
+
+        :param dag_id: The DAG ID.
+        :param session: The database session.
+        :return: The latest version of the DAG or None if not found.
+        """
         return session.scalar(cls._latest_version_select(dag_id))
 
     @classmethod
@@ -115,8 +139,17 @@ class DagVersion(Base):
         cls,
         dag_id: str,
         version_number: int = 1,
+        *,
         session: Session = NEW_SESSION,
     ) -> DagVersion | None:
+        """
+        Get the version of the DAG.
+
+        :param dag_id: The DAG ID.
+        :param version_number: The version number.
+        :param session: The database session.
+        :return: The version of the DAG or None if not found.
+        """
         version_select_obj = (
             select(cls)
             .where(cls.dag_id == dag_id, cls.version_number == version_number)
@@ -127,7 +160,7 @@ class DagVersion(Base):
 
     @property
     def version(self) -> str:
-        """Return the version name."""
+        """A human-friendly representation of the version."""
         name = f"{self.version_number}"
         if self.version_name:
             name = f"{self.version_name}-{self.version_number}"
@@ -135,8 +168,16 @@ class DagVersion(Base):
 
     @classmethod
     @provide_session
-    def get_latest_dag_versions(cls, dag_ids: list[str], session: Session = NEW_SESSION) -> list[DagVersion]:
-        """Get the latest version of DAGs."""
+    def get_latest_dag_versions(
+        cls, *, dag_ids: list[str], session: Session = NEW_SESSION
+    ) -> list[DagVersion]:
+        """
+        Get the latest version of DAGs.
+
+        :param dag_ids: The list of DAG IDs.
+        :param session: The database session.
+        :return: The latest version of the DAGs.
+        """
         # Subquery to get the latest version number per dag_id
         latest_version_subquery = (
             session.query(cls.dag_id, func.max(cls.created_at).label("created_at"))

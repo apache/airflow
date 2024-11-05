@@ -20,7 +20,7 @@
 add dag versioning.
 
 Revision ID: 2b47dc6bc8df
-Revises: d8cd3297971e
+Revises: d03e4a635aa3
 Create Date: 2024-10-09 05:44:04.670984
 
 """
@@ -38,7 +38,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 # revision identifiers, used by Alembic.
 revision = "2b47dc6bc8df"
-down_revision = "d8cd3297971e"
+down_revision = "d03e4a635aa3"
 branch_labels = None
 depends_on = None
 airflow_version = "3.0.0"
