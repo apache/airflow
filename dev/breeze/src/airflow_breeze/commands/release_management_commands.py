@@ -520,7 +520,6 @@ def prepare_airflow_packages(
     version_suffix_for_pypi: str,
     use_local_hatch: bool,
 ):
-    check_python_version()
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -3067,7 +3066,6 @@ def prepare_helm_chart_tarball(
 ) -> None:
     import yaml
 
-    check_python_version()
     chart_yaml_file_content = CHART_YAML_FILE.read_text()
     chart_yaml_dict = yaml.safe_load(chart_yaml_file_content)
     version_in_chart = chart_yaml_dict["version"]
@@ -3209,8 +3207,6 @@ def prepare_helm_chart_tarball(
 @option_dry_run
 @option_verbose
 def prepare_helm_chart_package(sign_email: str):
-    check_python_version()
-
     import yaml
 
     from airflow_breeze.utils.kubernetes_utils import (
