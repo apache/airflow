@@ -453,7 +453,6 @@ class TestGetTaskInstanceTryDetails(TestTaskInstanceEndpoint):
         response = test_client.get(
             "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1"
         )
-
         assert response.status_code == 200
 
         assert response.json() == {
