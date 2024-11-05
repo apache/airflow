@@ -31,6 +31,7 @@ from airflow.api_connexion.schemas.event_log_schema import (
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models import Log
 from airflow.utils import timezone
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -40,6 +41,7 @@ if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.AUDIT_LOG)
 @provide_session
 def get_event_log(*, event_log_id: int, session: Session = NEW_SESSION) -> APIResponse:

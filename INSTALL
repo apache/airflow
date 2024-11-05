@@ -93,6 +93,10 @@ or you can install all packages needed to run tests for core, providers, and all
 
 You can see the list of all available extras below.
 
+Additionally when you want to develop providers you need to install providers code in editable mode:
+
+    pip install -e "./providers"
+
 # Using Hatch to manage your Python, virtualenvs, and build packages
 
 Airflow uses [hatch](https://hatch.pypa.io/) as a build and development tool. It is one of the popular
@@ -255,8 +259,7 @@ Those extras are available as regular core airflow extras - they install optiona
 # START CORE EXTRAS HERE
 
 aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, github-enterprise, google-
-auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, sentry, statsd, uv,
-virtualenv
+auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, sentry, statsd, uv
 
 # END CORE EXTRAS HERE
 

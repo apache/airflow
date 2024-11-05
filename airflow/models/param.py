@@ -27,9 +27,9 @@ from airflow.utils.mixins import ResolveMixin
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
-    from airflow.models.dag import DAG
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
+    from airflow.sdk import DAG
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.utils.context import Context
 

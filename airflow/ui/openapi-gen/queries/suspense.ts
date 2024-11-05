@@ -3,19 +3,24 @@ import { UseQueryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import {
   AssetService,
+  BackfillService,
   ConnectionService,
   DagRunService,
   DagService,
+  DagSourceService,
+  DagWarningService,
   DagsService,
   DashboardService,
+  EventLogService,
   MonitorService,
   PluginService,
   PoolService,
   ProviderService,
+  TaskInstanceService,
   VariableService,
   VersionService,
 } from "../requests/services.gen";
-import { DagRunState } from "../requests/types.gen";
+import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
@@ -153,6 +158,72 @@ export const useDagsServiceRecentDagRunsSuspense = <
         paused,
         tags,
       }) as TData,
+    ...options,
+  });
+/**
+ * List Backfills
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useBackfillServiceListBackfillsSuspense = <
+  TData = Common.BackfillServiceListBackfillsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    limit,
+    offset,
+    orderBy,
+  }: {
+    dagId: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseBackfillServiceListBackfillsKeyFn(
+      { dagId, limit, offset, orderBy },
+      queryKey,
+    ),
+    queryFn: () =>
+      BackfillService.listBackfills({ dagId, limit, offset, orderBy }) as TData,
+    ...options,
+  });
+/**
+ * Get Backfill
+ * @param data The data for the request.
+ * @param data.backfillId
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useBackfillServiceGetBackfillSuspense = <
+  TData = Common.BackfillServiceGetBackfillDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    backfillId,
+  }: {
+    backfillId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseBackfillServiceGetBackfillKeyFn(
+      { backfillId },
+      queryKey,
+    ),
+    queryFn: () => BackfillService.getBackfill({ backfillId }) as TData,
     ...options,
   });
 /**
@@ -396,71 +467,6 @@ export const useConnectionServiceGetConnectionsSuspense = <
     ...options,
   });
 /**
- * Get Variable
- * Get a variable entry.
- * @param data The data for the request.
- * @param data.variableKey
- * @returns VariableResponse Successful Response
- * @throws ApiError
- */
-export const useVariableServiceGetVariableSuspense = <
-  TData = Common.VariableServiceGetVariableDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    variableKey,
-  }: {
-    variableKey: string;
-  },
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseVariableServiceGetVariableKeyFn(
-      { variableKey },
-      queryKey,
-    ),
-    queryFn: () => VariableService.getVariable({ variableKey }) as TData,
-    ...options,
-  });
-/**
- * Get Variables
- * Get all Variables entries.
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @returns VariableCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useVariableServiceGetVariablesSuspense = <
-  TData = Common.VariableServiceGetVariablesDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    limit,
-    offset,
-    orderBy,
-  }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  } = {},
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseVariableServiceGetVariablesKeyFn(
-      { limit, offset, orderBy },
-      queryKey,
-    ),
-    queryFn: () =>
-      VariableService.getVariables({ limit, offset, orderBy }) as TData,
-    ...options,
-  });
-/**
  * Get Dag Run
  * @param data The data for the request.
  * @param data.dagId
@@ -492,6 +498,67 @@ export const useDagRunServiceGetDagRunSuspense = <
     ...options,
   });
 /**
+ * Get Dag Source
+ * Get source code using file token.
+ * @param data The data for the request.
+ * @param data.fileToken
+ * @param data.accept
+ * @returns DAGSourceResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagSourceServiceGetDagSourceSuspense = <
+  TData = Common.DagSourceServiceGetDagSourceDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    accept,
+    fileToken,
+  }: {
+    accept?: string;
+    fileToken: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDagSourceServiceGetDagSourceKeyFn(
+      { accept, fileToken },
+      queryKey,
+    ),
+    queryFn: () =>
+      DagSourceService.getDagSource({ accept, fileToken }) as TData,
+    ...options,
+  });
+/**
+ * Get Event Log
+ * @param data The data for the request.
+ * @param data.eventLogId
+ * @returns EventLogResponse Successful Response
+ * @throws ApiError
+ */
+export const useEventLogServiceGetEventLogSuspense = <
+  TData = Common.EventLogServiceGetEventLogDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    eventLogId,
+  }: {
+    eventLogId: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseEventLogServiceGetEventLogKeyFn(
+      { eventLogId },
+      queryKey,
+    ),
+    queryFn: () => EventLogService.getEventLog({ eventLogId }) as TData,
+    ...options,
+  });
+/**
  * Get Health
  * @returns HealthInfoSchema Successful Response
  * @throws ApiError
@@ -507,6 +574,85 @@ export const useMonitorServiceGetHealthSuspense = <
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseMonitorServiceGetHealthKeyFn(queryKey),
     queryFn: () => MonitorService.getHealth() as TData,
+    ...options,
+  });
+/**
+ * List Dag Warnings
+ * Get a list of DAG warnings.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.warningType
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns DAGWarningCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagWarningServiceListDagWarningsSuspense = <
+  TData = Common.DagWarningServiceListDagWarningsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    limit,
+    offset,
+    orderBy,
+    warningType,
+  }: {
+    dagId?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    warningType?: DagWarningType;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn(
+      { dagId, limit, offset, orderBy, warningType },
+      queryKey,
+    ),
+    queryFn: () =>
+      DagWarningService.listDagWarnings({
+        dagId,
+        limit,
+        offset,
+        orderBy,
+        warningType,
+      }) as TData,
+    ...options,
+  });
+/**
+ * Get Plugins
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @returns PluginCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const usePluginServiceGetPluginsSuspense = <
+  TData = Common.PluginServiceGetPluginsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    limit,
+    offset,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UsePluginServiceGetPluginsKeyFn(
+      { limit, offset },
+      queryKey,
+    ),
+    queryFn: () => PluginService.getPlugins({ limit, offset }) as TData,
     ...options,
   });
 /**
@@ -603,34 +749,148 @@ export const useProviderServiceGetProvidersSuspense = <
     ...options,
   });
 /**
- * Get Plugins
+ * Get Task Instance
+ * Get task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @returns TaskInstanceResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceGetTaskInstanceSuspense = <
+  TData = Common.TaskInstanceServiceGetTaskInstanceDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    taskId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    taskId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceKeyFn(
+      { dagId, dagRunId, taskId },
+      queryKey,
+    ),
+    queryFn: () =>
+      TaskInstanceService.getTaskInstance({ dagId, dagRunId, taskId }) as TData,
+    ...options,
+  });
+/**
+ * Get Mapped Task Instance
+ * Get task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.mapIndex
+ * @returns TaskInstanceResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceGetMappedTaskInstanceSuspense = <
+  TData = Common.TaskInstanceServiceGetMappedTaskInstanceDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    taskId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceKeyFn(
+      { dagId, dagRunId, mapIndex, taskId },
+      queryKey,
+    ),
+    queryFn: () =>
+      TaskInstanceService.getMappedTaskInstance({
+        dagId,
+        dagRunId,
+        mapIndex,
+        taskId,
+      }) as TData,
+    ...options,
+  });
+/**
+ * Get Variable
+ * Get a variable entry.
+ * @param data The data for the request.
+ * @param data.variableKey
+ * @returns VariableResponse Successful Response
+ * @throws ApiError
+ */
+export const useVariableServiceGetVariableSuspense = <
+  TData = Common.VariableServiceGetVariableDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    variableKey,
+  }: {
+    variableKey: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseVariableServiceGetVariableKeyFn(
+      { variableKey },
+      queryKey,
+    ),
+    queryFn: () => VariableService.getVariable({ variableKey }) as TData,
+    ...options,
+  });
+/**
+ * Get Variables
+ * Get all Variables entries.
  * @param data The data for the request.
  * @param data.limit
  * @param data.offset
- * @returns PluginCollectionResponse Successful Response
+ * @param data.orderBy
+ * @returns VariableCollectionResponse Successful Response
  * @throws ApiError
  */
-export const usePluginServiceGetPluginsSuspense = <
-  TData = Common.PluginServiceGetPluginsDefaultResponse,
+export const useVariableServiceGetVariablesSuspense = <
+  TData = Common.VariableServiceGetVariablesDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
     limit,
     offset,
+    orderBy,
   }: {
     limit?: number;
     offset?: number;
+    orderBy?: string;
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UsePluginServiceGetPluginsKeyFn(
-      { limit, offset },
+    queryKey: Common.UseVariableServiceGetVariablesKeyFn(
+      { limit, offset, orderBy },
       queryKey,
     ),
-    queryFn: () => PluginService.getPlugins({ limit, offset }) as TData,
+    queryFn: () =>
+      VariableService.getVariables({ limit, offset, orderBy }) as TData,
     ...options,
   });
 /**

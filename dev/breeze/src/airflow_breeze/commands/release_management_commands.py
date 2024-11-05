@@ -230,20 +230,21 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "24.3.1"
-AIRFLOW_UV_VERSION = "0.4.27"
+AIRFLOW_UV_VERSION = "0.4.29"
 AIRFLOW_USE_UV = False
-WHEEL_VERSION = "0.36.2"
-GITPYTHON_VERSION = "3.1.40"
-RICH_VERSION = "13.7.0"
-NODE_VERSION = "21.2.0"
-PRE_COMMIT_VERSION = "3.5.0"
-HATCH_VERSION = "1.9.1"
-PYYAML_VERSION = "6.0.1"
+# TODO: automate thsese as well
+WHEEL_VERSION = "0.44.0"
+GITPYTHON_VERSION = "3.1.43"
+RICH_VERSION = "13.9.4"
+NODE_VERSION = "22.2.0"
+PRE_COMMIT_VERSION = "4.0.1"
+HATCH_VERSION = "1.13.0"
+PYYAML_VERSION = "6.0.2"
 
 AIRFLOW_BUILD_DOCKERFILE = f"""
 FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
 RUN apt-get update && apt-get install -y --no-install-recommends git
-RUN pip install pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} pyyaml=={PYYAML_VERSION}\
+RUN pip install --root-user-action ignore pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} pyyaml=={PYYAML_VERSION}\
  gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} pre-commit=={PRE_COMMIT_VERSION}
 COPY . /opt/airflow
 """
@@ -461,7 +462,11 @@ def _check_sdist_to_wheel_dists(dists_info: tuple[DistributionPackageInfo, ...])
                 continue
 
             if not venv_created:
-                python_path = create_venv(Path(tmp_dir_name) / ".venv", pip_version=AIRFLOW_PIP_VERSION)
+                python_path = create_venv(
+                    Path(tmp_dir_name) / ".venv",
+                    pip_version=AIRFLOW_PIP_VERSION,
+                    uv_version=AIRFLOW_UV_VERSION,
+                )
                 pip_command = create_pip_command(python_path)
                 venv_created = True
 

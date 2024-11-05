@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import datetime
 import decimal
-import sys
 from importlib import metadata
 from unittest.mock import patch
 
@@ -30,14 +29,10 @@ from dateutil.tz import tzutc
 from packaging import version
 from pendulum import DateTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
+from zoneinfo import ZoneInfo
 
 from airflow.models.param import Param, ParamsDict
 from airflow.serialization.serde import DATA, deserialize, serialize
-
-if sys.version_info >= (3, 9):
-    from zoneinfo import ZoneInfo
-else:
-    from backports.zoneinfo import ZoneInfo
 
 PENDULUM3 = version.parse(metadata.version("pendulum")).major == 3
 

@@ -22,7 +22,7 @@ import sys
 from itertools import chain
 from subprocess import DEVNULL
 
-from airflow_breeze.global_constants import PIP_VERSION
+from airflow_breeze.global_constants import PIP_VERSION, UV_VERSION
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.packages import get_excluded_provider_folders, get_suspended_provider_folders
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, TESTS_PROVIDERS_ROOT
@@ -59,7 +59,9 @@ def verify_an_image(
     env["DOCKER_IMAGE"] = image_name
     if slim_image:
         env["TEST_SLIM_IMAGE"] = "true"
-    with create_temp_venv(pip_version=PIP_VERSION, requirements_file=DOCKER_TESTS_REQUIREMENTS) as py_exe:
+    with create_temp_venv(
+        pip_version=PIP_VERSION, uv_version=UV_VERSION, requirements_file=DOCKER_TESTS_REQUIREMENTS
+    ) as py_exe:
         command_result = run_command(
             [py_exe, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
             env=env,
@@ -135,10 +137,10 @@ TEST_TYPE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "Always": ["tests/always"],
     "API": ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_fastapi"],
     "BranchPythonVenv": [
-        "tests/operators/test_python.py::TestBranchPythonVirtualenvOperator",
+        "providers/tests/standard/operators/test_python.py::TestBranchPythonVirtualenvOperator",
     ],
     "BranchExternalPython": [
-        "tests/operators/test_python.py::TestBranchExternalPythonOperator",
+        "providers/tests/standard/operators/test_python.py::TestBranchExternalPythonOperator",
     ],
     "CLI": ["tests/cli"],
     "Core": [
@@ -150,7 +152,7 @@ TEST_TYPE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
         "tests/utils",
     ],
     "ExternalPython": [
-        "tests/operators/test_python.py::TestExternalPythonOperator",
+        "providers/tests/standard/operators/test_python.py::TestExternalPythonOperator",
     ],
     "Integration": ["tests/integration"],
     # Operators test type excludes Virtualenv/External tests - they have their own test types
@@ -158,12 +160,12 @@ TEST_TYPE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     # this one is mysteriously failing dill serialization. It could be removed once
     # https://github.com/pytest-dev/pytest/issues/10845 is fixed
     "PlainAsserts": [
-        "tests/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context",
+        "providers/tests/standard/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context",
         "--assert=plain",
     ],
     "Providers": ["providers/tests"],
     "PythonVenv": [
-        "tests/operators/test_python.py::TestPythonVirtualenvOperator",
+        "providers/tests/standard/operators/test_python.py::TestPythonVirtualenvOperator",
     ],
     "Serialization": [
         "tests/serialization",
@@ -212,6 +214,12 @@ PROVIDERS_LIST_PREFIX = "Providers["
 PROVIDERS_LIST_EXCLUDE_PREFIX = "Providers[-"
 
 ALL_TEST_SUITES: dict[str, tuple[str, ...]] = {
+    # TODO: This is not really correct now - we should allow to run both providers and airflow
+    # as "ALL" tests - currently it is not possible due to conftest.py present at top-level of
+    # all different test suites ("tests", "providers/tests", "task_sdk/tests")
+    # The only reason it is working now in CI is because we run tests in parallel (both DB and non-DB)
+    # each test subfolder is separately specified in the pytest command line
+    # This should be solved as part of https://github.com/apache/airflow/issues/42632
     "All": ("tests",),
     "All-Long": ("tests", "-m", "long_running", "--include-long-running"),
     "All-Quarantined": ("tests", "-m", "quarantined", "--include-quarantined"),
@@ -301,9 +309,7 @@ def generate_args_for_pytest(
 ):
     result_log_file, warnings_file, coverage_file = test_paths(test_type, backend, helm_test_package)
     if skip_db_tests and parallel_test_types_list:
-        args = convert_parallel_types_to_folders(
-            parallel_test_types_list, skip_provider_tests, python_version=python_version
-        )
+        args = convert_parallel_types_to_folders(parallel_test_types_list, skip_provider_tests)
     else:
         args = convert_test_type_to_pytest_args(
             test_type=test_type,
@@ -386,9 +392,7 @@ def generate_args_for_pytest(
     return args
 
 
-def convert_parallel_types_to_folders(
-    parallel_test_types_list: list[str], skip_provider_tests: bool, python_version: str
-):
+def convert_parallel_types_to_folders(parallel_test_types_list: list[str], skip_provider_tests: bool):
     args = []
     for _test_type in parallel_test_types_list:
         args.extend(

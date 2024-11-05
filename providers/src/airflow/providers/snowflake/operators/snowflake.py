@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import time
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Iterable, List, Mapping, Sequence, SupportsAbs, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Iterable, List, Mapping, Sequence, SupportsAbs, cast
 
 from deprecated import deprecated
 
@@ -88,7 +88,7 @@ class SnowflakeOperator(SQLExecuteQueryOperator):
 
     template_fields: Sequence[str] = ("sql",)
     template_ext: Sequence[str] = (".sql",)
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
     ui_color = "#ededed"
 
     def __init__(

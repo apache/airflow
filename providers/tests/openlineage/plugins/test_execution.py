@@ -23,7 +23,6 @@ import random
 import shutil
 import tempfile
 from pathlib import Path
-from unittest import mock
 
 import pytest
 
@@ -33,7 +32,6 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagBag, TaskInstance
 from airflow.providers.google.cloud.openlineage.utils import get_from_nullable_chain
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
-from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.state import State
 
@@ -108,11 +106,9 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             ti = TaskInstance(task=task, run_id=run_id)
             job = Job(id=random.randint(0, 23478197), dag_id=ti.dag_id)
             job_runner = LocalTaskJobRunner(job=job, task_instance=ti, ignore_ti_state=True)
-            task_runner = StandardTaskRunner(job_runner)
-            with mock.patch("airflow.task.task_runner.get_task_runner", return_value=task_runner):
-                job_runner._execute()
+            job_runner._execute()
 
-            return task_runner.return_code(timeout=60)
+            return job_runner.task_runner.return_code(timeout=60)
 
         @pytest.mark.db_test
         @conf_vars({("openlineage", "transport"): f'{{"type": "file", "log_file_path": "{listener_path}"}}'})

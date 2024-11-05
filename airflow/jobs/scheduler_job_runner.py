@@ -30,7 +30,7 @@ from functools import lru_cache, partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
-from sqlalchemy import and_, delete, exists, func, not_, or_, select, text, update
+from sqlalchemy import and_, delete, exists, func, not_, select, text, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -777,7 +777,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, "
                 "run_start_date=%s, run_end_date=%s, "
                 "run_duration=%s, state=%s, executor=%s, executor_state=%s, try_number=%s, max_tries=%s, "
-                "job_id=%s, pool=%s, queue=%s, priority_weight=%d, operator=%s, queued_dttm=%s, "
+                "pool=%s, queue=%s, priority_weight=%d, operator=%s, queued_dttm=%s, "
                 "queued_by_job_id=%s, pid=%s"
             )
             cls.logger().info(
@@ -794,7 +794,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 state,
                 try_number,
                 ti.max_tries,
-                ti.job_id,
                 ti.pool,
                 ti.queue,
                 ti.priority_weight,
@@ -821,7 +820,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 span.set_attribute("operator", str(ti.operator))
                 span.set_attribute("try_number", ti.try_number)
                 span.set_attribute("executor_state", state)
-                span.set_attribute("job_id", ti.job_id)
                 span.set_attribute("pool", ti.pool)
                 span.set_attribute("queue", ti.queue)
                 span.set_attribute("priority_weight", ti.priority_weight)
@@ -829,9 +827,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 span.set_attribute("queued_by_job_id", ti.queued_by_job_id)
                 span.set_attribute("pid", ti.pid)
                 if span.is_recording():
-                    span.add_event(name="queued", timestamp=datetime_to_nano(ti.queued_dttm))
-                    span.add_event(name="started", timestamp=datetime_to_nano(ti.start_date))
-                    span.add_event(name="ended", timestamp=datetime_to_nano(ti.end_date))
+                    if ti.queued_dttm:
+                        span.add_event(name="queued", timestamp=datetime_to_nano(ti.queued_dttm))
+                    if ti.start_date:
+                        span.add_event(name="started", timestamp=datetime_to_nano(ti.start_date))
+                    if ti.end_date:
+                        span.add_event(name="ended", timestamp=datetime_to_nano(ti.end_date))
                 if conf.has_option("traces", "otel_task_log_event") and conf.getboolean(
                     "traces", "otel_task_log_event"
                 ):
@@ -1974,22 +1975,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self._purge_zombies(zombies, session=session)
 
     def _find_zombies(self, *, session: Session) -> list[tuple[TI, str, str]]:
-        from airflow.jobs.job import Job
-
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
         zombies = session.execute(
             select(TI, DM.fileloc, DM.processor_subdir)
             .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
-            .join(Job, TI.job_id == Job.id)
             .join(DM, TI.dag_id == DM.dag_id)
-            .where(TI.state == TaskInstanceState.RUNNING)
-            .where(or_(Job.state != JobState.RUNNING, Job.latest_heartbeat < limit_dttm))
-            .where(Job.job_type == "LocalTaskJob")
+            .where(
+                TI.state.in_((TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING)),
+                TI.last_heartbeat_at < limit_dttm,
+            )
             .where(TI.queued_by_job_id == self.job.id)
         ).all()
         if zombies:
-            self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
+            self.log.warning("Failing %s TIs without heartbeat after %s", len(zombies), limit_dttm)
         return zombies
 
     def _purge_zombies(self, zombies: list[tuple[TI, str, str]], *, session: Session) -> None:

@@ -9,6 +9,18 @@ import type {
   HistoricalMetricsResponse,
   RecentDagRunsData,
   RecentDagRunsResponse,
+  ListBackfillsData,
+  ListBackfillsResponse,
+  CreateBackfillData,
+  CreateBackfillResponse,
+  GetBackfillData,
+  GetBackfillResponse,
+  PauseBackfillData,
+  PauseBackfillResponse,
+  UnpauseBackfillData,
+  UnpauseBackfillResponse,
+  CancelBackfillData,
+  CancelBackfillResponse,
   GetDagsData,
   GetDagsResponse,
   PatchDagsData,
@@ -29,21 +41,21 @@ import type {
   GetConnectionResponse,
   GetConnectionsData,
   GetConnectionsResponse,
-  DeleteVariableData,
-  DeleteVariableResponse,
-  GetVariableData,
-  GetVariableResponse,
-  PatchVariableData,
-  PatchVariableResponse,
-  GetVariablesData,
-  GetVariablesResponse,
-  PostVariableData,
-  PostVariableResponse,
   GetDagRunData,
   GetDagRunResponse,
   DeleteDagRunData,
   DeleteDagRunResponse,
+  PatchDagRunStateData,
+  PatchDagRunStateResponse,
+  GetDagSourceData,
+  GetDagSourceResponse,
+  GetEventLogData,
+  GetEventLogResponse,
   GetHealthResponse,
+  ListDagWarningsData,
+  ListDagWarningsResponse,
+  GetPluginsData,
+  GetPluginsResponse,
   DeletePoolData,
   DeletePoolResponse,
   GetPoolData,
@@ -56,8 +68,20 @@ import type {
   PostPoolResponse,
   GetProvidersData,
   GetProvidersResponse,
-  GetPluginsData,
-  GetPluginsResponse,
+  GetTaskInstanceData,
+  GetTaskInstanceResponse,
+  GetMappedTaskInstanceData,
+  GetMappedTaskInstanceResponse,
+  DeleteVariableData,
+  DeleteVariableResponse,
+  GetVariableData,
+  GetVariableResponse,
+  PatchVariableData,
+  PatchVariableResponse,
+  GetVariablesData,
+  GetVariablesResponse,
+  PostVariableData,
+  PostVariableResponse,
   GetVersionResponse,
 } from "./types.gen";
 
@@ -150,6 +174,166 @@ export class DagsService {
         last_dag_run_state: data.lastDagRunState,
       },
       errors: {
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class BackfillService {
+  /**
+   * List Backfills
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static listBackfills(
+    data: ListBackfillsData,
+  ): CancelablePromise<ListBackfillsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/backfills/",
+      query: {
+        dag_id: data.dagId,
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Create Backfill
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static createBackfill(
+    data: CreateBackfillData,
+  ): CancelablePromise<CreateBackfillResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/backfills/",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Backfill
+   * @param data The data for the request.
+   * @param data.backfillId
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getBackfill(
+    data: GetBackfillData,
+  ): CancelablePromise<GetBackfillResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/backfills/{backfill_id}",
+      path: {
+        backfill_id: data.backfillId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Pause Backfill
+   * @param data The data for the request.
+   * @param data.backfillId
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static pauseBackfill(
+    data: PauseBackfillData,
+  ): CancelablePromise<PauseBackfillResponse> {
+    return __request(OpenAPI, {
+      method: "PUT",
+      url: "/public/backfills/{backfill_id}/pause",
+      path: {
+        backfill_id: data.backfillId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Unpause Backfill
+   * @param data The data for the request.
+   * @param data.backfillId
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static unpauseBackfill(
+    data: UnpauseBackfillData,
+  ): CancelablePromise<UnpauseBackfillResponse> {
+    return __request(OpenAPI, {
+      method: "PUT",
+      url: "/public/backfills/{backfill_id}/unpause",
+      path: {
+        backfill_id: data.backfillId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Cancel Backfill
+   * @param data The data for the request.
+   * @param data.backfillId
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static cancelBackfill(
+    data: CancelBackfillData,
+  ): CancelablePromise<CancelBackfillResponse> {
+    return __request(OpenAPI, {
+      method: "PUT",
+      url: "/public/backfills/{backfill_id}/cancel",
+      path: {
+        backfill_id: data.backfillId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        409: "Conflict",
         422: "Validation Error",
       },
     });
@@ -473,147 +657,6 @@ export class ConnectionService {
   }
 }
 
-export class VariableService {
-  /**
-   * Delete Variable
-   * Delete a variable entry.
-   * @param data The data for the request.
-   * @param data.variableKey
-   * @returns void Successful Response
-   * @throws ApiError
-   */
-  public static deleteVariable(
-    data: DeleteVariableData,
-  ): CancelablePromise<DeleteVariableResponse> {
-    return __request(OpenAPI, {
-      method: "DELETE",
-      url: "/public/variables/{variable_key}",
-      path: {
-        variable_key: data.variableKey,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Get Variable
-   * Get a variable entry.
-   * @param data The data for the request.
-   * @param data.variableKey
-   * @returns VariableResponse Successful Response
-   * @throws ApiError
-   */
-  public static getVariable(
-    data: GetVariableData,
-  ): CancelablePromise<GetVariableResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/variables/{variable_key}",
-      path: {
-        variable_key: data.variableKey,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Patch Variable
-   * Update a variable by key.
-   * @param data The data for the request.
-   * @param data.variableKey
-   * @param data.requestBody
-   * @param data.updateMask
-   * @returns VariableResponse Successful Response
-   * @throws ApiError
-   */
-  public static patchVariable(
-    data: PatchVariableData,
-  ): CancelablePromise<PatchVariableResponse> {
-    return __request(OpenAPI, {
-      method: "PATCH",
-      url: "/public/variables/{variable_key}",
-      path: {
-        variable_key: data.variableKey,
-      },
-      query: {
-        update_mask: data.updateMask,
-      },
-      body: data.requestBody,
-      mediaType: "application/json",
-      errors: {
-        400: "Bad Request",
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Get Variables
-   * Get all Variables entries.
-   * @param data The data for the request.
-   * @param data.limit
-   * @param data.offset
-   * @param data.orderBy
-   * @returns VariableCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static getVariables(
-    data: GetVariablesData = {},
-  ): CancelablePromise<GetVariablesResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/variables/",
-      query: {
-        limit: data.limit,
-        offset: data.offset,
-        order_by: data.orderBy,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Post Variable
-   * Create a variable.
-   * @param data The data for the request.
-   * @param data.requestBody
-   * @returns VariableResponse Successful Response
-   * @throws ApiError
-   */
-  public static postVariable(
-    data: PostVariableData,
-  ): CancelablePromise<PostVariableResponse> {
-    return __request(OpenAPI, {
-      method: "POST",
-      url: "/public/variables/",
-      body: data.requestBody,
-      mediaType: "application/json",
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        422: "Validation Error",
-      },
-    });
-  }
-}
-
 export class DagRunService {
   /**
    * Get Dag Run
@@ -670,6 +713,103 @@ export class DagRunService {
       },
     });
   }
+
+  /**
+   * Patch Dag Run State
+   * Modify a DAG Run.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.requestBody
+   * @param data.updateMask
+   * @returns DAGRunResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchDagRunState(
+    data: PatchDagRunStateData,
+  ): CancelablePromise<PatchDagRunStateResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+      },
+      query: {
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class DagSourceService {
+  /**
+   * Get Dag Source
+   * Get source code using file token.
+   * @param data The data for the request.
+   * @param data.fileToken
+   * @param data.accept
+   * @returns DAGSourceResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDagSource(
+    data: GetDagSourceData,
+  ): CancelablePromise<GetDagSourceResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dagSources/{file_token}",
+      path: {
+        file_token: data.fileToken,
+      },
+      headers: {
+        accept: data.accept,
+      },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        406: "Not Acceptable",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class EventLogService {
+  /**
+   * Get Event Log
+   * @param data The data for the request.
+   * @param data.eventLogId
+   * @returns EventLogResponse Successful Response
+   * @throws ApiError
+   */
+  public static getEventLog(
+    data: GetEventLogData,
+  ): CancelablePromise<GetEventLogResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/eventLogs/{event_log_id}",
+      path: {
+        event_log_id: data.eventLogId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
 }
 
 export class MonitorService {
@@ -682,6 +822,67 @@ export class MonitorService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/monitor/health",
+    });
+  }
+}
+
+export class DagWarningService {
+  /**
+   * List Dag Warnings
+   * Get a list of DAG warnings.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.warningType
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @returns DAGWarningCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static listDagWarnings(
+    data: ListDagWarningsData = {},
+  ): CancelablePromise<ListDagWarningsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dagWarnings",
+      query: {
+        dag_id: data.dagId,
+        warning_type: data.warningType,
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class PluginService {
+  /**
+   * Get Plugins
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @returns PluginCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getPlugins(
+    data: GetPluginsData = {},
+  ): CancelablePromise<GetPluginsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/plugins/",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+      },
+      errors: {
+        422: "Validation Error",
+      },
     });
   }
 }
@@ -854,26 +1055,205 @@ export class ProviderService {
   }
 }
 
-export class PluginService {
+export class TaskInstanceService {
   /**
-   * Get Plugins
+   * Get Task Instance
+   * Get task instance.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @returns TaskInstanceResponse Successful Response
+   * @throws ApiError
+   */
+  public static getTaskInstance(
+    data: GetTaskInstanceData,
+  ): CancelablePromise<GetTaskInstanceResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Mapped Task Instance
+   * Get task instance.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.mapIndex
+   * @returns TaskInstanceResponse Successful Response
+   * @throws ApiError
+   */
+  public static getMappedTaskInstance(
+    data: GetMappedTaskInstanceData,
+  ): CancelablePromise<GetMappedTaskInstanceResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+        map_index: data.mapIndex,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class VariableService {
+  /**
+   * Delete Variable
+   * Delete a variable entry.
+   * @param data The data for the request.
+   * @param data.variableKey
+   * @returns void Successful Response
+   * @throws ApiError
+   */
+  public static deleteVariable(
+    data: DeleteVariableData,
+  ): CancelablePromise<DeleteVariableResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/public/variables/{variable_key}",
+      path: {
+        variable_key: data.variableKey,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Variable
+   * Get a variable entry.
+   * @param data The data for the request.
+   * @param data.variableKey
+   * @returns VariableResponse Successful Response
+   * @throws ApiError
+   */
+  public static getVariable(
+    data: GetVariableData,
+  ): CancelablePromise<GetVariableResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/variables/{variable_key}",
+      path: {
+        variable_key: data.variableKey,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Patch Variable
+   * Update a variable by key.
+   * @param data The data for the request.
+   * @param data.variableKey
+   * @param data.requestBody
+   * @param data.updateMask
+   * @returns VariableResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchVariable(
+    data: PatchVariableData,
+  ): CancelablePromise<PatchVariableResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/variables/{variable_key}",
+      path: {
+        variable_key: data.variableKey,
+      },
+      query: {
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Variables
+   * Get all Variables entries.
    * @param data The data for the request.
    * @param data.limit
    * @param data.offset
-   * @returns PluginCollectionResponse Successful Response
+   * @param data.orderBy
+   * @returns VariableCollectionResponse Successful Response
    * @throws ApiError
    */
-  public static getPlugins(
-    data: GetPluginsData = {},
-  ): CancelablePromise<GetPluginsResponse> {
+  public static getVariables(
+    data: GetVariablesData = {},
+  ): CancelablePromise<GetVariablesResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/plugins/",
+      url: "/public/variables/",
       query: {
         limit: data.limit,
         offset: data.offset,
+        order_by: data.orderBy,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Post Variable
+   * Create a variable.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns VariableResponse Successful Response
+   * @throws ApiError
+   */
+  public static postVariable(
+    data: PostVariableData,
+  ): CancelablePromise<PostVariableResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/variables/",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });

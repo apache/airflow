@@ -36,7 +36,7 @@ import semver
 from rich.syntax import Syntax
 
 from airflow_breeze.utils.black_utils import black_format
-from airflow_breeze.utils.confirm import Answer, confirm_action, user_confirm
+from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.packages import (
     HTTPS_REMOTE,
@@ -320,6 +320,7 @@ def _get_all_changes_for_package(
     providers_folder_paths = [
         provider_details.source_provider_package_path,
         provider_details.old_source_provider_package_path,
+        provider_details.documentation_provider_package_path,
     ]
     if not reapply_templates_only and result.returncode == 0:
         if get_verbose():
@@ -443,7 +444,7 @@ def _ask_the_user_for_the_type_of_changes(non_interactive: bool) -> TypeOfChange
     display_answers = "/".join(type_of_changes_array) + "/q"
     while True:
         get_console().print(
-            "[warning]Type of change (b)ugfix, (f)eature, (x)breaking "
+            "[warning]Type of change (d)ocumentation, (b)ugfix, (f)eature, (x)breaking "
             f"change, (m)misc, (s)kip, (q)uit [{display_answers}]?[/] ",
             end="",
         )
@@ -749,7 +750,7 @@ def update_release_notes(
             )
             raise PrepareReleaseDocsNoChangesException()
         else:
-            answer = confirm_action(
+            answer = user_confirm(
                 f"Does the provider: {provider_package_id} have any changes apart from 'doc-only'?"
             )
             if answer == Answer.NO:

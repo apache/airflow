@@ -128,8 +128,8 @@ github:
     - sunank200
     - vatsrahul1001
     - cmarteepants
-    - gopidesupavan
     - bugraoz93
+    - briana-okyere
 
 notifications:
   jobs: jobs@airflow.apache.org

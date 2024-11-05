@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Text, VStack } from "@chakra-ui/react";
+import { Box, Field, Text, VStack } from "@chakra-ui/react";
 import { Select, type SingleValue } from "chakra-react-select";
 import dayjs from "dayjs";
 import timezone from "dayjs/plugin/timezone";
@@ -69,13 +69,15 @@ const TimezoneSelector: React.FC = () => {
     .format("YYYY-MM-DD HH:mm:ss");
 
   return (
-    <VStack align="stretch" spacing={6}>
-      <Select<TimezoneOption>
-        onChange={handleTimezoneChange}
-        options={options}
-        placeholder="Select a timezone"
-        value={options.find((option) => option.value === selectedTimezone)}
-      />
+    <VStack align="stretch" gap={6}>
+      <Field.Root>
+        <Select<TimezoneOption>
+          onChange={handleTimezoneChange}
+          options={options}
+          placeholder="Select a timezone"
+          value={options.find((option) => option.value === selectedTimezone)}
+        />
+      </Field.Root>
       <Box borderRadius="md" boxShadow="md" p={6}>
         <Text fontSize="lg" fontWeight="bold">
           Current time in {selectedTimezone}:
