@@ -359,6 +359,68 @@ export const UseEventLogServiceGetEventLogKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useEventLogServiceGetEventLogKey, ...(queryKey ?? [{ eventLogId }])];
+export type EventLogServiceGetEventLogsDefaultResponse = Awaited<
+  ReturnType<typeof EventLogService.getEventLogs>
+>;
+export type EventLogServiceGetEventLogsQueryResult<
+  TData = EventLogServiceGetEventLogsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useEventLogServiceGetEventLogsKey = "EventLogServiceGetEventLogs";
+export const UseEventLogServiceGetEventLogsKeyFn = (
+  {
+    after,
+    before,
+    dagId,
+    event,
+    excludedEvents,
+    includedEvents,
+    limit,
+    mapIndex,
+    offset,
+    orderBy,
+    owner,
+    runId,
+    taskId,
+    tryNumber,
+  }: {
+    after?: string;
+    before?: string;
+    dagId?: string;
+    event?: string;
+    excludedEvents?: string[];
+    includedEvents?: string[];
+    limit?: number;
+    mapIndex?: number;
+    offset?: number;
+    orderBy?: string;
+    owner?: string;
+    runId?: string;
+    taskId?: string;
+    tryNumber?: number;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useEventLogServiceGetEventLogsKey,
+  ...(queryKey ?? [
+    {
+      after,
+      before,
+      dagId,
+      event,
+      excludedEvents,
+      includedEvents,
+      limit,
+      mapIndex,
+      offset,
+      orderBy,
+      owner,
+      runId,
+      taskId,
+      tryNumber,
+    },
+  ]),
+];
 export type MonitorServiceGetHealthDefaultResponse = Awaited<
   ReturnType<typeof MonitorService.getHealth>
 >;
