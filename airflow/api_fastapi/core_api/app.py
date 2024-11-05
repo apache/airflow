@@ -23,6 +23,7 @@ from typing import cast
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from starlette.requests import Request
 from starlette.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
@@ -113,4 +114,5 @@ def init_config(app: FastAPI) -> None:
             allow_headers=allow_headers,
         )
 
+    app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=5)
     app.state.secret_key = conf.get("webserver", "secret_key")
