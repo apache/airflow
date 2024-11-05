@@ -28,10 +28,12 @@ import {
 } from "@chakra-ui/react";
 import { autocompletion } from "@codemirror/autocomplete";
 import { json } from "@codemirror/lang-json";
-import { oneDark } from "@codemirror/theme-one-dark";
+import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
 import CodeMirror, { lineNumbers } from "@uiw/react-codemirror";
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
+
+import { useColorMode } from "src/context/colorMode";
 
 type DagParams = {
   configJson: string;
@@ -113,6 +115,8 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
     }
   };
 
+  const { colorMode } = useColorMode();
+
   return (
     <>
       <Dialog.CloseTrigger />
@@ -185,7 +189,8 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                         outline: "none",
                         padding: "2px",
                       }}
-                      theme={oneDark}
+                       
+                      theme={colorMode === "dark" ? githubDark : githubLight}
                     />
                     {!isValidJson() && (
                       <Box color="red.500" mt={2}>
