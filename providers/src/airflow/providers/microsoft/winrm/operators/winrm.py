@@ -104,7 +104,5 @@ class WinRMOperator(BaseOperator):
             return b64encode(b"".join(stdout_buffer)).decode(self.output_encoding)
 
         stderr_output = b"".join(stderr_buffer).decode(self.output_encoding)
-        error_msg = (
-            f"Error running cmd: {self.command}, return code: {return_code}, error: {stderr_output}"
-        )
+        error_msg = f"Error running cmd: {self.command}, return code: {return_code}, error: {stderr_output}"
         raise AirflowException(error_msg)
