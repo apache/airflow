@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from fastapi import Depends
+from fastapi import Depends, status
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
@@ -41,7 +41,14 @@ dag_stats_router = AirflowRouter(tags=["DagStats"], prefix="/dagStats")
 
 @dag_stats_router.get(
     "/",
-    responses=create_openapi_http_exception_doc([400, 401, 403, 404]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
 )
 async def get_dag_stats(
     session: Annotated[Session, Depends(get_session)],
