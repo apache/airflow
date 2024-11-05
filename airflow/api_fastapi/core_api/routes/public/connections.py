@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, status, Query
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
@@ -141,7 +141,14 @@ async def post_connection(
 
 @connections_router.patch(
     "/{connection_id}",
-    responses=create_openapi_http_exception_doc([400, 401, 403, 404]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
 )
 async def patch_connection(
     connection_id: str,
