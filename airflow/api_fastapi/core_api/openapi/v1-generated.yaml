@@ -2418,12 +2418,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -2655,7 +2649,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PoolPatchBody'
       responses:
-        '200':
+        '201':
           description: Successful Response
           content:
             application/json:
@@ -3046,19 +3040,21 @@ paths:
         in: query
         required: false
         schema:
-          type: integer
-          minimum: 0
-          default: 100
-          title: Limit
-      - name: offset
-        in: query
-        required: false
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
         schema:
-          type: integer
-          minimum: 0
-          default: 0
-          title: Offset
-      - name: order_by
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: map_index
         in: query
         required: false
         schema:
@@ -3243,9 +3239,9 @@ paths:
         schema:
           type: string
           title: Dag Run Id
-      - name: task_id
-        in: path
-        required: true
+      - name: logical_date_gte
+        in: query
+        required: false
         schema:
           type: string
           title: Task Id
@@ -3261,7 +3257,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstanceResponse'
+                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
         '401':
           content:
             application/json:
@@ -3600,6 +3596,7 @@ paths:
         in: path
         required: true
         schema:
+          title: Task Id
           type: string
           title: Dag Id
       - name: task_id
