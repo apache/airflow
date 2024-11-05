@@ -118,7 +118,13 @@ async def get_connections(
     )
 
 
-@connections_router.post("/", status_code=201, responses=create_openapi_http_exception_doc([401, 403, 409]))
+@connections_router.post(
+    "/",
+    status_code=201,
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_409_CONFLICT]
+    ),
+)
 async def post_connection(
     post_body: ConnectionBody,
     session: Annotated[Session, Depends(get_session)],
