@@ -454,6 +454,96 @@ export const prefetchUseEventLogServiceGetEventLog = (
     queryFn: () => EventLogService.getEventLog({ eventLogId }),
   });
 /**
+ * Get Event Logs
+ * Get all Event Logs.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.taskId
+ * @param data.runId
+ * @param data.mapIndex
+ * @param data.tryNumber
+ * @param data.owner
+ * @param data.event
+ * @param data.excludedEvents
+ * @param data.includedEvents
+ * @param data.before
+ * @param data.after
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns EventLogCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseEventLogServiceGetEventLogs = (
+  queryClient: QueryClient,
+  {
+    after,
+    before,
+    dagId,
+    event,
+    excludedEvents,
+    includedEvents,
+    limit,
+    mapIndex,
+    offset,
+    orderBy,
+    owner,
+    runId,
+    taskId,
+    tryNumber,
+  }: {
+    after?: string;
+    before?: string;
+    dagId?: string;
+    event?: string;
+    excludedEvents?: string[];
+    includedEvents?: string[];
+    limit?: number;
+    mapIndex?: number;
+    offset?: number;
+    orderBy?: string;
+    owner?: string;
+    runId?: string;
+    taskId?: string;
+    tryNumber?: number;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseEventLogServiceGetEventLogsKeyFn({
+      after,
+      before,
+      dagId,
+      event,
+      excludedEvents,
+      includedEvents,
+      limit,
+      mapIndex,
+      offset,
+      orderBy,
+      owner,
+      runId,
+      taskId,
+      tryNumber,
+    }),
+    queryFn: () =>
+      EventLogService.getEventLogs({
+        after,
+        before,
+        dagId,
+        event,
+        excludedEvents,
+        includedEvents,
+        limit,
+        mapIndex,
+        offset,
+        orderBy,
+        owner,
+        runId,
+        taskId,
+        tryNumber,
+      }),
+  });
+/**
  * Get Health
  * @returns HealthInfoSchema Successful Response
  * @throws ApiError
