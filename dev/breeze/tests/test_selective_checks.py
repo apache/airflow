@@ -51,6 +51,10 @@ LIST_OF_ALL_PROVIDER_TESTS = " ".join(
 # commit that is neutral - allows to keep pyproject.toml-changing PRS neutral for unit tests
 NEUTRAL_COMMIT = "938f0c1f3cc4cbe867123ee8aa9f290f9f18100a"
 
+# for is_legacy_ui_api_labeled tests
+LEGACY_UI_LABEL = "legacy ui"
+LEGACY_API_LABEL = "legacy api"
+
 
 def escape_ansi_colors(line):
     return ANSI_COLORS_MATCHER.sub("", line)
@@ -2418,3 +2422,117 @@ def test_pr_labels(
         pr_labels=pr_labels,
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    "files, pr_labels, github_event, expected_label",
+    [
+        pytest.param(
+            ("airflow/www/package.json",),
+            (),
+            GithubEvents.PULL_REQUEST,
+            LEGACY_UI_LABEL,
+            id="Legacy UI file without label",
+        ),
+        pytest.param(
+            ("airflow/api_connexion/endpoints/health_endpoint.py", "airflow/www/package.json"),
+            (LEGACY_UI_LABEL,),
+            GithubEvents.PULL_REQUEST,
+            LEGACY_API_LABEL,
+            id="Legacy API and UI files without one of the labels API missing",
+        ),
+        pytest.param(
+            ("airflow/api_connexion/endpoints/health_endpoint.py",),
+            (),
+            GithubEvents.PULL_REQUEST,
+            LEGACY_API_LABEL,
+            id="Legacy API file without label",
+        ),
+        pytest.param(
+            ("airflow/api_connexion/endpoints/health_endpoint.py", "airflow/www/package.json"),
+            (LEGACY_API_LABEL,),
+            GithubEvents.PULL_REQUEST,
+            LEGACY_UI_LABEL,
+            id="Legacy API and UI files without one of the labels UI missing",
+        ),
+    ],
+)
+def test_is_legacy_ui_api_labeled(
+    files: tuple[str, ...], pr_labels: tuple[str, ...], github_event: GithubEvents, expected_label: str
+):
+    try:
+        stdout = SelectiveChecks(
+            files=files,
+            commit_ref=NEUTRAL_COMMIT,
+            github_event=github_event,
+            pr_labels=pr_labels,
+            default_branch="main",
+        )
+    except SystemExit:
+        assert (
+            f"[error]Please ask maintainer to assign the '{expected_label}' label to the PR in order to continue"
+            in escape_ansi_colors(str(stdout))
+        )
+
+
+@pytest.mark.parametrize(
+    "files, pr_labels, github_event, expected_label",
+    [
+        pytest.param(
+            ("airflow/www/package.json",),
+            (LEGACY_UI_LABEL,),
+            GithubEvents.PULL_REQUEST,
+            LEGACY_UI_LABEL,
+            id="Legacy UI file with label",
+        ),
+        pytest.param(
+            ("airflow/api_connexion/endpoints/health_endpoint.py",),
+            (LEGACY_API_LABEL,),
+            GithubEvents.PULL_REQUEST,
+            LEGACY_API_LABEL,
+            id="Legacy API file with label",
+        ),
+        pytest.param(
+            ("airflow/api_connexion/endpoints/health_endpoint.py",),
+            (),
+            GithubEvents.SCHEDULE,
+            LEGACY_API_LABEL,
+            id="Legacy API file in canary schedule",
+        ),
+        pytest.param(
+            ("airflow/www/package.json",),
+            (LEGACY_UI_LABEL,),
+            GithubEvents.SCHEDULE,
+            LEGACY_API_LABEL,
+            id="Legacy UI file in canary schedule",
+        ),
+        pytest.param(
+            ("airflow/api_connexion/endpoints/health_endpoint.py",),
+            (LEGACY_API_LABEL,),
+            GithubEvents.PUSH,
+            LEGACY_API_LABEL,
+            id="Legacy API file in canary push",
+        ),
+        pytest.param(
+            ("airflow/www/package.json",),
+            (LEGACY_UI_LABEL,),
+            GithubEvents.PUSH,
+            LEGACY_UI_LABEL,
+            id="Legacy UI file in canary push",
+        ),
+    ],
+)
+def test_is_legacy_ui_api_labeled_should_not_fail(
+    files: tuple[str, ...], pr_labels: tuple[str, ...], github_event: GithubEvents, expected_label: str
+):
+    stdout = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=github_event,
+        pr_labels=pr_labels,
+        default_branch="main",
+    )
+    assert (
+        f"[error]Please ask maintainer to assign the '{expected_label}' label to the PR in order to continue"
+        not in escape_ansi_colors(str(stdout))
+    )
