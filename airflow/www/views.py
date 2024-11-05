@@ -3856,6 +3856,17 @@ class XComModelView(AirflowModelView):
     list_columns = ["key", "value", "timestamp", "dag_id", "task_id", "run_id", "map_index", "execution_date"]
     base_order = ("dag_run_id", "desc")
 
+    order_columns = [
+        "key",
+        "value",
+        "timestamp",
+        "dag_id",
+        "task_id",
+        "run_id",
+        "map_index",
+        # "execution_date", # disable to fix error before airflow 3
+    ]
+
     base_filters = [["dag_id", DagFilter, list]]
 
     formatters_columns = {
