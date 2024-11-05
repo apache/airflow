@@ -32,6 +32,7 @@ from airflow.models import Base, Connection
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
+from airflow.models.errors import ParseImportError
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 
@@ -158,6 +159,7 @@ class SortParam(BaseParam[str]):
         "last_run_state": DagRun.state,
         "last_run_start_date": DagRun.start_date,
         "connection_id": Connection.conn_id,
+        "import_error_id": ParseImportError.id,
     }
 
     def __init__(

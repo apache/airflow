@@ -1538,6 +1538,105 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/importErrors/{import_error_id}:
+    get:
+      tags:
+      - Import Error
+      summary: Get Import Error
+      description: Get an import error.
+      operationId: get_import_error
+      parameters:
+      - name: import_error_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Import Error Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportErrorResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/importErrors/:
+    get:
+      tags:
+      - Import Error
+      summary: Get Import Errors
+      description: Get all import errors.
+      operationId: get_import_errors
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: id
+          title: Order By
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportErrorCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/monitor/health:
     get:
       tags:
@@ -3454,6 +3553,45 @@ components:
       - task_instance_states
       title: HistoricalMetricDataResponse
       description: Historical Metric Data serializer for responses.
+    ImportErrorCollectionResponse:
+      properties:
+        import_errors:
+          items:
+            $ref: '#/components/schemas/ImportErrorResponse'
+          type: array
+          title: Import Errors
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - import_errors
+      - total_entries
+      title: ImportErrorCollectionResponse
+      description: Import Error Collection Response.
+    ImportErrorResponse:
+      properties:
+        import_error_id:
+          type: integer
+          title: Import Error Id
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        filename:
+          type: string
+          title: Filename
+        stack_trace:
+          type: string
+          title: Stack Trace
+      type: object
+      required:
+      - import_error_id
+      - timestamp
+      - filename
+      - stack_trace
+      title: ImportErrorResponse
+      description: Import Error Response.
     JobResponse:
       properties:
         id:
