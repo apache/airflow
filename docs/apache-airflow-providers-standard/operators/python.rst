@@ -214,7 +214,7 @@ pip configuration as described in `pip config <https://pip.pypa.io/en/stable/top
 If you want to use additional task specific private python repositories to setup the virtual environment, you can pass the ``index_urls`` parameter which will adjust the
 pip install configurations. Passed index urls replace the standard system configured index url settings.
 To prevent adding secrets to the private repository in your DAG code you can use the Airflow
-:doc:`../../authoring-and-scheduling/connections`. For this purpose the connection type ``Package Index (Python)`` can be used.
+`<https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/connections.html>`_. For this purpose the connection type ``Package Index (Python)`` can be used.
 
 In the special case you want to prevent remote calls for setup of a virtual environment, pass the ``index_urls`` as empty list as ``index_urls=[]`` which
 forced pip installer to use the ``--no-index`` option.
