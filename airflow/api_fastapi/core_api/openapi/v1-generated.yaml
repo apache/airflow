@@ -2462,6 +2462,59 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VersionInfo'
+  /public/dagStats/:
+    get:
+      tags:
+      - DagStats
+      summary: Get Dag Stats
+      description: Get Dag statistics.
+      operationId: get_dag_stats
+      parameters:
+      - name: dag_ids
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Dag Ids
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagStatsCollectionResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AppBuilderMenuItemResponse:
@@ -3467,6 +3520,51 @@ components:
       - asset_triggered
       title: DagRunType
       description: Class with DagRun types.
+    DagStatsCollectionResponse:
+      properties:
+        dags:
+          items:
+            $ref: '#/components/schemas/DagStatsResponse'
+          type: array
+          title: Dags
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - dags
+      - total_entries
+      title: DagStatsCollectionResponse
+      description: DAG Stats Collection serializer for responses.
+    DagStatsResponse:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        stats:
+          items:
+            $ref: '#/components/schemas/DagStatsStateResponse'
+          type: array
+          title: Stats
+      type: object
+      required:
+      - dag_id
+      - stats
+      title: DagStatsResponse
+      description: DAG Stats serializer for responses.
+    DagStatsStateResponse:
+      properties:
+        state:
+          $ref: '#/components/schemas/DagRunState'
+        count:
+          type: integer
+          title: Count
+      type: object
+      required:
+      - state
+      - count
+      title: DagStatsStateResponse
+      description: DagStatsState serializer for responses.
     DagTagPydantic:
       properties:
         name:

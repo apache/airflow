@@ -348,6 +348,30 @@ export type DagRunType =
   | "asset_triggered";
 
 /**
+ * DAG Stats Collection serializer for responses.
+ */
+export type DagStatsCollectionResponse = {
+  dags: Array<DagStatsResponse>;
+  total_entries: number;
+};
+
+/**
+ * DAG Stats serializer for responses.
+ */
+export type DagStatsResponse = {
+  dag_id: string;
+  stats: Array<DagStatsStateResponse>;
+};
+
+/**
+ * DagStatsState serializer for responses.
+ */
+export type DagStatsStateResponse = {
+  state: DagRunState;
+  count: number;
+};
+
+/**
  * Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.
  */
 export type DagTagPydantic = {
@@ -1044,6 +1068,12 @@ export type PostVariableData = {
 export type PostVariableResponse = VariableResponse;
 
 export type GetVersionResponse = VersionInfo;
+
+export type GetDagStatsData = {
+  dagIds?: Array<string>;
+};
+
+export type GetDagStatsResponse = DagStatsCollectionResponse;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -2162,6 +2192,37 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: VersionInfo;
+      };
+    };
+  };
+  "/public/dagStats/": {
+    get: {
+      req: GetDagStatsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DagStatsCollectionResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
       };
     };
   };
