@@ -1,0 +1,101 @@
+Metadata-Version: 2.1
+Name: apache-airflow-breeze
+Version: 0.0.1
+Summary: Apache Airflow Breeze development environment
+Home-page: https://airflow.apache.org/
+Author: Apache Software Foundation
+Author-email: dev@airflow.apache.org
+License: Apache License 2.0
+Project-URL: Documentation, https://github.com/apache/airflow/BREEZE.rst
+Project-URL: Bug Tracker, https://github.com/apache/airflow/issues
+Project-URL: Source Code, https://github.com/apache/airflow
+Project-URL: Slack Chat, https://s.apache.org/airflow-slack
+Project-URL: Twitter, https://twitter.com/ApacheAirflow
+Project-URL: YouTube, https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Environment :: Console
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Requires-Python: ~=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: click
+Requires-Dist: filelock
+Requires-Dist: inputimeout
+Requires-Dist: jinja2
+Requires-Dist: packaging==23.1
+Requires-Dist: pendulum
+Requires-Dist: pre-commit
+Requires-Dist: psutil
+Requires-Dist: pytest
+Requires-Dist: pytest-xdist
+Requires-Dist: pyyaml
+Requires-Dist: PyGithub
+Requires-Dist: requests
+Requires-Dist: rich>=13.6.0
+Requires-Dist: rich-click>=1.7.0
+Requires-Dist: gitpython
+Requires-Dist: twine
+Requires-Dist: wheel
+Requires-Dist: setuptools
+Requires-Dist: jsonschema
+
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+ -->
+
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
+
+- [Apache Airflow Breeze](#apache-airflow-breeze)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
+Apache Airflow Breeze
+------------------------
+
+The project is part of [Apache Airflow](https://airflow.apache.org) - it's a development environment
+that is used by Airflow developers to effortlessly setup and maintain consistent development environment
+for Airflow Development.
+
+This package should never be installed in "production" mode. The `breeze` entrypoint will actually
+fail if you do so. It is supposed to be installed only in [editable/development mode](https://packaging.python.org/en/latest/guides/distributing-packages-using-setuptools/#working-in-development-mode)
+directly from Airflow sources using `pipx` - usually with `--force` flag to account for re-installation
+that might often be needed if dependencies change during development.
+
+```shell
+pipx install -e ./dev/breeze --force
+```
+
+You can read more about Breeze in the [documentation](https://github.com/apache/airflow/blob/main/BREEZE.rst)
+
+This README file contains automatically generated hash of the `setup.py` and `setup.cfg` files that were
+available when the package was installed. Since this file becomes part of the installed package, it helps
+to detect automatically if any of the files have changed. If they did, the user will be warned to upgrade
+their installations.
+
+PLEASE DO NOT MODIFY THE HASH BELOW! IT IS AUTOMATICALLY UPDATED BY PRE-COMMIT.
+
+---------------------------------------------------------------------------------------------------------
+
+Package config hash: 20d095e80d897b7c19f3eef96e0e6ceef4a7a0c0a9b82def7089ec962da64e1bd2ee20f02532fc2ef64137d86c045c340bc8038695f53d29aa72833cafe8b153
+
+---------------------------------------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-04T22:16:33.580381
+# This constraints file was automatically generated on 2024-11-05T08:39:57.605351
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -373,7 +373,7 @@ nodeenv==1.9.1
 numpy==1.24.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.53.1
+openai==1.54.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.23.0
@@ -602,7 +602,7 @@ types-python-slugify==8.0.2.20240310
 types-pytz==2024.2.0.20241003
 types-redis==4.6.0.20241004
 types-requests==2.31.0.6
-types-setuptools==75.2.0.20241025
+types-setuptools==75.3.0.20241105
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
@@ -615,7 +615,7 @@ universal_pathlib==0.2.5
 uritemplate==4.1.1
 urllib3==1.26.20
 userpath==1.9.2
-uv==0.4.29
+uv==0.4.1
 validators==0.33.0
 vertica-python==1.4.0
 vine==5.1.0
