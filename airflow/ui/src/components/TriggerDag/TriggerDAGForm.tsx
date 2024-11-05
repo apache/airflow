@@ -51,11 +51,10 @@ type TriggerDAGFormProps = {
 
 const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
   dagParams,
-  onTrigger,
-  setDagParams,
+  onTrigger
 }) => {
   const [showDetails, setShowDetails] = useState(false);
-  const { control, handleSubmit, setValue, watch } = useForm({
+  const { control, handleSubmit, reset, watch } = useForm({
     defaultValues: {
       configJson: dagParams.configJson,
       logicalDate: dagParams.logicalDate,
@@ -63,29 +62,13 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
     },
   });
 
-  const initialValues = {
-    configJson: dagParams.configJson,
-    logicalDate: dagParams.logicalDate,
-    runId: dagParams.runId,
-  };
-
   useEffect(() => {
-    setValue("logicalDate", dagParams.logicalDate);
-    setValue("runId", dagParams.runId);
-    setValue("configJson", dagParams.configJson);
-  }, [dagParams, setValue]);
-
-  const handleReset = () => {
-    setDagParams({
-      configJson: "{}",
-      dagId: dagParams.dagId,
-      logicalDate: "",
-      runId: "",
+    reset({
+      configJson: dagParams.configJson,
+      logicalDate: dagParams.logicalDate,
+      runId: dagParams.runId,
     });
-    setValue("logicalDate", "");
-    setValue("runId", "");
-    setValue("configJson", "{}");
-  };
+  }, [dagParams, reset]);
 
   const onSubmit = () => {
     onTrigger();
@@ -99,9 +82,9 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
     };
 
     return (
-      currentValues.configJson !== initialValues.configJson ||
-      currentValues.logicalDate !== initialValues.logicalDate ||
-      currentValues.runId !== initialValues.runId
+      currentValues.configJson !== dagParams.configJson ||
+      currentValues.logicalDate !== dagParams.logicalDate ||
+      currentValues.runId !== dagParams.runId
     );
   };
 
@@ -189,7 +172,6 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                         outline: "none",
                         padding: "2px",
                       }}
-
                       theme={colorMode === "dark" ? githubDark as Extension : githubLight as Extension}
                     />
                     {!isValidJson() && (
@@ -208,7 +190,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
       <Box as="footer" display="flex" justifyContent="flex-end">
         <HStack w="full">
           {hasFormChanged() && (
-            <Button colorScheme="red" onClick={handleReset}>
+            <Button colorScheme="red" onClick={() => reset()}>
               Reset
             </Button>
           )}
