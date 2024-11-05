@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, Callable, Iterator, Mapping, cast
 
 import attrs
 
-from airflow.assets import Asset, AssetRef, _validate_identifier
+from airflow.assets import Asset, AssetRef
 from airflow.models.asset import _fetch_active_assets_by_name
 from airflow.models.dag import DAG, ScheduleArg
 from airflow.providers.standard.operators.python import PythonOperator
@@ -138,18 +138,13 @@ class asset:
 
     schedule: ScheduleArg
     uri: str | ObjectStoragePath | None = None
-    group: str = attrs.field(
-        kw_only=True,
-        default="",
-        validator=[attrs.validators.max_len(1500), _validate_identifier],
-    )
+    group: str = ""
     extra: dict[str, Any] = attrs.field(factory=dict)
 
     def __call__(self, f: Callable) -> AssetDefinition:
         if (name := f.__name__) != f.__qualname__:
             raise ValueError("nested function not supported")
-        if name == "self" or name == "context":
-            raise ValueError(f"prohibited name for asset: {name}")
+
         return AssetDefinition(
             name=name,
             uri=name if self.uri is None else str(self.uri),
