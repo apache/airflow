@@ -47,10 +47,10 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
   onTrigger
 }) => {
   const [showDetails, setShowDetails] = useState(false);
-  
+  const [jsonError, setJsonError] = useState<string | undefined>(undefined);  // Track JSON error
   const { control, handleSubmit, reset, watch } = useForm({
     defaultValues: {
-      configJson: JSON.stringify(dagParams.configJson),
+      configJson: JSON.stringify(dagParams.configJson), // Ensure it's a string in the form control
       logicalDate: dagParams.logicalDate,
       runId: dagParams.runId,
     },
@@ -80,16 +80,6 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
       currentValues.logicalDate !== dagParams.logicalDate ||
       currentValues.runId !== dagParams.runId
     );
-  };
-
-  const isValidJson = () => {
-    try {
-      JSON.parse(watch("configJson"));
-
-      return true;
-    } catch {
-      return false;
-    }
   };
 
   const { colorMode } = useColorMode();
@@ -159,7 +149,16 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                       basicSetup
                       extensions={[json(), autocompletion(), lineNumbers()]}
                       height="200px"
-                      onChange={(value) => field.onChange(value)}
+                      onChange={(value) => {
+                        field.onChange(value);  // Update the form state
+                        try {
+                          // Attempt to parse the value as JSON
+                          JSON.parse(value);
+                          setJsonError(undefined);  // Clear error if JSON is valid
+                        } catch {
+                          setJsonError("Invalid JSON format.");  // Set error message if invalid
+                        }
+                      }}
                       style={{
                         border: "1px solid #CBD5E0",
                         borderRadius: "8px",
@@ -168,11 +167,9 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                       }}
                       theme={colorMode === "dark" ? githubDark as Extension : githubLight as Extension}
                     />
-                    {!isValidJson() && (
-                      <Box color="red.500" mt={2}>
-                        <Text fontSize="sm">Invalid JSON format.</Text>
-                      </Box>
-                    )}
+                    {jsonError! ? <Box color="red.500" mt={2}>
+                        <Text fontSize="sm">{jsonError}</Text>
+                      </Box> : undefined}
                   </Box>
                 )}
               />
@@ -191,7 +188,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
           <Spacer />
           <Button
             colorScheme="green"
-            disabled={!isValidJson()}
+            disabled={Boolean(jsonError)}  // Disable if there's an error
             onClick={() => void handleSubmit(onSubmit)()}
           >
             Trigger
