@@ -2457,7 +2457,7 @@ def test_pr_labels(
         ),
     ],
 )
-def test_is_legacy_ui_api_labeled(
+def test_is_legacy_ui_api_labeled_should_fail(
     files: tuple[str, ...], pr_labels: tuple[str, ...], github_event: GithubEvents, expected_label: str
 ):
     try:
