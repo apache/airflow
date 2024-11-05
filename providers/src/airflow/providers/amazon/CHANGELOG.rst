@@ -41,6 +41,7 @@ Bug Fixes
 
 * ``fix(providers/amazon): alias is_authorized_dataset to is_authorized_asset (#43470)``
 * ``Remove returns in final clause of athena hooks (#43426)``
+* ``Remove returns in final clause of S3ToDynamoDBOperator (#43456)``
 
 Misc
 ~~~~
@@ -50,6 +51,7 @@ Misc
 * ``Restrict looker-sdk version 24.18.0 and microsoft-kiota-http 1.3.4 (#42954)``
 * ``Limit mypy-boto3-appflow (#43436)``
 * ``Move PythonOperator to Standard provider (#42081)``
+* ``Fix docstring for AthenaTrigger (#43616)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -58,6 +60,7 @@ Misc
    * ``Start porting DAG definition code to the Task SDK (#43076)``
    * ``Prepare docs for Oct 2nd wave of providers (#43409)``
    * ``Prepare docs for Oct 2nd wave of providers RC2 (#43540)``
+   * ``Prepare docs for Oct 2nd wave of providers rc3 (#43613)``
 
 9.0.0
 .....

@@ -63,8 +63,10 @@
 apache-airflow-providers-standard package
 ------------------------------------------------------
 
+Airflow Standard Provider
 
-Release: 1.0.0
+
+Release: 0.0.1
 
 Provider package
 ----------------
@@ -84,8 +86,9 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.8.0``
-==================  ==================
+=======================================  ==================
+PIP package                              Version required
+=======================================  ==================
+``apache-airflow``                       ``>=2.8.0``
+``apache-airflow-providers-common-sql``  ``>=1.18.0``
+=======================================  ==================

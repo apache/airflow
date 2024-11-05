@@ -35,8 +35,11 @@
 Changelog
 ---------
 
-1.0.0
+0.0.1
 .....
+
+Initial version of the provider.
+Classes were migrated from Airflow Core to standard provider.
 
 Breaking changes
 ~~~~~~~~~~~~~~~~

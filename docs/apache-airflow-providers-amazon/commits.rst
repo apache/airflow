@@ -38,11 +38,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 9.1.0
 .....
 
-Latest change: 2024-10-31
+Latest change: 2024-11-05
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`d8f71a2d9f <https://github.com/apache/airflow/commit/d8f71a2d9fbc281ed1de281a00ddee6fbebaf0f7>`_  2024-11-05   ``Remove returns in final clause of S3ToDynamoDBOperator (#43456)``
+`0664782c19 <https://github.com/apache/airflow/commit/0664782c19dc40a311170c19b831dbd3bf1052a0>`_  2024-11-03   ``Fix docstring for AthenaTrigger (#43616)``
+`45b0b2f15c <https://github.com/apache/airflow/commit/45b0b2f15c57dae4f2331a66a9a921cb17385220>`_  2024-11-03   ``Prepare docs for Oct 2nd wave of providers rc3 (#43613)``
 `06088a3abc <https://github.com/apache/airflow/commit/06088a3abcbb46533e74de360746db766d50cf66>`_  2024-10-31   ``Standard provider python operator (#42081)``
 `5886016243 <https://github.com/apache/airflow/commit/5886016243d73cc34e2a212de8fc2f4042e123ca>`_  2024-10-31   ``Prepare docs for Oct 2nd wave of providers RC2 (#43540)``
 `d8c7d28411 <https://github.com/apache/airflow/commit/d8c7d28411bea04ae5771fc1e2973d92eb0a144e>`_  2024-10-30   ``Start porting DAG definition code to the Task SDK (#43076)``
