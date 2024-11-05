@@ -1557,7 +1557,8 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/ImportErrorResponse'
         '401':
           content:
             application/json:
@@ -1616,7 +1617,8 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/ImportErrorCollectionResponse'
         '401':
           content:
             application/json:
@@ -3551,6 +3553,45 @@ components:
       - task_instance_states
       title: HistoricalMetricDataResponse
       description: Historical Metric Data serializer for responses.
+    ImportErrorCollectionResponse:
+      properties:
+        import_errors:
+          items:
+            $ref: '#/components/schemas/ImportErrorResponse'
+          type: array
+          title: Import Errors
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - import_errors
+      - total_entries
+      title: ImportErrorCollectionResponse
+      description: Import Error Collection Response.
+    ImportErrorResponse:
+      properties:
+        import_error_id:
+          type: integer
+          title: Import Error Id
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        filename:
+          type: string
+          title: Filename
+        stack_trace:
+          type: string
+          title: Stack Trace
+      type: object
+      required:
+      - import_error_id
+      - timestamp
+      - filename
+      - stack_trace
+      title: ImportErrorResponse
+      description: Import Error Response.
     JobResponse:
       properties:
         id:

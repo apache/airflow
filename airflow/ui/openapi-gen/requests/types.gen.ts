@@ -417,6 +417,24 @@ export type HistoricalMetricDataResponse = {
 };
 
 /**
+ * Import Error Collection Response.
+ */
+export type ImportErrorCollectionResponse = {
+  import_errors: Array<ImportErrorResponse>;
+  total_entries: number;
+};
+
+/**
+ * Import Error Response.
+ */
+export type ImportErrorResponse = {
+  import_error_id: number;
+  timestamp: string;
+  filename: string;
+  stack_trace: string;
+};
+
+/**
  * Job serializer for responses.
  */
 export type JobResponse = {
@@ -882,7 +900,7 @@ export type GetImportErrorData = {
   importErrorId: number;
 };
 
-export type GetImportErrorResponse = unknown;
+export type GetImportErrorResponse = ImportErrorResponse;
 
 export type GetImportErrorsData = {
   limit?: number;
@@ -890,7 +908,7 @@ export type GetImportErrorsData = {
   orderBy?: string;
 };
 
-export type GetImportErrorsResponse = unknown;
+export type GetImportErrorsResponse = ImportErrorCollectionResponse;
 
 export type GetHealthResponse = HealthInfoSchema;
 
@@ -1672,7 +1690,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: unknown;
+        200: ImportErrorResponse;
         /**
          * Unauthorized
          */
@@ -1699,7 +1717,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: unknown;
+        200: ImportErrorCollectionResponse;
         /**
          * Unauthorized
          */

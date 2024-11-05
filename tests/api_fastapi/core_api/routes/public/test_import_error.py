@@ -158,6 +158,18 @@ class TestGetImportErrors(TestImportErrorEndpoint):
                 3,
                 [FILENAME1, FILENAME3, FILENAME2],
             ),
+            (
+                {"order_by": "import_error_id"},
+                200,
+                3,
+                [FILENAME1, FILENAME2, FILENAME3],
+            ),
+            (
+                {"order_by": "-import_error_id"},
+                200,
+                3,
+                [FILENAME3, FILENAME2, FILENAME1],
+            ),
             # invalid order_by
             (
                 {"order_by": "invalid_order_by"},
@@ -195,6 +207,7 @@ class TestGetImportErrors(TestImportErrorEndpoint):
         expected_filenames,
     ):
         response = test_client.get("/public/importErrors", params=query_params)
+
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
             return

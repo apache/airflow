@@ -549,7 +549,7 @@ export const prefetchUseEventLogServiceGetEventLogs = (
  * Get an import error.
  * @param data The data for the request.
  * @param data.importErrorId
- * @returns unknown Successful Response
+ * @returns ImportErrorResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseImportErrorServiceGetImportError = (
@@ -573,7 +573,7 @@ export const prefetchUseImportErrorServiceGetImportError = (
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @returns unknown Successful Response
+ * @returns ImportErrorCollectionResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseImportErrorServiceGetImportErrors = (
