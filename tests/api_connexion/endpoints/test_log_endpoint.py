@@ -185,8 +185,10 @@ class TestGetLog:
         expected_filename = f"{self.log_dir}/dag_id={self.DAG_ID}/run_id={self.RUN_ID}/task_id={self.TASK_ID}/attempt={try_number}.log"
         log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
         assert (
-            response.json["content"]
-            == f"[('localhost', '*** Found local files:\\n***   * {expected_filename}\\n{log_content}')]"
+            response.json["content"] == f"[('localhost', ' INFO - ::group::Log message source details\\n"
+            f"*** Found local files:\\n***   * {expected_filename}\\n"
+            " INFO - ::endgroup::\\n"
+            f"{log_content}')]"
         )
         info = serializer.loads(response.json["continuation_token"])
         assert info == {"end_of_log": True, "log_pos": 16 if try_number == 1 else 18}
@@ -242,10 +244,10 @@ class TestGetLog:
         log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
 
         assert (
-            response.data.decode("utf-8")
-            == "localhost\n INFO - ::group::Log message source details\n"
-            f"*** Found local files:\n***   * {expected_filename}\n{log_content}\n"
+            response.data.decode("utf-8") == "localhost\n INFO - ::group::Log message source details\n"
+            f"*** Found local files:\n***   * {expected_filename}\n"
             " INFO - ::endgroup::\n"
+            f"{log_content}\n"
         )
 
     @pytest.mark.parametrize(
@@ -301,10 +303,10 @@ class TestGetLog:
 
         log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
         assert (
-            response.data.decode("utf-8")
-            == "localhost\n INFO - ::group::Log message source details\n"
-            f"*** Found local files:\n***   * {expected_filename}\n{log_content}\n"
+            response.data.decode("utf-8") == "localhost\n INFO - ::group::Log message source details\n"
+            f"*** Found local files:\n***   * {expected_filename}\n"
             " INFO - ::endgroup::\n"
+            f"{log_content}\n"
         )
 
     @pytest.mark.parametrize("try_number", [1, 2])

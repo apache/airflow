@@ -117,8 +117,11 @@ class TestWasbTaskHandler:
                 [
                     (
                         "localhost",
+                        " INFO - ::group::Log message source details\n"
                         "*** Found remote logs:\n"
-                        "***   * https://wasb-container.blob.core.windows.net/abc/hello.log\nLog line",
+                        "***   * https://wasb-container.blob.core.windows.net/abc/hello.log\n"
+                        " INFO - ::endgroup::\n"
+                        "Log line",
                     )
                 ]
             ],

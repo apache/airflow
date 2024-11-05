@@ -129,8 +129,10 @@ class TestLogView:
         assert logs[0] == [
             (
                 "localhost",
+                " INFO - ::group::Log message source details\n"
                 "*** Found local files:\n"
                 f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
+                " INFO - ::endgroup::\n"
                 "try_number=1.",
             )
         ]
@@ -146,24 +148,30 @@ class TestLogView:
             [
                 (
                     "localhost",
+                    " INFO - ::group::Log message source details\n"
                     "*** Found local files:\n"
                     f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
+                    " INFO - ::endgroup::\n"
                     "try_number=1.",
                 )
             ],
             [
                 (
                     "localhost",
+                    " INFO - ::group::Log message source details\n"
                     "*** Found local files:\n"
                     f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
+                    " INFO - ::endgroup::\n"
                     f"try_number=2.",
                 )
             ],
             [
                 (
                     "localhost",
+                    " INFO - ::group::Log message source details\n"
                     "*** Found local files:\n"
                     f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
+                    " INFO - ::endgroup::\n"
                     f"try_number=3.",
                 )
             ],
@@ -178,7 +186,7 @@ class TestLogView:
         assert list(stream) == [
             "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-            "try_number=1.\n INFO - ::endgroup::\n"
+            " INFO - ::endgroup::\ntry_number=1.\n"
         ]
 
     def test_test_test_read_log_stream_should_read_all_logs(self):
@@ -188,16 +196,16 @@ class TestLogView:
         assert list(stream) == [
             "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-            "try_number=1."
-            "\n INFO - ::endgroup::\n",
+            " INFO - ::endgroup::\ntry_number=1."
+            "\n",
             "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
-            "try_number=2."
-            "\n INFO - ::endgroup::\n",
+            " INFO - ::endgroup::\ntry_number=2."
+            "\n",
             "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
-            "try_number=3."
-            "\n INFO - ::endgroup::\n",
+            " INFO - ::endgroup::\ntry_number=3."
+            "\n",
         ]
 
     @mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.read")
