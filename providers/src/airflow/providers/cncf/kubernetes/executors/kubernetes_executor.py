@@ -36,8 +36,10 @@ from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, Sequence
 
 from kubernetes.dynamic import DynamicClient
+from packaging.version import Version
 from sqlalchemy import or_, select, update
 
+from airflow import __version__ as airflow_version
 from airflow.cli.cli_config import (
     ARG_DAG_ID,
     ARG_EXECUTION_DATE,
@@ -636,6 +638,10 @@ class KubernetesExecutor(BaseExecutor):
                 self.log.warning("Cannot find pod for ti %s", ti)
                 continue
             readable_tis.append(repr(ti))
+            if Version(airflow_version) < Version("2.10.4"):
+                self.kube_scheduler.patch_pod_delete_stuck(
+                    pod_name=pod.metadata.name, namespace=pod.metadata.namespace
+                )
             self.kube_scheduler.delete_pod(pod_name=pod.metadata.name, namespace=pod.metadata.namespace)
         return readable_tis
 

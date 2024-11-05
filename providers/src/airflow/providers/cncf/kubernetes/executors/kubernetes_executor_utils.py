@@ -31,6 +31,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
     ALL_NAMESPACES,
+    POD_DELETE_STUCK_IN_QUEUED_KEY,
     POD_EXECUTOR_DONE_KEY,
 )
 from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
@@ -225,7 +226,11 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         elif status == "Pending":
             # deletion_timestamp is set by kube server when a graceful deletion is requested.
             # since kube server have received request to delete pod set TI state failed
-            if event["type"] == "DELETED" and pod.metadata.deletion_timestamp:
+            if (
+                event["type"] == "DELETED"
+                and pod.metadata.deletion_timestamp
+                and POD_DELETE_STUCK_IN_QUEUED_KEY not in pod.metadata.annotations.keys()
+            ):
                 self.log.info("Event: Failed to start pod %s, annotations: %s", pod_name, annotations_string)
                 self.watcher_queue.put(
                     (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
@@ -442,6 +447,23 @@ class AirflowKubernetesScheduler(LoggingMixin):
             # If the pod is already deleted
             if str(e.status) != "404":
                 raise
+
+    def patch_pod_delete_stuck(self, *, pod_name: str, namespace: str):
+        """Add a "done" annotation to ensure we don't continually adopt pods."""
+        self.log.debug(
+            "Patching pod %s in namespace %s to note that we are deleting it "
+            "because it was stuck in queued",
+            pod_name,
+            namespace,
+        )
+        try:
+            self.kube_client.patch_namespaced_pod(
+                name=pod_name,
+                namespace=namespace,
+                body={"metadata": {"labels": {POD_DELETE_STUCK_IN_QUEUED_KEY: "True"}}},
+            )
+        except ApiException as e:
+            self.log.info("Failed to patch pod %s with done annotation. Reason: %s", pod_name, e)
 
     def patch_pod_executor_done(self, *, pod_name: str, namespace: str):
         """Add a "done" annotation to ensure we don't continually adopt pods."""

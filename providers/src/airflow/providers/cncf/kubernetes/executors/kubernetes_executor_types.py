@@ -35,3 +35,4 @@ if TYPE_CHECKING:
 
 ALL_NAMESPACES = "ALL_NAMESPACES"
 POD_EXECUTOR_DONE_KEY = "airflow_executor_done"
+POD_DELETE_STUCK_IN_QUEUED_KEY = "airflow_delete_because_stuck"
