@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.sql import select
 from typing_extensions import Annotated
@@ -33,7 +33,12 @@ task_instances_router = AirflowRouter(
 )
 
 
-@task_instances_router.get("/{task_id}", responses=create_openapi_http_exception_doc([401, 403, 404]))
+@task_instances_router.get(
+    "/{task_id}",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
+    ),
+)
 async def get_task_instance(
     dag_id: str, dag_run_id: str, task_id: str, session: Annotated[Session, Depends(get_session)]
 ) -> TaskInstanceResponse:
@@ -48,17 +53,22 @@ async def get_task_instance(
 
     if task_instance is None:
         raise HTTPException(
-            404,
+            status.HTTP_404_NOT_FOUND,
             f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}` and task_id: `{task_id}` was not found",
         )
     if task_instance.map_index != -1:
-        raise HTTPException(404, "Task instance is mapped, add the map_index value to the URL")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, "Task instance is mapped, add the map_index value to the URL"
+        )
 
     return TaskInstanceResponse.model_validate(task_instance, from_attributes=True)
 
 
 @task_instances_router.get(
-    "/{task_id}/{map_index}", responses=create_openapi_http_exception_doc([401, 403, 404])
+    "/{task_id}/{map_index}",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
+    ),
 )
 async def get_mapped_task_instance(
     dag_id: str,
@@ -78,7 +88,7 @@ async def get_mapped_task_instance(
 
     if task_instance is None:
         raise HTTPException(
-            404,
+            status.HTTP_404_NOT_FOUND,
             f"The Mapped Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}`, and map_index: `{map_index}` was not found",
         )
 

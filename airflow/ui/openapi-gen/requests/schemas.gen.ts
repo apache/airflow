@@ -89,6 +89,48 @@ export const $AppBuilderViewResponse = {
   description: "Serializer for AppBuilder View responses.",
 } as const;
 
+export const $BackfillPostBody = {
+  properties: {
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    from_date: {
+      type: "string",
+      format: "date-time",
+      title: "From Date",
+    },
+    to_date: {
+      type: "string",
+      format: "date-time",
+      title: "To Date",
+    },
+    run_backwards: {
+      type: "boolean",
+      title: "Run Backwards",
+      default: false,
+    },
+    dag_run_conf: {
+      type: "object",
+      title: "Dag Run Conf",
+      default: {},
+    },
+    reprocess_behavior: {
+      $ref: "#/components/schemas/ReprocessBehavior",
+      default: "none",
+    },
+    max_active_runs: {
+      type: "integer",
+      title: "Max Active Runs",
+      default: 10,
+    },
+  },
+  type: "object",
+  required: ["dag_id", "from_date", "to_date"],
+  title: "BackfillPostBody",
+  description: "Object used for create backfill request.",
+} as const;
+
 export const $BaseInfoSchema = {
   properties: {
     status: {
@@ -1130,6 +1172,51 @@ export const $DAGTagCollectionResponse = {
   description: "DAG Tags Collection serializer for responses.",
 } as const;
 
+export const $DAGWarningCollectionResponse = {
+  properties: {
+    dag_warnings: {
+      items: {
+        $ref: "#/components/schemas/DAGWarningResponse",
+      },
+      type: "array",
+      title: "Dag Warnings",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["dag_warnings", "total_entries"],
+  title: "DAGWarningCollectionResponse",
+  description: "DAG warning collection serializer for responses.",
+} as const;
+
+export const $DAGWarningResponse = {
+  properties: {
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    warning_type: {
+      $ref: "#/components/schemas/DagWarningType",
+    },
+    message: {
+      type: "string",
+      title: "Message",
+    },
+    timestamp: {
+      type: "string",
+      format: "date-time",
+      title: "Timestamp",
+    },
+  },
+  type: "object",
+  required: ["dag_id", "warning_type", "message", "timestamp"],
+  title: "DAGWarningResponse",
+  description: "DAG Warning serializer for responses.",
+} as const;
+
 export const $DAGWithLatestDagRunsCollectionResponse = {
   properties: {
     total_entries: {
@@ -1481,6 +1568,16 @@ export const $DagTagPydantic = {
   title: "DagTagPydantic",
   description:
     "Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.",
+} as const;
+
+export const $DagWarningType = {
+  type: "string",
+  enum: ["asset conflict", "non-existent pool"],
+  title: "DagWarningType",
+  description: `Enum for DAG warning types.
+
+This is the set of allowable values for the \`\`warning_type\`\` field
+in the DagWarning model.`,
 } as const;
 
 export const $EventLogResponse = {
@@ -2161,6 +2258,15 @@ export const $ProviderResponse = {
   description: "Provider serializer for responses.",
 } as const;
 
+export const $ReprocessBehavior = {
+  type: "string",
+  enum: ["failed", "completed", "none"],
+  title: "ReprocessBehavior",
+  description: `Internal enum for setting reprocess behavior in a backfill.
+
+:meta private:`,
+} as const;
+
 export const $SchedulerInfoSchema = {
   properties: {
     status: {
@@ -2194,6 +2300,10 @@ export const $SchedulerInfoSchema = {
 
 export const $TaskInstanceResponse = {
   properties: {
+    id: {
+      type: "string",
+      title: "Id",
+    },
     task_id: {
       type: "string",
       title: "Task Id",
@@ -2423,6 +2533,7 @@ export const $TaskInstanceResponse = {
   },
   type: "object",
   required: [
+    "id",
     "task_id",
     "dag_id",
     "dag_run_id",
