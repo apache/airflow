@@ -37,14 +37,38 @@ def reinstall_breeze(breeze_sources: Path, re_run: bool = True):
     # Breeze from different sources than originally installed (i.e. when we reinstall airflow
     # From the current directory.
     get_console().print(f"\n[info]Reinstalling Breeze from {breeze_sources}\n")
-    result = subprocess.run(["uv", "tool", "list"], text=True, capture_output=True, check=False)
-    if result.returncode == 0:
-        if "apache-airflow-breeze" in result.stdout:
-            subprocess.check_call(
-                ["uv", "tool", "install", "--force", "--reinstall", "-e", breeze_sources.as_posix()]
-            )
-    else:
+    breeze_installed_with_uv = False
+    breeze_installed_with_pipx = False
+    result_uv = subprocess.run(["uv", "tool", "list"], text=True, capture_output=True, check=False)
+    if result_uv.returncode == 0:
+        if "apache-airflow-breeze" in result_uv.stdout:
+            breeze_installed_with_uv = True
+    result_pipx = subprocess.run(["pipx", "list"], text=True, capture_output=True, check=False)
+    if result_pipx.returncode == 0:
+        if "apache-airflow-breeze" in result_pipx.stdout:
+            breeze_installed_with_pipx = True
+    if breeze_installed_with_uv and breeze_installed_with_pipx:
+        get_console().print(
+            "[error]Breeze is installed both with `uv` and `pipx`. This is not supported.[/]\n"
+        )
+        get_console().print(
+            "[info]Please uninstall Breeze and install it only with one of the methods[/]\n"
+            "[info]The `uv` installation method is recommended as it is much faster[/]\n"
+        )
+        get_console().print(
+            "To uninstall Breeze installed with pipx run:\n     pipx uninstall apache-airflow-breeze\n"
+        )
+        get_console().print(
+            "To uninstall Breeze installed with uv run:\n     uv tool uninstall apache-airflow-breeze\n"
+        )
+        sys.exit(1)
+    elif breeze_installed_with_uv:
+        subprocess.check_call(
+            ["uv", "tool", "install", "--force", "--reinstall", "-e", breeze_sources.as_posix()]
+        )
+    elif breeze_installed_with_pipx:
         subprocess.check_call(["pipx", "install", "-e", breeze_sources.as_posix(), "--force"])
+
     if re_run:
         # Make sure we don't loop forever if the metadata hash hasn't been updated yet (else it is tricky to
         # run pre-commit checks via breeze!)
