@@ -31,7 +31,7 @@ Changelog
 main
 .....
 
-All deprecated classes, parameters and features have been removed from the Amazon provider package.
+All deprecated classes, parameters and features have been removed from the Kubernetes provider package.
 The following breaking changes were introduced:
 
 * Helpers
