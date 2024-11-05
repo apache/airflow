@@ -193,7 +193,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/ui/.*\.ts[x]?$",
             r"^airflow/ui/.*\.js[x]?$",
             r"^airflow/ui/[^/]+\.json$",
-            r"^airflow/ui/.*\.lock$",
+            r"^airflow/ui/.*\.yaml$",
         ],
         FileGroupForCi.LEGACY_WWW_FILES: [
             r"^airflow/www/.*\.ts[x]?$",
