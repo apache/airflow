@@ -170,7 +170,6 @@ TEST_TYPE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "Serialization": [
         "tests/serialization",
     ],
-    "System": ["tests/system"],
     "TaskSDK": ["task_sdk/tests"],
     "WWW": [
         "tests/www",
@@ -255,7 +254,7 @@ def convert_test_type_to_pytest_args(
         else:
             return [INTEGRATION_TESTS]
     if test_type == "System":
-        return [SYSTEM_TESTS]
+        return []
     if skip_provider_tests and test_type.startswith("Providers"):
         return []
     if test_type.startswith(PROVIDERS_LIST_EXCLUDE_PREFIX):
