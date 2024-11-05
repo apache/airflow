@@ -72,14 +72,14 @@ class BaseDagBundle(ABC):
     @abstractmethod
     def get_current_version(self) -> str:
         """
-        Version that represents the version of the DAG bundle.
+        String that represents the version of the DAG bundle.
 
         Airflow can later use this version to retrieve the exact same bundle version.
         """
 
     @abstractmethod
     def refresh(self) -> None:
-        """Make sure the backend has the latest bundle version (thus the latest DAGs)."""
+        """Retrieve the latest version of the files in the bundle."""
 
     @abstractmethod
     def cleanup(self) -> None:
