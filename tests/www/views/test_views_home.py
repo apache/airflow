@@ -205,7 +205,7 @@ TEST_TAGS = ["example", "test", "team", "group"]
 
 def _process_file(file_path):
     dag_file_processor = DagFileProcessor(dag_ids=[], dag_directory="/tmp", log=mock.MagicMock())
-    dag_file_processor.process_file(file_path, [], False)
+    dag_file_processor.process_file(file_path, [])
 
 
 @pytest.fixture

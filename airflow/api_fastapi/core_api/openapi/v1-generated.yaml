@@ -2370,24 +2370,12 @@ components:
             format: date-time
           - type: 'null'
           title: Last Parsed Time
-        last_pickled:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Last Pickled
         last_expired:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Last Expired
-        pickle_id:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Pickle Id
         default_view:
           anyOf:
           - type: string
@@ -2541,9 +2529,7 @@ components:
       - is_paused
       - is_active
       - last_parsed_time
-      - last_pickled
       - last_expired
-      - pickle_id
       - default_view
       - fileloc
       - description
@@ -2606,24 +2592,12 @@ components:
             format: date-time
           - type: 'null'
           title: Last Parsed Time
-        last_pickled:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Last Pickled
         last_expired:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Last Expired
-        pickle_id:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Pickle Id
         default_view:
           anyOf:
           - type: string
@@ -2710,9 +2684,7 @@ components:
       - is_paused
       - is_active
       - last_parsed_time
-      - last_pickled
       - last_expired
-      - pickle_id
       - default_view
       - fileloc
       - description
@@ -2976,24 +2948,12 @@ components:
             format: date-time
           - type: 'null'
           title: Last Parsed Time
-        last_pickled:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Last Pickled
         last_expired:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
           title: Last Expired
-        pickle_id:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Pickle Id
         default_view:
           anyOf:
           - type: string
@@ -3085,9 +3045,7 @@ components:
       - is_paused
       - is_active
       - last_parsed_time
-      - last_pickled
       - last_expired
-      - pickle_id
       - default_view
       - fileloc
       - description

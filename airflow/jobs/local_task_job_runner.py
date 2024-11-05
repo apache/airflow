@@ -90,7 +90,6 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         mark_success: bool = False,
-        pickle_id: int | None = None,
         pool: str | None = None,
         external_executor_id: str | None = None,
     ):
@@ -103,7 +102,6 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         self.ignore_task_deps = ignore_task_deps
         self.ignore_ti_state = ignore_ti_state
         self.pool = pool
-        self.pickle_id = pickle_id
         self.mark_success = mark_success
         self.external_executor_id = external_executor_id
         # terminating state is used so that a job don't try to

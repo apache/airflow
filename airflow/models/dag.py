@@ -22,10 +22,8 @@ import copy
 import functools
 import logging
 import pathlib
-import pickle
 import sys
 import time
-import traceback
 from collections import defaultdict
 from contextlib import ExitStack
 from datetime import datetime, timedelta
@@ -88,7 +86,6 @@ from airflow.models.asset import (
 from airflow.models.base import Base, StringID
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
-from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
 from airflow.models.taskinstance import (
     Context,
@@ -738,14 +735,6 @@ class DAG(TaskSDKDag, LoggingMixin):
     @property
     def timetable_summary(self) -> str:
         return self.timetable.summary
-
-    @property
-    def pickle_id(self) -> int | None:
-        return self._pickle_id
-
-    @pickle_id.setter
-    def pickle_id(self, value: int) -> None:
-        self._pickle_id = value
 
     @property
     def relative_fileloc(self) -> pathlib.Path:
@@ -1549,35 +1538,6 @@ class DAG(TaskSDKDag, LoggingMixin):
             print("Cancelled, nothing was cleared.")
         return count
 
-    def pickle_info(self):
-        d = {}
-        d["is_picklable"] = True
-        try:
-            dttm = timezone.utcnow()
-            pickled = pickle.dumps(self)
-            d["pickle_len"] = len(pickled)
-            d["pickling_duration"] = str(timezone.utcnow() - dttm)
-        except Exception as e:
-            self.log.debug(e)
-            d["is_picklable"] = False
-            d["stacktrace"] = traceback.format_exc()
-        return d
-
-    @provide_session
-    def pickle(self, session=NEW_SESSION) -> DagPickle:
-        dag = session.scalar(select(DagModel).where(DagModel.dag_id == self.dag_id).limit(1))
-        dp = None
-        if dag and dag.pickle_id:
-            dp = session.scalar(select(DagPickle).where(DagPickle.id == dag.pickle_id).limit(1))
-        if not dp or dp.pickle != self:
-            dp = DagPickle(dag=self)
-            session.add(dp)
-            self.last_pickled = timezone.utcnow()
-            session.commit()
-            self.pickle_id = dp.id
-
-        return dp
-
     def cli(self):
         """Exposes a CLI specific to this DAG."""
         check_cycle(self)
@@ -2041,13 +2001,9 @@ class DagModel(Base):
     is_active = Column(Boolean, default=False)
     # Last time the scheduler started
     last_parsed_time = Column(UtcDateTime)
-    # Last time this DAG was pickled
-    last_pickled = Column(UtcDateTime)
     # Time when the DAG last received a refresh signal
     # (e.g. the DAG's "refresh" button was clicked in the web UI)
     last_expired = Column(UtcDateTime)
-    # Foreign key to the latest pickle_id
-    pickle_id = Column(Integer)
     # The location of the file containing the DAG object
     # Note: Do not depend on fileloc pointing to a file; in the case of a
     # packaged DAG, it will point to the subpath of the DAG within the
