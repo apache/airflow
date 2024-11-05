@@ -31,6 +31,11 @@ Changelog
 main
 .....
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+remove all the deprecations.
+
 .. warning::
   Set the default value of ``namespace`` in ``@task.kubernetes`` to ``None``, so it uses the cluster namespace when ``in_cluster`` is True. Be sure to specify a namespace when using this decorator. To retain the previous behavior, set ``namespace="default"``
 
