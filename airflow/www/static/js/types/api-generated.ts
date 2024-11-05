@@ -1009,13 +1009,6 @@ export interface components {
       last_parsed_time?: string | null;
       /**
        * Format: date-time
-       * @description The last time the DAG was pickled.
-       *
-       * *New in version 2.3.0*
-       */
-      last_pickled?: string | null;
-      /**
-       * Format: date-time
        * @description Time when the DAG last received a refresh signal
        * (e.g. the DAG's "refresh" button was clicked in the web UI)
        *
