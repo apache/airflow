@@ -173,7 +173,10 @@
           "format": "date-time"
         },
         "tags": {
-          "type": "string"
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "timetable": {
           "description": "Describes timetable (successor of schedule_interval)",
