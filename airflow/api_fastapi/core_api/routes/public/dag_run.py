@@ -130,18 +130,22 @@ async def patch_dag_run_state(
     else:
         update_mask = ALLOWED_FIELD_MASK
 
+    if "state" in update_mask:
+        attr_value = getattr(patch_body, "state")
+        if attr_value == DAGRunPatchStates.SUCCESS:
+            set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+        elif attr_value == DAGRunPatchStates.QUEUED:
+            set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+        elif attr_value == DAGRunPatchStates.FAILED:
+            set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+
+    dag_run = session.get(DagRun, dag_run.id)
+
     for attr_name in update_mask:
         attr_value = getattr(patch_body, attr_name)
-        if attr_name == "state":
-            if attr_value is None:
-                continue
-            if attr_value == DAGRunPatchStates.SUCCESS:
-                set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True)
-            elif attr_value == DAGRunPatchStates.QUEUED:
-                set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True)
-            else:
-                set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True)
-        elif attr_name == "note":
+        if attr_value is None:
+            continue
+        if attr_name == "note":
             # Once Authentication is implemented in this FastAPI app,
             # user id will be added when updating dag run note
             # Refer to https://github.com/apache/airflow/issues/43534
@@ -149,8 +153,5 @@ async def patch_dag_run_state(
                 dag_run.note = (attr_value, None)
             else:
                 dag_run.dag_run_note.content = attr_value
-    session.commit()
-    dag_run = session.get(DagRun, dag_run.id)
-    print(f"return val: {dag_run.dag_run_note.content}")
 
     return DAGRunResponse.model_validate(dag_run, from_attributes=True)

@@ -50,7 +50,7 @@ DAG2_RUN1_TRIGGERED_BY = DagRunTriggeredByType.CLI
 DAG2_RUN2_TRIGGERED_BY = DagRunTriggeredByType.REST_API
 START_DATE = datetime(2024, 6, 15, 0, 0, tzinfo=timezone.utc)
 EXECUTION_DATE = datetime(2024, 6, 16, 0, 0, tzinfo=timezone.utc)
-DAG1_NOTE = "test_note"
+DAG1_RUN1_NOTE = "test_note"
 
 
 @pytest.fixture(autouse=True)
@@ -72,7 +72,7 @@ def setup(dag_maker, session=None):
         run_type=DAG1_RUN1_RUN_TYPE,
         triggered_by=DAG1_RUN1_TRIGGERED_BY,
     )
-    dag_run1.note = (DAG1_NOTE, 1)
+    dag_run1.note = (DAG1_RUN1_NOTE, 1)
 
     dag_maker.create_dagrun(
         run_id=DAG1_RUN2_ID,
@@ -114,7 +114,14 @@ class TestGetDagRun:
     @pytest.mark.parametrize(
         "dag_id, run_id, state, run_type, triggered_by, dag_run_note",
         [
-            (DAG1_ID, DAG1_RUN1_ID, DAG1_RUN1_STATE, DAG1_RUN1_RUN_TYPE, DAG1_RUN1_TRIGGERED_BY, DAG1_NOTE),
+            (
+                DAG1_ID,
+                DAG1_RUN1_ID,
+                DAG1_RUN1_STATE,
+                DAG1_RUN1_RUN_TYPE,
+                DAG1_RUN1_TRIGGERED_BY,
+                DAG1_RUN1_NOTE,
+            ),
             (DAG1_ID, DAG1_RUN2_ID, DAG1_RUN2_STATE, DAG1_RUN2_RUN_TYPE, DAG1_RUN2_TRIGGERED_BY, None),
             (DAG2_ID, DAG2_RUN1_ID, DAG2_RUN1_STATE, DAG2_RUN1_RUN_TYPE, DAG2_RUN1_TRIGGERED_BY, None),
             (DAG2_ID, DAG2_RUN2_ID, DAG2_RUN2_STATE, DAG2_RUN2_RUN_TYPE, DAG2_RUN2_TRIGGERED_BY, None),
@@ -142,9 +149,24 @@ class TestPatchDagRun:
     @pytest.mark.parametrize(
         "dag_id, run_id, patch_body, response_body",
         [
-            (DAG1_ID, DAG1_RUN1_ID, {"state": DagRunState.FAILED}, {"state": DagRunState.FAILED}),
-            (DAG1_ID, DAG1_RUN2_ID, {"state": DagRunState.SUCCESS}, {"state": DagRunState.SUCCESS}),
-            (DAG2_ID, DAG2_RUN1_ID, {"state": DagRunState.QUEUED}, {"state": DagRunState.QUEUED}),
+            (
+                DAG1_ID,
+                DAG1_RUN1_ID,
+                {"state": DagRunState.FAILED},
+                {"state": DagRunState.FAILED, "note": DAG1_RUN1_NOTE},
+            ),
+            (
+                DAG1_ID,
+                DAG1_RUN2_ID,
+                {"state": DagRunState.SUCCESS},
+                {"state": DagRunState.SUCCESS, "note": None},
+            ),
+            (
+                DAG2_ID,
+                DAG2_RUN1_ID,
+                {"state": DagRunState.QUEUED},
+                {"state": DagRunState.QUEUED, "note": None},
+            ),
             (
                 DAG1_ID,
                 DAG1_RUN1_ID,
