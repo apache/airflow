@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
-from sqlalchemy import DDL, delete, inspect
+from sqlalchemy import delete, inspect
 from sqlalchemy.exc import NoSuchTableError
 
 from airflow.cli.cli_config import GroupCommand
@@ -68,9 +68,7 @@ class EdgeExecutor(BaseExecutor):
 
         # version 0.6.0rc1 added new column need_capacity
         if edge_job_columns and "need_capacity" not in edge_job_columns:
-            with engine.connect() as conn:
-                add_column_ddl = DDL("ALTER TABLE edge_job ADD COLUMN need_capacity INTEGER DEFAULT 1")
-                conn.execute(add_column_ddl)
+            EdgeJobModel.metadata.drop_all(engine, tables=[EdgeJobModel.__table__])
 
     @provide_session
     def start(self, session: Session = NEW_SESSION):
