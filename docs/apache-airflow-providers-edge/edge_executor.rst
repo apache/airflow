@@ -250,6 +250,8 @@ Here is an example setting capacity slots for a task:
         def task_with_template():
             print_stuff()
 
+        task_with_template()
+
 
 
 
