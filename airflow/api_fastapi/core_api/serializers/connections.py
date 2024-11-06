@@ -20,10 +20,12 @@ from __future__ import annotations
 import json
 
 from pydantic import BaseModel, Field, field_validator
+from pydantic_core.core_schema import ValidationInfo
 
 from airflow.utils.log.secrets_masker import redact
 
 
+# Response Models
 class ConnectionResponse(BaseModel):
     """Connection serializer for responses."""
 
@@ -34,7 +36,15 @@ class ConnectionResponse(BaseModel):
     login: str | None
     schema_: str | None = Field(alias="schema")
     port: int | None
+    password: str | None
     extra: str | None
+
+    @field_validator("password", mode="after")
+    @classmethod
+    def redact_password(cls, v: str | None, field_info: ValidationInfo) -> str | None:
+        if v is None:
+            return None
+        return redact(v, field_info.field_name)
 
     @field_validator("extra", mode="before")
     @classmethod
@@ -55,3 +65,18 @@ class ConnectionCollectionResponse(BaseModel):
 
     connections: list[ConnectionResponse]
     total_entries: int
+
+
+# Request Models
+class ConnectionBody(BaseModel):
+    """Connection Serializer for requests body."""
+
+    connection_id: str = Field(serialization_alias="conn_id")
+    conn_type: str
+    description: str | None = Field(default=None)
+    host: str | None = Field(default=None)
+    login: str | None = Field(default=None)
+    schema_: str | None = Field(None, alias="schema")
+    port: int | None = Field(default=None)
+    password: str | None = Field(default=None)
+    extra: str | None = Field(default=None)
