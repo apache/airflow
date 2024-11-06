@@ -32,7 +32,7 @@ Changelog
 Misc
 ~~~~
 
-* ``Edge worker supports concurrency feature so that jobs which need more concurrency blocking other jobs beeing executed on the same worker in parallel.``
+* ``Edge worker supports capacity feature so that jobs which need more capacity blocking other jobs beeing executed on the same worker in parallel.``
 
 0.6.0pre0
 .........
