@@ -37,7 +37,7 @@ from airflow.providers_manager import (
     LazyDictWithCache,
     PluginInfo,
     ProviderInfo,
-    ProvidersManager
+    ProvidersManager,
 )
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).resolve().parents[2]
@@ -215,11 +215,14 @@ class TestProviderManager:
         )
         providers_manager._discover_hooks()
         assert len(providers_manager._dialect_provider_dict) == 1
-        assert providers_manager._dialect_provider_dict.popitem() == ("default", DialectInfo(
-            name="default",
-            dialect_class_name="airflow.providers.common.sql.dialects.dialect.Dialect",
-            provider_name="airflow.providers.common.sql",
-        ))
+        assert providers_manager._dialect_provider_dict.popitem() == (
+            "default",
+            DialectInfo(
+                name="default",
+                dialect_class_name="airflow.providers.common.sql.dialects.dialect.Dialect",
+                provider_name="airflow.providers.common.sql",
+            ),
+        )
 
     def test_hooks(self):
         with warnings.catch_warnings(record=True) as warning_records:
