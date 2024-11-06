@@ -661,7 +661,13 @@ class EcsRunTaskOperator(EcsBaseOperator):
         return self.awslogs_group and self.awslogs_stream_prefix
 
     def _get_logs_stream_name(self) -> str:
-        return f"{self.awslogs_stream_prefix}/{self.container_name}/{self._get_ecs_task_id(self.arn)}"
+        if (
+            self.awslogs_stream_prefix
+            and self.container_name
+            and not self.awslogs_stream_prefix.endswith(f"/{self.container_name}")
+        ):
+            return f"{self.awslogs_stream_prefix}/{self.container_name}/{self._get_ecs_task_id(self.arn)}"
+        return f"{self.awslogs_stream_prefix}/{self._get_ecs_task_id(self.arn)}"
 
     def _get_task_log_fetcher(self) -> AwsTaskLogFetcher:
         if not self.awslogs_group:
