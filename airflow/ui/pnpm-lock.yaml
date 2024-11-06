@@ -98,7 +98,7 @@ importers:
         version: 3.7.0(@swc/helpers@0.5.13)(vite@5.4.6(@types/node@22.5.4))
       '@vitest/coverage-v8':
         specifier: ^2.1.1
-        version: 2.1.1(vitest@2.1.1(@types/node@22.5.4)(happy-dom@15.10.1))
+        version: 2.1.1(vitest@2.1.1(@types/node@22.5.4)(happy-dom@15.10.2))
       eslint:
         specifier: ^9.10.0
         version: 9.10.0(jiti@1.21.6)
@@ -130,8 +130,8 @@ importers:
         specifier: ^15.9.0
         version: 15.9.0
       happy-dom:
-        specifier: ^15.10.1
-        version: 15.10.1
+        specifier: ^15.10.2
+        version: 15.10.2
       prettier:
         specifier: ^3.3.3
         version: 3.3.3
@@ -146,7 +146,7 @@ importers:
         version: 5.4.6(@types/node@22.5.4)
       vitest:
         specifier: ^2.1.1
-        version: 2.1.1(@types/node@22.5.4)(happy-dom@15.10.1)
+        version: 2.1.1(@types/node@22.5.4)(happy-dom@15.10.2)
 
 packages:
 
@@ -2100,8 +2100,8 @@ packages:
     engines: {node: '>=0.4.7'}
     hasBin: true
 
-  happy-dom@15.10.1:
-    resolution: {integrity: sha512-FuGnj/qIB4QnBL6fWmD7Wnh6STxevLgOVWB6+nopDGgWG1+t9CXkNB2ldZ+iqwD2UKxD2D0SU8el8A6AX6Q1+g==}
+  happy-dom@15.10.2:
+    resolution: {integrity: sha512-NbA5XrSovenJIIcfixCREX3ZnV7yHP4phhbfuxxf4CPn+LZpz/jIM9EqJ2DrPwgVDSMoAKH3pZwQvkbsSiCrUw==}
     engines: {node: '>=18.0.0'}
 
   has-bigints@1.0.2:
@@ -4216,7 +4216,7 @@ snapshots:
     transitivePeerDependencies:
       - '@swc/helpers'
 
-  '@vitest/coverage-v8@2.1.1(vitest@2.1.1(@types/node@22.5.4)(happy-dom@15.10.1))':
+  '@vitest/coverage-v8@2.1.1(vitest@2.1.1(@types/node@22.5.4)(happy-dom@15.10.2))':
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@bcoe/v8-coverage': 0.2.3
@@ -4230,7 +4230,7 @@ snapshots:
       std-env: 3.7.0
       test-exclude: 7.0.1
       tinyrainbow: 1.2.0
-      vitest: 2.1.1(@types/node@22.5.4)(happy-dom@15.10.1)
+      vitest: 2.1.1(@types/node@22.5.4)(happy-dom@15.10.2)
     transitivePeerDependencies:
       - supports-color
 
@@ -6148,7 +6148,7 @@ snapshots:
     optionalDependencies:
       uglify-js: 3.19.2
 
-  happy-dom@15.10.1:
+  happy-dom@15.10.2:
     dependencies:
       entities: 4.5.0
       webidl-conversions: 7.0.0
@@ -7281,7 +7281,7 @@ snapshots:
       '@types/node': 22.5.4
       fsevents: 2.3.3
 
-  vitest@2.1.1(@types/node@22.5.4)(happy-dom@15.10.1):
+  vitest@2.1.1(@types/node@22.5.4)(happy-dom@15.10.2):
     dependencies:
       '@vitest/expect': 2.1.1
       '@vitest/mocker': 2.1.1(@vitest/spy@2.1.1)(vite@5.4.6(@types/node@22.5.4))
@@ -7304,7 +7304,7 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 22.5.4
-      happy-dom: 15.10.1
+      happy-dom: 15.10.2
     transitivePeerDependencies:
       - less
       - lightningcss
