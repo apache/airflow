@@ -34,7 +34,6 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.serializers.assets import AssetCollectionResponse, AssetResponse
-from airflow.assets import Asset
 from airflow.models.asset import AssetModel
 
 assets_router = AirflowRouter(tags=["Asset"], prefix="/assets")
@@ -51,7 +50,7 @@ async def get_assets(
     dag_ids: QueryDagIdsFilter,
     order_by: Annotated[
         SortParam,
-        Depends(SortParam(["id", "uri", "created_at", "updated_at"], Asset).dynamic_depends()),
+        Depends(SortParam(["id", "uri", "created_at", "updated_at"], AssetModel).dynamic_depends()),
     ],
     session: Annotated[Session, Depends(get_session)],
 ) -> AssetCollectionResponse:

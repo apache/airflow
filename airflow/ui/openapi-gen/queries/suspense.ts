@@ -51,28 +51,51 @@ export const useAssetServiceNextRunAssetsSuspense = <
     ...options,
   });
 /**
- * Next Run Assets
+ * Get Assets
+ * Get assets.
  * @param data The data for the request.
- * @param data.dagId
- * @returns unknown Successful Response
+ * @param data.limit
+ * @param data.offset
+ * @param data.uriPattern
+ * @param data.dagIds
+ * @param data.orderBy
+ * @returns AssetCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useAssetServiceNextRunAssets1Suspense = <
-  TData = Common.AssetServiceNextRunAssets1DefaultResponse,
+export const useAssetServiceGetAssetsSuspense = <
+  TData = Common.AssetServiceGetAssetsDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    dagId,
+    dagIds,
+    limit,
+    offset,
+    orderBy,
+    uriPattern,
   }: {
-    dagId: string;
-  },
+    dagIds?: string[];
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    uriPattern?: string;
+  } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceNextRunAssets1KeyFn({ dagId }, queryKey),
-    queryFn: () => AssetService.nextRunAssets1({ dagId }) as TData,
+    queryKey: Common.UseAssetServiceGetAssetsKeyFn(
+      { dagIds, limit, offset, orderBy, uriPattern },
+      queryKey,
+    ),
+    queryFn: () =>
+      AssetService.getAssets({
+        dagIds,
+        limit,
+        offset,
+        orderBy,
+        uriPattern,
+      }) as TData,
     ...options,
   });
 /**

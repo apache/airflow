@@ -19,30 +19,31 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel
 
 
 class DagScheduleAssetReference(BaseModel):
     """Serializable version of the DagScheduleAssetReference ORM SqlAlchemyModel."""
 
-    asset_id: int
     dag_id: str
     created_at: datetime
     updated_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class TaskOutletAssetReference(BaseModel):
     """Serializable version of the TaskOutletAssetReference ORM SqlAlchemyModel."""
 
-    asset_id: int
     dag_id: str
     task_id: str
     created_at: datetime
     updated_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+
+class AssetAliasSchema(BaseModel):
+    """Serializable version of the AssetAliasSchema ORM SqlAlchemyModel."""
+
+    id: int
+    name: str
 
 
 class AssetResponse(BaseModel):
@@ -50,11 +51,12 @@ class AssetResponse(BaseModel):
 
     id: int
     uri: str
-    extra: str | None = Field(default=None)
-    created_at: str
-    updated_at: str
-    consuming_dags: DagScheduleAssetReference | None = None
-    producing_tasks: TaskOutletAssetReference | None = None
+    extra: dict | None = None
+    created_at: datetime
+    updated_at: datetime
+    consuming_dags: list[DagScheduleAssetReference]
+    producing_tasks: list[TaskOutletAssetReference]
+    aliases: list[AssetAliasSchema]
 
 
 class AssetCollectionResponse(BaseModel):

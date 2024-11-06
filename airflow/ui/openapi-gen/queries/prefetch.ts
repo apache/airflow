@@ -45,23 +45,43 @@ export const prefetchUseAssetServiceNextRunAssets = (
     queryFn: () => AssetService.nextRunAssets({ dagId }),
   });
 /**
- * Next Run Assets
+ * Get Assets
+ * Get assets.
  * @param data The data for the request.
- * @param data.dagId
- * @returns unknown Successful Response
+ * @param data.limit
+ * @param data.offset
+ * @param data.uriPattern
+ * @param data.dagIds
+ * @param data.orderBy
+ * @returns AssetCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseAssetServiceNextRunAssets1 = (
+export const prefetchUseAssetServiceGetAssets = (
   queryClient: QueryClient,
   {
-    dagId,
+    dagIds,
+    limit,
+    offset,
+    orderBy,
+    uriPattern,
   }: {
-    dagId: string;
-  },
+    dagIds?: string[];
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    uriPattern?: string;
+  } = {},
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseAssetServiceNextRunAssets1KeyFn({ dagId }),
-    queryFn: () => AssetService.nextRunAssets1({ dagId }),
+    queryKey: Common.UseAssetServiceGetAssetsKeyFn({
+      dagIds,
+      limit,
+      offset,
+      orderBy,
+      uriPattern,
+    }),
+    queryFn: () =>
+      AssetService.getAssets({ dagIds, limit, offset, orderBy, uriPattern }),
   });
 /**
  * Historical Metrics

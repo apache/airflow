@@ -22,6 +22,38 @@ export type AppBuilderViewResponse = {
 };
 
 /**
+ * Serializable version of the AssetAliasSchema ORM SqlAlchemyModel.
+ */
+export type AssetAliasSchema = {
+  id: number;
+  name: string;
+};
+
+/**
+ * Asset collection response.
+ */
+export type AssetCollectionResponse = {
+  assets: Array<AssetResponse>;
+  total_entries: number;
+};
+
+/**
+ * Asset serializer for responses.
+ */
+export type AssetResponse = {
+  id: number;
+  uri: string;
+  extra?: {
+    [key: string]: unknown;
+  } | null;
+  created_at: string;
+  updated_at: string;
+  consuming_dags: Array<DagScheduleAssetReference>;
+  producing_tasks: Array<TaskOutletAssetReference>;
+  aliases: Array<AssetAliasSchema>;
+};
+
+/**
  * Object used for create backfill request.
  */
 export type BackfillPostBody = {
@@ -348,6 +380,15 @@ export type DagRunType =
   | "asset_triggered";
 
 /**
+ * Serializable version of the DagScheduleAssetReference ORM SqlAlchemyModel.
+ */
+export type DagScheduleAssetReference = {
+  dag_id: string;
+  created_at: string;
+  updated_at: string;
+};
+
+/**
  * DAG Stats Collection serializer for responses.
  */
 export type DagStatsCollectionResponse = {
@@ -630,6 +671,16 @@ export type TaskInstanceResponse = {
 };
 
 /**
+ * Serializable version of the TaskOutletAssetReference ORM SqlAlchemyModel.
+ */
+export type TaskOutletAssetReference = {
+  dag_id: string;
+  task_id: string;
+  created_at: string;
+  updated_at: string;
+};
+
+/**
  * Trigger serializer for responses.
  */
 export type TriggerResponse = {
@@ -735,13 +786,15 @@ export type NextRunAssetsResponse = {
   [key: string]: unknown;
 };
 
-export type NextRunAssets1Data = {
-  dagId: string;
+export type GetAssetsData = {
+  dagIds?: Array<string>;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  uriPattern?: string | null;
 };
 
-export type NextRunAssets1Response = {
-  [key: string]: unknown;
-};
+export type GetAssetsResponse = AssetCollectionResponse;
 
 export type HistoricalMetricsData = {
   endDate: string;
@@ -1101,16 +1154,26 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/next_run_assets/{dag_id}": {
+  "/public/assets/": {
     get: {
-      req: NextRunAssets1Data;
+      req: GetAssetsData;
       res: {
         /**
          * Successful Response
          */
-        200: {
-          [key: string]: unknown;
-        };
+        200: AssetCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
         /**
          * Validation Error
          */
