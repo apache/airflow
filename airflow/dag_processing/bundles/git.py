@@ -68,6 +68,7 @@ class GitDagBundle(BaseDagBundle):
                 to_path=self.path,
             )
         self.repo = Repo(self.path)
+        self.repo.git.checkout(self.head)
 
     def _ensure_bare_repo_exists(self) -> None:
         if not os.path.exists(self.bare_repo_path):

@@ -163,3 +163,10 @@ class TestGitDagBundle:
 
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py", "new_test.py"} == files_in_repo
+
+    def test_head(self, git_repo):
+        repo_path, repo = git_repo
+
+        repo.create_head("test")
+        bundle = GitDagBundle(name="test", repo_url=repo_path, head="test")
+        assert bundle.repo.head.ref.name == "test"
