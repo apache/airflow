@@ -2820,17 +2820,6 @@ export const $VariableBody = {
       type: "string",
       title: "Key",
     },
-    description: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Description",
-    },
     value: {
       anyOf: [
         {
@@ -2842,9 +2831,20 @@ export const $VariableBody = {
       ],
       title: "Value",
     },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
   },
   type: "object",
-  required: ["key", "description", "value"],
+  required: ["key", "value"],
   title: "VariableBody",
   description: "Variable serializer for bodies.",
 } as const;
@@ -2875,17 +2875,6 @@ export const $VariableResponse = {
       type: "string",
       title: "Key",
     },
-    description: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Description",
-    },
     value: {
       anyOf: [
         {
@@ -2897,9 +2886,20 @@ export const $VariableResponse = {
       ],
       title: "Value",
     },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
   },
   type: "object",
-  required: ["key", "description", "value"],
+  required: ["key", "value", "description"],
   title: "VariableResponse",
   description: "Variable serializer for responses.",
 } as const;
