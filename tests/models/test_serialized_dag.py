@@ -23,7 +23,7 @@ from unittest import mock
 
 import pendulum
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 import airflow.example_dags as example_dags_module
 from airflow.assets import Asset
@@ -31,7 +31,6 @@ from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel as SDM
-from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import json
@@ -48,7 +47,6 @@ pytestmark = pytest.mark.db_test
 def make_example_dags(module):
     """Loads DAGs from a module for test."""
     dagbag = DagBag(module.__path__[0])
-    DAG.bulk_write_to_db(dagbag.dags.values())
     return dagbag.dags
 
 
@@ -63,7 +61,6 @@ class TestSerializedDagModel:
         ],
     )
     def setup_test_cases(self, request, monkeypatch):
-        db.clear_db_dags()
         db.clear_db_serialized_dags()
         with mock.patch("airflow.models.serialized_dag.COMPRESS_SERIALIZED_DAGS", request.param):
             yield
@@ -89,7 +86,7 @@ class TestSerializedDagModel:
                 assert SDM.has_dag(dag.dag_id)
                 result = session.query(SDM).filter(SDM.dag_id == dag.dag_id).one()
 
-                assert result.dag_version.dag_code.fileloc == dag.fileloc
+                assert result.fileloc == dag.fileloc
                 # Verifies JSON schema.
                 SerializedDAG.validate_schema(result.data)
 
@@ -101,28 +98,29 @@ class TestSerializedDagModel:
         dag_updated = SDM.write_dag(dag=example_bash_op_dag)
         assert dag_updated is True
 
-        s_dag = SDM.get(example_bash_op_dag.dag_id)
+        with create_session() as session:
+            s_dag = session.get(SDM, example_bash_op_dag.dag_id)
 
-        # Test that if DAG is not changed, Serialized DAG is not re-written and last_updated
-        # column is not updated
-        dag_updated = SDM.write_dag(dag=example_bash_op_dag)
-        s_dag_1 = SDM.get(example_bash_op_dag.dag_id)
+            # Test that if DAG is not changed, Serialized DAG is not re-written and last_updated
+            # column is not updated
+            dag_updated = SDM.write_dag(dag=example_bash_op_dag)
+            s_dag_1 = session.get(SDM, example_bash_op_dag.dag_id)
 
-        assert s_dag_1.dag_hash == s_dag.dag_hash
-        assert s_dag.last_updated == s_dag_1.last_updated
-        assert dag_updated is False
+            assert s_dag_1.dag_hash == s_dag.dag_hash
+            assert s_dag.last_updated == s_dag_1.last_updated
+            assert dag_updated is False
 
-        # Update DAG
-        example_bash_op_dag.tags.add("new_tag")
-        assert example_bash_op_dag.tags == {"example", "example2", "new_tag"}
+            # Update DAG
+            example_bash_op_dag.tags.add("new_tag")
+            assert example_bash_op_dag.tags == {"example", "example2", "new_tag"}
 
-        dag_updated = SDM.write_dag(dag=example_bash_op_dag)
-        s_dag_2 = SDM.get(example_bash_op_dag.dag_id)
+            dag_updated = SDM.write_dag(dag=example_bash_op_dag)
+            s_dag_2 = session.get(SDM, example_bash_op_dag.dag_id)
 
-        assert s_dag.last_updated != s_dag_2.last_updated
-        assert s_dag.dag_hash != s_dag_2.dag_hash
-        assert s_dag_2.data["dag"]["tags"] == ["example", "example2", "new_tag"]
-        assert dag_updated is True
+            assert s_dag.last_updated != s_dag_2.last_updated
+            assert s_dag.dag_hash != s_dag_2.dag_hash
+            assert s_dag_2.data["dag"]["tags"] == ["example", "example2", "new_tag"]
+            assert dag_updated is True
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_serialized_dag_is_updated_if_processor_subdir_changed(self):
@@ -133,12 +131,12 @@ class TestSerializedDagModel:
         assert dag_updated is True
 
         with create_session() as session:
-            s_dag = SDM.get(example_bash_op_dag.dag_id)
+            s_dag = session.get(SDM, example_bash_op_dag.dag_id)
 
             # Test that if DAG is not changed, Serialized DAG is not re-written and last_updated
             # column is not updated
             dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir="/tmp/test")
-            s_dag_1 = SDM.get(example_bash_op_dag.dag_id)
+            s_dag_1 = session.get(SDM, example_bash_op_dag.dag_id)
 
             assert s_dag_1.dag_hash == s_dag.dag_hash
             assert s_dag.last_updated == s_dag_1.last_updated
@@ -147,7 +145,7 @@ class TestSerializedDagModel:
 
             # Update DAG
             dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir="/tmp/other")
-            s_dag_2 = SDM.get(example_bash_op_dag.dag_id)
+            s_dag_2 = session.get(SDM, example_bash_op_dag.dag_id)
 
             assert s_dag.processor_subdir != s_dag_2.processor_subdir
             assert dag_updated is True
@@ -163,19 +161,6 @@ class TestSerializedDagModel:
 
             assert serialized_dag.dag_id == dag.dag_id
             assert set(serialized_dag.task_dict) == set(dag.task_dict)
-
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_read_all_dags_only_picks_the_latest_serdags(self, session):
-        example_dags = self._write_example_dags()
-        serialized_dags = SDM.read_all_dags()
-        assert len(example_dags) == len(serialized_dags)
-
-        ex_dags = make_example_dags(example_dags_module)
-        SDM.write_dag(ex_dags.get("example_bash_operator"), processor_subdir="/tmp/")
-        serialized_dags2 = SDM.read_all_dags()
-        sdags = session.query(SDM).all()
-        # assert only the latest SDM is returned
-        assert len(sdags) != len(serialized_dags2)
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_remove_dags_by_id(self):
@@ -205,11 +190,25 @@ class TestSerializedDagModel:
             DAG("dag_2", schedule=None),
             DAG("dag_3", schedule=None),
         ]
-        DAG.bulk_write_to_db(dags)
-        # we also write to dag_version and dag_code tables
-        # in dag_version, we search for unique version_name too
-        with assert_queries_count(24):
+        with assert_queries_count(10):
             SDM.bulk_sync_to_db(dags)
+
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
+    @pytest.mark.parametrize("dag_dependencies_fields", [{"dag_dependencies": None}, {}])
+    def test_get_dag_dependencies_default_to_empty(self, dag_dependencies_fields):
+        """Test a pre-2.1.0 serialized DAG can deserialize DAG dependencies."""
+        example_dags = make_example_dags(example_dags_module)
+
+        with create_session() as session:
+            sdms = [SDM(dag) for dag in example_dags.values()]
+            # Simulate pre-2.1.0 format.
+            for sdm in sdms:
+                del sdm.data["dag"]["dag_dependencies"]
+                sdm.data["dag"].update(dag_dependencies_fields)
+            session.bulk_save_objects(sdms)
+
+        expected_dependencies = {dag_id: [] for dag_id in example_dags}
+        assert SDM.get_dag_dependencies() == expected_dependencies
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_order_of_dag_params_is_stable(self):
@@ -285,31 +284,3 @@ class TestSerializedDagModel:
         first_hashes = get_hash_set()
         # assert that the hashes are the same
         assert first_hashes == get_hash_set()
-
-    def test_get_latest_serdag_versions(self, dag_maker, session):
-        # first dag
-        with dag_maker("dag1") as dag:
-            EmptyOperator(task_id="task1")
-        dag.sync_to_db()
-        SDM.write_dag(dag)
-        with dag_maker("dag1") as dag:
-            EmptyOperator(task_id="task1")
-            EmptyOperator(task_id="task2")
-        dag.sync_to_db()
-        SDM.write_dag(dag)
-        # second dag
-        with dag_maker("dag2") as dag:
-            EmptyOperator(task_id="task1")
-        dag.sync_to_db()
-        SDM.write_dag(dag)
-        with dag_maker("dag2") as dag:
-            EmptyOperator(task_id="task1")
-            EmptyOperator(task_id="task2")
-        dag.sync_to_db()
-        SDM.write_dag(dag)
-
-        # Total serdags should be 4
-        assert session.scalar(select(func.count()).select_from(SDM)) == 4
-
-        latest_versions = SDM.get_latest_serialized_dags(dag_ids=["dag1", "dag2"], session=session)
-        assert len(latest_versions) == 2

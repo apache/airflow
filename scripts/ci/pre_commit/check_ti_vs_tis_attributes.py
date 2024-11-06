@@ -54,7 +54,6 @@ def compare_attributes(path1, path2):
         "rendered_task_instance_fields",
         # Storing last heartbeat for historic TIs is not interesting/useful
         "last_heartbeat_at",
-        "dag_version",
     }  # exclude attrs not necessary to be in TaskInstanceHistory
     if not diff:
         return
