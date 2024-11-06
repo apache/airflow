@@ -26,10 +26,12 @@ from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortP
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.serializers.connections import (
+    ConnectionBody,
     ConnectionCollectionResponse,
     ConnectionResponse,
 )
 from airflow.models import Connection
+from airflow.utils import helpers
 
 connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
 
@@ -114,3 +116,30 @@ async def get_connections(
         ],
         total_entries=total_entries,
     )
+
+
+@connections_router.post(
+    "/",
+    status_code=201,
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_409_CONFLICT]
+    ),
+)
+async def post_connection(
+    post_body: ConnectionBody,
+    session: Annotated[Session, Depends(get_session)],
+) -> ConnectionResponse:
+    """Create connection entry."""
+    try:
+        helpers.validate_key(post_body.connection_id, max_length=200)
+    except Exception as e:
+        raise HTTPException(400, f"{e}")
+
+    connection = session.scalar(select(Connection).filter_by(conn_id=post_body.connection_id))
+    if connection is not None:
+        raise HTTPException(409, f"Connection with connection_id: `{post_body.connection_id}` already exists")
+
+    connection = Connection(**post_body.model_dump(by_alias=True))
+    session.add(connection)
+
+    return ConnectionResponse.model_validate(connection, from_attributes=True)
