@@ -58,7 +58,11 @@ class EdgeExecutor(BaseExecutor):
         self.last_reported_state: dict[TaskInstanceKey, TaskInstanceState] = {}
 
     def _check_db_schema(self, engine: Engine) -> None:
-        """Check if already existing table matches the newest table schema."""
+        """
+        Check if already existing table matches the newest table schema.
+
+        workaround till Airflow 3.0.0, then it is possible to use alembic also for provider packages.
+        """
         inspector = inspect(engine)
         edge_job_columns = None
         try:
