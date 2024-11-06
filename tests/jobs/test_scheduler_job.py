@@ -116,14 +116,6 @@ def disable_load_example():
             yield
 
 
-@pytest.fixture(scope="module")
-def dagbag():
-    # Ensure the DAGs we are looking at from the DB are up-to-date
-    non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=False)
-    non_serialized_dagbag.sync_to_db()
-    return DagBag(read_dags_from_db=True)
-
-
 @pytest.fixture
 def load_examples():
     with conf_vars({("core", "load_examples"): "True"}):
@@ -139,14 +131,13 @@ def load_examples():
 class TestSchedulerJob:
     @staticmethod
     def clean_db():
+        clear_db_dags()
         clear_db_runs()
         clear_db_backfills()
         clear_db_pools()
         clear_db_import_errors()
         clear_db_jobs()
         clear_db_assets()
-        # DO NOT try to run clear_db_serialized_dags() or clear_db_dags here - this will break the tests
-        # The tests expect DAGs to be fully loaded here via setUpClass method below
 
     @pytest.fixture(autouse=True)
     def per_test(self) -> Generator:
@@ -161,8 +152,7 @@ class TestSchedulerJob:
         self.clean_db()
 
     @pytest.fixture(autouse=True)
-    def set_instance_attrs(self, dagbag) -> Generator:
-        self.dagbag: DagBag = dagbag
+    def set_instance_attrs(self) -> Generator:
         # Speed up some tests by not running the tasks, just look at what we
         # enqueue!
         self.null_exec: MockExecutor | None = MockExecutor()
@@ -171,7 +161,6 @@ class TestSchedulerJob:
             yield
 
         self.null_exec = None
-        del self.dagbag
 
     @pytest.fixture
     def mock_executors(self):
@@ -2873,8 +2862,10 @@ class TestSchedulerJob:
 
         Noted: the DagRun state could be still in running state during CI.
         """
+        dagbag = DagBag(TEST_DAG_FOLDER, include_examples=False)
+        dagbag.sync_to_db()
         dag_id = "test_dagrun_states_root_future"
-        dag = self.dagbag.get_dag(dag_id)
+        dag = dagbag.get_dag(dag_id)
         dag.sync_to_db()
 
         scheduler_job = Job()
@@ -2898,18 +2889,18 @@ class TestSchedulerJob:
         """
         Test that the scheduler respects start_dates, even when DAGs have run
         """
+        dagbag = DagBag(TEST_DAG_FOLDER, include_examples=False)
         with conf_vars(configs):
             with create_session() as session:
                 dag_id = "test_start_date_scheduling"
-                dag = self.dagbag.get_dag(dag_id)
+                dag = dagbag.get_dag(dag_id)
                 dag.clear()
                 assert dag.start_date > datetime.datetime.now(timezone.utc)
 
                 # Deactivate other dags in this file
-                other_dag = self.dagbag.get_dag("test_task_start_date_scheduling")
+                other_dag = dagbag.get_dag("test_task_start_date_scheduling")
                 other_dag.is_paused_upon_creation = True
                 other_dag.sync_to_db()
-
                 scheduler_job = Job(
                     executor=self.null_exec,
                 )
@@ -2965,12 +2956,12 @@ class TestSchedulerJob:
                 include_examples=False,
             )
             dag_id = "test_task_start_date_scheduling"
-            dag = self.dagbag.get_dag(dag_id)
+            dag = dagbag.get_dag(dag_id)
             dag.is_paused_upon_creation = False
             dagbag.bag_dag(dag=dag)
 
             # Deactivate other dags in this file so the scheduler doesn't waste time processing them
-            other_dag = self.dagbag.get_dag("test_start_date_scheduling")
+            other_dag = dagbag.get_dag("test_start_date_scheduling")
             other_dag.is_paused_upon_creation = True
             dagbag.bag_dag(dag=other_dag)
 
@@ -3002,13 +2993,14 @@ class TestSchedulerJob:
         """
         Test that the scheduler can successfully queue multiple dags in parallel
         """
+        dagbag = DagBag(TEST_DAG_FOLDER, include_examples=False)
         with conf_vars(configs):
             dag_ids = [
                 "test_start_date_scheduling",
                 "test_task_start_date_scheduling",
             ]
             for dag_id in dag_ids:
-                dag = self.dagbag.get_dag(dag_id)
+                dag = dagbag.get_dag(dag_id)
                 if not dag:
                     raise ValueError(f"could not find dag {dag_id}")
                 dag.clear()
@@ -3470,7 +3462,9 @@ class TestSchedulerJob:
         Integration test of the scheduler not accidentally resetting
         the try_numbers for a task
         """
-        dag = self.dagbag.get_dag("test_retry_handling_job")
+        dagbag = DagBag(TEST_DAG_FOLDER, include_examples=False)
+        dagbag.sync_to_db()
+        dag = dagbag.get_dag("test_retry_handling_job")
         dag_task1 = dag.get_task("test_retry_handling_op")
         dag.clear()
         dag.sync_to_db()
@@ -5843,7 +5837,6 @@ class TestSchedulerJob:
         assert expected_failure_callback_requests[0] == callback_requests[0]
 
     def test_cleanup_stale_dags(self):
-        clear_db_dags()
         dagbag = DagBag(TEST_DAG_FOLDER, read_dags_from_db=False)
         with create_session() as session:
             dag = dagbag.get_dag("test_example_bash_operator")
@@ -5942,8 +5935,10 @@ class TestSchedulerJob:
         # Use SequentialExecutor for more predictable test behaviour
         from airflow.executors.sequential_executor import SequentialExecutor
 
-        self.dagbag.process_file(str(TEST_DAGS_FOLDER / f"{dag_id}.py"))
-        dag = self.dagbag.get_dag(dag_id)
+        dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER, include_examples=False)
+        dagbag.sync_to_db()
+        dagbag.process_file(str(TEST_DAGS_FOLDER / f"{dag_id}.py"))
+        dag = dagbag.get_dag(dag_id)
         assert dag
         logical_date = timezone.coerce_datetime(timezone.utcnow() - datetime.timedelta(days=2))
         data_interval = dag.infer_automated_data_interval(logical_date)
