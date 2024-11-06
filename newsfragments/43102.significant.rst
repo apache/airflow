@@ -1,0 +1,18 @@
+Change in query parameter handling for list parameters
+
+The handling of list-type query parameters in the API has been updated.
+FastAPI defaults the ``explode`` behavior to ``true`` for list parameters,
+which affects how these parameters are passed in requests.
+This adjustment applies to all list-type query parameters across the API.
+
+Before:
+
+.. code-block::
+
+  http://<URL>:<PORT>/<PATH>?param=item1,item2
+
+After:
+
+.. code-block::
+
+  http://<URL>:<PORT>/<PATH>?param=item1&param=item2

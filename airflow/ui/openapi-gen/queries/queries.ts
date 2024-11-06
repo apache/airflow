@@ -1521,6 +1521,53 @@ export const useDagServicePatchDag = <
     ...options,
   });
 /**
+ * Patch Connection
+ * Update a connection entry.
+ * @param data The data for the request.
+ * @param data.connectionId
+ * @param data.requestBody
+ * @param data.updateMask
+ * @returns ConnectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useConnectionServicePatchConnection = <
+  TData = Common.ConnectionServicePatchConnectionMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        connectionId: string;
+        requestBody: ConnectionBody;
+        updateMask?: string[];
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      connectionId: string;
+      requestBody: ConnectionBody;
+      updateMask?: string[];
+    },
+    TContext
+  >({
+    mutationFn: ({ connectionId, requestBody, updateMask }) =>
+      ConnectionService.patchConnection({
+        connectionId,
+        requestBody,
+        updateMask,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Patch Dag Run State
  * Modify a DAG Run.
  * @param data The data for the request.

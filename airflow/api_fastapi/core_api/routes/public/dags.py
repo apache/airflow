@@ -220,12 +220,12 @@ async def patch_dag(
                 status.HTTP_400_BAD_REQUEST, "Only `is_paused` field can be updated through the REST API"
             )
 
+        data = patch_body.model_dump(include=set(update_mask))
     else:
-        update_mask = ["is_paused"]
+        data = patch_body.model_dump()
 
-    for attr_name in update_mask:
-        attr_value = getattr(patch_body, attr_name)
-        setattr(dag, attr_name, attr_value)
+    for key, val in data.items():
+        setattr(dag, key, val)
 
     return DAGResponse.model_validate(dag, from_attributes=True)
 

@@ -113,6 +113,7 @@ def get_connections(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_connection("PUT")
 @provide_session
 @action_logging(
