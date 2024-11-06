@@ -16,18 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  AccordionRoot,
-  AccordionItem,
-  AccordionItemTrigger,
-  AccordionItemContent,
-  Input,
-  Button,
-  Box,
-  Text,
-  Spacer,
-  HStack,
-} from "@chakra-ui/react";
+import { Input, Button, Box, Text, Spacer, HStack } from "@chakra-ui/react";
 import { autocompletion } from "@codemirror/autocomplete";
 import { json } from "@codemirror/lang-json";
 import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
@@ -37,6 +26,7 @@ import { useForm, Controller } from "react-hook-form";
 
 import { useColorMode } from "src/context/colorMode";
 
+import { Accordion } from "../ui";
 import type { DagParams } from "./TriggerDag";
 
 type TriggerDAGFormProps = {
@@ -89,10 +79,10 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
 
   return (
     <>
-      <AccordionRoot collapsible size="lg" variant="enclosed">
-        <AccordionItem key="advancedOptions" value="advancedOptions">
-          <AccordionItemTrigger>Advanced Options</AccordionItemTrigger>
-          <AccordionItemContent>
+      <Accordion.Root collapsible size="lg" variant="enclosed">
+        <Accordion.Item key="advancedOptions" value="advancedOptions">
+          <Accordion.ItemTrigger>Advanced Options</Accordion.ItemTrigger>
+          <Accordion.ItemContent>
             <Box p={5}>
               <Text fontSize="md" mb={2}>
                 Logical date
@@ -164,9 +154,9 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                 )}
               />
             </Box>
-          </AccordionItemContent>
-        </AccordionItem>
-      </AccordionRoot>
+          </Accordion.ItemContent>
+        </Accordion.Item>
+      </Accordion.Root>
 
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">
