@@ -48,9 +48,10 @@ class GitDagBundle(BaseDagBundle):
         self.head = head
 
         self.bare_repo_path = self._dag_bundle_root_storage_path / "git" / self.name
-        self._ensure_bare_repo_exists()
+        self._clone_bare_repo_if_required()
         self._ensure_version_in_bare_repo()
-        self._ensure_repo_exists()
+        self._clone_repo_if_required()
+        self.repo.git.checkout(self.head)
 
         if self.version:
             if not self._has_version(self.repo, self.version):
@@ -61,16 +62,15 @@ class GitDagBundle(BaseDagBundle):
         else:
             self.refresh()
 
-    def _ensure_repo_exists(self) -> None:
+    def _clone_repo_if_required(self) -> None:
         if not os.path.exists(self.path):
             Repo.clone_from(
                 url=self.bare_repo_path,
                 to_path=self.path,
             )
         self.repo = Repo(self.path)
-        self.repo.git.checkout(self.head)
 
-    def _ensure_bare_repo_exists(self) -> None:
+    def _clone_bare_repo_if_required(self) -> None:
         if not os.path.exists(self.bare_repo_path):
             Repo.clone_from(
                 url=self.repo_url,
