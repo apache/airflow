@@ -638,7 +638,7 @@ class KubernetesExecutor(BaseExecutor):
                 self.log.warning("Cannot find pod for ti %s", ti)
                 continue
             readable_tis.append(repr(ti))
-            if Version(airflow_version) < Version("2.10.4"):
+            if Version(airflow_version) >= Version("2.10.4"):
                 self.kube_scheduler.patch_pod_delete_stuck(
                     pod_name=pod.metadata.name, namespace=pod.metadata.namespace
                 )

@@ -206,6 +206,8 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
     ) -> None:
         pod = event["object"]
         annotations_string = annotations_for_logging_task_metadata(annotations)
+        if POD_DELETE_STUCK_IN_QUEUED_KEY in pod.metadata.labels.keys():
+            return
         """Process status response."""
         if event["type"] == "DELETED" and not pod.metadata.deletion_timestamp:
             # This will happen only when the task pods are adopted by another executor.
@@ -226,11 +228,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         elif status == "Pending":
             # deletion_timestamp is set by kube server when a graceful deletion is requested.
             # since kube server have received request to delete pod set TI state failed
-            if (
-                event["type"] == "DELETED"
-                and pod.metadata.deletion_timestamp
-                and POD_DELETE_STUCK_IN_QUEUED_KEY not in pod.metadata.annotations.keys()
-            ):
+            if event["type"] == "DELETED" and pod.metadata.deletion_timestamp:
                 self.log.info("Event: Failed to start pod %s, annotations: %s", pod_name, annotations_string)
                 self.watcher_queue.put(
                     (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
@@ -436,7 +434,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
     def delete_pod(self, pod_name: str, namespace: str) -> None:
         """Delete Pod from a namespace; does not raise if it does not exist."""
         try:
-            self.log.debug("Deleting pod %s in namespace %s", pod_name, namespace)
+            self.log.info("Deleting pod %s in namespace %s", pod_name, namespace)
             self.kube_client.delete_namespaced_pod(
                 pod_name,
                 namespace,
@@ -450,7 +448,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def patch_pod_delete_stuck(self, *, pod_name: str, namespace: str):
         """Add a "done" annotation to ensure we don't continually adopt pods."""
-        self.log.debug(
+        self.log.info(
             "Patching pod %s in namespace %s to note that we are deleting it "
             "because it was stuck in queued",
             pod_name,

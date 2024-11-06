@@ -393,7 +393,7 @@ core:
       version_added: 2.10.4
       type: integer
       example: ~
-      default: "2"
+      default: "3"
     xcom_backend:
       description: |
         Path to custom XCom class that will be used to store and resolve operators results

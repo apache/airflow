@@ -1809,27 +1809,44 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 cleaned_up_task_instances = set(executor.cleanup_stuck_queued_tasks(tis=stuck_tis))
                 for ti in stuck_tis:
                     if repr(ti) in cleaned_up_task_instances:
-                        self.log.warning(
-                            "Marking task instance %s stuck in queued as failed. "
-                            "If the task instance has available retries, it will be retried.",
-                            ti,
-                        )
-                        session.add(
-                            Log(
-                                event=RESCHEDULE_STUCK_IN_QUEUED_EVENT,
-                                task_instance=ti.key,
-                                extra=(
-                                    f"Task was stuck in queued and will be requeued, once it has hit {num_allowed_retries} attempts"
-                                    "Task will be marked as failed. After that, if the task instance has "
-                                    "available retries, it will be retried."
-                                ),
-                            )
-                        )
-
                         num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
                         if num_times_stuck < num_allowed_retries:
+                            self.log.warning(
+                                "Task %s was stuck in queued and will be requeued, once it has hit %s attempts"
+                                " the task will be marked as failed. After that, if the task instance has "
+                                "available retries, it will be retried.", ti.key, num_allowed_retries
+                            )
+                            session.add(
+                                Log(
+                                    event=RESCHEDULE_STUCK_IN_QUEUED_EVENT,
+                                    task_instance=ti.key,
+                                    extra=(
+                                        f"Task was stuck in queued and will be requeued, once it has hit {num_allowed_retries} attempts"
+                                        "Task will be marked as failed. After that, if the task instance has "
+                                        "available retries, it will be retried."
+                                    ),
+                                )
+                            )
+
                             executor.change_state(ti.key, State.SCHEDULED)
+                            session.execute(
+                                update(TI)
+                                .where(TI.filter_for_tis([ti]))
+                                .values(
+                                    # TODO[ha]: should we use func.now()? How does that work with DB timezone
+                                    # on mysql when it's not UTC?
+                                    state=TaskInstanceState.SCHEDULED,
+                                    queued_dttm=None,
+                                    # queued_by_job_id=None,
+                                )
+                                .execution_options(synchronize_session=False)
+                            )
                         else:
+                            self.log.warning(
+                                "Marking task instance %s stuck in queued as failed. "
+                                "If the task instance has available retries, it will be retried.",
+                                ti,
+                            )
                             session.add(
                                 Log(
                                     event="failing stuck in queued",
