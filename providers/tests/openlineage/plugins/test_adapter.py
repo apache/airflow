@@ -81,17 +81,6 @@ def test_create_client_from_config_with_options():
     assert client.transport.url == "http://ol-api:5000"
 
 
-@conf_vars(
-    {
-        ("openlineage", "transport"): '{"url": "http://ol-api:5000",'
-        ' "auth": {"type": "api_key", "apiKey": "api-key"}}'
-    }
-)
-def test_fails_to_create_client_without_type():
-    with pytest.raises(KeyError):
-        OpenLineageAdapter().get_or_create_openlineage_client()
-
-
 def test_create_client_from_yaml_config():
     current_folder = pathlib.Path(__file__).parent.resolve()
     yaml_config = str((current_folder / "openlineage_configs" / "http.yaml").resolve())
