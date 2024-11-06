@@ -216,7 +216,7 @@ To create a Google Vertex AI Auto ML training jobs you have five operators
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLForecastingTrainingJobOperator`
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLImageTrainingJobOperator`
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTabularTrainingJobOperator`
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`
 Each of them will wait for the operation to complete. The results of each operator will be a model
 which was trained by user using these operators.
@@ -256,17 +256,6 @@ put dataset id to ``dataset_id`` parameter in operator.
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_tabular_training_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_tabular_training_job_operator]
-
-How to run AutoML Text Training Job
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`
-
-Operator is deprecated, the non-training (existing legacy models) AutoMLText API will be deprecated
-on June 15, 2025.
-There are 2 options for text classification, extraction, and sentiment analysis tasks replacement:
-- Prompts with pre-trained Gemini model, using :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextGenerationModelPredictOperator`.
-- Fine tuning over Gemini model, For more tailored results, using :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`.
-
-Please visit the https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini-tuning for more details.
 
 How to run AutoML Video Training Job
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`

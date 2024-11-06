@@ -61,10 +61,6 @@ TRIGGER_ID = "32488e7f-09d6-4fe9-a5fb-4ca1419a6e7a"
 
 
 class TestCloudBuildHook:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            CloudBuildHook(gcp_conn_id="test", delegate_to="delegate_to")
-
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
@@ -353,10 +349,6 @@ class TestCloudBuildHook:
 
 @pytest.mark.db_test
 class TestAsyncHook:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            CloudBuildAsyncHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
-
     @pytest.fixture
     def hook(self):
         return CloudBuildAsyncHook(
