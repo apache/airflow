@@ -39,6 +39,8 @@ import type {
   DeleteConnectionResponse,
   GetConnectionData,
   GetConnectionResponse,
+  PatchConnectionData,
+  PatchConnectionResponse,
   GetConnectionsData,
   GetConnectionsResponse,
   PostConnectionData,
@@ -628,6 +630,40 @@ export class ConnectionService {
         connection_id: data.connectionId,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Patch Connection
+   * Update a connection entry.
+   * @param data The data for the request.
+   * @param data.connectionId
+   * @param data.requestBody
+   * @param data.updateMask
+   * @returns ConnectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchConnection(
+    data: PatchConnectionData,
+  ): CancelablePromise<PatchConnectionResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/connections/{connection_id}",
+      path: {
+        connection_id: data.connectionId,
+      },
+      query: {
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
