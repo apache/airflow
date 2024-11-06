@@ -202,32 +202,32 @@ class TestTIHealthEndpoint:
         clear_db_runs()
 
     @pytest.mark.parametrize(
-        ("hostname", "unixname", "expected_status_code", "expected_detail"),
+        ("hostname", "pid", "expected_status_code", "expected_detail"),
         [
             # Case: Successful heartbeat
-            ("random-hostname", "random-unixname", 204, None),
+            ("random-hostname", 1789, 204, None),
             # Case: Conflict due to hostname mismatch
             (
                 "wrong-hostname",
-                "random-unixname",
+                1789,
                 409,
                 {
                     "reason": "running_elsewhere",
                     "message": "TI is already running elsewhere",
                     "current_hostname": "random-hostname",
-                    "current_unixname": "random-unixname",
+                    "current_pid": 1789,
                 },
             ),
-            # Case: Conflict due to unixname mismatch
+            # Case: Conflict due to pid mismatch
             (
                 "random-hostname",
-                "wrong-unixname",
+                1054,
                 409,
                 {
                     "reason": "running_elsewhere",
                     "message": "TI is already running elsewhere",
                     "current_hostname": "random-hostname",
-                    "current_unixname": "random-unixname",
+                    "current_pid": 1789,
                 },
             ),
         ],
@@ -238,7 +238,7 @@ class TestTIHealthEndpoint:
         session,
         create_task_instance,
         hostname,
-        unixname,
+        pid,
         expected_status_code,
         expected_detail,
         time_machine,
@@ -253,7 +253,7 @@ class TestTIHealthEndpoint:
             task_id="test_ti_heartbeat",
             state=State.RUNNING,
             hostname="random-hostname",
-            unixname="random-unixname",
+            pid=1789,
             session=session,
         )
         session.commit()
@@ -264,7 +264,7 @@ class TestTIHealthEndpoint:
 
         response = client.put(
             f"/execution/task_instance/{task_instance_id}/heartbeat",
-            json={"hostname": hostname, "unixname": unixname},
+            json={"hostname": hostname, "pid": pid},
         )
 
         assert response.status_code == expected_status_code
@@ -288,7 +288,7 @@ class TestTIHealthEndpoint:
 
         response = client.put(
             f"/execution/task_instance/{task_instance_id}/heartbeat",
-            json={"hostname": "random-hostname", "unixname": "random-unixname"},
+            json={"hostname": "random-hostname", "pid": 1547},
         )
 
         assert response.status_code == 404
@@ -308,7 +308,7 @@ class TestTIHealthEndpoint:
             task_id="test_ti_heartbeat_when_task_not_running",
             state=ti_state,
             hostname="random-hostname",
-            unixname="random-unixname",
+            pid=1547,
             session=session,
         )
         session.commit()
@@ -316,7 +316,7 @@ class TestTIHealthEndpoint:
 
         response = client.put(
             f"/execution/task_instance/{task_instance_id}/heartbeat",
-            json={"hostname": "random-hostname", "unixname": "random-unixname"},
+            json={"hostname": "random-hostname", "pid": 1547},
         )
 
         assert response.status_code == 409
@@ -337,7 +337,7 @@ class TestTIHealthEndpoint:
             task_id="test_ti_heartbeat_update",
             state=State.RUNNING,
             hostname="random-hostname",
-            unixname="random-unixname",
+            pid=1547,
             last_heartbeat_at=time_now,
             session=session,
         )
@@ -353,7 +353,7 @@ class TestTIHealthEndpoint:
 
         response = client.put(
             f"/execution/task_instance/{task_instance_id}/heartbeat",
-            json={"hostname": "random-hostname", "unixname": "random-unixname"},
+            json={"hostname": "random-hostname", "pid": 1547},
         )
 
         assert response.status_code == 204

@@ -118,4 +118,4 @@ class TIHeartbeatInfo(BaseModel):
     """Schema for TaskInstance heartbeat endpoint."""
 
     hostname: str
-    unixname: str
+    pid: int

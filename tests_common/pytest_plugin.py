@@ -1195,7 +1195,7 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
         email=None,
         map_index=-1,
         hostname=None,
-        unixname=None,
+        pid=None,
         last_heartbeat_at=None,
         **kwargs,
     ) -> TaskInstance:
@@ -1246,12 +1246,9 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
         ti.state = state
         ti.external_executor_id = external_executor_id
         ti.map_index = map_index
-        if hostname:
-            ti.hostname = hostname
-        if unixname:
-            ti.unixname = unixname
-        if last_heartbeat_at:
-            ti.last_heartbeat_at = last_heartbeat_at
+        ti.hostname = hostname or ""
+        ti.pid = pid
+        ti.last_heartbeat_at = last_heartbeat_at
         dag_maker.session.flush()
         return ti
 
