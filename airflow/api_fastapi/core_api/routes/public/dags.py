@@ -161,7 +161,17 @@ async def get_dag(
     return DAGResponse.model_validate(dag_model, from_attributes=True)
 
 
-@dags_router.get("/{dag_id}/details", responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422]))
+@dags_router.get(
+    "/{dag_id}/details",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
 async def get_dag_details(
     dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request
 ) -> DAGDetailsResponse:
@@ -210,12 +220,12 @@ async def patch_dag(
                 status.HTTP_400_BAD_REQUEST, "Only `is_paused` field can be updated through the REST API"
             )
 
+        data = patch_body.model_dump(include=set(update_mask))
     else:
-        update_mask = ["is_paused"]
+        data = patch_body.model_dump()
 
-    for attr_name in update_mask:
-        attr_value = getattr(patch_body, attr_name)
-        setattr(dag, attr_name, attr_value)
+    for key, val in data.items():
+        setattr(dag, key, val)
 
     return DAGResponse.model_validate(dag, from_attributes=True)
 

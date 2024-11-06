@@ -8,10 +8,12 @@ import {
   DagRunService,
   DagService,
   DagSourceService,
+  DagStatsService,
   DagWarningService,
   DagsService,
   DashboardService,
   EventLogService,
+  ImportErrorService,
   MonitorService,
   PluginService,
   PoolService,
@@ -658,6 +660,72 @@ export const useEventLogServiceGetEventLogsSuspense = <
     ...options,
   });
 /**
+ * Get Import Error
+ * Get an import error.
+ * @param data The data for the request.
+ * @param data.importErrorId
+ * @returns ImportErrorResponse Successful Response
+ * @throws ApiError
+ */
+export const useImportErrorServiceGetImportErrorSuspense = <
+  TData = Common.ImportErrorServiceGetImportErrorDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    importErrorId,
+  }: {
+    importErrorId: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseImportErrorServiceGetImportErrorKeyFn(
+      { importErrorId },
+      queryKey,
+    ),
+    queryFn: () =>
+      ImportErrorService.getImportError({ importErrorId }) as TData,
+    ...options,
+  });
+/**
+ * Get Import Errors
+ * Get all import errors.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns ImportErrorCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useImportErrorServiceGetImportErrorsSuspense = <
+  TData = Common.ImportErrorServiceGetImportErrorsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn(
+      { limit, offset, orderBy },
+      queryKey,
+    ),
+    queryFn: () =>
+      ImportErrorService.getImportErrors({ limit, offset, orderBy }) as TData,
+    ...options,
+  });
+/**
  * Get Health
  * @returns HealthInfoSchema Successful Response
  * @throws ApiError
@@ -1009,5 +1077,31 @@ export const useVersionServiceGetVersionSuspense = <
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseVersionServiceGetVersionKeyFn(queryKey),
     queryFn: () => VersionService.getVersion() as TData,
+    ...options,
+  });
+/**
+ * Get Dag Stats
+ * Get Dag statistics.
+ * @param data The data for the request.
+ * @param data.dagIds
+ * @returns DagStatsCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagStatsServiceGetDagStatsSuspense = <
+  TData = Common.DagStatsServiceGetDagStatsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagIds,
+  }: {
+    dagIds?: string[];
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }, queryKey),
+    queryFn: () => DagStatsService.getDagStats({ dagIds }) as TData,
     ...options,
   });

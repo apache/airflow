@@ -954,11 +954,11 @@ paths:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
         '422':
+          description: Validation Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unprocessable Entity
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/connections/{connection_id}:
     delete:
       tags:
@@ -1044,6 +1044,72 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - Connection
+      summary: Patch Connection
+      description: Update a connection entry.
+      operationId: patch_connection
+      parameters:
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Connection Id
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/connections/:
     get:
       tags:
@@ -1098,6 +1164,49 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    post:
+      tags:
+      - Connection
+      summary: Post Connection
+      description: Create connection entry.
+      operationId: post_connection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionBody'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -1520,6 +1629,105 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EventLogCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/importErrors/{import_error_id}:
+    get:
+      tags:
+      - Import Error
+      summary: Get Import Error
+      description: Get an import error.
+      operationId: get_import_error
+      parameters:
+      - name: import_error_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Import Error Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportErrorResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/importErrors/:
+    get:
+      tags:
+      - Import Error
+      summary: Get Import Errors
+      description: Get all import errors.
+      operationId: get_import_errors
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: id
+          title: Order By
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImportErrorCollectionResponse'
         '401':
           content:
             application/json:
@@ -2320,6 +2528,59 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VersionInfo'
+  /public/dagStats/:
+    get:
+      tags:
+      - DagStats
+      summary: Get Dag Stats
+      description: Get Dag statistics.
+      operationId: get_dag_stats
+      parameters:
+      - name: dag_ids
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Dag Ids
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagStatsCollectionResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AppBuilderMenuItemResponse:
@@ -2416,6 +2677,55 @@ components:
       - status
       title: BaseInfoSchema
       description: Base status field for metadatabase and scheduler.
+    ConnectionBody:
+      properties:
+        connection_id:
+          type: string
+          title: Connection Id
+        conn_type:
+          type: string
+          title: Conn Type
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        host:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Host
+        login:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Login
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Schema
+        port:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Port
+        password:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Password
+        extra:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Extra
+      type: object
+      required:
+      - connection_id
+      - conn_type
+      title: ConnectionBody
+      description: Connection Serializer for requests body.
     ConnectionCollectionResponse:
       properties:
         connections:
@@ -2465,6 +2775,11 @@ components:
           - type: integer
           - type: 'null'
           title: Port
+        password:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Password
         extra:
           anyOf:
           - type: string
@@ -2479,6 +2794,7 @@ components:
       - login
       - schema
       - port
+      - password
       - extra
       title: ConnectionResponse
       description: Connection serializer for responses.
@@ -3276,6 +3592,51 @@ components:
       - asset_triggered
       title: DagRunType
       description: Class with DagRun types.
+    DagStatsCollectionResponse:
+      properties:
+        dags:
+          items:
+            $ref: '#/components/schemas/DagStatsResponse'
+          type: array
+          title: Dags
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - dags
+      - total_entries
+      title: DagStatsCollectionResponse
+      description: DAG Stats Collection serializer for responses.
+    DagStatsResponse:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        stats:
+          items:
+            $ref: '#/components/schemas/DagStatsStateResponse'
+          type: array
+          title: Stats
+      type: object
+      required:
+      - dag_id
+      - stats
+      title: DagStatsResponse
+      description: DAG Stats serializer for responses.
+    DagStatsStateResponse:
+      properties:
+        state:
+          $ref: '#/components/schemas/DagRunState'
+        count:
+          type: integer
+          title: Count
+      type: object
+      required:
+      - state
+      - count
+      title: DagStatsStateResponse
+      description: DagStatsState serializer for responses.
     DagTagPydantic:
       properties:
         name:
@@ -3452,7 +3813,7 @@ components:
         dag_run_states:
           $ref: '#/components/schemas/DAGRunStates'
         task_instance_states:
-          $ref: '#/components/schemas/airflow__api_fastapi__core_api__serializers__dashboard__TaskInstanceState'
+          $ref: '#/components/schemas/airflow__api_fastapi__core_api__serializers__ui__dashboard__TaskInstanceState'
       type: object
       required:
       - dag_run_types
@@ -3460,6 +3821,45 @@ components:
       - task_instance_states
       title: HistoricalMetricDataResponse
       description: Historical Metric Data serializer for responses.
+    ImportErrorCollectionResponse:
+      properties:
+        import_errors:
+          items:
+            $ref: '#/components/schemas/ImportErrorResponse'
+          type: array
+          title: Import Errors
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - import_errors
+      - total_entries
+      title: ImportErrorCollectionResponse
+      description: Import Error Collection Response.
+    ImportErrorResponse:
+      properties:
+        import_error_id:
+          type: integer
+          title: Import Error Id
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        filename:
+          type: string
+          title: Filename
+        stack_trace:
+          type: string
+          title: Stack Trace
+      type: object
+      required:
+      - import_error_id
+      - timestamp
+      - filename
+      - stack_trace
+      title: ImportErrorResponse
+      description: Import Error Response.
     JobResponse:
       properties:
         id:
@@ -4021,20 +4421,19 @@ components:
         key:
           type: string
           title: Key
-        description:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Description
         value:
           anyOf:
           - type: string
           - type: 'null'
           title: Value
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
       type: object
       required:
       - key
-      - description
       - value
       title: VariableBody
       description: Variable serializer for bodies.
@@ -4059,21 +4458,21 @@ components:
         key:
           type: string
           title: Key
-        description:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Description
         value:
           anyOf:
           - type: string
           - type: 'null'
           title: Value
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
       type: object
       required:
       - key
-      - description
       - value
+      - description
       title: VariableResponse
       description: Variable serializer for responses.
     VersionInfo:
@@ -4092,7 +4491,7 @@ components:
       - git_version
       title: VersionInfo
       description: Version information serializer for responses.
-    airflow__api_fastapi__core_api__serializers__dashboard__TaskInstanceState:
+    airflow__api_fastapi__core_api__serializers__ui__dashboard__TaskInstanceState:
       properties:
         no_status:
           type: integer

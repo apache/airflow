@@ -8,10 +8,12 @@ import {
   DagRunService,
   DagService,
   DagSourceService,
+  DagStatsService,
   DagWarningService,
   DagsService,
   DashboardService,
   EventLogService,
+  ImportErrorService,
   MonitorService,
   PluginService,
   PoolService,
@@ -421,6 +423,50 @@ export const UseEventLogServiceGetEventLogsKeyFn = (
     },
   ]),
 ];
+export type ImportErrorServiceGetImportErrorDefaultResponse = Awaited<
+  ReturnType<typeof ImportErrorService.getImportError>
+>;
+export type ImportErrorServiceGetImportErrorQueryResult<
+  TData = ImportErrorServiceGetImportErrorDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useImportErrorServiceGetImportErrorKey =
+  "ImportErrorServiceGetImportError";
+export const UseImportErrorServiceGetImportErrorKeyFn = (
+  {
+    importErrorId,
+  }: {
+    importErrorId: number;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useImportErrorServiceGetImportErrorKey,
+  ...(queryKey ?? [{ importErrorId }]),
+];
+export type ImportErrorServiceGetImportErrorsDefaultResponse = Awaited<
+  ReturnType<typeof ImportErrorService.getImportErrors>
+>;
+export type ImportErrorServiceGetImportErrorsQueryResult<
+  TData = ImportErrorServiceGetImportErrorsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useImportErrorServiceGetImportErrorsKey =
+  "ImportErrorServiceGetImportErrors";
+export const UseImportErrorServiceGetImportErrorsKeyFn = (
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useImportErrorServiceGetImportErrorsKey,
+  ...(queryKey ?? [{ limit, offset, orderBy }]),
+];
 export type MonitorServiceGetHealthDefaultResponse = Awaited<
   ReturnType<typeof MonitorService.getHealth>
 >;
@@ -634,8 +680,27 @@ export const UseVersionServiceGetVersionKeyFn = (queryKey?: Array<unknown>) => [
   useVersionServiceGetVersionKey,
   ...(queryKey ?? []),
 ];
+export type DagStatsServiceGetDagStatsDefaultResponse = Awaited<
+  ReturnType<typeof DagStatsService.getDagStats>
+>;
+export type DagStatsServiceGetDagStatsQueryResult<
+  TData = DagStatsServiceGetDagStatsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagStatsServiceGetDagStatsKey = "DagStatsServiceGetDagStats";
+export const UseDagStatsServiceGetDagStatsKeyFn = (
+  {
+    dagIds,
+  }: {
+    dagIds?: string[];
+  } = {},
+  queryKey?: Array<unknown>,
+) => [useDagStatsServiceGetDagStatsKey, ...(queryKey ?? [{ dagIds }])];
 export type BackfillServiceCreateBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.createBackfill>
+>;
+export type ConnectionServicePostConnectionMutationResult = Awaited<
+  ReturnType<typeof ConnectionService.postConnection>
 >;
 export type PoolServicePostPoolMutationResult = Awaited<
   ReturnType<typeof PoolService.postPool>
@@ -657,6 +722,9 @@ export type DagServicePatchDagsMutationResult = Awaited<
 >;
 export type DagServicePatchDagMutationResult = Awaited<
   ReturnType<typeof DagService.patchDag>
+>;
+export type ConnectionServicePatchConnectionMutationResult = Awaited<
+  ReturnType<typeof ConnectionService.patchConnection>
 >;
 export type DagRunServicePatchDagRunMutationResult = Awaited<
   ReturnType<typeof DagRunService.patchDagRun>
