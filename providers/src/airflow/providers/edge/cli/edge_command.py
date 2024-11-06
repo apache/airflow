@@ -172,6 +172,7 @@ class _EdgeWorkerCli:
             "airflow_version": airflow_version,
             "edge_provider_version": edge_provider_version,
             "capacity": self.capacity,
+            "free_capacity": self.free_capacity,
         }
 
     def start(self):

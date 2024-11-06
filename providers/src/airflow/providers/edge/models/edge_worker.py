@@ -151,6 +151,7 @@ class EdgeWorker(BaseModel, LoggingMixin):
         connected: bool,
         jobs_active: int,
         capacity: int,
+        free_capacity: int,
         queues: Optional[List[str]],  # noqa: UP006,UP007 - prevent Sphinx failing
     ) -> None:
         """Set metric of edge worker."""
@@ -168,6 +169,9 @@ class EdgeWorker(BaseModel, LoggingMixin):
 
         Stats.gauge(f"edge_worker.capacity.{worker_name}", capacity)
         Stats.gauge("edge_worker.capacity", capacity, tags={"worker_name": worker_name})
+
+        Stats.gauge(f"edge_worker.free_capacity.{worker_name}", free_capacity)
+        Stats.gauge("edge_worker.free_capacity", free_capacity, tags={"worker_name": worker_name})
 
         Stats.gauge(
             f"edge_worker.num_queues.{worker_name}",
@@ -188,6 +192,7 @@ class EdgeWorker(BaseModel, LoggingMixin):
             connected=False,
             jobs_active=0,
             capacity=0,
+            free_capacity=-1,
             queues=None,
         )
 
@@ -280,6 +285,7 @@ class EdgeWorker(BaseModel, LoggingMixin):
             connected=True,
             jobs_active=jobs_active,
             capacity=int(sysinfo["capacity"]),
+            free_capacity=int(sysinfo["free_capacity"]),
             queues=worker.queues,
         )
         EdgeWorker.assert_version(sysinfo)  #  Exception only after worker state is in the DB
