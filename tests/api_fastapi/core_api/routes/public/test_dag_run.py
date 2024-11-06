@@ -192,20 +192,40 @@ class TestPatchDagRun:
         assert body.get("note") == response_body.get("note")
 
     @pytest.mark.parametrize(
-        "query_params,patch_body, expected_status_code",
+        "query_params,patch_body,response_body,expected_status_code",
         [
-            ({"update_mask": ["state"]}, {"state": DagRunState.SUCCESS}, 200),
-            ({}, {"state": DagRunState.SUCCESS}, 200),
-            ({"update_mask": ["random"]}, {"state": DagRunState.SUCCESS}, 400),
+            ({"update_mask": ["state"]}, {"state": DagRunState.SUCCESS}, {"state": "success"}, 200),
+            (
+                {"update_mask": ["note"]},
+                {"state": DagRunState.FAILED, "note": "new_note1"},
+                {"note": "new_note1", "state": "success"},
+                200,
+            ),
+            (
+                {},
+                {"state": DagRunState.FAILED, "note": "new_note2"},
+                {"note": "new_note2", "state": "failed"},
+                200,
+            ),
+            ({"update_mask": ["state"]}, {}, {"detail": "Fields not present in request body: state"}, 400),
+            (
+                {"update_mask": ["random"]},
+                {"state": DagRunState.SUCCESS},
+                {"detail": "Invalid fields in update mask: random"},
+                400,
+            ),
         ],
     )
     def test_patch_dag_run_with_update_mask(
-        self, test_client, query_params, patch_body, expected_status_code
+        self, test_client, query_params, patch_body, response_body, expected_status_code
     ):
         response = test_client.patch(
             f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", params=query_params, json=patch_body
         )
+        response_json = response.json()
         assert response.status_code == expected_status_code
+        for key, value in response_body.items():
+            assert response_json.get(key) == value
 
     def test_patch_dag_run_not_found(self, test_client):
         response = test_client.patch(

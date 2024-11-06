@@ -131,7 +131,7 @@ async def patch_dag_run(
         if invalid_fields:
             validation_errors.append(f"Invalid fields in update mask: {', '.join(invalid_fields)}")
 
-        missing_fields = update_mask_set - patch_body.model_fields_set
+        missing_fields = update_mask_set - invalid_fields - patch_body.model_fields_set
         if missing_fields:
             validation_errors.append(f"Fields not present in request body: {', '.join(missing_fields)}")
 
