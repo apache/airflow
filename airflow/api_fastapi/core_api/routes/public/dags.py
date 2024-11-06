@@ -161,7 +161,17 @@ async def get_dag(
     return DAGResponse.model_validate(dag_model, from_attributes=True)
 
 
-@dags_router.get("/{dag_id}/details", responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422]))
+@dags_router.get(
+    "/{dag_id}/details",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
 async def get_dag_details(
     dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request
 ) -> DAGDetailsResponse:
