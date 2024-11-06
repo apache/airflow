@@ -26,9 +26,9 @@ from dateutil import parser
 from kubernetes.client import ApiClient, models as k8s
 
 from airflow import __version__
-from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowConfigException
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import PodReconciliationError
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import add_pod_suffix
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import add_unique_suffix
 from airflow.providers.cncf.kubernetes.pod_generator import (
     PodGenerator,
     datetime_to_label_safe_datestring,
@@ -201,54 +201,6 @@ class TestPodGenerator:
                         "volumeMounts": [{"mountPath": "/foo/", "name": "example-kubernetes-test-volume"}],
                     }
                 ],
-                "volumes": [{"hostPath": {"path": "/tmp/"}, "name": "example-kubernetes-test-volume"}],
-            },
-        }
-
-    def test_from_obj_legacy(self):
-        obj = {
-            "KubernetesExecutor": {
-                "annotations": {"test": "annotation"},
-                "volumes": [
-                    {
-                        "name": "example-kubernetes-test-volume",
-                        "hostPath": {"path": "/tmp/"},
-                    },
-                ],
-                "volume_mounts": [
-                    {
-                        "mountPath": "/foo/",
-                        "name": "example-kubernetes-test-volume",
-                    },
-                ],
-            }
-        }
-        with pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match="Using a dictionary for the executor_config is deprecated and will soon be removed",
-        ):
-            result = PodGenerator.from_obj(obj)
-
-        assert self.k8s_client.sanitize_for_serialization(result) == {
-            "apiVersion": "v1",
-            "kind": "Pod",
-            "metadata": {
-                "annotations": {"test": "annotation"},
-            },
-            "spec": {
-                "containers": [
-                    {
-                        "args": [],
-                        "command": [],
-                        "env": [],
-                        "envFrom": [],
-                        "name": "base",
-                        "ports": [],
-                        "volumeMounts": [{"mountPath": "/foo/", "name": "example-kubernetes-test-volume"}],
-                    }
-                ],
-                "hostNetwork": False,
-                "imagePullSecrets": [],
                 "volumes": [{"hostPath": {"path": "/tmp/"}, "name": "example-kubernetes-test-volume"}],
             },
         }
@@ -690,7 +642,7 @@ class TestPodGenerator:
         ),
     )
     def test_pod_name_confirm_to_max_length(self, input):
-        actual = add_pod_suffix(input)
+        actual = add_unique_suffix(name=input)
         assert len(actual) <= 100
         actual_base, actual_suffix = actual.rsplit("-", maxsplit=1)
         # we limit pod id length to 100
@@ -721,10 +673,7 @@ class TestPodGenerator:
         `make_unique_pod_id` doesn't actually guarantee that the regex passes for any input.
         But I guess this test verifies that an otherwise valid pod_id doesn't get _screwed up_.
         """
-        with pytest.warns(
-            AirflowProviderDeprecationWarning, match="Use `add_pod_suffix` in `kubernetes_helper_functions`"
-        ):
-            actual = PodGenerator.make_unique_pod_id(pod_id)
+        actual = add_unique_suffix(name=pod_id)
         assert len(actual) <= 253
         assert actual == actual.lower(), "not lowercase"
         # verify using official k8s regex

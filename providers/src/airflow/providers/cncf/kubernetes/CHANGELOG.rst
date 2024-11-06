@@ -36,12 +36,12 @@ The following breaking changes were introduced:
 
 * Helpers
    * Remove ``add_pod_suffix`` method from ``kubernetes_helper_functions.py``. Use ``add_unique_suffix`` instead.
+   * Remove ``make_unique_pod_id`` method from ``PodGenerator``. Use ``add_unique_suffix`` in ``kubernetes_helper_functions`` instead.
    * Remove ``create_pod_id`` method from ``kubernetes_helper_functions.py``. Use ``create_unique_id`` instead.
    * Remove ``gen_pod`` method from ``PodGenerator``.
    * Remove ``add_xcom_sidecar`` method from ``PodGenerator``. Use ``airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar`` instead.
    * Remove the option to using a dictionary for the executor_config ``from_obj`` function in ``PodGenerator``. Use a ``kubernetes.client.models.V1Pod`` class with a "pod_override" key.
    * Remove ``from_legacy_obj`` method from ``PodGenerator``.
-   * Remove ``make_unique_pod_id`` method from ``PodGenerator``. Use Use ``add_pod_suffix`` in ``kubernetes_helper_functions`` instead.
    * Remove ``airflow.providers.cncf.kubernetes.pod_launcher_deprecated`` module. Use ``airflow.providers.cncf.kubernetes.utils.pod_manager`` instead.
 
 * Operators
