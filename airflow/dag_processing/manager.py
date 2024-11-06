@@ -50,6 +50,7 @@ from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.secrets.cache import SecretCache
 from airflow.stats import Stats
 from airflow.traces.tracer import Trace, add_span
@@ -538,6 +539,10 @@ class DagFileProcessorManager(LoggingMixin):
             if deactivated:
                 cls.logger().info("Deactivated %i DAGs which are no longer present in file.", deactivated)
 
+            for dag_id in to_deactivate:
+                SerializedDagModel.remove_dag(dag_id)
+                cls.logger().info("Deleted DAG %s in serialized_dag table", dag_id)
+
     def _run_parsing_loop(self):
         # In sync mode we want timeout=None -- wait forever until a message is received
         if self._async_mode:
@@ -814,7 +819,17 @@ class DagFileProcessorManager(LoggingMixin):
 
             dag_filelocs = {full_loc for path in self._file_paths for full_loc in _iter_dag_filelocs(path)}
 
+            from airflow.models.dagcode import DagCode
+
+            SerializedDagModel.remove_deleted_dags(
+                alive_dag_filelocs=dag_filelocs,
+                processor_subdir=self.get_dag_directory(),
+            )
             DagModel.deactivate_deleted_dags(
+                dag_filelocs,
+                processor_subdir=self.get_dag_directory(),
+            )
+            DagCode.remove_deleted_code(
                 dag_filelocs,
                 processor_subdir=self.get_dag_directory(),
             )
