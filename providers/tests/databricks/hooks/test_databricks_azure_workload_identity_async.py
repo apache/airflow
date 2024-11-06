@@ -53,8 +53,6 @@ DEFAULT_RETRY_ARGS = dict(
 
 @pytest.mark.db_test
 class TestDatabricksHookAadTokenWorkloadIdentityAsync:
-    _hook: DatabricksHook
-
     @provide_session
     def setup_method(self, method, session=None):
         conn = session.query(Connection).filter(Connection.conn_id == DEFAULT_CONN_ID).first()
@@ -65,9 +63,6 @@ class TestDatabricksHookAadTokenWorkloadIdentityAsync:
             }
         )
         session.commit()
-
-        # This will use the default connection id (databricks_default)
-        self._hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
 
     @pytest.mark.asyncio
     @mock.patch(
@@ -88,7 +83,7 @@ class TestDatabricksHookAadTokenWorkloadIdentityAsync:
                 side_effect=[{"data": 1}]
             )
 
-            async with self._hook:
-                result = await self._hook.a_get_run_output(0)
+            async with DatabricksHook(retry_args=DEFAULT_RETRY_ARGS) as hook:
+                result = await hook.a_get_run_output(0)
 
             assert result == {"data": 1}
