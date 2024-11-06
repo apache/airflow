@@ -232,10 +232,8 @@ class TestTIHealthEndpoint:
             ),
         ],
     )
-    @mock.patch("airflow.utils.timezone.utcnow")
     def test_ti_heartbeat(
         self,
-        mock_utcnow,
         client,
         session,
         create_task_instance,
@@ -243,11 +241,13 @@ class TestTIHealthEndpoint:
         unixname,
         expected_status_code,
         expected_detail,
+        time_machine,
     ):
         """Test the TI heartbeat endpoint for various scenarios including conflicts."""
-
         time_now = timezone.parse("2024-10-31T12:00:00Z")
-        mock_utcnow.return_value = time_now
+
+        # Freeze time to a specific time
+        time_machine.move_to(time_now, tick=False)
 
         ti = create_task_instance(
             task_id="test_ti_heartbeat",
@@ -258,6 +258,9 @@ class TestTIHealthEndpoint:
         )
         session.commit()
         task_instance_id = ti.id
+
+        # Pre-condition: TI heartbeat is NONE
+        assert ti.last_heartbeat_at is None
 
         response = client.put(
             f"/execution/task_instance/{task_instance_id}/heartbeat",
@@ -322,3 +325,39 @@ class TestTIHealthEndpoint:
             "message": "TI is no longer in the running state and task should terminate",
             "current_state": ti_state,
         }
+
+    def test_ti_heartbeat_update(self, client, session, create_task_instance, time_machine):
+        """Test that the Task Instance heartbeat is updated when the Task Instance is running."""
+
+        # Set initial time for the test
+        time_now = timezone.parse("2024-10-31T12:00:00Z")
+        time_machine.move_to(time_now, tick=False)
+
+        ti = create_task_instance(
+            task_id="test_ti_heartbeat_update",
+            state=State.RUNNING,
+            hostname="random-hostname",
+            unixname="random-unixname",
+            last_heartbeat_at=time_now,
+            session=session,
+        )
+        session.commit()
+        task_instance_id = ti.id
+
+        # Pre-condition: TI heartbeat is set
+        assert ti.last_heartbeat_at == time_now, "Initial last_heartbeat_at should match time_now"
+
+        # Move time forward by 10 minutes
+        new_time = time_now.add(minutes=10)
+        time_machine.move_to(new_time, tick=False)
+
+        response = client.put(
+            f"/execution/task_instance/{task_instance_id}/heartbeat",
+            json={"hostname": "random-hostname", "unixname": "random-unixname"},
+        )
+
+        assert response.status_code == 204
+
+        # If successful, ensure last_heartbeat_at is updated
+        session.refresh(ti)
+        assert ti.last_heartbeat_at == time_now.add(minutes=10)

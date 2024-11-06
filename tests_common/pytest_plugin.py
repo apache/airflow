@@ -1196,6 +1196,7 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
         map_index=-1,
         hostname=None,
         unixname=None,
+        last_heartbeat_at=None,
         **kwargs,
     ) -> TaskInstance:
         from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
@@ -1249,6 +1250,8 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
             ti.hostname = hostname
         if unixname:
             ti.unixname = unixname
+        if last_heartbeat_at:
+            ti.last_heartbeat_at = last_heartbeat_at
         dag_maker.session.flush()
         return ti
 
