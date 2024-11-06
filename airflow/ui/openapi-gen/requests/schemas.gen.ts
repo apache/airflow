@@ -151,6 +151,100 @@ export const $BaseInfoSchema = {
   description: "Base status field for metadatabase and scheduler.",
 } as const;
 
+export const $ConnectionBody = {
+  properties: {
+    connection_id: {
+      type: "string",
+      title: "Connection Id",
+    },
+    conn_type: {
+      type: "string",
+      title: "Conn Type",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    host: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Host",
+    },
+    login: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Login",
+    },
+    schema: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Schema",
+    },
+    port: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Port",
+    },
+    password: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Password",
+    },
+    extra: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Extra",
+    },
+  },
+  type: "object",
+  required: ["connection_id", "conn_type"],
+  title: "ConnectionBody",
+  description: "Connection Serializer for requests body.",
+} as const;
+
 export const $ConnectionCollectionResponse = {
   properties: {
     connections: {
@@ -236,6 +330,17 @@ export const $ConnectionResponse = {
       ],
       title: "Port",
     },
+    password: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Password",
+    },
     extra: {
       anyOf: [
         {
@@ -257,6 +362,7 @@ export const $ConnectionResponse = {
     "login",
     "schema",
     "port",
+    "password",
     "extra",
   ],
   title: "ConnectionResponse",
@@ -1474,6 +1580,62 @@ export const $DagRunType = {
   description: "Class with DagRun types.",
 } as const;
 
+export const $DagStatsCollectionResponse = {
+  properties: {
+    dags: {
+      items: {
+        $ref: "#/components/schemas/DagStatsResponse",
+      },
+      type: "array",
+      title: "Dags",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["dags", "total_entries"],
+  title: "DagStatsCollectionResponse",
+  description: "DAG Stats Collection serializer for responses.",
+} as const;
+
+export const $DagStatsResponse = {
+  properties: {
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    stats: {
+      items: {
+        $ref: "#/components/schemas/DagStatsStateResponse",
+      },
+      type: "array",
+      title: "Stats",
+    },
+  },
+  type: "object",
+  required: ["dag_id", "stats"],
+  title: "DagStatsResponse",
+  description: "DAG Stats serializer for responses.",
+} as const;
+
+export const $DagStatsStateResponse = {
+  properties: {
+    state: {
+      $ref: "#/components/schemas/DagRunState",
+    },
+    count: {
+      type: "integer",
+      title: "Count",
+    },
+  },
+  type: "object",
+  required: ["state", "count"],
+  title: "DagStatsStateResponse",
+  description: "DagStatsState serializer for responses.",
+} as const;
+
 export const $DagTagPydantic = {
   properties: {
     name: {
@@ -1731,7 +1893,7 @@ export const $HistoricalMetricDataResponse = {
       $ref: "#/components/schemas/DAGRunStates",
     },
     task_instance_states: {
-      $ref: "#/components/schemas/airflow__api_fastapi__core_api__serializers__dashboard__TaskInstanceState",
+      $ref: "#/components/schemas/airflow__api_fastapi__core_api__serializers__ui__dashboard__TaskInstanceState",
     },
   },
   type: "object",
@@ -2766,7 +2928,7 @@ export const $VersionInfo = {
   description: "Version information serializer for responses.",
 } as const;
 
-export const $airflow__api_fastapi__core_api__serializers__dashboard__TaskInstanceState =
+export const $airflow__api_fastapi__core_api__serializers__ui__dashboard__TaskInstanceState =
   {
     properties: {
       no_status: {

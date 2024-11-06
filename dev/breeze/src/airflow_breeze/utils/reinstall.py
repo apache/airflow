@@ -39,14 +39,20 @@ def reinstall_breeze(breeze_sources: Path, re_run: bool = True):
     get_console().print(f"\n[info]Reinstalling Breeze from {breeze_sources}\n")
     breeze_installed_with_uv = False
     breeze_installed_with_pipx = False
-    result_uv = subprocess.run(["uv", "tool", "list"], text=True, capture_output=True, check=False)
-    if result_uv.returncode == 0:
-        if "apache-airflow-breeze" in result_uv.stdout:
-            breeze_installed_with_uv = True
-    result_pipx = subprocess.run(["pipx", "list"], text=True, capture_output=True, check=False)
-    if result_pipx.returncode == 0:
-        if "apache-airflow-breeze" in result_pipx.stdout:
-            breeze_installed_with_pipx = True
+    try:
+        result_uv = subprocess.run(["uv", "tool", "list"], text=True, capture_output=True, check=False)
+        if result_uv.returncode == 0:
+            if "apache-airflow-breeze" in result_uv.stdout:
+                breeze_installed_with_uv = True
+    except FileNotFoundError:
+        pass
+    try:
+        result_pipx = subprocess.run(["pipx", "list"], text=True, capture_output=True, check=False)
+        if result_pipx.returncode == 0:
+            if "apache-airflow-breeze" in result_pipx.stdout:
+                breeze_installed_with_pipx = True
+    except FileNotFoundError:
+        pass
     if breeze_installed_with_uv and breeze_installed_with_pipx:
         get_console().print(
             "[error]Breeze is installed both with `uv` and `pipx`. This is not supported.[/]\n"

@@ -8,6 +8,7 @@ import {
   DagRunService,
   DagService,
   DagSourceService,
+  DagStatsService,
   DagWarningService,
   DagsService,
   DashboardService,
@@ -874,4 +875,24 @@ export const prefetchUseVersionServiceGetVersion = (queryClient: QueryClient) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseVersionServiceGetVersionKeyFn(),
     queryFn: () => VersionService.getVersion(),
+  });
+/**
+ * Get Dag Stats
+ * Get Dag statistics.
+ * @param data The data for the request.
+ * @param data.dagIds
+ * @returns DagStatsCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagStatsServiceGetDagStats = (
+  queryClient: QueryClient,
+  {
+    dagIds,
+  }: {
+    dagIds?: string[];
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }),
+    queryFn: () => DagStatsService.getDagStats({ dagIds }),
   });
