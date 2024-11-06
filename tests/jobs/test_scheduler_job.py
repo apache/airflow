@@ -5872,6 +5872,10 @@ class TestSchedulerJob:
 
             active_dag_count = session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
             assert active_dag_count == 1
+        # Adding back the cleared DB dags
+        non_serialized_dagbag = DagBag(read_dags_from_db=False, include_examples=False)
+        non_serialized_dagbag.sync_to_db()
+        self.dagbag = DagBag(read_dags_from_db=True)
 
     @mock.patch.object(settings, "USE_JOB_SCHEDULE", False)
     def run_scheduler_until_dagrun_terminal(self):
