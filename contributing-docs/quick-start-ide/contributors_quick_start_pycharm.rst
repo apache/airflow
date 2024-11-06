@@ -39,6 +39,15 @@ Setup your project
              alt="Cloning github fork to Pycharm">
       </div>
 
+3. Configure the source root directories for providers as well as for task_sdk.
+
+   .. raw:: html
+
+      <div align="center" style="padding-bottom:10px">
+        <img src="images/pycharm_adding_source_root_directories.png"
+             alt="Adding Source Root directories to Pycharm">
+      </div>
+
 Setting up debugging
 ####################
 
