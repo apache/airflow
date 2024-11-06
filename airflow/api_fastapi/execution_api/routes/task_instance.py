@@ -64,8 +64,8 @@ async def ti_update_state(
     """
     Update the state of a TaskInstance.
 
-    Not all state transitions are valid, and transitioning to some states required extra information to be
-    passed along. (Check our the schemas for details, the rendered docs might not reflect this accurately)
+    Not all state transitions are valid, and transitioning to some states requires extra information to be
+    passed along. (Check out the schemas for details, the rendered docs might not reflect this accurately)
     """
     # We only use UUID above for validation purposes
     ti_id_str = str(task_instance_id)
