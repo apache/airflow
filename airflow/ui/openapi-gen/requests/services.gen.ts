@@ -5,6 +5,8 @@ import { request as __request } from "./core/request";
 import type {
   NextRunAssetsData,
   NextRunAssetsResponse,
+  NextRunAssets1Data,
+  NextRunAssets1Response,
   HistoricalMetricsData,
   HistoricalMetricsResponse,
   RecentDagRunsData,
@@ -109,6 +111,28 @@ export class AssetService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/ui/next_run_assets/{dag_id}",
+      path: {
+        dag_id: data.dagId,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Next Run Assets
+   * @param data The data for the request.
+   * @param data.dagId
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static nextRunAssets1(
+    data: NextRunAssets1Data,
+  ): CancelablePromise<NextRunAssets1Response> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/next_run_assets/{dag_id}",
       path: {
         dag_id: data.dagId,
       },

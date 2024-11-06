@@ -51,6 +51,31 @@ export const useAssetServiceNextRunAssetsSuspense = <
     ...options,
   });
 /**
+ * Next Run Assets
+ * @param data The data for the request.
+ * @param data.dagId
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceNextRunAssets1Suspense = <
+  TData = Common.AssetServiceNextRunAssets1DefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+  }: {
+    dagId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseAssetServiceNextRunAssets1KeyFn({ dagId }, queryKey),
+    queryFn: () => AssetService.nextRunAssets1({ dagId }) as TData,
+    ...options,
+  });
+/**
  * Historical Metrics
  * Return cluster activity historical metrics.
  * @param data The data for the request.

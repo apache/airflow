@@ -29,6 +29,7 @@ from sqlalchemy.inspection import inspect
 from typing_extensions import Annotated, Self
 
 from airflow.models import Base, Connection
+from airflow.models.asset import AssetModel
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
@@ -335,6 +336,17 @@ class _DagIdFilter(BaseParam[str]):
         return self.set_value(dag_id)
 
 
+class _UriPatternSearch(_SearchParam):
+    """Search on dag_id."""
+
+    def __init__(self, skip_none: bool = True) -> None:
+        super().__init__(AssetModel.uri, skip_none)
+
+    def depends(self, uri_pattern: str | None = None) -> _UriPatternSearch:
+        uri_pattern = super().transform_aliases(uri_pattern)
+        return self.set_value(uri_pattern)
+
+
 # Common Safe DateTime
 DateTimeQuery = Annotated[str, AfterValidator(_safe_parse_datetime)]
 
@@ -363,3 +375,6 @@ QueryWarningTypeFilter = Annotated[_WarningTypeFilter, Depends(_WarningTypeFilte
 
 # DAGTags
 QueryDagTagPatternSearch = Annotated[_DagTagNamePatternSearch, Depends(_DagTagNamePatternSearch().depends)]
+
+# Assets
+QueryUriPatternSearch = Annotated[_UriPatternSearch, Depends(_UriPatternSearch().depends)]

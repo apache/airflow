@@ -735,6 +735,14 @@ export type NextRunAssetsResponse = {
   [key: string]: unknown;
 };
 
+export type NextRunAssets1Data = {
+  dagId: string;
+};
+
+export type NextRunAssets1Response = {
+  [key: string]: unknown;
+};
+
 export type HistoricalMetricsData = {
   endDate: string;
   startDate: string;
@@ -1079,6 +1087,23 @@ export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
     get: {
       req: NextRunAssetsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: {
+          [key: string]: unknown;
+        };
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/next_run_assets/{dag_id}": {
+    get: {
+      req: NextRunAssets1Data;
       res: {
         /**
          * Successful Response
