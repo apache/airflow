@@ -658,8 +658,8 @@ export type DagServicePatchDagsMutationResult = Awaited<
 export type DagServicePatchDagMutationResult = Awaited<
   ReturnType<typeof DagService.patchDag>
 >;
-export type DagRunServicePatchDagRunStateMutationResult = Awaited<
-  ReturnType<typeof DagRunService.patchDagRunState>
+export type DagRunServicePatchDagRunMutationResult = Awaited<
+  ReturnType<typeof DagRunService.patchDagRun>
 >;
 export type PoolServicePatchPoolMutationResult = Awaited<
   ReturnType<typeof PoolService.patchPool>

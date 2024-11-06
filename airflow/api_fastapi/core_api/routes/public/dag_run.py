@@ -99,7 +99,7 @@ async def delete_dag_run(dag_id: str, dag_run_id: str, session: Annotated[Sessio
         ]
     ),
 )
-async def patch_dag_run_state(
+async def patch_dag_run(
     dag_id: str,
     dag_run_id: str,
     patch_body: DAGRunPatchBody,
@@ -124,34 +124,46 @@ async def patch_dag_run_state(
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
     if update_mask:
-        for each in update_mask:
-            if each not in ALLOWED_FIELD_MASK:
-                raise HTTPException(400, f"Invalid field `{each}` in update mask")
-    else:
-        update_mask = ALLOWED_FIELD_MASK
+        update_mask_set = set(update_mask)
+        validation_errors = []
 
-    if "state" in update_mask:
-        attr_value = getattr(patch_body, "state")
-        if attr_value == DAGRunPatchStates.SUCCESS:
-            set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
-        elif attr_value == DAGRunPatchStates.QUEUED:
-            set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
-        elif attr_value == DAGRunPatchStates.FAILED:
-            set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+        invalid_fields = update_mask_set - set(ALLOWED_FIELD_MASK)
+        if invalid_fields:
+            validation_errors.append(f"Invalid fields in update mask: {', '.join(invalid_fields)}")
 
-    dag_run = session.get(DagRun, dag_run.id)
+        missing_fields = update_mask_set - patch_body.model_fields_set
+        if missing_fields:
+            validation_errors.append(f"Fields not present in request body: {', '.join(missing_fields)}")
 
-    for attr_name in update_mask:
+        if validation_errors:
+            raise HTTPException(400, "; ".join(validation_errors))
+
+    fields_to_update = {
+        field
+        for field in ALLOWED_FIELD_MASK
+        if field in patch_body.model_fields_set and (update_mask is None or field in update_mask)
+    }
+
+    for attr_name in fields_to_update:
         attr_value = getattr(patch_body, attr_name)
-        if attr_value is None:
-            continue
-        if attr_name == "note":
+        if attr_name == "state":
+            attr_value = getattr(patch_body, "state")
+            if attr_value == DAGRunPatchStates.SUCCESS:
+                set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+            elif attr_value == DAGRunPatchStates.QUEUED:
+                set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+            elif attr_value == DAGRunPatchStates.FAILED:
+                set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+        elif attr_name == "note":
             # Once Authentication is implemented in this FastAPI app,
             # user id will be added when updating dag run note
             # Refer to https://github.com/apache/airflow/issues/43534
+            dag_run = session.get(DagRun, dag_run.id)
             if dag_run.dag_run_note is None:
                 dag_run.note = (attr_value, None)
             else:
                 dag_run.dag_run_note.content = attr_value
+
+    dag_run = session.get(DagRun, dag_run.id)
 
     return DAGRunResponse.model_validate(dag_run, from_attributes=True)

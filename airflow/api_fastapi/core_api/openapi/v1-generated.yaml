@@ -1209,9 +1209,9 @@ paths:
     patch:
       tags:
       - DagRun
-      summary: Patch Dag Run State
+      summary: Patch Dag Run
       description: Modify a DAG Run.
-      operationId: patch_dag_run_state
+      operationId: patch_dag_run
       parameters:
       - name: dag_id
         in: path
