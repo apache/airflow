@@ -48,6 +48,15 @@ Setup your project
              alt="Adding Source Root directories to Pycharm">
       </div>
 
+4. Once step 3 is done it is recommended to invalidate caches and restart Pycharm.
+
+   .. raw:: html
+
+      <div align="center" style="padding-bottom:10px">
+        <img src="images/pycharm_invalidate_caches.png"
+             alt="Invalidate caches and restart Pycharm">
+      </div>
+
 Setting up debugging
 ####################
 
