@@ -103,7 +103,7 @@ from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
 from tests_common.test_utils import db
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_connections, clear_db_dags, clear_db_runs
+from tests_common.test_utils.db import clear_db_connections, clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
 
 if AIRFLOW_V_3_0_PLUS:
@@ -2992,7 +2992,6 @@ class TestTaskInstance:
         Test that when a task that produces asset has ran, that changing the consumer
         dag asset will not cause primary key blank-out
         """
-        clear_db_dags()
         from airflow.assets import Asset
 
         with dag_maker(schedule=None, serialized=True) as dag1:
@@ -4014,7 +4013,6 @@ class TestTaskInstance:
             "next_method": None,
             "updated_at": None,
             "task_display_name": "Test Refresh from DB Task",
-            "dag_version_id": None,
         }
         # Make sure we aren't missing any new value in our expected_values list.
         expected_keys = {f"task_instance.{key}" for key in expected_values}

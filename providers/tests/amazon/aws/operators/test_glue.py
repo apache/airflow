@@ -183,6 +183,31 @@ class TestGlueJobOperator:
         assert glue.job_name == JOB_NAME
 
     @mock.patch.object(GlueJobHook, "print_job_logs")
+    @mock.patch.object(GlueJobHook, "get_job_state")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    @mock.patch.object(S3Hook, "load_file")
+    def test_execute_without_verbose_logging(
+        self, mock_load_file, mock_get_conn, mock_initialize_job, mock_get_job_state, mock_print_job_logs
+    ):
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3_uri",
+            s3_bucket="bucket_name",
+            iam_role_name="role_arn",
+            verbose=False,
+        )
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+        mock_get_job_state.return_value = "SUCCEEDED"
+
+        glue.execute(mock.MagicMock())
+
+        mock_initialize_job.assert_called_once_with({}, {})
+        mock_print_job_logs.assert_not_called()
+        assert glue.job_name == JOB_NAME
+
+    @mock.patch.object(GlueJobHook, "print_job_logs")
     @mock.patch.object(GlueJobHook, "job_completion")
     @mock.patch.object(GlueJobHook, "initialize_job")
     @mock.patch.object(GlueJobHook, "get_conn")

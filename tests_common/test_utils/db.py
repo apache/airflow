@@ -114,7 +114,6 @@ def clear_db_dags():
         session.query(DagTag).delete()
         session.query(DagOwnerAttributes).delete()
         session.query(DagModel).delete()
-        session.query(DagCode).delete()
 
 
 def drop_tables_with_prefix(prefix):

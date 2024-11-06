@@ -27,6 +27,7 @@ from airflow.api_connexion.schemas.dag_stats_schema import (
 )
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models.dag import DagRun
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.www.extensions.init_auth_manager import get_auth_manager
@@ -37,6 +38,7 @@ if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
 @provide_session
 def get_dag_stats(

@@ -62,7 +62,7 @@ class GlueJobCompleteTrigger(BaseTrigger):
             {
                 "job_name": self.job_name,
                 "run_id": self.run_id,
-                "verbose": str(self.verbose),
+                "verbose": self.verbose,
                 "aws_conn_id": self.aws_conn_id,
                 "job_poll_interval": self.job_poll_interval,
             },
