@@ -26,14 +26,15 @@ import {
   Box,
   Text,
   Spacer,
-  HStack
+  HStack,
 } from "@chakra-ui/react";
 import { autocompletion } from "@codemirror/autocomplete";
 import { json } from "@codemirror/lang-json";
 import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
-import CodeMirror, { type Extension, lineNumbers } from "@uiw/react-codemirror";
+import CodeMirror, { lineNumbers } from "@uiw/react-codemirror";
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
+
 import { useColorMode } from "src/context/colorMode";
 
 import type { DagParams } from "./TriggerDag";
@@ -90,12 +91,12 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
     <>
       <AccordionRoot collapsible size="lg" variant="enclosed">
         <AccordionItem key="advancedOptions" value="advancedOptions">
-          <AccordionItemTrigger>
-                Advance Options
-          </AccordionItemTrigger>
+          <AccordionItemTrigger>Advanced Options</AccordionItemTrigger>
           <AccordionItemContent>
             <Box p={5}>
-              <Text fontSize="md" mb={2}>Logical date</Text>
+              <Text fontSize="md" mb={2}>
+                Logical date
+              </Text>
               <Controller
                 control={control}
                 name="logicalDate"
@@ -109,7 +110,9 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                 )}
               />
 
-              <Text fontSize="md" mb={2} mt={6}>Run ID</Text>
+              <Text fontSize="md" mb={2} mt={6}>
+                Run ID
+              </Text>
               <Controller
                 control={control}
                 name="runId"
@@ -122,7 +125,9 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                 )}
               />
 
-              <Text fontSize="md" mb={2} mt={6}>Configuration JSON</Text>
+              <Text fontSize="md" mb={2} mt={6}>
+                Configuration JSON
+              </Text>
               <Controller
                 control={control}
                 name="configJson"
@@ -148,15 +153,13 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                         outline: "none",
                         padding: "2px",
                       }}
-                      theme={
-                        colorMode === "dark"
-                          ? (githubDark)
-                          : (githubLight)
-                      }
+                      theme={colorMode === "dark" ? githubDark : githubLight}
                     />
-                    {Boolean(jsonError) ? <Text color="red.500" fontSize="sm" mt={2}>
+                    {Boolean(jsonError) ? (
+                      <Text color="red.500" fontSize="sm" mt={2}>
                         {jsonError}
-                      </Text> : undefined}
+                      </Text>
+                    ) : undefined}
                   </Box>
                 )}
               />
