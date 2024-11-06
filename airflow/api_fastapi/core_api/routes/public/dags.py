@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, Query, Request, Response
+from fastapi import Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
@@ -99,7 +99,7 @@ async def get_dags(
 
 @dags_router.get(
     "/tags",
-    responses=create_openapi_http_exception_doc([401, 403]),
+    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
 async def get_dag_tags(
     limit: QueryLimit,
@@ -130,18 +130,29 @@ async def get_dag_tags(
     return DAGTagCollectionResponse(tags=[dag_tag for dag_tag in dag_tags], total_entries=total_entries)
 
 
-@dags_router.get("/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422]))
+@dags_router.get(
+    "/{dag_id}",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+        ]
+    ),
+)
 async def get_dag(
     dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request
 ) -> DAGResponse:
     """Get basic information about a DAG."""
     dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
     if not dag:
-        raise HTTPException(404, f"Dag with id {dag_id} was not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
     dag_model: DagModel = session.get(DagModel, dag_id)
     if not dag_model:
-        raise HTTPException(404, f"Unable to obtain dag with id {dag_id} from session")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Unable to obtain dag with id {dag_id} from session")
 
     for key, value in dag.__dict__.items():
         if not key.startswith("_") and not hasattr(dag_model, key):
@@ -150,18 +161,28 @@ async def get_dag(
     return DAGResponse.model_validate(dag_model, from_attributes=True)
 
 
-@dags_router.get("/{dag_id}/details", responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422]))
+@dags_router.get(
+    "/{dag_id}/details",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
 async def get_dag_details(
     dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request
 ) -> DAGDetailsResponse:
     """Get details of DAG."""
     dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
     if not dag:
-        raise HTTPException(404, f"Dag with id {dag_id} was not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
     dag_model: DagModel = session.get(DagModel, dag_id)
     if not dag_model:
-        raise HTTPException(404, f"Unable to obtain dag with id {dag_id} from session")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Unable to obtain dag with id {dag_id} from session")
 
     for key, value in dag.__dict__.items():
         if not key.startswith("_") and not hasattr(dag_model, key):
@@ -170,7 +191,17 @@ async def get_dag_details(
     return DAGDetailsResponse.model_validate(dag_model, from_attributes=True)
 
 
-@dags_router.patch("/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
+@dags_router.patch(
+    "/{dag_id}",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
 async def patch_dag(
     dag_id: str,
     patch_body: DAGPatchBody,
@@ -181,23 +212,35 @@ async def patch_dag(
     dag = session.get(DagModel, dag_id)
 
     if dag is None:
-        raise HTTPException(404, f"Dag with id: {dag_id} was not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id: {dag_id} was not found")
 
     if update_mask:
         if update_mask != ["is_paused"]:
-            raise HTTPException(400, "Only `is_paused` field can be updated through the REST API")
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "Only `is_paused` field can be updated through the REST API"
+            )
 
+        data = patch_body.model_dump(include=set(update_mask))
     else:
-        update_mask = ["is_paused"]
+        data = patch_body.model_dump()
 
-    for attr_name in update_mask:
-        attr_value = getattr(patch_body, attr_name)
-        setattr(dag, attr_name, attr_value)
+    for key, val in data.items():
+        setattr(dag, key, val)
 
     return DAGResponse.model_validate(dag, from_attributes=True)
 
 
-@dags_router.patch("/", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
+@dags_router.patch(
+    "/",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
 async def patch_dags(
     patch_body: DAGPatchBody,
     limit: QueryLimit,
@@ -214,7 +257,9 @@ async def patch_dags(
     """Patch multiple DAGs."""
     if update_mask:
         if update_mask != ["is_paused"]:
-            raise HTTPException(400, "Only `is_paused` field can be updated through the REST API")
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "Only `is_paused` field can be updated through the REST API"
+            )
     else:
         update_mask = ["is_paused"]
 
@@ -244,7 +289,18 @@ async def patch_dags(
     )
 
 
-@dags_router.delete("/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422]))
+@dags_router.delete(
+    "/{dag_id}",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+        ]
+    ),
+)
 async def delete_dag(
     dag_id: str,
     session: Annotated[Session, Depends(get_session)],
@@ -253,7 +309,9 @@ async def delete_dag(
     try:
         delete_dag_module.delete_dag(dag_id, session=session)
     except DagNotFound:
-        raise HTTPException(404, f"Dag with id: {dag_id} was not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id: {dag_id} was not found")
     except AirflowException:
-        raise HTTPException(409, f"Task instances of dag with id: '{dag_id}' are still running")
-    return Response(status_code=204)
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, f"Task instances of dag with id: '{dag_id}' are still running"
+        )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

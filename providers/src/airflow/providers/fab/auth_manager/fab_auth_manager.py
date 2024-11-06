@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Container
 
 import packaging.version
 from connexion import FlaskApi
-from flask import Blueprint, url_for
+from flask import Blueprint, g, url_for
 from packaging.version import Version
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
@@ -183,8 +183,19 @@ class FabAuthManager(BaseAuthManager):
         return f"{first_name} {last_name}".strip()
 
     def get_user(self) -> User:
-        """Return the user associated to the user in session."""
+        """
+        Return the user associated to the user in session.
+
+        Attempt to find the current user in g.user, as defined by the kerberos authentication backend.
+        If no such user is found, return the `current_user` local proxy object, linked to the user session.
+
+        """
         from flask_login import current_user
+
+        # If a user has gone through the Kerberos dance, the kerberos authentication manager
+        # has linked it with a User model, stored in g.user, and not the session.
+        if current_user.is_anonymous and getattr(g, "user", None) is not None and not g.user.is_anonymous:
+            return g.user
 
         return current_user
 

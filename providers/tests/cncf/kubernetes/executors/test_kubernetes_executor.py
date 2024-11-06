@@ -1750,9 +1750,6 @@ class TestKubernetesExecutor:
             "Reading from k8s pod logs failed: error_fetching_pod_log",
         ]
 
-    def test_supports_pickling(self):
-        assert KubernetesExecutor.supports_pickling
-
     def test_supports_sentry(self):
         assert not KubernetesExecutor.supports_sentry
 

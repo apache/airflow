@@ -31,6 +31,7 @@ from airflow.api_connexion.schemas.error_schema import (
 from airflow.auth.managers.models.resource_details import AccessView, DagDetails
 from airflow.models.dag import DagModel
 from airflow.models.errors import ParseImportError
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
@@ -41,6 +42,7 @@ if TYPE_CHECKING:
     from airflow.auth.managers.models.batch_apis import IsAuthorizedDagRequest
 
 
+@mark_fastapi_migration_done
 @security.requires_access_view(AccessView.IMPORT_ERRORS)
 @provide_session
 def get_import_error(*, import_error_id: int, session: Session = NEW_SESSION) -> APIResponse:
@@ -72,6 +74,7 @@ def get_import_error(*, import_error_id: int, session: Session = NEW_SESSION) ->
     return import_error_schema.dump(error)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_view(AccessView.IMPORT_ERRORS)
 @format_parameters({"limit": check_limit})
 @provide_session

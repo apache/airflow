@@ -288,10 +288,28 @@ label[for="timezone-other"],
   font-weight: normal;
 }
 
+#timezone-menu {
+  overflow-x: hidden;
+}
+
 #timezone-menu ul.typeahead.dropdown-menu {
   max-height: 200px;
   overflow-y: auto;
   overflow-x: hidden;
+  border: none;
+  left: 0 !important;
+}
+
+#timezone-menu .dropdown-item {
+  padding: 3px 20px;
+}
+
+.ui-menu .ui-menu-item a.ui-state-focus,
+.ui-menu .ui-menu-item a.ui-state-active {
+  border: 1px solid white;
+  border-left: 1px solid #ccc;
+  background: #f6f6f6;
+  color: #454545;
 }
 
 /* depending on the version of FAB in use, we may have a style conflict */
