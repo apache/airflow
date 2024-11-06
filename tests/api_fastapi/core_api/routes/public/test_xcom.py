@@ -171,37 +171,37 @@ class TestGetXComEntry(TestXComEndpoint):
         [
             pytest.param(
                 True,
-                "?deserialize=true",
+                {"deserialize": True},
                 f"real deserialized {TEST_XCOM_VALUE}",
                 id="enabled deserialize-true",
             ),
             pytest.param(
                 False,
-                "?deserialize=true",
+                {"deserialize": True},
                 400,
                 id="disabled deserialize-true",
             ),
             pytest.param(
                 True,
-                "?deserialize=false",
+                {"deserialize": False},
                 f"orm deserialized {TEST_XCOM_VALUE}",
                 id="enabled deserialize-false",
             ),
             pytest.param(
                 False,
-                "?deserialize=false",
+                {"deserialize": False},
                 f"orm deserialized {TEST_XCOM_VALUE}",
                 id="disabled deserialize-false",
             ),
             pytest.param(
                 True,
-                "",
+                {},
                 f"orm deserialized {TEST_XCOM_VALUE}",
                 id="enabled default",
             ),
             pytest.param(
                 False,
-                "",
+                {},
                 f"orm deserialized {TEST_XCOM_VALUE}",
                 id="disabled default",
             ),
@@ -214,10 +214,10 @@ class TestGetXComEntry(TestXComEndpoint):
         XCom = resolve_xcom_backend()
         self.create_xcom(TEST_XCOM_KEY, TEST_XCOM_VALUE, backend=XCom)
 
-        url = f"/public/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}{params}"
+        url = f"/public/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY}"
         with mock.patch("airflow.api_fastapi.core_api.routes.public.xcom.XCom", XCom):
             with conf_vars({("api", "enable_xcom_deserialize_support"): str(support_deserialize)}):
-                response = test_client.get(url)
+                response = test_client.get(url, params=params)
 
         if isinstance(expected_status_or_value, int):
             assert response.status_code == expected_status_or_value

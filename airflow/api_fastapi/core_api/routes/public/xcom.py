@@ -33,23 +33,24 @@ from airflow.api_fastapi.core_api.serializers.xcom import (
 from airflow.models import DagRun as DR, XCom
 from airflow.settings import conf
 
-xcom_router = AirflowRouter(tags=["XCom"], prefix="/dags")
+xcom_router = AirflowRouter(
+    tags=["XCom"], prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries"
+)
 
 
 @xcom_router.get(
-    "/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
+    "/{xcom_key}",
     responses=create_openapi_http_exception_doc([400, 401, 403, 404]),
 )
 async def get_xcom_entry(
-    *,
     dag_id: str,
     task_id: str,
     dag_run_id: str,
     xcom_key: str,
+    session: Annotated[Session, Depends(get_session)],
     map_index: int = -1,
     deserialize: bool = False,
     stringify: bool = True,
-    session: Annotated[Session, Depends(get_session)],
 ) -> XComResponseNative | XComResponseString:
     """Get an XCom entry."""
     if deserialize:
