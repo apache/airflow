@@ -58,7 +58,7 @@
     "eslint-plugin-react-refresh": "^0.4.11",
     "eslint-plugin-unicorn": "^55.0.0",
     "globals": "^15.9.0",
-    "happy-dom": "^15.0.0",
+    "happy-dom": "^15.10.1",
     "prettier": "^3.3.3",
     "typescript": "~5.5.4",
     "typescript-eslint": "^8.5.0",
