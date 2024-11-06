@@ -659,8 +659,8 @@ export type ValidationError = {
  */
 export type VariableBody = {
   key: string;
-  description: string | null;
   value: string | null;
+  description?: string | null;
 };
 
 /**
@@ -676,8 +676,8 @@ export type VariableCollectionResponse = {
  */
 export type VariableResponse = {
   key: string;
-  description: string | null;
   value: string | null;
+  description: string | null;
 };
 
 /**
@@ -872,6 +872,14 @@ export type GetConnectionData = {
 };
 
 export type GetConnectionResponse = ConnectionResponse;
+
+export type PatchConnectionData = {
+  connectionId: string;
+  requestBody: ConnectionBody;
+  updateMask?: Array<string> | null;
+};
+
+export type PatchConnectionResponse = ConnectionResponse;
 
 export type GetConnectionsData = {
   limit?: number;
@@ -1480,9 +1488,9 @@ export type $OpenApiTs = {
          */
         404: HTTPExceptionResponse;
         /**
-         * Unprocessable Entity
+         * Validation Error
          */
-        422: HTTPExceptionResponse;
+        422: HTTPValidationError;
       };
     };
   };
@@ -1519,6 +1527,35 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: ConnectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: PatchConnectionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ConnectionResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
         /**
          * Unauthorized
          */

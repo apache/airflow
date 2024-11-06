@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.5.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Small beautification for host status in Edge Worker view.``
+
 0.5.1pre0
 .........
 

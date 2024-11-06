@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
@@ -118,7 +118,13 @@ async def get_connections(
     )
 
 
-@connections_router.post("/", status_code=201, responses=create_openapi_http_exception_doc([401, 403, 409]))
+@connections_router.post(
+    "/",
+    status_code=201,
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_409_CONFLICT]
+    ),
+)
 async def post_connection(
     post_body: ConnectionBody,
     session: Annotated[Session, Depends(get_session)],
@@ -136,4 +142,41 @@ async def post_connection(
     connection = Connection(**post_body.model_dump(by_alias=True))
     session.add(connection)
 
+    return ConnectionResponse.model_validate(connection, from_attributes=True)
+
+
+@connections_router.patch(
+    "/{connection_id}",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
+async def patch_connection(
+    connection_id: str,
+    patch_body: ConnectionBody,
+    session: Annotated[Session, Depends(get_session)],
+    update_mask: list[str] | None = Query(None),
+) -> ConnectionResponse:
+    """Update a connection entry."""
+    if patch_body.connection_id != connection_id:
+        raise HTTPException(400, "The connection_id in the request body does not match the URL parameter")
+
+    non_update_fields = {"connection_id", "conn_id"}
+    connection = session.scalar(select(Connection).filter_by(conn_id=connection_id).limit(1))
+
+    if connection is None:
+        raise HTTPException(404, f"The Connection with connection_id: `{connection_id}` was not found")
+
+    if update_mask:
+        data = patch_body.model_dump(include=set(update_mask) - non_update_fields)
+    else:
+        data = patch_body.model_dump(exclude=non_update_fields)
+
+    for key, val in data.items():
+        setattr(connection, key, val)
     return ConnectionResponse.model_validate(connection, from_attributes=True)

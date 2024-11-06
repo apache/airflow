@@ -954,11 +954,11 @@ paths:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
         '422':
+          description: Validation Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unprocessable Entity
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/connections/{connection_id}:
     delete:
       tags:
@@ -1020,6 +1020,72 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ConnectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - Connection
+      summary: Patch Connection
+      description: Update a connection entry.
+      operationId: patch_connection
+      parameters:
+      - name: connection_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Connection Id
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '401':
           content:
             application/json:
@@ -4349,20 +4415,19 @@ components:
         key:
           type: string
           title: Key
-        description:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Description
         value:
           anyOf:
           - type: string
           - type: 'null'
           title: Value
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
       type: object
       required:
       - key
-      - description
       - value
       title: VariableBody
       description: Variable serializer for bodies.
@@ -4387,21 +4452,21 @@ components:
         key:
           type: string
           title: Key
-        description:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Description
         value:
           anyOf:
           - type: string
           - type: 'null'
           title: Value
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
       type: object
       required:
       - key
-      - description
       - value
+      - description
       title: VariableResponse
       description: Variable serializer for responses.
     VersionInfo:

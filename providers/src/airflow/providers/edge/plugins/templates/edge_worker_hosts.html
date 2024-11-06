@@ -67,7 +67,17 @@
                 <span class="label" style="color:white; background-color:hotpink;" title="Current State: {{ host.state }}">{{ host.state }}</span>
               {%- endif -%}
             </td>
-            <td>{% if host.queues %}{{ host.queues }}{% else %}(all){% endif %}</td>
+            <td>
+              {% if host.queues %}
+                <ul>
+                  {% for item in host.queues %}
+                    <li>{{ item }}</li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                (all)
+              {% endif %}
+            </td>
             <td><time datetime="{{ host.first_online }}">{{ host.first_online }}</time></td>
             <td>{% if host.last_update %}<time datetime="{{ host.last_update }}">{{ host.last_update }}</time>{% endif %}</td>
             <td>{{ host.jobs_active }}</td>
