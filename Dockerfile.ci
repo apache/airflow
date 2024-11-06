@@ -1408,7 +1408,14 @@ COPY --from=scripts install_airflow.sh /scripts/docker/
 # force them on the main Airflow package. Currently we need no extra limits as PIP 23.1+ has much better
 # dependency resolution and we do not need to limit the versions of the dependencies
 #
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=""
+# Apparently `uv 0.4.30` has some strange resolution bug that results in inconsistent dependencies
+# in opentelemetry that are detected by `pip check` when we are running eager upgrade. This is
+# described in detail in https://github.com/astral-sh/uv/issues/8871 . Until the issue is diagnosed and
+# Solved, we workaround it by providing a hint to `uv` to use higher version of opentelemetry-proto than
+# it wants to downgrade to - for no apparent reason. Also it seems that it also triggers a weird
+# behaviour that when installing packages from `pypi` it tries to install `apache-beam` in version
+# 2.0.0 which fails to build. See https://github.com/apache/airflow/pull/43768#issuecomment-2461071604
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="opentelemetry-proto>=1.27.0 apache-beam>=2.60.0"
 ARG UPGRADE_INVALIDATION_STRING=""
 ARG VERSION_SUFFIX_FOR_PYPI=""
 
