@@ -33,7 +33,6 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.ext.mutable import MutableDict
-from sqlalchemy_utils import UUIDType
 
 from airflow.models.base import Base, StringID
 from airflow.utils import timezone
@@ -92,7 +91,6 @@ class TaskInstanceHistory(Base):
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
     task_display_name = Column("task_display_name", String(2000), nullable=True)
-    dag_version_id = Column(UUIDType(binary=False))
 
     def __init__(
         self,

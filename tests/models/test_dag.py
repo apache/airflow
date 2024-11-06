@@ -62,7 +62,6 @@ from airflow.models.dag import (
     dag as dag_decorator,
     get_asset_triggered_next_run_info,
 )
-from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.models.param import DagParam, Param
 from airflow.models.serialized_dag import SerializedDagModel
@@ -142,11 +141,14 @@ class TestDag:
         clear_db_runs()
         clear_db_dags()
         clear_db_assets()
+        self.patcher_dag_code = mock.patch("airflow.models.dag.DagCode.bulk_sync_to_db")
+        self.patcher_dag_code.start()
 
     def teardown_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
         clear_db_assets()
+        self.patcher_dag_code.stop()
 
     @staticmethod
     def _clean_up(dag_id: str):
@@ -1037,16 +1039,14 @@ class TestDag:
         assert dag.max_consecutive_failed_dag_runs == 2
 
     def test_existing_dag_is_paused_after_limit(self):
-        def add_failed_dag_run(dag, id, execution_date):
+        def add_failed_dag_run(id, execution_date):
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-            dag_v = DagVersion.get_latest_version(dag_id=dag.dag_id)
             dr = dag.create_dagrun(
                 run_type=DagRunType.MANUAL,
                 run_id="run_id_" + id,
                 execution_date=execution_date,
                 state=State.FAILED,
                 data_interval=(execution_date, execution_date),
-                dag_version=dag_v,
                 **triggered_by_kwargs,
             )
             ti_op1 = dr.get_task_instance(task_id=op1.task_id, session=session)
@@ -1059,16 +1059,14 @@ class TestDag:
         dag.add_task(op1)
         session = settings.Session()
         dag.sync_to_db(session=session)
-        SerializedDagModel.write_dag(dag)
         assert not dag.get_is_paused()
 
         # dag should be paused after 2 failed dag_runs
         add_failed_dag_run(
-            dag,
             "1",
             TEST_DATE,
         )
-        add_failed_dag_run(dag, "2", TEST_DATE + timedelta(days=1))
+        add_failed_dag_run("2", TEST_DATE + timedelta(days=1))
         assert dag.get_is_paused()
         dag.clear()
         self._clean_up(dag_id)
@@ -1087,7 +1085,8 @@ class TestDag:
         dag = DAG(dag_id, schedule=None, is_paused_upon_creation=True)
         dag.fileloc = dag_fileloc
         session = settings.Session()
-        dag.sync_to_db(session=session, processor_subdir="/usr/local/airflow/dags/")
+        with mock.patch("airflow.models.dag.DagCode.bulk_sync_to_db"):
+            dag.sync_to_db(session=session, processor_subdir="/usr/local/airflow/dags/")
 
         orm_dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one()
 
@@ -2371,8 +2370,9 @@ class TestDagModel:
         """
         dag = DAG(dag_id="test", schedule=None)
         dag.fileloc = fileloc
-        dag.sync_to_db()
-        SerializedDagModel.write_dag(dag)
+        sdm = SerializedDagModel(dag)
+        session.add(sdm)
+        session.commit()
         session.expunge_all()
         sdm = SerializedDagModel.get(dag.dag_id, session)
         dag = sdm.dag
@@ -2383,10 +2383,8 @@ class TestDagModel:
         """Only populated after deserializtion"""
         dag = DAG(dag_id="test", schedule=None)
         dag.fileloc = "/abc/test.py"
-        dag.sync_to_db()
         assert dag._processor_dags_folder is None
-        SerializedDagModel.write_dag(dag)
-        sdm = SerializedDagModel.get(dag.dag_id, session)
+        sdm = SerializedDagModel(dag)
         assert sdm.dag._processor_dags_folder == settings.DAGS_FOLDER
 
     @pytest.mark.need_serialized_dag
