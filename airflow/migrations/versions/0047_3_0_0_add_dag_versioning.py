@@ -44,15 +44,8 @@ depends_on = None
 airflow_version = "3.0.0"
 
 
-def _delete_serdag_and_code():
-    op.execute(sa.text("DELETE FROM serialized_dag"))
-    op.execute(sa.text("DELETE FROM dag_code"))
-
-
 def upgrade():
     """Apply add dag versioning."""
-    # Before creating the dag_version table, we need to delete the existing serialized_dag and dag_code tables
-    _delete_serdag_and_code()
     op.create_table(
         "dag_version",
         sa.Column("id", UUIDType(binary=False), nullable=False),
