@@ -31,6 +31,18 @@ from typing import TYPE_CHECKING, Any, Callable, Generator, Protocol, TypeVar
 import pytest
 import time_machine
 
+# NOTE: DO NOT IMPORT AIRFLOW THINGS HERE!
+#
+# This plugin is responsible for configuring Airflow correctly to run tests.
+# Importing Airflow here loads Airflow too eagerly and break the configurations.
+# Instead, import what you want lazily inside a fixture function.
+#
+# Be aware that many things in tests_common also indirectly imports Airflow, so
+# those modules also should not be imported globally.
+#
+# (Things in the TYPE_CHECKING block are fine because they are not actually
+# imported at runtime; those imports are only hints to the type checker.)
+
 if TYPE_CHECKING:
     from itsdangerous import URLSafeSerializer
     from sqlalchemy.orm import Session
