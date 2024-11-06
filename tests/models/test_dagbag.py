@@ -64,10 +64,10 @@ def db_clean_up():
 
 
 class TestDagBag:
-    def setup_class(cls):
+    def setup_class(self):
         db_clean_up()
 
-    def teardown_class(cls):
+    def teardown_class(self):
         db_clean_up()
 
     def test_get_existing_dag(self, tmp_path):
@@ -734,6 +734,7 @@ with airflow.DAG(
             # DAG is updated
             dag.tags = ["new_tag"]
             _sync_to_db()
+            session.commit()
             mock_sync_perm_for_dag.assert_called_once_with(dag, session=session)
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode

@@ -913,6 +913,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                         session=self.session,
                         version_name=dag.version_name,
                     )
+                    self.session.add(dagv)
+                    self.session.flush()
                     dag_code = DagCode(dagv, dag.fileloc, "Source")
                     self.session.merge(dag_code)
                     self.serialized_model.dag_version = dagv
