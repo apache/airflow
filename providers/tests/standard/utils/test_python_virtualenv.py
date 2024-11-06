@@ -22,11 +22,28 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.standard.utils.python_virtualenv import _generate_pip_conf, prepare_virtualenv
+from airflow.providers.standard.utils.python_virtualenv import _generate_pip_conf, _use_uv, prepare_virtualenv
 from airflow.utils.decorators import remove_task_decorator
+
+from tests_common.test_utils.config import conf_vars
 
 
 class TestPrepareVirtualenv:
+    @mock.patch("shutil.which")
+    def test_use_uv(self, mock_shutil_which):
+        with conf_vars({("standard", "venv_install_method"): "auto"}):
+            mock_shutil_which.side_effect = [True]
+            assert _use_uv() is True
+
+            mock_shutil_which.side_effect = [False]
+            assert _use_uv() is False
+
+        with conf_vars({("standard", "venv_install_method"): "uv"}):
+            assert _use_uv() is True
+
+        with conf_vars({("standard", "venv_install_method"): "pip"}):
+            assert _use_uv() is False
+
     @pytest.mark.parametrize(
         ("index_urls", "expected_pip_conf_content", "unexpected_pip_conf_content"),
         [
@@ -60,7 +77,8 @@ class TestPrepareVirtualenv:
             assert term not in generated_conf
 
     @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
-    def test_should_create_virtualenv(self, mock_execute_in_subprocess):
+    @conf_vars({("standard", "venv_install_method"): "pip"})
+    def test_should_create_virtualenv_pip(self, mock_execute_in_subprocess):
         python_bin = prepare_virtualenv(
             venv_directory="/VENV", python_bin="pythonVER", system_site_packages=False, requirements=[]
         )
@@ -68,7 +86,19 @@ class TestPrepareVirtualenv:
         mock_execute_in_subprocess.assert_called_once_with(["pythonVER", "-m", "venv", "/VENV"])
 
     @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
-    def test_should_create_virtualenv_with_system_packages(self, mock_execute_in_subprocess):
+    @conf_vars({("standard", "venv_install_method"): "uv"})
+    def test_should_create_virtualenv_uv(self, mock_execute_in_subprocess):
+        python_bin = prepare_virtualenv(
+            venv_directory="/VENV", python_bin="pythonVER", system_site_packages=False, requirements=[]
+        )
+        assert "/VENV/bin/python" == python_bin
+        mock_execute_in_subprocess.assert_called_once_with(
+            ["uv", "venv", "--allow-existing", "--seed", "--python", "pythonVER", "/VENV"]
+        )
+
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
+    @conf_vars({("standard", "venv_install_method"): "pip"})
+    def test_should_create_virtualenv_with_system_packages_pip(self, mock_execute_in_subprocess):
         python_bin = prepare_virtualenv(
             venv_directory="/VENV", python_bin="pythonVER", system_site_packages=True, requirements=[]
         )
@@ -78,7 +108,28 @@ class TestPrepareVirtualenv:
         )
 
     @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
-    def test_pip_install_options(self, mock_execute_in_subprocess):
+    @conf_vars({("standard", "venv_install_method"): "uv"})
+    def test_should_create_virtualenv_with_system_packages_uv(self, mock_execute_in_subprocess):
+        python_bin = prepare_virtualenv(
+            venv_directory="/VENV", python_bin="pythonVER", system_site_packages=True, requirements=[]
+        )
+        assert "/VENV/bin/python" == python_bin
+        mock_execute_in_subprocess.assert_called_once_with(
+            [
+                "uv",
+                "venv",
+                "--allow-existing",
+                "--seed",
+                "--python",
+                "pythonVER",
+                "--system-site-packages",
+                "/VENV",
+            ]
+        )
+
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
+    @conf_vars({("standard", "venv_install_method"): "pip"})
+    def test_pip_install_options_pip(self, mock_execute_in_subprocess):
         pip_install_options = ["--no-deps"]
         python_bin = prepare_virtualenv(
             venv_directory="/VENV",
@@ -89,15 +140,30 @@ class TestPrepareVirtualenv:
         )
 
         assert "/VENV/bin/python" == python_bin
-        mock_execute_in_subprocess.assert_any_call(
-            ["pythonVER", "-m", "venv", "/VENV", "--system-site-packages"]
-        )
         mock_execute_in_subprocess.assert_called_with(
             ["/VENV/bin/pip", "install", *pip_install_options, "apache-beam[gcp]"]
         )
 
     @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
-    def test_should_create_virtualenv_with_extra_packages(self, mock_execute_in_subprocess):
+    @conf_vars({("standard", "venv_install_method"): "uv"})
+    def test_pip_install_options_uv(self, mock_execute_in_subprocess):
+        pip_install_options = ["--no-deps"]
+        python_bin = prepare_virtualenv(
+            venv_directory="/VENV",
+            python_bin="pythonVER",
+            system_site_packages=True,
+            requirements=["apache-beam[gcp]"],
+            pip_install_options=pip_install_options,
+        )
+
+        assert "/VENV/bin/python" == python_bin
+        mock_execute_in_subprocess.assert_called_with(
+            ["uv", "pip", "install", "--python", "/VENV/bin/python", *pip_install_options, "apache-beam[gcp]"]
+        )
+
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
+    @conf_vars({("standard", "venv_install_method"): "pip"})
+    def test_should_create_virtualenv_with_extra_packages_pip(self, mock_execute_in_subprocess):
         python_bin = prepare_virtualenv(
             venv_directory="/VENV",
             python_bin="pythonVER",
@@ -109,6 +175,21 @@ class TestPrepareVirtualenv:
         mock_execute_in_subprocess.assert_any_call(["pythonVER", "-m", "venv", "/VENV"])
 
         mock_execute_in_subprocess.assert_called_with(["/VENV/bin/pip", "install", "apache-beam[gcp]"])
+
+    @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
+    @conf_vars({("standard", "venv_install_method"): "uv"})
+    def test_should_create_virtualenv_with_extra_packages_uv(self, mock_execute_in_subprocess):
+        python_bin = prepare_virtualenv(
+            venv_directory="/VENV",
+            python_bin="pythonVER",
+            system_site_packages=False,
+            requirements=["apache-beam[gcp]"],
+        )
+        assert "/VENV/bin/python" == python_bin
+
+        mock_execute_in_subprocess.assert_called_with(
+            ["uv", "pip", "install", "--python", "/VENV/bin/python", "apache-beam[gcp]"]
+        )
 
     def test_remove_task_decorator(self):
         py_source = "@task.virtualenv(use_dill=True)\ndef f():\nimport funcsigs"

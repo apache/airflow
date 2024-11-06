@@ -78,6 +78,7 @@ def test_basic_kubernetes(dag_maker, session, mock_create_pod: mock.Mock, mock_h
             in_cluster=False,
             cluster_context="default",
             config_file="/tmp/fake_file",
+            namespace="default",
         )
         def f():
             import random
@@ -122,6 +123,7 @@ def test_kubernetes_with_input_output(
             in_cluster=False,
             cluster_context="default",
             config_file="/tmp/fake_file",
+            namespace="default",
         )
         def f(arg1, arg2, kwarg1=None, kwarg2=None):
             return {"key1": "value1", "key2": "value2"}

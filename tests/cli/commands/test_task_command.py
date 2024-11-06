@@ -21,7 +21,6 @@ import contextlib
 import json
 import logging
 import os
-import re
 import shutil
 import sys
 from argparse import ArgumentParser
@@ -228,7 +227,7 @@ class TestCliTasks:
                 .one()
             )
             # confirm that the serialized dag location has not been updated
-            assert ser_dag.fileloc == orig_file_path.as_posix()
+            assert ser_dag.dag_version.dag_code.fileloc == orig_file_path.as_posix()
             assert ser_dag.data["dag"]["_processor_dags_folder"] == orig_dags_folder.as_posix()
             assert ser_dag.data["dag"]["fileloc"] == orig_file_path.as_posix()
             assert ser_dag.dag._processor_dags_folder == orig_dags_folder.as_posix()
@@ -288,7 +287,6 @@ class TestCliTasks:
             wait_for_past_depends_before_skipping=False,
             ignore_task_deps=False,
             ignore_ti_state=False,
-            pickle_id=None,
             pool=None,
             external_executor_id=None,
         )
@@ -323,7 +321,6 @@ class TestCliTasks:
             wait_for_past_depends_before_skipping=False,
             ignore_task_deps=False,
             ignore_ti_state=False,
-            pickle_id=None,
             pool=None,
             external_executor_id=None,
         )
@@ -606,31 +603,6 @@ class TestCliTasks:
         )
         assert "data_interval" in mock_dagrun.call_args.kwargs
 
-    def test_cli_run_when_pickle_and_dag_cli_method_selected(self):
-        """
-        tasks run should return an AirflowException when invalid pickle_id is passed
-        """
-        pickle_id = "pickle_id"
-
-        with pytest.raises(
-            AirflowException,
-            match=re.escape("You cannot use the --pickle option when using DAG.cli() method."),
-        ):
-            task_command.task_run(
-                self.parser.parse_args(
-                    [
-                        "tasks",
-                        "run",
-                        "example_bash_operator",
-                        "runme_0",
-                        DEFAULT_DATE.isoformat(),
-                        "--pickle",
-                        pickle_id,
-                    ]
-                ),
-                self.dag,
-            )
-
     def test_task_state(self):
         task_command.task_state(
             self.parser.parse_args(
@@ -784,7 +756,6 @@ class TestLogsfromTaskRunCommand:
             job=mock.ANY,
             task_instance=mock.ANY,
             mark_success=False,
-            pickle_id=None,
             ignore_all_deps=False,
             ignore_depends_on_past=False,
             wait_for_past_depends_before_skipping=False,
@@ -806,7 +777,6 @@ class TestLogsfromTaskRunCommand:
                 job=mock.ANY,
                 task_instance=mock.ANY,
                 mark_success=False,
-                pickle_id=None,
                 ignore_all_deps=False,
                 ignore_depends_on_past=False,
                 wait_for_past_depends_before_skipping=False,

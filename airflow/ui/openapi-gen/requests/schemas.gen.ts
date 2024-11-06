@@ -151,6 +151,100 @@ export const $BaseInfoSchema = {
   description: "Base status field for metadatabase and scheduler.",
 } as const;
 
+export const $ConnectionBody = {
+  properties: {
+    connection_id: {
+      type: "string",
+      title: "Connection Id",
+    },
+    conn_type: {
+      type: "string",
+      title: "Conn Type",
+    },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
+    host: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Host",
+    },
+    login: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Login",
+    },
+    schema: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Schema",
+    },
+    port: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Port",
+    },
+    password: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Password",
+    },
+    extra: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Extra",
+    },
+  },
+  type: "object",
+  required: ["connection_id", "conn_type"],
+  title: "ConnectionBody",
+  description: "Connection Serializer for requests body.",
+} as const;
+
 export const $ConnectionCollectionResponse = {
   properties: {
     connections: {
@@ -236,6 +330,17 @@ export const $ConnectionResponse = {
       ],
       title: "Port",
     },
+    password: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Password",
+    },
     extra: {
       anyOf: [
         {
@@ -257,6 +362,7 @@ export const $ConnectionResponse = {
     "login",
     "schema",
     "port",
+    "password",
     "extra",
   ],
   title: "ConnectionResponse",
@@ -313,18 +419,6 @@ export const $DAGDetailsResponse = {
       ],
       title: "Last Parsed Time",
     },
-    last_pickled: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Last Pickled",
-    },
     last_expired: {
       anyOf: [
         {
@@ -336,18 +430,6 @@ export const $DAGDetailsResponse = {
         },
       ],
       title: "Last Expired",
-    },
-    pickle_id: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Pickle Id",
     },
     default_view: {
       anyOf: [
@@ -631,9 +713,7 @@ export const $DAGDetailsResponse = {
     "is_paused",
     "is_active",
     "last_parsed_time",
-    "last_pickled",
     "last_expired",
-    "pickle_id",
     "default_view",
     "fileloc",
     "description",
@@ -712,18 +792,6 @@ export const $DAGResponse = {
       ],
       title: "Last Parsed Time",
     },
-    last_pickled: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Last Pickled",
-    },
     last_expired: {
       anyOf: [
         {
@@ -735,18 +803,6 @@ export const $DAGResponse = {
         },
       ],
       title: "Last Expired",
-    },
-    pickle_id: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Pickle Id",
     },
     default_view: {
       anyOf: [
@@ -899,9 +955,7 @@ export const $DAGResponse = {
     "is_paused",
     "is_active",
     "last_parsed_time",
-    "last_pickled",
     "last_expired",
-    "pickle_id",
     "default_view",
     "fileloc",
     "description",
@@ -1267,18 +1321,6 @@ export const $DAGWithLatestDagRunsResponse = {
       ],
       title: "Last Parsed Time",
     },
-    last_pickled: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Last Pickled",
-    },
     last_expired: {
       anyOf: [
         {
@@ -1290,18 +1332,6 @@ export const $DAGWithLatestDagRunsResponse = {
         },
       ],
       title: "Last Expired",
-    },
-    pickle_id: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Pickle Id",
     },
     default_view: {
       anyOf: [
@@ -1461,9 +1491,7 @@ export const $DAGWithLatestDagRunsResponse = {
     "is_paused",
     "is_active",
     "last_parsed_time",
-    "last_pickled",
     "last_expired",
-    "pickle_id",
     "default_view",
     "fileloc",
     "description",
@@ -1552,6 +1580,62 @@ export const $DagRunType = {
   description: "Class with DagRun types.",
 } as const;
 
+export const $DagStatsCollectionResponse = {
+  properties: {
+    dags: {
+      items: {
+        $ref: "#/components/schemas/DagStatsResponse",
+      },
+      type: "array",
+      title: "Dags",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["dags", "total_entries"],
+  title: "DagStatsCollectionResponse",
+  description: "DAG Stats Collection serializer for responses.",
+} as const;
+
+export const $DagStatsResponse = {
+  properties: {
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    stats: {
+      items: {
+        $ref: "#/components/schemas/DagStatsStateResponse",
+      },
+      type: "array",
+      title: "Stats",
+    },
+  },
+  type: "object",
+  required: ["dag_id", "stats"],
+  title: "DagStatsResponse",
+  description: "DAG Stats serializer for responses.",
+} as const;
+
+export const $DagStatsStateResponse = {
+  properties: {
+    state: {
+      $ref: "#/components/schemas/DagRunState",
+    },
+    count: {
+      type: "integer",
+      title: "Count",
+    },
+  },
+  type: "object",
+  required: ["state", "count"],
+  title: "DagStatsStateResponse",
+  description: "DagStatsState serializer for responses.",
+} as const;
+
 export const $DagTagPydantic = {
   properties: {
     name: {
@@ -1578,6 +1662,26 @@ export const $DagWarningType = {
 
 This is the set of allowable values for the \`\`warning_type\`\` field
 in the DagWarning model.`,
+} as const;
+
+export const $EventLogCollectionResponse = {
+  properties: {
+    event_logs: {
+      items: {
+        $ref: "#/components/schemas/EventLogResponse",
+      },
+      type: "array",
+      title: "Event Logs",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["event_logs", "total_entries"],
+  title: "EventLogCollectionResponse",
+  description: "Event Log Collection Response.",
 } as const;
 
 export const $EventLogResponse = {
@@ -1789,13 +1893,59 @@ export const $HistoricalMetricDataResponse = {
       $ref: "#/components/schemas/DAGRunStates",
     },
     task_instance_states: {
-      $ref: "#/components/schemas/airflow__api_fastapi__core_api__serializers__dashboard__TaskInstanceState",
+      $ref: "#/components/schemas/airflow__api_fastapi__core_api__serializers__ui__dashboard__TaskInstanceState",
     },
   },
   type: "object",
   required: ["dag_run_types", "dag_run_states", "task_instance_states"],
   title: "HistoricalMetricDataResponse",
   description: "Historical Metric Data serializer for responses.",
+} as const;
+
+export const $ImportErrorCollectionResponse = {
+  properties: {
+    import_errors: {
+      items: {
+        $ref: "#/components/schemas/ImportErrorResponse",
+      },
+      type: "array",
+      title: "Import Errors",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["import_errors", "total_entries"],
+  title: "ImportErrorCollectionResponse",
+  description: "Import Error Collection Response.",
+} as const;
+
+export const $ImportErrorResponse = {
+  properties: {
+    import_error_id: {
+      type: "integer",
+      title: "Import Error Id",
+    },
+    timestamp: {
+      type: "string",
+      format: "date-time",
+      title: "Timestamp",
+    },
+    filename: {
+      type: "string",
+      title: "Filename",
+    },
+    stack_trace: {
+      type: "string",
+      title: "Stack Trace",
+    },
+  },
+  type: "object",
+  required: ["import_error_id", "timestamp", "filename", "stack_trace"],
+  title: "ImportErrorResponse",
+  description: "Import Error Response.",
 } as const;
 
 export const $JobResponse = {
@@ -2300,6 +2450,10 @@ export const $SchedulerInfoSchema = {
 
 export const $TaskInstanceResponse = {
   properties: {
+    id: {
+      type: "string",
+      title: "Id",
+    },
     task_id: {
       type: "string",
       title: "Task Id",
@@ -2529,6 +2683,7 @@ export const $TaskInstanceResponse = {
   },
   type: "object",
   required: [
+    "id",
     "task_id",
     "dag_id",
     "dag_run_id",
@@ -2665,17 +2820,6 @@ export const $VariableBody = {
       type: "string",
       title: "Key",
     },
-    description: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Description",
-    },
     value: {
       anyOf: [
         {
@@ -2687,9 +2831,20 @@ export const $VariableBody = {
       ],
       title: "Value",
     },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
   },
   type: "object",
-  required: ["key", "description", "value"],
+  required: ["key", "value"],
   title: "VariableBody",
   description: "Variable serializer for bodies.",
 } as const;
@@ -2720,17 +2875,6 @@ export const $VariableResponse = {
       type: "string",
       title: "Key",
     },
-    description: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Description",
-    },
     value: {
       anyOf: [
         {
@@ -2742,9 +2886,20 @@ export const $VariableResponse = {
       ],
       title: "Value",
     },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
   },
   type: "object",
-  required: ["key", "description", "value"],
+  required: ["key", "value", "description"],
   title: "VariableResponse",
   description: "Variable serializer for responses.",
 } as const;
@@ -2773,7 +2928,7 @@ export const $VersionInfo = {
   description: "Version information serializer for responses.",
 } as const;
 
-export const $airflow__api_fastapi__core_api__serializers__dashboard__TaskInstanceState =
+export const $airflow__api_fastapi__core_api__serializers__ui__dashboard__TaskInstanceState =
   {
     properties: {
       no_status: {

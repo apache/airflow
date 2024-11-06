@@ -31,6 +31,7 @@ class TaskInstanceResponse(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
+    id: str
     task_id: str
     dag_id: str
     run_id: str = Field(alias="dag_run_id")

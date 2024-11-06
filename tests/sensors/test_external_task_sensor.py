@@ -124,6 +124,7 @@ class TestExternalTaskSensor:
         with self.dag as dag:
             with TaskGroup(group_id=TEST_TASK_GROUP_ID) as task_group:
                 _ = [EmptyOperator(task_id=f"task{i}") for i in range(len(target_states))]
+            dag.sync_to_db()
             SerializedDagModel.write_dag(dag)
 
         for idx, task in enumerate(task_group):
@@ -146,7 +147,7 @@ class TestExternalTaskSensor:
 
                 fake_task()
                 fake_mapped_task.expand(x=list(map_indexes))
-
+        dag.sync_to_db()
         SerializedDagModel.write_dag(dag)
 
         for task in task_group:

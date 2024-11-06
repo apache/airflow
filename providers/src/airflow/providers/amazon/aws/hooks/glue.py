@@ -282,13 +282,16 @@ class GlueJobHook(AwsBaseHook):
             log_group_error, continuation_tokens.error_stream_continuation
         )
 
-    def job_completion(self, job_name: str, run_id: str, verbose: bool = False) -> dict[str, str]:
+    def job_completion(
+        self, job_name: str, run_id: str, verbose: bool = False, sleep_before_return: int = 0
+    ) -> dict[str, str]:
         """
         Wait until Glue job with job_name finishes; return final state if finished or raises AirflowException.
 
         :param job_name: unique job name per AWS account
         :param run_id: The job-run ID of the predecessor job run
         :param verbose: If True, more Glue Job Run logs show in the Airflow Task Logs.  (default: False)
+        :param sleep_before_return: time in seconds to wait before returning final status.
         :return: Dict of JobRunState and JobRunId
         """
         next_log_tokens = self.LogContinuationTokens()
@@ -296,6 +299,7 @@ class GlueJobHook(AwsBaseHook):
             job_run_state = self.get_job_state(job_name, run_id)
             ret = self._handle_state(job_run_state, job_name, run_id, verbose, next_log_tokens)
             if ret:
+                time.sleep(sleep_before_return)
                 return ret
             else:
                 time.sleep(self.job_poll_interval)

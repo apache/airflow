@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
@@ -39,12 +39,12 @@ async def next_run_assets(
     dag = request.app.state.dag_bag.get_dag(dag_id)
 
     if not dag:
-        raise HTTPException(404, f"can't find dag {dag_id}")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"can't find dag {dag_id}")
 
     dag_model = DagModel.get_dagmodel(dag_id, session=session)
 
     if dag_model is None:
-        raise HTTPException(404, f"can't find associated dag_model {dag_id}")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"can't find associated dag_model {dag_id}")
 
     latest_run = dag_model.get_last_dagrun(session=session)
 
