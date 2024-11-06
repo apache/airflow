@@ -77,8 +77,6 @@ def force_use_internal_api_on_edge_worker():
         os.environ["AIRFLOW_ENABLE_AIP_44"] = "True"
         os.environ["AIRFLOW__CORE__INTERNAL_API_URL"] = api_url
         InternalApiConfig.set_use_internal_api("edge-worker")
-        # Disable mini-scheduler post task execution and leave next task schedule to core scheduler
-        os.environ["AIRFLOW__SCHEDULER__SCHEDULE_AFTER_TASK_EXECUTION"] = "False"
 
 
 force_use_internal_api_on_edge_worker()

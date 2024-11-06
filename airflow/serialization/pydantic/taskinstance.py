@@ -467,16 +467,6 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
             session=session,
         )
 
-    def schedule_downstream_tasks(self, session: Session | None = None, max_tis_per_query: int | None = None):
-        """
-        Schedule downstream tasks of this task instance.
-
-        :meta: private
-        """
-        # we should not schedule downstream tasks with Pydantic model because it will not be able to
-        # get the DAG object (we do not serialize it currently).
-        return
-
     def command_as_list(
         self,
         mark_success: bool = False,
