@@ -17,14 +17,16 @@
  * under the License.
  */
 import {
+  AccordionRoot,
+  AccordionItem,
+  AccordionItemTrigger,
+  AccordionItemContent,
   Input,
-  VStack,
-  Dialog,
   Button,
   Box,
   Text,
   Spacer,
-  HStack,
+  HStack
 } from "@chakra-ui/react";
 import { autocompletion } from "@codemirror/autocomplete";
 import { json } from "@codemirror/lang-json";
@@ -32,7 +34,6 @@ import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
 import CodeMirror, { type Extension, lineNumbers } from "@uiw/react-codemirror";
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
-
 import { useColorMode } from "src/context/colorMode";
 
 import type { DagParams } from "./TriggerDag";
@@ -48,11 +49,10 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
   dagParams,
   onTrigger,
 }) => {
-  const [showDetails, setShowDetails] = useState(false);
-  const [jsonError, setJsonError] = useState<string | undefined>(undefined); // Track JSON error
+  const [jsonError, setJsonError] = useState<string | undefined>(undefined);
   const { control, handleSubmit, reset, watch } = useForm({
     defaultValues: {
-      configJson: JSON.stringify(dagParams.configJson), // Ensure it's a string in the form control
+      configJson: JSON.stringify(dagParams.configJson),
       logicalDate: dagParams.logicalDate,
       runId: dagParams.runId,
     },
@@ -88,24 +88,14 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
 
   return (
     <>
-      <Dialog.CloseTrigger />
-
-      <VStack align="stretch" gap={2}>
-        <Button
-          mb={9}
-          onClick={() => setShowDetails(!showDetails)}
-          variant="outline"
-          width="full"
-        >
-          {showDetails ? "Hide Advanced Options" : "Show Advanced Options"}
-        </Button>
-
-        {showDetails ? (
-          <VStack align="stretch" gap={3}>
-            <Box>
-              <Text fontSize="md" mb={2}>
-                Logical date
-              </Text>
+      <AccordionRoot collapsible size="lg" variant="enclosed">
+        <AccordionItem key="advancedOptions" value="advancedOptions">
+          <AccordionItemTrigger>
+                Advance Options
+          </AccordionItemTrigger>
+          <AccordionItemContent>
+            <Box p={5}>
+              <Text fontSize="md" mb={2}>Logical date</Text>
               <Controller
                 control={control}
                 name="logicalDate"
@@ -118,12 +108,8 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                   />
                 )}
               />
-            </Box>
 
-            <Box>
-              <Text fontSize="md" mb={2}>
-                Run ID
-              </Text>
+              <Text fontSize="md" mb={2} mt={6}>Run ID</Text>
               <Controller
                 control={control}
                 name="runId"
@@ -135,17 +121,13 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                   />
                 )}
               />
-            </Box>
 
-            <Box mb={9}>
-              <Text fontSize="md" mb={2}>
-                Configuration JSON
-              </Text>
+              <Text fontSize="md" mb={2} mt={6}>Configuration JSON</Text>
               <Controller
                 control={control}
                 name="configJson"
                 render={({ field }) => (
-                  <Box>
+                  <Box mb={4}>
                     <CodeMirror
                       {...field}
                       basicSetup
@@ -154,11 +136,10 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                       onChange={(value) => {
                         field.onChange(value); // Update the form state
                         try {
-                          // Attempt to parse the value as JSON
                           JSON.parse(value);
                           setJsonError(undefined); // Clear error if JSON is valid
                         } catch {
-                          setJsonError("Invalid JSON format."); // Set error message if invalid
+                          setJsonError("Invalid JSON format.");
                         }
                       }}
                       style={{
@@ -169,29 +150,27 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                       }}
                       theme={
                         colorMode === "dark"
-                          ? (githubDark as Extension)
-                          : (githubLight as Extension)
+                          ? (githubDark)
+                          : (githubLight)
                       }
                     />
-                    {jsonError! ? (
-                      <Box color="red.500" mt={2}>
-                        <Text fontSize="sm">{jsonError}</Text>
-                      </Box>
-                    ) : undefined}
+                    {Boolean(jsonError) ? <Text color="red.500" fontSize="sm" mt={2}>
+                        {jsonError}
+                      </Text> : undefined}
                   </Box>
                 )}
               />
             </Box>
-          </VStack>
-        ) : undefined}
-      </VStack>
+          </AccordionItemContent>
+        </AccordionItem>
+      </AccordionRoot>
 
-      <Box as="footer" display="flex" justifyContent="flex-end">
+      <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">
           {hasFormChanged() && <Button onClick={() => reset()}>Reset</Button>}
           <Spacer />
           <Button
-            disabled={Boolean(jsonError)} // Disable if there's an error
+            disabled={Boolean(jsonError)}
             onClick={() => void handleSubmit(onSubmit)()}
           >
             Trigger
