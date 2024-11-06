@@ -28,9 +28,9 @@ import pytest
 import time_machine
 
 from airflow import settings
-from airflow.models.dag import DAG
+from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
-from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.dagcode import DagCode
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCom
@@ -500,7 +500,7 @@ def test_code(admin_client):
 
 def test_code_from_db(admin_client):
     dag = DagBag(include_examples=True).get_dag("example_bash_operator")
-    SerializedDagModel.write_dag(dag)
+    DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
     url = "code?dag_id=example_bash_operator"
     resp = admin_client.get(url, follow_redirects=True)
     check_content_not_in_response("Failed to load DAG file Code", resp)
@@ -510,7 +510,7 @@ def test_code_from_db(admin_client):
 def test_code_from_db_all_example_dags(admin_client):
     dagbag = DagBag(include_examples=True)
     for dag in dagbag.dags.values():
-        SerializedDagModel.write_dag(dag)
+        DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
     url = "code?dag_id=example_bash_operator"
     resp = admin_client.get(url, follow_redirects=True)
     check_content_not_in_response("Failed to load DAG file Code", resp)
@@ -614,12 +614,23 @@ class _ForceHeartbeatCeleryExecutor(CeleryExecutor):
         return True
 
 
-def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, dag_maker):
-    with dag_maker() as dag:
-        EmptyOperator(task_id="task")
-    dag.sync_to_db()
+@pytest.fixture
+def new_id_example_bash_operator():
+    dag_id = "example_bash_operator"
+    test_dag_id = "non_existent_dag"
+    with create_session() as session:
+        dag_query = session.query(DagModel).filter(DagModel.dag_id == dag_id)
+        dag_query.first().tags = []  # To avoid "FOREIGN KEY constraint" error)
+    with create_session() as session:
+        dag_query.update({"dag_id": test_dag_id})
+    yield test_dag_id
+    with create_session() as session:
+        session.query(DagModel).filter(DagModel.dag_id == test_dag_id).update({"dag_id": dag_id})
+
+
+def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, new_id_example_bash_operator):
     # The delete-dag URL should be generated correctly
-    test_dag_id = dag.dag_id
+    test_dag_id = new_id_example_bash_operator
     resp = admin_client.get("/", follow_redirects=True)
     check_content_in_response(f"/delete?dag_id={test_dag_id}", resp)
     check_content_in_response(f"return confirmDeleteDag(this, '{test_dag_id}')", resp)
@@ -1122,7 +1133,6 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
-            "dag_version_id": None,
         },
         "run_after_loop": {
             "custom_operator_name": None,
@@ -1159,7 +1169,6 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
-            "dag_version_id": None,
         },
         "run_this_last": {
             "custom_operator_name": None,
@@ -1196,7 +1205,6 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
-            "dag_version_id": None,
         },
         "runme_0": {
             "custom_operator_name": None,
@@ -1233,7 +1241,6 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
-            "dag_version_id": None,
         },
         "runme_1": {
             "custom_operator_name": None,
@@ -1270,7 +1277,6 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
-            "dag_version_id": None,
         },
         "runme_2": {
             "custom_operator_name": None,
@@ -1307,7 +1313,6 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
-            "dag_version_id": None,
         },
         "this_will_skip": {
             "custom_operator_name": None,
@@ -1344,6 +1349,5 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
-            "dag_version_id": None,
         },
     }

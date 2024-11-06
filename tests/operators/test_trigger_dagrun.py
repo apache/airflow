@@ -28,6 +28,8 @@ from airflow.exceptions import AirflowException, DagRunAlreadyExists, TaskDeferr
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
+from airflow.models.log import Log
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.settings import TracebackSessionForTests
@@ -36,8 +38,6 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
-
-from tests_common.test_utils.db import clear_db_dags, clear_db_logs, clear_db_runs
 
 pytestmark = pytest.mark.db_test
 
@@ -82,9 +82,12 @@ class TestDagRunOperator:
 
     def teardown_method(self):
         """Cleanup state after testing in DB."""
-        clear_db_logs()
-        clear_db_runs()
-        clear_db_dags()
+        with create_session() as session:
+            session.query(Log).filter(Log.dag_id == TEST_DAG_ID).delete(synchronize_session=False)
+            for dbmodel in [DagModel, DagRun, TaskInstance, SerializedDagModel]:
+                session.query(dbmodel).filter(dbmodel.dag_id.in_([TRIGGERED_DAG_ID, TEST_DAG_ID])).delete(
+                    synchronize_session=False
+                )
 
         # pathlib.Path(self._tmpfile).unlink()
 

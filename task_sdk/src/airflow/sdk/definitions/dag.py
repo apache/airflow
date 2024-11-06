@@ -355,7 +355,6 @@ class DAG:
         **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
         An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
     :param dag_display_name: The display name of the DAG which appears on the UI.
-    :param version_name: The version name of the DAG. This is used to identify the version of the DAG.
     """
 
     __serialized_fields: ClassVar[frozenset[str] | None] = None
@@ -438,10 +437,6 @@ class DAG:
 
     has_on_success_callback: bool = attrs.field(init=False)
     has_on_failure_callback: bool = attrs.field(init=False)
-    version_name: str | None = attrs.field(
-        default=None,
-        validator=attrs.validators.optional(attrs.validators.instance_of(str)),
-    )
 
     def __attrs_post_init__(self):
         from airflow.utils import timezone
@@ -1068,7 +1063,6 @@ if TYPE_CHECKING:
         auto_register: bool = True,
         fail_stop: bool = False,
         dag_display_name: str | None = None,
-        version_name: str | None = None,
     ) -> Callable[[Callable], Callable[..., DAG]]:
         """
         Python dag decorator which wraps a function into an Airflow DAG.
