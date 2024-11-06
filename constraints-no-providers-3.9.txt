@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-05T13:44:18.107857
+# This constraints file was automatically generated on 2024-11-06T11:31:42.752938
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -93,7 +93,7 @@ httpcore==1.0.6
 httptools==0.6.4
 httpx==0.27.2
 idna==3.10
-importlib_metadata==8.4.0
+importlib_metadata==8.5.0
 importlib_resources==6.4.5
 inflection==0.5.1
 itsdangerous==2.2.0
@@ -116,15 +116,15 @@ methodtools==0.4.7
 more-itertools==10.5.0
 multidict==6.1.0
 numpy==1.26.4
-opentelemetry-api==1.27.0
-opentelemetry-exporter-otlp-proto-common==1.27.0
-opentelemetry-exporter-otlp-proto-grpc==1.27.0
-opentelemetry-exporter-otlp-proto-http==1.27.0
-opentelemetry-exporter-otlp==1.27.0
-opentelemetry-exporter-prometheus==0.48b0
-opentelemetry-proto==1.27.0
-opentelemetry-sdk==1.27.0
-opentelemetry-semantic-conventions==0.48b0
+opentelemetry-api==1.28.0
+opentelemetry-exporter-otlp-proto-common==1.28.0
+opentelemetry-exporter-otlp-proto-grpc==1.28.0
+opentelemetry-exporter-otlp-proto-http==1.28.0
+opentelemetry-exporter-otlp==1.28.0
+opentelemetry-exporter-prometheus==0.49b0
+opentelemetry-proto==1.28.0
+opentelemetry-sdk==1.28.0
+opentelemetry-semantic-conventions==0.49b0
 ordered-set==4.1.0
 packaging==24.1
 pandas==2.1.4
@@ -135,7 +135,7 @@ plyvel==1.5.1
 prison==0.2.1
 prometheus_client==0.21.0
 propcache==0.2.0
-protobuf==4.25.5
+protobuf==5.28.3
 psutil==6.1.0
 pure-sasl==0.6.2
 pyasn1==0.6.1
@@ -184,7 +184,7 @@ uc-micro-py==1.0.3
 universal_pathlib==0.2.5
 urllib3==1.26.20
 uuid6==2024.7.10
-uv==0.4.29
+uv==0.4.30
 uvicorn==0.32.0
 uvloop==0.21.0
 vine==5.1.0
