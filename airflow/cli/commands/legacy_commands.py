@@ -26,7 +26,6 @@ COMMAND_MAP = {
     "show_dag": "dags show",
     "list_dag": "dags list",
     "dag_status": "dags status",
-    "backfill": "dags backfill",
     "list_dag_runs": "dags list-runs",
     "pause": "dags pause",
     "unpause": "dags unpause",
@@ -46,12 +45,17 @@ COMMAND_MAP = {
     "list_users": "users list",
     "create_user": "users create",
     "delete_user": "users delete",
+    "dags backfill": "backfill create",
 }
 
 
 def check_legacy_command(action, value):
     """Check command value and raise error if value is in removed command."""
     new_command = COMMAND_MAP.get(value)
+    prefix = action._prog_prefix.replace("airflow ", "")
+    full_command = f"{prefix} {value}"
+    if not new_command:
+        new_command = COMMAND_MAP.get(full_command)
     if new_command is not None:
-        msg = f"`airflow {value}` command, has been removed, please use `airflow {new_command}`"
+        msg = f"Command `{full_command}` has been removed. Please use `airflow {new_command}`"
         raise ArgumentError(action, msg)
