@@ -121,7 +121,7 @@ async def patch_dag_run(
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
     if update_mask:
-        data = patch_body.model_dump(include=set(update_mask), exclude_unset=True)
+        data = patch_body.model_dump(include=set(update_mask))
     else:
         data = patch_body.model_dump(exclude_unset=True)
 
