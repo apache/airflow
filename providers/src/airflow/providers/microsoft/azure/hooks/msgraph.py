@@ -360,7 +360,7 @@ class KiotaRequestAdapterHook(BaseHook):
         }
 
     @staticmethod
-    def evaluate_parameters(parameters: dict[str, Any | Callable[[], Any]]):
+    def evaluate_parameters(parameters: dict[str, Any | Callable[[], Any]] | None):
         if parameters:
             for key, value in parameters.items():
                 if callable(value):
