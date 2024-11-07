@@ -634,12 +634,7 @@ class KubernetesExecutor(BaseExecutor):
             if not pod:
                 self.log.warning("Cannot find pod for ti %s", ti)
                 continue
-<<<<<<< HEAD
-            readable_tis.append(repr(ti))
             if Version(airflow_version) >= Version("2.10.4"):
-=======
-            if Version(airflow_version) < Version("2.10.4"):
->>>>>>> d6d1caa641 (Simplify the handle stuck in queued interface)
                 self.kube_scheduler.patch_pod_delete_stuck(
                     pod_name=pod.metadata.name, namespace=pod.metadata.namespace
                 )
