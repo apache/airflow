@@ -48,7 +48,6 @@ from airflow.utils.log.secrets_masker import _secrets_masker
 from airflow.utils.state import State
 
 from tests_common.test_utils.compat import (
-    AIRFLOW_V_2_8_PLUS,
     AIRFLOW_V_2_9_PLUS,
     AIRFLOW_V_2_10_PLUS,
     AIRFLOW_V_3_0_PLUS,
@@ -428,7 +427,7 @@ def test_serialize_timetable_2_9():
 
 
 @pytest.mark.skipif(
-    not AIRFLOW_V_2_8_PLUS or AIRFLOW_V_2_9_PLUS,
+    AIRFLOW_V_2_9_PLUS,
     reason="This test checks serialization only in 2.8 conditions",
 )
 def test_serialize_timetable_2_8():
