@@ -158,7 +158,11 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
 
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">
-          {isDirty ? <Button onClick={() => reset()}>Reset</Button> : undefined}
+          {isDirty ? (
+            <Button onClick={() => reset()} variant="outline">
+              Reset
+            </Button>
+          ) : undefined}
           <Spacer />
           <Button
             colorPalette="blue"
