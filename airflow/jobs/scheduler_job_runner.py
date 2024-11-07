@@ -1837,18 +1837,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
                 if num_times_stuck < num_allowed_retries:
-                    session.add(
-                        Log(
-                            event=STUCK_IN_QUEUED_EVENT,
-                            task_instance=ti.key,
-                            extra=(
-                                f"Task was stuck in queued and will be requeued, once it has hit {num_allowed_retries} attempts"
-                                "Task will be marked as failed. After that, if the task instance has "
-                                "available retries, it will be retried."
-                            ),
-                        )
-                    )
-
                     self._reschedule_stuck_task(ti)
                 else:
                     self.log.warning(
