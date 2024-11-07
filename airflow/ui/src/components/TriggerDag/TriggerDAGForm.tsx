@@ -153,6 +153,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
           {isDirty ? <Button onClick={() => reset()}>Reset</Button> : undefined}
           <Spacer />
           <Button
+            colorPalette="blue"
             disabled={Boolean(jsonError)}
             onClick={() => void handleSubmit(onSubmit)()}
           >
