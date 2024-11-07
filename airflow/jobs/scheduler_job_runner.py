@@ -98,7 +98,8 @@ TI = TaskInstance
 DR = DagRun
 DM = DagModel
 
-RESCHEDULE_STUCK_IN_QUEUED_EVENT = "rescheduling stuck in queued"
+STUCK_IN_QUEUED_EVENT = "stuck in queued"
+""":meta private:"""
 
 
 class ConcurrencyMap:
@@ -1790,7 +1791,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         As a compromise between always failing a stuck task and always rescheduling a stuck task (which could
         lead to tasks being stuck in queued forever without informing the user), we have creating the config
-        `[core] num_stuck_reschedules`. With this new configuration, an airflow admin can decide how
+        ``[scheduler] num_stuck_in_queued_retries``. With this new configuration, an airflow admin can decide how
         sensitive they would like their airflow to be WRT failing stuck tasks.
         """
         self.log.debug("Calling SchedulerJob._fail_tasks_stuck_in_queued method")
@@ -1803,65 +1804,73 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         ).all()
 
-        num_allowed_retries = conf.getint("core", "num_stuck_reschedules")
+        num_allowed_retries = conf.getint("scheduler", "num_stuck_in_queued_retries")
         for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued).items():
-            try:
-                cleaned_up_task_instances = set(executor.cleanup_stuck_queued_tasks(tis=stuck_tis))
-                for ti in stuck_tis:
-                    if repr(ti) in cleaned_up_task_instances:
-                        num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
-                        if num_times_stuck < num_allowed_retries:
-                            self.log.warning(
-                                "Task %s was stuck in queued and will be requeued, once it has hit %s attempts"
-                                " the task will be marked as failed. After that, if the task instance has "
-                                "available retries, it will be retried.", ti.key, num_allowed_retries
-                            )
-                            session.add(
-                                Log(
-                                    event=RESCHEDULE_STUCK_IN_QUEUED_EVENT,
-                                    task_instance=ti.key,
-                                    extra=(
-                                        f"Task was stuck in queued and will be requeued, once it has hit {num_allowed_retries} attempts"
-                                        "Task will be marked as failed. After that, if the task instance has "
-                                        "available retries, it will be retried."
-                                    ),
-                                )
-                            )
+            if not hasattr(executor, "cleanup_stuck_queued_tasks"):
+                continue
 
-                            executor.change_state(ti.key, State.SCHEDULED)
-                            session.execute(
-                                update(TI)
-                                .where(TI.filter_for_tis([ti]))
-                                .values(
-                                    # TODO[ha]: should we use func.now()? How does that work with DB timezone
-                                    # on mysql when it's not UTC?
-                                    state=TaskInstanceState.SCHEDULED,
-                                    queued_dttm=None,
-                                    # queued_by_job_id=None,
-                                )
-                                .execution_options(synchronize_session=False)
-                            )
-                        else:
-                            self.log.warning(
-                                "Marking task instance %s stuck in queued as failed. "
-                                "If the task instance has available retries, it will be retried.",
-                                ti,
-                            )
-                            session.add(
-                                Log(
-                                    event="failing stuck in queued",
-                                    task_instance=ti.key,
-                                    extra=(
-                                        "Task will be marked as failed. If the task instance has "
-                                        "available retries, it will be retried."
-                                    ),
-                                )
-                            )
-                            executor.fail(ti.key)
+            for ti in executor.cleanup_stuck_queued_tasks(tis=stuck_tis):
+                if not isinstance(ti, TaskInstance):
+                    # this is for backcompat. the pre-2.10.4 version of the interface
+                    # expected a string return val.
+                    self.log.warning(
+                        "Marking task instance %s stuck in queued as failed. "
+                        "If the task instance has available retries, it will be retried.",
+                        ti,
+                    )
+                    continue
 
+                session.add(
+                    Log(
+                        event=STUCK_IN_QUEUED_EVENT,
+                        task_instance=ti.key,
+                        extra=(
+                            "Task was in queued state for longer "
+                            f"than {self._task_queued_timeout} seconds."
+                        ),
+                    )
+                )
+                self.log.warning("Task stuck in queued and may be requeued task_id=%s", ti.key)
 
-            except NotImplementedError:
-                self.log.debug("Executor doesn't support cleanup of stuck queued tasks. Skipping.")
+                num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
+                if num_times_stuck < num_allowed_retries:
+                    session.add(
+                        Log(
+                            event=STUCK_IN_QUEUED_EVENT,
+                            task_instance=ti.key,
+                            extra=(
+                                f"Task was stuck in queued and will be requeued, once it has hit {num_allowed_retries} attempts"
+                                "Task will be marked as failed. After that, if the task instance has "
+                                "available retries, it will be retried."
+                            ),
+                        )
+                    )
+
+                    executor.change_state(ti.key, State.SCHEDULED)
+                    session.execute(
+                        update(TI)
+                        .where(TI.filter_for_tis([ti]))
+                        .values(
+                            state=TaskInstanceState.SCHEDULED,
+                            queued_dttm=None,
+                        )
+                        .execution_options(synchronize_session=False)
+                    )
+                else:
+                    self.log.warning(
+                        "Task requeue attempts exceeded max; marking failed. task_instance=%s", ti
+                    )
+                    session.add(
+                        Log(
+                            event="stuck in queued tries exceeded",
+                            task_instance=ti.key,
+                            extra=(
+                                f"Task was requeued more than {num_allowed_retries} times "
+                                "and will be failed."
+                            ),
+                        )
+                    )
+                    executor.fail(ti.key)
 
     @provide_session
     def _get_num_times_stuck_in_queued(self, ti: TaskInstance, session: Session = NEW_SESSION) -> int:
@@ -1871,14 +1880,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         We can then use this information to determine whether to reschedule a task or fail it.
         """
         return (
-            session.query(Log).where(
+            session.query(Log)
+            .where(
                 Log.task_id == ti.task_id,
                 Log.dag_id == ti.dag_id,
                 Log.run_id == ti.run_id,
                 Log.map_index == ti.map_index,
                 Log.try_number == ti.try_number,
-                Log.event == RESCHEDULE_STUCK_IN_QUEUED_EVENT,
-            ).count()
+                Log.event == STUCK_IN_QUEUED_EVENT,
+            )
+            .count()
         )
 
     @provide_session

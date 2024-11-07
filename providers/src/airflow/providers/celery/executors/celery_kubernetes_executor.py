@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Generator, Sequence
 
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
@@ -246,13 +246,11 @@ class CeleryKubernetesExecutor(BaseExecutor):
             *self.kubernetes_executor.try_adopt_task_instances(kubernetes_tis),
         ]
 
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> Generator[TaskInstance, None, None]:
         celery_tis = [ti for ti in tis if ti.queue != self.kubernetes_queue]
         kubernetes_tis = [ti for ti in tis if ti.queue == self.kubernetes_queue]
-        return [
-            *self.celery_executor.cleanup_stuck_queued_tasks(celery_tis),
-            *self.kubernetes_executor.cleanup_stuck_queued_tasks(kubernetes_tis),
-        ]
+        yield from self.celery_executor.cleanup_stuck_queued_tasks(celery_tis)
+        yield from self.kubernetes_executor.cleanup_stuck_queued_tasks(kubernetes_tis)
 
     def end(self) -> None:
         """End celery and kubernetes executor."""
