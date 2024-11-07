@@ -28,6 +28,7 @@ from airflow.triggers.temporal import TimeDeltaTrigger
 if TYPE_CHECKING:
     from datetime import timedelta
     from io import BytesIO
+    import jinja2  # Slow import.
 
     from kiota_abstractions.request_information import QueryParams
     from kiota_http.httpx_request_adapter import ResponseType
@@ -74,10 +75,10 @@ class MSGraphSensor(BaseSensorOperator):
         self,
         url: str,
         response_type: ResponseType | None = None,
-        path_parameters: dict[str, Any] | None = None,
+        path_parameters: dict[str, Any | Callable[[], Any]] | None = None,
         url_template: str | None = None,
         method: str = "GET",
-        query_parameters: dict[str, QueryParams] | None = None,
+        query_parameters: dict[str, QueryParams | Callable[[], QueryParams]] | None = None,
         headers: dict[str, str] | None = None,
         data: dict[str, Any] | str | BytesIO | None = None,
         conn_id: str = KiotaRequestAdapterHook.default_conn_name,
@@ -104,6 +105,15 @@ class MSGraphSensor(BaseSensorOperator):
         self.event_processor = event_processor
         self.result_processor = result_processor
         self.serializer = serializer()
+
+    def render_template_fields(
+        self,
+        context: Context,
+        jinja_env: jinja2.Environment | None = None,
+    ) -> None:
+        super().render_template_fields(context=context, jinja_env=jinja_env)
+        KiotaRequestAdapterHook.evaluate_parameters(self.path_parameters)
+        KiotaRequestAdapterHook.evaluate_parameters(self.query_parameters)
 
     def execute(self, context: Context):
         self.defer(

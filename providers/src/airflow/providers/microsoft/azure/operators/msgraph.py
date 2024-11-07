@@ -36,6 +36,7 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     from io import BytesIO
+    import jinja2  # Slow import.
 
     from kiota_abstractions.request_adapter import ResponseType
     from kiota_abstractions.request_information import QueryParams
@@ -100,10 +101,10 @@ class MSGraphAsyncOperator(BaseOperator):
         *,
         url: str,
         response_type: ResponseType | None = None,
-        path_parameters: dict[str, Any] | None = None,
+        path_parameters: dict[str, Any | Callable[[], Any]] | None = None,
         url_template: str | None = None,
         method: str = "GET",
-        query_parameters: dict[str, QueryParams] | None = None,
+        query_parameters: dict[str, QueryParams | Callable[[], QueryParams]] | None = None,
         headers: dict[str, str] | None = None,
         data: dict[str, Any] | str | BytesIO | None = None,
         conn_id: str = KiotaRequestAdapterHook.default_conn_name,
@@ -135,6 +136,15 @@ class MSGraphAsyncOperator(BaseOperator):
         self.result_processor = result_processor
         self.event_handler = event_handler or default_event_handler
         self.serializer: ResponseSerializer = serializer()
+
+    def render_template_fields(
+        self,
+        context: Context,
+        jinja_env: jinja2.Environment | None = None,
+    ) -> None:
+        super().render_template_fields(context=context, jinja_env=jinja_env)
+        KiotaRequestAdapterHook.evaluate_parameters(self.path_parameters)
+        KiotaRequestAdapterHook.evaluate_parameters(self.query_parameters)
 
     def execute(self, context: Context) -> None:
         self.defer(

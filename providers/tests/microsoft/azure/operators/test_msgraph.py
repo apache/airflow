@@ -143,11 +143,13 @@ class TestMSGraphAsyncOperator(Base):
                 task_id="drive_item_content",
                 conn_id="msgraph_api",
                 response_type="bytes",
-                url=f"/drives/{drive_id}/root/content",
+                url="/drives/{drive_id}/root/content",
+                path_parameters={"drive_id": lambda: drive_id},
             )
 
             results, events = self.execute_operator(operator)
 
+            assert operator.path_parameters == {"drive_id": drive_id}
             assert results == base64_encoded_content
             assert len(events) == 1
             assert isinstance(events[0], TriggerEvent)

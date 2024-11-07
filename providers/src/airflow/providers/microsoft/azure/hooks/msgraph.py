@@ -22,7 +22,7 @@ from contextlib import suppress
 from http import HTTPStatus
 from io import BytesIO
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import quote, urljoin, urlparse
 
 import httpx
@@ -358,3 +358,10 @@ class KiotaRequestAdapterHook(BaseHook):
             "4XX": APIError,
             "5XX": APIError,
         }
+
+    @staticmethod
+    def evaluate_parameters(parameters: dict[str, Any | Callable[[], Any]]):
+        if parameters:
+            for key, value in parameters.items():
+                if callable(value):
+                    parameters[key] = value()
