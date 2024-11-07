@@ -36,7 +36,7 @@ def remote_kernel(request):
         [
             "python3",
             "-m",
-            "ipykernel",
+            "ipykernel>=6.29.4",
             '--Session.key=b""',
             f"--hb={JUPYTER_KERNEL_HB_PORT}",
             f"--shell={JUPYTER_KERNEL_SHELL_PORT}",

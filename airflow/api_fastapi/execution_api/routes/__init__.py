@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api.routes.health import health_router
+from airflow.api_fastapi.execution_api.routes.task_instance import ti_router
 
 execution_api_router = AirflowRouter()
 execution_api_router.include_router(health_router)
+execution_api_router.include_router(ti_router)

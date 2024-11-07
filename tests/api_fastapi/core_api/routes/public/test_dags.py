@@ -312,7 +312,6 @@ class TestDagDetails(TestDagEndpoint):
             "last_expired": None,
             "last_parsed": last_parsed,
             "last_parsed_time": last_parsed_time,
-            "last_pickled": None,
             "max_active_runs": 16,
             "max_active_tasks": 16,
             "max_consecutive_failed_dag_runs": 0,
@@ -329,7 +328,6 @@ class TestDagDetails(TestDagEndpoint):
                     "value": 1,
                 }
             },
-            "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": None,
             "start_date": start_date.replace(tzinfo=None).isoformat() + "Z",  # pydantic datetime format
@@ -381,12 +379,10 @@ class TestGetDag(TestDagEndpoint):
             "next_dagrun_create_after": None,
             "last_expired": None,
             "max_active_tasks": 16,
-            "last_pickled": None,
             "default_view": "grid",
             "last_parsed_time": last_parsed_time,
             "timetable_description": "Never, external triggers only",
             "has_import_errors": False,
-            "pickle_id": None,
         }
         assert res_json == expected
 

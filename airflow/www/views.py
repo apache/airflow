@@ -3856,6 +3856,17 @@ class XComModelView(AirflowModelView):
     list_columns = ["key", "value", "timestamp", "dag_id", "task_id", "run_id", "map_index", "execution_date"]
     base_order = ("dag_run_id", "desc")
 
+    order_columns = [
+        "key",
+        "value",
+        "timestamp",
+        "dag_id",
+        "task_id",
+        "run_id",
+        "map_index",
+        # "execution_date", # execution_date sorting is not working and crashing the UI, disabled for now.
+    ]
+
     base_filters = [["dag_id", DagFilter, list]]
 
     formatters_columns = {
@@ -5121,7 +5132,6 @@ class TaskInstanceModelView(AirflowModelView):
         "end_date",
         "duration",
         "note",
-        "job_id",
         "hostname",
         "unixname",
         "priority_weight",
@@ -5146,7 +5156,6 @@ class TaskInstanceModelView(AirflowModelView):
         "end_date",
         "duration",
         # "note",  # TODO: Maybe figure out how to re-enable this.
-        "job_id",
         "hostname",
         "unixname",
         "priority_weight",
@@ -5192,7 +5201,7 @@ class TaskInstanceModelView(AirflowModelView):
 
     edit_form = TaskInstanceEditForm
 
-    base_order = ("job_id", "asc")
+    base_order = ("queued_dttm", "asc")
 
     base_filters = [["dag_id", DagFilter, list]]
 

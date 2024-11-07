@@ -30,7 +30,7 @@ from functools import lru_cache, partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
-from sqlalchemy import and_, delete, exists, func, not_, or_, select, text, update
+from sqlalchemy import and_, delete, exists, func, not_, select, text, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -156,8 +156,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         -1 for unlimited times.
     :param scheduler_idle_sleep_time: The number of seconds to wait between
         polls of running processors
-    :param do_pickle: once a DAG object is obtained by executing the Python
-        file, whether to serialize the DAG object to the DB
     :param log: override the default Logger
     """
 
@@ -170,7 +168,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         num_runs: int = conf.getint("scheduler", "num_runs"),
         num_times_parse_dags: int = -1,
         scheduler_idle_sleep_time: float = conf.getfloat("scheduler", "scheduler_idle_sleep_time"),
-        do_pickle: bool = False,
         log: logging.Logger | None = None,
     ):
         super().__init__(job)
@@ -186,8 +183,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
         self._task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
-
-        self.do_pickle = do_pickle
 
         self._enable_tracemalloc = conf.getboolean("scheduler", "enable_tracemalloc")
         if self._enable_tracemalloc:
@@ -639,7 +634,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
             command = ti.command_as_list(
                 local=True,
-                pickle_id=ti.dag_model.pickle_id,
             )
 
             priority = ti.priority_weight
@@ -777,7 +771,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, "
                 "run_start_date=%s, run_end_date=%s, "
                 "run_duration=%s, state=%s, executor=%s, executor_state=%s, try_number=%s, max_tries=%s, "
-                "job_id=%s, pool=%s, queue=%s, priority_weight=%d, operator=%s, queued_dttm=%s, "
+                "pool=%s, queue=%s, priority_weight=%d, operator=%s, queued_dttm=%s, "
                 "queued_by_job_id=%s, pid=%s"
             )
             cls.logger().info(
@@ -794,7 +788,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 state,
                 try_number,
                 ti.max_tries,
-                ti.job_id,
                 ti.pool,
                 ti.queue,
                 ti.priority_weight,
@@ -821,7 +814,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 span.set_attribute("operator", str(ti.operator))
                 span.set_attribute("try_number", ti.try_number)
                 span.set_attribute("executor_state", state)
-                span.set_attribute("job_id", ti.job_id)
                 span.set_attribute("pool", ti.pool)
                 span.set_attribute("queue", ti.queue)
                 span.set_attribute("priority_weight", ti.priority_weight)
@@ -925,9 +917,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         executor_class, _ = ExecutorLoader.import_default_executor_cls()
 
-        # DAGs can be pickled for easier remote execution by some executors
-        pickle_dags = self.do_pickle and executor_class.supports_pickling
-
         self.log.info("Processing each file at most %s times", self.num_times_parse_dags)
 
         # When using sqlite, we do not use async_mode
@@ -942,7 +931,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 max_runs=self.num_times_parse_dags,
                 processor_timeout=processor_timeout,
                 dag_ids=[],
-                pickle_dags=pickle_dags,
                 async_mode=async_mode,
             )
 
@@ -1977,22 +1965,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self._purge_zombies(zombies, session=session)
 
     def _find_zombies(self, *, session: Session) -> list[tuple[TI, str, str]]:
-        from airflow.jobs.job import Job
-
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
         zombies = session.execute(
             select(TI, DM.fileloc, DM.processor_subdir)
             .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
-            .join(Job, TI.job_id == Job.id)
             .join(DM, TI.dag_id == DM.dag_id)
-            .where(TI.state == TaskInstanceState.RUNNING)
-            .where(or_(Job.state != JobState.RUNNING, Job.latest_heartbeat < limit_dttm))
-            .where(Job.job_type == "LocalTaskJob")
+            .where(
+                TI.state.in_((TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING)),
+                TI.last_heartbeat_at < limit_dttm,
+            )
             .where(TI.queued_by_job_id == self.job.id)
         ).all()
         if zombies:
-            self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
+            self.log.warning("Failing %s TIs without heartbeat after %s", len(zombies), limit_dttm)
         return zombies
 
     def _purge_zombies(self, zombies: list[tuple[TI, str, str]], *, session: Session) -> None:

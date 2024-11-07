@@ -18,12 +18,20 @@
  */
 import { Button, type ButtonProps } from "@chakra-ui/react";
 
-export const QuickFilterButton = ({ children, ...rest }: ButtonProps) => (
+type QuickFilterButtonProps = {
+  readonly active: boolean;
+} & ButtonProps;
+
+export const QuickFilterButton = ({
+  active,
+  children,
+  ...rest
+}: QuickFilterButtonProps) => (
   <Button
     borderRadius={20}
-    colorScheme="blue"
+    colorPalette="blue"
     fontWeight="normal"
-    variant="outline"
+    variant={active ? "solid" : "outline"}
     {...rest}
   >
     {children}

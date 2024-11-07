@@ -1308,13 +1308,6 @@ class TestDag:
         assert start_date == run.start_date, "dag run start_date loses precision "
         self._clean_up(dag_id)
 
-    def test_pickling(self):
-        test_dag_id = "test_pickling"
-        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG(test_dag_id, schedule=None, default_args=args)
-        dag_pickle = dag.pickle()
-        assert dag_pickle.pickle.dag_id == dag.dag_id
-
     def test_rich_comparison_ops(self):
         test_dag_id = "test_rich_comparison_ops"
 

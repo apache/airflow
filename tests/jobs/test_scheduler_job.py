@@ -50,7 +50,6 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import Job, run_job
-from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models.asset import AssetActive, AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.models.backfill import Backfill, _create_backfill
@@ -68,7 +67,7 @@ from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.file import list_py_file_paths
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 from tests.listeners import dag_listener
@@ -5665,16 +5664,10 @@ class TestSchedulerJob:
             for task_id in tasks_to_setup:
                 task = dag.get_task(task_id=task_id)
                 ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
+
+                ti.last_heartbeat_at = timezone.utcnow() - timedelta(minutes=6)
                 ti.queued_by_job_id = 999
 
-                local_job = Job(dag_id=ti.dag_id)
-                LocalTaskJobRunner(job=local_job, task_instance=ti)
-                local_job.state = TaskInstanceState.FAILED
-
-                session.add(local_job)
-                session.flush()
-
-                ti.job_id = local_job.id
                 session.add(ti)
                 session.flush()
 
@@ -5733,13 +5726,6 @@ class TestSchedulerJob:
                 ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
                 ti.queued_by_job_id = 999
 
-                local_job = Job(dag_id=ti.dag_id)
-                local_job.state = TaskInstanceState.FAILED
-
-                session.add(local_job)
-                session.flush()
-
-                ti.job_id = local_job.id
                 session.add(ti)
                 session.flush()
 
@@ -5795,17 +5781,11 @@ class TestSchedulerJob:
             task = dag.get_task(task_id="run_this_last")
 
             ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
-
-            local_job = Job(dag_id=ti.dag_id)
-            LocalTaskJobRunner(job=local_job, task_instance=ti)
-            local_job.state = JobState.FAILED
-            session.add(local_job)
-            session.flush()
+            ti.last_heartbeat_at = timezone.utcnow() - timedelta(minutes=6)
 
             # TODO: If there was an actual Relationship between TI and Job
             # we wouldn't need this extra commit
             session.add(ti)
-            ti.job_id = local_job.id
             session.flush()
 
         scheduler_job = Job()

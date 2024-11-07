@@ -54,8 +54,8 @@ versions:
 dependencies:
   - apache-airflow>=2.8.0
   - papermill[all]>=2.6.0
-  - scrapbook[all]
-  - ipykernel
+  - scrapbook[all]>=0.5.0
+  - ipykernel>=6.29.4
   - pandas>=2.1.2,<2.2;python_version>="3.9"
   - pandas>=1.5.3,<2.2;python_version<"3.9"
 

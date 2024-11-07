@@ -126,14 +126,11 @@ jobs:
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version}}:${{ inputs.image-tag }}"
         uses: ./.github/actions/prepare_breeze_and_image
         id: breeze
-      - name: Cache pre-commit envs
-        uses: actions/cache@v4
+      - name: "Install pre-commit"
+        uses: ./.github/actions/install-pre-commit
+        id: pre-commit
         with:
-          path: ~/.cache/pre-commit
-          # yamllint disable-line rule:line-length
-          key: "pre-commit-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
-          restore-keys: |
-            pre-commit-${{steps.breeze.outputs.host-python-version}}-
+          python-version: ${{steps.breeze.outputs.host-python-version}}
       - name: "Static checks"
         run: breeze static-checks --all-files --show-diff-on-failure --color always --initialize-environment
         env:
@@ -170,10 +167,13 @@ jobs:
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
         uses: ./.github/actions/prepare_breeze_and_image
         id: breeze
+      - name: "Install pre-commit"
+        uses: ./.github/actions/install-pre-commit
+        id: pre-commit
+        with:
+          python-version: ${{steps.breeze.outputs.host-python-version}}
       - name: "MyPy checks for ${{ matrix.mypy-check }}"
-        run: |
-          pip install pre-commit
-          pre-commit run --color always --verbose --hook-stage manual ${{matrix.mypy-check}} --all-files
+        run: pre-commit run --color always --verbose --hook-stage manual ${{matrix.mypy-check}} --all-files
         env:
           VERBOSE: "false"
           COLUMNS: "250"
