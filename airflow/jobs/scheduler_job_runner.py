@@ -1814,11 +1814,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             for ti in executor.cleanup_stuck_queued_tasks(tis=stuck_tis):
                 if not isinstance(ti, TaskInstance):
-                    # this is for backcompat. the pre-2.10.4 version of the interface
-                    # expected a string return val.
+                    # todo: when can we remove this?
+                    #   this is for backcompat. the pre-2.10.4 version of the interface
+                    #   expected a string return val.
                     self.log.warning(
-                        "Marking task instance %s stuck in queued as failed. "
-                        "If the task instance has available retries, it will be retried.",
+                        "Task instance %s stuck in queued.  May be set to failed.",
                         ti,
                     )
                     continue
