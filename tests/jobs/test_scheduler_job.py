@@ -2251,6 +2251,7 @@ class TestSchedulerJob:
         session.commit()
         scheduler_job = Job()
         job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0)
+        job_runner._reschedule_stuck_task = MagicMock()
         job_runner._task_queued_timeout = 300
 
         # We need to return the representations s.t. the handle function creates the logs and checks for retries
@@ -2267,10 +2268,10 @@ class TestSchedulerJob:
             job_runner._handle_tasks_stuck_in_queued()
 
         # If the task gets stuck in queued once, we reset it to scheduled
-        mock_executors[0].change_state.assert_has_calls(
+        job_runner._reschedule_stuck_task.assert_has_calls(
             calls=[
-                mock.call(ti1.key, "scheduled"),
-                mock.call(ti2.key, "scheduled"),
+                mock.call(ti1),
+                mock.call(ti2),
             ]
         )
         mock_executors[0].fail.assert_not_called()
@@ -2283,6 +2284,7 @@ class TestSchedulerJob:
             }[x]
             job_runner._handle_tasks_stuck_in_queued()
             mock_executors[0].fail.assert_not_called()
+            job_runner._handle_tasks_stuck_in_queued()
             job_runner._handle_tasks_stuck_in_queued()
 
         # If the task gets stuck in queued 3 or more times, we fail the task

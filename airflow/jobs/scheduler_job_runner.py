@@ -1828,19 +1828,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                                 )
                             )
 
-                            executor.change_state(ti.key, State.SCHEDULED)
-                            session.execute(
-                                update(TI)
-                                .where(TI.filter_for_tis([ti]))
-                                .values(
-                                    # TODO[ha]: should we use func.now()? How does that work with DB timezone
-                                    # on mysql when it's not UTC?
-                                    state=TaskInstanceState.SCHEDULED,
-                                    queued_dttm=None,
-                                    # queued_by_job_id=None,
-                                )
-                                .execution_options(synchronize_session=False)
-                            )
+                            self._reschedule_stuck_task(ti)
                         else:
                             self.log.warning(
                                 "Marking task instance %s stuck in queued as failed. "
@@ -1862,6 +1850,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             except NotImplementedError:
                 self.log.debug("Executor doesn't support cleanup of stuck queued tasks. Skipping.")
+
+    @provide_session
+    def _reschedule_stuck_task(self, ti, session=NEW_SESSION):
+        session.execute(
+            update(TI)
+            .where(TI.filter_for_tis([ti]))
+            .values(
+                # TODO[ha]: should we use func.now()? How does that work with DB timezone
+                # on mysql when it's not UTC?
+                state=TaskInstanceState.SCHEDULED,
+                queued_dttm=None,
+                # queued_by_job_id=None,
+            )
+            .execution_options(synchronize_session=False)
+        )
 
     @provide_session
     def _get_num_times_stuck_in_queued(self, ti: TaskInstance, session: Session = NEW_SESSION) -> int:
