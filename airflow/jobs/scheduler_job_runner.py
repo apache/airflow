@@ -1865,17 +1865,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         )
                     )
                     executor.fail(ti.key)
+
     @provide_session
     def _reschedule_stuck_task(self, ti, session=NEW_SESSION):
         session.execute(
             update(TI)
             .where(TI.filter_for_tis([ti]))
             .values(
-                # TODO[ha]: should we use func.now()? How does that work with DB timezone
-                # on mysql when it's not UTC?
                 state=TaskInstanceState.SCHEDULED,
                 queued_dttm=None,
-                # queued_by_job_id=None,
             )
             .execution_options(synchronize_session=False)
         )
