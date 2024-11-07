@@ -798,35 +798,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
             with Trace.start_span_from_taskinstance(ti=ti) as span:
-                span.set_attribute("category", "scheduler")
-                span.set_attribute("task_id", ti.task_id)
-                span.set_attribute("dag_id", ti.dag_id)
-                span.set_attribute("state", ti.state)
-                if ti.state == TaskInstanceState.FAILED:
-                    span.set_attribute("error", True)
-                span.set_attribute("start_date", str(ti.start_date))
-                span.set_attribute("end_date", str(ti.end_date))
-                span.set_attribute("duration", ti.duration)
-                span.set_attribute("executor_config", str(ti.executor_config))
-                span.set_attribute("execution_date", str(ti.execution_date))
-                span.set_attribute("hostname", ti.hostname)
-                span.set_attribute("log_url", ti.log_url)
-                span.set_attribute("operator", str(ti.operator))
-                span.set_attribute("try_number", ti.try_number)
-                span.set_attribute("executor_state", state)
-                span.set_attribute("pool", ti.pool)
-                span.set_attribute("queue", ti.queue)
-                span.set_attribute("priority_weight", ti.priority_weight)
-                span.set_attribute("queued_dttm", str(ti.queued_dttm))
-                span.set_attribute("queued_by_job_id", ti.queued_by_job_id)
-                span.set_attribute("pid", ti.pid)
-                if span.is_recording():
-                    if ti.queued_dttm:
-                        span.add_event(name="queued", timestamp=datetime_to_nano(ti.queued_dttm))
-                    if ti.start_date:
-                        span.add_event(name="started", timestamp=datetime_to_nano(ti.start_date))
-                    if ti.end_date:
-                        span.add_event(name="ended", timestamp=datetime_to_nano(ti.end_date))
+                cls._set_span_attrs__process_executor_events(span, state, ti)
                 if conf.has_option("traces", "otel_task_log_event") and conf.getboolean(
                     "traces", "otel_task_log_event"
                 ):
@@ -909,6 +881,35 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ti.handle_failure(error=msg, session=session)
 
         return len(event_buffer)
+
+    @classmethod
+    def _set_span_attrs__process_executor_events(cls, span, state, ti):
+        span.set_attribute("category", "scheduler")
+        span.set_attribute("task_id", ti.task_id)
+        span.set_attribute("dag_id", ti.dag_id)
+        span.set_attribute("state", ti.state)
+        if ti.state == TaskInstanceState.FAILED:
+            span.set_attribute("error", True)
+        span.set_attribute("start_date", str(ti.start_date))
+        span.set_attribute("end_date", str(ti.end_date))
+        span.set_attribute("duration", ti.duration)
+        span.set_attribute("executor_config", str(ti.executor_config))
+        span.set_attribute("execution_date", str(ti.execution_date))
+        span.set_attribute("hostname", ti.hostname)
+        span.set_attribute("log_url", ti.log_url)
+        span.set_attribute("operator", str(ti.operator))
+        span.set_attribute("try_number", ti.try_number)
+        span.set_attribute("executor_state", state)
+        span.set_attribute("pool", ti.pool)
+        span.set_attribute("queue", ti.queue)
+        span.set_attribute("priority_weight", ti.priority_weight)
+        span.set_attribute("queued_dttm", str(ti.queued_dttm))
+        span.set_attribute("queued_by_job_id", ti.queued_by_job_id)
+        span.set_attribute("pid", ti.pid)
+        if span.is_recording():
+            span.add_event(name="queued", timestamp=datetime_to_nano(ti.queued_dttm))
+            span.add_event(name="started", timestamp=datetime_to_nano(ti.start_date))
+            span.add_event(name="ended", timestamp=datetime_to_nano(ti.end_date))
 
     def _execute(self) -> int | None:
         from airflow.dag_processing.manager import DagFileProcessorAgent
