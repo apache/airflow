@@ -21,10 +21,10 @@ from typing import TYPE_CHECKING, Any
 
 import attrs
 
-from airflow.assets import AssetAlias, extract_event_key
+from airflow.sdk.definitions.asset import AssetAlias, extract_event_key
 
 if TYPE_CHECKING:
-    from airflow.assets import Asset
+    from airflow.sdk.definitions.asset import Asset
 
 
 @attrs.define(init=False)

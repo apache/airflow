@@ -20,7 +20,7 @@ import urllib.parse
 from typing import TYPE_CHECKING
 
 try:
-    from airflow.assets import Asset
+    from airflow.sdk.definitions.asset import Asset
 except ModuleNotFoundError:
     from airflow.datasets import Dataset as Asset  # type: ignore[no-redef]
 

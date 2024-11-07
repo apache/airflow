@@ -22,7 +22,8 @@ from typing import TYPE_CHECKING
 from airflow import __version__ as AIRFLOW_VERSION
 
 if TYPE_CHECKING:
-    from airflow.assets import (
+    from airflow.auth.managers.models.resource_details import AssetDetails
+    from airflow.sdk.definitions.asset import (
         Asset,
         AssetAlias,
         AssetAliasEvent,
@@ -30,10 +31,10 @@ if TYPE_CHECKING:
         AssetAny,
         expand_alias_to_assets,
     )
-    from airflow.auth.managers.models.resource_details import AssetDetails
 else:
     try:
-        from airflow.assets import (
+        from airflow.auth.managers.models.resource_details import AssetDetails
+        from airflow.sdk.definitions.asset import (
             Asset,
             AssetAlias,
             AssetAliasEvent,
@@ -41,7 +42,6 @@ else:
             AssetAny,
             expand_alias_to_assets,
         )
-        from airflow.auth.managers.models.resource_details import AssetDetails
     except ModuleNotFoundError:
         from packaging.version import Version
 

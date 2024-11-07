@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Collection, Sequence
 
-from airflow.assets import AssetAlias, _AssetAliasCondition
+from airflow.sdk.definitions.asset import AssetAlias, _AssetAliasCondition
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 from airflow.utils import timezone
 
@@ -26,8 +26,8 @@ if TYPE_CHECKING:
     from pendulum import DateTime
     from sqlalchemy import Session
 
-    from airflow.assets import BaseAsset
     from airflow.models.asset import AssetEvent
+    from airflow.sdk.definitions.asset import BaseAsset
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 
