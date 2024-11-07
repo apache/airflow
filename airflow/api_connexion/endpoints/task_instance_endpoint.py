@@ -130,6 +130,7 @@ def get_mapped_task_instance(
     return task_instance_schema.dump(task_instance)
 
 
+@mark_fastapi_migration_done
 @format_parameters(
     {
         "execution_date_gte": format_datetime,
