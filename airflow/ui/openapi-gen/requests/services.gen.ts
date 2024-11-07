@@ -796,7 +796,6 @@ export class ConnectionService {
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
-        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         422: "Validation Error",

@@ -1868,10 +1868,6 @@ export type $OpenApiTs = {
          */
         200: ConnectionTestResponse;
         /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
          * Unauthorized
          */
         401: HTTPExceptionResponse;

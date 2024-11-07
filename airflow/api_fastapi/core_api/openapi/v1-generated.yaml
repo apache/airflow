@@ -1242,12 +1242,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ConnectionTestResponse'
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '401':
           description: Unauthorized
           content:

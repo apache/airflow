@@ -21,7 +21,6 @@ from typing import Annotated
 import os
 
 from fastapi import Depends, HTTPException, Query, status
-from marshmallow import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -194,7 +193,6 @@ def patch_connection(
     "/test",
     responses=create_openapi_http_exception_doc(
         [
-            status.HTTP_400_BAD_REQUEST,
             status.HTTP_401_UNAUTHORIZED,
             status.HTTP_403_FORBIDDEN,
         ]
@@ -228,7 +226,5 @@ async def test_connection(
         return ConnectionTestResponse.model_validate(
             {"status": test_status, "message": test_message}, from_attributes=True
         )
-    except ValidationError as err:
-        raise HTTPException(400, str(err.messages))
     finally:
         os.environ.pop(conn_env_var, None)
