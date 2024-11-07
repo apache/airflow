@@ -61,6 +61,7 @@ from airflow.api_connexion.schemas.task_instance_schema import (
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.exceptions import ParamValidationError
 from airflow.models import DagModel, DagRun
+from airflow.models.dag_version import DagVersion
 from airflow.timetables.base import DataInterval
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.api_migration import mark_fastapi_migration_done
@@ -341,7 +342,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 )
             else:
                 data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
-
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
             dag_run = dag.create_dagrun(
                 run_type=DagRunType.MANUAL,
                 run_id=run_id,
@@ -350,7 +351,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 state=DagRunState.QUEUED,
                 conf=post_body.get("conf"),
                 external_trigger=True,
-                dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
+                dag_version=dag_version,
                 session=session,
                 triggered_by=DagRunTriggeredByType.REST_API,
             )
