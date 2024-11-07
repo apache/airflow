@@ -154,6 +154,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.JAVASCRIPT_PRODUCTION_FILES: [
             r"^airflow/.*\.[jt]sx?",
             r"^airflow/.*\.lock",
+            r"^airflow/ui/.*\.yaml$",
         ],
         FileGroupForCi.API_TEST_FILES: [
             r"^airflow/api/",
@@ -189,12 +190,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/values\.schema\.json",
             r"^chart/values\.json",
         ],
-        FileGroupForCi.UI_FILES: [
-            r"^airflow/ui/.*\.ts[x]?$",
-            r"^airflow/ui/.*\.js[x]?$",
-            r"^airflow/ui/[^/]+\.json$",
-            r"^airflow/ui/.*\.lock$",
-        ],
+        FileGroupForCi.UI_FILES: [r"^airflow/ui/"],
         FileGroupForCi.LEGACY_WWW_FILES: [
             r"^airflow/www/.*\.ts[x]?$",
             r"^airflow/www/.*\.js[x]?$",
@@ -1228,10 +1224,11 @@ class SelectiveChecks:
 
     @cached_property
     def runs_on_as_json_docs_build(self) -> str:
-        if self._is_canary_run():
-            return RUNS_ON_SELF_HOSTED_ASF_RUNNER
-        else:
-            return RUNS_ON_PUBLIC_RUNNER
+        # We used to run docs build on self-hosted runners because they had more space, but
+        # It turned out that public runners have a lot of space in /mnt folder that we can utilise
+        # but in the future we might want to switch back to self-hosted runners so we have this
+        # separate property to determine that and place to implement different logic if needed
+        return RUNS_ON_PUBLIC_RUNNER
 
     @cached_property
     def runs_on_as_json_public(self) -> str:

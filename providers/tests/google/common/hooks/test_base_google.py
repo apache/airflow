@@ -1022,6 +1022,7 @@ class TestGoogleBaseAsyncHook:
     async def test_get_token_impersonation(self, mock_auth_default, monkeypatch, requests_mock) -> None:
         mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
         mock_credentials.token = "ACCESS_TOKEN"
+        mock_credentials.universe_domain = "googleapis.com"
         mock_auth_default.return_value = (mock_credentials, "PROJECT_ID")
         monkeypatch.setenv(
             "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT",
@@ -1045,6 +1046,7 @@ class TestGoogleBaseAsyncHook:
     @mock.patch("google.auth.default")
     async def test_get_token_impersonation_conn(self, mock_auth_default, monkeypatch, requests_mock) -> None:
         mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
+        mock_credentials.universe_domain = "googleapis.com"
         mock_auth_default.return_value = (mock_credentials, "PROJECT_ID")
         monkeypatch.setenv(
             "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT",

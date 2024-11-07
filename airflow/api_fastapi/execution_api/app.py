@@ -24,10 +24,10 @@ def create_task_execution_api_app(app: FastAPI) -> FastAPI:
     """Create FastAPI app for task execution API."""
     from airflow.api_fastapi.execution_api.routes import execution_api_router
 
+    # TODO: Add versioning to the API
     task_exec_api_app = FastAPI(
         title="Airflow Task Execution API",
         description="The private Airflow Task Execution API.",
-        include_in_schema=False,
     )
 
     task_exec_api_app.include_router(execution_api_router)

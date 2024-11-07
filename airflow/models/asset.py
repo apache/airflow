@@ -48,13 +48,22 @@ alias_association_table = Table(
     Index("idx_asset_alias_asset_asset_id", "asset_id"),
 )
 
-asset_alias_asset_event_assocation_table = Table(
+asset_alias_asset_event_association_table = Table(
     "asset_alias_asset_event",
     Base.metadata,
     Column("alias_id", ForeignKey("asset_alias.id", ondelete="CASCADE"), primary_key=True),
     Column("event_id", ForeignKey("asset_event.id", ondelete="CASCADE"), primary_key=True),
     Index("idx_asset_alias_asset_event_alias_id", "alias_id"),
     Index("idx_asset_alias_asset_event_event_id", "event_id"),
+)
+
+asset_trigger_association_table = Table(
+    "asset_trigger",
+    Base.metadata,
+    Column("asset_id", ForeignKey("asset.id", ondelete="CASCADE"), primary_key=True),
+    Column("trigger_id", ForeignKey("trigger.id", ondelete="CASCADE"), primary_key=True),
+    Index("idx_asset_trigger_asset_id", "asset_id"),
+    Index("idx_asset_trigger_trigger_id", "trigger_id"),
 )
 
 
@@ -105,7 +114,7 @@ class AssetAliasModel(Base):
     )
     asset_events = relationship(
         "AssetEvent",
-        secondary=asset_alias_asset_event_assocation_table,
+        secondary=asset_alias_asset_event_association_table,
         back_populates="source_aliases",
     )
     consuming_dags = relationship("DagScheduleAssetAliasReference", back_populates="asset_alias")
@@ -185,6 +194,7 @@ class AssetModel(Base):
 
     consuming_dags = relationship("DagScheduleAssetReference", back_populates="asset")
     producing_tasks = relationship("TaskOutletAssetReference", back_populates="asset")
+    triggers = relationship("Trigger", secondary=asset_trigger_association_table, back_populates="assets")
 
     __tablename__ = "asset"
     __table_args__ = (
@@ -517,7 +527,7 @@ class AssetEvent(Base):
 
     source_aliases = relationship(
         "AssetAliasModel",
-        secondary=asset_alias_asset_event_assocation_table,
+        secondary=asset_alias_asset_event_association_table,
         back_populates="asset_events",
     )
 

@@ -119,7 +119,7 @@ dependencies:
   - microsoft-kiota-abstractions<1.4.0
 
 devel-dependencies:
-  - pywinrm
+  - pywinrm>=0.4
 
 integrations:
   - integration-name: Microsoft Azure Batch

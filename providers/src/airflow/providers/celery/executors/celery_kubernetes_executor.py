@@ -56,6 +56,7 @@ class CeleryKubernetesExecutor(BaseExecutor):
     """
 
     supports_ad_hoc_ti_run: bool = True
+    # TODO: Remove this flag once providers depend on Airflow 3.0
     supports_pickling: bool = True
     supports_sentry: bool = False
 
@@ -159,7 +160,6 @@ class CeleryKubernetesExecutor(BaseExecutor):
         self,
         task_instance: TaskInstance,
         mark_success: bool = False,
-        pickle_id: int | None = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         wait_for_past_depends_before_skipping: bool = False,
@@ -167,6 +167,7 @@ class CeleryKubernetesExecutor(BaseExecutor):
         ignore_ti_state: bool = False,
         pool: str | None = None,
         cfg_path: str | None = None,
+        **kwargs,
     ) -> None:
         """Queues task instance via celery or kubernetes executor."""
         from airflow.models.taskinstance import SimpleTaskInstance
@@ -175,10 +176,14 @@ class CeleryKubernetesExecutor(BaseExecutor):
         self.log.debug(
             "Using executor: %s to queue_task_instance for %s", executor.__class__.__name__, task_instance.key
         )
+
+        # TODO: Remove this once providers depend on Airflow 3.0
+        if not hasattr(task_instance, "pickle_id"):
+            del kwargs["pickle_id"]
+
         executor.queue_task_instance(
             task_instance=task_instance,
             mark_success=mark_success,
-            pickle_id=pickle_id,
             ignore_all_deps=ignore_all_deps,
             ignore_depends_on_past=ignore_depends_on_past,
             wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
@@ -186,6 +191,7 @@ class CeleryKubernetesExecutor(BaseExecutor):
             ignore_ti_state=ignore_ti_state,
             pool=pool,
             cfg_path=cfg_path,
+            **kwargs,
         )
 
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:

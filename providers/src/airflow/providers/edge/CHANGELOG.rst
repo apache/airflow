@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+0.5.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Small beautification for host status in Edge Worker view.``
+
+0.5.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Remove warning about missing config in edge plugin loading.``
+
 0.5.0pre0
 .........
 

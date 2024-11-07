@@ -31,6 +31,7 @@ class TaskInstanceResponse(BaseModel):
 
     model_config = ConfigDict(populate_by_name=True)
 
+    id: str
     task_id: str
     dag_id: str
     run_id: str = Field(alias="dag_run_id")
@@ -69,3 +70,16 @@ class TaskInstanceCollectionResponse(BaseModel):
 
     task_instances: list[TaskInstanceResponse]
     total_entries: int
+
+
+class TaskDependencyResponse(BaseModel):
+    """Task Dependency serializer for responses."""
+
+    name: str
+    reason: str
+
+
+class TaskDependencyCollectionResponse(BaseModel):
+    """Task scheduling dependencies collection serializer for responses."""
+
+    dependencies: list[TaskDependencyResponse]

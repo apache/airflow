@@ -90,7 +90,10 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "authlib>=1.0.0",
     ],
     "graphviz": [
-        "graphviz>=0.12",
+        # The graphviz package creates friction when installing on MacOS as it needs graphviz system package to
+        # be installed, and it's really only used for very obscure features of Airflow, so we can skip it on MacOS
+        # Instead, if someone attempts to use it on MacOS, they will get explanatory error on how to install it
+        "graphviz>=0.12; sys_platform != 'darwin'",
     ],
     "kerberos": [
         "pykerberos>=1.1.13",
@@ -101,7 +104,10 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "python-ldap>=3.4.4",
     ],
     "leveldb": [
-        "plyvel>=1.5.1",
+        # The plyvel package is a huge pain when installing on MacOS - especially when Apple releases new
+        # OS version. It's usually next to impossible to install it at least for a few months after the new
+        # MacOS version is released. We can skip it on MacOS as this is an optional feature anyway.
+        "plyvel>=1.5.1; sys_platform != 'darwin'",
     ],
     "otel": [
         "opentelemetry-exporter-prometheus>=0.47b0",
@@ -136,9 +142,6 @@ CORE_EXTRAS: dict[str, list[str]] = {
     ],
     "uv": [
         "uv>=0.1.32",
-    ],
-    "virtualenv": [
-        "virtualenv>=20.26.0",
     ],
 }
 
@@ -191,8 +194,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     "devel-devscripts": [
         "click>=8.0",
         "hatch>=1.9.1",
-        # Incremental 24.7.0, 24.7.1 has broken `python -m virtualenv` command when run in /opt/airflow directory
-        "incremental!=24.7.0,!=24.7.1,>=22.10.0",
+        "incremental>=24.7.2",
         "pipdeptree>=2.13.1",
         "pygithub>=2.1.1",
         "restructuredtext-lint>=1.4.0",
@@ -227,28 +229,28 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "types-protobuf>=5.26.0.20240422",
         "types-python-dateutil>=2.9.0.20240316",
         "types-python-slugify>=8.0.2.20240310",
-        "types-pytz",
-        "types-redis",
-        "types-requests",
-        "types-setuptools",
-        "types-tabulate",
-        "types-termcolor",
-        "types-toml",
+        "types-pytz>=2024.1.0.20240417",
+        "types-redis>=4.6.0.20240425",
+        # aiobotocore>=2.9.0 requires urllib<2. types-requests>=2.31.0.7 uses urllib>2.
+        # hence, 2.31.0.6 is required for aiobotocore>=2.9.0
+        "types-requests>=2.31.0.6",
+        "types-setuptools>=69.5.0.20240423",
+        "types-tabulate>=0.9.0.20240106",
+        "types-termcolor>=1.1.6.2",
+        "types-toml>=0.10.8.20240310",
     ],
     "devel-sentry": [
         "blinker>=1.7.0",
     ],
     "devel-static-checks": [
-        "astunparse>=1.6.3; python_version < '3.9'",
         "black>=23.12.0",
         "pre-commit>=3.5.0",
-        "ruff==0.7.1",
+        "ruff==0.7.2",
         "yamllint>=1.33.0",
     ],
     "devel-tests": [
         "aiofiles>=23.2.0",
         "aioresponses>=0.7.6",
-        "backports.zoneinfo>=0.2.1;python_version<'3.9'",
         "beautifulsoup4>=4.7.1",
         # Coverage 7.4.0 added experimental support for Python 3.12 PEP669 which we use in Airflow
         "coverage>=7.4.0",
@@ -390,9 +392,6 @@ DEPENDENCIES = [
     "gunicorn>=20.1.0",
     "httpx>=0.25.0",
     'importlib_metadata>=6.5;python_version<"3.12"',
-    # Importib_resources 6.2.0-6.3.1 break pytest_rewrite
-    # see https://github.com/python/importlib_resources/issues/299
-    'importlib_resources>=5.2,!=6.2.0,!=6.3.0,!=6.3.1;python_version<"3.9"',
     "itsdangerous>=2.0",
     "jinja2>=3.0.0",
     "jsonschema>=4.18.0",
@@ -432,6 +431,7 @@ DEPENDENCIES = [
     # The issue tracking it is https://github.com/apache/airflow/issues/28723
     "sqlalchemy>=1.4.36,<2.0",
     "sqlalchemy-jsonfield>=1.0",
+    "sqlalchemy-utils>=0.41.2",
     "tabulate>=0.7.5",
     "tenacity>=8.0.0,!=8.2.0",
     "termcolor>=1.1.0",

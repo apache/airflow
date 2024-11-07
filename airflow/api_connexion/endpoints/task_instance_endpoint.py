@@ -104,6 +104,7 @@ def get_task_instance(
     return task_instance_schema.dump(task_instance)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_mapped_task_instance(
@@ -129,6 +130,7 @@ def get_mapped_task_instance(
     return task_instance_schema.dump(task_instance)
 
 
+@mark_fastapi_migration_done
 @format_parameters(
     {
         "execution_date_gte": format_datetime,
@@ -282,6 +284,7 @@ def _get_order_by_params(order_by: str | None = None) -> tuple[ColumnOperators, 
     raise _UnsupportedOrderBy(order_by)
 
 
+@mark_fastapi_migration_done
 @format_parameters(
     {
         "execution_date_gte": format_datetime,
@@ -718,6 +721,7 @@ def get_task_instance_dependencies(
     return task_dependencies_collection_schema.dump({"dependencies": deps})
 
 
+@mark_fastapi_migration_done
 def get_mapped_task_instance_dependencies(
     *, dag_id: str, dag_run_id: str, task_id: str, map_index: int
 ) -> APIResponse:

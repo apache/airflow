@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex, Text, Tooltip, VStack } from "@chakra-ui/react";
+import { Flex, Text, VStack } from "@chakra-ui/react";
 import { FiTag } from "react-icons/fi";
 
 import type { DagTagPydantic } from "openapi/requests/types.gen";
+import { Tooltip } from "src/components/ui";
 
 const MAX_TAGS = 3;
 
@@ -32,7 +33,7 @@ export const DagTags = ({ hideIcon = false, tags }: Props) =>
   tags.length ? (
     <Flex alignItems="center" ml={2}>
       {hideIcon ? undefined : <FiTag data-testid="dag-tag" />}
-      <Text ml={1}>
+      <Text fontSize="sm" ml={1}>
         {tags
           .slice(0, MAX_TAGS)
           .map(({ name }) => name)
@@ -40,14 +41,14 @@ export const DagTags = ({ hideIcon = false, tags }: Props) =>
       </Text>
       {tags.length > MAX_TAGS && (
         <Tooltip
-          hasArrow
-          label={
-            <VStack p={1} spacing={1}>
+          content={
+            <VStack gap={1} p={1}>
               {tags.slice(MAX_TAGS).map((tag) => (
                 <Text key={tag.name}>{tag.name}</Text>
               ))}
             </VStack>
           }
+          showArrow
         >
           <Text>, +{tags.length - MAX_TAGS} more</Text>
         </Tooltip>
