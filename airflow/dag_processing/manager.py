@@ -117,7 +117,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         for unlimited.
     :param processor_timeout: How long to wait before timing out a DAG file processor
     :param dag_ids: if specified, only schedule tasks with these DAG IDs
-    :param pickle_dags: whether to pickle DAGs.
     :param async_mode: Whether to start agent in async mode
     """
 
@@ -127,7 +126,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         max_runs: int,
         processor_timeout: timedelta,
         dag_ids: list[str] | None,
-        pickle_dags: bool,
         async_mode: bool,
     ):
         super().__init__()
@@ -135,7 +133,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         self._max_runs = max_runs
         self._processor_timeout = processor_timeout
         self._dag_ids = dag_ids
-        self._pickle_dags = pickle_dags
         self._async_mode = async_mode
         # Map from file path to the processor
         self._processors: dict[str, DagFileProcessorProcess] = {}
@@ -163,7 +160,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
                 self._processor_timeout,
                 child_signal_conn,
                 self._dag_ids,
-                self._pickle_dags,
                 self._async_mode,
             ),
         )
@@ -223,7 +219,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         processor_timeout: timedelta,
         signal_conn: MultiprocessingConnection,
         dag_ids: list[str] | None,
-        pickle_dags: bool,
         async_mode: bool,
     ) -> None:
         # Make this process start as a new process group - that makes it easy
@@ -240,7 +235,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
             max_runs=max_runs,
             processor_timeout=processor_timeout,
             dag_ids=dag_ids,
-            pickle_dags=pickle_dags,
             signal_conn=signal_conn,
             async_mode=async_mode,
         )
@@ -353,7 +347,6 @@ class DagFileProcessorManager(LoggingMixin):
     :param processor_timeout: How long to wait before timing out a DAG file processor
     :param signal_conn: connection to communicate signal with processor agent.
     :param dag_ids: if specified, only schedule tasks with these DAG IDs
-    :param pickle_dags: whether to pickle DAGs.
     :param async_mode: whether to start the manager in async mode
     """
 
@@ -372,7 +365,6 @@ class DagFileProcessorManager(LoggingMixin):
         max_runs: int,
         processor_timeout: timedelta,
         dag_ids: list[str] | None,
-        pickle_dags: bool,
         signal_conn: MultiprocessingConnection | None = None,
         async_mode: bool = True,
     ):
@@ -383,7 +375,6 @@ class DagFileProcessorManager(LoggingMixin):
         self._max_runs = max_runs
         # signal_conn is None for dag_processor_standalone mode.
         self._direct_scheduler_conn = signal_conn
-        self._pickle_dags = pickle_dags
         self._dag_ids = dag_ids
         self._async_mode = async_mode
         self._parsing_start_time: float | None = None
@@ -1191,11 +1182,10 @@ class DagFileProcessorManager(LoggingMixin):
         self.log.debug("%s file paths queued for processing", len(self._file_path_queue))
 
     @staticmethod
-    def _create_process(file_path, pickle_dags, dag_ids, dag_directory, callback_requests):
+    def _create_process(file_path, dag_ids, dag_directory, callback_requests):
         """Create DagFileProcessorProcess instance."""
         return DagFileProcessorProcess(
             file_path=file_path,
-            pickle_dags=pickle_dags,
             dag_ids=dag_ids,
             dag_directory=dag_directory,
             callback_requests=callback_requests,
@@ -1217,7 +1207,6 @@ class DagFileProcessorManager(LoggingMixin):
             callback_to_execute_for_file = self._callback_to_execute[file_path]
             processor = self._create_process(
                 file_path,
-                self._pickle_dags,
                 self._dag_ids,
                 self.get_dag_directory(),
                 callback_to_execute_for_file,

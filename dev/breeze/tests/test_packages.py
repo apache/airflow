@@ -169,7 +169,7 @@ def test_get_documentation_package_path():
             """
     "apache-airflow-providers-common-compat>=1.2.1",
     "apache-airflow>=2.9.0",
-    "flask-appbuilder==4.5.0",
+    "flask-appbuilder==4.5.2",
     "flask-login>=0.6.2",
     "flask>=2.2,<2.3",
     "google-re2>=1.0",
@@ -183,7 +183,7 @@ def test_get_documentation_package_path():
             """
     "apache-airflow-providers-common-compat>=1.2.1.dev0",
     "apache-airflow>=2.9.0.dev0",
-    "flask-appbuilder==4.5.0",
+    "flask-appbuilder==4.5.2",
     "flask-login>=0.6.2",
     "flask>=2.2,<2.3",
     "google-re2>=1.0",
@@ -197,7 +197,7 @@ def test_get_documentation_package_path():
             """
     "apache-airflow-providers-common-compat>=1.2.1b0",
     "apache-airflow>=2.9.0b0",
-    "flask-appbuilder==4.5.0",
+    "flask-appbuilder==4.5.2",
     "flask-login>=0.6.2",
     "flask>=2.2,<2.3",
     "google-re2>=1.0",
@@ -380,8 +380,8 @@ def test_get_dist_package_name_prefix(provider_id: str, expected_package_name: s
             id="version-with-platform-marker",
         ),
         pytest.param(
-            "backports.zoneinfo>=0.2.1;python_version<'3.9'",
-            ("backports.zoneinfo", '>=0.2.1; python_version < "3.9"'),
+            "pendulum>=2.1.2,<4.0;python_version<'3.12'",
+            ("pendulum", '>=2.1.2,<4.0; python_version < "3.12"'),
             id="version-with-python-marker",
         ),
         pytest.param(

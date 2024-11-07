@@ -33,6 +33,7 @@ airbyte
 AirflowException
 airflowignore
 ajax
+aks
 AlertApi
 alertPolicies
 Alibaba
@@ -159,6 +160,7 @@ balancers
 Banco
 Bas
 BaseClient
+BaseHook
 BaseObject
 BaseOperator
 baseOperator
@@ -790,6 +792,7 @@ ignoreUnknownValues
 ImageAnnotatorClient
 imageORfile
 imagePullPolicy
+imagePullSecrets
 imageVersion
 Imap
 imap
@@ -1734,6 +1737,7 @@ unarchived
 unassigns
 uncomment
 uncommenting
+uncompress
 Undead
 undead
 Undeads

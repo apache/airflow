@@ -114,6 +114,7 @@ class HttpOperator(BaseOperator):
         response_check: Callable[..., bool] | None = None,
         response_filter: Callable[..., Any] | None = None,
         extra_options: dict[str, Any] | None = None,
+        request_kwargs: dict[str, Any] | None = None,
         http_conn_id: str = "http_default",
         log_response: bool = False,
         auth_type: type[AuthBase] | None = None,
@@ -143,6 +144,7 @@ class HttpOperator(BaseOperator):
         self.tcp_keep_alive_interval = tcp_keep_alive_interval
         self.deferrable = deferrable
         self.retry_args = retry_args
+        self.request_kwargs = request_kwargs or {}
 
     @property
     def hook(self) -> HttpHook:
@@ -173,10 +175,21 @@ class HttpOperator(BaseOperator):
         self.log.info("Calling HTTP method")
         if self.retry_args:
             response = self.hook.run_with_advanced_retry(
-                self.retry_args, self.endpoint, self.data, self.headers, self.extra_options
+                self.retry_args,
+                self.endpoint,
+                self.data,
+                self.headers,
+                self.extra_options,
+                **self.request_kwargs,
             )
         else:
-            response = self.hook.run(self.endpoint, self.data, self.headers, self.extra_options)
+            response = self.hook.run(
+                self.endpoint,
+                self.data,
+                self.headers,
+                self.extra_options,
+                **self.request_kwargs,
+            )
         response = self.paginate_sync(response=response)
         return self.process_response(context=context, response=response)
 
@@ -191,7 +204,8 @@ class HttpOperator(BaseOperator):
                 break
             if self.retry_args:
                 response = self.hook.run_with_advanced_retry(
-                    self.retry_args, **self._merge_next_page_parameters(next_page_params)
+                    self.retry_args,
+                    **self._merge_next_page_parameters(next_page_params),
                 )
             else:
                 response = self.hook.run(**self._merge_next_page_parameters(next_page_params))
@@ -304,6 +318,7 @@ class HttpOperator(BaseOperator):
             data=data,
             headers=merge_dicts(self.headers, next_page_params.get("headers", {})),
             extra_options=merge_dicts(self.extra_options, next_page_params.get("extra_options", {})),
+            **self.request_kwargs,
         )
 
 

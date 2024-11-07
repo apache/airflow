@@ -77,7 +77,6 @@ class TestMappedTaskInstanceEndpoint:
             "duration": 10000,
             "pool": "default_pool",
             "queue": "default_queue",
-            "job_id": 0,
         }
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore

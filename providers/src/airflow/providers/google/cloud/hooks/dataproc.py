@@ -999,6 +999,7 @@ class DataprocHook(GoogleBaseHook):
             individual attempt.
         :param metadata: Additional metadata that is provided to the method.
         """
+        self.log.debug("Creating batch: %s", batch)
         client = self.get_batch_client(region)
         parent = f"projects/{project_id}/regions/{region}"
 

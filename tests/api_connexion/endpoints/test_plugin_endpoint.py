@@ -23,7 +23,6 @@ from fastapi import FastAPI
 from flask import Blueprint
 from flask_appbuilder import BaseView
 
-from airflow.hooks.base import BaseHook
 from airflow.plugins_manager import AirflowPlugin
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.base import Timetable
@@ -35,9 +34,6 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
-
-
-class PluginHook(BaseHook): ...
 
 
 def plugin_macro(): ...
@@ -100,7 +96,6 @@ class MockPlugin(AirflowPlugin):
     appbuilder_menu_items = [appbuilder_menu_items]
     global_operator_extra_links = [MockOperatorLink()]
     operator_extra_links = [MockOperatorLink()]
-    hooks = [PluginHook]
     macros = [plugin_macro]
     ti_deps = [ti_dep]
     timetables = [CustomTimetable]
@@ -145,7 +140,6 @@ class TestGetPlugins(TestPluginsEndpoint):
                 {
                     "appbuilder_menu_items": [appbuilder_menu_items],
                     "appbuilder_views": [{"view": qualname(MockView)}],
-                    "executors": [],
                     "flask_blueprints": [
                         f"<{qualname(bp.__class__)}: name={bp.name!r} import_name={bp.import_name!r}>"
                     ],
@@ -157,7 +151,6 @@ class TestGetPlugins(TestPluginsEndpoint):
                         }
                     ],
                     "global_operator_extra_links": [f"<{qualname(MockOperatorLink().__class__)} object>"],
-                    "hooks": [qualname(PluginHook)],
                     "macros": [qualname(plugin_macro)],
                     "operator_extra_links": [f"<{qualname(MockOperatorLink().__class__)} object>"],
                     "source": None,

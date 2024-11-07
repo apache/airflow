@@ -16,16 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChakraProvider } from "@chakra-ui/react";
+import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import axios, { type AxiosError } from "axios";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter } from "react-router-dom";
+import { RouterProvider } from "react-router-dom";
 
-import { App } from "src/App";
-
-import { TimezoneProvider } from "./context/timezone";
-import theme from "./theme";
+import { ColorModeProvider } from "src/context/colorMode";
+import { TimezoneProvider } from "src/context/timezone";
+import { router } from "src/router";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,16 +58,14 @@ axios.interceptors.response.use(
   },
 );
 
-const root = createRoot(document.querySelector("#root") as HTMLDivElement);
-
-root.render(
-  <BrowserRouter basename="/webapp">
-    <ChakraProvider theme={theme}>
+createRoot(document.querySelector("#root") as HTMLDivElement).render(
+  <ChakraProvider value={defaultSystem}>
+    <ColorModeProvider>
       <QueryClientProvider client={queryClient}>
         <TimezoneProvider>
-          <App />
+          <RouterProvider router={router} />
         </TimezoneProvider>
       </QueryClientProvider>
-    </ChakraProvider>
-  </BrowserRouter>,
+    </ColorModeProvider>
+  </ChakraProvider>,
 );

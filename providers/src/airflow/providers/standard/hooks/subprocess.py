@@ -22,10 +22,25 @@ import signal
 from collections import namedtuple
 from subprocess import PIPE, STDOUT, Popen
 from tempfile import TemporaryDirectory, gettempdir
+from typing import Iterator
 
 from airflow.hooks.base import BaseHook
 
 SubprocessResult = namedtuple("SubprocessResult", ["exit_code", "output"])
+
+
+@contextlib.contextmanager
+def working_directory(cwd: str | None = None) -> Iterator[str]:
+    """
+    Context manager for handling (temporary) working directory.
+
+    Use the given cwd as working directory, if provided.
+    Otherwise, create a temporary directory.
+    """
+    with contextlib.ExitStack() as stack:
+        if cwd is None:
+            cwd = stack.enter_context(TemporaryDirectory(prefix="airflowtmp"))
+        yield cwd
 
 
 class SubprocessHook(BaseHook):
@@ -61,9 +76,7 @@ class SubprocessHook(BaseHook):
             or stdout
         """
         self.log.info("Tmp dir root location: %s", gettempdir())
-        with contextlib.ExitStack() as stack:
-            if cwd is None:
-                cwd = stack.enter_context(TemporaryDirectory(prefix="airflowtmp"))
+        with working_directory(cwd=cwd) as cwd:
 
             def pre_exec():
                 # Restore default signal disposition and invoke setsid

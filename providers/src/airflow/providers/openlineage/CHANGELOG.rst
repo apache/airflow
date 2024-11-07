@@ -26,6 +26,26 @@
 Changelog
 ---------
 
+1.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat(providers/openlineage): Use asset in common provider (#43111)``
+
+Misc
+~~~~
+
+* ``Ignore attr-defined for compat import (#43301)``
+* ``nit: remove taskgroup's tooltip from OL's AirflowJobFacet (#43152)``
+* ``require 1.2.1 common.compat for openlineage provider (#43039)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 1.12.2
 ......
 

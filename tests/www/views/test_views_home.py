@@ -205,7 +205,7 @@ TEST_TAGS = ["example", "test", "team", "group"]
 
 def _process_file(file_path):
     dag_file_processor = DagFileProcessor(dag_ids=[], dag_directory="/tmp", log=mock.MagicMock())
-    dag_file_processor.process_file(file_path, [], False)
+    dag_file_processor.process_file(file_path, [])
 
 
 @pytest.fixture
@@ -457,20 +457,6 @@ def test_sorting_home_view(url, lower_key, greater_key, user_client, _working_da
     lower_index = resp_html.find(lower_key)
     greater_index = resp_html.find(greater_key)
     assert lower_index < greater_index
-
-
-@pytest.mark.parametrize("is_enabled, should_have_pixel", [(False, False), (True, True)])
-def test_analytics_pixel(user_client, is_enabled, should_have_pixel):
-    """
-    Test that the analytics pixel is not included when the feature is disabled
-    """
-    with mock.patch("airflow.settings.is_usage_data_collection_enabled", return_value=is_enabled):
-        resp = user_client.get("home", follow_redirects=True)
-
-    if should_have_pixel:
-        check_content_in_response("apacheairflow.gateway.scarf.sh", resp)
-    else:
-        check_content_not_in_response("apacheairflow.gateway.scarf.sh", resp)
 
 
 @pytest.mark.parametrize(

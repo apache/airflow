@@ -23,7 +23,7 @@ import pendulum
 
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 
 exec_date = pendulum.datetime(2021, 1, 1)
 fut_start_date = pendulum.datetime(2021, 2, 1)

@@ -262,8 +262,30 @@ class DagInfo(InfoJsonEncodable):
         "start_date",
         "tags",
     ]
-    casts = {"timetable": lambda dag: dag.timetable.serialize() if getattr(dag, "timetable", None) else None}
+    casts = {"timetable": lambda dag: DagInfo.serialize_timetable(dag)}
     renames = {"_dag_id": "dag_id"}
+
+    @classmethod
+    def serialize_timetable(cls, dag: DAG) -> dict[str, Any]:
+        serialized = dag.timetable.serialize()
+        if serialized != {} and serialized is not None:
+            return serialized
+        if (
+            hasattr(dag, "dataset_triggers")
+            and isinstance(dag.dataset_triggers, list)
+            and len(dag.dataset_triggers)
+        ):
+            triggers = dag.dataset_triggers
+            return {
+                "dataset_condition": {
+                    "__type": "dataset_all",
+                    "objects": [
+                        {"__type": "dataset", "uri": trigger.uri, "extra": trigger.extra}
+                        for trigger in triggers
+                    ],
+                }
+            }
+        return {}
 
 
 class DagRunInfo(InfoJsonEncodable):

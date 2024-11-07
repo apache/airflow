@@ -20,7 +20,7 @@ from __future__ import annotations
 import ast
 import re
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
 
 from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
@@ -145,13 +145,25 @@ class BaseSQLOperator(BaseOperator):
         self.hook_params = hook_params or {}
         self.retry_on_failure = retry_on_failure
 
+    @classmethod
+    # TODO: can be removed once Airflow min version for this provider is 3.0.0 or higher
+    def get_hook(cls, conn_id: str, hook_params: dict | None = None) -> BaseHook:
+        """
+        Return default hook for this connection id.
+
+        :param conn_id: connection id
+        :param hook_params: hook parameters
+        :return: default hook for this connection
+        """
+        connection = BaseHook.get_connection(conn_id)
+        return connection.get_hook(hook_params=hook_params)
+
     @cached_property
     def _hook(self):
         """Get DB Hook based on connection type."""
         conn_id = getattr(self, self.conn_id_field)
         self.log.debug("Get connection for %s", conn_id)
-        conn = BaseHook.get_connection(conn_id)
-        hook = conn.get_hook(hook_params=self.hook_params)
+        hook = self.get_hook(conn_id=conn_id, hook_params=self.hook_params)
         if not isinstance(hook, DbApiHook):
             raise AirflowException(
                 f"You are trying to use `common-sql` with {hook.__class__.__name__},"
@@ -212,7 +224,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
 
     template_fields: Sequence[str] = ("sql", "parameters", *BaseSQLOperator.template_fields)
     template_ext: Sequence[str] = (".sql", ".json")
-    template_fields_renderers = {"sql": "sql", "parameters": "json"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql", "parameters": "json"}
     ui_color = "#cdaaed"
 
     def __init__(
@@ -416,7 +428,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
     """
 
     template_fields: Sequence[str] = ("table", "partition_clause", "sql", *BaseSQLOperator.template_fields)
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
 
     sql_check_template = """
         SELECT '{column}' AS col_name, '{check}' AS check_type, {column}_{check} AS check_result
@@ -645,7 +657,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
     template_fields: Sequence[str] = ("table", "partition_clause", "sql", *BaseSQLOperator.template_fields)
 
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
 
     sql_check_template = """
     SELECT '{check_name}' AS check_name, MIN({check_name}) AS check_result
@@ -764,7 +776,7 @@ class SQLCheckOperator(BaseSQLOperator):
         ".hql",
         ".sql",
     )
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
     ui_color = "#fff7e6"
 
     def __init__(
@@ -810,7 +822,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
         ".hql",
         ".sql",
     )
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
     ui_color = "#fff7e6"
 
     def __init__(
@@ -907,7 +919,7 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         ".hql",
         ".sql",
     )
-    template_fields_renderers = {"sql1": "sql", "sql2": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql1": "sql", "sql2": "sql"}
     ui_color = "#fff7e6"
 
     ratio_formulas = {
@@ -1040,7 +1052,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
         ".hql",
         ".sql",
     )
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
 
     def __init__(
         self,
@@ -1135,7 +1147,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
 
     template_fields: Sequence[str] = ("sql", *BaseSQLOperator.template_fields)
     template_ext: Sequence[str] = (".sql",)
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
     ui_color = "#a22034"
     ui_fgcolor = "#F7F7F7"
 

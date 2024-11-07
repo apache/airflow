@@ -27,6 +27,36 @@
 Changelog
 ---------
 
+
+main
+.....
+
+.. warning::
+  Set the default value of ``namespace`` in ``@task.kubernetes`` to ``None``, so it uses the cluster namespace when ``in_cluster`` is True. Be sure to specify a namespace when using this decorator. To retain the previous behavior, set ``namespace="default"``
+
+
+9.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``(fix): HybridExecutor tasks of other executor rescheduled in kubernetes executor (#43003)``
+* ``(fix): use instance base_container_name to fetch logs on trigger_reentry (#42960)``
+
+Misc
+~~~~
+
+* ``Add kubernetes_conn_id to templated fields (#42786)``
+* ``Allow node_selector templating in KPO (#43051)``
+* ``Bump max version of Kubernetes Python SDK to 31.0.0 (#42907)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42624)``
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 9.0.0
 .....
 

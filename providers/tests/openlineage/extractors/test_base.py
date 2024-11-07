@@ -26,7 +26,6 @@ from openlineage.client.facet_v2 import BaseFacet, JobFacet, parent_run, sql_job
 
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstanceState
-from airflow.operators.python import PythonOperator
 from airflow.providers.openlineage.extractors.base import (
     BaseExtractor,
     DefaultExtractor,
@@ -35,10 +34,11 @@ from airflow.providers.openlineage.extractors.base import (
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.extractors.python import PythonExtractor
 
+from tests_common.test_utils.compat import PythonOperator
+
 if TYPE_CHECKING:
     from openlineage.client.facet_v2 import RunFacet
 pytestmark = pytest.mark.db_test
-
 
 INPUTS = [Dataset(namespace="database://host:port", name="inputtable")]
 OUTPUTS = [Dataset(namespace="database://host:port", name="inputtable")]

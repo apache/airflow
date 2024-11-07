@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Generator, Iterable
 
 from setproctitle import setproctitle
-from sqlalchemy import delete, event
+from sqlalchemy import delete, event, select
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -91,7 +91,6 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
     Runs DAG processing in a separate process using DagFileProcessor.
 
     :param file_path: a Python file containing Airflow DAG definitions
-    :param pickle_dags: whether to serialize the DAG objects to the DB
     :param dag_ids: If specified, only look at these DAG ID's
     :param callback_requests: failure callback to execute
     """
@@ -102,14 +101,12 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
     def __init__(
         self,
         file_path: str,
-        pickle_dags: bool,
         dag_ids: list[str] | None,
         dag_directory: str,
         callback_requests: list[CallbackRequest],
     ):
         super().__init__()
         self._file_path = file_path
-        self._pickle_dags = pickle_dags
         self._dag_ids = dag_ids
         self._dag_directory = dag_directory
         self._callback_requests = callback_requests
@@ -138,7 +135,6 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         result_channel: MultiprocessingConnection,
         parent_channel: MultiprocessingConnection,
         file_path: str,
-        pickle_dags: bool,
         dag_ids: list[str] | None,
         thread_name: str,
         dag_directory: str,
@@ -150,8 +146,6 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
         :param result_channel: the connection to use for passing back the result
         :param parent_channel: the parent end of the channel to close in the child
         :param file_path: the file to process
-        :param pickle_dags: whether to pickle the DAGs found in the file and
-            save them to the DB
         :param dag_ids: if specified, only examine DAG ID's that are
             in this list
         :param thread_name: the name to use for the process that is launched
@@ -182,7 +176,6 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
             dag_file_processor = DagFileProcessor(dag_ids=dag_ids, dag_directory=dag_directory, log=log)
             result: tuple[int, int, int] = dag_file_processor.process_file(
                 file_path=file_path,
-                pickle_dags=pickle_dags,
                 callback_requests=callback_requests,
             )
             result_channel.send(result)
@@ -245,7 +238,6 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
                 _child_channel,
                 _parent_channel,
                 self.file_path,
-                self._pickle_dags,
                 self._dag_ids,
                 f"DagFileProcessor{self._instance_id}",
                 self._dag_directory,
@@ -416,8 +408,7 @@ class DagFileProcessor(LoggingMixin):
     1. Execute the file and look for DAG objects in the namespace.
     2. Execute any Callbacks if passed to DagFileProcessor.process_file
     3. Serialize the DAGs and save it to DB (or update existing record in the DB).
-    4. Pickle the DAG and save it to the DB (if necessary).
-    5. Record any errors importing the file into ORM
+    4. Record any errors importing the file into ORM
 
     Returns a tuple of 'number of dags found' and 'the count of import errors'
 
@@ -533,7 +524,14 @@ class DagFileProcessor(LoggingMixin):
                     )
                 )
 
-        stored_warnings = set(session.query(DagWarning).filter(DagWarning.dag_id.in_(dag_ids)).all())
+        stored_warnings = set(
+            session.scalars(
+                select(DagWarning).where(
+                    DagWarning.dag_id.in_(dag_ids),
+                    DagWarning.warning_type == DagWarningType.NONEXISTENT_POOL,
+                )
+            )
+        )
 
         for warning_to_delete in stored_warnings - warnings:
             session.delete(warning_to_delete)
@@ -702,7 +700,6 @@ class DagFileProcessor(LoggingMixin):
         self,
         file_path: str,
         callback_requests: list[CallbackRequest],
-        pickle_dags: bool = False,
         session: Session = NEW_SESSION,
     ) -> tuple[int, int, int]:
         """
@@ -713,14 +710,11 @@ class DagFileProcessor(LoggingMixin):
         1. Execute the file and look for DAG objects in the namespace.
         2. Execute any Callbacks if passed to this method.
         3. Serialize the DAGs and save it to DB (or update existing record in the DB).
-        4. Pickle the DAG and save it to the DB (if necessary).
-        5. Mark any DAGs which are no longer present as inactive
-        6. Record any errors importing the file into ORM
+        4. Mark any DAGs which are no longer present as inactive
+        5. Record any errors importing the file into ORM
 
         :param file_path: the path to the Python file that should be executed
         :param callback_requests: failure callback to execute
-        :param pickle_dags: whether serialize the DAGs found in the file and
-            save them to the db
         :return: number of dags found, count of import errors, last number of db queries
         """
         self.log.info("Processing file %s for tasks to queue", file_path)
@@ -754,7 +748,6 @@ class DagFileProcessor(LoggingMixin):
             serialize_errors = DagFileProcessor.save_dag_to_db(
                 dags=dagbag.dags,
                 dag_directory=self._dag_directory,
-                pickle_dags=pickle_dags,
             )
 
             dagbag.import_errors.update(dict(serialize_errors))
@@ -788,20 +781,8 @@ class DagFileProcessor(LoggingMixin):
     def save_dag_to_db(
         dags: dict[str, DAG],
         dag_directory: str,
-        pickle_dags: bool = False,
         session=NEW_SESSION,
     ):
         import_errors = DagBag._sync_to_db(dags=dags, processor_subdir=dag_directory, session=session)
         session.commit()
-
-        dag_ids = list(dags)
-
-        if pickle_dags:
-            paused_dag_ids = DagModel.get_paused_dag_ids(dag_ids=dag_ids)
-
-            unpaused_dags: list[DAG] = [dag for dag_id, dag in dags.items() if dag_id not in paused_dag_ids]
-
-            for dag in unpaused_dags:
-                dag.pickle(session)
-
         return import_errors
