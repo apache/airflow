@@ -50,6 +50,23 @@ if TYPE_CHECKING:
 
     Op = TypeVar("Op", bound=BaseOperator)
 
+# NOTE: DO NOT IMPORT AIRFLOW THINGS HERE!
+#
+# This plugin is responsible for configuring Airflow correctly to run tests.
+# Importing Airflow here loads Airflow too eagerly and break the configurations.
+# Instead, import what you want lazily inside a fixture function.
+#
+# Be aware that many things in tests_common also indirectly imports Airflow, so
+# those modules also should not be imported globally.
+#
+# (Things in the TYPE_CHECKING block are fine because they are not actually
+# imported at runtime; those imports are only hints to the type checker.)
+
+assert "airflow" not in sys.modules, (
+    "Airflow SHOULD NOT have been imported at this point! "
+    "Read comments in pytest_plugin.py to understand more."
+)
+
 # https://docs.pytest.org/en/stable/reference/reference.html#stash
 capture_warnings_key = pytest.StashKey["CaptureWarningsPlugin"]()
 forbidden_warnings_key = pytest.StashKey["ForbiddenWarningsPlugin"]()
