@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from fastapi import Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
 from airflow.api.common.mark_tasks import (
@@ -109,9 +109,7 @@ async def patch_dag_run(
 ) -> DAGRunResponse:
     """Modify a DAG Run."""
     ALLOWED_FIELD_MASK = ["state", "note"]
-    dag_run = session.scalar(
-        select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id).options(joinedload(DagRun.dag_run_note))
-    )
+    dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
     if dag_run is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
