@@ -26,7 +26,7 @@ import {
   type SelectValueChangeDetails,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { type ChangeEvent, useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -170,9 +170,7 @@ export const DagsList = () => {
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
 
-  const handleSearchChange = ({
-    target: { value },
-  }: ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = (value: string) => {
     if (value) {
       searchParams.set(NAME_PATTERN_PARAM, value);
     } else {
@@ -217,10 +215,8 @@ export const DagsList = () => {
       <VStack alignItems="none">
         <SearchBar
           buttonProps={{ disabled: true }}
-          inputProps={{
-            defaultValue: dagDisplayNamePattern,
-            onChange: handleSearchChange,
-          }}
+          defaultValue={dagDisplayNamePattern ?? ""}
+          onChange={handleSearchChange}
         />
         <DagsFilters />
         <HStack justifyContent="space-between">
