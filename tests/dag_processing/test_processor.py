@@ -161,6 +161,7 @@ class TestDagFileProcessor:
         with create_session() as session:
             session.query(TaskInstance).delete()
             dag = dagbag.get_dag("example_branch_operator")
+            dag.sync_to_db()
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dagrun = dag.create_dagrun(
                 state=State.RUNNING,
