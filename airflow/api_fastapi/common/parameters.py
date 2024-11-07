@@ -134,7 +134,7 @@ class _SearchParam(BaseParam[str]):
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
             return select
-        return select.where(self.attribute.ilike(f"%{self.value}"))
+        return select.where(self.attribute.ilike(f"%{self.value}%"))
 
     def transform_aliases(self, value: str | None) -> str | None:
         if value == "~":
