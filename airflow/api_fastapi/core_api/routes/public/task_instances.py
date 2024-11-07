@@ -197,3 +197,80 @@ async def get_mapped_task_instance(
         )
 
     return TaskInstanceResponse.model_validate(task_instance, from_attributes=True)
+
+
+@task_instances_router.get(
+    "/",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
+    ),
+)
+async def get_task_instances(
+    dag_id: str,
+    dag_run_id: str,
+    request: Request,
+    logical_date: Annotated[
+        RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI, "execution_date"))
+    ],
+    start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", TI))],
+    end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TI))],
+    update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],
+    duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", TI))],
+    state: QueryTIStateFilter,
+    pool: QueryTIPoolFilter,
+    queue: QueryTIQueueFilter,
+    executor: QueryTIExecutorFilter,
+    limit: QueryLimit,
+    offset: QueryOffset,
+    order_by: Annotated[
+        SortParam,
+        Depends(
+            SortParam(
+                ["id", "state", "duration", "start_date", "end_date", "map_index"],
+                TI,
+            ).dynamic_depends(default="map_index")
+        ),
+    ],
+    session: Annotated[Session, Depends(get_session)],
+) -> TaskInstanceCollectionResponse:
+    """
+    Get list of task instances.
+
+    This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
+    and DAG runs.
+    """
+    base_query = select(TI).join(TI.dag_run)
+
+    if dag_id != "~":
+        base_query = base_query.where(TI.dag_id == dag_id)
+    if dag_run_id != "~":
+        base_query = base_query.where(TI.run_id == dag_run_id)
+
+    task_instance_select, total_entries = paginated_select(
+        base_query,
+        [
+            logical_date,
+            start_date_range,
+            end_date_range,
+            update_at_range,
+            duration_range,
+            state,
+            pool,
+            queue,
+            executor,
+        ],
+        order_by,
+        offset,
+        limit,
+        session,
+    )
+
+    task_instances = session.scalars(task_instance_select).all()
+
+    return TaskInstanceCollectionResponse(
+        task_instances=[
+            TaskInstanceResponse.model_validate(task_instance, from_attributes=True)
+            for task_instance in task_instances
+        ],
+        total_entries=total_entries,
+    )

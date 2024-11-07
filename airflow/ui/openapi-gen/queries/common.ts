@@ -710,6 +710,84 @@ export const UseTaskInstanceServiceGetMappedTaskInstanceKeyFn = (
   useTaskInstanceServiceGetMappedTaskInstanceKey,
   ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId }]),
 ];
+export type TaskInstanceServiceGetTaskInstancesDefaultResponse = Awaited<
+  ReturnType<typeof TaskInstanceService.getTaskInstances>
+>;
+export type TaskInstanceServiceGetTaskInstancesQueryResult<
+  TData = TaskInstanceServiceGetTaskInstancesDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useTaskInstanceServiceGetTaskInstancesKey =
+  "TaskInstanceServiceGetTaskInstances";
+export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
+  {
+    dagId,
+    dagRunId,
+    durationGte,
+    durationLte,
+    endDateGte,
+    endDateLte,
+    executor,
+    limit,
+    logicalDateGte,
+    logicalDateLte,
+    offset,
+    orderBy,
+    pool,
+    queue,
+    startDateGte,
+    startDateLte,
+    state,
+    updatedAtGte,
+    updatedAtLte,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    durationGte?: number;
+    durationLte?: number;
+    endDateGte?: string;
+    endDateLte?: string;
+    executor?: string[];
+    limit?: number;
+    logicalDateGte?: string;
+    logicalDateLte?: string;
+    offset?: number;
+    orderBy?: string;
+    pool?: string[];
+    queue?: string[];
+    startDateGte?: string;
+    startDateLte?: string;
+    state?: string[];
+    updatedAtGte?: string;
+    updatedAtLte?: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useTaskInstanceServiceGetTaskInstancesKey,
+  ...(queryKey ?? [
+    {
+      dagId,
+      dagRunId,
+      durationGte,
+      durationLte,
+      endDateGte,
+      endDateLte,
+      executor,
+      limit,
+      logicalDateGte,
+      logicalDateLte,
+      offset,
+      orderBy,
+      pool,
+      queue,
+      startDateGte,
+      startDateLte,
+      state,
+      updatedAtGte,
+      updatedAtLte,
+    },
+  ]),
+];
 export type VariableServiceGetVariableDefaultResponse = Awaited<
   ReturnType<typeof VariableService.getVariable>
 >;

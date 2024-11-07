@@ -1074,6 +1074,30 @@ export type GetMappedTaskInstanceData = {
 
 export type GetMappedTaskInstanceResponse = TaskInstanceResponse;
 
+export type GetTaskInstancesData = {
+  dagId: string;
+  dagRunId: string;
+  durationGte?: number | null;
+  durationLte?: number | null;
+  endDateGte?: string | null;
+  endDateLte?: string | null;
+  executor?: Array<string>;
+  limit?: number;
+  logicalDateGte?: string | null;
+  logicalDateLte?: string | null;
+  offset?: number;
+  orderBy?: string;
+  pool?: Array<string>;
+  queue?: Array<string>;
+  startDateGte?: string | null;
+  startDateLte?: string | null;
+  state?: Array<string>;
+  updatedAtGte?: string | null;
+  updatedAtLte?: string | null;
+};
+
+export type GetTaskInstancesResponse = TaskInstanceCollectionResponse;
+
 export type DeleteVariableData = {
   variableKey: string;
 };
@@ -2138,6 +2162,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: TaskInstanceResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/": {
+    get: {
+      req: GetTaskInstancesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceCollectionResponse;
         /**
          * Unauthorized
          */

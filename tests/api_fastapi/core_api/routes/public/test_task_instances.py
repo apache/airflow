@@ -767,3 +767,282 @@ class TestGetMappedTaskInstances:
         )
         assert response.status_code == 404
         assert response.json()["detail"] == "Task id nonexistent_task not found"
+
+
+class TestGetTaskInstances(TestTaskInstanceEndpoint):
+    @pytest.mark.parametrize(
+        "task_instances, update_extras, url, params, expected_ti",
+        [
+            pytest.param(
+                [
+                    {"execution_date": DEFAULT_DATETIME_1},
+                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
+                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
+                ],
+                False,
+                "/public/dags/example_python_operator/dagRuns/~/taskInstances",
+                {"logical_date_lte": DEFAULT_DATETIME_1},
+                1,
+                id="test logical date filter",
+            ),
+            pytest.param(
+                [
+                    {"start_date": DEFAULT_DATETIME_1},
+                    {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
+                    {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
+                ],
+                True,
+                "/public/dags/example_python_operator/dagRuns/~/taskInstances",
+                {"start_date_gte": DEFAULT_DATETIME_1, "start_date_lte": DEFAULT_DATETIME_STR_2},
+                2,
+                id="test start date filter",
+            ),
+            pytest.param(
+                [
+                    {"end_date": DEFAULT_DATETIME_1},
+                    {"end_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
+                    {"end_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
+                ],
+                True,
+                "/public/dags/example_python_operator/dagRuns/~/taskInstances?",
+                {"end_date_gte": DEFAULT_DATETIME_1, "end_date_lte": DEFAULT_DATETIME_STR_2},
+                2,
+                id="test end date filter",
+            ),
+            pytest.param(
+                [
+                    {"duration": 100},
+                    {"duration": 150},
+                    {"duration": 200},
+                ],
+                True,
+                "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances",
+                {"duration_gte": 100, "duration_lte": 200},
+                3,
+                id="test duration filter",
+            ),
+            pytest.param(
+                [
+                    {"duration": 100},
+                    {"duration": 150},
+                    {"duration": 200},
+                ],
+                True,
+                "/public/dags/~/dagRuns/~/taskInstances",
+                {"duration_gte": 100, "duration_lte": 200},
+                3,
+                id="test duration filter ~",
+            ),
+            pytest.param(
+                [
+                    {"state": State.RUNNING},
+                    {"state": State.QUEUED},
+                    {"state": State.SUCCESS},
+                    {"state": State.NONE},
+                ],
+                False,
+                ("/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
+                {"state": ["running", "queued", "none"]},
+                3,
+                id="test state filter",
+            ),
+            pytest.param(
+                [
+                    {"state": State.NONE},
+                    {"state": State.NONE},
+                    {"state": State.NONE},
+                    {"state": State.NONE},
+                ],
+                False,
+                ("/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
+                {},
+                4,
+                id="test null states with no filter",
+            ),
+            pytest.param(
+                [
+                    {"pool": "test_pool_1"},
+                    {"pool": "test_pool_2"},
+                    {"pool": "test_pool_3"},
+                ],
+                True,
+                ("/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
+                {"pool": ["test_pool_1", "test_pool_2"]},
+                2,
+                id="test pool filter",
+            ),
+            pytest.param(
+                [
+                    {"pool": "test_pool_1"},
+                    {"pool": "test_pool_2"},
+                    {"pool": "test_pool_3"},
+                ],
+                True,
+                "/public/dags/~/dagRuns/~/taskInstances",
+                {"pool": ["test_pool_1", "test_pool_2"]},
+                2,
+                id="test pool filter ~",
+            ),
+            pytest.param(
+                [
+                    {"queue": "test_queue_1"},
+                    {"queue": "test_queue_2"},
+                    {"queue": "test_queue_3"},
+                ],
+                True,
+                "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances",
+                {"queue": ["test_queue_1", "test_queue_2"]},
+                2,
+                id="test queue filter",
+            ),
+            pytest.param(
+                [
+                    {"queue": "test_queue_1"},
+                    {"queue": "test_queue_2"},
+                    {"queue": "test_queue_3"},
+                ],
+                True,
+                "/public/dags/~/dagRuns/~/taskInstances",
+                {"queue": ["test_queue_1", "test_queue_2"]},
+                2,
+                id="test queue filter ~",
+            ),
+            pytest.param(
+                [
+                    {"executor": "test_exec_1"},
+                    {"executor": "test_exec_2"},
+                    {"executor": "test_exec_3"},
+                ],
+                True,
+                ("/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"),
+                {"executor": ["test_exec_1", "test_exec_2"]},
+                2,
+                id="test_executor_filter",
+            ),
+            pytest.param(
+                [
+                    {"executor": "test_exec_1"},
+                    {"executor": "test_exec_2"},
+                    {"executor": "test_exec_3"},
+                ],
+                True,
+                "/public/dags/~/dagRuns/~/taskInstances",
+                {"executor": ["test_exec_1", "test_exec_2"]},
+                2,
+                id="test executor filter ~",
+            ),
+        ],
+    )
+    def test_should_respond_200(
+        self, test_client, task_instances, update_extras, url, params, expected_ti, session
+    ):
+        self.create_task_instances(
+            session,
+            update_extras=update_extras,
+            task_instances=task_instances,
+        )
+        response = test_client.get(url, params=params)
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == expected_ti
+        assert len(response.json()["task_instances"]) == expected_ti
+
+    @pytest.mark.xfail(reason="permissions not implemented yet.")
+    def test_return_TI_only_from_readable_dags(self, test_client, session):
+        task_instances = {
+            "example_python_operator": 1,
+            "example_skip_dag": 2,
+        }
+        for dag_id in task_instances:
+            self.create_task_instances(
+                session,
+                task_instances=[
+                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=i)}
+                    for i in range(task_instances[dag_id])
+                ],
+                dag_id=dag_id,
+            )
+        response = test_client.get("/public/dags/~/dagRuns/~/taskInstances")
+        assert response.status_code == 200
+        assert response.json["total_entries"] == 3
+        assert len(response.json["task_instances"]) == 3
+
+    def test_should_respond_200_for_dag_id_filter(self, test_client, session):
+        self.create_task_instances(session)
+        self.create_task_instances(session, dag_id="example_skip_dag")
+        response = test_client.get(
+            "/public/dags/example_python_operator/dagRuns/~/taskInstances",
+        )
+
+        assert response.status_code == 200
+        count = session.query(TaskInstance).filter(TaskInstance.dag_id == "example_python_operator").count()
+        assert count == response.json()["total_entries"]
+        assert count == len(response.json()["task_instances"])
+
+    def test_should_respond_200_for_order_by(self, test_client, session):
+        dag_id = "example_python_operator"
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(10)
+            ],
+            dag_id=dag_id,
+        )
+
+        ti_count = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).count()
+
+        # Ascending order
+        response_asc = test_client.get(
+            "/public/dags/~/dagRuns/~/taskInstances", params={"order_by": "start_date"}
+        )
+        assert response_asc.status_code == 200
+        assert response_asc.json()["total_entries"] == ti_count
+        assert len(response_asc.json()["task_instances"]) == ti_count
+
+        # Descending order
+        response_desc = test_client.get(
+            "/public/dags/~/dagRuns/~/taskInstances", params={"order_by": "-start_date"}
+        )
+        assert response_desc.status_code == 200
+        assert response_desc.json()["total_entries"] == ti_count
+        assert len(response_desc.json()["task_instances"]) == ti_count
+
+        # Compare
+        start_dates_asc = [ti["start_date"] for ti in response_asc.json()["task_instances"]]
+        assert len(start_dates_asc) == ti_count
+        start_dates_desc = [ti["start_date"] for ti in response_desc.json()["task_instances"]]
+        assert len(start_dates_desc) == ti_count
+        assert start_dates_asc == list(reversed(start_dates_desc))
+
+    def test_should_respond_200_for_pagination(self, test_client, session):
+        dag_id = "example_python_operator"
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(10)
+            ],
+            dag_id=dag_id,
+        )
+
+        # First 5 items
+        response_batch1 = test_client.get(
+            "/public/dags/~/dagRuns/~/taskInstances", params={"limit": 5, "offset": 0, "dag_ids": [dag_id]}
+        )
+        assert response_batch1.status_code == 200, response_batch1.json()
+        num_entries_batch1 = len(response_batch1.json()["task_instances"])
+        assert num_entries_batch1 == 5
+        assert len(response_batch1.json()["task_instances"]) == 5
+
+        # 5 items after that
+        response_batch2 = test_client.get(
+            "/public/dags/~/dagRuns/~/taskInstances", params={"limit": 5, "offset": 5, "dag_ids": [dag_id]}
+        )
+        assert response_batch2.status_code == 200, response_batch2.json()
+        num_entries_batch2 = len(response_batch2.json()["task_instances"])
+        assert num_entries_batch2 > 0
+        assert len(response_batch2.json()["task_instances"]) > 0
+
+        # Match
+        ti_count = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).count()
+        assert response_batch1.json()["total_entries"] == response_batch2.json()["total_entries"] == ti_count
+        assert (num_entries_batch1 + num_entries_batch2) == ti_count
+        assert response_batch1 != response_batch2
