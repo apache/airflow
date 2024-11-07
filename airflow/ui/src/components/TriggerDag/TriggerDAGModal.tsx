@@ -16,9 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useDisclosure, Box, Text, Heading, VStack } from "@chakra-ui/react";
+import { Text, Heading, VStack } from "@chakra-ui/react";
 import React, { useState } from "react";
-import { FiPlay } from "react-icons/fi";
 
 import { Dialog } from "src/components/ui";
 
@@ -29,13 +28,16 @@ import { TriggerDag } from "./TriggerDag";
 type TriggerDAGModalProps = {
   dagDisplayName: string;
   dagId: string;
+  onClose: () => void;
+  open: boolean;
 };
 
 const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   dagDisplayName,
   dagId,
+  onClose,
+  open
 }) => {
-  const { onClose, onOpen, open } = useDisclosure();
   const [dagParams, setDagParams] = useState<DagParams>({
     configJson: {},
     dagId,
@@ -49,37 +51,31 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   };
 
   return (
-    <Box>
-      <Box alignSelf="center" cursor="pointer" onClick={onOpen}>
-        <FiPlay />
-      </Box>
+    <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+      <Dialog.Content backdrop>
+        <Dialog.Header>
+          <VStack align="start" gap={2}>
+            <Heading size="xl">Trigger DAG {dagDisplayName !== "" && (<span>- {dagDisplayName}</span>)}</Heading>
+            {dagDisplayName === "" && (
+              <Text color="gray.500" fontSize="md">
+                DAG ID: {dagId}
+              </Text>
+            )}
+          </VStack>
+        </Dialog.Header>
 
-      <Dialog.Root onOpenChange={onClose} open={open} size="xl">
-        <Dialog.Content backdrop>
-          <Dialog.Header>
-            <VStack align="start" gap={2}>
-              <Heading size="xl">Trigger DAG {dagDisplayName !== "" && (<span>- {dagDisplayName}</span>)}</Heading>
-              {dagDisplayName === "" && (
-                <Text color="gray.500" fontSize="md">
-                  DAG ID: {dagId}
-                </Text>
-              )}
-            </VStack>
-          </Dialog.Header>
+        <Dialog.CloseTrigger />
 
-          <Dialog.CloseTrigger />
-
-          <Dialog.Body>
-            <TriggerDAGForm
-              dagParams={dagParams}
-              onClose={onClose}
-              onTrigger={handleTrigger} 
-              setDagParams={setDagParams}
-            />
-          </Dialog.Body>
-        </Dialog.Content>
-      </Dialog.Root>
-    </Box>
+        <Dialog.Body>
+          <TriggerDAGForm
+            dagParams={dagParams}
+            onClose={onClose}
+            onTrigger={handleTrigger} 
+            setDagParams={setDagParams}
+          />
+        </Dialog.Body>
+      </Dialog.Content>
+    </Dialog.Root>
   );
 };
 

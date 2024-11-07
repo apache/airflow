@@ -30,7 +30,7 @@ import { Link as RouterLink } from "react-router-dom";
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
-import TriggerDAGModal from "src/components/TriggerDag/TriggerDAGModal";
+import TriggerDAGIconButton from "src/components/TriggerDag/TriggerDAGIconButton";
 import { Tooltip } from "src/components/ui";
 
 import { DagTags } from "./DagTags";
@@ -72,7 +72,7 @@ export const DagCard = ({ dag }: Props) => (
       </HStack>
       <HStack>
         <TogglePause dagId={dag.dag_id} isPaused={dag.is_paused} />
-        <TriggerDAGModal
+        <TriggerDAGIconButton
           dagDisplayName={dag.dag_display_name}
           dagId={dag.dag_id}
         />

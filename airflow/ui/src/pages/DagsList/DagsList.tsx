@@ -42,7 +42,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
-import TriggerDAGModal from "src/components/TriggerDag/TriggerDAGModal";
+import TriggerDAGIconButton from "src/components/TriggerDag/TriggerDAGIconButton";
 import { Select } from "src/components/ui";
 import {
   SearchParamsKeys,
@@ -116,7 +116,7 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
   {
     accessorKey: "trigger",
     cell: ({ row }) => (
-      <TriggerDAGModal
+      <TriggerDAGIconButton
         dagDisplayName={row.original.dag_display_name}
         dagId={row.original.dag_id}
       />

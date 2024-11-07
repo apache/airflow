@@ -18,7 +18,6 @@
  */
 import {
   Box,
-  Button,
   Flex,
   Heading,
   HStack,
@@ -33,6 +32,7 @@ import { DagIcon } from "src/assets/DagIcon";
 import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
 import { Tooltip } from "src/components/ui";
+import TriggerDAGTextButton from "src/components/TriggerDag/TriggerDAGTextButton";
 
 import { DagTags } from "../DagTags";
 import { LatestRun } from "../LatestRun";
@@ -57,10 +57,10 @@ export const Header = ({
           )}
         </HStack>
         <Flex>
-          <Button colorPalette="blue" disabled>
-            <FiPlay />
-            Trigger
-          </Button>
+          <TriggerDAGTextButton
+            dagDisplayName={dag?.dag_display_name ?? ""}
+            dagId={dag?.dag_id ?? ""}
+          />
         </Flex>
       </Flex>
       <SimpleGrid columns={4} gap={4} my={2}>

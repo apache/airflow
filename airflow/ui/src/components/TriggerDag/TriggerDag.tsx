@@ -24,6 +24,11 @@ export type DagParams = {
   runId: string;
 };
 
+export type TriggerDAGButtonProps = {
+  dagDisplayName: string;
+  dagId: string;
+};
+
 export const TriggerDag = (dagParams: DagParams) => {
   // eslint-disable-next-line no-alert
   alert(`
