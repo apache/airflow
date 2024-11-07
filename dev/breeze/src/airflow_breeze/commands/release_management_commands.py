@@ -865,6 +865,14 @@ def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
     help="Skip checking if the tag already exists in the remote repository",
 )
 @click.option(
+    "--version-suffix-for-local",
+    default=None,
+    show_default=False,
+    help="Version suffix for local builds. It must start with a plus sign ('+') and contain only ascii "
+    "letters, numbers, and periods. The first character after the plus must be an ascii letter or number "
+    "and the last character must be an ascii letter or number.",
+)
+@click.option(
     "--skip-deleting-generated-files",
     default=False,
     is_flag=True,
@@ -904,6 +912,7 @@ def prepare_provider_packages(
     skip_deleting_generated_files: bool,
     skip_tag_check: bool,
     version_suffix_for_pypi: str,
+    version_suffix_for_local: str,
 ):
     perform_environment_checks()
     fix_ownership_using_docker()
@@ -926,7 +935,7 @@ def prepare_provider_packages(
         include_removed=include_removed_providers,
         include_not_ready=include_not_ready_providers,
     )
-    if not skip_tag_check:
+    if not skip_tag_check and not version_suffix_for_local:
         run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
         make_sure_remote_apache_exists_and_fetch(github_repository=github_repository)
     success_packages = []
@@ -939,7 +948,7 @@ def prepare_provider_packages(
         shutil.rmtree(DIST_DIR, ignore_errors=True)
         DIST_DIR.mkdir(parents=True, exist_ok=True)
     for provider_id in packages_list:
-        package_version = version_suffix_for_pypi
+        package_version = version_suffix_for_pypi if version_suffix_for_pypi else version_suffix_for_local
         try:
             basic_provider_checks(provider_id)
             if not skip_tag_check:

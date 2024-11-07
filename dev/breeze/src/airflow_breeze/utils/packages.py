@@ -420,7 +420,12 @@ def get_dist_package_name_prefix(provider_id: str) -> str:
 
 
 def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
-    if install_clause.startswith("apache-airflow") and ">=" in install_clause and version_suffix:
+    if (
+        install_clause.startswith("apache-airflow")
+        and ">=" in install_clause
+        and version_suffix
+        and not is_local_version_suffix(version_suffix)
+    ):
         # Applies version suffix to the apache-airflow and provider package dependencies to make
         # sure that pre-release versions have correct limits - this address the issue with how
         # pip handles pre-release versions when packages are pre-release and refer to each other - we
@@ -429,6 +434,8 @@ def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
         # For example `apache-airflow-providers-fab==2.0.0.dev0` should refer to
         # `apache-airflow>=2.9.0.dev0` and not `apache-airflow>=2.9.0` because both packages are
         # released together and >= 2.9.0 is not correct reference for 2.9.0.dev0 version of Airflow.
+        # This assumes a local release, one where the suffix starts with a plus sign, uses the last
+        # version of the dependency, so it is not necessary to add the suffix to the dependency.
         prefix, version = install_clause.split(">=")
         # If version has a upper limit (e.g. ">=2.10.0,<3.0"), we need to cut this off not to fail
         if "," in version:
@@ -442,6 +449,24 @@ def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
         target_version = Version(str(base_version) + "." + version_suffix)
         return prefix + ">=" + str(target_version)
     return install_clause
+
+
+def is_local_version_suffix(version_suffix: str) -> bool:
+    """
+    Check if the given version suffix is a local version suffix. A local version suffix must start with a
+    plus sign ('+') and be followed only by ascii letters, digits, and periods. They must start and end
+    with an ascii letter or digit.
+
+    Args:
+        version_suffix (str): The version suffix to check.
+
+    Returns:
+        bool: True if the version suffix starts with '+', False otherwise. Please note this does not
+        guarantee that the version suffix is a valid local version suffix.
+    """
+    if version_suffix:
+        return version_suffix.startswith("+")
+    return False
 
 
 def get_install_requirements(provider_id: str, version_suffix: str) -> str:
@@ -590,6 +615,27 @@ def get_cross_provider_dependent_packages(provider_package_id: str) -> list[str]
     return PROVIDER_DEPENDENCIES[provider_package_id]["cross-providers-deps"]
 
 
+def format_version_suffix(version_suffix: str) -> str:
+    """
+    Formats the version suffix by adding a dot prefix unless it is a local prefix. If no version suffix is
+    passed in, an empty string is returned.
+
+    Args:
+        version_suffix (str): The version suffix to be formatted.
+
+    Returns:
+        str: The formatted version suffix.
+
+    """
+    if version_suffix:
+        if is_local_version_suffix(version_suffix):
+            return version_suffix
+        else:
+            return f".{version_suffix}"
+    else:
+        return ""
+
+
 def get_provider_jinja_context(
     provider_id: str,
     current_release_version: str,
@@ -609,7 +655,7 @@ def get_provider_jinja_context(
         "FULL_PACKAGE_NAME": provider_details.full_package_name,
         "RELEASE": current_release_version,
         "RELEASE_NO_LEADING_ZEROS": release_version_no_leading_zeros,
-        "VERSION_SUFFIX": f".{version_suffix}" if version_suffix else "",
+        "VERSION_SUFFIX": format_version_suffix(version_suffix),
         "PIP_REQUIREMENTS": get_provider_requirements(provider_details.provider_id),
         "PROVIDER_DESCRIPTION": provider_details.provider_description,
         "INSTALL_REQUIREMENTS": get_install_requirements(
