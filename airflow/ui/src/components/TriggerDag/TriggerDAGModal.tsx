@@ -36,7 +36,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   dagDisplayName,
   dagId,
   onClose,
-  open
+  open,
 }) => {
   const [dagParams, setDagParams] = useState<DagParams>({
     configJson: {},
@@ -55,7 +55,10 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
       <Dialog.Content backdrop>
         <Dialog.Header>
           <VStack align="start" gap={2}>
-            <Heading size="xl">Trigger DAG {dagDisplayName !== "" && (<span>- {dagDisplayName}</span>)}</Heading>
+            <Heading size="xl">
+              Trigger DAG{" "}
+              {dagDisplayName !== "" && <span>- {dagDisplayName}</span>}
+            </Heading>
             {dagDisplayName === "" && (
               <Text color="gray.500" fontSize="md">
                 DAG ID: {dagId}
@@ -70,7 +73,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
           <TriggerDAGForm
             dagParams={dagParams}
             onClose={onClose}
-            onTrigger={handleTrigger} 
+            onTrigger={handleTrigger}
             setDagParams={setDagParams}
           />
         </Dialog.Body>

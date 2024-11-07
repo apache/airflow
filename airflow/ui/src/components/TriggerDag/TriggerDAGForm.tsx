@@ -42,28 +42,33 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
   setDagParams,
 }) => {
   const [jsonError, setJsonError] = useState<string | undefined>(undefined);
-  const { control, formState: { isDirty }, handleSubmit, reset } = useForm<DagParams>({
+  const {
+    control,
+    formState: { isDirty },
+    handleSubmit,
+    reset,
+  } = useForm<DagParams>({
     defaultValues: {
       configJson: dagParams.configJson,
       logicalDate: dagParams.logicalDate,
       runId: dagParams.runId,
-    }
-});
+    },
+  });
 
   useEffect(() => {
     reset({
-      configJson: dagParams.configJson, 
+      configJson: dagParams.configJson,
       logicalDate: dagParams.logicalDate,
       runId: dagParams.runId,
     });
   }, [dagParams, reset]);
 
   const onSubmit = (data: DagParams) => {
-      onTrigger(data);
-      setDagParams(data); 
-      setJsonError(undefined); 
+    onTrigger(data);
+    setDagParams(data);
+    setJsonError(undefined);
   };
-  
+
   const { colorMode } = useColorMode();
 
   return (
@@ -118,8 +123,11 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                       height="200px"
                       onChange={(value) => {
                         try {
-                          const parsedConfigJson = JSON.parse(value) as Record<string, unknown>;
-                          
+                          const parsedConfigJson = JSON.parse(value) as Record<
+                            string,
+                            unknown
+                          >;
+
                           field.onChange(parsedConfigJson); // Update react-hook-form value
                           setJsonError(undefined);
                         } catch {

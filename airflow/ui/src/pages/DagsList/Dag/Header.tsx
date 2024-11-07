@@ -31,8 +31,8 @@ import type { DAGResponse, DAGRunResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import DagRunInfo from "src/components/DagRunInfo";
 import { TogglePause } from "src/components/TogglePause";
-import { Tooltip } from "src/components/ui";
 import TriggerDAGTextButton from "src/components/TriggerDag/TriggerDAGTextButton";
+import { Tooltip } from "src/components/ui";
 
 import { DagTags } from "../DagTags";
 

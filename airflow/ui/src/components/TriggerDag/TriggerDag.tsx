@@ -33,12 +33,12 @@ export const TriggerDag = (dagParams: DagParams) => {
   // eslint-disable-next-line no-alert
   alert(`
     Triggering DAG with the following parameters:
-    
+
     Config JSON: ${JSON.stringify(dagParams.configJson)}
     Logical Date: ${dagParams.logicalDate}
     Run ID: ${dagParams.runId}
 
-    TODO: This trigger button is under progress. 
+    TODO: This trigger button is under progress.
     The values you have entered are shown above.
   `);
 
