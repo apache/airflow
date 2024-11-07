@@ -16,57 +16,76 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Button,
-  Input,
-  type ButtonProps,
-  type InputProps,
-} from "@chakra-ui/react";
-import type { ChangeEvent } from "react";
+import { Button, Input, type ButtonProps } from "@chakra-ui/react";
+import { useState, type ChangeEvent } from "react";
 import { FiSearch } from "react-icons/fi";
 import { useDebouncedCallback } from "use-debounce";
 
-import { InputGroup, type InputGroupProps } from "./ui";
+import { CloseButton, InputGroup, type InputGroupProps } from "./ui";
 
 const debounceDelay = 200;
 
+type Props = {
+  readonly buttonProps?: ButtonProps;
+  readonly defaultValue: string;
+  readonly groupProps?: InputGroupProps;
+  readonly onChange: (value: string) => void;
+};
+
 export const SearchBar = ({
   buttonProps,
+  defaultValue,
   groupProps,
-  inputProps,
-}: {
-  readonly buttonProps?: ButtonProps;
-  readonly groupProps?: InputGroupProps;
-  readonly inputProps?: InputProps;
-}) => {
+  onChange,
+}: Props) => {
   const handleSearchChange = useDebouncedCallback(
-    (event: ChangeEvent<HTMLInputElement>) => inputProps?.onChange?.(event),
+    (val: string) => onChange(val),
     debounceDelay,
   );
+
+  const [value, setValue] = useState(defaultValue);
+
+  const onSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setValue(event.target.value);
+    handleSearchChange(event.target.value);
+  };
 
   return (
     <InputGroup
       {...groupProps}
       endElement={
-        <Button
-          colorPalette="blue"
-          fontWeight="normal"
-          height="1.75rem"
-          variant="ghost"
-          width={140}
-          {...buttonProps}
-        >
-          Advanced Search
-        </Button>
+        <>
+          {Boolean(value) ? (
+            <CloseButton
+              aria-label="Clear search"
+              data-testid="clear-search"
+              onClick={() => {
+                setValue("");
+                onChange("");
+              }}
+              size="xs"
+            />
+          ) : undefined}
+          <Button
+            colorPalette="blue"
+            fontWeight="normal"
+            height="1.75rem"
+            variant="ghost"
+            width={140}
+            {...buttonProps}
+          >
+            Advanced Search
+          </Button>
+        </>
       }
       startElement={<FiSearch />}
     >
       <Input
         data-testid="search-dags"
+        onChange={onSearchChange}
         placeholder="Search Dags"
         pr={150}
-        {...inputProps}
-        onChange={handleSearchChange}
+        value={value}
       />
     </InputGroup>
   );
