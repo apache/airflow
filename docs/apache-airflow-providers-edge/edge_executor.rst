@@ -221,6 +221,8 @@ If a task needs more resource, the need_capacity value can be increased. The val
 other task from being executed in parallel on the same worker. The need_capacity value works together
 with the capacity value of the worker. A need_capacity of 2 and a worker capacity of 3 means
 that a worker which executes this task can only execute a job with a need_capacity of 1 in parallel.
+If not capacity is defined for a task the default value is 1. The need_capacity value only supports
+integer values.
 
 Here is an example setting capacity slots for a task:
 

@@ -80,10 +80,10 @@ config:
         default: "30"
       worker_capacity:
         description: |
-          The capacity that will be used when starting workers with the
-          ``airflow edge worker`` command. This defines the number of task instances that
-          a worker will take, so size up your workers based on the resources on
-          your worker box and the nature of your tasks
+          The capacity defined the max parallel running task instances and can be defined during
+          starting worker with the ``airflow edge worker`` command. So size up your workers
+          based on the resources on your worker box and the nature of your tasks. The parameter
+          works together with the need_capacity parameter of a task.
         version_added: ~
         type: integer
         example: ~
