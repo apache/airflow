@@ -386,14 +386,6 @@ core:
       type: integer
       example: ~
       default: "30"
-    num_stuck_reschedules:
-      description: |
-        Number of times Airflow will reschedule a task that gets stuck in queued before marking the
-        task as failed
-      version_added: 2.10.4
-      type: integer
-      example: ~
-      default: "3"
     xcom_backend:
       description: |
         Path to custom XCom class that will be used to store and resolve operators results
@@ -2338,6 +2330,14 @@ scheduler:
       type: integer
       example: ~
       default: "8974"
+    num_stuck_in_queued_retries:
+      description: |
+        Number of times Airflow will reschedule a task that gets stuck in queued before marking the
+        task as failed
+      version_added: 2.10.4
+      type: integer
+      example: ~
+      default: "3"
     orphaned_tasks_check_interval:
       description: |
         How often (in seconds) should the scheduler check for orphaned tasks and SchedulerJobs
