@@ -21,6 +21,7 @@ import os
 from typing import TYPE_CHECKING
 
 from git import Repo
+from git.exc import BadName
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.exceptions import AirflowException
@@ -103,7 +104,7 @@ class GitDagBundle(BaseDagBundle):
         try:
             repo.commit(version)
             return True
-        except Exception:
+        except BadName:
             return False
 
     def refresh(self) -> None:

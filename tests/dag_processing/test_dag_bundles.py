@@ -170,3 +170,9 @@ class TestGitDagBundle:
         repo.create_head("test")
         bundle = GitDagBundle(name="test", repo_url=repo_path, head="test")
         assert bundle.repo.head.ref.name == "test"
+
+    def test_version_not_found(self, git_repo):
+        repo_path, repo = git_repo
+
+        with pytest.raises(AirflowException, match="Version not_found not found in the repository"):
+            GitDagBundle(name="test", version="not_found", repo_url=repo_path, head="master")
