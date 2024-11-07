@@ -24,6 +24,7 @@ import re
 from collections import namedtuple
 from datetime import datetime, timedelta
 from io import BytesIO
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -36,7 +37,6 @@ from google.cloud import exceptions, storage  # type: ignore[attr-defined]
 from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.exceptions import AirflowException
-from airflow.providers.common.compat.assets import Asset
 from airflow.providers.google.cloud.hooks import gcs
 from airflow.providers.google.cloud.hooks.gcs import _fallback_object_url_to_object_name_and_bucket_name
 from airflow.providers.google.common.consts import CLIENT_INFO
@@ -45,6 +45,25 @@ from airflow.version import version
 
 from providers.tests.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
+
+if TYPE_CHECKING:
+    from airflow.providers.common.compat.assets import Asset
+else:
+    # TODO: Remove this try-exception block after bumping common provider to 1.3.0
+    # This is due to common provider AssetDetails import error handling
+    try:
+        from airflow.providers.common.compat.assets import Asset
+    except ImportError:
+        from packaging.version import Version
+
+        from airflow import __version__ as AIRFLOW_VERSION
+
+        AIRFLOW_V_3_0_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("3.0.0")
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.sdk.definitions.asset import Asset
+        else:
+            # dataset is renamed to asset since Airflow 3.0
+            from airflow.datasets import Dataset as Asset
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 GCS_STRING = "airflow.providers.google.cloud.hooks.gcs.{}"
@@ -424,8 +443,8 @@ class TestGCSHook:
         mock_copy.return_value = storage.Blob(
             name=destination_object_name, bucket=storage.Bucket(mock_service, destination_bucket_name)
         )
-        mock_service.return_value.bucket.side_effect = (
-            lambda name: source_bucket
+        mock_service.return_value.bucket.side_effect = lambda name: (
+            source_bucket
             if name == source_bucket_name
             else storage.Bucket(mock_service, destination_bucket_name)
         )
@@ -519,10 +538,8 @@ class TestGCSHook:
         blob = MagicMock(spec=storage.Blob)
         blob.rewrite = MagicMock(return_value=(None, None, None))
         dest_bucket.blob = MagicMock(return_value=blob)
-        mock_service.return_value.bucket.side_effect = (
-            lambda name: storage.Bucket(mock_service, source_bucket_name)
-            if name == source_bucket_name
-            else dest_bucket
+        mock_service.return_value.bucket.side_effect = lambda name: (
+            storage.Bucket(mock_service, source_bucket_name) if name == source_bucket_name else dest_bucket
         )
 
         self.gcs_hook.rewrite(
