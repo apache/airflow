@@ -32,7 +32,7 @@ export const CardList = <TData,>({
   isLoading,
   table,
 }: DataTableProps<TData>) => (
-  <Box overflow="auto" width="100%">
+  <Box data-testid="card-list" overflow="auto" width="100%">
     <SimpleGrid {...{ column: { base: 1 }, gap: 2, ...cardDef.gridProps }}>
       {table.getRowModel().rows.map((row) => (
         <Box key={row.id}>

@@ -62,6 +62,7 @@ export const SearchBar = ({
       startElement={<FiSearch />}
     >
       <Input
+        data-testid="search-dags"
         placeholder="Search Dags"
         pr={150}
         {...inputProps}

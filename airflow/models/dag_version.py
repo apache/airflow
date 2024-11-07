@@ -106,8 +106,6 @@ class DagVersion(Base):
         )
         log.debug("Writing DagVersion %s to the DB", dag_version)
         session.add(dag_version)
-        # Flush is necessary here due to the unique constraint and other linked tables
-        session.flush()
         log.debug("DagVersion %s written to the DB", dag_version)
         return dag_version
 

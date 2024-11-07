@@ -39,8 +39,12 @@ import type {
   DeleteConnectionResponse,
   GetConnectionData,
   GetConnectionResponse,
+  PatchConnectionData,
+  PatchConnectionResponse,
   GetConnectionsData,
   GetConnectionsResponse,
+  PostConnectionData,
+  PostConnectionResponse,
   GetDagRunData,
   GetDagRunResponse,
   DeleteDagRunData,
@@ -89,6 +93,8 @@ import type {
   PostVariableData,
   PostVariableResponse,
   GetVersionResponse,
+  GetDagStatsData,
+  GetDagStatsResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -573,7 +579,7 @@ export class DagService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
-        422: "Unprocessable Entity",
+        422: "Validation Error",
       },
     });
   }
@@ -633,6 +639,40 @@ export class ConnectionService {
   }
 
   /**
+   * Patch Connection
+   * Update a connection entry.
+   * @param data The data for the request.
+   * @param data.connectionId
+   * @param data.requestBody
+   * @param data.updateMask
+   * @returns ConnectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchConnection(
+    data: PatchConnectionData,
+  ): CancelablePromise<PatchConnectionResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/connections/{connection_id}",
+      path: {
+        connection_id: data.connectionId,
+      },
+      query: {
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
    * Get Connections
    * Get all connection entries.
    * @param data The data for the request.
@@ -657,6 +697,31 @@ export class ConnectionService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Post Connection
+   * Create connection entry.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns ConnectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static postConnection(
+    data: PostConnectionData,
+  ): CancelablePromise<PostConnectionResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/connections/",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        409: "Conflict",
         422: "Validation Error",
       },
     });
@@ -1385,6 +1450,35 @@ export class VersionService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/version/",
+    });
+  }
+}
+
+export class DagStatsService {
+  /**
+   * Get Dag Stats
+   * Get Dag statistics.
+   * @param data The data for the request.
+   * @param data.dagIds
+   * @returns DagStatsCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDagStats(
+    data: GetDagStatsData = {},
+  ): CancelablePromise<GetDagStatsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dagStats/",
+      query: {
+        dag_ids: data.dagIds,
+      },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
     });
   }
 }
