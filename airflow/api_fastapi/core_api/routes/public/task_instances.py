@@ -92,8 +92,8 @@ async def get_mapped_task_instances(
     dag_run_id: str,
     task_id: str,
     request: Request,
-    execution_date_range: Annotated[
-        RangeFilter, Depends(datetime_range_filter_factory("execution_date", TI))
+    logical_date_range: Annotated[
+        RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI, "execution_date"))
     ],
     start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", TI))],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TI))],
@@ -109,7 +109,7 @@ async def get_mapped_task_instances(
         SortParam,
         Depends(
             SortParam(
-                ["id", "state", "duration", "start_date", "end_date", "map_index"],
+                ["id", "state", "duration", "start_date", "end_date", "map_index", "rendered_map_index"],
                 TI,
             ).dynamic_depends(default="map_index")
         ),
@@ -141,7 +141,7 @@ async def get_mapped_task_instances(
     task_instance_select, total_entries = paginated_select(
         base_query,
         [
-            execution_date_range,
+            logical_date_range,
             start_date_range,
             end_date_range,
             update_at_range,

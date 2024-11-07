@@ -1274,8 +1274,8 @@ export class TaskInstanceService {
    * @param data.dagId
    * @param data.dagRunId
    * @param data.taskId
-   * @param data.executionDateGte
-   * @param data.executionDateLte
+   * @param data.logicalDateGte
+   * @param data.logicalDateLte
    * @param data.startDateGte
    * @param data.startDateLte
    * @param data.endDateGte
@@ -1306,8 +1306,8 @@ export class TaskInstanceService {
         task_id: data.taskId,
       },
       query: {
-        execution_date_gte: data.executionDateGte,
-        execution_date_lte: data.executionDateLte,
+        logical_date_gte: data.logicalDateGte,
+        logical_date_lte: data.logicalDateLte,
         start_date_gte: data.startDateGte,
         start_date_lte: data.startDateLte,
         end_date_gte: data.endDateGte,

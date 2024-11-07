@@ -651,6 +651,37 @@ class TestGetMappedTaskInstances:
             ti["map_index"] for ti in body["task_instances"]
         ]
 
+    def test_rendered_map_index_order(self, test_client, session, one_task_with_many_mapped_tis):
+        ti = (
+            session.query(TaskInstance)
+            .where(TaskInstance.task_id == "task_2", TaskInstance.map_index == 0)
+            .first()
+        )
+
+        ti.rendered_map_index = "a"
+
+        session.commit()
+
+        response = test_client.get(
+            "/public/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
+            params={"order_by": "-rendered_map_index"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 110
+        assert len(body["task_instances"]) == 100
+        assert [0] + list(range(11, 110)[::-1]) == [ti["map_index"] for ti in body["task_instances"]]
+        # State ascending
+        response = test_client.get(
+            "/public/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
+            params={"order_by": "rendered_map_index", "limit": 108},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 110
+        assert len(body["task_instances"]) == 108
+        assert [0] + list(range(1, 108)) == [ti["map_index"] for ti in body["task_instances"]]
+
     def test_with_date(self, test_client, one_task_with_mapped_tis):
         response = test_client.get(
             "/public/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
@@ -664,6 +695,25 @@ class TestGetMappedTaskInstances:
         response = test_client.get(
             "/public/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
             params={"start_date_gte": DEFAULT_DATETIME_2},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 0
+        assert body["task_instances"] == []
+
+    def test_with_logical_date(self, test_client, one_task_with_mapped_tis):
+        response = test_client.get(
+            "/public/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
+            params={"logical_date_gte": DEFAULT_DATETIME_1},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 3
+        assert len(body["task_instances"]) == 3
+
+        response = test_client.get(
+            "/public/dags/mapped_tis/dagRuns/run_mapped_tis/taskInstances/task_2/listMapped",
+            params={"logical_date_gte": DEFAULT_DATETIME_2},
         )
         assert response.status_code == 200
         body = response.json()

@@ -435,14 +435,15 @@ class RangeFilter(BaseParam[Range]):
 
 
 def datetime_range_filter_factory(
-    filter_name: str, model: Base
+    filter_name: str, model: Base, attribute_name: str | None = None
 ) -> Callable[[datetime | None, datetime | None], RangeFilter]:
     def depends_datetime(
         lower_bound: datetime | None = Query(alias=f"{filter_name}_gte", default=None),
         upper_bound: datetime | None = Query(alias=f"{filter_name}_lte", default=None),
     ) -> RangeFilter:
         return RangeFilter(
-            Range(lower_bound=lower_bound, upper_bound=upper_bound), getattr(model, filter_name)
+            Range(lower_bound=lower_bound, upper_bound=upper_bound),
+            getattr(model, attribute_name or filter_name),
         )
 
     return depends_datetime

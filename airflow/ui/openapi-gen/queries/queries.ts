@@ -973,8 +973,8 @@ export const useTaskInstanceServiceGetTaskInstance = <
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
- * @param data.executionDateGte
- * @param data.executionDateLte
+ * @param data.logicalDateGte
+ * @param data.logicalDateLte
  * @param data.startDateGte
  * @param data.startDateLte
  * @param data.endDateGte
@@ -1005,10 +1005,10 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <
     durationLte,
     endDateGte,
     endDateLte,
-    executionDateGte,
-    executionDateLte,
     executor,
     limit,
+    logicalDateGte,
+    logicalDateLte,
     offset,
     orderBy,
     pool,
@@ -1026,10 +1026,10 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <
     durationLte?: number;
     endDateGte?: string;
     endDateLte?: string;
-    executionDateGte?: string;
-    executionDateLte?: string;
     executor?: string[];
     limit?: number;
+    logicalDateGte?: string;
+    logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
     pool?: string[];
@@ -1053,10 +1053,10 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <
         durationLte,
         endDateGte,
         endDateLte,
-        executionDateGte,
-        executionDateLte,
         executor,
         limit,
+        logicalDateGte,
+        logicalDateLte,
         offset,
         orderBy,
         pool,
@@ -1078,10 +1078,10 @@ export const useTaskInstanceServiceGetMappedTaskInstances = <
         durationLte,
         endDateGte,
         endDateLte,
-        executionDateGte,
-        executionDateLte,
         executor,
         limit,
+        logicalDateGte,
+        logicalDateLte,
         offset,
         orderBy,
         pool,

@@ -1047,10 +1047,10 @@ export type GetMappedTaskInstancesData = {
   durationLte?: number | null;
   endDateGte?: string | null;
   endDateLte?: string | null;
-  executionDateGte?: string | null;
-  executionDateLte?: string | null;
   executor?: Array<string>;
   limit?: number;
+  logicalDateGte?: string | null;
+  logicalDateLte?: string | null;
   offset?: number;
   orderBy?: string;
   pool?: Array<string>;
