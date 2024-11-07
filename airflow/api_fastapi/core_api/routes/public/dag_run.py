@@ -108,7 +108,6 @@ async def patch_dag_run(
     update_mask: list[str] | None = Query(None),
 ) -> DAGRunResponse:
     """Modify a DAG Run."""
-    ALLOWED_FIELD_MASK = ["state", "note"]
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
     if dag_run is None:
         raise HTTPException(
@@ -122,28 +121,11 @@ async def patch_dag_run(
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
     if update_mask:
-        update_mask_set = set(update_mask)
-        validation_errors = []
+        data = patch_body.model_dump(include=set(update_mask), exclude_unset=True)
+    else:
+        data = patch_body.model_dump(exclude_unset=True)
 
-        invalid_fields = update_mask_set - set(ALLOWED_FIELD_MASK)
-        if invalid_fields:
-            validation_errors.append(f"Invalid fields in update mask: {', '.join(invalid_fields)}")
-
-        missing_fields = update_mask_set - invalid_fields - patch_body.model_fields_set
-        if missing_fields:
-            validation_errors.append(f"Fields not present in request body: {', '.join(missing_fields)}")
-
-        if validation_errors:
-            raise HTTPException(400, "; ".join(validation_errors))
-
-    fields_to_update = {
-        field
-        for field in ALLOWED_FIELD_MASK
-        if field in patch_body.model_fields_set and (update_mask is None or field in update_mask)
-    }
-
-    for attr_name in fields_to_update:
-        attr_value = getattr(patch_body, attr_name)
+    for attr_name, attr_value in data.items():
         if attr_name == "state":
             attr_value = getattr(patch_body, "state")
             if attr_value == DAGRunPatchStates.SUCCESS:

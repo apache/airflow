@@ -207,12 +207,12 @@ class TestPatchDagRun:
                 {"note": "new_note2", "state": "failed"},
                 200,
             ),
-            ({"update_mask": ["state"]}, {}, {"detail": "Fields not present in request body: state"}, 400),
+            ({"update_mask": ["note"]}, {}, {"state": "success", "note": "test_note"}, 200),
             (
                 {"update_mask": ["random"]},
-                {"state": DagRunState.SUCCESS},
-                {"detail": "Invalid fields in update mask: random"},
-                400,
+                {"state": DagRunState.FAILED},
+                {"state": "success", "note": "test_note"},
+                200,
             ),
         ],
     )
