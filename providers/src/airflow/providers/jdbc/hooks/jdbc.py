@@ -23,6 +23,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 import jaydebeapi
+import jpype
 from sqlalchemy.engine import URL
 
 from airflow.exceptions import AirflowException
@@ -197,7 +198,7 @@ class JdbcHook(DbApiHook):
         :param conn: The connection.
         :param autocommit: The connection's autocommit setting.
         """
-        with suppress_and_warn(jaydebeapi.Error):
+        with suppress_and_warn(jaydebeapi.Error, jpype.JException):
             conn.jconn.setAutoCommit(autocommit)
 
     def get_autocommit(self, conn: jaydebeapi.Connection) -> bool:
@@ -209,6 +210,6 @@ class JdbcHook(DbApiHook):
             to True on the connection. False if it is either not set, set to
             False, or the connection does not support auto-commit.
         """
-        with suppress_and_warn(jaydebeapi.Error):
+        with suppress_and_warn(jaydebeapi.Error, jpype.JException):
             return conn.jconn.getAutoCommit()
         return False
