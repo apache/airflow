@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, TypeVar
 
 from methodtools import lru_cache
@@ -31,6 +32,8 @@ T = TypeVar("T")
 class Dialect(LoggingMixin):
     """Generic dialect implementation."""
 
+    pattern = re.compile(r'"([a-zA-Z0-9_]+)"')
+
     def __init__(self, hook, **kwargs) -> None:
         super().__init__(**kwargs)
 
@@ -40,6 +43,11 @@ class Dialect(LoggingMixin):
             raise TypeError(f"hook must be an instance of {DbApiHook.__class__.__name__}")
 
         self.hook: DbApiHook = hook
+
+    @classmethod
+    def remove_quotes(cls, value: str | None) -> str | None:
+        if value:
+            return cls.pattern.sub(r"\1", value)
 
     @property
     def placeholder(self) -> str:
@@ -74,7 +82,13 @@ class Dialect(LoggingMixin):
             table, schema = self._extract_schema_from_table(table)
         column_names = list(
             column["name"]
-            for column in filter(predicate, self.inspector.get_columns(table_name=table, schema=schema))
+            for column in filter(
+                predicate,
+                self.inspector.get_columns(
+                    table_name=self.remove_quotes(table),
+                    schema=self.remove_quotes(schema) if schema else None,
+                ),
+            )
         )
         self.log.debug("Column names for table '%s': %s", table, column_names)
         return column_names
@@ -93,9 +107,10 @@ class Dialect(LoggingMixin):
     def get_primary_keys(self, table: str, schema: str | None = None) -> list[str] | None:
         if schema is None:
             table, schema = self._extract_schema_from_table(table)
-        primary_keys = self.inspector.get_pk_constraint(table_name=table, schema=schema).get(
-            "constrained_columns", []
-        )
+        primary_keys = self.inspector.get_pk_constraint(
+            table_name=self.remove_quotes(table),
+            schema=self.remove_quotes(schema) if schema else None,
+        ).get("constrained_columns", [])
         self.log.debug("Primary keys for table '%s': %s", table, primary_keys)
         return primary_keys
 
