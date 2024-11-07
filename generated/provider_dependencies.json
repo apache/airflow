@@ -632,7 +632,7 @@
     "deps": [
       "PyOpenSSL>=23.0.0",
       "apache-airflow-providers-common-compat>=1.2.1",
-      "apache-airflow-providers-common-sql>=1.7.2",
+      "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.8.0",
       "asgiref>=3.5.2",
       "dill>=0.2.3",
@@ -973,7 +973,7 @@
   "openlineage": {
     "deps": [
       "apache-airflow-providers-common-compat>=1.2.1",
-      "apache-airflow-providers-common-sql>=1.17.0",
+      "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.8.0",
       "attrs>=22.2",
       "openlineage-integration-common>=1.24.2",
@@ -1099,7 +1099,7 @@
   },
   "presto": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.17.0",
+      "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.8.0",
       "pandas>=1.5.3,<2.2;python_version<\"3.9\"",
       "pandas>=2.1.2,<2.2;python_version>=\"3.9\"",
@@ -1335,7 +1335,7 @@
   },
   "trino": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.17.0",
+      "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.8.0",
       "pandas>=1.5.3,<2.2;python_version<\"3.9\"",
       "pandas>=2.1.2,<2.2;python_version>=\"3.9\"",
