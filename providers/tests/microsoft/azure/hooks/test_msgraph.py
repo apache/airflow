@@ -219,7 +219,10 @@ class TestKiotaRequestAdapterHook:
             assert error_code == "TenantThrottleThresholdExceeded"
 
     def test_evaluate_parameters(self):
-        query_parameters = {"$expand": lambda: ",".join(["reports","users","datasets","dataflows","dashboards"]), "$top": 5000}
+        query_parameters = {
+            "$expand": lambda: ",".join(["reports","users","datasets","dataflows","dashboards"]),
+            "$top": 5000,
+        }
         KiotaRequestAdapterHook.evaluate_parameters(query_parameters)
 
         assert query_parameters == {"$expand": "reports,users,datasets,dataflows,dashboards", "$top": 5000}
