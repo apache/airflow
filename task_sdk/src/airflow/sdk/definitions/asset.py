@@ -44,7 +44,8 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm.session import Session
 
-__all__ = ["Asset", "AssetAll", "AssetAny", "Dataset"]
+
+__all__ = ["Asset", "AssetAll", "AssetAny", "Dataset", "Model"]
 
 
 log = logging.getLogger(__name__)
