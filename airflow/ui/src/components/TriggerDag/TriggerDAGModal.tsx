@@ -58,12 +58,12 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
         <Dialog.Content backdrop>
           <Dialog.Header>
             <VStack align="start" gap={2}>
-              <Heading size="xl">Trigger DAG</Heading>
-
-              <Heading size="md">{dagDisplayName}</Heading>
-              <Text color="gray.500" fontSize="sm">
-                DAG ID: {dagId}
-              </Text>
+              <Heading size="xl">Trigger DAG {dagDisplayName !== "" && (<span>- {dagDisplayName}</span>)}</Heading>
+              {dagDisplayName === "" && (
+                <Text color="gray.500" fontSize="md">
+                  DAG ID: {dagId}
+                </Text>
+              )}
             </VStack>
           </Dialog.Header>
 
