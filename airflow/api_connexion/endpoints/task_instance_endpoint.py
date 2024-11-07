@@ -721,6 +721,7 @@ def get_task_instance_dependencies(
     return task_dependencies_collection_schema.dump({"dependencies": deps})
 
 
+@mark_fastapi_migration_done
 def get_mapped_task_instance_dependencies(
     *, dag_id: str, dag_run_id: str, task_id: str, map_index: int
 ) -> APIResponse:

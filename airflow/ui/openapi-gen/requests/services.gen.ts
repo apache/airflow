@@ -82,6 +82,10 @@ import type {
   GetTaskInstanceResponse,
   GetMappedTaskInstancesData,
   GetMappedTaskInstancesResponse,
+  GetTaskInstanceDependenciesData,
+  GetTaskInstanceDependenciesResponse,
+  GetTaskInstanceDependencies1Data,
+  GetTaskInstanceDependencies1Response,
   GetMappedTaskInstanceData,
   GetMappedTaskInstanceResponse,
   GetTaskInstancesData,
@@ -1325,6 +1329,72 @@ export class TaskInstanceService {
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Task Instance Dependencies
+   * Get dependencies blocking task from getting scheduled.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.mapIndex
+   * @returns TaskDependencyCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getTaskInstanceDependencies(
+    data: GetTaskInstanceDependenciesData,
+  ): CancelablePromise<GetTaskInstanceDependenciesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+        map_index: data.mapIndex,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Task Instance Dependencies
+   * Get dependencies blocking task from getting scheduled.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.mapIndex
+   * @returns TaskDependencyCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getTaskInstanceDependencies1(
+    data: GetTaskInstanceDependencies1Data,
+  ): CancelablePromise<GetTaskInstanceDependencies1Response> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      query: {
+        map_index: data.mapIndex,
       },
       errors: {
         401: "Unauthorized",
