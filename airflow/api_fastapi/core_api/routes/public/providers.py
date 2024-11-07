@@ -40,7 +40,7 @@ def _provider_mapper(provider: ProviderInfo) -> ProviderResponse:
 
 
 @providers_router.get("/")
-async def get_providers(
+def get_providers(
     limit: QueryLimit,
     offset: QueryOffset,
 ) -> ProviderCollectionResponse:

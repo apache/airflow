@@ -39,7 +39,7 @@ task_instances_router = AirflowRouter(
         [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
     ),
 )
-async def get_task_instance(
+def get_task_instance(
     dag_id: str, dag_run_id: str, task_id: str, session: Annotated[Session, Depends(get_session)]
 ) -> TaskInstanceResponse:
     """Get task instance."""
@@ -70,7 +70,7 @@ async def get_task_instance(
         [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
     ),
 )
-async def get_mapped_task_instance(
+def get_mapped_task_instance(
     dag_id: str,
     dag_run_id: str,
     task_id: str,

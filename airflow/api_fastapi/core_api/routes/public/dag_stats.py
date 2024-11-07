@@ -50,7 +50,7 @@ dag_stats_router = AirflowRouter(tags=["DagStats"], prefix="/dagStats")
         ]
     ),
 )
-async def get_dag_stats(
+def get_dag_stats(
     session: Annotated[Session, Depends(get_session)],
     dag_ids: QueryDagIdsFilter,
 ) -> DagStatsCollectionResponse:
