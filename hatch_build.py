@@ -431,6 +431,7 @@ DEPENDENCIES = [
     # The issue tracking it is https://github.com/apache/airflow/issues/28723
     "sqlalchemy>=1.4.36,<2.0",
     "sqlalchemy-jsonfield>=1.0",
+    "sqlalchemy-utils>=0.41.2",
     "tabulate>=0.7.5",
     "tenacity>=8.0.0,!=8.2.0",
     "termcolor>=1.1.0",
