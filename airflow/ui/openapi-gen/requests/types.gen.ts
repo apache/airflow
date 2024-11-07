@@ -593,6 +593,14 @@ export type SchedulerInfoSchema = {
 };
 
 /**
+ * Task Instance Collection serializer for responses.
+ */
+export type TaskInstanceCollectionResponse = {
+  task_instances: Array<TaskInstanceResponse>;
+  total_entries: number;
+};
+
+/**
  * TaskInstance serializer for responses.
  */
 export type TaskInstanceResponse = {
@@ -1031,6 +1039,31 @@ export type GetTaskInstanceData = {
 };
 
 export type GetTaskInstanceResponse = TaskInstanceResponse;
+
+export type GetMappedTaskInstancesData = {
+  dagId: string;
+  dagRunId: string;
+  durationGte?: number | null;
+  durationLte?: number | null;
+  endDateGte?: string | null;
+  endDateLte?: string | null;
+  executor?: Array<string>;
+  limit?: number;
+  logicalDateGte?: string | null;
+  logicalDateLte?: string | null;
+  offset?: number;
+  orderBy?: string;
+  pool?: Array<string>;
+  queue?: Array<string>;
+  startDateGte?: string | null;
+  startDateLte?: string | null;
+  state?: Array<string>;
+  taskId: string;
+  updatedAtGte?: string | null;
+  updatedAtLte?: string | null;
+};
+
+export type GetMappedTaskInstancesResponse = TaskInstanceCollectionResponse;
 
 export type GetMappedTaskInstanceData = {
   dagId: string;
@@ -2051,6 +2084,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: TaskInstanceResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped": {
+    get: {
+      req: GetMappedTaskInstancesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceCollectionResponse;
         /**
          * Unauthorized
          */

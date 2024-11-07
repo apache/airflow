@@ -80,6 +80,8 @@ import type {
   GetProvidersResponse,
   GetTaskInstanceData,
   GetTaskInstanceResponse,
+  GetMappedTaskInstancesData,
+  GetMappedTaskInstancesResponse,
   GetMappedTaskInstanceData,
   GetMappedTaskInstanceResponse,
   DeleteVariableData,
@@ -1255,6 +1257,72 @@ export class TaskInstanceService {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
         task_id: data.taskId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Mapped Task Instances
+   * Get list of mapped task instances.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.logicalDateGte
+   * @param data.logicalDateLte
+   * @param data.startDateGte
+   * @param data.startDateLte
+   * @param data.endDateGte
+   * @param data.endDateLte
+   * @param data.updatedAtGte
+   * @param data.updatedAtLte
+   * @param data.durationGte
+   * @param data.durationLte
+   * @param data.state
+   * @param data.pool
+   * @param data.queue
+   * @param data.executor
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @returns TaskInstanceCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getMappedTaskInstances(
+    data: GetMappedTaskInstancesData,
+  ): CancelablePromise<GetMappedTaskInstancesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      query: {
+        logical_date_gte: data.logicalDateGte,
+        logical_date_lte: data.logicalDateLte,
+        start_date_gte: data.startDateGte,
+        start_date_lte: data.startDateLte,
+        end_date_gte: data.endDateGte,
+        end_date_lte: data.endDateLte,
+        updated_at_gte: data.updatedAtGte,
+        updated_at_lte: data.updatedAtLte,
+        duration_gte: data.durationGte,
+        duration_lte: data.durationLte,
+        state: data.state,
+        pool: data.pool,
+        queue: data.queue,
+        executor: data.executor,
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
       },
       errors: {
         401: "Unauthorized",
