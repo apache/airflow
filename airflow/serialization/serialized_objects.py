@@ -256,7 +256,7 @@ def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
     :meta private:
     """
     if isinstance(var, Asset):
-        return {"__type": DAT.ASSET, "name": var.name, "uri": var.uri, "extra": var.extra}
+        return {"__type": DAT.ASSET, "name": var.name, "uri": var.uri, "group": var.group, "extra": var.extra}
     if isinstance(var, AssetAlias):
         return {"__type": DAT.ASSET_ALIAS, "name": var.name}
     if isinstance(var, AssetAll):
@@ -274,7 +274,7 @@ def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
     """
     dat = var["__type"]
     if dat == DAT.ASSET:
-        return Asset(uri=var["uri"], name=var["name"], extra=var["extra"])
+        return Asset(name=var["name"], uri=var["uri"], group=var["group"], extra=var["extra"])
     if dat == DAT.ASSET_ALL:
         return AssetAll(*(decode_asset_condition(x) for x in var["objects"]))
     if dat == DAT.ASSET_ANY:
