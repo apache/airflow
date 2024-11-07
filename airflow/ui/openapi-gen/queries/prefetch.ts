@@ -472,7 +472,7 @@ export const prefetchUseDagRunServiceGetUpstreamAssetEvents = (
  * Get Dag Source
  * Get source code using file token.
  * @param data The data for the request.
- * @param data.fileToken
+ * @param data.dagId
  * @param data.accept
  * @returns DAGSourceResponse Successful Response
  * @throws ApiError
@@ -481,18 +481,26 @@ export const prefetchUseDagSourceServiceGetDagSource = (
   queryClient: QueryClient,
   {
     accept,
-    fileToken,
+    dagId,
+    versionNumber,
   }: {
     accept?: string;
-    fileToken: string;
+    dagId: string;
+    versionNumber?: number;
   },
 ) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseDagSourceServiceGetDagSourceKeyFn({
       accept,
-      fileToken,
+      dagId,
+      versionNumber,
     }),
-    queryFn: () => DagSourceService.getDagSource({ accept, fileToken }),
+    queryFn: () =>
+      DagSourceService.getDagSource({
+        accept,
+        dagId,
+        versionNumber,
+      }),
   });
 /**
  * Get Dag Stats

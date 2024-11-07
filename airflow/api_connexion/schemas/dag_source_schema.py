@@ -23,6 +23,9 @@ class DagSourceSchema(Schema):
     """Dag Source schema."""
 
     content = fields.String(dump_only=True)
+    dag_id = fields.String(dump_only=True)
+    version_name = fields.String(dump_only=True)
+    version_number = fields.Integer(dump_only=True)
 
 
 dag_source_schema = DagSourceSchema()

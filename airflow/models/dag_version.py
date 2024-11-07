@@ -136,7 +136,8 @@ class DagVersion(Base):
     def get_version(
         cls,
         dag_id: str,
-        version_number: int = 1,
+        version_number: int | None = None,
+        version_name: str | None = None,
         *,
         session: Session = NEW_SESSION,
     ) -> DagVersion | None:
@@ -145,16 +146,17 @@ class DagVersion(Base):
 
         :param dag_id: The DAG ID.
         :param version_number: The version number.
+        :param version_name: The version name.
         :param session: The database session.
         :return: The version of the DAG or None if not found.
         """
-        version_select_obj = (
-            select(cls)
-            .where(cls.dag_id == dag_id, cls.version_number == version_number)
-            .order_by(cls.version_number.desc())
-            .limit(1)
-        )
-        return session.scalar(version_select_obj)
+        version_select_obj = select(cls).where(cls.dag_id == dag_id)
+        if version_number:
+            version_select_obj = version_select_obj.where(cls.version_number == version_number)
+        if version_name:
+            version_select_obj = version_select_obj.where(cls.version_name == version_name)
+
+        return session.scalar(version_select_obj.order_by(cls.id.desc()).limit(1))
 
     @property
     def version(self) -> str:

@@ -23,3 +23,6 @@ class DAGSourceResponse(BaseModel):
     """DAG Source serializer for responses."""
 
     content: str | None
+    dag_id: str
+    version_name: str | None
+    version_number: int | None
