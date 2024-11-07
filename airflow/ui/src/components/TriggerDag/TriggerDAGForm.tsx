@@ -32,49 +32,38 @@ import type { DagParams } from "./TriggerDag";
 type TriggerDAGFormProps = {
   dagParams: DagParams;
   onClose: () => void;
-  onTrigger: () => void;
+  onTrigger: (updatedDagParams: DagParams) => void;
   setDagParams: React.Dispatch<React.SetStateAction<DagParams>>;
 };
 
 const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
   dagParams,
   onTrigger,
+  setDagParams,
 }) => {
   const [jsonError, setJsonError] = useState<string | undefined>(undefined);
-  const { control, handleSubmit, reset, watch } = useForm({
+  const { control, formState: { isDirty }, handleSubmit, reset } = useForm<DagParams>({
     defaultValues: {
-      configJson: JSON.stringify(dagParams.configJson),
+      configJson: dagParams.configJson,
       logicalDate: dagParams.logicalDate,
       runId: dagParams.runId,
-    },
-  });
+    }
+});
 
   useEffect(() => {
     reset({
-      configJson: JSON.stringify(dagParams.configJson),
+      configJson: dagParams.configJson, 
       logicalDate: dagParams.logicalDate,
       runId: dagParams.runId,
     });
   }, [dagParams, reset]);
 
-  const onSubmit = () => {
-    onTrigger();
+  const onSubmit = (data: DagParams) => {
+      onTrigger(data);
+      setDagParams(data); 
+      setJsonError(undefined); 
   };
-
-  const hasFormChanged = () => {
-    const currentValues = {
-      configJson: watch("configJson"),
-      logicalDate: watch("logicalDate"),
-      runId: watch("runId"),
-    };
-
-    return (
-      currentValues.configJson !== JSON.stringify(dagParams.configJson) ||
-      currentValues.logicalDate !== dagParams.logicalDate ||
-      currentValues.runId !== dagParams.runId
-    );
-  };
-
+  
   const { colorMode } = useColorMode();
 
   return (
@@ -124,15 +113,15 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                 render={({ field }) => (
                   <Box mb={4}>
                     <CodeMirror
-                      {...field}
                       basicSetup
                       extensions={[json(), autocompletion(), lineNumbers()]}
                       height="200px"
                       onChange={(value) => {
-                        field.onChange(value); // Update the form state
                         try {
-                          JSON.parse(value);
-                          setJsonError(undefined); // Clear error if JSON is valid
+                          const parsedConfigJson = JSON.parse(value) as Record<string, unknown>;
+                          
+                          field.onChange(parsedConfigJson); // Update react-hook-form value
+                          setJsonError(undefined);
                         } catch {
                           setJsonError("Invalid JSON format.");
                         }
@@ -144,6 +133,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                         padding: "2px",
                       }}
                       theme={colorMode === "dark" ? githubDark : githubLight}
+                      value={JSON.stringify(field.value)}
                     />
                     {Boolean(jsonError) ? (
                       <Text color="red.500" fontSize="sm" mt={2}>
@@ -160,7 +150,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
 
       <Box as="footer" display="flex" justifyContent="flex-end" mt={4}>
         <HStack w="full">
-          {hasFormChanged() && <Button onClick={() => reset()}>Reset</Button>}
+          {isDirty ? <Button onClick={() => reset()}>Reset</Button> : undefined}
           <Spacer />
           <Button
             disabled={Boolean(jsonError)}

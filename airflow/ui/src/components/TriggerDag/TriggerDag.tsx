@@ -18,13 +18,25 @@
  */
 
 export type DagParams = {
-  configJson: Record<string, string>;
+  configJson: Record<string, unknown>;
   dagId: string;
   logicalDate: string;
   runId: string;
 };
 
 export const TriggerDag = (dagParams: DagParams) => {
-  // TODO triggering logic
+  // eslint-disable-next-line no-alert
+  alert(`
+    Triggering DAG with the following parameters:
+    
+    Config JSON: ${JSON.stringify(dagParams.configJson)}
+    Logical Date: ${dagParams.logicalDate}
+    Run ID: ${dagParams.runId}
+
+    TODO: This trigger button is under progress. 
+    The values you have entered are shown above.
+  `);
+
+  // TODO triggering logic (would be placed here once the FAST API is available)
   console.log("Triggering DAG with parameters:", dagParams);
 };

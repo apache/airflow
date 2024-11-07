@@ -43,8 +43,8 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
     runId: "",
   });
 
-  const handleTrigger = () => {
-    TriggerDag(dagParams);
+  const handleTrigger = (updatedDagParams: DagParams) => {
+    TriggerDag(updatedDagParams);
     onClose();
   };
 
@@ -73,7 +73,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
             <TriggerDAGForm
               dagParams={dagParams}
               onClose={onClose}
-              onTrigger={handleTrigger}
+              onTrigger={handleTrigger} 
               setDagParams={setDagParams}
             />
           </Dialog.Body>
