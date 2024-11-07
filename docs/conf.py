@@ -317,7 +317,7 @@ html_favicon = "../airflow/www/static/pin_32.png"
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-if PACKAGE_NAME in ["apache-airflow", "helm-chart"]:
+if PACKAGE_NAME in ["apache-airflow", "helm-chart", "apache-airflow-providers-google"]:
     html_static_path = [f"{PACKAGE_NAME}/static"]
 else:
     html_static_path = []

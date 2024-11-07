@@ -1211,9 +1211,8 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
     """
     Executes BigQuery SQL queries in a specific BigQuery database.
 
-    This operator is deprecated. Please use
-    :class:`airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator`
-    instead.
+    .. warning:: This operator is deprecated.
+        Please use :class:`airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator` instead.
 
     This operator does not assert idempotency.
 
@@ -2307,9 +2306,8 @@ class BigQueryPatchDatasetOperator(GoogleCloudBaseOperator):
     """
     Patch a dataset for your Project in BigQuery.
 
-    This operator is deprecated. Please use
-    :class:`airflow.providers.google.cloud.operators.bigquery.BigQueryUpdateTableOperator`
-    instead.
+    .. warning:: This operator is deprecated.
+        Please use :class:`airflow.providers.google.cloud.operators.bigquery.BigQueryUpdateTableOperator` instead.
 
     Only replaces fields that are provided in the submitted dataset resource.
 
