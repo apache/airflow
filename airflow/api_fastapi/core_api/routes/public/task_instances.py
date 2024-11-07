@@ -38,12 +38,16 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.serializers.task_instances import (
+    TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
 )
 from airflow.exceptions import TaskNotFound
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.ti_deps.dep_context import DepContext
+from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils.db import get_query_count
+from airflow.utils.state import TaskInstanceState
 
 task_instances_router = AirflowRouter(
     tags=["Task Instance"], prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances"
@@ -166,6 +170,64 @@ async def get_mapped_task_instances(
         ],
         total_entries=total_entries,
     )
+
+
+@task_instances_router.get(
+    "/{task_id}/dependencies",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
+    ),
+)
+@task_instances_router.get(
+    "/{task_id}/{map_index}/dependencies",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
+    ),
+)
+async def get_task_instance_dependencies(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    session: Annotated[Session, Depends(get_session)],
+    request: Request,
+    map_index: int = -1,
+) -> TaskDependencyCollectionResponse:
+    """Get dependencies blocking task from getting scheduled."""
+    query = select(TI).where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id)
+
+    if map_index == -1:
+        query = query.where(TI.map_index == -1)
+    else:
+        query = query.where(TI.map_index == map_index)
+
+    result = session.execute(query).one_or_none()
+
+    if result is None:
+        error_message = f"Task Instance not found for dag_id={dag_id}, run_id={dag_run_id}, task_id={task_id}"
+        raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
+
+    ti = result[0]
+    deps = []
+
+    if ti.state in [None, TaskInstanceState.SCHEDULED]:
+        dag = request.app.state.dag_bag.get_dag(ti.dag_id)
+
+        if dag:
+            try:
+                ti.task = dag.get_task(ti.task_id)
+            except TaskNotFound:
+                pass
+            else:
+                dep_context = DepContext(SCHEDULER_QUEUED_DEPS)
+                deps = sorted(
+                    [
+                        {"name": dep.dep_name, "reason": dep.reason}
+                        for dep in ti.get_failed_dep_statuses(dep_context=dep_context, session=session)
+                    ],
+                    key=lambda x: x["name"],
+                )
+
+    return TaskDependencyCollectionResponse.model_validate({"dependencies": deps})
 
 
 @task_instances_router.get(
