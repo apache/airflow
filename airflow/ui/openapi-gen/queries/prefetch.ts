@@ -8,6 +8,7 @@ import {
   DagRunService,
   DagService,
   DagSourceService,
+  DagStatsService,
   DagWarningService,
   DagsService,
   DashboardService,
@@ -775,6 +776,126 @@ export const prefetchUseTaskInstanceServiceGetTaskInstance = (
       TaskInstanceService.getTaskInstance({ dagId, dagRunId, taskId }),
   });
 /**
+ * Get Mapped Task Instances
+ * Get list of mapped task instances.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.logicalDateGte
+ * @param data.logicalDateLte
+ * @param data.startDateGte
+ * @param data.startDateLte
+ * @param data.endDateGte
+ * @param data.endDateLte
+ * @param data.updatedAtGte
+ * @param data.updatedAtLte
+ * @param data.durationGte
+ * @param data.durationLte
+ * @param data.state
+ * @param data.pool
+ * @param data.queue
+ * @param data.executor
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns TaskInstanceCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseTaskInstanceServiceGetMappedTaskInstances = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+    durationGte,
+    durationLte,
+    endDateGte,
+    endDateLte,
+    executor,
+    limit,
+    logicalDateGte,
+    logicalDateLte,
+    offset,
+    orderBy,
+    pool,
+    queue,
+    startDateGte,
+    startDateLte,
+    state,
+    taskId,
+    updatedAtGte,
+    updatedAtLte,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    durationGte?: number;
+    durationLte?: number;
+    endDateGte?: string;
+    endDateLte?: string;
+    executor?: string[];
+    limit?: number;
+    logicalDateGte?: string;
+    logicalDateLte?: string;
+    offset?: number;
+    orderBy?: string;
+    pool?: string[];
+    queue?: string[];
+    startDateGte?: string;
+    startDateLte?: string;
+    state?: string[];
+    taskId: string;
+    updatedAtGte?: string;
+    updatedAtLte?: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstancesKeyFn({
+      dagId,
+      dagRunId,
+      durationGte,
+      durationLte,
+      endDateGte,
+      endDateLte,
+      executor,
+      limit,
+      logicalDateGte,
+      logicalDateLte,
+      offset,
+      orderBy,
+      pool,
+      queue,
+      startDateGte,
+      startDateLte,
+      state,
+      taskId,
+      updatedAtGte,
+      updatedAtLte,
+    }),
+    queryFn: () =>
+      TaskInstanceService.getMappedTaskInstances({
+        dagId,
+        dagRunId,
+        durationGte,
+        durationLte,
+        endDateGte,
+        endDateLte,
+        executor,
+        limit,
+        logicalDateGte,
+        logicalDateLte,
+        offset,
+        orderBy,
+        pool,
+        queue,
+        startDateGte,
+        startDateLte,
+        state,
+        taskId,
+        updatedAtGte,
+        updatedAtLte,
+      }),
+  });
+/**
  * Get Mapped Task Instance
  * Get task instance.
  * @param data The data for the request.
@@ -812,6 +933,124 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstance = (
         dagRunId,
         mapIndex,
         taskId,
+      }),
+  });
+/**
+ * Get Task Instances
+ * Get list of task instances.
+ *
+ * This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
+ * and DAG runs.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.logicalDateGte
+ * @param data.logicalDateLte
+ * @param data.startDateGte
+ * @param data.startDateLte
+ * @param data.endDateGte
+ * @param data.endDateLte
+ * @param data.updatedAtGte
+ * @param data.updatedAtLte
+ * @param data.durationGte
+ * @param data.durationLte
+ * @param data.state
+ * @param data.pool
+ * @param data.queue
+ * @param data.executor
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns TaskInstanceCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseTaskInstanceServiceGetTaskInstances = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+    durationGte,
+    durationLte,
+    endDateGte,
+    endDateLte,
+    executor,
+    limit,
+    logicalDateGte,
+    logicalDateLte,
+    offset,
+    orderBy,
+    pool,
+    queue,
+    startDateGte,
+    startDateLte,
+    state,
+    updatedAtGte,
+    updatedAtLte,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    durationGte?: number;
+    durationLte?: number;
+    endDateGte?: string;
+    endDateLte?: string;
+    executor?: string[];
+    limit?: number;
+    logicalDateGte?: string;
+    logicalDateLte?: string;
+    offset?: number;
+    orderBy?: string;
+    pool?: string[];
+    queue?: string[];
+    startDateGte?: string;
+    startDateLte?: string;
+    state?: string[];
+    updatedAtGte?: string;
+    updatedAtLte?: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstancesKeyFn({
+      dagId,
+      dagRunId,
+      durationGte,
+      durationLte,
+      endDateGte,
+      endDateLte,
+      executor,
+      limit,
+      logicalDateGte,
+      logicalDateLte,
+      offset,
+      orderBy,
+      pool,
+      queue,
+      startDateGte,
+      startDateLte,
+      state,
+      updatedAtGte,
+      updatedAtLte,
+    }),
+    queryFn: () =>
+      TaskInstanceService.getTaskInstances({
+        dagId,
+        dagRunId,
+        durationGte,
+        durationLte,
+        endDateGte,
+        endDateLte,
+        executor,
+        limit,
+        logicalDateGte,
+        logicalDateLte,
+        offset,
+        orderBy,
+        pool,
+        queue,
+        startDateGte,
+        startDateLte,
+        state,
+        updatedAtGte,
+        updatedAtLte,
       }),
   });
 /**
@@ -874,4 +1113,24 @@ export const prefetchUseVersionServiceGetVersion = (queryClient: QueryClient) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseVersionServiceGetVersionKeyFn(),
     queryFn: () => VersionService.getVersion(),
+  });
+/**
+ * Get Dag Stats
+ * Get Dag statistics.
+ * @param data The data for the request.
+ * @param data.dagIds
+ * @returns DagStatsCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagStatsServiceGetDagStats = (
+  queryClient: QueryClient,
+  {
+    dagIds,
+  }: {
+    dagIds?: string[];
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }),
+    queryFn: () => DagStatsService.getDagStats({ dagIds }),
   });
