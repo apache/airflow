@@ -209,8 +209,8 @@ async def get_task_instances(
     dag_id: str,
     dag_run_id: str,
     request: Request,
-    execution_date_range: Annotated[
-        RangeFilter, Depends(datetime_range_filter_factory("execution_date", TI))
+    logical_date: Annotated[
+        RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI, "execution_date"))
     ],
     start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", TI))],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TI))],
@@ -233,7 +233,12 @@ async def get_task_instances(
     ],
     session: Annotated[Session, Depends(get_session)],
 ) -> TaskInstanceCollectionResponse:
-    """Get list of mapped task instances."""
+    """
+    Get list of task instances.
+
+    This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
+    and DAG runs.
+    """
     base_query = select(TI).join(TI.dag_run)
 
     if dag_id != "~":
@@ -244,7 +249,7 @@ async def get_task_instances(
     task_instance_select, total_entries = paginated_select(
         base_query,
         [
-            execution_date_range,
+            logical_date,
             start_date_range,
             end_date_range,
             update_at_range,

@@ -2475,7 +2475,13 @@ paths:
       tags:
       - Task Instance
       summary: Get Task Instances
-      description: Get list of mapped task instances.
+      description: 'Get list of task instances.
+
+
+        This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve
+        Task Instances for all DAGs
+
+        and DAG runs.'
       operationId: get_task_instances
       parameters:
       - name: dag_id
@@ -2490,7 +2496,7 @@ paths:
         schema:
           type: string
           title: Dag Run Id
-      - name: execution_date_gte
+      - name: logical_date_gte
         in: query
         required: false
         schema:
@@ -2498,8 +2504,8 @@ paths:
           - type: string
             format: date-time
           - type: 'null'
-          title: Execution Date Gte
-      - name: execution_date_lte
+          title: Logical Date Gte
+      - name: logical_date_lte
         in: query
         required: false
         schema:
@@ -2507,7 +2513,7 @@ paths:
           - type: string
             format: date-time
           - type: 'null'
-          title: Execution Date Lte
+          title: Logical Date Lte
       - name: start_date_gte
         in: query
         required: false

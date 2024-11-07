@@ -937,12 +937,15 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstance = (
   });
 /**
  * Get Task Instances
- * Get list of mapped task instances.
+ * Get list of task instances.
+ *
+ * This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
+ * and DAG runs.
  * @param data The data for the request.
  * @param data.dagId
  * @param data.dagRunId
- * @param data.executionDateGte
- * @param data.executionDateLte
+ * @param data.logicalDateGte
+ * @param data.logicalDateLte
  * @param data.startDateGte
  * @param data.startDateLte
  * @param data.endDateGte
@@ -970,10 +973,10 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
     durationLte,
     endDateGte,
     endDateLte,
-    executionDateGte,
-    executionDateLte,
     executor,
     limit,
+    logicalDateGte,
+    logicalDateLte,
     offset,
     orderBy,
     pool,
@@ -990,10 +993,10 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
     durationLte?: number;
     endDateGte?: string;
     endDateLte?: string;
-    executionDateGte?: string;
-    executionDateLte?: string;
     executor?: string[];
     limit?: number;
+    logicalDateGte?: string;
+    logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
     pool?: string[];
@@ -1013,10 +1016,10 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
       durationLte,
       endDateGte,
       endDateLte,
-      executionDateGte,
-      executionDateLte,
       executor,
       limit,
+      logicalDateGte,
+      logicalDateLte,
       offset,
       orderBy,
       pool,
@@ -1035,10 +1038,10 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
         durationLte,
         endDateGte,
         endDateLte,
-        executionDateGte,
-        executionDateLte,
         executor,
         limit,
+        logicalDateGte,
+        logicalDateLte,
         offset,
         orderBy,
         pool,

@@ -727,10 +727,10 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     durationLte,
     endDateGte,
     endDateLte,
-    executionDateGte,
-    executionDateLte,
     executor,
     limit,
+    logicalDateGte,
+    logicalDateLte,
     offset,
     orderBy,
     pool,
@@ -747,10 +747,10 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     durationLte?: number;
     endDateGte?: string;
     endDateLte?: string;
-    executionDateGte?: string;
-    executionDateLte?: string;
     executor?: string[];
     limit?: number;
+    logicalDateGte?: string;
+    logicalDateLte?: string;
     offset?: number;
     orderBy?: string;
     pool?: string[];
@@ -772,10 +772,10 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
       durationLte,
       endDateGte,
       endDateLte,
-      executionDateGte,
-      executionDateLte,
       executor,
       limit,
+      logicalDateGte,
+      logicalDateLte,
       offset,
       orderBy,
       pool,

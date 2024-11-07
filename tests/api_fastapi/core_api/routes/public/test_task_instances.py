@@ -781,9 +781,9 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                 ],
                 False,
                 "/public/dags/example_python_operator/dagRuns/~/taskInstances",
-                {"execution_date_lte": DEFAULT_DATETIME_1},
+                {"logical_date_lte": DEFAULT_DATETIME_1},
                 1,
-                id="test execution date filter",
+                id="test logical date filter",
             ),
             pytest.param(
                 [
