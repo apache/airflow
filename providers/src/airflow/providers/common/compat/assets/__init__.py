@@ -33,6 +33,18 @@ if TYPE_CHECKING:
     from airflow.auth.managers.models.resource_details import AssetDetails
 else:
     try:
+        from airflow.auth.managers.models.resource_details import AssetDetails
+    except ModuleNotFoundError:
+        # 2.7.x
+        pass
+    except ImportError:
+        from packaging.version import Version
+
+        _IS_AIRFLOW_2_8_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.8.0")
+        if _IS_AIRFLOW_2_8_OR_HIGHER:
+            from airflow.auth.managers.models.resource_details import DatasetDetails as AssetDetails
+
+    try:
         from airflow.assets import (
             Asset,
             AssetAlias,
@@ -41,19 +53,14 @@ else:
             AssetAny,
             expand_alias_to_assets,
         )
-        from airflow.auth.managers.models.resource_details import AssetDetails
     except ModuleNotFoundError:
         from packaging.version import Version
 
         _IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
         _IS_AIRFLOW_2_9_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.9.0")
-        _IS_AIRFLOW_2_8_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.8.0")
 
         # dataset is renamed to asset since Airflow 3.0
         from airflow.datasets import Dataset as Asset
-
-        if _IS_AIRFLOW_2_8_OR_HIGHER:
-            from airflow.auth.managers.models.resource_details import DatasetDetails as AssetDetails
 
         if _IS_AIRFLOW_2_9_OR_HIGHER:
             from airflow.datasets import (
