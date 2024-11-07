@@ -34,13 +34,13 @@ import type {
   DagRunState,
   DAGWithLatestDagRunsResponse,
 } from "openapi/requests/types.gen";
+import DagRunInfo from "src/components/DagRunInfo";
 import { DataTable } from "src/components/DataTable";
 import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
 import type { CardDef } from "src/components/DataTable/types";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
-import Time from "src/components/Time";
 import { TogglePause } from "src/components/TogglePause";
 import TriggerDAGIconButton from "src/components/TriggerDag/TriggerDAGIconButton";
 import { Select } from "src/components/ui";
@@ -54,7 +54,6 @@ import { pluralize } from "src/utils";
 import { DagCard } from "./DagCard";
 import { DagTags } from "./DagTags";
 import { DagsFilters } from "./DagsFilters";
-import { LatestRun } from "./LatestRun";
 import { Schedule } from "./Schedule";
 
 const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
@@ -90,16 +89,27 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
     accessorKey: "next_dagrun",
     cell: ({ row: { original } }) =>
       Boolean(original.next_dagrun) ? (
-        <Time datetime={original.next_dagrun} />
+        <DagRunInfo
+          dataIntervalEnd={original.next_dagrun_data_interval_end}
+          dataIntervalStart={original.next_dagrun_data_interval_start}
+          nextDagrunCreateAfter={original.next_dagrun_create_after}
+        />
       ) : undefined,
     enableSorting: false,
     header: "Next Dag Run",
   },
   {
     accessorKey: "latest_dag_runs",
-    cell: ({ row: { original } }) => (
-      <LatestRun latestRun={original.latest_dag_runs[0]} />
-    ),
+    cell: ({ row: { original } }) =>
+      original.latest_dag_runs[0] ? (
+        <DagRunInfo
+          dataIntervalEnd={original.latest_dag_runs[0].data_interval_end}
+          dataIntervalStart={original.latest_dag_runs[0].data_interval_start}
+          endDate={original.latest_dag_runs[0].end_date}
+          logicalDate={original.latest_dag_runs[0].logical_date}
+          startDate={original.latest_dag_runs[0].start_date}
+        />
+      ) : undefined,
     enableSorting: false,
     header: "Last Dag Run",
   },

@@ -28,13 +28,12 @@ import {
 import { Link as RouterLink } from "react-router-dom";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
-import Time from "src/components/Time";
+import DagRunInfo from "src/components/DagRunInfo";
 import { TogglePause } from "src/components/TogglePause";
 import TriggerDAGIconButton from "src/components/TriggerDag/TriggerDAGIconButton";
 import { Tooltip } from "src/components/ui";
 
 import { DagTags } from "./DagTags";
-import { LatestRun } from "./LatestRun";
 import { RecentRuns } from "./RecentRuns";
 import { Schedule } from "./Schedule";
 
@@ -42,62 +41,80 @@ type Props = {
   readonly dag: DAGWithLatestDagRunsResponse;
 };
 
-export const DagCard = ({ dag }: Props) => (
-  <Box
-    borderColor="border.emphasized"
-    borderRadius={8}
-    borderWidth={1}
-    overflow="hidden"
-  >
-    <Flex
-      alignItems="center"
-      bg="bg.muted"
-      justifyContent="space-between"
-      px={3}
-      py={2}
+export const DagCard = ({ dag }: Props) => {
+  const [latestRun] = dag.latest_dag_runs;
+
+  return (
+    <Box
+      borderColor="border.emphasized"
+      borderRadius={8}
+      borderWidth={1}
+      overflow="hidden"
     >
-      <HStack>
-        <Tooltip
-          content={dag.description}
-          disabled={!Boolean(dag.description)}
-          showArrow
-        >
-          <Link asChild color="fg.info" fontWeight="bold">
-            <RouterLink to={`/dags/${dag.dag_id}`}>
-              {dag.dag_display_name}
-            </RouterLink>
-          </Link>
-        </Tooltip>
-        <DagTags tags={dag.tags} />
-      </HStack>
-      <HStack>
-        <TogglePause dagId={dag.dag_id} isPaused={dag.is_paused} />
-        <TriggerDAGIconButton
-          dagDisplayName={dag.dag_display_name}
-          dagId={dag.dag_id}
-        />
-      </HStack>
-    </Flex>
-    <SimpleGrid columns={4} gap={4} height={20} px={3} py={2}>
-      <VStack align="flex-start" gap={1}>
-        <Heading color="gray.500" fontSize="xs">
-          Schedule
-        </Heading>
-        <Schedule dag={dag} />
-      </VStack>
-      <VStack align="flex-start" gap={1}>
-        <Heading color="gray.500" fontSize="xs">
-          Latest Run
-        </Heading>
-        <LatestRun latestRun={dag.latest_dag_runs[0]} />
-      </VStack>
-      <VStack align="flex-start" gap={1}>
-        <Heading color="gray.500" fontSize="xs">
-          Next Run
-        </Heading>
-        <Time datetime={dag.next_dagrun} />
-      </VStack>
-      <RecentRuns latestRuns={dag.latest_dag_runs} />
-    </SimpleGrid>
-  </Box>
-);
+      <Flex
+        alignItems="center"
+        bg="bg.muted"
+        justifyContent="space-between"
+        px={3}
+        py={2}
+      >
+        <HStack>
+          <Tooltip
+            content={dag.description}
+            disabled={!Boolean(dag.description)}
+            showArrow
+          >
+            <Link asChild color="fg.info" fontWeight="bold">
+              <RouterLink to={`/dags/${dag.dag_id}`}>
+                {dag.dag_display_name}
+              </RouterLink>
+            </Link>
+          </Tooltip>
+          <DagTags tags={dag.tags} />
+        </HStack>
+        <HStack>
+          <TogglePause dagId={dag.dag_id} isPaused={dag.is_paused} />
+          <TriggerDAGIconButton
+            dagDisplayName={dag.dag_display_name}
+            dagId={dag.dag_id}
+          />
+        </HStack>
+      </Flex>
+      <SimpleGrid columns={4} gap={4} height={20} px={3} py={2}>
+        <VStack align="flex-start" gap={1}>
+          <Heading color="gray.500" fontSize="xs">
+            Schedule
+          </Heading>
+          <Schedule dag={dag} />
+        </VStack>
+        <VStack align="flex-start" gap={1}>
+          <Heading color="gray.500" fontSize="xs">
+            Latest Run
+          </Heading>
+          {latestRun ? (
+            <DagRunInfo
+              dataIntervalEnd={latestRun.data_interval_end}
+              dataIntervalStart={latestRun.data_interval_start}
+              endDate={latestRun.end_date}
+              logicalDate={latestRun.logical_date}
+              startDate={latestRun.start_date}
+            />
+          ) : undefined}
+        </VStack>
+        <VStack align="flex-start" gap={1}>
+          <Heading color="gray.500" fontSize="xs">
+            Next Run
+          </Heading>
+          {Boolean(dag.next_dagrun) ? (
+            <DagRunInfo
+              dataIntervalEnd={dag.next_dagrun_data_interval_end}
+              dataIntervalStart={dag.next_dagrun_data_interval_start}
+              nextDagrunCreateAfter={dag.next_dagrun_create_after}
+            />
+          ) : undefined}
+        </VStack>
+        <RecentRuns latestRuns={dag.latest_dag_runs} />
+      </SimpleGrid>
+    </Box>
+  );
+};
