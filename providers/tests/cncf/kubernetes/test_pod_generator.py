@@ -642,7 +642,7 @@ class TestPodGenerator:
         ),
     )
     def test_pod_name_confirm_to_max_length(self, input):
-        actual = add_unique_suffix(name=input)
+        actual = add_unique_suffix(name=input, max_len=100)
         assert len(actual) <= 100
         actual_base, actual_suffix = actual.rsplit("-", maxsplit=1)
         # we limit pod id length to 100
