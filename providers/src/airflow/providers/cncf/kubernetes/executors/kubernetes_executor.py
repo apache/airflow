@@ -638,8 +638,8 @@ class KubernetesExecutor(BaseExecutor):
                 self.kube_scheduler.patch_pod_delete_stuck(
                     pod_name=pod.metadata.name, namespace=pod.metadata.namespace
                 )
-            yield ti
             self.kube_scheduler.delete_pod(pod_name=pod.metadata.name, namespace=pod.metadata.namespace)
+            yield ti
 
     def adopt_launched_task(
         self,
