@@ -530,3 +530,25 @@ class AssetAll(_AssetBooleanCondition):
         :meta private:
         """
         return {"all": [o.as_expression() for o in self.objects]}
+
+
+@attrs.define(init=False)
+class Metadata:
+    """Metadata to attach to an AssetEvent."""
+
+    uri: str
+    extra: dict[str, Any]
+    alias_name: str | None = None
+
+    def __init__(
+        self,
+        target: str | Asset,
+        extra: dict[str, Any],
+        alias: AssetAlias | str | None = None,
+    ) -> None:
+        self.uri = extract_event_key(target)
+        self.extra = extra
+        if isinstance(alias, AssetAlias):
+            self.alias_name = alias.name
+        else:
+            self.alias_name = alias

@@ -249,7 +249,7 @@ The easiest way to attach extra information to the asset event is by ``yield``-i
 .. code-block:: python
 
     from airflow.sdk.definitions.asset import Asset
-    from airflow.sdk.definitions.asset.metadata import Metadata
+    from airflow.sdk.definitions.asset import Metadata
 
     example_s3_asset = Asset("s3://asset/example.csv")
 
@@ -452,7 +452,7 @@ The following example creates an asset event against the S3 URI ``f"s3://bucket/
 
 .. code-block:: python
 
-    from airflow.sdk.definitions.asset.metadata import Metadata
+    from airflow.sdk.definitions.asset import Metadata
 
 
     @task(outlets=[AssetAlias("my-task-outputs")])

@@ -28,8 +28,7 @@ import datetime
 from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.providers.standard.operators.bash import BashOperator
-from airflow.sdk.definitions.asset import Asset
-from airflow.sdk.definitions.asset.metadata import Metadata
+from airflow.sdk.definitions.asset import Asset, Metadata
 
 ds = Asset("s3://output/1.txt")
 
