@@ -226,11 +226,7 @@ class AssetAlias(BaseAsset):
     """A represeation of asset alias which is used to create asset during the runtime."""
 
     name: str = attrs.field(validator=_validate_non_empty_identifier)
-    group: str = attrs.field(
-        kw_only=True,
-        default="",
-        validator=[attrs.validators.max_len(1500), _validate_identifier],
-    )
+    group: str = attrs.field(kw_only=True, default="", validator=_validate_identifier)
 
     def iter_assets(self) -> Iterator[tuple[str, Asset]]:
         return iter(())
