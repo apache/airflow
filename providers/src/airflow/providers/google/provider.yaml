@@ -99,7 +99,7 @@ versions:
 dependencies:
   - apache-airflow>=2.8.0
   - apache-airflow-providers-common-compat>=1.2.1
-  - apache-airflow-providers-common-sql>=1.20.0
+  - apache-airflow-providers-common-sql>=1.7.2
   - asgiref>=3.5.2
   - dill>=0.2.3
   - gcloud-aio-auth>=5.2.0
