@@ -25,7 +25,7 @@ import {
   Text,
   VStack,
 } from "@chakra-ui/react";
-import { FiCalendar, FiPlay } from "react-icons/fi";
+import { FiCalendar } from "react-icons/fi";
 
 import type { DAGResponse, DAGRunResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
