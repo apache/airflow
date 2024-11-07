@@ -17,7 +17,7 @@
   * Rename class ``DatasetEventCollectionSchema`` as ``AssetEventCollectionSchema``
   * Rename class ``CreateDatasetEventSchema`` as ``CreateAssetEventSchema``
 
-* Rename module ``airflow.datasets`` as ``airflow.assets``
+* Move module ``airflow.datasets`` to ``airflow.sdk.definitions.asset``
 
   * Rename class ``DatasetAlias`` as ``AssetAlias``
   * Rename class ``DatasetAll`` as ``AssetAll``
