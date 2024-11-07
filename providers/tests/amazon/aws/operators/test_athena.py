@@ -358,7 +358,7 @@ class TestAthenaOperator:
                                 SchemaDatasetFacetFields(
                                     name="ENDS_ON",
                                     type="timestamp",
-                                    description="from deserializer",
+                                    description=None,
                                 ),
                             ],
                         ),

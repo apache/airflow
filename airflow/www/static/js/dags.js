@@ -116,31 +116,60 @@ $.each($("[id^=toggle]"), function toggleId() {
   });
 });
 
-$(".typeahead").typeahead({
-  source(query, callback) {
-    return $.ajax(autocompleteUrl, {
-      data: {
-        query: encodeURIComponent(query),
-        status: statusFilter,
-      },
-      success: callback,
-    });
-  },
-  displayText(value) {
-    return value.dag_display_name || value.name;
-  },
-  autoSelect: false,
-  afterSelect(value) {
-    const query = new URLSearchParams(window.location.search);
-    query.set("search", value.name);
-    if (value.type === "owner") {
-      window.location = `${DAGS_INDEX}?${query}`;
-    }
-    if (value.type === "dag") {
-      window.location = `${gridUrl.replace("__DAG_ID__", value.name)}?${query}`;
-    }
-  },
-});
+// eslint-disable-next-line no-underscore-dangle
+$(".typeahead")
+  .autocomplete({
+    autoFocus: true,
+    source: (request, response) => {
+      $.ajax({
+        url: autocompleteUrl,
+        data: {
+          query: encodeURIComponent(request.term),
+          status: statusFilter,
+        },
+        success: (data) => {
+          response(data);
+        },
+      });
+    },
+    focus: (event) => {
+      // Prevents value from being inserted on focus
+      event.preventDefault();
+    },
+    select: (_, ui) => {
+      const value = ui.item;
+      const query = new URLSearchParams(window.location.search);
+      query.set("search", value.name);
+      if (value.type === "owner") {
+        window.location = `${DAGS_INDEX}?${query}`;
+      }
+      if (value.type === "dag") {
+        window.location = `${gridUrl.replace(
+          "__DAG_ID__",
+          value.name
+        )}?${query}`;
+      }
+    },
+    appendTo: "#search_form > div",
+  })
+  .data("ui-autocomplete")._renderMenu = function (ul, items) {
+  ul.addClass("typeahead dropdown-menu");
+  $.each(items, function (_, item) {
+    // eslint-disable-next-line no-underscore-dangle
+    this._renderItemData(ul, item);
+  });
+};
+
+// eslint-disable-next-line no-underscore-dangle
+$.ui.autocomplete.prototype._renderItem = function (ul, item) {
+  return $("<li>")
+    .append(
+      $("<a>")
+        .addClass("dropdown-item")
+        .text(item.dag_display_name || item.name)
+    )
+    .appendTo(ul);
+};
 
 $("#search_form").on("reset", () => {
   const query = new URLSearchParams(window.location.search);

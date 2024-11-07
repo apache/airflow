@@ -34,8 +34,6 @@ from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKu
 from airflow.utils import db, timezone
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
-
 
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
 def test_spark_kubernetes_operator(mock_kubernetes_hook, data_file):
@@ -780,9 +778,6 @@ def test_resolve_application_file_template_non_dictionary(dag_maker, tmp_path, b
 @pytest.mark.parametrize(
     "use_literal_value", [pytest.param(True, id="literal-value"), pytest.param(False, id="whitespace-compat")]
 )
-@pytest.mark.skipif(
-    not AIRFLOW_V_2_8_PLUS, reason="Skipping tests that require LiteralValue for Airflow < 2.8.0"
-)
 def test_resolve_application_file_real_file(
     create_task_instance_of_operator, tmp_path, use_literal_value, session
 ):
@@ -815,9 +810,6 @@ def test_resolve_application_file_real_file(
 
 
 @pytest.mark.db_test
-@pytest.mark.skipif(
-    not AIRFLOW_V_2_8_PLUS, reason="Skipping tests that require LiteralValue for Airflow < 2.8.0"
-)
 def test_resolve_application_file_real_file_not_exists(create_task_instance_of_operator, tmp_path, session):
     application_file = (tmp_path / "test-application-file.yml").resolve().as_posix()
     from airflow.template.templater import LiteralValue

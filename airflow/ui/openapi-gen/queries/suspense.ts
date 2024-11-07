@@ -8,6 +8,7 @@ import {
   DagRunService,
   DagService,
   DagSourceService,
+  DagStatsService,
   DagWarningService,
   DagsService,
   DashboardService,
@@ -951,6 +952,223 @@ export const useTaskInstanceServiceGetTaskInstanceSuspense = <
     ...options,
   });
 /**
+ * Get Mapped Task Instances
+ * Get list of mapped task instances.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.logicalDateGte
+ * @param data.logicalDateLte
+ * @param data.startDateGte
+ * @param data.startDateLte
+ * @param data.endDateGte
+ * @param data.endDateLte
+ * @param data.updatedAtGte
+ * @param data.updatedAtLte
+ * @param data.durationGte
+ * @param data.durationLte
+ * @param data.state
+ * @param data.pool
+ * @param data.queue
+ * @param data.executor
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns TaskInstanceCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceGetMappedTaskInstancesSuspense = <
+  TData = Common.TaskInstanceServiceGetMappedTaskInstancesDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    durationGte,
+    durationLte,
+    endDateGte,
+    endDateLte,
+    executor,
+    limit,
+    logicalDateGte,
+    logicalDateLte,
+    offset,
+    orderBy,
+    pool,
+    queue,
+    startDateGte,
+    startDateLte,
+    state,
+    taskId,
+    updatedAtGte,
+    updatedAtLte,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    durationGte?: number;
+    durationLte?: number;
+    endDateGte?: string;
+    endDateLte?: string;
+    executor?: string[];
+    limit?: number;
+    logicalDateGte?: string;
+    logicalDateLte?: string;
+    offset?: number;
+    orderBy?: string;
+    pool?: string[];
+    queue?: string[];
+    startDateGte?: string;
+    startDateLte?: string;
+    state?: string[];
+    taskId: string;
+    updatedAtGte?: string;
+    updatedAtLte?: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstancesKeyFn(
+      {
+        dagId,
+        dagRunId,
+        durationGte,
+        durationLte,
+        endDateGte,
+        endDateLte,
+        executor,
+        limit,
+        logicalDateGte,
+        logicalDateLte,
+        offset,
+        orderBy,
+        pool,
+        queue,
+        startDateGte,
+        startDateLte,
+        state,
+        taskId,
+        updatedAtGte,
+        updatedAtLte,
+      },
+      queryKey,
+    ),
+    queryFn: () =>
+      TaskInstanceService.getMappedTaskInstances({
+        dagId,
+        dagRunId,
+        durationGte,
+        durationLte,
+        endDateGte,
+        endDateLte,
+        executor,
+        limit,
+        logicalDateGte,
+        logicalDateLte,
+        offset,
+        orderBy,
+        pool,
+        queue,
+        startDateGte,
+        startDateLte,
+        state,
+        taskId,
+        updatedAtGte,
+        updatedAtLte,
+      }) as TData,
+    ...options,
+  });
+/**
+ * Get Task Instance Dependencies
+ * Get dependencies blocking task from getting scheduled.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.mapIndex
+ * @returns TaskDependencyCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceGetTaskInstanceDependenciesSuspense = <
+  TData = Common.TaskInstanceServiceGetTaskInstanceDependenciesDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    taskId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn(
+      { dagId, dagRunId, mapIndex, taskId },
+      queryKey,
+    ),
+    queryFn: () =>
+      TaskInstanceService.getTaskInstanceDependencies({
+        dagId,
+        dagRunId,
+        mapIndex,
+        taskId,
+      }) as TData,
+    ...options,
+  });
+/**
+ * Get Task Instance Dependencies
+ * Get dependencies blocking task from getting scheduled.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.mapIndex
+ * @returns TaskDependencyCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceGetTaskInstanceDependencies1Suspense = <
+  TData = Common.TaskInstanceServiceGetTaskInstanceDependencies1DefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    taskId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceDependencies1KeyFn(
+      { dagId, dagRunId, mapIndex, taskId },
+      queryKey,
+    ),
+    queryFn: () =>
+      TaskInstanceService.getTaskInstanceDependencies1({
+        dagId,
+        dagRunId,
+        mapIndex,
+        taskId,
+      }) as TData,
+    ...options,
+  });
+/**
  * Get Mapped Task Instance
  * Get task instance.
  * @param data The data for the request.
@@ -991,6 +1209,133 @@ export const useTaskInstanceServiceGetMappedTaskInstanceSuspense = <
         dagRunId,
         mapIndex,
         taskId,
+      }) as TData,
+    ...options,
+  });
+/**
+ * Get Task Instances
+ * Get list of task instances.
+ *
+ * This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
+ * and DAG runs.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.logicalDateGte
+ * @param data.logicalDateLte
+ * @param data.startDateGte
+ * @param data.startDateLte
+ * @param data.endDateGte
+ * @param data.endDateLte
+ * @param data.updatedAtGte
+ * @param data.updatedAtLte
+ * @param data.durationGte
+ * @param data.durationLte
+ * @param data.state
+ * @param data.pool
+ * @param data.queue
+ * @param data.executor
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns TaskInstanceCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceGetTaskInstancesSuspense = <
+  TData = Common.TaskInstanceServiceGetTaskInstancesDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    durationGte,
+    durationLte,
+    endDateGte,
+    endDateLte,
+    executor,
+    limit,
+    logicalDateGte,
+    logicalDateLte,
+    offset,
+    orderBy,
+    pool,
+    queue,
+    startDateGte,
+    startDateLte,
+    state,
+    updatedAtGte,
+    updatedAtLte,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    durationGte?: number;
+    durationLte?: number;
+    endDateGte?: string;
+    endDateLte?: string;
+    executor?: string[];
+    limit?: number;
+    logicalDateGte?: string;
+    logicalDateLte?: string;
+    offset?: number;
+    orderBy?: string;
+    pool?: string[];
+    queue?: string[];
+    startDateGte?: string;
+    startDateLte?: string;
+    state?: string[];
+    updatedAtGte?: string;
+    updatedAtLte?: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstancesKeyFn(
+      {
+        dagId,
+        dagRunId,
+        durationGte,
+        durationLte,
+        endDateGte,
+        endDateLte,
+        executor,
+        limit,
+        logicalDateGte,
+        logicalDateLte,
+        offset,
+        orderBy,
+        pool,
+        queue,
+        startDateGte,
+        startDateLte,
+        state,
+        updatedAtGte,
+        updatedAtLte,
+      },
+      queryKey,
+    ),
+    queryFn: () =>
+      TaskInstanceService.getTaskInstances({
+        dagId,
+        dagRunId,
+        durationGte,
+        durationLte,
+        endDateGte,
+        endDateLte,
+        executor,
+        limit,
+        logicalDateGte,
+        logicalDateLte,
+        offset,
+        orderBy,
+        pool,
+        queue,
+        startDateGte,
+        startDateLte,
+        state,
+        updatedAtGte,
+        updatedAtLte,
       }) as TData,
     ...options,
   });
@@ -1076,5 +1421,31 @@ export const useVersionServiceGetVersionSuspense = <
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseVersionServiceGetVersionKeyFn(queryKey),
     queryFn: () => VersionService.getVersion() as TData,
+    ...options,
+  });
+/**
+ * Get Dag Stats
+ * Get Dag statistics.
+ * @param data The data for the request.
+ * @param data.dagIds
+ * @returns DagStatsCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagStatsServiceGetDagStatsSuspense = <
+  TData = Common.DagStatsServiceGetDagStatsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagIds,
+  }: {
+    dagIds?: string[];
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }, queryKey),
+    queryFn: () => DagStatsService.getDagStats({ dagIds }) as TData,
     ...options,
   });

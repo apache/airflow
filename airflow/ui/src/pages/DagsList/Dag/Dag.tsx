@@ -18,7 +18,12 @@
  */
 import { Box, Button, Tabs } from "@chakra-ui/react";
 import { FiChevronsLeft } from "react-icons/fi";
-import { Link as RouterLink, useParams } from "react-router-dom";
+import {
+  Outlet,
+  Link as RouterLink,
+  useLocation,
+  useParams,
+} from "react-router-dom";
 
 import {
   useDagServiceGetDagDetails,
@@ -26,8 +31,11 @@ import {
 } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ProgressBar } from "src/components/ui";
+import { capitalize } from "src/utils";
 
 import { Header } from "./Header";
+
+const tabs = ["runs", "tasks", "events", "code"];
 
 export const Dag = () => {
   const { dagId } = useParams();
@@ -45,47 +53,50 @@ export const Dag = () => {
     data: runsData,
     error: runsError,
     isLoading: isLoadingRuns,
-  } = useDagsServiceRecentDagRuns({ dagIdPattern: dagId ?? "" });
+  } = useDagsServiceRecentDagRuns({ dagIdPattern: dagId ?? "" }, undefined, {
+    enabled: Boolean(dagId),
+  });
+
+  const { pathname } = useLocation();
 
   const runs =
     runsData?.dags.find((dagWithRuns) => dagWithRuns.dag_id === dagId)
       ?.latest_dag_runs ?? [];
 
-  return (
-    <Box>
-      <Button asChild colorPalette="blue" variant="ghost">
-        <RouterLink to="/dags">
-          <FiChevronsLeft />
-          Back to all dags
-        </RouterLink>
-      </Button>
-      <Header dag={dag} dagId={dagId} latestRun={runs[0]} />
-      <ErrorAlert error={error ?? runsError} />
-      <ProgressBar
-        size="xs"
-        visibility={isLoading || isLoadingRuns ? "visible" : "hidden"}
-      />
-      <Tabs.Root>
-        <Tabs.List>
-          <Tabs.Trigger value="overview">Overview</Tabs.Trigger>
-          <Tabs.Trigger value="runs">Runs</Tabs.Trigger>
-          <Tabs.Trigger value="tasks">Tasks</Tabs.Trigger>
-          <Tabs.Trigger value="events">Events</Tabs.Trigger>
-        </Tabs.List>
+  const activeTab =
+    tabs.find((tab) => pathname.endsWith(`/${tab}`)) ?? "overview";
 
-        <Tabs.Content value="overview">
-          <p>one!</p>
-        </Tabs.Content>
-        <Tabs.Content value="runs">
-          <p>two!</p>
-        </Tabs.Content>
-        <Tabs.Content value="tasks">
-          <p>three!</p>
-        </Tabs.Content>
-        <Tabs.Content value="events">
-          <p>four!</p>
-        </Tabs.Content>
-      </Tabs.Root>
-    </Box>
+  return (
+    <>
+      <Box bg="bg" position="sticky" top={0} zIndex={1}>
+        <Button asChild colorPalette="blue" variant="ghost">
+          <RouterLink to="/dags">
+            <FiChevronsLeft />
+            Back to all dags
+          </RouterLink>
+        </Button>
+        <Header dag={dag} dagId={dagId} latestRun={runs[0]} />
+        <ErrorAlert error={error ?? runsError} />
+        <ProgressBar
+          size="xs"
+          visibility={isLoading || isLoadingRuns ? "visible" : "hidden"}
+        />
+        <Tabs.Root value={activeTab}>
+          <Tabs.List>
+            <Tabs.Trigger asChild value="overview">
+              <RouterLink to={`/dags/${dagId}`}>Overview</RouterLink>
+            </Tabs.Trigger>
+            {tabs.map((tab) => (
+              <Tabs.Trigger asChild key={tab} value={tab}>
+                <RouterLink to={`/dags/${dagId}/${tab}`}>
+                  {capitalize(tab)}
+                </RouterLink>
+              </Tabs.Trigger>
+            ))}
+          </Tabs.List>
+        </Tabs.Root>
+      </Box>
+      <Outlet />
+    </>
   );
 };
