@@ -32,8 +32,8 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.assets import AssetCollectionResponse, AssetResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.assets import AssetCollectionResponse, AssetResponse
 from airflow.models.asset import AssetModel
 
 assets_router = AirflowRouter(tags=["Asset"], prefix="/assets")

@@ -31,7 +31,7 @@ assets_router = AirflowRouter(tags=["Asset"])
 
 
 @assets_router.get("/next_run_assets/{dag_id}", include_in_schema=False)
-async def next_run_assets(
+def next_run_assets(
     dag_id: str,
     request: Request,
     session: Annotated[Session, Depends(get_session)],
