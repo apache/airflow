@@ -198,7 +198,7 @@ def patch_connection(
         ]
     ),
 )
-async def test_connection(
+def test_connection(
     test_body: ConnectionBody,
 ) -> ConnectionTestResponse:
     """
