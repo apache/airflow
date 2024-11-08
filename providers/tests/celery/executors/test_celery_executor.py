@@ -235,7 +235,7 @@ class TestCeleryExecutor:
             app.control.revoke = mock.MagicMock()
             yield app.control.revoke
 
-    @pytest.mark.backend("postgres")
+    @pytest.mark.backend("mysql", "postgres")
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.fail")
     def test_cleanup_stuck_queued_tasks(self, mock_fail):
         start_date = timezone.utcnow() - timedelta(days=2)
