@@ -42,7 +42,7 @@ variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
         [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
     ),
 )
-async def delete_variable(
+def delete_variable(
     variable_key: str,
     session: Annotated[Session, Depends(get_session)],
 ):
@@ -59,7 +59,7 @@ async def delete_variable(
         [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
     ),
 )
-async def get_variable(
+def get_variable(
     variable_key: str,
     session: Annotated[Session, Depends(get_session)],
 ) -> VariableResponse:
@@ -78,7 +78,7 @@ async def get_variable(
     "/",
     responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
-async def get_variables(
+def get_variables(
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -121,7 +121,7 @@ async def get_variables(
         ]
     ),
 )
-async def patch_variable(
+def patch_variable(
     variable_key: str,
     patch_body: VariableBody,
     session: Annotated[Session, Depends(get_session)],
@@ -154,7 +154,7 @@ async def patch_variable(
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
-async def post_variable(
+def post_variable(
     post_body: VariableBody,
     session: Annotated[Session, Depends(get_session)],
 ) -> VariableResponse:

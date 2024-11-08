@@ -70,3 +70,16 @@ class TaskInstanceCollectionResponse(BaseModel):
 
     task_instances: list[TaskInstanceResponse]
     total_entries: int
+
+
+class TaskDependencyResponse(BaseModel):
+    """Task Dependency serializer for responses."""
+
+    name: str
+    reason: str
+
+
+class TaskDependencyCollectionResponse(BaseModel):
+    """Task scheduling dependencies collection serializer for responses."""
+
+    dependencies: list[TaskDependencyResponse]

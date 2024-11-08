@@ -24,9 +24,10 @@ import {
   Link,
   createListCollection,
   type SelectValueChangeDetails,
+  Box,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { type ChangeEvent, useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -170,9 +171,7 @@ export const DagsList = () => {
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
 
-  const handleSearchChange = ({
-    target: { value },
-  }: ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = (value: string) => {
     if (value) {
       searchParams.set(NAME_PATTERN_PARAM, value);
     } else {
@@ -217,10 +216,8 @@ export const DagsList = () => {
       <VStack alignItems="none">
         <SearchBar
           buttonProps={{ disabled: true }}
-          inputProps={{
-            defaultValue: dagDisplayNamePattern,
-            onChange: handleSearchChange,
-          }}
+          defaultValue={dagDisplayNamePattern ?? ""}
+          onChange={handleSearchChange}
         />
         <DagsFilters />
         <HStack justifyContent="space-between">
@@ -252,20 +249,22 @@ export const DagsList = () => {
         </HStack>
       </VStack>
       <ToggleTableDisplay display={display} setDisplay={setDisplay} />
-      <DataTable
-        cardDef={cardDef}
-        columns={columns}
-        data={data.dags}
-        displayMode={display}
-        errorMessage={<ErrorAlert error={error} />}
-        initialState={tableURLState}
-        isFetching={isFetching}
-        isLoading={isLoading}
-        modelName="Dag"
-        onStateChange={setTableURLState}
-        skeletonCount={display === "card" ? 5 : undefined}
-        total={data.total_entries}
-      />
+      <Box overflow="auto">
+        <DataTable
+          cardDef={cardDef}
+          columns={columns}
+          data={data.dags}
+          displayMode={display}
+          errorMessage={<ErrorAlert error={error} />}
+          initialState={tableURLState}
+          isFetching={isFetching}
+          isLoading={isLoading}
+          modelName="Dag"
+          onStateChange={setTableURLState}
+          skeletonCount={display === "card" ? 5 : undefined}
+          total={data.total_entries}
+        />
+      </Box>
     </>
   );
 };
