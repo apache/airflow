@@ -810,7 +810,7 @@ export type NextRunAssetsResponse = {
 };
 
 export type GetAssetsData = {
-  dagIds: string;
+  dagIds?: string | null;
   limit?: number;
   offset?: number;
   orderBy?: string;

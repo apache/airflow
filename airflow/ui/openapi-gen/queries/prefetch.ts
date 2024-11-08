@@ -48,10 +48,10 @@ export const prefetchUseAssetServiceNextRunAssets = (
  * Get Assets
  * Get assets.
  * @param data The data for the request.
- * @param data.dagIds
  * @param data.limit
  * @param data.offset
  * @param data.uriPattern
+ * @param data.dagIds
  * @param data.orderBy
  * @returns AssetCollectionResponse Successful Response
  * @throws ApiError
@@ -65,12 +65,12 @@ export const prefetchUseAssetServiceGetAssets = (
     orderBy,
     uriPattern,
   }: {
-    dagIds: string;
+    dagIds?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
     uriPattern?: string;
-  },
+  } = {},
 ) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseAssetServiceGetAssetsKeyFn({

@@ -45,7 +45,7 @@ def _create_assets(session, num: int = 2) -> None:
     session.commit()
 
 
-def _create_provided_asset(asset: AssetModel, session) -> None:
+def _create_provided_asset(session, asset: AssetModel) -> None:
     session.add(asset)
     session.commit()
 
@@ -62,11 +62,11 @@ class TestAssets:
 
     @provide_session
     def create_assets(self, session, num: int = 2):
-        _create_assets(session, num=num)
+        _create_assets(session=session, num=num)
 
     @provide_session
     def create_provided_asset(self, session, asset: AssetModel):
-        _create_provided_asset(session, asset)
+        _create_provided_asset(session=session, asset=asset)
 
 
 class TestGetAssets(TestAssets):
@@ -141,7 +141,7 @@ class TestGetAssets(TestAssets):
 
         assets = [asset1, asset2, asset3, asset4]
         for a in assets:
-            self.create_provided_asset(a)
+            self.create_provided_asset(asset=a)
 
         response = test_client.get(url)
         assert response.status_code == 200
@@ -214,7 +214,7 @@ class TestGetAssetsEndpointPagination(TestAssets):
         ],
     )
     def test_limit_and_offset(self, test_client, url, expected_asset_uris):
-        self.create_assets(110)
+        self.create_assets(num=110)
 
         response = test_client.get(url)
 
@@ -223,7 +223,7 @@ class TestGetAssetsEndpointPagination(TestAssets):
         assert asset_uris == expected_asset_uris
 
     def test_should_respect_page_size_limit_default(self, test_client):
-        self.create_assets(110)
+        self.create_assets(num=110)
 
         response = test_client.get("/public/assets")
 
@@ -232,7 +232,7 @@ class TestGetAssetsEndpointPagination(TestAssets):
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self, test_client):
-        self.create_assets(200)
+        self.create_assets(num=200)
 
         # change to 180 once format_parameters is integrated
         response = test_client.get("/public/assets?limit=150")

@@ -3136,9 +3136,11 @@ paths:
           title: Uri Pattern
       - name: dag_ids
         in: query
-        required: true
+        required: false
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Ids
       - name: order_by
         in: query

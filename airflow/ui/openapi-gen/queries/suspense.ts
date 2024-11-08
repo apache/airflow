@@ -54,10 +54,10 @@ export const useAssetServiceNextRunAssetsSuspense = <
  * Get Assets
  * Get assets.
  * @param data The data for the request.
- * @param data.dagIds
  * @param data.limit
  * @param data.offset
  * @param data.uriPattern
+ * @param data.dagIds
  * @param data.orderBy
  * @returns AssetCollectionResponse Successful Response
  * @throws ApiError
@@ -74,12 +74,12 @@ export const useAssetServiceGetAssetsSuspense = <
     orderBy,
     uriPattern,
   }: {
-    dagIds: string;
+    dagIds?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
     uriPattern?: string;
-  },
+  } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
