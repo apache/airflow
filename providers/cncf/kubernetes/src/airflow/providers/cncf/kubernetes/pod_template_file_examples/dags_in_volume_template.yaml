@@ -58,7 +58,7 @@ spec:
           readOnly: true
           subPath: airflow.cfg
         - name: tmp
-          mountPath: /tmp          
+          mountPath: /tmp
   restartPolicy: Never
   securityContext:
     runAsUser: 50000

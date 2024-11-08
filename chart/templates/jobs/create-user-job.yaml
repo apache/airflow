@@ -126,9 +126,9 @@ spec:
               {{- tpl (toYaml .Values.createUserJob.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             - name: tmp-logs
-              mountPath: {{ template "airflow_logs" . }}  
+              mountPath: {{ template "airflow_logs" . }}
             - name: tmp
-              mountPath: /tmp                           
+              mountPath: /tmp
         {{- if .Values.createUserJob.extraContainers }}
           {{- tpl (toYaml .Values.createUserJob.extraContainers) . | nindent 8 }}
         {{- end }}
@@ -143,7 +143,7 @@ spec:
           {{- tpl (toYaml .Values.createUserJob.extraVolumes) . | nindent 8 }}
         {{- end }}
         - name: tmp-logs
-          emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}   
+          emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
         - name: tmp
-          emptyDir: {}                   
+          emptyDir: {}
 {{- end }}
