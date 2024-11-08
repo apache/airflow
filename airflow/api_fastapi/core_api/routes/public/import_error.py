@@ -31,11 +31,11 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.import_error import (
+from airflow.api_fastapi.core_api.datamodels.import_error import (
     ImportErrorCollectionResponse,
     ImportErrorResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models.errors import ParseImportError
 
 import_error_router = AirflowRouter(tags=["Import Error"], prefix="/importErrors")
@@ -47,7 +47,7 @@ import_error_router = AirflowRouter(tags=["Import Error"], prefix="/importErrors
         [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
     ),
 )
-async def get_import_error(
+def get_import_error(
     import_error_id: int,
     session: Annotated[Session, Depends(get_session)],
 ) -> ImportErrorResponse:
@@ -66,7 +66,7 @@ async def get_import_error(
     "/",
     responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
-async def get_import_errors(
+def get_import_errors(
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[

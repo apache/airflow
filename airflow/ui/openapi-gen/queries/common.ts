@@ -935,8 +935,8 @@ export type DagServicePatchDagMutationResult = Awaited<
 export type ConnectionServicePatchConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.patchConnection>
 >;
-export type DagRunServicePatchDagRunStateMutationResult = Awaited<
-  ReturnType<typeof DagRunService.patchDagRunState>
+export type DagRunServicePatchDagRunMutationResult = Awaited<
+  ReturnType<typeof DagRunService.patchDagRun>
 >;
 export type PoolServicePatchPoolMutationResult = Awaited<
   ReturnType<typeof PoolService.patchPool>

@@ -29,7 +29,7 @@ from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.execution_api import schemas
+from airflow.api_fastapi.execution_api import datamodels
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -56,16 +56,16 @@ log = logging.getLogger(__name__)
         status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload for the state transition"},
     },
 )
-async def ti_update_state(
+def ti_update_state(
     task_instance_id: UUID,
-    ti_patch_payload: Annotated[schemas.TIStateUpdate, Body()],
+    ti_patch_payload: Annotated[datamodels.TIStateUpdate, Body()],
     session: Annotated[Session, Depends(get_session)],
 ):
     """
     Update the state of a TaskInstance.
 
     Not all state transitions are valid, and transitioning to some states requires extra information to be
-    passed along. (Check out the schemas for details, the rendered docs might not reflect this accurately)
+    passed along. (Check out the datamodels for details, the rendered docs might not reflect this accurately)
     """
     # We only use UUID above for validation purposes
     ti_id_str = str(task_instance_id)
@@ -88,7 +88,7 @@ async def ti_update_state(
 
     query = update(TI).where(TI.id == ti_id_str).values(data)
 
-    if isinstance(ti_patch_payload, schemas.TIEnterRunningPayload):
+    if isinstance(ti_patch_payload, datamodels.TIEnterRunningPayload):
         if previous_state != State.QUEUED:
             log.warning(
                 "Can not start Task Instance ('%s') in invalid state: %s",
@@ -118,7 +118,7 @@ async def ti_update_state(
             pid=ti_patch_payload.pid,
             state=State.RUNNING,
         )
-    elif isinstance(ti_patch_payload, schemas.TITerminalStatePayload):
+    elif isinstance(ti_patch_payload, datamodels.TITerminalStatePayload):
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
 
     # TODO: Replace this with FastAPI's Custom Exception handling:
@@ -144,9 +144,9 @@ async def ti_update_state(
         status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload for the state transition"},
     },
 )
-async def ti_heartbeat(
+def ti_heartbeat(
     task_instance_id: UUID,
-    ti_payload: schemas.TIHeartbeatInfo,
+    ti_payload: datamodels.TIHeartbeatInfo,
     session: Annotated[Session, Depends(get_session)],
 ):
     """Update the heartbeat of a TaskInstance to mark it as alive & still running."""

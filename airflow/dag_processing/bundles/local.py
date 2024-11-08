@@ -17,28 +17,31 @@
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Context manager for the lifespan of the FastAPI app. For now does nothing."""
-    app.state.lifespan_called = True
-    yield
+from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.exceptions import AirflowException
 
 
-def create_task_execution_api_app(app: FastAPI) -> FastAPI:
-    """Create FastAPI app for task execution API."""
-    from airflow.api_fastapi.execution_api.routes import execution_api_router
+class LocalDagBundle(BaseDagBundle):
+    """
+    Local DAG bundle - exposes a local directory as a DAG bundle.
 
-    # TODO: Add versioning to the API
-    task_exec_api_app = FastAPI(
-        title="Airflow Task Execution API",
-        description="The private Airflow Task Execution API.",
-        lifespan=lifespan,
-    )
+    :param local_folder: Local folder where the DAGs are stored
+    """
 
-    task_exec_api_app.include_router(execution_api_router)
-    return task_exec_api_app
+    supports_versioning = False
+
+    def __init__(self, *, local_folder: str, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._path = Path(local_folder)
+
+    def get_current_version(self) -> str:
+        raise AirflowException("Not versioned!")
+
+    def refresh(self) -> None:
+        """Nothing to refresh - it's just a local directory."""
+
+    @property
+    def path(self) -> Path:
+        return self._path

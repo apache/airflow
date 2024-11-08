@@ -14,23 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-from pydantic import BaseModel
-
-from airflow.api_fastapi.core_api.serializers.dag_run import DAGRunResponse
-from airflow.api_fastapi.core_api.serializers.dags import DAGResponse
-
-
-class DAGWithLatestDagRunsResponse(DAGResponse):
-    """DAG with latest dag runs response serializer."""
-
-    latest_dag_runs: list[DAGRunResponse]
-
-
-class DAGWithLatestDagRunsCollectionResponse(BaseModel):
-    """DAG with latest dag runs collection response serializer."""
-
-    total_entries: int
-    dags: list[DAGWithLatestDagRunsResponse]

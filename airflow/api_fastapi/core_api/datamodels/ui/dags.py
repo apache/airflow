@@ -14,50 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
 from pydantic import BaseModel
 
-
-class DAGRunTypes(BaseModel):
-    """DAG Run Types for responses."""
-
-    backfill: int
-    scheduled: int
-    manual: int
-    asset_triggered: int
+from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
+from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 
 
-class DAGRunStates(BaseModel):
-    """DAG Run States for responses."""
+class DAGWithLatestDagRunsResponse(DAGResponse):
+    """DAG with latest dag runs response serializer."""
 
-    queued: int
-    running: int
-    success: int
-    failed: int
+    latest_dag_runs: list[DAGRunResponse]
 
 
-class TaskInstanceState(BaseModel):
-    """TaskInstance serializer for responses."""
+class DAGWithLatestDagRunsCollectionResponse(BaseModel):
+    """DAG with latest dag runs collection response serializer."""
 
-    no_status: int
-    removed: int
-    scheduled: int
-    queued: int
-    running: int
-    success: int
-    restarting: int
-    failed: int
-    up_for_retry: int
-    up_for_reschedule: int
-    upstream_failed: int
-    skipped: int
-    deferred: int
-
-
-class HistoricalMetricDataResponse(BaseModel):
-    """Historical Metric Data serializer for responses."""
-
-    dag_run_types: DAGRunTypes
-    dag_run_states: DAGRunStates
-    task_instance_states: TaskInstanceState
+    total_entries: int
+    dags: list[DAGWithLatestDagRunsResponse]
