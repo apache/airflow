@@ -1826,17 +1826,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                     continue
 
-                session.add(
-                    Log(
-                        event="stuck in queued",
-                        task_instance=ti.key,
-                        extra=(
-                            "Task was in queued state for longer "
-                            f"than {self._task_queued_timeout} seconds."
-                        ),
-                    )
-                )
-                self.log.warning("Task stuck in queued and may be requeued task_id=%s", ti.key)
+                self.log.warning("Task stuck in queued and may be requeued. task_id=%s", ti.key)
 
                 num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
                 if num_times_stuck < num_allowed_retries:
@@ -1847,8 +1837,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             event=TASK_REQUEUE_ATTEMPT_EVENT,
                             task_instance=ti.key,
                             extra=(
-                                "Task was in queued state for longer than allowed; "
-                                "request for requeue submitted."
+                                f"Task was in queued state for longer than {self._task_queued_timeout} "
+                                "seconds; request for requeue submitted."
                             ),
                         )
                     )
