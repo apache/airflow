@@ -673,7 +673,7 @@ class TestPodGenerator:
         `make_unique_pod_id` doesn't actually guarantee that the regex passes for any input.
         But I guess this test verifies that an otherwise valid pod_id doesn't get _screwed up_.
         """
-        actual = add_unique_suffix(name=pod_id)
+        actual = add_unique_suffix(name=pod_id, max_len=100)
         assert len(actual) <= 253
         assert actual == actual.lower(), "not lowercase"
         # verify using official k8s regex
