@@ -155,37 +155,6 @@ Homepage = "https://airflow.apache.org/"
 Twitter = "https://twitter.com/ApacheAirflow"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
-[tool.hatch.envs.default]
-python = "3.9"
-platforms = ["linux", "macos"]
-description = "Default environment with Python 3.9 for maximum compatibility"
-features = []
-
-[tool.hatch.envs.airflow-39]
-python = "3.9"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.9. No devel installed."
-features = []
-
-[tool.hatch.envs.airflow-310]
-python = "3.10"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.10. No devel installed."
-features = []
-
-[tool.hatch.envs.airflow-311]
-python = "3.11"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.11. No devel installed"
-features = []
-
-[tool.hatch.envs.airflow-312]
-python = "3.12"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.12. No devel installed"
-features = []
-
-
 [tool.hatch.version]
 path = "airflow/__init__.py"
 
@@ -211,7 +180,6 @@ artifacts = [
     "/airflow/git_version",
     "/generated/",
 ]
-
 
 [tool.hatch.build.targets.wheel]
 include = [
