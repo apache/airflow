@@ -23,14 +23,15 @@ import pytest
 
 from airflow.models.variable import Variable
 
+pytestmark = pytest.mark.db_test
+
 
 class TestGetVariable:
-    @pytest.mark.db_test
     def test_variable_get_from_db(self, client, session):
         Variable.set(key="var1", value="value", session=session)
         session.commit()
 
-        response = client.get("/execution/variable/var1")
+        response = client.get("/execution/variables/var1")
 
         assert response.status_code == 200
         assert response.json() == {"key": "var1", "value": "value"}
@@ -44,13 +45,13 @@ class TestGetVariable:
         {"AIRFLOW_VAR_KEY1": "VALUE"},
     )
     def test_variable_get_from_env_var(self, client, session):
-        response = client.get("/execution/variable/key1")
+        response = client.get("/execution/variables/key1")
 
         assert response.status_code == 200
         assert response.json() == {"key": "key1", "value": "VALUE"}
 
     def test_variable_get_not_found(self, client):
-        response = client.get("/execution/variable/non_existent_var")
+        response = client.get("/execution/variables/non_existent_var")
 
         assert response.status_code == 404
         assert response.json() == {
@@ -64,7 +65,7 @@ class TestGetVariable:
         with mock.patch(
             "airflow.api_fastapi.execution_api.routes.variables.has_variable_access", return_value=False
         ):
-            response = client.get("/execution/variable/key1")
+            response = client.get("/execution/variables/key1")
 
         # Assert response status code and detail for access denied
         assert response.status_code == 403

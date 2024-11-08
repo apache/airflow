@@ -27,9 +27,7 @@ from airflow.api_fastapi.execution_api import datamodels
 from airflow.models.variable import Variable
 
 # TODO: Add dependency on JWT token
-variable_router = AirflowRouter(
-    prefix="/variable",
-    tags=["Variable"],
+router = AirflowRouter(
     responses={status.HTTP_404_NOT_FOUND: {"description": "Variable not found"}},
 )
 
@@ -41,9 +39,8 @@ def get_task_token() -> datamodels.TIToken:
     return datamodels.TIToken(ti_key="test_key")
 
 
-@variable_router.get(
+@router.get(
     "/{variable_key}",
-    status_code=status.HTTP_200_OK,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
