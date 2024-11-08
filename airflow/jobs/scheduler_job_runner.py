@@ -31,6 +31,7 @@ from functools import lru_cache, partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
+from deprecated import deprecated
 from sqlalchemy import and_, delete, exists, func, not_, select, text, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import lazyload, load_only, make_transient, selectinload
@@ -40,7 +41,7 @@ from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
-from airflow.exceptions import UnknownExecutorException
+from airflow.exceptions import RemovedInAirflow3Warning, UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
@@ -1857,9 +1858,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                     executor.fail(ti.key)
 
+    @deprecated(
+        reason="This is backcompat layer for older executor interface. Should be removed in 3.0",
+        category=RemovedInAirflow3Warning,
+        action="ignore",
+    )
     def _stuck_in_queued_backcompat_logic(self, executor, stuck_tis):
         """
         Try to invoke stuck in queued cleanup for older executor interface.
+
+        TODO: remove in airflow 3.0
 
         Here we handle case where the executor pre-dates the interface change that
         introduced `cleanup_tasks_stuck_in_queued` and deprecated `cleanup_stuck_queued_tasks`.
