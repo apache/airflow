@@ -43,7 +43,7 @@ class TestGetConnection:
         session.add(connection)
         session.commit()
 
-        response = client.get("/execution/connection/test_conn")
+        response = client.get("/execution/connections/test_conn")
 
         assert response.status_code == 200
         assert response.json() == {
@@ -66,7 +66,7 @@ class TestGetConnection:
         {"AIRFLOW_CONN_TEST_CONN2": '{"uri": "http://root:admin@localhost:8080/https?headers=header"}'},
     )
     def test_connection_get_from_env_var(self, client, session):
-        response = client.get("/execution/connection/test_conn2")
+        response = client.get("/execution/connections/test_conn2")
 
         assert response.status_code == 200
         assert response.json() == {
@@ -81,7 +81,7 @@ class TestGetConnection:
         }
 
     def test_connection_get_not_found(self, client):
-        response = client.get("/execution/connection/non_existent_test_conn")
+        response = client.get("/execution/connections/non_existent_test_conn")
 
         assert response.status_code == 404
         assert response.json() == {
@@ -95,7 +95,7 @@ class TestGetConnection:
         with mock.patch(
             "airflow.api_fastapi.execution_api.routes.connections.has_connection_access", return_value=False
         ):
-            response = client.get("/execution/connection/test_conn")
+            response = client.get("/execution/connections/test_conn")
 
         # Assert response status code and detail for access denied
         assert response.status_code == 403

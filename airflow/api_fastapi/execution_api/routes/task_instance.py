@@ -35,16 +35,13 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 
 # TODO: Add dependency on JWT token
-ti_router = AirflowRouter(
-    prefix="/task_instance",
-    tags=["Task Instance"],
-)
+router = AirflowRouter()
 
 
 log = logging.getLogger(__name__)
 
 
-@ti_router.patch(
+@router.patch(
     "/{task_instance_id}/state",
     status_code=status.HTTP_204_NO_CONTENT,
     # TODO: Add description to the operation
@@ -133,7 +130,7 @@ def ti_update_state(
         )
 
 
-@ti_router.put(
+@router.put(
     "/{task_instance_id}/heartbeat",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={

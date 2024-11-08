@@ -24,12 +24,11 @@ from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api import datamodels
-from airflow.exceptions import AirflowNotFoundException
-from airflow.models.connection import Connection
+from airflow.models.variable import Variable
 
 # TODO: Add dependency on JWT token
 router = AirflowRouter(
-    responses={status.HTTP_404_NOT_FOUND: {"description": "Connection not found"}},
+    responses={status.HTTP_404_NOT_FOUND: {"description": "Variable not found"}},
 )
 
 log = logging.getLogger(__name__)
@@ -41,46 +40,48 @@ def get_task_token() -> datamodels.TIToken:
 
 
 @router.get(
-    "/{connection_id}",
+    "/{variable_key}",
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
-        status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the connection"},
+        status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
     },
 )
-def get_connection(
-    connection_id: str,
+def get_variable(
+    variable_key: str,
     token: Annotated[datamodels.TIToken, Depends(get_task_token)],
-) -> datamodels.ConnectionResponse:
-    """Get an Airflow connection."""
-    if not has_connection_access(connection_id, token):
+) -> datamodels.VariableResponse:
+    """Get an Airflow Variable."""
+    if not has_variable_access(variable_key, token):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
                 "reason": "access_denied",
-                "message": f"Task does not have access to connection {connection_id}",
+                "message": f"Task does not have access to variable {variable_key}",
             },
         )
+
     try:
-        connection = Connection.get_connection_from_secrets(connection_id)
-    except AirflowNotFoundException:
+        variable_value = Variable.get(variable_key)
+    except KeyError:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             detail={
                 "reason": "not_found",
-                "message": f"Connection with ID {connection_id} not found",
+                "message": f"Variable with key '{variable_key}' not found",
             },
         )
-    return datamodels.ConnectionResponse.model_validate(connection, from_attributes=True)
+
+    return datamodels.VariableResponse(key=variable_key, value=variable_value)
 
 
-def has_connection_access(connection_id: str, token: datamodels.TIToken) -> bool:
-    """Check if the task has access to the connection."""
+def has_variable_access(variable_key: str, token: datamodels.TIToken) -> bool:
+    """Check if the task has access to the variable."""
     # TODO: Placeholder for actual implementation
 
     ti_key = token.ti_key
     log.debug(
-        "Checking access for task instance with key '%s' to connection '%s'",
+        "Checking access for task instance with key '%s' to variable '%s'",
         ti_key,
-        connection_id,
+        variable_key,
     )
     return True
