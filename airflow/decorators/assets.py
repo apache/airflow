@@ -18,9 +18,8 @@
 from __future__ import annotations
 
 import inspect
-import types
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Mapping, cast
+from typing import TYPE_CHECKING, Any, Callable, Iterator, Mapping
 
 import attrs
 
@@ -70,12 +69,12 @@ class _AssetMainOperator(PythonOperator):
         return dict(self._iter_kwargs(context, active_assets))
 
 
-def _handle_self_argument(func: types.FunctionType) -> types.FunctionType:
+def _handle_self_argument(func: Callable) -> Callable:
     @wraps(func)
     def wrapper(_self: Any, *args: Sequence[Any], **kwargs: dict[str, Any]) -> Any:
         return func(_self, *args, **kwargs)
 
-    return cast(types.FunctionType, wrapper)
+    return wrapper
 
 
 @attrs.define(kw_only=True)
@@ -86,13 +85,13 @@ class AssetDefinition(Asset):
     :meta private:
     """
 
-    function: types.FunctionType
+    function: Callable
     schedule: ScheduleArg
 
     def __attrs_post_init__(self) -> None:
         parameters = inspect.signature(self.function).parameters
         if "self" in parameters:
-            self.function: types.FunctionType = _handle_self_argument(cast(types.FunctionType, self.function))  # type: ignore[assignment]
+            self.function: Callable = _handle_self_argument(self.function)
 
         with DAG(dag_id=self.name, schedule=self.schedule, auto_register=True) as dag:
             _AssetMainOperator(
@@ -145,6 +144,6 @@ class asset:
             uri=name if self.uri is None else str(self.uri),
             group=self.group,
             extra=self.extra,
-            function=cast(types.FunctionType, f),
+            function=f,
             schedule=self.schedule,
         )
