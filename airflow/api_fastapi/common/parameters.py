@@ -337,7 +337,7 @@ class _DagIdFilter(BaseParam[str]):
 
 
 class _UriPatternSearch(_SearchParam):
-    """Search on dag_id."""
+    """Search on uri."""
 
     def __init__(self, skip_none: bool = True) -> None:
         super().__init__(AssetModel.uri, skip_none)
