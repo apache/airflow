@@ -49,7 +49,7 @@ backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
     path="/",
     responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
-async def list_backfills(
+def list_backfills(
     dag_id: str,
     limit: QueryLimit,
     offset: QueryOffset,
@@ -81,7 +81,7 @@ async def list_backfills(
         [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
     ),
 )
-async def get_backfill(
+def get_backfill(
     backfill_id: str,
     session: Annotated[Session, Depends(get_session)],
 ):
@@ -102,7 +102,7 @@ async def get_backfill(
         ]
     ),
 )
-async def pause_backfill(*, backfill_id, session: Annotated[Session, Depends(get_session)]):
+def pause_backfill(*, backfill_id, session: Annotated[Session, Depends(get_session)]):
     b = session.get(Backfill, backfill_id)
     if not b:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")
@@ -125,7 +125,7 @@ async def pause_backfill(*, backfill_id, session: Annotated[Session, Depends(get
         ]
     ),
 )
-async def unpause_backfill(*, backfill_id, session: Annotated[Session, Depends(get_session)]):
+def unpause_backfill(*, backfill_id, session: Annotated[Session, Depends(get_session)]):
     b = session.get(Backfill, backfill_id)
     if not b:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")
@@ -147,7 +147,7 @@ async def unpause_backfill(*, backfill_id, session: Annotated[Session, Depends(g
         ]
     ),
 )
-async def cancel_backfill(*, backfill_id, session: Annotated[Session, Depends(get_session)]):
+def cancel_backfill(*, backfill_id, session: Annotated[Session, Depends(get_session)]):
     b: Backfill = session.get(Backfill, backfill_id)
     if not b:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")
@@ -194,7 +194,7 @@ async def cancel_backfill(*, backfill_id, session: Annotated[Session, Depends(ge
         ]
     ),
 )
-async def create_backfill(
+def create_backfill(
     backfill_request: BackfillPostBody,
 ):
     from_date = timezone.coerce_datetime(backfill_request.from_date)

@@ -25,6 +25,7 @@ from sqlalchemy.orm import relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
 
 from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.models.asset import asset_trigger_association_table
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
@@ -76,6 +77,8 @@ class Trigger(Base):
     )
 
     task_instance = relationship("TaskInstance", back_populates="trigger", lazy="selectin", uselist=False)
+
+    assets = relationship("AssetModel", secondary=asset_trigger_association_table, back_populates="triggers")
 
     def __init__(
         self,

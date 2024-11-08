@@ -2466,6 +2466,60 @@ export const $SchedulerInfoSchema = {
   description: "Schema for Scheduler info.",
 } as const;
 
+export const $TaskDependencyCollectionResponse = {
+  properties: {
+    dependencies: {
+      items: {
+        $ref: "#/components/schemas/TaskDependencyResponse",
+      },
+      type: "array",
+      title: "Dependencies",
+    },
+  },
+  type: "object",
+  required: ["dependencies"],
+  title: "TaskDependencyCollectionResponse",
+  description:
+    "Task scheduling dependencies collection serializer for responses.",
+} as const;
+
+export const $TaskDependencyResponse = {
+  properties: {
+    name: {
+      type: "string",
+      title: "Name",
+    },
+    reason: {
+      type: "string",
+      title: "Reason",
+    },
+  },
+  type: "object",
+  required: ["name", "reason"],
+  title: "TaskDependencyResponse",
+  description: "Task Dependency serializer for responses.",
+} as const;
+
+export const $TaskInstanceCollectionResponse = {
+  properties: {
+    task_instances: {
+      items: {
+        $ref: "#/components/schemas/TaskInstanceResponse",
+      },
+      type: "array",
+      title: "Task Instances",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["task_instances", "total_entries"],
+  title: "TaskInstanceCollectionResponse",
+  description: "Task Instance Collection serializer for responses.",
+} as const;
+
 export const $TaskInstanceResponse = {
   properties: {
     id: {

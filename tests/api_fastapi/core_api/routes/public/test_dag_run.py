@@ -192,7 +192,7 @@ class TestPatchDagRun:
         assert body.get("note") == response_body.get("note")
 
     @pytest.mark.parametrize(
-        "query_params,patch_body,response_body,expected_status_code",
+        "query_params, patch_body, response_body, expected_status_code",
         [
             ({"update_mask": ["state"]}, {"state": DagRunState.SUCCESS}, {"state": "success"}, 200),
             (

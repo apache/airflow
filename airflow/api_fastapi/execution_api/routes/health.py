@@ -23,5 +23,5 @@ health_router = AirflowRouter(tags=["Health"])
 
 
 @health_router.get("/health")
-async def health() -> dict:
+def health() -> dict:
     return {"status": "healthy"}
