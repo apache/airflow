@@ -23,7 +23,7 @@ from fastapi import Depends, HTTPException, status
 from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.execution_api import schemas
+from airflow.api_fastapi.execution_api import datamodels
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models.connection import Connection
 
@@ -37,9 +37,9 @@ connection_router = AirflowRouter(
 log = logging.getLogger(__name__)
 
 
-def get_task_token() -> schemas.TIToken:
+def get_task_token() -> datamodels.TIToken:
     """TODO: Placeholder for task identity authentication. This should be replaced with actual JWT decoding and validation."""
-    return schemas.TIToken(ti_key="test_key")
+    return datamodels.TIToken(ti_key="test_key")
 
 
 @connection_router.get(
@@ -51,8 +51,8 @@ def get_task_token() -> schemas.TIToken:
 )
 async def get_connection(
     connection_id: str,
-    token: Annotated[schemas.TIToken, Depends(get_task_token)],
-) -> schemas.ConnectionResponse:
+    token: Annotated[datamodels.TIToken, Depends(get_task_token)],
+) -> datamodels.ConnectionResponse:
     """Get an Airflow connection."""
     if not has_connection_access(connection_id, token):
         raise HTTPException(
@@ -72,10 +72,10 @@ async def get_connection(
                 "message": f"Connection with ID {connection_id} not found",
             },
         )
-    return schemas.ConnectionResponse.model_validate(connection, from_attributes=True)
+    return datamodels.ConnectionResponse.model_validate(connection, from_attributes=True)
 
 
-def has_connection_access(connection_id: str, token: schemas.TIToken) -> bool:
+def has_connection_access(connection_id: str, token: datamodels.TIToken) -> bool:
     """Check if the task has access to the connection."""
     # TODO: Placeholder for actual implementation
 
