@@ -55,7 +55,7 @@ dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
         ]
     ),
 )
-async def get_dag_run(
+def get_dag_run(
     dag_id: str, dag_run_id: str, session: Annotated[Session, Depends(get_session)]
 ) -> DAGRunResponse:
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
@@ -80,7 +80,7 @@ async def get_dag_run(
         ]
     ),
 )
-async def delete_dag_run(dag_id: str, dag_run_id: str, session: Annotated[Session, Depends(get_session)]):
+def delete_dag_run(dag_id: str, dag_run_id: str, session: Annotated[Session, Depends(get_session)]):
     """Delete a DAG Run entry."""
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
 
@@ -104,7 +104,7 @@ async def delete_dag_run(dag_id: str, dag_run_id: str, session: Annotated[Sessio
         ]
     ),
 )
-async def patch_dag_run_state(
+def patch_dag_run_state(
     dag_id: str,
     dag_run_id: str,
     patch_body: DAGRunPatchBody,
@@ -143,7 +143,7 @@ async def patch_dag_run_state(
             else:
                 set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True)
 
-    dag_run = session.get(DagRun, dag_run.id)
+    session.refresh(dag_run)
 
     return DAGRunResponse.model_validate(dag_run, from_attributes=True)
 

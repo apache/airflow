@@ -26,7 +26,7 @@ version_router = AirflowRouter(tags=["Version"], prefix="/version")
 
 
 @version_router.get("/")
-async def get_version() -> VersionInfo:
+def get_version() -> VersionInfo:
     """Get version information."""
     airflow_version = airflow.__version__
     git_version = get_airflow_git_version()

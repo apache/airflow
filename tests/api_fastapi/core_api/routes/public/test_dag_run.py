@@ -156,7 +156,7 @@ class TestPatchDagRun:
         assert body["state"] == response_state
 
     @pytest.mark.parametrize(
-        "query_params,patch_body, expected_status_code",
+        "query_params, patch_body, expected_status_code",
         [
             ({"update_mask": ["state"]}, {"state": DagRunState.SUCCESS}, 200),
             ({}, {"state": DagRunState.SUCCESS}, 200),

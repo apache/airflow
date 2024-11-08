@@ -48,7 +48,7 @@ dag_warning_router = AirflowRouter(tags=["DagWarning"])
     "/dagWarnings",
     responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
-async def list_dag_warnings(
+def list_dag_warnings(
     dag_id: QueryDagIdInDagWarningFilter,
     warning_type: QueryWarningTypeFilter,
     limit: QueryLimit,
