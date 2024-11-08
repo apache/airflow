@@ -1829,7 +1829,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # ok we know that we now have a "modern" version of the executor, which
             # expects us to try to requeue tasks "cleaned up" by `cleanup_stuck_queued_tasks`
             for ti in tis:
-                self.log.warning("Task stuck in queued and may be requeued. task_id=%s", ti.key)
+                self.log.warning("Task stuck in queued and may be requeued. task_id=%s", ti.task_id)
                 num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
                 if num_times_stuck < num_allowed_retries:
                     session.add(
@@ -1893,13 +1893,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             .count()
         )
-
-    @provide_session
-    def _reset_task_instance(self, ti: TaskInstance, session: Session = NEW_SESSION):
-        ti.external_executor_id = None
-        ti.state = State.SCHEDULED
-        session.merge(ti)
-        session.commit()
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
