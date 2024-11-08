@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import urllib
+
 import pytest
 
 from airflow.models import DagModel
@@ -239,3 +241,41 @@ class TestGetAssetsEndpointPagination(TestAssets):
 
         assert response.status_code == 200
         assert len(response.json()["assets"]) == 150
+
+
+class TestGetAssetEndpoint(TestAssets):
+    @pytest.mark.parametrize(
+        "url",
+        [
+            urllib.parse.quote(
+                "s3://bucket/key/1", safe=""
+            ),  # api should cover raw as well as unquoted case like legacy
+            "s3://bucket/key/1",
+        ],
+    )
+    @provide_session
+    def test_should_respond_200(self, test_client, url, session):
+        self.create_assets(num=1)
+        assert session.query(AssetModel).count() == 1
+        tz_datetime_format = self.default_time.replace("+00:00", "Z")
+        response = test_client.get(
+            f"/public/assets/{url}",
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "id": 1,
+            "uri": "s3://bucket/key/1",
+            "extra": {"foo": "bar"},
+            "created_at": tz_datetime_format,
+            "updated_at": tz_datetime_format,
+            "consuming_dags": [],
+            "producing_tasks": [],
+            "aliases": [],
+        }
+
+    def test_should_respond_404(self, test_client):
+        response = test_client.get(
+            f"/public/assets/{urllib.parse.quote('s3://bucket/key', safe='')}",
+        )
+        assert response.status_code == 404
+        assert response.json()["detail"] == "The Asset with uri: `s3://bucket/key` was not found"
