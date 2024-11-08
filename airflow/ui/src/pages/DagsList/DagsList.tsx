@@ -24,6 +24,7 @@ import {
   Link,
   createListCollection,
   type SelectValueChangeDetails,
+  Box,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useCallback, useState } from "react";
@@ -248,20 +249,22 @@ export const DagsList = () => {
         </HStack>
       </VStack>
       <ToggleTableDisplay display={display} setDisplay={setDisplay} />
-      <DataTable
-        cardDef={cardDef}
-        columns={columns}
-        data={data.dags}
-        displayMode={display}
-        errorMessage={<ErrorAlert error={error} />}
-        initialState={tableURLState}
-        isFetching={isFetching}
-        isLoading={isLoading}
-        modelName="Dag"
-        onStateChange={setTableURLState}
-        skeletonCount={display === "card" ? 5 : undefined}
-        total={data.total_entries}
-      />
+      <Box overflow="auto">
+        <DataTable
+          cardDef={cardDef}
+          columns={columns}
+          data={data.dags}
+          displayMode={display}
+          errorMessage={<ErrorAlert error={error} />}
+          initialState={tableURLState}
+          isFetching={isFetching}
+          isLoading={isLoading}
+          modelName="Dag"
+          onStateChange={setTableURLState}
+          skeletonCount={display === "card" ? 5 : undefined}
+          total={data.total_entries}
+        />
+      </Box>
     </>
   );
 };

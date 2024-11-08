@@ -40,12 +40,7 @@ export const TableList = <TData,>({
   renderSubComponent,
   table,
 }: DataTableProps<TData>) => (
-  <Table.Root
-    data-testid="table-list"
-    maxH="calc(100vh - 10rem)"
-    overflowY="auto"
-    striped
-  >
+  <Table.Root data-testid="table-list" striped>
     <Table.Header bg="chakra-body-bg" position="sticky" top={0} zIndex={1}>
       {table.getHeaderGroups().map((headerGroup) => (
         <Table.Row key={headerGroup.id}>

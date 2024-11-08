@@ -68,7 +68,7 @@ export const Dag = () => {
 
   return (
     <>
-      <Box bg="bg" position="sticky" top={0} zIndex={1}>
+      <Box>
         <Button asChild colorPalette="blue" variant="ghost">
           <RouterLink to="/dags">
             <FiChevronsLeft />
@@ -96,7 +96,9 @@ export const Dag = () => {
           </Tabs.List>
         </Tabs.Root>
       </Box>
-      <Outlet />
+      <Box overflow="auto">
+        <Outlet />
+      </Box>
     </>
   );
 };
