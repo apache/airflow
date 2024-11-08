@@ -174,7 +174,7 @@ class GCSToBigQueryOperator(BaseOperator):
         destination table is newly created. If the table already exists and a value different than the
         current description is provided, the job will fail.
     :param deferrable: Run operator in the deferrable mode
-    :poram force_delete: Force the destination table to be deleted if it already exists.
+    :param force_delete: Force the destination table to be deleted if it already exists.
     """
 
     template_fields: Sequence[str] = (
