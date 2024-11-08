@@ -22,6 +22,7 @@ import pytest
 from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.utils.task_group import TaskGroup
+
 from tests.models import DEFAULT_DATE
 
 

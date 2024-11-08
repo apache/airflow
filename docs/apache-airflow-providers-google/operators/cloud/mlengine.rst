@@ -49,7 +49,7 @@ This operator is deprecated. Please, use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`
 instead.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_custom_python_training_job_v1]
@@ -69,7 +69,7 @@ of any types. For example, you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`.
 The result of running this operator will be ready-to-use model saved in Model Registry.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_custom_python_training_job_v1]
@@ -87,7 +87,7 @@ This operator is deprecated. Please, use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.GetModelOperator`
 instead.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_get_model]
@@ -98,7 +98,7 @@ fields to dynamically determine their values. The result are saved to :ref:`XCom
 allowing them to be used by other operators. In this case, the
 :class:`~airflow.providers.standard.operators.bash.BashOperator` is used to print the model information.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_print_model]
@@ -120,7 +120,7 @@ instead. In this case, the new version of specific model could be created by spe
 ``parent_model`` parameter when running Training Job. This will ensure that new version of model will be trained except
 of creating new model.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_custom_python_training_job_v1]
@@ -129,7 +129,7 @@ of creating new model.
 The :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`
 can also be used to create more versions with varying parameters.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_create_custom_python_training_job_v2]
@@ -151,7 +151,7 @@ in format ``projects/{project}/locations/{location}/models/{model_id}@{version_i
 ``projects/{project}/locations/{location}/models/{model_id}@{version_alias}``. By default, the first model version
 created will be marked as default.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_default_version]
@@ -166,7 +166,7 @@ This operator is deprecated. Please, use
 instead. You can pass the name of the desired model in ``model_id`` parameter. If the model ID is passed
 with version aliases, the operator will output all the versions available for this model.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_list_versions]
@@ -185,7 +185,7 @@ This operator is deprecated. Please, use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.CreateBatchPredictionJobOperator`
 instead.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_start_batch_prediction]
@@ -204,7 +204,7 @@ This operator is deprecated. Please, use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.DeleteModelVersionOperator`
 instead. The default version could not be deleted on the model.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_delete_version]
@@ -218,7 +218,7 @@ This operator is deprecated. Please, use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.model_service.DeleteModelOperator`
 instead.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_delete_model]

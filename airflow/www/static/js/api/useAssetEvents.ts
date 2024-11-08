@@ -44,7 +44,7 @@ const useAssetEvents = ({
 }: Props) => {
   const query = useQuery<AssetEventCollection>(
     [
-      "datasets-events",
+      "assets-events",
       assetId,
       sourceDagId,
       sourceRunId,
@@ -55,7 +55,7 @@ const useAssetEvents = ({
       orderBy,
     ],
     () => {
-      const datasetsUrl = getMetaValue("asset_events_api");
+      const assetsUrl = getMetaValue("asset_events_api");
 
       const params = new URLSearchParamsWrapper();
 
@@ -69,7 +69,7 @@ const useAssetEvents = ({
       if (sourceMapIndex)
         params.set("source_map_index", sourceMapIndex.toString());
 
-      return axios.get(datasetsUrl, {
+      return axios.get(assetsUrl, {
         params,
       });
     },

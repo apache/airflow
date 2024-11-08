@@ -139,6 +139,9 @@ function environment_initialization() {
     # Added to have run-tests on path
     export PATH=${PATH}:${AIRFLOW_SOURCES}
 
+    # Directory where simple auth manager store generated passwords
+    export AIRFLOW_AUTH_MANAGER_CREDENTIAL_DIRECTORY="/files"
+
     mkdir -pv "${AIRFLOW_HOME}/logs/"
 
     # Change the default worker_concurrency for tests
@@ -233,6 +236,13 @@ function determine_airflow_to_use() {
            --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         # Some packages might leave legacy typing module which causes test issues
         pip uninstall -y typing || true
+        if [[ ${LINK_PROVIDERS_TO_AIRFLOW_PACKAGE=} == "true" ]]; then
+            echo
+            echo "${COLOR_BLUE}Linking providers to airflow package as we are using them from mounted sources.${COLOR_RESET}"
+            echo
+            rm -rf /usr/local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/providers
+            ln -s "${AIRFLOW_SOURCES}/providers/src/airflow/providers" "/usr/local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/providers"
+        fi
     fi
 
     if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
@@ -374,7 +384,7 @@ function check_force_lowest_dependencies() {
         echo
     fi
     set -x
-    uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}"
+    uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}" --editable "./task_sdk"
     set +x
 }
 

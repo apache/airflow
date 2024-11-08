@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Progress, Text } from "@chakra-ui/react";
+import { HStack, Text } from "@chakra-ui/react";
 import {
   getCoreRowModel,
   getExpandedRowModel,
@@ -30,9 +30,9 @@ import {
 } from "@tanstack/react-table";
 import React, { type ReactNode, useCallback, useRef } from "react";
 
+import { ProgressBar, Pagination } from "../ui";
 import { CardList } from "./CardList";
 import { TableList } from "./TableList";
-import { TablePaginator } from "./TablePaginator";
 import { createSkeletonMock } from "./skeleton";
 import type { CardDef, MetaColumn, TableState } from "./types";
 
@@ -41,6 +41,7 @@ type DataTableProps<TData> = {
   readonly columns: Array<MetaColumn<TData>>;
   readonly data: Array<TData>;
   readonly displayMode?: "card" | "table";
+  readonly errorMessage?: ReactNode | string;
   readonly getRowCanExpand?: (row: Row<TData>) => boolean;
   readonly initialState?: TableState;
   readonly isFetching?: boolean;
@@ -62,6 +63,7 @@ export const DataTable = <TData,>({
   columns,
   data,
   displayMode = "table",
+  errorMessage,
   getRowCanExpand = defaultGetRowCanExpand,
   initialState,
   isFetching,
@@ -120,23 +122,34 @@ export const DataTable = <TData,>({
 
   return (
     <>
-      <Progress
-        isIndeterminate
+      <ProgressBar
         size="xs"
         visibility={
           Boolean(isFetching) && !Boolean(isLoading) ? "visible" : "hidden"
         }
       />
+      {errorMessage}
       {!Boolean(isLoading) && !rows.length && (
-        <Text fontSize="small">
-          {noRowsMessage ?? `No ${modelName}s found.`}
-        </Text>
+        <Text pt={1}>{noRowsMessage ?? `No ${modelName}s found.`}</Text>
       )}
       {display === "table" && <TableList table={table} />}
       {display === "card" && cardDef !== undefined && (
         <CardList cardDef={cardDef} isLoading={isLoading} table={table} />
       )}
-      <TablePaginator table={table} />
+      <Pagination.Root
+        count={table.getRowCount()}
+        my={2}
+        onPageChange={(page) => table.setPageIndex(page.page - 1)}
+        page={table.getState().pagination.pageIndex + 1}
+        pageSize={table.getState().pagination.pageSize}
+        siblingCount={1}
+      >
+        <HStack>
+          <Pagination.PrevTrigger data-testid="prev" />
+          <Pagination.Items />
+          <Pagination.NextTrigger data-testid="next" />
+        </HStack>
+      </Pagination.Root>
     </>
   );
 };

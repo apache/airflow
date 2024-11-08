@@ -53,16 +53,18 @@ from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DbCallbackRequest
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
+
 from tests.core.test_logging_config import SETTINGS_FILE_VALID, settings_context
 from tests.models import TEST_DAGS_FOLDER
-from tests.test_utils.compat import ParseImportError
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import (
+from tests_common.test_utils.compat import ParseImportError
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import (
     clear_db_callbacks,
     clear_db_dags,
     clear_db_import_errors,
@@ -80,8 +82,8 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 class FakeDagFileProcessorRunner(DagFileProcessorProcess):
     # This fake processor will return the zombies it received in constructor
     # as its processing result w/o actually parsing anything.
-    def __init__(self, file_path, pickle_dags, dag_ids, dag_directory, callbacks):
-        super().__init__(file_path, pickle_dags, dag_ids, dag_directory, callbacks)
+    def __init__(self, file_path, dag_ids, dag_directory, callbacks):
+        super().__init__(file_path, dag_ids, dag_directory, callbacks)
         # We need a "real" selectable handle for waitable_handle to work
         readable, writable = multiprocessing.Pipe(duplex=False)
         writable.send("abc")
@@ -109,10 +111,9 @@ class FakeDagFileProcessorRunner(DagFileProcessorProcess):
         return self._result
 
     @staticmethod
-    def _create_process(file_path, callback_requests, dag_ids, dag_directory, pickle_dags):
+    def _create_process(file_path, callback_requests, dag_ids, dag_directory):
         return FakeDagFileProcessorRunner(
             file_path,
-            pickle_dags,
             dag_ids,
             dag_directory,
             callback_requests,
@@ -178,7 +179,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(days=365),
                 signal_conn=child_pipe,
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=async_mode,
             ),
         )
@@ -214,7 +214,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(days=365),
                 signal_conn=child_pipe,
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=async_mode,
             ),
         )
@@ -238,7 +237,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(days=365),
                 signal_conn=MagicMock(),
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=True,
             ),
         )
@@ -272,7 +270,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(days=365),
                 signal_conn=MagicMock(),
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=True,
             ),
         )
@@ -297,7 +294,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(days=365),
                 signal_conn=MagicMock(),
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=True,
             ),
         )
@@ -331,7 +327,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(days=365),
                 signal_conn=MagicMock(),
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=True,
             ),
         )
@@ -363,7 +358,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(days=365),
                 signal_conn=MagicMock(),
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=True,
             ),
         )
@@ -428,7 +422,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(days=365),
                 signal_conn=MagicMock(),
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=True,
             ),
         )
@@ -468,7 +461,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(days=365),
                 signal_conn=MagicMock(),
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=True,
             ),
         )
@@ -505,7 +497,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(days=365),
                 signal_conn=MagicMock(),
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=True,
             ),
         )
@@ -553,7 +544,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(days=365),
                 signal_conn=MagicMock(),
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=True,
             ),
         )
@@ -614,7 +604,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(days=365),
                 signal_conn=MagicMock(),
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=True,
             ),
         )
@@ -643,7 +632,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(minutes=10),
                 signal_conn=MagicMock(),
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=True,
             ),
         )
@@ -677,13 +665,6 @@ class TestDagProcessorJobRunner:
             )
             assert active_dag_count == 1
 
-            serialized_dag_count = (
-                session.query(func.count(SerializedDagModel.dag_id))
-                .filter(SerializedDagModel.fileloc == test_dag_path)
-                .scalar()
-            )
-            assert serialized_dag_count == 1
-
             manager.processor._scan_stale_dags()
 
             active_dag_count = (
@@ -695,10 +676,12 @@ class TestDagProcessorJobRunner:
 
             serialized_dag_count = (
                 session.query(func.count(SerializedDagModel.dag_id))
-                .filter(SerializedDagModel.fileloc == test_dag_path)
+                .filter(SerializedDagModel.dag_id == dag.dag_id)
                 .scalar()
             )
-            assert serialized_dag_count == 0
+            # Deactivating the DagModel should not delete the SerializedDagModel
+            # SerializedDagModel gives history about Dags
+            assert serialized_dag_count == 1
 
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @conf_vars(
@@ -721,7 +704,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(minutes=10),
                 signal_conn=MagicMock(),
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=True,
             ),
         )
@@ -778,14 +760,12 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(seconds=5),
                 signal_conn=MagicMock(),
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=True,
             ),
         )
 
         processor = DagFileProcessorProcess(
             file_path="abc.txt",
-            pickle_dags=False,
             dag_ids=[],
             dag_directory=TEST_DAG_FOLDER,
             callback_requests=[],
@@ -811,14 +791,12 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(seconds=5),
                 signal_conn=MagicMock(),
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=True,
             ),
         )
 
         processor = DagFileProcessorProcess(
             file_path="abc.txt",
-            pickle_dags=False,
             dag_ids=[],
             dag_directory=str(TEST_DAG_FOLDER),
             callback_requests=[],
@@ -853,7 +831,6 @@ class TestDagProcessorJobRunner:
                 max_runs=1,
                 processor_timeout=timedelta(seconds=5),
                 signal_conn=child_pipe,
-                pickle_dags=False,
                 async_mode=True,
             ),
         )
@@ -900,7 +877,6 @@ class TestDagProcessorJobRunner:
                     max_runs=1,
                     signal_conn=child_pipe,
                     processor_timeout=timedelta(seconds=5),
-                    pickle_dags=False,
                     async_mode=False,
                 ),
             )
@@ -921,7 +897,6 @@ class TestDagProcessorJobRunner:
                     max_runs=1,
                     signal_conn=child_pipe,
                     processor_timeout=timedelta(seconds=5),
-                    pickle_dags=False,
                     async_mode=True,
                 ),
             )
@@ -991,7 +966,6 @@ class TestDagProcessorJobRunner:
             max_runs=100,
             processor_timeout=timedelta(seconds=5),
             signal_conn=child_pipe,
-            pickle_dags=False,
             async_mode=True,
         )
 
@@ -1033,7 +1007,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(days=365),
                 signal_conn=child_pipe,
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=async_mode,
             ),
         )
@@ -1067,7 +1040,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(days=365),
                 signal_conn=MagicMock(),
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=True,
             ),
         )
@@ -1097,7 +1069,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(days=365),
                 signal_conn=MagicMock(),
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=True,
             ),
         )
@@ -1113,10 +1084,12 @@ class TestDagProcessorJobRunner:
         with mock.patch("airflow.dag_processing.manager.might_contain_dag", return_value=False):
             manager.processor._refresh_dag_dir()
 
-        # Assert dag removed from SDM
-        assert not SerializedDagModel.has_dag("test_zip_dag")
-        # assert code deleted
-        assert not DagCode.has_dag(dag.fileloc)
+        # Deleting the python file should not delete SDM for versioning sake
+        assert SerializedDagModel.has_dag("test_zip_dag")
+        # assert code not deleted for versioning sake
+        assert DagCode.has_dag(dag.fileloc)
+        # assert dagversion was not deleted
+        assert DagVersion.get_latest_version(dag.dag_id)
         # assert dag deactivated
         assert not dag.get_is_active()
 
@@ -1143,7 +1116,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(days=365),
                 signal_conn=MagicMock(),
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=True,
             ),
         )
@@ -1193,7 +1165,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(days=365),
                 signal_conn=child_pipe,
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=False,
             ),
         )
@@ -1240,7 +1211,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(days=365),
                 signal_conn=child_pipe,
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=False,
             ),
         )
@@ -1280,7 +1250,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(days=365),
                 signal_conn=child_pipe,
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=False,
             ),
         )
@@ -1321,7 +1290,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(days=365),
                 signal_conn=child_pipe,
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=False,
             ),
         )
@@ -1344,7 +1312,6 @@ class TestDagProcessorJobRunner:
                 processor_timeout=timedelta(days=365),
                 signal_conn=MagicMock(),
                 dag_ids=[],
-                pickle_dags=False,
                 async_mode=True,
             ),
         )
@@ -1445,9 +1412,7 @@ class TestDagFileProcessorAgent:
                 os.remove(log_file_loc)
 
             # Starting dag processing with 0 max_runs to avoid redundant operations.
-            processor_agent = DagFileProcessorAgent(
-                test_dag_path, 0, timedelta(days=365), [], False, async_mode
-            )
+            processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta(days=365), [], async_mode)
             processor_agent.start()
             if not async_mode:
                 processor_agent.run_single_parsing_loop()
@@ -1466,7 +1431,7 @@ class TestDagFileProcessorAgent:
 
         test_dag_path = TEST_DAG_FOLDER / "test_scheduler_dags.py"
         async_mode = "sqlite" not in conf.get("database", "sql_alchemy_conn")
-        processor_agent = DagFileProcessorAgent(test_dag_path, 1, timedelta(days=365), [], False, async_mode)
+        processor_agent = DagFileProcessorAgent(test_dag_path, 1, timedelta(days=365), [], async_mode)
         processor_agent.start()
         if not async_mode:
             processor_agent.run_single_parsing_loop()
@@ -1494,7 +1459,7 @@ class TestDagFileProcessorAgent:
             os.remove(log_file_loc)
 
         # Starting dag processing with 0 max_runs to avoid redundant operations.
-        processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta(days=365), [], False, async_mode)
+        processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta(days=365), [], async_mode)
         processor_agent.start()
         if not async_mode:
             processor_agent.run_single_parsing_loop()
@@ -1504,21 +1469,21 @@ class TestDagFileProcessorAgent:
         assert os.path.isfile(log_file_loc)
 
     def test_single_parsing_loop_no_parent_signal_conn(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False)
         processor_agent._process = Mock()
         processor_agent._parent_signal_conn = None
         with pytest.raises(ValueError, match="Process not started"):
             processor_agent.run_single_parsing_loop()
 
     def test_single_parsing_loop_no_process(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False)
         processor_agent._parent_signal_conn = Mock()
         processor_agent._process = None
         with pytest.raises(ValueError, match="Process not started"):
             processor_agent.run_single_parsing_loop()
 
     def test_single_parsing_loop_process_isnt_alive(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False)
         processor_agent._process = Mock()
         processor_agent._parent_signal_conn = Mock()
         processor_agent._process.is_alive.return_value = False
@@ -1526,7 +1491,7 @@ class TestDagFileProcessorAgent:
         assert not ret_val
 
     def test_single_parsing_loop_process_conn_error(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False)
         processor_agent._process = Mock()
         processor_agent._parent_signal_conn = Mock()
         processor_agent._process.is_alive.return_value = True
@@ -1535,25 +1500,25 @@ class TestDagFileProcessorAgent:
         assert not ret_val
 
     def test_get_callbacks_pipe(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False)
         processor_agent._parent_signal_conn = Mock()
         retval = processor_agent.get_callbacks_pipe()
         assert retval == processor_agent._parent_signal_conn
 
     def test_get_callbacks_pipe_no_parent_signal_conn(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False)
         processor_agent._parent_signal_conn = None
         with pytest.raises(ValueError, match="Process not started"):
             processor_agent.get_callbacks_pipe()
 
     def test_wait_until_finished_no_parent_signal_conn(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False)
         processor_agent._parent_signal_conn = None
         with pytest.raises(ValueError, match="Process not started"):
             processor_agent.wait_until_finished()
 
     def test_wait_until_finished_poll_eof_error(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False)
         processor_agent._parent_signal_conn = Mock()
         processor_agent._parent_signal_conn.poll.return_value = True
         processor_agent._parent_signal_conn.recv = Mock()
@@ -1562,13 +1527,13 @@ class TestDagFileProcessorAgent:
         assert ret_val is None
 
     def test_heartbeat_no_parent_signal_conn(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False)
         processor_agent._parent_signal_conn = None
         with pytest.raises(ValueError, match="Process not started"):
             processor_agent.heartbeat()
 
     def test_heartbeat_poll_eof_error(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False)
         processor_agent._parent_signal_conn = Mock()
         processor_agent._parent_signal_conn.poll.return_value = True
         processor_agent._parent_signal_conn.recv = Mock()
@@ -1577,7 +1542,7 @@ class TestDagFileProcessorAgent:
         assert ret_val is None
 
     def test_heartbeat_poll_connection_error(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False)
         processor_agent._parent_signal_conn = Mock()
         processor_agent._parent_signal_conn.poll.return_value = True
         processor_agent._parent_signal_conn.recv = Mock()
@@ -1586,7 +1551,7 @@ class TestDagFileProcessorAgent:
         assert ret_val is None
 
     def test_heartbeat_poll_process_message(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False)
         processor_agent._parent_signal_conn = Mock()
         processor_agent._parent_signal_conn.poll.side_effect = [True, False]
         processor_agent._parent_signal_conn.recv = Mock()
@@ -1597,19 +1562,19 @@ class TestDagFileProcessorAgent:
 
     def test_process_message_invalid_type(self):
         message = "xyz"
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False)
         with pytest.raises(RuntimeError, match="Unexpected message received of type str"):
             processor_agent._process_message(message)
 
     def test_heartbeat_manager(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False)
         processor_agent._parent_signal_conn = None
         with pytest.raises(ValueError, match="Process not started"):
             processor_agent._heartbeat_manager()
 
     @mock.patch("airflow.utils.process_utils.reap_process_group")
     def test_heartbeat_manager_process_restart(self, mock_pg):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False)
         processor_agent._parent_signal_conn = Mock()
         processor_agent._process = MagicMock()
         processor_agent.start = Mock()
@@ -1623,7 +1588,7 @@ class TestDagFileProcessorAgent:
     @mock.patch("time.monotonic")
     @mock.patch("airflow.dag_processing.manager.reap_process_group")
     def test_heartbeat_manager_process_reap(self, mock_pg, mock_time_monotonic, mock_stats):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False)
         processor_agent._parent_signal_conn = Mock()
         processor_agent._process = Mock()
         processor_agent._process.pid = 12345
@@ -1644,7 +1609,7 @@ class TestDagFileProcessorAgent:
         processor_agent.start.assert_called()
 
     def test_heartbeat_manager_terminate(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False)
         processor_agent._parent_signal_conn = Mock()
         processor_agent._process = Mock()
         processor_agent._process.is_alive.return_value = True
@@ -1654,7 +1619,7 @@ class TestDagFileProcessorAgent:
         processor_agent._parent_signal_conn.send.assert_called_with(DagParsingSignal.TERMINATE_MANAGER)
 
     def test_heartbeat_manager_terminate_conn_err(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False)
         processor_agent._process = Mock()
         processor_agent._process.is_alive.return_value = True
         processor_agent._parent_signal_conn = Mock()
@@ -1665,7 +1630,7 @@ class TestDagFileProcessorAgent:
         processor_agent._parent_signal_conn.send.assert_called_with(DagParsingSignal.TERMINATE_MANAGER)
 
     def test_heartbeat_manager_end_no_process(self):
-        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False, False)
+        processor_agent = DagFileProcessorAgent("", 1, timedelta(days=365), [], False)
         processor_agent._process = Mock()
         processor_agent._process.__bool__ = Mock(return_value=False)
         processor_agent._process.side_effect = [None]
@@ -1681,7 +1646,7 @@ class TestDagFileProcessorAgent:
         async_mode = "sqlite" not in conf.get("database", "sql_alchemy_conn")
 
         # Starting dag processing with 0 max_runs to avoid redundant operations.
-        processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta(days=365), [], False, async_mode)
+        processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta(days=365), [], async_mode)
         processor_agent.start()
         if not async_mode:
             processor_agent.run_single_parsing_loop()
@@ -1700,7 +1665,7 @@ class TestDagFileProcessorAgent:
         async_mode = "sqlite" not in conf.get("database", "sql_alchemy_conn")
 
         # Starting dag processing with 0 max_runs to avoid redundant operations.
-        processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta(days=365), [], False, async_mode)
+        processor_agent = DagFileProcessorAgent(test_dag_path, 0, timedelta(days=365), [], async_mode)
         processor_agent.start()
         if not async_mode:
             processor_agent.run_single_parsing_loop()

@@ -22,7 +22,7 @@
 PythonOperator
 ==============
 
-Use the :class:`~airflow.operators.python.PythonOperator` to execute Python callables.
+Use the :class:`~airflow.providers.standard.operators.python.PythonOperator` to execute Python callables.
 
 .. tip::
     The ``@task`` decorator is recommended over the classic ``PythonOperator`` to execute Python callables.
@@ -79,7 +79,7 @@ Airflow passes in an additional set of keyword arguments: one for each of the
 :ref:`Jinja template variables <templates:variables>` and a ``templates_dict``
 argument.
 
-The ``templates_dict`` argument is templated, so each value in the dictionary
+``templates_dict``, ``op_args``, ``op_kwargs`` arguments are templated, so each value in the dictionary
 is evaluated as a :ref:`Jinja template <concepts:jinja-templating>`.
 
 .. tab-set::
@@ -138,7 +138,7 @@ In this case, the type hint can be used for static analysis.
 PythonVirtualenvOperator
 ========================
 
-Use the :class:`~airflow.operators.python.PythonVirtualenvOperator` decorator to execute Python callables
+Use the :class:`~airflow.providers.standard.operators.python.PythonVirtualenvOperator` decorator to execute Python callables
 inside a new Python virtual environment. The ``virtualenv`` package needs to be installed in the environment
 that runs Airflow (as optional dependency ``pip install apache-airflow[virtualenv] --constraint ...``).
 
@@ -182,11 +182,12 @@ Otherwise you won't have access to the most context variables of Airflow in ``op
 If you want the context related to datetime objects like ``data_interval_start`` you can add ``pendulum`` and
 ``lazy_object_proxy``.
 
+
 .. important::
     The Python function body defined to be executed is cut out of the DAG into a temporary file w/o surrounding code.
     As in the examples you need to add all imports again and you can not rely on variables from the global Python context.
 
-    If you want to pass variables into the classic :class:`~airflow.operators.python.PythonVirtualenvOperator` use
+    If you want to pass variables into the classic :class:`~airflow.providers.standard.operators.python.PythonVirtualenvOperator` use
     ``op_args`` and ``op_kwargs``.
 
 If additional parameters for package installation are needed pass them in via the ``pip_install_options`` parameter or use a
@@ -198,6 +199,11 @@ If additional parameters for package installation are needed pass them in via th
   AnotherPackage==1.4.3 --no-index --find-links /my/local/archives
 
 All supported options are listed in the `requirements file format <https://pip.pypa.io/en/stable/reference/requirements-file-format/#supported-options>`_.
+
+Templating
+^^^^^^^^^^
+
+Jinja templating can be used in same way as described for the :ref:`howto/operator:PythonOperator`.
 
 Virtual environment setup options
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -288,7 +294,7 @@ environment, there is no need for ``activation`` of the environment. Merely usin
 automatically activates it. In both examples below ``PATH_TO_PYTHON_BINARY`` is such a path, pointing
 to the executable Python binary.
 
-Use the :class:`~airflow.operators.python.ExternalPythonOperator` to execute Python callables inside a
+Use the :class:`~airflow.providers.standard.operators.python.ExternalPythonOperator` to execute Python callables inside a
 pre-defined environment. The virtualenv package should be preinstalled in the environment where Python is run.
 In case ``dill`` is used, it has to be preinstalled in the environment (the same version that is installed
 in main Airflow environment).
@@ -333,8 +339,13 @@ If you want the context related to datetime objects like ``data_interval_start``
     The Python function body defined to be executed is cut out of the DAG into a temporary file w/o surrounding code.
     As in the examples you need to add all imports again and you can not rely on variables from the global Python context.
 
-    If you want to pass variables into the classic :class:`~airflow.operators.python.ExternalPythonOperator` use
+    If you want to pass variables into the classic :class:`~airflow.providers.standard.operators.python.ExternalPythonOperator` use
     ``op_args`` and ``op_kwargs``.
+
+Templating
+^^^^^^^^^^
+
+Jinja templating can be used in same way as described for the :ref:`howto/operator:PythonOperator`.
 
 Context
 ^^^^^^^
@@ -366,7 +377,7 @@ You can use ``Context`` under the same conditions as ``PythonVirtualenvOperator`
 PythonBranchOperator
 ====================
 
-Use the :class:`~airflow.operators.python.PythonBranchOperator` to execute Python :ref:`branching <concepts:branching>`
+Use the :class:`~airflow.providers.standard.operators.python.PythonBranchOperator` to execute Python :ref:`branching <concepts:branching>`
 tasks.
 
 .. tip::
@@ -393,15 +404,18 @@ tasks.
             :start-after: [START howto_operator_branch_python]
             :end-before: [END howto_operator_branch_python]
 
-Argument passing and templating options are the same like with :ref:`howto/operator:PythonOperator`.
+Passing in arguments and Templating
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Argument passing and templating options are the same as with :ref:`howto/operator:PythonOperator`.
 
 .. _howto/operator:BranchPythonVirtualenvOperator:
 
 BranchPythonVirtualenvOperator
 ==============================
 
-Use the :class:`~airflow.operators.python.BranchPythonVirtualenvOperator` decorator to execute Python :ref:`branching <concepts:branching>`
-tasks and is a hybrid of the :class:`~airflow.operators.python.PythonBranchOperator` with execution in a virtual environment.
+Use the :class:`~airflow.providers.standard.operators.python.BranchPythonVirtualenvOperator` decorator to execute Python :ref:`branching <concepts:branching>`
+tasks and is a hybrid of the :class:`~airflow.providers.standard.operators.python.PythonBranchOperator` with execution in a virtual environment.
 
 .. tip::
     The ``@task.branch_virtualenv`` decorator is recommended over the classic
@@ -427,15 +441,18 @@ tasks and is a hybrid of the :class:`~airflow.operators.python.PythonBranchOpera
             :start-after: [START howto_operator_branch_virtualenv]
             :end-before: [END howto_operator_branch_virtualenv]
 
-Argument passing and templating options are the same like with :ref:`howto/operator:PythonVirtualenvOperator`.
+Passing in arguments and Templating
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Argument passing and templating options are the same as with :ref:`howto/operator:PythonOperator`.
 
 .. _howto/operator:BranchExternalPythonOperator:
 
 BranchExternalPythonOperator
 ============================
 
-Use the :class:`~airflow.operators.python.BranchExternalPythonOperator` to execute Python :ref:`branching <concepts:branching>`
-tasks and is a hybrid of the :class:`~airflow.operators.python.PythonBranchOperator` with execution in an
+Use the :class:`~airflow.providers.standard.operators.python.BranchExternalPythonOperator` to execute Python :ref:`branching <concepts:branching>`
+tasks and is a hybrid of the :class:`~airflow.providers.standard.operators.python.PythonBranchOperator` with execution in an
 external Python environment.
 
 .. tip::
@@ -462,14 +479,18 @@ external Python environment.
             :start-after: [START howto_operator_branch_ext_py]
             :end-before: [END howto_operator_branch_ext_py]
 
-Argument passing and templating options are the same like with :ref:`howto/operator:ExternalPythonOperator`.
+
+Passing in arguments and Templating
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Argument passing and templating options are the same as with :ref:`howto/operator:PythonOperator`.
 
 .. _howto/operator:ShortCircuitOperator:
 
 ShortCircuitOperator
 ====================
 
-Use the :class:`~airflow.operators.python.ShortCircuitOperator` to control whether a pipeline continues
+Use the :class:`~airflow.providers.standard.operators.python.ShortCircuitOperator` to control whether a pipeline continues
 if a condition is satisfied or a truthy value is obtained.
 
 The evaluation of this condition and truthy value is done via the output of a callable. If the
@@ -538,23 +559,18 @@ tasks have completed running regardless of status (i.e. the ``TriggerRule.ALL_DO
             :start-after: [START howto_operator_short_circuit_trigger_rules]
             :end-before: [END howto_operator_short_circuit_trigger_rules]
 
-Passing in arguments
-^^^^^^^^^^^^^^^^^^^^
 
-Pass extra arguments to the ``@task.short_circuit``-decorated function as you would with a normal Python function.
+Passing in arguments and Templating
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
-Templating
-^^^^^^^^^^
-
-Jinja templating can be used in same way as described for the PythonOperator.
+Argument passing and templating options are the same as with :ref:`howto/operator:PythonOperator`.
 
 .. _howto/operator:PythonSensor:
 
 PythonSensor
 ============
 
-The :class:`~airflow.sensors.python.PythonSensor` executes an arbitrary callable and waits for its return
+The :class:`~airflow.providers.standard.sensors.python.PythonSensor` executes an arbitrary callable and waits for its return
 value to be True.
 
 .. tip::

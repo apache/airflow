@@ -24,8 +24,9 @@ from sqlalchemy import select
 
 from airflow.models import DagBag
 from airflow.models.dagbag import DagPriorityParsingRequest
-from tests.test_utils.api_connexion_utils import create_user, delete_user
-from tests.test_utils.db import clear_db_dag_parsing_requests
+
+from tests_common.test_utils.api_connexion_utils import create_user, delete_user
+from tests_common.test_utils.db import clear_db_dag_parsing_requests
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -37,7 +38,7 @@ EXAMPLE_DAG_FILE = os.path.join("airflow", "example_dags", "example_bash_operato
 EXAMPLE_DAG_ID = "example_bash_operator"
 TEST_DAG_ID = "latest_only"
 NOT_READABLE_DAG_ID = "latest_only_with_trigger"
-TEST_MULTIPLE_DAGS_ID = "dataset_produces_1"
+TEST_MULTIPLE_DAGS_ID = "asset_produces_1"
 
 
 @pytest.fixture(scope="module")

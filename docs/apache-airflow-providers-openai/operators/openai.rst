@@ -32,7 +32,7 @@ connect to your account.
 
 An example using the operator is in way:
 
-.. exampleinclude:: /../../tests/system/providers/openai/example_openai.py
+.. exampleinclude:: /../../providers/tests/system/openai/example_openai.py
     :language: python
     :start-after: [START howto_operator_openai_embedding]
     :end-before: [END howto_operator_openai_embedding]
@@ -57,7 +57,7 @@ The OpenAITriggerBatchOperator
 
 An example using the operator is in way:
 
-.. exampleinclude:: /../../tests/system/providers/openai/example_trigger_batch_operator.py
+.. exampleinclude:: /../../providers/tests/system/openai/example_trigger_batch_operator.py
     :language: python
     :start-after: [START howto_operator_openai_trigger_operator]
     :end-before: [END howto_operator_openai_trigger_operator]

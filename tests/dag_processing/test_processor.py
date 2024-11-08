@@ -39,10 +39,11 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
-from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS, ParseImportError
-from tests.test_utils.config import conf_vars, env_vars
-from tests.test_utils.db import (
+
+from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, ParseImportError
+from tests_common.test_utils.config import conf_vars, env_vars
+from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_import_errors,
     clear_db_jobs,
@@ -50,7 +51,7 @@ from tests.test_utils.db import (
     clear_db_runs,
     clear_db_serialized_dags,
 )
-from tests.test_utils.mock_executor import MockExecutor
+from tests_common.test_utils.mock_executor import MockExecutor
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -111,7 +112,7 @@ class TestDagFileProcessor:
             dag_ids=[], dag_directory=str(dag_directory), log=mock.MagicMock()
         )
 
-        dag_file_processor.process_file(file_path, [], False)
+        dag_file_processor.process_file(file_path, [])
 
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @patch.object(TaskInstance, "handle_failure")
@@ -160,6 +161,7 @@ class TestDagFileProcessor:
         with create_session() as session:
             session.query(TaskInstance).delete()
             dag = dagbag.get_dag("example_branch_operator")
+            dag.sync_to_db()
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dagrun = dag.create_dagrun(
                 state=State.RUNNING,
@@ -593,7 +595,6 @@ class TestDagFileProcessor:
     def test_dag_parser_output_when_logging_to_stdout(self, mock_redirect_stdout_for_file):
         processor = DagFileProcessorProcess(
             file_path="abc.txt",
-            pickle_dags=False,
             dag_ids=[],
             dag_directory=[],
             callback_requests=[],
@@ -602,7 +603,6 @@ class TestDagFileProcessor:
             result_channel=MagicMock(),
             parent_channel=MagicMock(),
             file_path="fake_file_path",
-            pickle_dags=False,
             dag_ids=[],
             thread_name="fake_thread_name",
             callback_requests=[],
@@ -617,7 +617,6 @@ class TestDagFileProcessor:
     def test_dag_parser_output_when_logging_to_file(self, mock_redirect_stdout_for_file):
         processor = DagFileProcessorProcess(
             file_path="abc.txt",
-            pickle_dags=False,
             dag_ids=[],
             dag_directory=[],
             callback_requests=[],
@@ -626,7 +625,6 @@ class TestDagFileProcessor:
             result_channel=MagicMock(),
             parent_channel=MagicMock(),
             file_path="fake_file_path",
-            pickle_dags=False,
             dag_ids=[],
             thread_name="fake_thread_name",
             callback_requests=[],
@@ -644,7 +642,6 @@ class TestDagFileProcessor:
 
         processor = DagFileProcessorProcess(
             file_path=zip_filename,
-            pickle_dags=False,
             dag_ids=[],
             dag_directory=[],
             callback_requests=[],
@@ -661,7 +658,6 @@ class TestDagFileProcessor:
 
         processor = DagFileProcessorProcess(
             file_path=dag_filename,
-            pickle_dags=False,
             dag_ids=[],
             dag_directory=[],
             callback_requests=[],
@@ -695,7 +691,6 @@ class TestProcessorAgent:
             max_runs=1,
             processor_timeout=datetime.timedelta(1),
             dag_ids=[],
-            pickle_dags=False,
             async_mode=True,
         )
         self.processor_agent.start()
@@ -708,7 +703,6 @@ class TestProcessorAgent:
             max_runs=1,
             processor_timeout=datetime.timedelta(1),
             dag_ids=[],
-            pickle_dags=False,
             async_mode=False,
         )
         self.processor_agent.start()
@@ -722,7 +716,6 @@ class TestProcessorAgent:
             max_runs=1,
             processor_timeout=datetime.timedelta(1),
             dag_ids=[],
-            pickle_dags=False,
             async_mode=False,
         )
         self.processor_agent.start()

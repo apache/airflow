@@ -15,14 +15,17 @@
     specific language governing permissions and limitations
     under the License.
 
-asset URI Schemes
+Dataset URI Schemes
 -------------------
 
-This is a summary of all Apache Airflow Community provided implementations of asset URI schemes
+This is a summary of all Apache Airflow Community provided implementations of dataset URI schemes
 exposed via Airflow core and community-managed providers.
 
-See :doc:`documentation on assets <apache-airflow:authoring-and-scheduling/assets>` for details on how asset URIs work.
+..
+  TODO: Change this from Dataset to Asset in Airflow 3.0
 
-.. airflow-asset-schemes::
+See :doc:`documentation on Datasets <apache-airflow:authoring-and-scheduling/datasets>` for details on how dataset URIs work.
+
+.. airflow-dataset-schemes::
    :tags: None
    :header-separator: "

@@ -92,6 +92,7 @@ def get_connection(*, connection_id: str, session: Session = NEW_SESSION) -> API
 @security.requires_access_connection("GET")
 @format_parameters({"limit": check_limit})
 @provide_session
+@mark_fastapi_migration_done
 def get_connections(
     *,
     limit: int,
@@ -112,6 +113,7 @@ def get_connections(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_connection("PUT")
 @provide_session
 @action_logging(
@@ -150,6 +152,7 @@ def patch_connection(
     return connection_schema.dump(connection)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_connection("POST")
 @provide_session
 @action_logging(

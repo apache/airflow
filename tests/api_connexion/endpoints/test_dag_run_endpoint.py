@@ -34,11 +34,12 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
-from tests.test_utils.www import _check_last_log
+
+from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.www import _check_last_log
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -88,6 +89,7 @@ class TestDagRunEndpoint:
             session.add(dag_instance)
         dag = DAG(dag_id=dag_id, schedule=None, params={"validated_number": Param(1, minimum=1, maximum=10)})
         self.app.dag_bag.bag_dag(dag)
+        self.app.dag_bag.sync_to_db()
         return dag_instance
 
     def _create_test_dag_run(self, state=DagRunState.RUNNING, extra_dag=False, commit=True, idx_start=1):
@@ -1204,12 +1206,14 @@ class TestPostDagRun(TestDagRunEndpoint):
         assert "Invalid input for param" in response.json["detail"]
 
     @mock.patch("airflow.api_connexion.endpoints.dag_run_endpoint.get_airflow_app")
-    def test_dagrun_creation_exception_is_handled(self, mock_get_app, session):
+    @mock.patch("airflow.api_connexion.endpoints.dag_run_endpoint.DagVersion")
+    def test_dagrun_creation_exception_is_handled(self, mock_get_dag_version, mock_get_app, session):
         self._create_dag("TEST_DAG_ID")
         error_message = "Encountered Error"
         mock_get_app.return_value.dag_bag.get_dag.return_value.create_dagrun.side_effect = ValueError(
             error_message
         )
+        mock_get_dag_version.get_latest_version.return_value = mock.MagicMock()
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns",
             json={"execution_date": "2020-11-10T08:25:56Z"},
@@ -1771,7 +1775,7 @@ class TestClearDagRun(TestDagRunEndpoint):
 
 
 @pytest.mark.need_serialized_dag
-class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
+class TestGetDagRunAssetTriggerEvents(TestDagRunEndpoint):
     def test_should_respond_200(self, dag_maker, session):
         asset1 = Asset(uri="ds1")
 
@@ -1782,7 +1786,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
 
         asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
         event = AssetEvent(
-            dataset_id=asset1_id,
+            asset_id=asset1_id,
             source_task_id=ti.task_id,
             source_dag_id=ti.dag_id,
             source_run_id=ti.run_id,
@@ -1792,8 +1796,8 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
 
         with dag_maker(dag_id="TEST_DAG_ID", start_date=timezone.utcnow(), session=session):
             pass
-        dr = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.DATASET_TRIGGERED)
-        dr.consumed_dataset_events.append(event)
+        dr = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.ASSET_TRIGGERED)
+        dr.consumed_asset_events.append(event)
 
         session.commit()
         assert event.timestamp
@@ -1807,8 +1811,8 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
             "asset_events": [
                 {
                     "timestamp": event.timestamp.isoformat(),
-                    "dataset_id": asset1_id,
-                    "dataset_uri": asset1.uri,
+                    "asset_id": asset1_id,
+                    "asset_uri": asset1.uri,
                     "extra": {},
                     "id": event.id,
                     "source_dag_id": ti.dag_id,

@@ -43,14 +43,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/tableau/index>
+    System Tests <_api/tests/system/tableau/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-tableau/|version|/tests/system/providers/tableau>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-tableau/|version|/providers/tests/system/tableau>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-tableau/>
     Installing from sources <installing-providers-from-sources>
 

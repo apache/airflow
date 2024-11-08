@@ -35,12 +35,15 @@ from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CELERY_BROKER_URLS_MAP,
+    CELERY_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     DRILL_HOST_PORT,
+    EDGE_EXECUTOR,
     FASTAPI_API_HOST_PORT,
     FLOWER_HOST_PORT,
+    KEYCLOAK_INTEGRATION,
     MOUNT_ALL,
     MOUNT_PROVIDERS_AND_TESTS,
     MOUNT_REMOVE,
@@ -48,6 +51,7 @@ from airflow_breeze.global_constants import (
     MOUNT_TESTS,
     MSSQL_HOST_PORT,
     MYSQL_HOST_PORT,
+    POSTGRES_BACKEND,
     POSTGRES_HOST_PORT,
     REDIS_HOST_PORT,
     SSH_PORT,
@@ -324,7 +328,7 @@ class ShellParams:
             for backend in ALLOWED_BACKENDS:
                 backend_files.extend(self.get_backend_compose_files(backend))
 
-        if self.executor == "CeleryExecutor":
+        if self.executor == CELERY_EXECUTOR:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "integration-celery.yml")
             if self.use_airflow_version:
                 current_extras = self.airflow_extras
@@ -492,6 +496,9 @@ class ShellParams:
         _set_var(_env, "AIRFLOW_VERSION", self.airflow_version)
         _set_var(_env, "AIRFLOW__CELERY__BROKER_URL", self.airflow_celery_broker_url)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
+        if self.executor == EDGE_EXECUTOR:
+            _set_var(_env, "AIRFLOW__EDGE__API_ENABLED", "true")
+            _set_var(_env, "AIRFLOW__EDGE__API_URL", "http://localhost:8080/edge_worker/v1/rpcapi")
         _set_var(_env, "ANSWER", get_forced_answer() or "")
         _set_var(_env, "BACKEND", self.backend)
         _set_var(_env, "BASE_BRANCH", self.base_branch, "main")
@@ -660,3 +667,14 @@ class ShellParams:
             self.airflow_constraints_reference = self.default_constraints_branch
         if self.providers_constraints_reference == "default":
             self.providers_constraints_reference = self.default_constraints_branch
+
+        if (
+            self.backend
+            and self.integration
+            and KEYCLOAK_INTEGRATION in self.integration
+            and not self.backend == POSTGRES_BACKEND
+        ):
+            get_console().print(
+                "[error]When using the Keycloak integration the backend must be Postgres![/]\n"
+            )
+            sys.exit(2)

@@ -52,10 +52,10 @@ class DagRunPydantic(BaseModelPydantic):
     data_interval_start: Optional[datetime]
     data_interval_end: Optional[datetime]
     last_scheduling_decision: Optional[datetime]
-    dag_hash: Optional[str]
+    dag_version_id: Optional[int]
     updated_at: Optional[datetime]
     dag: Optional[PydanticDag]
-    consumed_dataset_events: List[AssetEventPydantic]  # noqa: UP006
+    consumed_asset_events: List[AssetEventPydantic]  # noqa: UP006
     log_template_id: Optional[int]
     triggered_by: Optional[DagRunTriggeredByType]
 

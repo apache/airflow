@@ -21,7 +21,6 @@ import contextlib
 import json
 import logging
 import os
-import re
 import shutil
 import sys
 from argparse import ArgumentParser
@@ -51,9 +50,10 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_pools, clear_db_runs
+
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_pools, clear_db_runs
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -227,7 +227,7 @@ class TestCliTasks:
                 .one()
             )
             # confirm that the serialized dag location has not been updated
-            assert ser_dag.fileloc == orig_file_path.as_posix()
+            assert ser_dag.dag_version.dag_code.fileloc == orig_file_path.as_posix()
             assert ser_dag.data["dag"]["_processor_dags_folder"] == orig_dags_folder.as_posix()
             assert ser_dag.data["dag"]["fileloc"] == orig_file_path.as_posix()
             assert ser_dag.dag._processor_dags_folder == orig_dags_folder.as_posix()
@@ -287,7 +287,6 @@ class TestCliTasks:
             wait_for_past_depends_before_skipping=False,
             ignore_task_deps=False,
             ignore_ti_state=False,
-            pickle_id=None,
             pool=None,
             external_executor_id=None,
         )
@@ -322,7 +321,6 @@ class TestCliTasks:
             wait_for_past_depends_before_skipping=False,
             ignore_task_deps=False,
             ignore_ti_state=False,
-            pickle_id=None,
             pool=None,
             external_executor_id=None,
         )
@@ -605,31 +603,6 @@ class TestCliTasks:
         )
         assert "data_interval" in mock_dagrun.call_args.kwargs
 
-    def test_cli_run_when_pickle_and_dag_cli_method_selected(self):
-        """
-        tasks run should return an AirflowException when invalid pickle_id is passed
-        """
-        pickle_id = "pickle_id"
-
-        with pytest.raises(
-            AirflowException,
-            match=re.escape("You cannot use the --pickle option when using DAG.cli() method."),
-        ):
-            task_command.task_run(
-                self.parser.parse_args(
-                    [
-                        "tasks",
-                        "run",
-                        "example_bash_operator",
-                        "runme_0",
-                        DEFAULT_DATE.isoformat(),
-                        "--pickle",
-                        pickle_id,
-                    ]
-                ),
-                self.dag,
-            )
-
     def test_task_state(self):
         task_command.task_state(
             self.parser.parse_args(
@@ -783,7 +756,6 @@ class TestLogsfromTaskRunCommand:
             job=mock.ANY,
             task_instance=mock.ANY,
             mark_success=False,
-            pickle_id=None,
             ignore_all_deps=False,
             ignore_depends_on_past=False,
             wait_for_past_depends_before_skipping=False,
@@ -805,7 +777,6 @@ class TestLogsfromTaskRunCommand:
                 job=mock.ANY,
                 task_instance=mock.ANY,
                 mark_success=False,
-                pickle_id=None,
                 ignore_all_deps=False,
                 ignore_depends_on_past=False,
                 wait_for_past_depends_before_skipping=False,
@@ -917,7 +888,7 @@ class TestLogsfromTaskRunCommand:
             session.delete(pool)
             session.commit()
 
-    @mock.patch("airflow.task.task_runner.standard_task_runner.CAN_FORK", False)
+    @mock.patch("airflow.task.standard_task_runner.CAN_FORK", False)
     def test_logging_with_run_task_subprocess(self, session):
         ti = self.dr.get_task_instances(session=session)[0]
         _set_state_and_try_num(ti, session)
@@ -931,8 +902,8 @@ class TestLogsfromTaskRunCommand:
         print(logs)  # In case of a test failures this line would show detailed log
         logs_list = logs.splitlines()
 
-        assert f"Subtask {self.task_id}" in logs
-        assert "base_task_runner.py" in logs
+        assert f"Task {self.task_id}" in logs
+        assert "standard_task_runner.py" in logs
         self.assert_log_line("Log from DAG Logger", logs_list)
         self.assert_log_line("Log from TI Logger", logs_list)
         self.assert_log_line("Log from Print statement", logs_list, expect_from_logging_mixin=True)
@@ -1069,7 +1040,7 @@ class TestLoggerMutationHelper:
         assert tgt.propagate is False if target_name else True  # root propagate unchanged
         assert tgt.level == -1
 
-    def test_apply_no_replace(self):
+    def test_apply_no_replace(self, clear_all_logger_handlers):
         """
         Handlers, level and propagate should be applied on target.
         """

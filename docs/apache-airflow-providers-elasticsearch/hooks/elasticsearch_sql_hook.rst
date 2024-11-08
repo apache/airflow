@@ -26,7 +26,7 @@ Elasticsearch Hook that interact with Elasticsearch through the elasticsearch-db
 Usage Example
 ---------------------
 
-.. exampleinclude:: /../../tests/system/providers/elasticsearch/example_elasticsearch_query.py
+.. exampleinclude:: /../../providers/tests/system/elasticsearch/example_elasticsearch_query.py
     :language: python
     :start-after: [START howto_elasticsearch_query]
     :end-before: [END howto_elasticsearch_query]

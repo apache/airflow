@@ -28,9 +28,9 @@ import pytest
 import time_machine
 
 from airflow import settings
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
-from airflow.models.dagcode import DagCode
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCom
@@ -43,15 +43,20 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 from airflow.www.views import TaskInstanceModelView, _safe_parse_datetime
-from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import (
+
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     delete_roles,
     delete_user,
 )
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS, BashOperator
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_runs, clear_db_xcom
-from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BashOperator
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
+from tests_common.test_utils.www import (
+    check_content_in_response,
+    check_content_not_in_response,
+    client_with_login,
+)
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -495,7 +500,7 @@ def test_code(admin_client):
 
 def test_code_from_db(admin_client):
     dag = DagBag(include_examples=True).get_dag("example_bash_operator")
-    DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
+    SerializedDagModel.write_dag(dag)
     url = "code?dag_id=example_bash_operator"
     resp = admin_client.get(url, follow_redirects=True)
     check_content_not_in_response("Failed to load DAG file Code", resp)
@@ -505,7 +510,7 @@ def test_code_from_db(admin_client):
 def test_code_from_db_all_example_dags(admin_client):
     dagbag = DagBag(include_examples=True)
     for dag in dagbag.dags.values():
-        DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
+        SerializedDagModel.write_dag(dag)
     url = "code?dag_id=example_bash_operator"
     resp = admin_client.get(url, follow_redirects=True)
     check_content_not_in_response("Failed to load DAG file Code", resp)
@@ -609,23 +614,12 @@ class _ForceHeartbeatCeleryExecutor(CeleryExecutor):
         return True
 
 
-@pytest.fixture
-def new_id_example_bash_operator():
-    dag_id = "example_bash_operator"
-    test_dag_id = "non_existent_dag"
-    with create_session() as session:
-        dag_query = session.query(DagModel).filter(DagModel.dag_id == dag_id)
-        dag_query.first().tags = []  # To avoid "FOREIGN KEY constraint" error)
-    with create_session() as session:
-        dag_query.update({"dag_id": test_dag_id})
-    yield test_dag_id
-    with create_session() as session:
-        session.query(DagModel).filter(DagModel.dag_id == test_dag_id).update({"dag_id": dag_id})
-
-
-def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, new_id_example_bash_operator):
+def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, dag_maker):
+    with dag_maker() as dag:
+        EmptyOperator(task_id="task")
+    dag.sync_to_db()
     # The delete-dag URL should be generated correctly
-    test_dag_id = new_id_example_bash_operator
+    test_dag_id = dag.dag_id
     resp = admin_client.get("/", follow_redirects=True)
     check_content_in_response(f"/delete?dag_id={test_dag_id}", resp)
     check_content_in_response(f"return confirmDeleteDag(this, '{test_dag_id}')", resp)
@@ -926,7 +920,7 @@ def test_task_instance_clear_downstream(session, admin_client, dag_maker):
 
 
 def test_task_instance_clear_failure(admin_client):
-    rowid = '["12345"]'  # F.A.B. crashes if the rowid is *too* invalid.
+    rowid = "00000000-0000-0000-0000-000000000000"  # F.A.B. crashes if the rowid is *too* invalid.
     resp = admin_client.post(
         "/taskinstance/action_post",
         data={"action": "clear", "rowid": rowid},
@@ -974,7 +968,7 @@ def test_task_instance_set_state(session, admin_client, action, expected_state):
     ],
 )
 def test_task_instance_set_state_failure(admin_client, action):
-    rowid = '["12345"]'  # F.A.B. crashes if the rowid is *too* invalid.
+    rowid = "00000000-0000-0000-0000-000000000000"  # F.A.B. crashes if the rowid is *too* invalid.
     resp = admin_client.post(
         "/taskinstance/action_post",
         data={"action": action, "rowid": rowid},
@@ -1055,6 +1049,7 @@ def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client)
         assert resp.status_code == 200
 
 
+@pytest.mark.flaky(reruns=5)
 def test_get_date_time_num_runs_dag_runs_form_data_graph_view(app, dag_maker, admin_client):
     """Test the get_date_time_num_runs_dag_runs_form_data function."""
     from airflow.www.views import get_date_time_num_runs_dag_runs_form_data
@@ -1102,7 +1097,8 @@ def test_task_instances(admin_client):
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
-            "job_id": None,
+            "id": unittest.mock.ANY,  # Ignore the `id` field
+            "last_heartbeat_at": None,
             "map_index": -1,
             "max_tries": 0,
             "next_kwargs": None,
@@ -1126,6 +1122,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
+            "dag_version_id": None,
         },
         "run_after_loop": {
             "custom_operator_name": None,
@@ -1137,7 +1134,8 @@ def test_task_instances(admin_client):
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
-            "job_id": None,
+            "id": unittest.mock.ANY,  # Ignore the `id` field
+            "last_heartbeat_at": None,
             "map_index": -1,
             "max_tries": 0,
             "next_kwargs": None,
@@ -1161,6 +1159,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
+            "dag_version_id": None,
         },
         "run_this_last": {
             "custom_operator_name": None,
@@ -1172,7 +1171,8 @@ def test_task_instances(admin_client):
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
-            "job_id": None,
+            "id": unittest.mock.ANY,  # Ignore the `id` field
+            "last_heartbeat_at": None,
             "map_index": -1,
             "max_tries": 0,
             "next_kwargs": None,
@@ -1196,6 +1196,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
+            "dag_version_id": None,
         },
         "runme_0": {
             "custom_operator_name": None,
@@ -1207,7 +1208,8 @@ def test_task_instances(admin_client):
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
-            "job_id": None,
+            "id": unittest.mock.ANY,  # Ignore the `id` field
+            "last_heartbeat_at": None,
             "map_index": -1,
             "max_tries": 0,
             "next_kwargs": None,
@@ -1231,6 +1233,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
+            "dag_version_id": None,
         },
         "runme_1": {
             "custom_operator_name": None,
@@ -1242,7 +1245,8 @@ def test_task_instances(admin_client):
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
-            "job_id": None,
+            "id": unittest.mock.ANY,  # Ignore the `id` field
+            "last_heartbeat_at": None,
             "map_index": -1,
             "max_tries": 0,
             "next_kwargs": None,
@@ -1266,6 +1270,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
+            "dag_version_id": None,
         },
         "runme_2": {
             "custom_operator_name": None,
@@ -1277,7 +1282,8 @@ def test_task_instances(admin_client):
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
-            "job_id": None,
+            "id": unittest.mock.ANY,  # Ignore the `id` field
+            "last_heartbeat_at": None,
             "map_index": -1,
             "max_tries": 0,
             "next_kwargs": None,
@@ -1301,6 +1307,7 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
+            "dag_version_id": None,
         },
         "this_will_skip": {
             "custom_operator_name": None,
@@ -1312,7 +1319,8 @@ def test_task_instances(admin_client):
             "executor_config": {},
             "external_executor_id": None,
             "hostname": "",
-            "job_id": None,
+            "id": unittest.mock.ANY,  # Ignore the `id` field
+            "last_heartbeat_at": None,
             "map_index": -1,
             "max_tries": 0,
             "next_kwargs": None,
@@ -1336,5 +1344,6 @@ def test_task_instances(admin_client):
             "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
+            "dag_version_id": None,
         },
     }

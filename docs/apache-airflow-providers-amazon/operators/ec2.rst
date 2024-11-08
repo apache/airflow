@@ -38,7 +38,7 @@ Start an Amazon EC2 instance
 To start an Amazon EC2 instance you can use
 :class:`~airflow.providers.amazon.aws.operators.ec2.EC2StartInstanceOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ec2.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_ec2.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_ec2_start_instance]
@@ -52,7 +52,7 @@ Stop an Amazon EC2 instance
 To stop an Amazon EC2 instance you can use
 :class:`~airflow.providers.amazon.aws.operators.ec2.EC2StopInstanceOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ec2.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_ec2.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_ec2_stop_instance]
@@ -66,7 +66,7 @@ Create and start an Amazon EC2 instance
 To create and start an Amazon EC2 instance you can use
 :class:`~airflow.providers.amazon.aws.operators.ec2.EC2CreateInstanceOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ec2.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_ec2.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_ec2_create_instance]
@@ -80,7 +80,7 @@ Terminate an Amazon EC2 instance
 To terminate an Amazon EC2 instance you can use
 :class:`~airflow.providers.amazon.aws.operators.ec2.EC2TerminateInstanceOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ec2.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_ec2.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_ec2_terminate_instance]
@@ -94,7 +94,7 @@ Reboot an Amazon EC2 instance
 To reboot an Amazon EC2 instance you can use
 :class:`~airflow.providers.amazon.aws.operators.ec2.EC2RebootInstanceOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ec2.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_ec2.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_ec2_reboot_instance]
@@ -108,7 +108,7 @@ Hibernate an Amazon EC2 instance
 To hibernate an Amazon EC2 instance you can use
 :class:`~airflow.providers.amazon.aws.operators.ec2.EC2HibernateInstanceOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ec2.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_ec2.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_ec2_hibernate_instance]
@@ -125,7 +125,7 @@ Wait on an Amazon EC2 instance state
 To check the state of an Amazon EC2 instance and wait until it reaches the target state you can use
 :class:`~airflow.providers.amazon.aws.sensors.ec2.EC2InstanceStateSensor`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_ec2.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_ec2.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_ec2_instance_state]

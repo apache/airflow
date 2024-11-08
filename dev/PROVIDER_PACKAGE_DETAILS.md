@@ -50,6 +50,10 @@ Backport providers are a great way to migrate your DAGs to Airflow-2.0 compatibl
 switch to the new Airflow-2.0 packages in your DAGs, long before you attempt to migrate
 airflow to 2.0 line.
 
+Note: the provider ID in the package uses a dash ('-') as the separator but the breeze package ID
+use a dot ('.') as the separator. So the package for microsoft azure is
+'apache-airflow-providers-microsoft-azure' but the build package ID is 'microsoft.azure'.
+
 # Deciding when to release
 
 Each provider package has its own version maintained separately when contributors implement changes,

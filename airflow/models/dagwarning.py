@@ -104,4 +104,5 @@ class DagWarningType(str, Enum):
     in the DagWarning model.
     """
 
+    ASSET_CONFLICT = "asset conflict"
     NONEXISTENT_POOL = "non-existent pool"

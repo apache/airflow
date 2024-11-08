@@ -27,7 +27,9 @@ try:
     import graphviz
 except ImportError:
     warnings.warn(
-        "Could not import graphviz. Rendering graph to the graphical format will not be possible.",
+        "Could not import graphviz. Rendering graph to the graphical format will not be possible. \n"
+        "You might need to install the graphviz package and necessary system packages.\n"
+        "Run `pip install graphviz` to attempt to install it.",
         UserWarning,
         stacklevel=2,
     )

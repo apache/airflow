@@ -273,14 +273,13 @@ Setting up Breeze
    means that you are inside the Breeze container and ready to run most of the development tasks. You can leave
    the environment with ``exit`` and re-enter it with just ``breeze`` command.
 
-.. code-block:: bash
-
-  root@b76fcb399bb6:/opt/airflow# airflow db reset
-
-
 6. Once you enter breeze environment, create airflow tables and users from the breeze CLI. ``airflow db reset``
    is required to execute at least once for Airflow Breeze to get the database/tables created. If you run
    tests, however - the test database will be initialized automatically for you.
+
+.. code-block:: bash
+
+  root@b76fcb399bb6:/opt/airflow# airflow db reset
 
 .. code-block:: bash
 
@@ -452,6 +451,39 @@ tests are applied when you commit your code.
 
 
 To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be run locally before committing changes.
+
+.. note::
+
+    We have recently started to recommend ``uv`` for our local development. Currently (October 2024) ``uv``
+    speeds up installation more than 10x comparing to ``pip``. While we still describe ``pip`` and ``pipx``
+    below, we also show the ``uv`` alternatives.
+
+.. note::
+
+    Remember to have global python set to Python >= 3.9 - Python 3.8 is end-of-life already and we've
+    started to use Python 3.9+ features in Airflow and accompanying scripts.
+
+
+Installing pre-commit is best done with ``pipx``:
+
+.. code-block:: bash
+
+    pipx install pre-commit
+
+You can still add uv support for pre-commit if you use pipx using the commands:
+
+.. code-block:: bash
+
+    pipx install pre-commit
+    pipx inject
+    pipx inject prepare_breeze_and_image
+
+Also, if you already use ``uvx`` instead of ``pipx``, use this command:
+
+.. code-block:: bash
+
+    uv tool install pre-commit --with pre-commit-uv --force-reinstall
+
 
 1.  Installing required packages
 

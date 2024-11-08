@@ -146,14 +146,14 @@ describe("Test getDagRunLabel", () => {
     note: "someRandomValue",
   } as DagRun;
 
-  test("Defaults to dataIntervalStart", async () => {
+  test("Defaults to executionDate", async () => {
     const runLabel = getDagRunLabel({ dagRun });
-    expect(runLabel).toBe(dagRun.dataIntervalStart);
+    expect(runLabel).toBe(dagRun.executionDate);
   });
 
   test("Passing an order overrides default", async () => {
-    const runLabel = getDagRunLabel({ dagRun, ordering: ["executionDate"] });
-    expect(runLabel).toBe(dagRun.executionDate);
+    const runLabel = getDagRunLabel({ dagRun, ordering: ["dataIntervalEnd"] });
+    expect(runLabel).toBe(dagRun.dataIntervalEnd);
   });
 });
 

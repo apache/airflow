@@ -19,7 +19,7 @@
 
 {% extends base_template %}
 {% from 'appbuilder/loading_dots.html' import loading_dots %}
-{% from 'airflow/dataset_next_run_modal.html' import dataset_next_run_modal %}
+{% from 'airflow/asset_next_run_modal.html' import asset_next_run_modal %}
 {% from 'airflow/_messages.html' import show_message %}
 
 {%- macro sortable_column(dag_display_name, attribute_name) -%}
@@ -69,9 +69,9 @@
   <meta name="dag_stats_url" content="{{ url_for('Airflow.dag_stats') }}">
   <meta name="task_stats_url" content="{{ url_for('Airflow.task_stats') }}">
   <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id='__DAG_ID__') }}">
-  <meta name="datasets_url" content="{{ url_for('Airflow.datasets') }}">
-  <meta name="next_run_datasets_summary_url" content="{{ url_for('Airflow.next_run_datasets_summary') }}">
-  <meta name="next_run_datasets_url" content="{{ url_for('Airflow.next_run_datasets', dag_id='__DAG_ID__') }}">
+  <meta name="assets_url" content="{{ url_for('Airflow.assets') }}">
+  <meta name="next_run_assets_summary_url" content="{{ url_for('Airflow.next_run_assets_summary') }}">
+  <meta name="next_run_assets_url" content="{{ url_for('Airflow.next_run_assets', dag_id='__DAG_ID__') }}">
 {% endblock %}
 
 {% block head_css %}
@@ -215,7 +215,7 @@
           </th>
           <th style="width:180px;">{{ sortable_column("Next Run", "next_dagrun") }}
             <span class="material-icons text-muted js-tooltip" aria-hidden="true"
-                  title="Logical Date/Time interval of the next DAG Run, or for dataset triggered DAGs, how many datasets have been updated since the last DAG Run.">info</span>
+                  title="Logical Date/Time interval of the next DAG Run, or for asset triggered DAGs, how many assets have been updated since the last DAG Run.">info</span>
           </th>
           <th>Recent Tasks
             <span class="material-icons text-muted js-tooltip" aria-hidden="true"
@@ -304,31 +304,31 @@
                     info
                   </span>
             </td>
-            <td class="text-nowrap {{ 'js-dataset-triggered' if dag.dag_id in asset_triggered_next_run_info }}">
+            <td class="text-nowrap {{ 'js-asset-triggered' if dag.dag_id in asset_triggered_next_run_info }}">
               {% if dag.dag_id in asset_triggered_next_run_info %}
                 {%- with asset_info = asset_triggered_next_run_info[dag.dag_id] -%}
                   <span
                     data-dag-id="{{ dag.dag_id }}"
-                    class="js-tooltip js-next-dataset-run-tooltip"
-                    title="Click to see dataset details."
+                    class="js-tooltip js-next-asset-run-tooltip"
+                    title="Click to see asset details."
                     data-html="true"
                     data-uri="{{ asset_info.uri }}"
                   >
                     <div
-                      class="label label-default next-dataset-triggered"
+                      class="label label-default next-asset-triggered"
                       data-dag-id="{{ dag.dag_id }}"
                       data-uri="{{ asset_info.uri }}"
                       data-summary="
                       {%- if asset_info.total == 1 -%}
                       On {{ asset_info.uri }}
                       {%- else -%}
-                      {{ asset_info.ready }} of {{ asset_info.total }} datasets updated
+                      {{ asset_info.ready }} of {{ asset_info.total }} assets updated
                       {%- endif -%}"
                     >
                       {% if asset_info.total == 1 -%}
                         On {{ asset_info.uri[0:40] + '…' if asset_info.uri and asset_info.uri|length > 40 else asset_info.uri|default('', true) }}
                       {%- else -%}
-                        {{ asset_info.ready }} of {{ asset_info.total }} datasets updated
+                        {{ asset_info.ready }} of {{ asset_info.total }} assets updated
                       {%- endif %}
                     </div>
                   </span>
@@ -460,8 +460,8 @@
     <div class="tooltip-arrow"></div>
     <div class="tooltip-inner"></div>
   </div>
-  <!-- Modal for dataset-triggered next run -->
-  {{ dataset_next_run_modal(id='dataset-next-run-modal') }}
+  <!-- Modal for asset-triggered next run -->
+  {{ asset_next_run_modal(id='asset-next-run-modal') }}
 {% endblock %}
 
 {% block tail %}
@@ -488,7 +488,4 @@
       return false;
     }
   </script>
-  {% if scarf_url %}
-  <img referrerpolicy="no-referrer-when-downgrade" src="{{ scarf_url }}" width="0" height="0" alt="" style="display:none;" />
-  {% endif %}
 {% endblock %}

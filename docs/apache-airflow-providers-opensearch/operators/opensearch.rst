@@ -35,7 +35,7 @@ to create a new index in an OpenSearch domain.
 
 
 
-.. exampleinclude:: /../../tests/system/providers/opensearch/example_opensearch.py
+.. exampleinclude:: /../../providers/tests/system/opensearch/example_opensearch.py
     :language: python
     :start-after: [START howto_operator_opensearch_create_index]
     :dedent: 4
@@ -50,7 +50,7 @@ Add a Document to an Index on OpenSearch
 Use :class:`~airflow.providers.opensearch.operators.opensearch.OpenSearchAddDocumentOperator`
 to add single documents to an OpenSearch Index
 
-.. exampleinclude:: /../../tests/system/providers/opensearch/example_opensearch.py
+.. exampleinclude:: /../../providers/tests/system/opensearch/example_opensearch.py
     :language: python
     :start-after: [START howto_operator_opensearch_add_document]
     :dedent: 4
@@ -65,7 +65,7 @@ Run a query against an OpenSearch Index
 Use :class:`~airflow.providers.opensearch.operators.opensearch.OpenSearchQueryOperator`
 to run a query against an OpenSearch index.
 
-.. exampleinclude:: /../../tests/system/providers/opensearch/example_opensearch.py
+.. exampleinclude:: /../../providers/tests/system/opensearch/example_opensearch.py
     :language: python
     :start-after: [START howto_operator_opensearch_query]
     :dedent: 4

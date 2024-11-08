@@ -28,7 +28,7 @@ Using the Operator
 
 You can use this operator to access Bulk Insert API:
 
-.. exampleinclude:: /../../tests/system/providers/salesforce/example_bulk.py
+.. exampleinclude:: /../../providers/tests/system/salesforce/example_bulk.py
     :language: python
     :dedent: 4
     :start-after: [START howto_salesforce_bulk_insert_operation]
@@ -36,7 +36,7 @@ You can use this operator to access Bulk Insert API:
 
 You can use this operator to access Bulk Update API:
 
-.. exampleinclude:: /../../tests/system/providers/salesforce/example_bulk.py
+.. exampleinclude:: /../../providers/tests/system/salesforce/example_bulk.py
     :language: python
     :dedent: 4
     :start-after: [START howto_salesforce_bulk_update_operation]
@@ -44,7 +44,7 @@ You can use this operator to access Bulk Update API:
 
 You can use this operator to access Bulk Upsert API:
 
-.. exampleinclude:: /../../tests/system/providers/salesforce/example_bulk.py
+.. exampleinclude:: /../../providers/tests/system/salesforce/example_bulk.py
     :language: python
     :dedent: 4
     :start-after: [START howto_salesforce_bulk_upsert_operation]
@@ -52,7 +52,7 @@ You can use this operator to access Bulk Upsert API:
 
 You can use this operator to access Bulk Delete API:
 
-.. exampleinclude:: /../../tests/system/providers/salesforce/example_bulk.py
+.. exampleinclude:: /../../providers/tests/system/salesforce/example_bulk.py
     :language: python
     :dedent: 4
     :start-after: [START howto_salesforce_bulk_delete_operation]

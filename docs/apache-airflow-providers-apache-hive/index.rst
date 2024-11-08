@@ -50,14 +50,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/apache/hive/index>
+    System Tests <_api/tests/system/apache/hive/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-hive/|version|/tests/system/providers/apache/hive>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-hive/|version|/providers/tests/system/apache/hive>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-hive/>
     Installing from sources <installing-providers-from-sources>
     Macros <macros>

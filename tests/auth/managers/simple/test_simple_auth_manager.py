@@ -51,7 +51,7 @@ class TestSimpleAuthManager:
     @pytest.mark.db_test
     def test_init_with_no_user(self, auth_manager_with_appbuilder):
         auth_manager_with_appbuilder.init()
-        with open(SimpleAuthManager.GENERATED_PASSWORDS_FILE) as file:
+        with open(auth_manager_with_appbuilder.get_generated_password_file()) as file:
             passwords_str = file.read().strip()
             user_passwords_from_file = json.loads(passwords_str)
 
@@ -66,7 +66,7 @@ class TestSimpleAuthManager:
             }
         ]
         auth_manager_with_appbuilder.init()
-        with open(SimpleAuthManager.GENERATED_PASSWORDS_FILE) as file:
+        with open(auth_manager_with_appbuilder.get_generated_password_file()) as file:
             passwords_str = file.read().strip()
             user_passwords_from_file = json.loads(passwords_str)
 

@@ -377,7 +377,8 @@ class TracebackSessionForTests:
             and not tb.filename == AIRFLOW_UTILS_SESSION_PATH
         ]
         if any(
-            filename.endswith("conftest.py") or filename.endswith("tests/test_utils/db.py")
+            filename.endswith("conftest.py")
+            or filename.endswith("dev/airflow_common_pytest/test_utils/db.py")
             for filename, _, _, _ in airflow_frames
         ):
             # This is a fixture call or testing utilities
@@ -457,6 +458,12 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
         connect_args = conf.getimport("database", "sql_alchemy_connect_args")
     else:
         connect_args = {}
+
+    if os.environ.get("AIRFLOW__CORE__UNIT_TEST_MODE") == "True" and os.environ.get("BACKEND") == "sqlite":
+        # FastAPI runs sync endpoints in a separate thread. SQLite does note allow
+        # to use objects created in another threads by default. Allowing that in test
+        # to so the `test` thread and the tested endpoints can use common objects.
+        connect_args["check_same_thread"] = False
 
     engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args, future=True)
 
@@ -616,7 +623,15 @@ def configure_adapters():
 
     if SQL_ALCHEMY_CONN.startswith("mysql"):
         try:
-            import MySQLdb.converters
+            try:
+                import MySQLdb.converters
+            except ImportError:
+                raise RuntimeError(
+                    "You do not have `mysqlclient` package installed. "
+                    "Please install it with `pip install mysqlclient` and make sure you have system "
+                    "mysql libraries installed, as well as well as `pkg-config` system package "
+                    "installed in case you see compilation error during installation."
+                )
 
             MySQLdb.converters.conversions[Pendulum] = MySQLdb.converters.DateTime2literal
         except ImportError:
@@ -739,6 +754,9 @@ def initialize():
     # The webservers import this file from models.py with the default settings.
     configure_orm()
     configure_action_logging()
+
+    # mask the sensitive_config_values
+    conf.mask_secrets()
 
     # Run any custom runtime checks that needs to be executed for providers
     run_providers_custom_runtime_checks()

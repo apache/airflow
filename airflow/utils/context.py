@@ -283,7 +283,7 @@ class InletEventsAccessors(Mapping[str, LazyAssetEventSelectSequence]):
             where_clause = AssetAliasModel.name == asset_alias.name
         elif isinstance(obj, (Asset, str)):
             asset = self._assets[extract_event_key(obj)]
-            join_clause = AssetEvent.dataset
+            join_clause = AssetEvent.asset
             where_clause = AssetModel.uri == asset.uri
         else:
             raise ValueError(key)
@@ -418,6 +418,9 @@ def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
 
     :meta private:
     """
+    if not context:
+        context = Context()
+
     context.update(*args, **kwargs)
 
 

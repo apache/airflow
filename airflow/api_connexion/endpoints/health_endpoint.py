@@ -20,11 +20,13 @@ from typing import TYPE_CHECKING
 
 from airflow.api.common.airflow_health import get_airflow_health
 from airflow.api_connexion.schemas.health_schema import health_schema
+from airflow.utils.api_migration import mark_fastapi_migration_done
 
 if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse
 
 
+@mark_fastapi_migration_done
 def get_health() -> APIResponse:
     """Return the health of the airflow scheduler, metadatabase and triggerer."""
     airflow_health_status = get_airflow_health()

@@ -36,7 +36,8 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import (
-    AIRFLOW_PROVIDERS_ROOT,
+    AIRFLOW_OLD_PROVIDERS_DIR,
+    AIRFLOW_PROVIDERS_NS_PACKAGE,
     BREEZE_SOURCES_ROOT,
     DOCS_ROOT,
     GENERATED_PROVIDER_PACKAGES_DIR,
@@ -75,6 +76,7 @@ class ProviderPackageDetails(NamedTuple):
     full_package_name: str
     pypi_package_name: str
     source_provider_package_path: Path
+    old_source_provider_package_path: Path
     documentation_provider_package_path: Path
     changelog_path: Path
     provider_description: str
@@ -382,7 +384,11 @@ def find_matching_long_package_names(
 
 
 def get_source_package_path(provider_id: str) -> Path:
-    return AIRFLOW_PROVIDERS_ROOT.joinpath(*provider_id.split("."))
+    return AIRFLOW_PROVIDERS_NS_PACKAGE.joinpath(*provider_id.split("."))
+
+
+def get_old_source_package_path(provider_id: str) -> Path:
+    return AIRFLOW_OLD_PROVIDERS_DIR.joinpath(*provider_id.split("."))
 
 
 def get_documentation_package_path(provider_id: str) -> Path:
@@ -515,6 +521,7 @@ def get_provider_details(provider_id: str) -> ProviderPackageDetails:
         full_package_name=f"airflow.providers.{provider_id}",
         pypi_package_name=f"apache-airflow-providers-{provider_id.replace('.', '-')}",
         source_provider_package_path=get_source_package_path(provider_id),
+        old_source_provider_package_path=get_old_source_package_path(provider_id),
         documentation_provider_package_path=get_documentation_package_path(provider_id),
         changelog_path=get_source_package_path(provider_id) / "CHANGELOG.rst",
         provider_description=provider_info["description"],

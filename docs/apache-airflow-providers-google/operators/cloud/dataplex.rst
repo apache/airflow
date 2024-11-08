@@ -31,7 +31,7 @@ For more information about the available fields to pass when creating a task, vi
 
 A simple task configuration can look as followed:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex.py
     :language: python
     :dedent: 0
     :start-after: [START howto_dataplex_configuration]
@@ -40,13 +40,13 @@ A simple task configuration can look as followed:
 With this configuration we can create the task both synchronously & asynchronously:
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCreateTaskOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_create_task_operator]
     :end-before: [END howto_dataplex_create_task_operator]
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_async_create_task_operator]
@@ -59,7 +59,7 @@ To delete a task you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexDeleteTaskOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_delete_task_operator]
@@ -72,7 +72,7 @@ To list tasks you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexListTasksOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_list_tasks_operator]
@@ -85,7 +85,7 @@ To get a task you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexGetTaskOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_get_task_operator]
@@ -98,7 +98,7 @@ To wait for a task created asynchronously you can use:
 
 :class:`~airflow.providers.google.cloud.sensors.dataplex.DataplexTaskStateSensor`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_task_state_sensor]
@@ -113,7 +113,7 @@ For more information about the available fields to pass when creating a lake, vi
 
 A simple task configuration can look as followed:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex.py
     :language: python
     :dedent: 0
     :start-after: [START howto_dataplex_lake_configuration]
@@ -123,7 +123,7 @@ With this configuration we can create the lake:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCreateLakeOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_create_lake_operator]
@@ -136,7 +136,7 @@ To delete a lake you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexDeleteLakeOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_delete_lake_operator]
@@ -150,7 +150,7 @@ For more information about the available fields to pass when creating a Data Qua
 
 A simple Data Quality scan configuration can look as followed:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 0
     :start-after: [START howto_dataplex_data_quality_configuration]
@@ -160,7 +160,7 @@ With this configuration we can create or update the Data Quality scan:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCreateOrUpdateDataQualityScanOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_create_data_quality_operator]
@@ -173,7 +173,7 @@ To get a Data Quality scan you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexGetDataQualityScanOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_get_data_quality_operator]
@@ -188,7 +188,7 @@ To delete a Data Quality scan you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexDeleteDataQualityScanOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_delete_data_quality_operator]
@@ -201,7 +201,7 @@ You can run Dataplex Data Quality scan in asynchronous modes to later check its 
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexRunDataQualityScanOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_run_data_quality_operator]
@@ -211,7 +211,7 @@ To check that running Dataplex Data Quality scan succeeded you can use:
 
 :class:`~airflow.providers.google.cloud.sensors.dataplex.DataplexDataQualityJobStatusSensor`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_data_scan_job_state_sensor]
@@ -219,7 +219,7 @@ To check that running Dataplex Data Quality scan succeeded you can use:
 
 Also for this action you can use operator in the deferrable mode:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_run_data_quality_def_operator]
@@ -232,7 +232,7 @@ To get a Data Quality scan job you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexGetDataQualityScanResultOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_get_data_quality_job_operator]
@@ -240,7 +240,7 @@ To get a Data Quality scan job you can use:
 
 Also for this action you can use operator in the deferrable mode:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_get_data_quality_job_def_operator]
@@ -255,7 +255,7 @@ For more information about the available fields to pass when creating a zone, vi
 
 A simple zone configuration can look as followed:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 0
     :start-after: [START howto_dataplex_zone_configuration]
@@ -265,7 +265,7 @@ With this configuration we can create a zone:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCreateZoneOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_create_zone_operator]
@@ -278,22 +278,22 @@ To delete a zone you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexDeleteZoneOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_delete_zone_operator]
     :end-before: [END howto_dataplex_delete_zone_operator]
 
-Create a asset
---------------
+Create an asset
+---------------
 
 Before you create a Dataplex asset you need to define its body.
 
-For more information about the available fields to pass when creating a asset, visit `Dataplex create asset API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.lakes.zones.assets#Asset>`__
+For more information about the available fields to pass when creating an asset, visit `Dataplex create asset API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.lakes.zones.assets#Asset>`__
 
 A simple asset configuration can look as followed:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 0
     :start-after: [START howto_dataplex_asset_configuration]
@@ -303,20 +303,20 @@ With this configuration we can create the asset:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCreateAssetOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_create_asset_operator]
     :end-before: [END howto_dataplex_create_asset_operator]
 
-Delete a asset
---------------
+Delete an asset
+---------------
 
-To delete a asset you can use:
+To delete an asset you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexDeleteAssetOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dq.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_delete_asset_operator]
@@ -330,7 +330,7 @@ For more information about the available fields to pass when creating a Data Pro
 
 A simple Data Profile scan configuration can look as followed:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dp.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dp.py
     :language: python
     :dedent: 0
     :start-after: [START howto_dataplex_data_profile_configuration]
@@ -340,7 +340,7 @@ With this configuration we can create or update the Data Profile scan:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCreateOrUpdateDataProfileScanOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dp.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dp.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_create_data_profile_operator]
@@ -353,7 +353,7 @@ To get a Data Profile scan you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexGetDataProfileScanOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dp.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dp.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_get_data_profile_operator]
@@ -368,7 +368,7 @@ To delete a Data Profile scan you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexDeleteDataProfileScanOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dp.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dp.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_delete_data_profile_operator]
@@ -381,7 +381,7 @@ You can run Dataplex Data Profile scan in asynchronous modes to later check its 
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexRunDataProfileScanOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dp.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dp.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_run_data_profile_operator]
@@ -391,7 +391,7 @@ To check that running Dataplex Data Profile scan succeeded you can use:
 
 :class:`~airflow.providers.google.cloud.sensors.dataplex.DataplexDataProfileJobStatusSensor`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dp.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dp.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_data_scan_job_state_sensor]
@@ -399,7 +399,7 @@ To check that running Dataplex Data Profile scan succeeded you can use:
 
 Also for this action you can use operator in the deferrable mode:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dp.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dp.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_run_data_profile_def_operator]
@@ -412,7 +412,7 @@ To get a Data Profile scan job you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataplex.DataplexGetDataProfileScanResultOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dp.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/dataplex/example_dataplex_dp.py
     :language: python
     :dedent: 4
     :start-after: [START howto_dataplex_get_data_profile_job_operator]

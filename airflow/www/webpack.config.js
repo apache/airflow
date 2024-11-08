@@ -77,7 +77,7 @@ const config = {
     toggleTheme: `${JS_DIR}/toggle_theme.js`,
     grid: `${JS_DIR}/dag/index.tsx`,
     clusterActivity: `${JS_DIR}/cluster-activity/index.tsx`,
-    datasets: `${JS_DIR}/datasets/index.tsx`,
+    assets: `${JS_DIR}/assets/index.tsx`,
     trigger: `${JS_DIR}/trigger.js`,
     variableEdit: `${JS_DIR}/variable_edit.js`,
   },
@@ -211,12 +211,17 @@ const config = {
           to: "d3-tip.js",
           flatten: true,
         },
+
         {
-          from: "node_modules/bootstrap-3-typeahead/*min.*",
+          from: "node_modules/eonasdan-bootstrap-datetimepicker/build/css/bootstrap-datetimepicker.min.css",
           flatten: true,
         },
         {
-          from: "node_modules/eonasdan-bootstrap-datetimepicker/build/css/bootstrap-datetimepicker.min.css",
+          from: "node_modules/jquery-ui/dist/jquery-ui.min.js",
+          flatten: true,
+        },
+        {
+          from: "node_modules/jquery-ui/dist/themes/base/jquery-ui.min.css",
           flatten: true,
         },
         {

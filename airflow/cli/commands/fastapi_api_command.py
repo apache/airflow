@@ -57,6 +57,7 @@ def fastapi_api(args):
     """Start Airflow FastAPI API."""
     print(settings.HEADER)
 
+    apps = args.apps
     access_logfile = args.access_logfile or "-"
     error_logfile = args.error_logfile or "-"
     access_logformat = args.access_logformat
@@ -81,16 +82,22 @@ def fastapi_api(args):
             str(args.hostname),
         ]
 
+        # There is no way to pass the apps to airflow/api_fastapi/main.py in the debug mode
+        # because fastapi dev command does not accept any additional arguments
+        # so environment variable is being used to pass it
+        os.environ["AIRFLOW_API_APPS"] = apps
         with subprocess.Popen(
             run_args,
             close_fds=True,
         ) as process:
             process.wait()
+        os.environ.pop("AIRFLOW_API_APPS")
     else:
         log.info(
             textwrap.dedent(
                 f"""\
                 Running the Gunicorn Server with:
+                Apps: {apps}
                 Workers: {num_workers} {worker_class}
                 Host: {args.hostname}:{args.port}
                 Timeout: {worker_timeout}
@@ -101,6 +108,7 @@ def fastapi_api(args):
         )
 
         pid_file, _, _, _ = setup_locations("fastapi-api", pid=args.pid)
+
         run_args = [
             sys.executable,
             "-m",
@@ -135,7 +143,7 @@ def fastapi_api(args):
         if args.daemon:
             run_args += ["--daemon"]
 
-        run_args += ["airflow.api_fastapi.app:cached_app()"]
+        run_args += [f"airflow.api_fastapi.app:cached_app(apps='{apps}')"]
 
         # To prevent different workers creating the web app and
         # all writing to the database at the same time, we use the --preload option.
@@ -192,7 +200,7 @@ def fastapi_api(args):
         if args.daemon:
             # This makes possible errors get reported before daemonization
             os.environ["SKIP_DAGS_PARSING"] = "True"
-            create_app()
+            create_app(apps)
             os.environ.pop("SKIP_DAGS_PARSING")
 
         pid_file_path = Path(pid_file)

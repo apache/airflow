@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
@@ -25,12 +24,16 @@ import pytest
 import airflow.example_dags as example_dags_module
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag
+from airflow.models.dag import DAG
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagcode import DagCode
+from airflow.models.serialized_dag import SerializedDagModel as SDM
 
 # To move it to a shared module.
 from airflow.utils.file import open_maybe_zipped
 from airflow.utils.session import create_session
-from tests.test_utils.db import clear_db_dag_code
+
+from tests_common.test_utils.db import clear_db_dag_code, clear_db_dags
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -38,6 +41,7 @@ pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 def make_example_dags(module):
     """Loads DAGs from a module for test."""
     dagbag = DagBag(module.__path__[0])
+    DAG.bulk_write_to_db(dagbag.dags.values())
     return dagbag.dags
 
 
@@ -45,52 +49,32 @@ class TestDagCode:
     """Unit tests for DagCode."""
 
     def setup_method(self):
+        clear_db_dags()
         clear_db_dag_code()
 
     def teardown_method(self):
+        clear_db_dags()
         clear_db_dag_code()
 
     def _write_two_example_dags(self):
         example_dags = make_example_dags(example_dags_module)
         bash_dag = example_dags["example_bash_operator"]
-        DagCode(bash_dag.fileloc).sync_to_db()
+        dag_version = DagVersion.get_latest_version("example_bash_operator")
+        DagCode(dag_version, bash_dag.fileloc).sync_to_db()
         xcom_dag = example_dags["example_xcom"]
-        DagCode(xcom_dag.fileloc).sync_to_db()
+        dag_version = DagVersion.get_latest_version("example_xcom")
+        DagCode(dag_version, xcom_dag.fileloc).sync_to_db()
         return [bash_dag, xcom_dag]
 
     def _write_example_dags(self):
         example_dags = make_example_dags(example_dags_module)
         for dag in example_dags.values():
-            dag.sync_to_db()
+            SDM.write_dag(dag)
         return example_dags
 
-    def test_sync_to_db(self):
+    def test_write_to_db(self):
         """Dg code can be written into database."""
         example_dags = self._write_example_dags()
-
-        self._compare_example_dags(example_dags)
-
-    def test_bulk_sync_to_db(self):
-        """Dg code can be bulk written into database."""
-        example_dags = make_example_dags(example_dags_module)
-        files = [dag.fileloc for dag in example_dags.values()]
-        with create_session() as session:
-            DagCode.bulk_sync_to_db(files, session=session)
-            session.commit()
-
-        self._compare_example_dags(example_dags)
-
-    def test_bulk_sync_to_db_half_files(self):
-        """Dg code can be bulk written into database."""
-        example_dags = make_example_dags(example_dags_module)
-        files = [dag.fileloc for dag in example_dags.values()]
-        half_files = files[: len(files) // 2]
-        with create_session() as session:
-            DagCode.bulk_sync_to_db(half_files, session=session)
-            session.commit()
-        with create_session() as session:
-            DagCode.bulk_sync_to_db(files, session=session)
-            session.commit()
 
         self._compare_example_dags(example_dags)
 
@@ -111,6 +95,8 @@ class TestDagCode:
                     session.query(DagCode.fileloc, DagCode.fileloc_hash, DagCode.source_code)
                     .filter(DagCode.fileloc == dag.fileloc)
                     .filter(DagCode.fileloc_hash == dag_fileloc_hash)
+                    .order_by(DagCode.last_updated.desc())
+                    .limit(1)
                     .one()
                 )
 
@@ -125,7 +111,7 @@ class TestDagCode:
         Source Code should at least exist in one of DB or File.
         """
         example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
-        example_dag.sync_to_db()
+        SDM.write_dag(example_dag)
 
         # Mock that there is no access to the Dag File
         with patch("airflow.models.dagcode.open_maybe_zipped") as mock_open:
@@ -135,27 +121,50 @@ class TestDagCode:
             for test_string in ["example_bash_operator", "also_run_this", "run_this_last"]:
                 assert test_string in dag_code
 
-    def test_db_code_updated_on_dag_file_change(self):
-        """Test if DagCode is updated in DB when DAG file is changed"""
+    def test_db_code_created_on_serdag_change(self, session):
+        """Test new DagCode is created in DB when DAG file is changed"""
         example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
-        example_dag.sync_to_db()
+        SDM.write_dag(example_dag)
 
-        with create_session() as session:
-            result = session.query(DagCode).filter(DagCode.fileloc == example_dag.fileloc).one()
+        result = (
+            session.query(DagCode)
+            .filter(DagCode.fileloc == example_dag.fileloc)
+            .order_by(DagCode.last_updated.desc())
+            .limit(1)
+            .one()
+        )
 
-            assert result.fileloc == example_dag.fileloc
-            assert result.source_code is not None
+        assert result.fileloc == example_dag.fileloc
+        assert result.source_code is not None
 
-        with patch("airflow.models.dagcode.os.path.getmtime") as mock_mtime:
-            mock_mtime.return_value = (result.last_updated + timedelta(seconds=1)).timestamp()
+        example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
+        SDM.write_dag(example_dag, processor_subdir="/tmp")
+        with patch("airflow.models.dagcode.DagCode._get_code_from_file") as mock_code:
+            mock_code.return_value = "# dummy code"
+            SDM.write_dag(example_dag)
 
-            with patch("airflow.models.dagcode.DagCode._get_code_from_file") as mock_code:
-                mock_code.return_value = "# dummy code"
-                example_dag.sync_to_db()
+            new_result = (
+                session.query(DagCode)
+                .filter(DagCode.fileloc == example_dag.fileloc)
+                .order_by(DagCode.last_updated.desc())
+                .limit(1)
+                .one()
+            )
 
-                with create_session() as session:
-                    new_result = session.query(DagCode).filter(DagCode.fileloc == example_dag.fileloc).one()
+            assert new_result.fileloc == example_dag.fileloc
+            assert new_result.source_code != result.source_code
+            assert new_result.last_updated > result.last_updated
 
-                    assert new_result.fileloc == example_dag.fileloc
-                    assert new_result.source_code == "# dummy code"
-                    assert new_result.last_updated > result.last_updated
+    def test_has_dag(self, dag_maker):
+        """Test has_dag method."""
+        with dag_maker("test_has_dag") as dag:
+            pass
+        dag.sync_to_db()
+        SDM.write_dag(dag)
+
+        with dag_maker() as dag2:
+            pass
+        dag2.sync_to_db()
+        SDM.write_dag(dag2)
+
+        assert DagCode.has_dag(dag.fileloc)

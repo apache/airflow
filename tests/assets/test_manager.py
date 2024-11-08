@@ -38,6 +38,7 @@ from airflow.models.asset import (
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
+
 from tests.listeners import asset_listener
 
 pytestmark = pytest.mark.db_test
@@ -48,7 +49,7 @@ pytest.importorskip("pydantic", minversion="2.0.0")
 
 @pytest.fixture
 def clear_assets():
-    from tests.test_utils.db import clear_db_assets
+    from tests_common.test_utils.db import clear_db_assets
 
     clear_db_assets()
     yield
@@ -58,6 +59,7 @@ def clear_assets():
 @pytest.fixture
 def mock_task_instance():
     return TaskInstancePydantic(
+        id="1",
         task_id="5",
         dag_id="7",
         run_id="11",
@@ -120,7 +122,7 @@ class TestAssetManager:
             task_instance=mock_task_instance, asset=asset, session=mock_session
         )
 
-        # Ensure that we have ignored the asset and _not_ created a AssetEvent or
+        # Ensure that we have ignored the asset and _not_ created an AssetEvent or
         # AssetDagRunQueue rows
         mock_session.add.assert_not_called()
         mock_session.merge.assert_not_called()
@@ -143,7 +145,7 @@ class TestAssetManager:
         session.flush()
 
         # Ensure we've created an asset
-        assert session.query(AssetEvent).filter_by(dataset_id=asm.id).count() == 1
+        assert session.query(AssetEvent).filter_by(asset_id=asm.id).count() == 1
         assert session.query(AssetDagRunQueue).count() == 2
 
     @pytest.mark.usefixtures("clear_assets")
@@ -177,7 +179,7 @@ class TestAssetManager:
         session.flush()
 
         # Ensure we've created an asset
-        assert session.query(AssetEvent).filter_by(dataset_id=asm.id).count() == 1
+        assert session.query(AssetEvent).filter_by(asset_id=asm.id).count() == 1
         assert session.query(AssetDagRunQueue).count() == 2
         assert session.query(DagPriorityParsingRequest).count() == 2
 
@@ -194,7 +196,7 @@ class TestAssetManager:
         session.flush()
 
         # Ensure we've created an asset
-        assert session.query(AssetEvent).filter_by(dataset_id=asm.id).count() == 1
+        assert session.query(AssetEvent).filter_by(asset_id=asm.id).count() == 1
         assert session.query(AssetDagRunQueue).count() == 0
 
     @pytest.mark.skip_if_database_isolation_mode

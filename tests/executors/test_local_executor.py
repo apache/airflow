@@ -34,9 +34,6 @@ pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 class TestLocalExecutor:
     TEST_SUCCESS_COMMANDS = 5
 
-    def test_supports_pickling(self):
-        assert not LocalExecutor.supports_pickling
-
     def test_supports_sentry(self):
         assert not LocalExecutor.supports_sentry
 

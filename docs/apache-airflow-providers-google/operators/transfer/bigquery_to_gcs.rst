@@ -53,7 +53,7 @@ Exporting tables
 
 The following Operator exports BigQuery table into a GCS.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_to_gcs.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/bigquery/example_bigquery_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bigquery_to_gcs]

@@ -84,7 +84,7 @@ class DebugExecutor(BaseExecutor):
         key = ti.key
         try:
             params = self.tasks_params.pop(ti.key, {})
-            ti.run(job_id=ti.job_id, **params)
+            ti.run(**params)
             self.success(key)
             return True
         except Exception as e:
@@ -97,7 +97,6 @@ class DebugExecutor(BaseExecutor):
         self,
         task_instance: TaskInstance,
         mark_success: bool = False,
-        pickle_id: int | None = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         wait_for_past_depends_before_skipping: bool = False,

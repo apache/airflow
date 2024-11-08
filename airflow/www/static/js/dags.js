@@ -24,7 +24,7 @@ import { throttle } from "lodash";
 import { getMetaValue } from "./utils";
 import tiTooltip from "./task_instances";
 import { approxTimeFromNow, formatDateTime } from "./datetime_utils";
-import { openDatasetModal, getDatasetTooltipInfo } from "./datasetUtils";
+import { openAssetModal, getAssetTooltipInfo } from "./assetUtils";
 
 const DAGS_INDEX = getMetaValue("dags_index");
 const ENTER_KEY_CODE = 13;
@@ -40,11 +40,11 @@ const lastDagRunsUrl = getMetaValue("last_dag_runs_url");
 const dagStatsUrl = getMetaValue("dag_stats_url");
 const taskStatsUrl = getMetaValue("task_stats_url");
 const gridUrl = getMetaValue("grid_url");
-const datasetsUrl = getMetaValue("datasets_url");
-const nextRunDatasetsSummaryUrl = getMetaValue("next_run_datasets_summary_url");
+const assetsUrl = getMetaValue("assets_url");
+const nextRunAssetsSummaryUrl = getMetaValue("next_run_assets_summary_url");
 
-const nextDatasets = {};
-let nextDatasetsError;
+const nextAssets = {};
+let nextAssetsError;
 
 const DAG_RUN = "dag-run";
 const TASK_INSTANCE = "task-instance";
@@ -116,31 +116,60 @@ $.each($("[id^=toggle]"), function toggleId() {
   });
 });
 
-$(".typeahead").typeahead({
-  source(query, callback) {
-    return $.ajax(autocompleteUrl, {
-      data: {
-        query: encodeURIComponent(query),
-        status: statusFilter,
-      },
-      success: callback,
-    });
-  },
-  displayText(value) {
-    return value.dag_display_name || value.name;
-  },
-  autoSelect: false,
-  afterSelect(value) {
-    const query = new URLSearchParams(window.location.search);
-    query.set("search", value.name);
-    if (value.type === "owner") {
-      window.location = `${DAGS_INDEX}?${query}`;
-    }
-    if (value.type === "dag") {
-      window.location = `${gridUrl.replace("__DAG_ID__", value.name)}?${query}`;
-    }
-  },
-});
+// eslint-disable-next-line no-underscore-dangle
+$(".typeahead")
+  .autocomplete({
+    autoFocus: true,
+    source: (request, response) => {
+      $.ajax({
+        url: autocompleteUrl,
+        data: {
+          query: encodeURIComponent(request.term),
+          status: statusFilter,
+        },
+        success: (data) => {
+          response(data);
+        },
+      });
+    },
+    focus: (event) => {
+      // Prevents value from being inserted on focus
+      event.preventDefault();
+    },
+    select: (_, ui) => {
+      const value = ui.item;
+      const query = new URLSearchParams(window.location.search);
+      query.set("search", value.name);
+      if (value.type === "owner") {
+        window.location = `${DAGS_INDEX}?${query}`;
+      }
+      if (value.type === "dag") {
+        window.location = `${gridUrl.replace(
+          "__DAG_ID__",
+          value.name
+        )}?${query}`;
+      }
+    },
+    appendTo: "#search_form > div",
+  })
+  .data("ui-autocomplete")._renderMenu = function (ul, items) {
+  ul.addClass("typeahead dropdown-menu");
+  $.each(items, function (_, item) {
+    // eslint-disable-next-line no-underscore-dangle
+    this._renderItemData(ul, item);
+  });
+};
+
+// eslint-disable-next-line no-underscore-dangle
+$.ui.autocomplete.prototype._renderItem = function (ul, item) {
+  return $("<li>")
+    .append(
+      $("<a>")
+        .addClass("dropdown-item")
+        .text(item.dag_display_name || item.name)
+    )
+    .appendTo(ul);
+};
 
 $("#search_form").on("reset", () => {
   const query = new URLSearchParams(window.location.search);
@@ -297,25 +326,23 @@ function dagStatsHandler(selector, json) {
   });
 }
 
-function nextRunDatasetsSummaryHandler(_, json) {
-  [...document.getElementsByClassName("next-dataset-triggered")].forEach(
-    (el) => {
-      const dagId = $(el).attr("data-dag-id");
-      const previousSummary = $(el).attr("data-summary");
-      const nextDatasetsInfo = json[dagId];
+function nextRunAssetsSummaryHandler(_, json) {
+  [...document.getElementsByClassName("next-asset-triggered")].forEach((el) => {
+    const dagId = $(el).attr("data-dag-id");
+    const previousSummary = $(el).attr("data-summary");
+    const nextAssetsInfo = json[dagId];
 
-      // Only update dags that depend on multiple datasets
-      if (nextDatasetsInfo && !nextDatasetsInfo.uri) {
-        const newSummary = `${nextDatasetsInfo.ready} of ${nextDatasetsInfo.total} datasets updated`;
+    // Only update dags that depend on multiple assets
+    if (nextAssetsInfo && !nextAssetsInfo.uri) {
+      const newSummary = `${nextAssetsInfo.ready} of ${nextAssetsInfo.total} assets updated`;
 
-        // Only update the element if the summary has changed
-        if (previousSummary !== newSummary) {
-          $(el).attr("data-summary", newSummary);
-          $(el).text(newSummary);
-        }
+      // Only update the element if the summary has changed
+      if (previousSummary !== newSummary) {
+        $(el).attr("data-summary", newSummary);
+        $(el).text(newSummary);
       }
     }
-  );
+  });
 }
 
 function getDagIds({ activeDagsOnly = false } = {}) {
@@ -441,9 +468,9 @@ function handleRefresh({ activeDagsOnly = false } = {}) {
       .post(params, (error, json) =>
         refreshDagStatsHandler(TASK_INSTANCE, json)
       );
-    d3.json(nextRunDatasetsSummaryUrl)
+    d3.json(nextRunAssetsSummaryUrl)
       .header("X-CSRFToken", csrfToken)
-      .post(params, nextRunDatasetsSummaryHandler);
+      .post(params, nextRunAssetsSummaryHandler);
   }
   setTimeout(() => {
     $("#loading-dots").css("display", "none");
@@ -525,42 +552,41 @@ $("#auto_refresh").change(() => {
   startOrStopRefresh();
 });
 
-$(".next-dataset-triggered").on("click", (e) => {
+$(".next-asset-triggered").on("click", (e) => {
   const dagId = $(e.target).data("dag-id");
   const summary = $(e.target).data("summary");
-  const singleDatasetUri = $(e.target).data("uri");
+  const singleAssetUri = $(e.target).data("uri");
 
-  // If there are multiple datasets, open a modal, otherwise link directly to the dataset
-  if (!singleDatasetUri) {
+  // If there are multiple assets, open a modal, otherwise link directly to the asset
+  if (!singleAssetUri) {
     if (dagId)
-      openDatasetModal(dagId, summary, nextDatasets[dagId], nextDatasetsError);
+      openAssetModal(dagId, summary, nextAssets[dagId], nextAssetsError);
   } else {
-    window.location.href = `${datasetsUrl}?uri=${encodeURIComponent(
-      singleDatasetUri
+    window.location.href = `${assetsUrl}?uri=${encodeURIComponent(
+      singleAssetUri
     )}`;
   }
 });
 
 const getTooltipInfo = throttle(
-  (dagId, run, setNextDatasets) =>
-    getDatasetTooltipInfo(dagId, run, setNextDatasets),
+  (dagId, run, setNextAssets) => getAssetTooltipInfo(dagId, run, setNextAssets),
   1000
 );
 
-$(".js-dataset-triggered").each((i, cell) => {
+$(".js-asset-triggered").each((i, cell) => {
   $(cell).on("mouseover", () => {
     const run = $(cell).children();
     const dagId = $(run).data("dag-id");
-    const singleDatasetUri = $(run).data("uri");
+    const singleAssetUri = $(run).data("uri");
 
-    const setNextDatasets = (datasets, error) => {
-      nextDatasets[dagId] = datasets;
-      nextDatasetsError = error;
+    const setNextAssets = (assets, error) => {
+      nextAssets[dagId] = assets;
+      nextAssetsError = error;
     };
 
-    // Only update the tooltip info if there are multiple datasets
-    if (!singleDatasetUri) {
-      getTooltipInfo(dagId, run, setNextDatasets);
+    // Only update the tooltip info if there are multiple assets
+    if (!singleAssetUri) {
+      getTooltipInfo(dagId, run, setNextAssets);
     }
   });
 });
