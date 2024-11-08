@@ -144,6 +144,6 @@ def patch_dag_run(
             else:
                 dag_run.dag_run_note.content = attr_value
 
-    session.refresh(dag_run)
+    dag_run = session.get(DagRun, dag_run.id)
 
     return DAGRunResponse.model_validate(dag_run, from_attributes=True)
