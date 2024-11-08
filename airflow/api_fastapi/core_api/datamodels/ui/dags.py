@@ -19,8 +19,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from airflow.api_fastapi.core_api.serializers.dag_run import DAGRunResponse
-from airflow.api_fastapi.core_api.serializers.dags import DAGResponse
+from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
+from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 
 
 class DAGWithLatestDagRunsResponse(DAGResponse):

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import airflow
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.serializers.version import VersionInfo
+from airflow.api_fastapi.core_api.datamodels.version import VersionInfo
 from airflow.utils.platform import get_airflow_git_version
 
 version_router = AirflowRouter(tags=["Version"], prefix="/version")

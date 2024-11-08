@@ -454,7 +454,7 @@ export type HealthInfoSchema = {
 export type HistoricalMetricDataResponse = {
   dag_run_types: DAGRunTypes;
   dag_run_states: DAGRunStates;
-  task_instance_states: airflow__api_fastapi__core_api__serializers__ui__dashboard__TaskInstanceState;
+  task_instance_states: airflow__api_fastapi__core_api__datamodels__ui__dashboard__TaskInstanceState;
 };
 
 /**
@@ -715,7 +715,7 @@ export type VersionInfo = {
 /**
  * TaskInstance serializer for responses.
  */
-export type airflow__api_fastapi__core_api__serializers__ui__dashboard__TaskInstanceState =
+export type airflow__api_fastapi__core_api__datamodels__ui__dashboard__TaskInstanceState =
   {
     no_status: number;
     removed: number;
