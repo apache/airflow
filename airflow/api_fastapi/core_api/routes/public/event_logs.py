@@ -49,7 +49,7 @@ event_logs_router = AirflowRouter(tags=["Event Log"], prefix="/eventLogs")
         [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
     ),
 )
-async def get_event_log(
+def get_event_log(
     event_log_id: int,
     session: Annotated[Session, Depends(get_session)],
 ) -> EventLogResponse:
@@ -66,7 +66,7 @@ async def get_event_log(
     "/",
     responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
-async def get_event_logs(
+def get_event_logs(
     limit: QueryLimit,
     offset: QueryOffset,
     session: Annotated[Session, Depends(get_session)],

@@ -19,6 +19,15 @@ from __future__ import annotations
 from unittest import mock
 
 
+def test_main_app_lifespan(client):
+    with client() as test_client:
+        test_app = test_client.app
+
+        # assert the app was created and lifespan was called
+        assert test_app
+        assert test_app.state.lifespan_called, "Lifespan not called on Execution API app."
+
+
 @mock.patch("airflow.api_fastapi.app.init_dag_bag")
 @mock.patch("airflow.api_fastapi.app.init_views")
 @mock.patch("airflow.api_fastapi.app.init_plugins")
@@ -53,6 +62,16 @@ def test_execution_api_app(
     mock_init_dag_bag.assert_not_called()
     mock_init_views.assert_not_called()
     mock_init_plugins.assert_not_called()
+
+
+def test_execution_api_app_lifespan(client):
+    with client(apps="execution") as test_client:
+        test_app = test_client.app
+
+        # assert the execution app was created and lifespan was called
+        execution_app = [route.app for route in test_app.router.routes if route.path == "/execution"]
+        assert execution_app, "Execution API app not found in FastAPI app."
+        assert execution_app[0].state.lifespan_called, "Lifespan not called on Execution API app."
 
 
 @mock.patch("airflow.api_fastapi.app.init_dag_bag")

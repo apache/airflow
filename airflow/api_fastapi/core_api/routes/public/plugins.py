@@ -26,7 +26,7 @@ plugins_router = AirflowRouter(tags=["Plugin"], prefix="/plugins")
 
 
 @plugins_router.get("/")
-async def get_plugins(
+def get_plugins(
     limit: QueryLimit,
     offset: QueryOffset,
 ) -> PluginCollectionResponse:
