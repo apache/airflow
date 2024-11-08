@@ -24,13 +24,13 @@ from typing_extensions import Annotated
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import (
-    create_openapi_http_exception_doc,
-)
-from airflow.api_fastapi.core_api.serializers.backfills import (
+from airflow.api_fastapi.core_api.datamodels.backfills import (
     BackfillCollectionResponse,
     BackfillPostBody,
     BackfillResponse,
+)
+from airflow.api_fastapi.core_api.openapi.exceptions import (
+    create_openapi_http_exception_doc,
 )
 from airflow.models import DagRun
 from airflow.models.backfill import (

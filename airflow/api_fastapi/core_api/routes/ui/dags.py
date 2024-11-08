@@ -38,9 +38,9 @@ from airflow.api_fastapi.common.parameters import (
     QueryTagsFilter,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.serializers.dag_run import DAGRunResponse
-from airflow.api_fastapi.core_api.serializers.dags import DAGResponse
-from airflow.api_fastapi.core_api.serializers.ui.dags import (
+from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
+from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
+from airflow.api_fastapi.core_api.datamodels.ui.dags import (
     DAGWithLatestDagRunsCollectionResponse,
     DAGWithLatestDagRunsResponse,
 )

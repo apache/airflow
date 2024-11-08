@@ -21,8 +21,8 @@ from typing import Annotated
 
 from pydantic import AliasPath, BaseModel, BeforeValidator, ConfigDict, Field
 
-from airflow.api_fastapi.core_api.serializers.job import JobResponse
-from airflow.api_fastapi.core_api.serializers.trigger import TriggerResponse
+from airflow.api_fastapi.core_api.datamodels.job import JobResponse
+from airflow.api_fastapi.core_api.datamodels.trigger import TriggerResponse
 from airflow.utils.state import TaskInstanceState
 
 
