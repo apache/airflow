@@ -212,5 +212,5 @@ spec:
           {{- tpl (toYaml .Values.pgbouncer.extraVolumes) . | nindent 8 }}
         {{- end }}
         - emptyDir: {}
-          name: tmp        
+          name: tmp
 {{- end }}

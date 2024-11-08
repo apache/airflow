@@ -133,11 +133,11 @@ spec:
               mountPath: /etc/statsd-exporter/mappings.yml
               subPath: mappings.yml
             - name: tmp
-              mountPath: /tmp                
+              mountPath: /tmp
       volumes:
         - name: config
           configMap:
             name: {{ include "airflow.fullname" . }}-statsd
         - emptyDir: {}
-          name: tmp            
+          name: tmp
 {{- end }}

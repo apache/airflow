@@ -55,7 +55,7 @@ spec:
           readOnly: true
           subPath: airflow.cfg
         - name: tmp
-          mountPath: /tmp           
+          mountPath: /tmp
   restartPolicy: Never
   securityContext:
     runAsUser: 50000
@@ -68,5 +68,5 @@ spec:
         name: RELEASE-NAME-airflow-config
       name: airflow-config
     - emptyDir: {}
-      name: tmp      
+      name: tmp
 # [END template_with_dags_in_image]

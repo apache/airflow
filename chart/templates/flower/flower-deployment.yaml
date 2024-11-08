@@ -115,7 +115,7 @@ spec:
             - name: tmp
               mountPath: /tmp
             - name: airflow-home
-              mountPath: {{ .Values.airflowHome }}                          
+              mountPath: {{ .Values.airflowHome }}
           ports:
             - name: flower-ui
               containerPort: {{ .Values.ports.flowerUI }}
@@ -172,8 +172,8 @@ spec:
           {{- tpl (toYaml .Values.flower.extraVolumes) . | nindent 8 }}
         {{- end }}
         - emptyDir: {}
-          name: tmp    
+          name: tmp
         - name: airflow-home
-          emptyDir: {}               
+          emptyDir: {}
 {{- end }}
 {{- end }}

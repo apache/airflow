@@ -132,7 +132,7 @@ spec:
             {{- end }}
             {{- include "airflow_config_mount" . | nindent 12 }}
             - name: tmp-logs
-              mountPath: {{ template "airflow_logs" . }}               
+              mountPath: {{ template "airflow_logs" . }}
           args: {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
@@ -232,9 +232,9 @@ spec:
           {{- tpl (toYaml .Values.dagProcessor.extraContainers) . | nindent 8 }}
         {{- end }}
             - name: tmp
-              mountPath: /tmp 
+              mountPath: /tmp
             - name: airflow-home
-              mountPath: {{ .Values.airflowHome }}                      
+              mountPath: {{ .Values.airflowHome }}
       volumes:
         - name: config
           configMap:
@@ -269,11 +269,11 @@ spec:
         - name: logs
           emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
         - emptyDir: {}
-          name: tmp     
+          name: tmp
         - emptyDir: {}
-          name: airflow-home      
+          name: airflow-home
         - name: tmp-logs
-          emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}                    
+          emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
 {{- end }}
 {{- end }}
 {{- end }}

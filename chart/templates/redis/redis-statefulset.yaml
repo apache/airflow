@@ -105,7 +105,7 @@ spec:
             - name: redis-db
               mountPath: /data
             - name: tmp
-              mountPath: /tmp                
+              mountPath: /tmp
           env:
             - name: REDIS_PASSWORD
               valueFrom:
@@ -114,7 +114,7 @@ spec:
                   key: password
       volumes:
         - emptyDir: {}
-          name: tmp  
+          name: tmp
   {{- if not .Values.redis.persistence.enabled }}
         - name: redis-db
           emptyDir: {{- toYaml (default (dict) .Values.redis.emptyDirConfig) | nindent 12 }}
