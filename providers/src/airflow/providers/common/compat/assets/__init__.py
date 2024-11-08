@@ -19,7 +19,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow import __version__ as AIRFLOW_VERSION
+from airflow.providers.common.compat import (
+    AIRFLOW_V_2_8_PLUS,
+    AIRFLOW_V_2_9_PLUS,
+    AIRFLOW_V_2_10_PLUS,
+    AIRFLOW_V_3_0_PLUS,
+)
 
 if TYPE_CHECKING:
     from airflow.auth.managers.models.resource_details import AssetDetails
@@ -32,13 +37,6 @@ if TYPE_CHECKING:
         expand_alias_to_assets,
     )
 else:
-    from packaging.version import Version
-
-    AIRFLOW_V_3_0_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("3.0.0")
-    AIRFLOW_V_2_10_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
-    AIRFLOW_V_2_9_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.9.0")
-    AIRFLOW_V_2_8_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.8.0")
-
     if AIRFLOW_V_3_0_PLUS:
         from airflow.auth.managers.models.resource_details import AssetDetails
         from airflow.sdk.definitions.asset import (
