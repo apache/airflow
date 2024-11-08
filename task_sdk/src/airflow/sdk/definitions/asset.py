@@ -63,8 +63,14 @@ def normalize_noop(parts: SplitResult) -> SplitResult:
 def _get_uri_normalizer(scheme: str) -> Callable[[SplitResult], SplitResult] | None:
     if scheme == "file":
         return normalize_noop
+    from packaging.version import Version
+
+    from airflow import __version__ as AIRFLOW_VERSION
     from airflow.providers_manager import ProvidersManager
 
+    AIRFLOW_V_2 = Version(AIRFLOW_VERSION).base_version < Version("3.0.0").base_version
+    if AIRFLOW_V_2:
+        return ProvidersManager().dataset_uri_handlers.get(scheme)  # type: ignore[attr-defined]
     return ProvidersManager().asset_uri_handlers.get(scheme)
 
 
