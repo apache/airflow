@@ -545,6 +545,7 @@ class BaseExecutor(LoggingMixin):
     @deprecated(
         reason="Replaced by function `cleanup_tasks_stuck_in_queued`.",
         category=RemovedInAirflow3Warning,
+        action="ignore",
     )
     def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
         """

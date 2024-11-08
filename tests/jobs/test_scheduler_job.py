@@ -2243,7 +2243,7 @@ class TestSchedulerJob:
         job_runner._task_queued_timeout = 300
 
         # We need to return the representations s.t. the handle function creates the logs and checks for retries
-        mock_executors[0].cleanup_stuck_queued_tasks.return_value = [ti1, ti2]
+        mock_executors[0].cleanup_tasks_stuck_in_queued.return_value = (x for x in [ti1, ti2])
 
         with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
             # The executors are mocked, so cannot be loaded/imported. Mock load_executor and return the
@@ -2266,8 +2266,10 @@ class TestSchedulerJob:
                 (None,): mock_executors[0],
                 ("secondary_exec",): mock_executors[1],
             }[x]
+            mock_executors[0].cleanup_tasks_stuck_in_queued.return_value = (x for x in [ti1, ti2])
             job_runner._handle_tasks_stuck_in_queued()
             mock_executors[0].fail.assert_not_called()
+            mock_executors[0].cleanup_tasks_stuck_in_queued.return_value = (x for x in [ti1, ti2])
             job_runner._handle_tasks_stuck_in_queued()
 
         # If the task gets stuck in queued 3 or more times, we fail the task
