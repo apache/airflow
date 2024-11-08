@@ -149,7 +149,7 @@ def patch_dag_run_state(
 
 
 @dag_run_router.post("/{dag_run_id}/clear", responses=create_openapi_http_exception_doc([401, 403, 404]))
-async def clear_dag_run(
+def clear_dag_run(
     dag_id: str,
     dag_run_id: str,
     patch_body: DAGRunClearBody,
