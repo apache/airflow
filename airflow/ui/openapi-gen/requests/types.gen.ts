@@ -593,6 +593,21 @@ export type SchedulerInfoSchema = {
 };
 
 /**
+ * Task scheduling dependencies collection serializer for responses.
+ */
+export type TaskDependencyCollectionResponse = {
+  dependencies: Array<TaskDependencyResponse>;
+};
+
+/**
+ * Task Dependency serializer for responses.
+ */
+export type TaskDependencyResponse = {
+  name: string;
+  reason: string;
+};
+
+/**
  * Task Instance Collection serializer for responses.
  */
 export type TaskInstanceCollectionResponse = {
@@ -1064,6 +1079,26 @@ export type GetMappedTaskInstancesData = {
 };
 
 export type GetMappedTaskInstancesResponse = TaskInstanceCollectionResponse;
+
+export type GetTaskInstanceDependenciesData = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  taskId: string;
+};
+
+export type GetTaskInstanceDependenciesResponse =
+  TaskDependencyCollectionResponse;
+
+export type GetTaskInstanceDependencies1Data = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  taskId: string;
+};
+
+export type GetTaskInstanceDependencies1Response =
+  TaskDependencyCollectionResponse;
 
 export type GetMappedTaskInstanceData = {
   dagId: string;
@@ -2135,6 +2170,60 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: TaskInstanceCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies": {
+    get: {
+      req: GetTaskInstanceDependenciesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskDependencyCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies": {
+    get: {
+      req: GetTaskInstanceDependencies1Data;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskDependencyCollectionResponse;
         /**
          * Unauthorized
          */

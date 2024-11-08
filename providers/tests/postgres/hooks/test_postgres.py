@@ -278,8 +278,8 @@ class TestPostgresHookConn:
         }
         if aws_conn_id is not NOTSET:
             mock_conn_extra["aws_conn_id"] = aws_conn_id
-        if conn_workgroup_name is not NOTSET:  # change to workgroup
-            mock_conn_extra["workgroup-name"] = conn_workgroup_name  # change to workgroup
+        if conn_workgroup_name is not NOTSET:
+            mock_conn_extra["workgroup-name"] = conn_workgroup_name
 
         self.connection.extra = json.dumps(mock_conn_extra)
         self.connection.host = host
@@ -291,8 +291,8 @@ class TestPostgresHookConn:
         mock_aws_hook_instance = mock_aws_hook_class.return_value
         mock_client = mock.MagicMock()
         mock_client.get_credentials.return_value = {
-            "DbPassword": mock_db_pass,
-            "DbUser": mock_db_user,
+            "dbPassword": mock_db_pass,
+            "dbUser": mock_db_user,
         }
         type(mock_aws_hook_instance).conn = mock.PropertyMock(return_value=mock_client)
 

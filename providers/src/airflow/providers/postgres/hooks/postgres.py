@@ -303,8 +303,8 @@ class PostgresHook(DbApiHook):
                 dbName=self.database or conn.schema,
                 workgroupName=workgroup_name,
             )
-            token = cluster_creds["DbPassword"]
-            login = cluster_creds["DbUser"]
+            token = cluster_creds["dbPassword"]
+            login = cluster_creds["dbUser"]
         else:
             port = conn.port or 5432
             rds_client = AwsBaseHook(aws_conn_id=aws_conn_id, client_type="rds").conn
