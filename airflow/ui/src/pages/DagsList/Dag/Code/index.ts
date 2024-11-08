@@ -16,17 +16,5 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex } from "@chakra-ui/react";
-import type { PropsWithChildren } from "react";
-import { Outlet } from "react-router-dom";
 
-import { Nav } from "./Nav";
-
-export const BaseLayout = ({ children }: PropsWithChildren) => (
-  <>
-    <Nav />
-    <Flex flexFlow="column" height="100%" ml={20} p={3}>
-      {children ?? <Outlet />}
-    </Flex>
-  </>
-);
+export { Code } from "./Code";

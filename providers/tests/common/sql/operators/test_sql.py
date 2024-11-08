@@ -45,7 +45,7 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 
-from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.providers import get_provider_min_airflow_version
 
 if AIRFLOW_V_3_0_PLUS:
@@ -53,7 +53,7 @@ if AIRFLOW_V_3_0_PLUS:
 
 pytestmark = [
     pytest.mark.db_test,
-    pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Tests for Airflow 2.8.0+ only"),
+    pytest.mark.skipif(reason="Tests for Airflow 2.8.0+ only"),
     pytest.mark.skip_if_database_isolation_mode,
 ]
 
