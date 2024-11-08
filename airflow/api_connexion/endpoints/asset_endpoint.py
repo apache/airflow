@@ -61,6 +61,7 @@ if TYPE_CHECKING:
 RESOURCE_EVENT_PREFIX = "asset"
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("GET")
 @provide_session
 def get_asset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:

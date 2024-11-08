@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -69,3 +69,20 @@ async def get_assets(
         assets=[AssetResponse.model_validate(x, from_attributes=True) for x in assets],
         total_entries=total_entries,
     )
+
+
+@assets_router.get(
+    "/{uri:path}",
+    responses=create_openapi_http_exception_doc([401, 403, 404]),
+)
+async def get_asset(
+    uri: str,
+    session: Annotated[Session, Depends(get_session)],
+) -> AssetResponse:
+    """Get an asset."""
+    asset = session.scalar(select(AssetModel).where(AssetModel.uri == uri))
+
+    if asset is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with uri: `{uri}` was not found")
+
+    return AssetResponse.model_validate(asset, from_attributes=True)
