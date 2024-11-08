@@ -23,8 +23,8 @@ from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.dag_sources import DAGSourceResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.dag_sources import DAGSourceResponse
 from airflow.models.dagcode import DagCode
 
 dag_sources_router = AirflowRouter(tags=["DagSource"], prefix="/dagSources")

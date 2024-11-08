@@ -29,12 +29,12 @@ from airflow.api.common.mark_tasks import (
 )
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.dag_run import (
+from airflow.api_fastapi.core_api.datamodels.dag_run import (
     DAGRunPatchBody,
     DAGRunPatchStates,
     DAGRunResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models import DAG, DagRun
 
 dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")

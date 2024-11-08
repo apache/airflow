@@ -24,8 +24,8 @@ from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.parameters import DateTimeQuery
+from airflow.api_fastapi.core_api.datamodels.ui.dashboard import HistoricalMetricDataResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.ui.dashboard import HistoricalMetricDataResponse
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import DagRunState, TaskInstanceState

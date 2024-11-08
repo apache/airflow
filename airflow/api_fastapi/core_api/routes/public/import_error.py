@@ -31,11 +31,11 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.import_error import (
+from airflow.api_fastapi.core_api.datamodels.import_error import (
     ImportErrorCollectionResponse,
     ImportErrorResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models.errors import ParseImportError
 
 import_error_router = AirflowRouter(tags=["Import Error"], prefix="/importErrors")
