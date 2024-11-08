@@ -209,7 +209,7 @@ def test_get_documentation_package_path():
             "postgres",
             "beta0",
             """
-    "apache-airflow-providers-common-sql>=1.17.0b0",
+    "apache-airflow-providers-common-sql>=1.20.0b0",
     "apache-airflow>=2.8.0b0",
     "psycopg2-binary>=2.9.4",
     """,
@@ -219,7 +219,7 @@ def test_get_documentation_package_path():
             "postgres",
             "",
             """
-    "apache-airflow-providers-common-sql>=1.17.0",
+    "apache-airflow-providers-common-sql>=1.20.0",
     "apache-airflow>=2.8.0",
     "psycopg2-binary>=2.9.4",
     """,
