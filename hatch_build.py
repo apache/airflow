@@ -386,6 +386,7 @@ DEPENDENCIES = [
     # We should remove the limitation after 2.3 is released and our dependencies are updated to handle it
     "flask>=2.2.1,<2.3",
     "fsspec>=2023.10.0",
+    "gitpython>=3.1.40",
     'google-re2>=1.0;python_version<"3.12"',
     'google-re2>=1.1;python_version>="3.12"',
     "gunicorn>=20.1.0",
