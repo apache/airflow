@@ -981,11 +981,29 @@ export const $DAGResponse = {
 export const $DAGRunPatchBody = {
   properties: {
     state: {
-      $ref: "#/components/schemas/DAGRunPatchStates",
+      anyOf: [
+        {
+          $ref: "#/components/schemas/DAGRunPatchStates",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    note: {
+      anyOf: [
+        {
+          type: "string",
+          maxLength: 1000,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Note",
     },
   },
   type: "object",
-  required: ["state"],
   title: "DAGRunPatchBody",
   description: "DAG Run Serializer for PATCH requests.",
 } as const;

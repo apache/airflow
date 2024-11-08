@@ -1318,9 +1318,9 @@ paths:
     patch:
       tags:
       - DagRun
-      summary: Patch Dag Run State
+      summary: Patch Dag Run
       description: Modify a DAG Run.
-      operationId: patch_dag_run_state
+      operationId: patch_dag_run
       parameters:
       - name: dag_id
         in: path
@@ -3694,10 +3694,16 @@ components:
     DAGRunPatchBody:
       properties:
         state:
-          $ref: '#/components/schemas/DAGRunPatchStates'
+          anyOf:
+          - $ref: '#/components/schemas/DAGRunPatchStates'
+          - type: 'null'
+        note:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Note
       type: object
-      required:
-      - state
       title: DAGRunPatchBody
       description: DAG Run Serializer for PATCH requests.
     DAGRunPatchStates:
