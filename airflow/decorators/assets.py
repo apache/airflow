@@ -27,6 +27,7 @@ from airflow.assets import Asset, AssetRef
 from airflow.models.asset import _fetch_active_assets_by_name
 from airflow.models.dag import DAG, ScheduleArg
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from typing import Sequence
@@ -65,7 +66,8 @@ class _AssetMainOperator(PythonOperator):
             asset_names.append(self._definition_name)
 
         if asset_names:
-            active_assets = _fetch_active_assets_by_name(asset_names)
+            with create_session() as session:
+                active_assets = _fetch_active_assets_by_name(asset_names, session)
         return dict(self._iter_kwargs(context, active_assets))
 
 

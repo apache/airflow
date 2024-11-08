@@ -39,7 +39,6 @@ from airflow.assets import Asset, AssetAlias
 from airflow.models.base import Base, StringID
 from airflow.settings import json
 from airflow.utils import timezone
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
@@ -48,10 +47,9 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
-@provide_session
 def _fetch_active_assets_by_name(
     names: Sequence[str],
-    session: Session = NEW_SESSION,
+    session: Session,
 ) -> dict[str, Asset]:
     return {
         asset_model[0].name: asset_model[0].to_public()

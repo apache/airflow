@@ -281,7 +281,7 @@ class InletEventsAccessors(Mapping[str, LazyAssetEventSelectSequence]):
                 raise IndexError(key)
 
             if isinstance(obj, AssetRef):
-                obj = _fetch_active_assets_by_name([obj.name])
+                obj = _fetch_active_assets_by_name([obj.name], self._session)
         else:
             obj = key
 
