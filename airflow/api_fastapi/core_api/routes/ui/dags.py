@@ -50,7 +50,7 @@ dags_router = AirflowRouter(prefix="/dags", tags=["Dags"])
 
 
 @dags_router.get("/recent_dag_runs", include_in_schema=False, response_model_exclude_none=True)
-async def recent_dag_runs(
+def recent_dag_runs(
     limit: QueryLimit,
     offset: QueryOffset,
     tags: QueryTagsFilter,

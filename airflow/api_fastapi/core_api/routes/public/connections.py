@@ -43,7 +43,7 @@ connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
         [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
     ),
 )
-async def delete_connection(
+def delete_connection(
     connection_id: str,
     session: Annotated[Session, Depends(get_session)],
 ):
@@ -64,7 +64,7 @@ async def delete_connection(
         [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
     ),
 )
-async def get_connection(
+def get_connection(
     connection_id: str,
     session: Annotated[Session, Depends(get_session)],
 ) -> ConnectionResponse:
@@ -85,7 +85,7 @@ async def get_connection(
         [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
     ),
 )
-async def get_connections(
+def get_connections(
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -125,7 +125,7 @@ async def get_connections(
         [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_409_CONFLICT]
     ),
 )
-async def post_connection(
+def post_connection(
     post_body: ConnectionBody,
     session: Annotated[Session, Depends(get_session)],
 ) -> ConnectionResponse:
@@ -156,7 +156,7 @@ async def post_connection(
         ]
     ),
 )
-async def patch_connection(
+def patch_connection(
     connection_id: str,
     patch_body: ConnectionBody,
     session: Annotated[Session, Depends(get_session)],

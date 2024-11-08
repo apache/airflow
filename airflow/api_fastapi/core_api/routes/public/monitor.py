@@ -25,6 +25,6 @@ monitor_router = AirflowRouter(tags=["Monitor"], prefix="/monitor")
 
 
 @monitor_router.get("/health")
-async def get_health() -> HealthInfoSchema:
+def get_health() -> HealthInfoSchema:
     airflow_health_status = get_airflow_health()
     return HealthInfoSchema.model_validate(airflow_health_status)
