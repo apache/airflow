@@ -510,7 +510,7 @@ class DagFileProcessorManager(LoggingMixin):
         """
         Detect DAGs which are no longer present in files.
 
-        Deactivate them and remove them in the serialized_dag table.
+        Deactivate them.
         """
         to_deactivate = set()
         query = select(DagModel.dag_id, DagModel.fileloc, DagModel.last_parsed_time).where(DagModel.is_active)

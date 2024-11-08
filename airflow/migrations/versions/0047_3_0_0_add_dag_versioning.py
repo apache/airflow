@@ -81,6 +81,8 @@ def upgrade():
             ondelete="CASCADE",
         )
         batch_op.create_unique_constraint("dag_code_dag_version_id_uq", ["dag_version_id"])
+        batch_op.drop_column("last_updated")
+        batch_op.add_column(sa.Column("created_at", UtcDateTime(), nullable=False, default=timezone.utcnow))
 
     with op.batch_alter_table(
         "serialized_dag", recreate="always", naming_convention=naming_convention
@@ -100,6 +102,8 @@ def upgrade():
             ondelete="CASCADE",
         )
         batch_op.create_unique_constraint("serialized_dag_dag_version_id_uq", ["dag_version_id"])
+        batch_op.drop_column("last_updated")
+        batch_op.add_column(sa.Column("created_at", UtcDateTime(), nullable=False, default=timezone.utcnow))
 
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False)))
