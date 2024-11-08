@@ -1810,20 +1810,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         num_allowed_retries = conf.getint("scheduler", "num_stuck_in_queued_retries")
         for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued).items():
-            tis = None
-            with suppress(NotImplementedError):
+            try:
                 # BaseExecutor has "abstract" method `cleanup_tasks_stuck_in_queued`
                 # We are tolerant of implementers not implementing it.
                 tis = executor.cleanup_tasks_stuck_in_queued(tis=stuck_tis)
-            if tis is None:  # todo: remove this whole block in airflow 3.0
-                # here we handle case where the executor pre-dates the interface change
-                # introducing `cleanup_tasks_stuck_in_queued` and deprecating cleanup_stuck_queued_tasks
-                with suppress(NotImplementedError):
-                    for ti_repr in executor.cleanup_stuck_queued_tasks(tis=stuck_tis):
-                        self.log.warning(
-                            "Task instance %s stuck in queued.  May be set to failed.",
-                            ti_repr,
-                        )
+            except NotImplementedError:
+                # todo: remove the call to _stuck_in_queued_backcompat_logic in airflow 3.0.
+                #   after 3.0, `cleanup_stuck_queued_tasks` will be removed, so we should
+                #   just continue immediately.
+                self._stuck_in_queued_backcompat_logic(executor, stuck_tis)
                 continue
 
             # ok we know that we now have a "modern" version of the executor, which
@@ -1861,6 +1856,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         )
                     )
                     executor.fail(ti.key)
+
+    def _stuck_in_queued_backcompat_logic(self, executor, stuck_tis):
+        """
+        Try to invoke stuck in queued cleanup for older executor interface.
+
+        Here we handle case where the executor pre-dates the interface change that
+        introduced `cleanup_tasks_stuck_in_queued` and deprecated `cleanup_stuck_queued_tasks`.
+
+        """
+        with suppress(NotImplementedError):
+            for ti_repr in executor.cleanup_stuck_queued_tasks(tis=stuck_tis):
+                self.log.warning(
+                    "Task instance %s stuck in queued.  May be set to failed.",
+                    ti_repr,
+                )
 
     @provide_session
     def _reschedule_stuck_task(self, ti, session=NEW_SESSION):
