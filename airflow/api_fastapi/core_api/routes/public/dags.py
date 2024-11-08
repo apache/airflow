@@ -43,14 +43,14 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.dags import (
+from airflow.api_fastapi.core_api.datamodels.dags import (
     DAGCollectionResponse,
     DAGDetailsResponse,
     DAGPatchBody,
     DAGResponse,
     DAGTagCollectionResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DAG, DagModel, DagTag
 
@@ -58,7 +58,7 @@ dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
 
 @dags_router.get("/")
-async def get_dags(
+def get_dags(
     limit: QueryLimit,
     offset: QueryOffset,
     tags: QueryTagsFilter,
@@ -101,7 +101,7 @@ async def get_dags(
     "/tags",
     responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
-async def get_dag_tags(
+def get_dag_tags(
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -142,9 +142,7 @@ async def get_dag_tags(
         ]
     ),
 )
-async def get_dag(
-    dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request
-) -> DAGResponse:
+def get_dag(dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request) -> DAGResponse:
     """Get basic information about a DAG."""
     dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
     if not dag:
@@ -172,7 +170,7 @@ async def get_dag(
         ]
     ),
 )
-async def get_dag_details(
+def get_dag_details(
     dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request
 ) -> DAGDetailsResponse:
     """Get details of DAG."""
@@ -202,7 +200,7 @@ async def get_dag_details(
         ]
     ),
 )
-async def patch_dag(
+def patch_dag(
     dag_id: str,
     patch_body: DAGPatchBody,
     session: Annotated[Session, Depends(get_session)],
@@ -241,7 +239,7 @@ async def patch_dag(
         ]
     ),
 )
-async def patch_dags(
+def patch_dags(
     patch_body: DAGPatchBody,
     limit: QueryLimit,
     offset: QueryOffset,
@@ -301,7 +299,7 @@ async def patch_dags(
         ]
     ),
 )
-async def delete_dag(
+def delete_dag(
     dag_id: str,
     session: Annotated[Session, Depends(get_session)],
 ) -> Response:
