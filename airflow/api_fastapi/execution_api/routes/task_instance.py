@@ -56,7 +56,7 @@ log = logging.getLogger(__name__)
         status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload for the state transition"},
     },
 )
-async def ti_update_state(
+def ti_update_state(
     task_instance_id: UUID,
     ti_patch_payload: Annotated[schemas.TIStateUpdate, Body()],
     session: Annotated[Session, Depends(get_session)],
@@ -144,7 +144,7 @@ async def ti_update_state(
         status.HTTP_422_UNPROCESSABLE_ENTITY: {"description": "Invalid payload for the state transition"},
     },
 )
-async def ti_heartbeat(
+def ti_heartbeat(
     task_instance_id: UUID,
     ti_payload: schemas.TIHeartbeatInfo,
     session: Annotated[Session, Depends(get_session)],

@@ -55,7 +55,7 @@ mime_type_any = "*/*"
     },
     response_model=DAGSourceResponse,
 )
-async def get_dag_source(
+def get_dag_source(
     file_token: str,
     session: Annotated[Session, Depends(get_session)],
     request: Request,
