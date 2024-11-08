@@ -42,7 +42,7 @@ xcom_router = AirflowRouter(
     "/{xcom_key}",
     responses=create_openapi_http_exception_doc([400, 401, 403, 404]),
 )
-async def get_xcom_entry(
+def get_xcom_entry(
     dag_id: str,
     task_id: str,
     dag_run_id: str,
