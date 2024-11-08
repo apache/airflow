@@ -27,9 +27,82 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 
+const eventsColumn = (
+  dagId: string | undefined,
+): Array<ColumnDef<EventLogResponse>> => [
+  {
+    accessorKey: "when",
+    cell: ({ row: { original } }) => <Time datetime={original.when} />,
+    enableSorting: true,
+    header: "When",
+    meta: {
+      skeletonWidth: 10,
+    },
+  },
+  ...(Boolean(dagId)
+    ? []
+    : [
+        {
+          accessorKey: "dag_id",
+          enableSorting: true,
+          header: "Dag ID",
+          meta: {
+            skeletonWidth: 10,
+          },
+        },
+      ]),
+  {
+    accessorKey: "run_id",
+    enableSorting: true,
+    header: "Run ID",
+    meta: {
+      skeletonWidth: 10,
+    },
+  },
+  {
+    accessorKey: "task_id",
+    enableSorting: true,
+    header: "Task ID",
+    meta: {
+      skeletonWidth: 10,
+    },
+  },
+  {
+    accessorKey: "map_index",
+    enableSorting: false,
+    header: "Map Index",
+    meta: {
+      skeletonWidth: 10,
+    },
+  },
+  {
+    accessorKey: "try_number",
+    enableSorting: false,
+    header: "Try Number",
+    meta: {
+      skeletonWidth: 10,
+    },
+  },
+  {
+    accessorKey: "event",
+    enableSorting: true,
+    header: "Event",
+    meta: {
+      skeletonWidth: 10,
+    },
+  },
+  {
+    accessorKey: "owner",
+    enableSorting: true,
+    header: "User",
+    meta: {
+      skeletonWidth: 10,
+    },
+  },
+];
+
 export const Events = () => {
   const { dagId } = useParams();
-
   const { setTableURLState, tableURLState } = useTableURLState({
     sorting: [{ desc: true, id: "when" }],
   });
@@ -50,89 +123,17 @@ export const Events = () => {
     orderBy,
   });
 
-  const columns: Array<ColumnDef<EventLogResponse>> = [
-    {
-      accessorKey: "when",
-      cell: ({ row: { original } }) => <Time datetime={original.when} />,
-      enableSorting: true,
-      header: "When",
-      meta: {
-        skeletonWidth: 10,
-      },
-    },
-    ...(Boolean(dagId)
-      ? []
-      : [
-          {
-            accessorKey: "dag_id",
-            enableSorting: true,
-            header: "Dag ID",
-            meta: {
-              skeletonWidth: 10,
-            },
-          },
-        ]),
-    {
-      accessorKey: "run_id",
-      enableSorting: true,
-      header: "Run ID",
-      meta: {
-        skeletonWidth: 10,
-      },
-    },
-    {
-      accessorKey: "task_id",
-      enableSorting: true,
-      header: "Task ID",
-      meta: {
-        skeletonWidth: 10,
-      },
-    },
-    {
-      accessorKey: "map_index",
-      enableSorting: false,
-      header: "Map Index",
-      meta: {
-        skeletonWidth: 10,
-      },
-    },
-    {
-      accessorKey: "try_number",
-      enableSorting: false,
-      header: "Try Number",
-      meta: {
-        skeletonWidth: 10,
-      },
-    },
-    {
-      accessorKey: "event",
-      enableSorting: true,
-      header: "Event",
-      meta: {
-        skeletonWidth: 10,
-      },
-    },
-    {
-      accessorKey: "owner",
-      enableSorting: true,
-      header: "User",
-      meta: {
-        skeletonWidth: 10,
-      },
-    },
-  ];
-
   return (
     <Box>
       <ErrorAlert error={EventsError} />
       <DataTable
-        columns={columns}
+        columns={eventsColumn(dagId)}
         data={data ? data.event_logs : []}
         displayMode="table"
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
-        modelName="Events"
+        modelName="Event"
         onStateChange={setTableURLState}
         skeletonCount={undefined}
         total={data ? data.total_entries : 0}
