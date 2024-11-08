@@ -1866,6 +1866,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
         asset_op.add_dag_asset_alias_references(orm_dags, orm_asset_aliases, session=session)
         asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
+        asset_op.add_asset_trigger_references(orm_assets, session=session)
         session.flush()
 
     @provide_session

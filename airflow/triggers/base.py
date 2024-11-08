@@ -115,10 +115,14 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         and handle it appropriately (in async-compatible way).
         """
 
-    def __repr__(self) -> str:
-        classpath, kwargs = self.serialize()
+    @staticmethod
+    def repr(classpath: str, kwargs: dict[str, Any]):
         kwargs_str = ", ".join(f"{k}={v}" for k, v in kwargs.items())
         return f"<{classpath} {kwargs_str}>"
+
+    def __repr__(self) -> str:
+        classpath, kwargs = self.serialize()
+        return self.repr(classpath, kwargs)
 
 
 class TriggerEvent:
