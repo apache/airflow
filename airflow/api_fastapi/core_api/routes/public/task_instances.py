@@ -36,12 +36,12 @@ from airflow.api_fastapi.common.parameters import (
     float_range_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.task_instances import (
+from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.exceptions import TaskNotFound
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.ti_deps.dep_context import DepContext

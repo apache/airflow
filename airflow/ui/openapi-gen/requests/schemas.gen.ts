@@ -1911,7 +1911,7 @@ export const $HistoricalMetricDataResponse = {
       $ref: "#/components/schemas/DAGRunStates",
     },
     task_instance_states: {
-      $ref: "#/components/schemas/airflow__api_fastapi__core_api__serializers__ui__dashboard__TaskInstanceState",
+      $ref: "#/components/schemas/airflow__api_fastapi__core_api__datamodels__ui__dashboard__TaskInstanceState",
     },
   },
   type: "object",
@@ -3000,7 +3000,7 @@ export const $VersionInfo = {
   description: "Version information serializer for responses.",
 } as const;
 
-export const $airflow__api_fastapi__core_api__serializers__ui__dashboard__TaskInstanceState =
+export const $airflow__api_fastapi__core_api__datamodels__ui__dashboard__TaskInstanceState =
   {
     properties: {
       no_status: {

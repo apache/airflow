@@ -34,11 +34,11 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.dag_warning import (
+from airflow.api_fastapi.core_api.datamodels.dag_warning import (
     DAGWarningCollectionResponse,
     DAGWarningResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models import DagWarning
 
 dag_warning_router = AirflowRouter(tags=["DagWarning"])
