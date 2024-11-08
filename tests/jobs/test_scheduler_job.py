@@ -2224,6 +2224,7 @@ class TestSchedulerJob:
             mock_executors[0].cleanup_stuck_queued_tasks.assert_called_once_with(tis=[ti2, ti1])
         mock_executors[1].cleanup_stuck_queued_tasks.assert_called_once_with(tis=[ti3])
 
+    @conf_vars({("scheduler", "num_stuck_in_queued_retries"): "2"})
     def test_handle_stuck_queued_tasks_multiple_attempts(self, dag_maker, session, mock_executors):
         with dag_maker("test_fail_stuck_queued_tasks_multiple_executors"):
             op1 = EmptyOperator(task_id="op1")
@@ -2242,7 +2243,7 @@ class TestSchedulerJob:
         job_runner._task_queued_timeout = 300
 
         # We need to return the representations s.t. the handle function creates the logs and checks for retries
-        mock_executors[0].cleanup_stuck_queued_tasks.return_value = {ti1, ti2}
+        mock_executors[0].cleanup_stuck_queued_tasks.return_value = [ti1, ti2]
 
         with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
             # The executors are mocked, so cannot be loaded/imported. Mock load_executor and return the
@@ -2255,12 +2256,8 @@ class TestSchedulerJob:
             job_runner._handle_tasks_stuck_in_queued()
 
         # If the task gets stuck in queued once, we reset it to scheduled
-        job_runner._reschedule_stuck_task.assert_has_calls(
-            calls=[
-                mock.call(ti1),
-                mock.call(ti2),
-            ]
-        )
+        actual_calls = job_runner._reschedule_stuck_task.mock_calls
+        assert actual_calls == [mock.call(ti1), mock.call(ti2)]
         mock_executors[0].fail.assert_not_called()
 
         with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
@@ -2274,14 +2271,13 @@ class TestSchedulerJob:
             job_runner._handle_tasks_stuck_in_queued()
 
         # If the task gets stuck in queued 3 or more times, we fail the task
-        mock_executors[0].fail.assert_has_calls(
-            calls=[
-                mock.call(ti1.key),
-                mock.call(ti2.key),
-            ]
-        )
+        actual_calls = mock_executors[0].fail.mock_calls
+        assert actual_calls == [
+            mock.call(ti1.key),
+            mock.call(ti2.key),
+        ]
 
-    def test_handle_stuck_queued_tasks_raises_not_implemented(self, dag_maker, session, caplog):
+    def test_handle_stuck_queued_tasks_not_imp_tolerated(self, dag_maker, session, caplog):
         with dag_maker("test_fail_stuck_queued_tasks"):
             op1 = EmptyOperator(task_id="op1")
 
@@ -2295,9 +2291,7 @@ class TestSchedulerJob:
         scheduler_job = Job(executor=LocalExecutor())
         job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0)
         job_runner._task_queued_timeout = 300
-        with caplog.at_level(logging.DEBUG):
-            job_runner._handle_tasks_stuck_in_queued()
-        assert "Executor doesn't support cleanup of stuck queued tasks. Skipping." in caplog.text
+        job_runner._handle_tasks_stuck_in_queued()
 
     @mock.patch("airflow.dag_processing.manager.DagFileProcessorAgent")
     def test_executor_end_called(self, mock_processor_agent, mock_executors):

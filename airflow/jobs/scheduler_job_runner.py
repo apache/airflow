@@ -25,6 +25,7 @@ import signal
 import sys
 import time
 from collections import Counter, defaultdict, deque
+from contextlib import suppress
 from datetime import timedelta
 from functools import lru_cache, partial
 from pathlib import Path
@@ -98,7 +99,7 @@ TI = TaskInstance
 DR = DagRun
 DM = DagModel
 
-STUCK_IN_QUEUED_EVENT = "stuck in queued"
+TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
 
 
@@ -1809,10 +1810,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         num_allowed_retries = conf.getint("scheduler", "num_stuck_in_queued_retries")
         for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued).items():
-            if not hasattr(executor, "cleanup_stuck_queued_tasks"):
-                continue
-
-            for ti in executor.cleanup_stuck_queued_tasks(tis=stuck_tis):
+            tis: Iterable[TaskInstance] = []
+            with suppress(NotImplementedError):
+                # BaseExecutor has "abstract" method `cleanup_stuck_queued_tasks`
+                # We are tolerant of implementers not implementing it.
+                tis = executor.cleanup_stuck_queued_tasks(tis=stuck_tis)
+            for ti in tis:
                 if not isinstance(ti, TaskInstance):
                     # todo: when can we remove this?
                     #   this is for backcompat. the pre-2.10.4 version of the interface
@@ -1823,31 +1826,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                     continue
 
-                session.add(
-                    Log(
-                        event=STUCK_IN_QUEUED_EVENT,
-                        task_instance=ti.key,
-                        extra=(
-                            "Task was in queued state for longer "
-                            f"than {self._task_queued_timeout} seconds."
-                        ),
-                    )
-                )
-                self.log.warning("Task stuck in queued and may be requeued task_id=%s", ti.key)
+                self.log.warning("Task stuck in queued and may be requeued. task_id=%s", ti.key)
 
                 num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
                 if num_times_stuck < num_allowed_retries:
                     session.add(
                         Log(
-                            event="requeing stuck task",
+                            event=TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
                             task_instance=ti.key,
                             extra=(
-                                "Task was in queued state for longer "
-                                f"than {self._task_queued_timeout} seconds."
+                                f"Task was in queued state for longer than {self._task_queued_timeout} "
+                                "seconds; task state will be set back to scheduled."
                             ),
                         )
                     )
-                    executor.change_state(ti.key, State.SCHEDULED)
+                    with suppress(KeyError):
+                        executor.running.remove(ti.key)
                     self._reschedule_stuck_task(ti)
                 else:
                     self.log.warning(
@@ -1892,7 +1886,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Log.run_id == ti.run_id,
                 Log.map_index == ti.map_index,
                 Log.try_number == ti.try_number,
-                Log.event == STUCK_IN_QUEUED_EVENT,
+                Log.event == TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
             )
             .count()
         )
