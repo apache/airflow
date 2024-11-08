@@ -202,14 +202,36 @@ class TestDeleteDagRun:
 
 class TestClearDagRun:
     def test_clear_dag_run(self, test_client):
-        response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear", json={})
-        breakpoint()
-        assert response.status_code == 204
+        response = test_client.post(
+            f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear", json={"dry_run": False}
+        )
+        assert response.status_code == 200
         body = response.json()
         assert body["dag_id"] == DAG1_ID
+        assert body["run_id"] == DAG1_RUN1_ID
+        assert body["state"] == "queued"
+
+    @pytest.mark.parametrize(
+        "body",
+        [{"dry_run": True}, {}],
+    )
+    def test_clear_dag_run_dry_run(self, test_client, body):
+        response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear", json=body)
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        for each in body["task_instances"]:
+            assert each["state"] is None
 
     def test_clear_dag_run_not_found(self, test_client):
-        response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns/invalid/clear")
+        response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns/invalid/clear", json={"dry_run": False})
         assert response.status_code == 404
         body = response.json()
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
+
+    def test_clear_dag_run_unprocessable_entity(self, test_client):
+        response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear")
+        assert response.status_code == 422
+        body = response.json()
+        assert body["detail"][0]["msg"] == "Field required"
+        assert body["detail"][0]["loc"][0] == "body"

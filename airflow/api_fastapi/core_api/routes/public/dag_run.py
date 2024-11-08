@@ -40,7 +40,7 @@ from airflow.api_fastapi.core_api.serializers.task_instances import (
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
 )
-from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models import DAG, DagRun
 
 dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
 
@@ -155,7 +155,7 @@ async def clear_dag_run(
     patch_body: DAGRunClearBody,
     request: Request,
     session: Annotated[Session, Depends(get_session)],
-) -> TaskInstanceResponse | DAGRunResponse:
+) -> TaskInstanceCollectionResponse | DAGRunResponse:
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
     if dag_run is None:
         raise HTTPException(
@@ -171,15 +171,23 @@ async def clear_dag_run(
             task_ids=None,
             only_failed=False,
             dry_run=True,
+            session=session,
         )
-        tis = session.query(TaskInstance).filter(
-            TaskInstance.dag_id == dag_id, TaskInstance.run_id == dag_run_id
-        )
+
         return TaskInstanceCollectionResponse(
-            dags=[TaskInstanceResponse.model_validate(ti, from_attributes=True) for ti in task_instances],
-            total_entries=len(task_instances),
+            task_instances=[
+                TaskInstanceResponse.model_validate(ti, from_attributes=True)
+                for ti in task_instances  # type: ignore[union-attr]
+            ],
+            total_entries=len(task_instances),  # type: ignore[arg-type]
         )
     else:
-        dag.clear(start_date=dag_run.start_date, end_date=dag_run.end_date, task_ids=None, only_failed=False)
+        dag.clear(
+            start_date=dag_run.start_date,
+            end_date=dag_run.end_date,
+            task_ids=None,
+            only_failed=False,
+            session=session,
+        )
         dag_run_cleared = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
         return DAGRunResponse.model_validate(dag_run_cleared, from_attributes=True)
