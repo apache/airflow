@@ -220,7 +220,7 @@ class TestKiotaRequestAdapterHook:
 
     def test_evaluate_parameters(self):
         query_parameters = {
-            "$expand": lambda: ",".join(["reports","users","datasets","dataflows","dashboards"]),
+            "$expand": lambda: ",".join(["reports", "users", "datasets", "dataflows", "dashboards"]),
             "$top": 5000,
         }
         KiotaRequestAdapterHook.evaluate_parameters(query_parameters)
