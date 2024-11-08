@@ -122,19 +122,21 @@ Local Development Release of a Specific Provider
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When you develop a provider, you can release it locally and test it in your Airflow environment. This should
-be accomplished using breeze. Choose a suffix for the release such as "dev1" and run the breeze build for
+be accomplished using breeze. Choose a suffix for the release such as "+patch.asb.1" and run the breeze build for
 that provider. Remember Provider IDs use a dot ('.') for directory separators so the Provider ID for the
 Microsoft Azure provider is 'microsoft.azure'. This can be provided in the PACKAGE_LIST environment variable
 or passed on the command line.
 
-``export PACKAGE_LIST=microsoft.azure``
+```bash
+export PACKAGE_LIST=microsoft.azure
+````
 
 Then build the provider (you don't need to pass the package ID if you set the environment variable above):
 
 ```bash
 breeze release-management prepare-provider-packages \
-    --package-format both --version-suffix-for-pypi=dev1 \
-    --skip-tag-check microsoft.azure
+    --package-format both --version-suffix-for-local=+patch.asb.1 \
+    microsoft.azure
 ```
 
 Finally, copy the wheel file from the dist directory to the a directory your airflow deployment can use.
