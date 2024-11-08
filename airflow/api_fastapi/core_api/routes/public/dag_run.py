@@ -123,7 +123,7 @@ async def patch_dag_run(
     if update_mask:
         data = patch_body.model_dump(include=set(update_mask))
     else:
-        data = patch_body.model_dump(exclude_unset=True)
+        data = patch_body.model_dump()
 
     for attr_name, attr_value in data.items():
         if attr_name == "state":

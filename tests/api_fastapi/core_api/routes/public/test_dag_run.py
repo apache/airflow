@@ -152,8 +152,8 @@ class TestPatchDagRun:
             (
                 DAG1_ID,
                 DAG1_RUN1_ID,
-                {"state": DagRunState.FAILED},
-                {"state": DagRunState.FAILED, "note": DAG1_RUN1_NOTE},
+                {"state": DagRunState.FAILED, "note": "new_note2"},
+                {"state": DagRunState.FAILED, "note": "new_note2"},
             ),
             (
                 DAG1_ID,
