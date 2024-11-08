@@ -37,6 +37,7 @@ describe("searchParams", () => {
       );
     });
   });
+
   describe("searchParamsToState", () => {
     it("can parse search params back to table state", () => {
       expect(
@@ -59,6 +60,24 @@ describe("searchParams", () => {
           { desc: false, id: "name" },
           { desc: true, id: "age" },
         ],
+      });
+    });
+
+    it("uses default sort correctly", () => {
+      expect(
+        searchParamsToState(new URLSearchParams("limit=20&offset=0"), {
+          pagination: {
+            pageIndex: 1,
+            pageSize: 5,
+          },
+          sorting: [{ desc: true, id: "when" }],
+        }),
+      ).toEqual({
+        pagination: {
+          pageIndex: 0,
+          pageSize: 20,
+        },
+        sorting: [{ desc: true, id: "when" }],
       });
     });
   });
