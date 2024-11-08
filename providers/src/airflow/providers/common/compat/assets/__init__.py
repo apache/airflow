@@ -32,19 +32,15 @@ if TYPE_CHECKING:
         expand_alias_to_assets,
     )
 else:
-    try:
+    from packaging.version import Version
+
+    AIRFLOW_V_3_0_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("3.0.0")
+    AIRFLOW_V_2_10_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
+    AIRFLOW_V_2_9_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.9.0")
+    AIRFLOW_V_2_8_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.8.0")
+
+    if AIRFLOW_V_3_0_PLUS:
         from airflow.auth.managers.models.resource_details import AssetDetails
-    except ModuleNotFoundError:
-        # 2.7.x
-        pass
-    except ImportError:
-        from packaging.version import Version
-
-        _IS_AIRFLOW_2_8_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.8.0")
-        if _IS_AIRFLOW_2_8_OR_HIGHER:
-            from airflow.auth.managers.models.resource_details import DatasetDetails as AssetDetails
-
-    try:
         from airflow.sdk.definitions.asset import (
             Asset,
             AssetAlias,
@@ -53,22 +49,20 @@ else:
             AssetAny,
             expand_alias_to_assets,
         )
-    except ModuleNotFoundError:
-        from packaging.version import Version
-
-        _IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
-        _IS_AIRFLOW_2_9_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.9.0")
-
+    else:
         # dataset is renamed to asset since Airflow 3.0
         from airflow.datasets import Dataset as Asset
 
-        if _IS_AIRFLOW_2_9_OR_HIGHER:
+        if AIRFLOW_V_2_8_PLUS:
+            from airflow.auth.managers.models.resource_details import DatasetDetails as AssetDetails
+
+        if AIRFLOW_V_2_9_PLUS:
             from airflow.datasets import (
                 DatasetAll as AssetAll,
                 DatasetAny as AssetAny,
             )
 
-        if _IS_AIRFLOW_2_10_OR_HIGHER:
+        if AIRFLOW_V_2_10_PLUS:
             from airflow.datasets import (
                 DatasetAlias as AssetAlias,
                 DatasetAliasEvent as AssetAliasEvent,
