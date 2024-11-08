@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-08T13:45:12.364117
+# This constraints file was automatically generated on 2024-11-08T19:42:19.607630
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -50,7 +50,7 @@ atlasclient==1.0.0
 attrs==24.2.0
 babel==2.16.0
 bcrypt==4.2.0
-blinker==1.8.2
+blinker==1.9.0
 botocore==1.35.36
 cachelib==0.9.0
 certifi==2024.8.30
@@ -116,15 +116,15 @@ methodtools==0.4.7
 more-itertools==10.5.0
 multidict==6.1.0
 numpy==1.26.4
-opentelemetry-api==1.28.0
-opentelemetry-exporter-otlp-proto-common==1.28.0
-opentelemetry-exporter-otlp-proto-grpc==1.28.0
-opentelemetry-exporter-otlp-proto-http==1.28.0
-opentelemetry-exporter-otlp==1.28.0
-opentelemetry-exporter-prometheus==0.49b0
-opentelemetry-proto==1.28.0
-opentelemetry-sdk==1.28.0
-opentelemetry-semantic-conventions==0.49b0
+opentelemetry-api==1.28.1
+opentelemetry-exporter-otlp-proto-common==1.28.1
+opentelemetry-exporter-otlp-proto-grpc==1.28.1
+opentelemetry-exporter-otlp-proto-http==1.28.1
+opentelemetry-exporter-otlp==1.28.1
+opentelemetry-exporter-prometheus==0.49b1
+opentelemetry-proto==1.28.1
+opentelemetry-sdk==1.28.1
+opentelemetry-semantic-conventions==0.49b1
 ordered-set==4.1.0
 packaging==24.2
 pandas==2.1.4
@@ -184,7 +184,7 @@ uc-micro-py==1.0.3
 universal_pathlib==0.2.5
 urllib3==2.2.3
 uuid6==2024.7.10
-uv==0.4.30
+uv==0.5.0
 uvicorn==0.32.0
 uvloop==0.21.0
 vine==5.1.0

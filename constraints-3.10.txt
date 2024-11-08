@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-08T13:52:08.445498
+# This constraints file was automatically generated on 2024-11-08T19:49:23.073160
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -234,7 +234,7 @@ beautifulsoup4==4.12.3
 billiard==4.2.1
 bitarray==3.0.0
 black==24.10.0
-blinker==1.8.2
+blinker==1.9.0
 boto3==1.35.36
 botocore==1.35.36
 cachelib==0.9.0
@@ -733,7 +733,7 @@ uritemplate==4.1.1
 urllib3==2.2.3
 userpath==1.9.2
 uuid6==2024.7.10
-uv==0.4.30
+uv==0.5.0
 uvicorn==0.32.0
 uvloop==0.21.0
 validators==0.33.0
@@ -756,7 +756,7 @@ yandexcloud==0.324.0
 yarl==1.17.1
 ydb==3.18.8
 zeep==4.3.1
-zenpy==2.0.54
+zenpy==2.0.55
 zipp==3.20.2
 zope.event==5.0
 zope.interface==7.1.1
