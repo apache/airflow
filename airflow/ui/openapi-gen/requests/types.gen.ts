@@ -814,7 +814,7 @@ export type GetAssetsData = {
   limit?: number;
   offset?: number;
   orderBy?: string;
-  uriPattern?: string | null;
+  uriPattern: string;
 };
 
 export type GetAssetsResponse = AssetCollectionResponse;

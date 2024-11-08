@@ -3128,11 +3128,9 @@ paths:
           title: Offset
       - name: uri_pattern
         in: query
-        required: false
+        required: true
         schema:
-          anyOf:
-          - type: string
-          - type: 'null'
+          type: string
           title: Uri Pattern
       - name: dag_ids
         in: query

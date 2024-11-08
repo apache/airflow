@@ -113,16 +113,16 @@ class TestGetAssets(TestAssets):
         assert response.json()["detail"] == msg
 
     @pytest.mark.parametrize(
-        "url, expected_assets",
+        "params, expected_assets",
         [
-            ("/public/assets?uri_pattern=s3", {"s3://folder/key"}),
-            ("/public/assets?uri_pattern=bucket", {"gcp://bucket/key", "wasb://some_asset_bucket_/key"}),
+            ({"uri_pattern": "s3"}, {"s3://folder/key"}),
+            ({"uri_pattern": "bucket"}, {"gcp://bucket/key", "wasb://some_asset_bucket_/key"}),
             (
-                "/public/assets?uri_pattern=asset",
+                {"uri_pattern": "asset"},
                 {"somescheme://asset/key", "wasb://some_asset_bucket_/key"},
             ),
             (
-                "/public/assets?uri_pattern=",
+                {"uri_pattern": ""},
                 {
                     "gcp://bucket/key",
                     "s3://folder/key",
@@ -133,7 +133,7 @@ class TestGetAssets(TestAssets):
         ],
     )
     @provide_session
-    def test_filter_assets_by_uri_pattern_works(self, test_client, url, expected_assets, session):
+    def test_filter_assets_by_uri_pattern_works(self, test_client, params, expected_assets, session):
         asset1 = AssetModel("s3://folder/key")
         asset2 = AssetModel("gcp://bucket/key")
         asset3 = AssetModel("somescheme://asset/key")
@@ -143,7 +143,7 @@ class TestGetAssets(TestAssets):
         for a in assets:
             self.create_provided_asset(asset=a)
 
-        response = test_client.get(url)
+        response = test_client.get("/public/assets", params=params)
         assert response.status_code == 200
         asset_urls = {asset["uri"] for asset in response.json()["assets"]}
         assert expected_assets == asset_urls

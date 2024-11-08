@@ -60,8 +60,8 @@ export const UseAssetServiceGetAssetsKeyFn = (
     limit?: number;
     offset?: number;
     orderBy?: string;
-    uriPattern?: string;
-  } = {},
+    uriPattern: string;
+  },
   queryKey?: Array<unknown>,
 ) => [
   useAssetServiceGetAssetsKey,

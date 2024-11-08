@@ -43,7 +43,7 @@ assets_router = AirflowRouter(tags=["Asset"], prefix="/assets")
     "/",
     responses=create_openapi_http_exception_doc([401, 403, 404]),
 )
-async def get_assets(
+def get_assets(
     limit: QueryLimit,
     offset: QueryOffset,
     uri_pattern: QueryUriPatternSearch,
@@ -66,6 +66,6 @@ async def get_assets(
 
     assets = session.scalars(assets_select).all()
     return AssetCollectionResponse(
-        assets=[AssetResponse.model_validate(x, from_attributes=True) for x in assets],
+        assets=[AssetResponse.model_validate(asset, from_attributes=True) for asset in assets],
         total_entries=total_entries,
     )
