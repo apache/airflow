@@ -1959,7 +1959,7 @@ export const useConnectionServicePatchConnection = <
     ...options,
   });
 /**
- * Patch Dag Run State
+ * Patch Dag Run
  * Modify a DAG Run.
  * @param data The data for the request.
  * @param data.dagId
@@ -1969,8 +1969,8 @@ export const useConnectionServicePatchConnection = <
  * @returns DAGRunResponse Successful Response
  * @throws ApiError
  */
-export const useDagRunServicePatchDagRunState = <
-  TData = Common.DagRunServicePatchDagRunStateMutationResult,
+export const useDagRunServicePatchDagRun = <
+  TData = Common.DagRunServicePatchDagRunMutationResult,
   TError = unknown,
   TContext = unknown,
 >(
@@ -2001,7 +2001,7 @@ export const useDagRunServicePatchDagRunState = <
     TContext
   >({
     mutationFn: ({ dagId, dagRunId, requestBody, updateMask }) =>
-      DagRunService.patchDagRunState({
+      DagRunService.patchDagRun({
         dagId,
         dagRunId,
         requestBody,

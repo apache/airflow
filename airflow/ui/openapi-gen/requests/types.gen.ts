@@ -191,7 +191,8 @@ export type DAGRunClearBody = {
  * DAG Run Serializer for PATCH requests.
  */
 export type DAGRunPatchBody = {
-  state: DAGRunPatchStates;
+  state?: DAGRunPatchStates | null;
+  note?: string | null;
 };
 
 /**
@@ -939,14 +940,14 @@ export type DeleteDagRunData = {
 
 export type DeleteDagRunResponse = void;
 
-export type PatchDagRunStateData = {
+export type PatchDagRunData = {
   dagId: string;
   dagRunId: string;
   requestBody: DAGRunPatchBody;
   updateMask?: Array<string> | null;
 };
 
-export type PatchDagRunStateResponse = DAGRunResponse;
+export type PatchDagRunResponse = DAGRunResponse;
 
 export type ClearDagRunData = {
   dagId: string;
@@ -1792,7 +1793,7 @@ export type $OpenApiTs = {
       };
     };
     patch: {
-      req: PatchDagRunStateData;
+      req: PatchDagRunData;
       res: {
         /**
          * Successful Response
