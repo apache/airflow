@@ -1825,9 +1825,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # ok we know that we now have a "modern" version of the executor, which
             # expects us to try to requeue tasks "cleaned up" by `cleanup_stuck_queued_tasks`
             for ti in tis:
-                self.log.warning("Task stuck in queued and may be requeued. task_id=%s", ti.task_id)
                 num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
                 if num_times_stuck < num_allowed_retries:
+                    self.log.warning("Task stuck in queued; will try to requeue. task_id=%s", ti.task_id)
                     session.add(
                         Log(
                             event=TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
