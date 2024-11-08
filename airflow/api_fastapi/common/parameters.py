@@ -135,7 +135,7 @@ class _SearchParam(BaseParam[str]):
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
             return select
-        return select.where(self.attribute.ilike(f"%{self.value}"))
+        return select.where(self.attribute.ilike(f"%{self.value}%"))
 
     def transform_aliases(self, value: str | None) -> str | None:
         if value == "~":
@@ -343,7 +343,6 @@ class _UriPatternSearch(_SearchParam):
         super().__init__(AssetModel.uri, skip_none)
 
     def depends(self, uri_pattern: str | None = None) -> _UriPatternSearch:
-        uri_pattern = super().transform_aliases(uri_pattern)
         return self.set_value(uri_pattern)
 
 

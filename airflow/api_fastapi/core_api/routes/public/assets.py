@@ -57,7 +57,7 @@ async def get_assets(
     """Get assets."""
     assets_select, total_entries = paginated_select(
         select(AssetModel),
-        filters=[dag_ids, uri_pattern],
+        filters=[uri_pattern, dag_ids],
         order_by=order_by,
         offset=offset,
         limit=limit,
