@@ -1844,7 +1844,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TaskHistoryInstance"
+                $ref: "#/components/schemas/TaskInstanceHistory"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
