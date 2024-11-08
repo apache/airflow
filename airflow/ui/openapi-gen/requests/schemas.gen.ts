@@ -2577,6 +2577,60 @@ export const $SchedulerInfoSchema = {
   description: "Schema for Scheduler info.",
 } as const;
 
+export const $TaskDependencyCollectionResponse = {
+  properties: {
+    dependencies: {
+      items: {
+        $ref: "#/components/schemas/TaskDependencyResponse",
+      },
+      type: "array",
+      title: "Dependencies",
+    },
+  },
+  type: "object",
+  required: ["dependencies"],
+  title: "TaskDependencyCollectionResponse",
+  description:
+    "Task scheduling dependencies collection serializer for responses.",
+} as const;
+
+export const $TaskDependencyResponse = {
+  properties: {
+    name: {
+      type: "string",
+      title: "Name",
+    },
+    reason: {
+      type: "string",
+      title: "Reason",
+    },
+  },
+  type: "object",
+  required: ["name", "reason"],
+  title: "TaskDependencyResponse",
+  description: "Task Dependency serializer for responses.",
+} as const;
+
+export const $TaskInstanceCollectionResponse = {
+  properties: {
+    task_instances: {
+      items: {
+        $ref: "#/components/schemas/TaskInstanceResponse",
+      },
+      type: "array",
+      title: "Task Instances",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["task_instances", "total_entries"],
+  title: "TaskInstanceCollectionResponse",
+  description: "Task Instance Collection serializer for responses.",
+} as const;
+
 export const $TaskInstanceResponse = {
   properties: {
     id: {
@@ -2977,17 +3031,6 @@ export const $VariableBody = {
       type: "string",
       title: "Key",
     },
-    description: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Description",
-    },
     value: {
       anyOf: [
         {
@@ -2999,9 +3042,20 @@ export const $VariableBody = {
       ],
       title: "Value",
     },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
   },
   type: "object",
-  required: ["key", "description", "value"],
+  required: ["key", "value"],
   title: "VariableBody",
   description: "Variable serializer for bodies.",
 } as const;
@@ -3032,17 +3086,6 @@ export const $VariableResponse = {
       type: "string",
       title: "Key",
     },
-    description: {
-      anyOf: [
-        {
-          type: "string",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Description",
-    },
     value: {
       anyOf: [
         {
@@ -3054,9 +3097,20 @@ export const $VariableResponse = {
       ],
       title: "Value",
     },
+    description: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Description",
+    },
   },
   type: "object",
-  required: ["key", "description", "value"],
+  required: ["key", "value", "description"],
   title: "VariableResponse",
   description: "Variable serializer for responses.",
 } as const;

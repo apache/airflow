@@ -139,12 +139,14 @@ async def patch_variable(
             status.HTTP_404_NOT_FOUND, f"The Variable with key: `{variable_key}` was not found"
         )
     if update_mask:
-        data = patch_body.model_dump(include=set(update_mask) - non_update_fields)
+        data = patch_body.model_dump(
+            include=set(update_mask) - non_update_fields, by_alias=True, exclude_none=True
+        )
     else:
-        data = patch_body.model_dump(exclude=non_update_fields)
+        data = patch_body.model_dump(exclude=non_update_fields, by_alias=True, exclude_none=True)
     for key, val in data.items():
         setattr(variable, key, val)
-    return variable
+    return VariableResponse.model_validate(variable, from_attributes=True)
 
 
 @variables_router.post(

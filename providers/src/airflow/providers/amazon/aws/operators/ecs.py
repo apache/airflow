@@ -598,10 +598,10 @@ class EcsRunTaskOperator(EcsBaseOperator):
 
         if self.capacity_provider_strategy:
             run_opts["capacityProviderStrategy"] = self.capacity_provider_strategy
-            if self.volume_configurations is not None:
-                run_opts["volumeConfigurations"] = self.volume_configurations
         elif self.launch_type:
             run_opts["launchType"] = self.launch_type
+        if self.volume_configurations is not None:
+            run_opts["volumeConfigurations"] = self.volume_configurations
         if self.platform_version is not None:
             run_opts["platformVersion"] = self.platform_version
         if self.group is not None:
@@ -661,7 +661,13 @@ class EcsRunTaskOperator(EcsBaseOperator):
         return self.awslogs_group and self.awslogs_stream_prefix
 
     def _get_logs_stream_name(self) -> str:
-        return f"{self.awslogs_stream_prefix}/{self.container_name}/{self._get_ecs_task_id(self.arn)}"
+        if (
+            self.awslogs_stream_prefix
+            and self.container_name
+            and not self.awslogs_stream_prefix.endswith(f"/{self.container_name}")
+        ):
+            return f"{self.awslogs_stream_prefix}/{self.container_name}/{self._get_ecs_task_id(self.arn)}"
+        return f"{self.awslogs_stream_prefix}/{self._get_ecs_task_id(self.arn)}"
 
     def _get_task_log_fetcher(self) -> AwsTaskLogFetcher:
         if not self.awslogs_group:

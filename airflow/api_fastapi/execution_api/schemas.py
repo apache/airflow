@@ -112,3 +112,30 @@ TIStateUpdate = Annotated[
     ],
     Discriminator(ti_state_discriminator),
 ]
+
+
+class TIHeartbeatInfo(BaseModel):
+    """Schema for TaskInstance heartbeat endpoint."""
+
+    hostname: str
+    pid: int
+
+
+class ConnectionResponse(BaseModel):
+    """Connection schema for responses with fields that are needed for Runtime."""
+
+    conn_id: str
+    conn_type: str
+    host: str | None
+    schema_: str | None = Field(alias="schema")
+    login: str | None
+    password: str | None
+    port: int | None
+    extra: str | None
+
+
+# TODO: This is a placeholder for Task Identity Token schema.
+class TIToken(BaseModel):
+    """Task Identity Token."""
+
+    ti_key: str
