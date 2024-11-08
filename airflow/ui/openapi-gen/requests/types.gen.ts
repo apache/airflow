@@ -810,11 +810,11 @@ export type NextRunAssetsResponse = {
 };
 
 export type GetAssetsData = {
-  dagIds?: string | null;
+  dagIds?: Array<string>;
   limit?: number;
   offset?: number;
   orderBy?: string;
-  uriPattern: string;
+  uriPattern?: string | null;
 };
 
 export type GetAssetsResponse = AssetCollectionResponse;

@@ -3128,17 +3128,19 @@ paths:
           title: Offset
       - name: uri_pattern
         in: query
-        required: true
-        schema:
-          type: string
-          title: Uri Pattern
-      - name: dag_ids
-        in: query
         required: false
         schema:
           anyOf:
           - type: string
           - type: 'null'
+          title: Uri Pattern
+      - name: dag_ids
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
           title: Dag Ids
       - name: order_by
         in: query
