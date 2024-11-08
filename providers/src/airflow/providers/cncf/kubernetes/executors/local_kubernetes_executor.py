@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generator, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
@@ -230,11 +230,11 @@ class LocalKubernetesExecutor(BaseExecutor):
             *self.kubernetes_executor.try_adopt_task_instances(kubernetes_tis),
         ]
 
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> Generator[TaskInstance, None, None]:
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
         # LocalExecutor doesn't have a cleanup_stuck_queued_tasks method, so we
         # will only run KubernetesExecutor's
         kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
-        yield from self.kubernetes_executor.cleanup_stuck_queued_tasks(kubernetes_tis)
+        return self.kubernetes_executor.cleanup_stuck_queued_tasks(kubernetes_tis)
 
     def end(self) -> None:
         """End local and kubernetes executor."""

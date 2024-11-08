@@ -22,7 +22,7 @@ import logging
 import sys
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
 
 import pendulum
 
@@ -540,9 +540,7 @@ class BaseExecutor(LoggingMixin):
         """Get called when the daemon receives a SIGTERM."""
         raise NotImplementedError
 
-    def cleanup_stuck_queued_tasks(
-        self, tis: list[TaskInstance]
-    ) -> Iterable[TaskInstance]:  # pragma: no cover
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:  # pragma: no cover
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
 
