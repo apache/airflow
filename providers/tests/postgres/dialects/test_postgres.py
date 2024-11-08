@@ -34,8 +34,15 @@ class TestPostgresDialect:
             {"name": "firstname"},
             {"name": "age"},
         ]
+
+        def get_records(sql, parameters):
+            assert isinstance(sql, str)
+            assert "hollywood" in parameters, "Missing 'schema' in parameters"
+            assert "actors" in parameters, "Missing 'table' in parameters"
+            return [("id",)]
+
         self.test_db_hook = MagicMock(placeholder="?", inspector=inspector, spec=DbApiHook)
-        self.test_db_hook.get_records.side_effect = lambda sql, parameters: [("id",)]
+        self.test_db_hook.get_records.side_effect = get_records
         self.test_db_hook._insert_statement_format = "INSERT INTO {} {} VALUES ({})"
         self.test_db_hook._escape_column_name_format = '"{}"'
 

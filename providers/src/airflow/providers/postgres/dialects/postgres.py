@@ -37,6 +37,8 @@ class PostgresDialect(Dialect):
         :param schema: Name of the target schema, public by default
         :return: Primary key columns list
         """
+        if schema is None:
+            table, schema = self._extract_schema_from_table(table)
         sql = """
             select kcu.column_name
             from information_schema.table_constraints tco
@@ -48,7 +50,12 @@ class PostgresDialect(Dialect):
             and kcu.table_schema = %s
             and kcu.table_name = %s
         """
-        pk_columns = [row[0] for row in self.get_records(sql, (schema, table))]
+        pk_columns = [
+            row[0]
+            for row in self.get_records(
+                sql, (self.remove_quotes(schema), self.remove_quotes(table))
+            )
+        ]
         return pk_columns or None
 
     def generate_replace_sql(self, table, values, target_fields, **kwargs) -> str:
