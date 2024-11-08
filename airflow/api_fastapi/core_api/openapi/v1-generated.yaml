@@ -2547,11 +2547,9 @@ paths:
           title: Uri Pattern
       - name: dag_ids
         in: query
-        required: false
+        required: true
         schema:
-          type: array
-          items:
-            type: string
+          type: string
           title: Dag Ids
       - name: order_by
         in: query

@@ -29,7 +29,7 @@ from sqlalchemy.inspection import inspect
 from typing_extensions import Annotated, Self
 
 from airflow.models import Base, Connection
-from airflow.models.asset import AssetModel
+from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
@@ -346,6 +346,28 @@ class _UriPatternSearch(_SearchParam):
         return self.set_value(uri_pattern)
 
 
+class _DagIdAssetReferencePatternSearch(_SearchParam):
+    """Search on dag_id."""
+
+    def __init__(self, skip_none: bool = True) -> None:
+        super().__init__(AssetModel.consuming_dags, skip_none)
+        self.task_attribute = AssetModel.consuming_dags
+
+    def depends(self, dag_ids: str) -> _DagIdAssetReferencePatternSearch:
+        return self.set_value(dag_ids)
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        if self.value is not None:
+            dags_list = self.value.split(",")
+        print("dags list", dags_list)
+        return select.filter(
+            (self.attribute.any(DagScheduleAssetReference.dag_id.in_(dags_list)))
+            | (self.task_attribute.any(TaskOutletAssetReference.dag_id.in_(dags_list)))
+        )
+
+
 # Common Safe DateTime
 DateTimeQuery = Annotated[str, AfterValidator(_safe_parse_datetime)]
 
@@ -377,3 +399,6 @@ QueryDagTagPatternSearch = Annotated[_DagTagNamePatternSearch, Depends(_DagTagNa
 
 # Assets
 QueryUriPatternSearch = Annotated[_UriPatternSearch, Depends(_UriPatternSearch().depends)]
+QueryAssetDagIdPatternSearch = Annotated[
+    _DagIdAssetReferencePatternSearch, Depends(_DagIdAssetReferencePatternSearch().depends)
+]

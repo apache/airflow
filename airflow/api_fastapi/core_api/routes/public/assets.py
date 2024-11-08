@@ -25,7 +25,7 @@ from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
 from airflow.api_fastapi.common.parameters import (
-    QueryDagIdsFilter,
+    QueryAssetDagIdPatternSearch,
     QueryLimit,
     QueryOffset,
     QueryUriPatternSearch,
@@ -47,7 +47,7 @@ async def get_assets(
     limit: QueryLimit,
     offset: QueryOffset,
     uri_pattern: QueryUriPatternSearch,
-    dag_ids: QueryDagIdsFilter,
+    dag_ids: QueryAssetDagIdPatternSearch,
     order_by: Annotated[
         SortParam,
         Depends(SortParam(["id", "uri", "created_at", "updated_at"], AssetModel).dynamic_depends()),

@@ -124,16 +124,16 @@ export class AssetService {
    * Get Assets
    * Get assets.
    * @param data The data for the request.
+   * @param data.dagIds
    * @param data.limit
    * @param data.offset
    * @param data.uriPattern
-   * @param data.dagIds
    * @param data.orderBy
    * @returns AssetCollectionResponse Successful Response
    * @throws ApiError
    */
   public static getAssets(
-    data: GetAssetsData = {},
+    data: GetAssetsData,
   ): CancelablePromise<GetAssetsResponse> {
     return __request(OpenAPI, {
       method: "GET",

@@ -787,7 +787,7 @@ export type NextRunAssetsResponse = {
 };
 
 export type GetAssetsData = {
-  dagIds?: Array<string>;
+  dagIds: string;
   limit?: number;
   offset?: number;
   orderBy?: string;
