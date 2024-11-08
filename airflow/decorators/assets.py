@@ -108,11 +108,6 @@ class AssetDefinition(Asset):
                 uri=self.uri,
             )
 
-        # TODO: Currently this just gets serialized into a string.
-        # When we create UI for assets, we should add logic to serde so the
-        # serialized DAG contains appropriate asset information.
-        dag._wrapped_definition = self
-
         DAG.bulk_write_to_db([dag])
 
     def to_asset(self) -> Asset:

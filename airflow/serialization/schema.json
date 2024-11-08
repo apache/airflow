@@ -194,12 +194,7 @@
           { "$ref": "#/definitions/task_group" }
         ]},
         "edge_info": { "$ref": "#/definitions/edge_info" },
-        "dag_dependencies": { "$ref": "#/definitions/dag_dependencies" },
-        "_wrapped_definition": {
-          "anyOf": [
-            { "$ref": "#/definitions/asset_definition"}
-          ]
-        }
+        "dag_dependencies": { "$ref": "#/definitions/dag_dependencies" }
       },
       "required": [
         "dag_id",
