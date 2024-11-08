@@ -49,7 +49,7 @@ def get_task_token() -> datamodels.TIToken:
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the connection"},
     },
 )
-async def get_connection(
+def get_connection(
     connection_id: str,
     token: Annotated[datamodels.TIToken, Depends(get_task_token)],
 ) -> datamodels.ConnectionResponse:
