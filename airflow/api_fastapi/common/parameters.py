@@ -351,7 +351,7 @@ class _DagIdAssetReferencePatternSearch(_SearchParam):
 
     def __init__(self, skip_none: bool = True) -> None:
         super().__init__(AssetModel.consuming_dags, skip_none)
-        self.task_attribute = AssetModel.consuming_dags
+        self.task_attribute = AssetModel.producing_tasks
 
     def depends(self, dag_ids: str) -> _DagIdAssetReferencePatternSearch:
         return self.set_value(dag_ids)
