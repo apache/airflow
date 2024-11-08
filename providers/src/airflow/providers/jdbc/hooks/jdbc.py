@@ -149,7 +149,7 @@ class JdbcHook(DbApiHook):
 
     @property
     def sqlalchemy_url(self) -> URL:
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        conn = self.connection
         sqlalchemy_scheme = conn.extra_dejson.get("sqlalchemy_scheme")
         if sqlalchemy_scheme is None:
             raise AirflowException(
@@ -178,7 +178,7 @@ class JdbcHook(DbApiHook):
         return super().get_sqlalchemy_engine(engine_kwargs)
 
     def get_conn(self) -> jaydebeapi.Connection:
-        conn: Connection = self.get_connection(self.get_conn_id())
+        conn: Connection = self.connection
         host: str = conn.host
         login: str = conn.login
         psw: str = conn.password
