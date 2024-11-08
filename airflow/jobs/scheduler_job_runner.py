@@ -25,6 +25,7 @@ import signal
 import sys
 import time
 from collections import Counter, defaultdict, deque
+from contextlib import suppress
 from datetime import timedelta
 from functools import lru_cache, partial
 from pathlib import Path
@@ -1809,10 +1810,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         num_allowed_retries = conf.getint("scheduler", "num_stuck_in_queued_retries")
         for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued).items():
-            if not hasattr(executor, "cleanup_stuck_queued_tasks"):
-                continue
-
-            for ti in executor.cleanup_stuck_queued_tasks(tis=stuck_tis):
+            tis: Iterable[TaskInstance] = []
+            with suppress(NotImplementedError):
+                # BaseExecutor has "abstract" method `cleanup_stuck_queued_tasks`
+                # We are tolerant of implementers not implementing it.
+                tis = executor.cleanup_stuck_queued_tasks(tis=stuck_tis)
+            for ti in tis:
                 if not isinstance(ti, TaskInstance):
                     # todo: when can we remove this?
                     #   this is for backcompat. the pre-2.10.4 version of the interface
