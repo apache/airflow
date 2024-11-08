@@ -25,11 +25,11 @@ from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.xcom import (
+from airflow.api_fastapi.core_api.datamodels.xcom import (
     XComResponseNative,
     XComResponseString,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models import DagRun as DR, XCom
 from airflow.settings import conf
 
@@ -59,6 +59,7 @@ def get_xcom_entry(
         query = select(XCom, XCom.value)
     else:
         query = select(XCom)
+        print()
 
     query = query.where(
         XCom.dag_id == dag_id, XCom.task_id == task_id, XCom.key == xcom_key, XCom.map_index == map_index
