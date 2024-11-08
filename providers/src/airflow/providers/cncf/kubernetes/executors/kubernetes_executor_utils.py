@@ -447,7 +447,11 @@ class AirflowKubernetesScheduler(LoggingMixin):
                 raise
 
     def patch_pod_delete_stuck(self, *, pod_name: str, namespace: str):
-        """Add a "done" annotation to ensure we don't continually adopt pods."""
+        """
+        Patch the pod with a label that ensures it's ignored by the kubernetes watcher.
+
+        :meta private:
+        """
         self.log.info(
             "Patching pod %s in namespace %s to note that we are deleting it "
             "because it was stuck in queued",

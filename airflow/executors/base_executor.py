@@ -25,9 +25,11 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Sequence, Tuple
 
 import pendulum
+from deprecated import deprecated
 
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
 from airflow.stats import Stats
@@ -540,9 +542,11 @@ class BaseExecutor(LoggingMixin):
         """Get called when the daemon receives a SIGTERM."""
         raise NotImplementedError
 
-    def cleanup_stuck_queued_tasks(
-        self, tis: list[TaskInstance]
-    ) -> Iterable[TaskInstance]:  # pragma: no cover
+    @deprecated(
+        reason="Replaced by function `cleanup_tasks_stuck_in_queued`.",
+        category=RemovedInAirflow3Warning,
+    )
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
 
@@ -553,7 +557,21 @@ class BaseExecutor(LoggingMixin):
         :param tis: List of Task Instances to clean up
         :return: List of readable task instances for a warning message
         """
-        raise NotImplementedError()
+        raise NotImplementedError
+
+    def cleanup_tasks_stuck_in_queued(self, *, tis: Iterable[TaskInstance]) -> Iterable[TaskInstance]:
+        """
+        Try to remove the tis from the executor so they can safely be requeued.
+
+        This function will be called for task instances that the scheduler detects
+        as having been in the queued state for too long.
+
+        The timeout duration is controlled by scheduler setting ``task_queued_timeout``.
+
+        :param tis: List of Task Instances to clean up
+        :return: List of task instances that were removed from the executor.
+        """
+        raise NotImplementedError
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """

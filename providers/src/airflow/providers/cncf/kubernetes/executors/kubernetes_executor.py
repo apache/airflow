@@ -33,13 +33,12 @@ from collections import Counter, defaultdict
 from contextlib import suppress
 from datetime import datetime
 from queue import Empty, Queue
-from typing import TYPE_CHECKING, Any, Generator, Sequence
+from typing import TYPE_CHECKING, Any, Generator, Iterable, Sequence
 
+from deprecated import deprecated
 from kubernetes.dynamic import DynamicClient
-from packaging.version import Version
 from sqlalchemy import or_, select, update
 
-from airflow import __version__ as airflow_version
 from airflow.cli.cli_config import (
     ARG_DAG_ID,
     ARG_EXECUTION_DATE,
@@ -53,6 +52,7 @@ from airflow.cli.cli_config import (
     positive_int,
 )
 from airflow.configuration import conf
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import KUBERNETES_EXECUTOR
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
@@ -607,7 +607,27 @@ class KubernetesExecutor(BaseExecutor):
             tis_to_flush.extend(_iter_tis_to_flush())
             return tis_to_flush
 
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> Generator[TaskInstance, None, None]:
+    @deprecated(
+        reason="Replaced by function `cleanup_tasks_stuck_in_queued`.",
+        category=AirflowProviderDeprecationWarning,
+    )
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
+        """
+        Handle remnants of tasks that were failed because they were stuck in queued.
+
+        Tasks can get stuck in queued. If such a task is detected, it will be marked
+        as `UP_FOR_RETRY` if the task instance has remaining retries or marked as `FAILED`
+        if it doesn't.
+
+        :param tis: List of Task Instances to clean up
+        :return: List of readable task instances for a warning message
+        """
+        cleaned_up_tis = self.cleanup_tasks_stuck_in_queued(tis=tis)
+        return [repr(x) for x in cleaned_up_tis]
+
+    def cleanup_tasks_stuck_in_queued(
+        self, *, tis: Iterable[TaskInstance]
+    ) -> Generator[TaskInstance, None, None]:
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
 
@@ -634,7 +654,11 @@ class KubernetesExecutor(BaseExecutor):
             if not pod:
                 self.log.warning("Cannot find pod for ti %s", ti)
                 continue
-            if Version(airflow_version) >= Version("2.10.4"):
+
+            # If the executor interface has function 'cleanup_tasks_stuck_in_queued',
+            # then we know that it will try to requeue the task. In that case, we patch
+            # the pod with a label that ensures it's ignored by the kubernetes watcher
+            if hasattr(super(), "cleanup_tasks_stuck_in_queued"):
                 self.kube_scheduler.patch_pod_delete_stuck(
                     pod_name=pod.metadata.name, namespace=pod.metadata.namespace
                 )

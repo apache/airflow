@@ -17,9 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generator, Sequence
+from typing import TYPE_CHECKING, Generator, Iterable, Sequence
+
+from deprecated import deprecated
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
 
@@ -230,11 +233,22 @@ class LocalKubernetesExecutor(BaseExecutor):
             *self.kubernetes_executor.try_adopt_task_instances(kubernetes_tis),
         ]
 
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> Generator[TaskInstance, None, None]:
+    @deprecated(
+        reason="Replaced by function `cleanup_tasks_stuck_in_queued`.",
+        category=AirflowProviderDeprecationWarning,
+        action="ignore",  # ignoring since will get warning from the nested executors
+    )
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
         # LocalExecutor doesn't have a cleanup_stuck_queued_tasks method, so we
         # will only run KubernetesExecutor's
         kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
-        yield from self.kubernetes_executor.cleanup_stuck_queued_tasks(kubernetes_tis)
+        return self.kubernetes_executor.cleanup_stuck_queued_tasks(kubernetes_tis)
+
+    def cleanup_tasks_stuck_in_queued(
+        self, *, tis: Iterable[TaskInstance]
+    ) -> Generator[TaskInstance, None, None]:
+        kubernetes_tis = (x for x in tis if x.queue == self.KUBERNETES_QUEUE)
+        yield from self.kubernetes_executor.cleanup_tasks_stuck_in_queued(tis=kubernetes_tis)
 
     def end(self) -> None:
         """End local and kubernetes executor."""

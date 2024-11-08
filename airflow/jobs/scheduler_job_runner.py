@@ -1810,24 +1810,26 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         num_allowed_retries = conf.getint("scheduler", "num_stuck_in_queued_retries")
         for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued).items():
-            tis: Iterable[TaskInstance] = []
+            tis = None
             with suppress(NotImplementedError):
-                # BaseExecutor has "abstract" method `cleanup_stuck_queued_tasks`
+                # BaseExecutor has "abstract" method `cleanup_tasks_stuck_in_queued`
                 # We are tolerant of implementers not implementing it.
-                tis = executor.cleanup_stuck_queued_tasks(tis=stuck_tis)
+                tis = executor.cleanup_tasks_stuck_in_queued(tis=stuck_tis)
+            if tis is None:  # todo: remove this whole block in airflow 3.0
+                # here we handle case where the executor pre-dates the interface change
+                # introducing `cleanup_tasks_stuck_in_queued` and deprecating cleanup_stuck_queued_tasks
+                with suppress(NotImplementedError):
+                    for ti_repr in executor.cleanup_stuck_queued_tasks(tis=stuck_tis):
+                        self.log.warning(
+                            "Task instance %s stuck in queued.  May be set to failed.",
+                            ti_repr,
+                        )
+                continue
+
+            # ok we know that we now have a "modern" version of the executor, which
+            # expects us to try to requeue tasks "cleaned up" by `cleanup_stuck_queued_tasks`
             for ti in tis:
-                if not isinstance(ti, TaskInstance):
-                    # todo: when can we remove this?
-                    #   this is for backcompat. the pre-2.10.4 version of the interface
-                    #   expected a string return val.
-                    self.log.warning(
-                        "Task instance %s stuck in queued.  May be set to failed.",
-                        ti,
-                    )
-                    continue
-
                 self.log.warning("Task stuck in queued and may be requeued. task_id=%s", ti.key)
-
                 num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
                 if num_times_stuck < num_allowed_retries:
                     session.add(
@@ -1845,7 +1847,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self._reschedule_stuck_task(ti)
                 else:
                     self.log.warning(
-                        "Task requeue attempts exceeded max; marking failed. task_instance=%s", ti
+                        "Task requeue attempts exceeded max; marking failed. task_instance=%s",
+                        ti,
                     )
                     session.add(
                         Log(
