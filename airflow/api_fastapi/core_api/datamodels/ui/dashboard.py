@@ -14,23 +14,50 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
 from pydantic import BaseModel
 
-from airflow.api_fastapi.core_api.serializers.dag_run import DAGRunResponse
-from airflow.api_fastapi.core_api.serializers.dags import DAGResponse
+
+class DAGRunTypes(BaseModel):
+    """DAG Run Types for responses."""
+
+    backfill: int
+    scheduled: int
+    manual: int
+    asset_triggered: int
 
 
-class DAGWithLatestDagRunsResponse(DAGResponse):
-    """DAG with latest dag runs response serializer."""
+class DAGRunStates(BaseModel):
+    """DAG Run States for responses."""
 
-    latest_dag_runs: list[DAGRunResponse]
+    queued: int
+    running: int
+    success: int
+    failed: int
 
 
-class DAGWithLatestDagRunsCollectionResponse(BaseModel):
-    """DAG with latest dag runs collection response serializer."""
+class TaskInstanceStateCount(BaseModel):
+    """TaskInstance serializer for responses."""
 
-    total_entries: int
-    dags: list[DAGWithLatestDagRunsResponse]
+    no_status: int
+    removed: int
+    scheduled: int
+    queued: int
+    running: int
+    success: int
+    restarting: int
+    failed: int
+    up_for_retry: int
+    up_for_reschedule: int
+    upstream_failed: int
+    skipped: int
+    deferred: int
+
+
+class HistoricalMetricDataResponse(BaseModel):
+    """Historical Metric Data serializer for responses."""
+
+    dag_run_types: DAGRunTypes
+    dag_run_states: DAGRunStates
+    task_instance_states: TaskInstanceStateCount
