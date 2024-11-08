@@ -99,7 +99,7 @@ TI = TaskInstance
 DR = DagRun
 DM = DagModel
 
-TASK_REQUEUE_ATTEMPT_EVENT = "task requeue attempt"
+TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
 """:meta private:"""
 
 
@@ -1830,18 +1830,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
                 if num_times_stuck < num_allowed_retries:
-                    executor.change_state(ti.key, State.SCHEDULED)
-                    self._reschedule_stuck_task(ti)
                     session.add(
                         Log(
-                            event=TASK_REQUEUE_ATTEMPT_EVENT,
+                            event=TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
                             task_instance=ti.key,
                             extra=(
                                 f"Task was in queued state for longer than {self._task_queued_timeout} "
-                                "seconds; request for requeue submitted."
+                                "seconds; task state will be set back to scheduled."
                             ),
                         )
                     )
+                    executor.change_state(ti.key, State.SCHEDULED)
+                    self._reschedule_stuck_task(ti)
                 else:
                     self.log.warning(
                         "Task requeue attempts exceeded max; marking failed. task_instance=%s", ti
@@ -1885,7 +1885,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Log.run_id == ti.run_id,
                 Log.map_index == ti.map_index,
                 Log.try_number == ti.try_number,
-                Log.event == TASK_REQUEUE_ATTEMPT_EVENT,
+                Log.event == TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
             )
             .count()
         )
