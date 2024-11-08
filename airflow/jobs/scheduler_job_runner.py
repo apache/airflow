@@ -1840,7 +1840,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             ),
                         )
                     )
-                    executor.change_state(ti.key, State.SCHEDULED)
+                    with suppress(KeyError):
+                        executor.running.remove(ti.key)
                     self._reschedule_stuck_task(ti)
                 else:
                     self.log.warning(
