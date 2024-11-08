@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.models.asset import AssetModel
+from airflow.models import DagModel
+from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 
@@ -146,6 +147,56 @@ class TestGetAssets(TestAssets):
         assert response.status_code == 200
         asset_urls = {asset["uri"] for asset in response.json()["assets"]}
         assert expected_assets == asset_urls
+
+    @pytest.mark.parametrize("dag_ids, expected_num", [("dag1,dag2", 2), ("dag3", 1), ("dag2,dag3", 2)])
+    @provide_session
+    def test_filter_assets_by_dag_ids_works(self, test_client, dag_ids, expected_num, session):
+        session.query(DagModel).delete()
+        session.commit()
+        dag1 = DagModel(dag_id="dag1")
+        dag2 = DagModel(dag_id="dag2")
+        dag3 = DagModel(dag_id="dag3")
+        asset1 = AssetModel("s3://folder/key")
+        asset2 = AssetModel("gcp://bucket/key")
+        asset3 = AssetModel("somescheme://asset/key")
+        dag_ref1 = DagScheduleAssetReference(dag_id="dag1", asset=asset1)
+        dag_ref2 = DagScheduleAssetReference(dag_id="dag2", asset=asset2)
+        task_ref1 = TaskOutletAssetReference(dag_id="dag3", task_id="task1", asset=asset3)
+        session.add_all([asset1, asset2, asset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1])
+        session.commit()
+        response = test_client.get(
+            f"/public/assets?dag_ids={dag_ids}",
+        )
+        assert response.status_code == 200
+        response_data = response.json()
+        assert len(response_data["assets"]) == expected_num
+
+    @pytest.mark.parametrize(
+        "dag_ids, uri_pattern,expected_num",
+        [("dag1,dag2", "folder", 1), ("dag3", "nothing", 0), ("dag2,dag3", "key", 2)],
+    )
+    def test_filter_assets_by_dag_ids_and_uri_pattern_works(
+        self, test_client, dag_ids, uri_pattern, expected_num, session
+    ):
+        session.query(DagModel).delete()
+        session.commit()
+        dag1 = DagModel(dag_id="dag1")
+        dag2 = DagModel(dag_id="dag2")
+        dag3 = DagModel(dag_id="dag3")
+        asset1 = AssetModel("s3://folder/key")
+        asset2 = AssetModel("gcp://bucket/key")
+        asset3 = AssetModel("somescheme://asset/key")
+        dag_ref1 = DagScheduleAssetReference(dag_id="dag1", asset=asset1)
+        dag_ref2 = DagScheduleAssetReference(dag_id="dag2", asset=asset2)
+        task_ref1 = TaskOutletAssetReference(dag_id="dag3", task_id="task1", asset=asset3)
+        session.add_all([asset1, asset2, asset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1])
+        session.commit()
+        response = test_client.get(
+            f"/public/assets?dag_ids={dag_ids}&uri_pattern={uri_pattern}",
+        )
+        assert response.status_code == 200
+        response_data = response.json()
+        assert len(response_data["assets"]) == expected_num
 
 
 class TestGetAssetsEndpointPagination(TestAssets):
