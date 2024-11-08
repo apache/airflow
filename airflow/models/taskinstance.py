@@ -45,6 +45,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     Float,
+    ForeignKey,
     ForeignKeyConstraint,
     Index,
     Integer,
@@ -69,6 +70,7 @@ from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import lazyload, reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy.sql.expression import case, select
+from sqlalchemy_utils import UUIDType
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
@@ -821,6 +823,7 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.trigger_id = source.trigger_id
     target.next_method = source.next_method
     target.next_kwargs = source.next_kwargs
+    target.dag_version_id = source.dag_version_id
 
     if include_dag_run:
         target.execution_date = source.execution_date
@@ -839,7 +842,7 @@ def _set_ti_attrs(target, source, include_dag_run=False):
         target.dag_run.data_interval_start = source.dag_run.data_interval_start
         target.dag_run.data_interval_end = source.dag_run.data_interval_end
         target.dag_run.last_scheduling_decision = source.dag_run.last_scheduling_decision
-        target.dag_run.dag_hash = source.dag_run.dag_hash
+        target.dag_run.dag_version_id = source.dag_run.dag_version_id
         target.dag_run.updated_at = source.dag_run.updated_at
         target.dag_run.log_template_id = source.dag_run.log_template_id
 
@@ -1876,8 +1879,10 @@ class TaskInstance(Base, LoggingMixin):
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
     _task_display_property_value = Column("task_display_name", String(2000), nullable=True)
+    dag_version_id = Column(UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"))
+    dag_version = relationship("DagVersion", back_populates="task_instances")
     # If adding new fields here then remember to add them to
-    # refresh_from_db() or they won't display in the UI correctly
+    # _set_ti_attrs() or they won't display in the UI correctly
 
     __table_args__ = (
         Index("ti_dag_state", dag_id, state),
@@ -1942,11 +1947,13 @@ class TaskInstance(Base, LoggingMixin):
         run_id: str | None = None,
         state: str | None = None,
         map_index: int = -1,
+        dag_version_id: UUIDType | None = None,
     ):
         super().__init__()
         self.dag_id = task.dag_id
         self.task_id = task.task_id
         self.map_index = map_index
+        self.dag_version_id = dag_version_id
         self.refresh_from_task(task)
         if TYPE_CHECKING:
             assert self.task
@@ -1978,7 +1985,7 @@ class TaskInstance(Base, LoggingMixin):
         return _stats_tags(task_instance=self)
 
     @staticmethod
-    def insert_mapping(run_id: str, task: Operator, map_index: int) -> dict[str, Any]:
+    def insert_mapping(run_id: str, task: Operator, map_index: int, dag_version_id: int) -> dict[str, Any]:
         """
         Insert mapping.
 
@@ -2007,6 +2014,7 @@ class TaskInstance(Base, LoggingMixin):
             "custom_operator_name": getattr(task, "custom_operator_name", None),
             "map_index": map_index,
             "_task_display_property_value": task.task_display_name,
+            "dag_version_id": dag_version_id,
         }
 
     @reconstructor
@@ -3638,100 +3646,6 @@ class TaskInstance(Base, LoggingMixin):
         if len(filters) == 1:
             return filters[0]
         return or_(*filters)
-
-    @classmethod
-    @provide_session
-    def _schedule_downstream_tasks(
-        cls,
-        ti: TaskInstance | TaskInstancePydantic,
-        session: Session = NEW_SESSION,
-        max_tis_per_query: int | None = None,
-    ):
-        from sqlalchemy.exc import OperationalError
-
-        from airflow.models.dagrun import DagRun
-
-        try:
-            # Re-select the row with a lock
-            dag_run = with_row_locks(
-                session.query(DagRun).filter_by(
-                    dag_id=ti.dag_id,
-                    run_id=ti.run_id,
-                ),
-                session=session,
-                skip_locked=True,
-            ).one_or_none()
-
-            if not dag_run:
-                cls.logger().debug("Skip locked rows, rollback")
-                session.rollback()
-                return
-
-            task = ti.task
-            if TYPE_CHECKING:
-                assert task
-                assert task.dag
-
-            # Previously, this section used task.dag.partial_subset to retrieve a partial DAG.
-            # However, this approach is unsafe as it can result in incomplete or incorrect task execution,
-            # leading to potential bad cases. As a result, the operation has been removed.
-            # For more details, refer to the discussion in PR #[https://github.com/apache/airflow/pull/42582].
-            dag_run.dag = task.dag
-            info = dag_run.task_instance_scheduling_decisions(session)
-
-            skippable_task_ids = {
-                task_id for task_id in task.dag.task_ids if task_id not in task.downstream_task_ids
-            }
-
-            schedulable_tis = [
-                ti
-                for ti in info.schedulable_tis
-                if ti.task_id not in skippable_task_ids
-                and not (
-                    ti.task.inherits_from_empty_operator
-                    and not ti.task.on_execute_callback
-                    and not ti.task.on_success_callback
-                    and not ti.task.outlets
-                )
-            ]
-            for schedulable_ti in schedulable_tis:
-                if getattr(schedulable_ti, "task", None) is None:
-                    schedulable_ti.task = task.dag.get_task(schedulable_ti.task_id)
-
-            num = dag_run.schedule_tis(schedulable_tis, session=session, max_tis_per_query=max_tis_per_query)
-            cls.logger().info("%d downstream tasks scheduled from follow-on schedule check", num)
-
-            session.flush()
-
-        except OperationalError as e:
-            # Any kind of DB error here is _non fatal_ as this block is just an optimisation.
-            cls.logger().warning(
-                "Skipping mini scheduling run due to exception: %s",
-                e.statement,
-                exc_info=True,
-            )
-            session.rollback()
-
-    @provide_session
-    def schedule_downstream_tasks(self, session: Session = NEW_SESSION, max_tis_per_query: int | None = None):
-        """
-        Schedule downstream tasks of this task instance.
-
-        :meta: private
-        """
-        try:
-            return TaskInstance._schedule_downstream_tasks(
-                ti=self, session=session, max_tis_per_query=max_tis_per_query
-            )
-        except Exception:
-            self.log.exception(
-                "Error scheduling downstream tasks. Skipping it as this is entirely optional optimisation. "
-                "There might be various reasons for it, please take a look at the stack trace to figure "
-                "out if the root cause can be diagnosed and fixed. See the issue "
-                "https://github.com/apache/airflow/issues/39717 for details and an example problem. If you "
-                "would like to get help in solving root cause, open discussion with all details with your "
-                "managed service support or in Airflow repository."
-            )
 
     def get_relevant_upstream_map_indexes(
         self,

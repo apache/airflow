@@ -88,6 +88,7 @@ class TestDagRun:
         db.clear_db_variables()
         db.clear_db_assets()
         db.clear_db_xcom()
+        db.clear_db_dags()
 
     def create_dag_run(
         self,

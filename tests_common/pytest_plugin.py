@@ -50,6 +50,23 @@ if TYPE_CHECKING:
 
     Op = TypeVar("Op", bound=BaseOperator)
 
+# NOTE: DO NOT IMPORT AIRFLOW THINGS HERE!
+#
+# This plugin is responsible for configuring Airflow correctly to run tests.
+# Importing Airflow here loads Airflow too eagerly and break the configurations.
+# Instead, import what you want lazily inside a fixture function.
+#
+# Be aware that many things in tests_common also indirectly imports Airflow, so
+# those modules also should not be imported globally.
+#
+# (Things in the TYPE_CHECKING block are fine because they are not actually
+# imported at runtime; those imports are only hints to the type checker.)
+
+assert "airflow" not in sys.modules, (
+    "Airflow SHOULD NOT have been imported at this point! "
+    "Read comments in pytest_plugin.py to understand more."
+)
+
 # https://docs.pytest.org/en/stable/reference/reference.html#stash
 capture_warnings_key = pytest.StashKey["CaptureWarningsPlugin"]()
 forbidden_warnings_key = pytest.StashKey["ForbiddenWarningsPlugin"]()
@@ -884,11 +901,32 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 self.serialized_model = SerializedDagModel(
                     dag, processor_subdir=self.dag_model.processor_subdir
                 )
-                self.session.merge(self.serialized_model)
+                sdm = SerializedDagModel.get(dag.dag_id, session=self.session)
+                from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+                if AIRFLOW_V_3_0_PLUS and not sdm:
+                    from airflow.models.dag_version import DagVersion
+                    from airflow.models.dagcode import DagCode
+
+                    dagv = DagVersion.write_dag(
+                        dag_id=dag.dag_id,
+                        session=self.session,
+                        version_name=dag.version_name,
+                    )
+                    self.session.add(dagv)
+                    self.session.flush()
+                    dag_code = DagCode(dagv, dag.fileloc, "Source")
+                    self.session.merge(dag_code)
+                    self.serialized_model.dag_version = dagv
+                    if self.want_activate_assets:
+                        self._activate_assets()
+                if sdm:
+                    self.serialized_model = sdm
+                else:
+                    self.session.merge(self.serialized_model)
                 serialized_dag = self._serialized_dag()
                 self._bag_dag_compat(serialized_dag)
-                if AIRFLOW_V_3_0_PLUS and self.want_activate_assets:
-                    self._activate_assets()
+
                 self.session.flush()
             else:
                 self._bag_dag_compat(self.dag)
@@ -1007,16 +1045,30 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                         return
                     # To isolate problems here with problems from elsewhere on the session object
                     self.session.rollback()
+                    from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
-                    self.session.query(SerializedDagModel).filter(
-                        SerializedDagModel.dag_id.in_(dag_ids)
-                    ).delete(synchronize_session=False)
-                    self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False,
-                    )
-                    self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
-                        synchronize_session=False,
-                    )
+                    if AIRFLOW_V_3_0_PLUS:
+                        from airflow.models.dag_version import DagVersion
+
+                        self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(
+                            synchronize_session=False,
+                        )
+                        self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
+                            synchronize_session=False,
+                        )
+                        self.session.query(DagVersion).filter(DagVersion.dag_id.in_(dag_ids)).delete(
+                            synchronize_session=False
+                        )
+                    else:
+                        self.session.query(SerializedDagModel).filter(
+                            SerializedDagModel.dag_id.in_(dag_ids)
+                        ).delete(synchronize_session=False)
+                        self.session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids)).delete(
+                            synchronize_session=False,
+                        )
+                        self.session.query(TaskInstance).filter(TaskInstance.dag_id.in_(dag_ids)).delete(
+                            synchronize_session=False,
+                        )
                     self.session.query(XCom).filter(XCom.dag_id.in_(dag_ids)).delete(
                         synchronize_session=False,
                     )
@@ -1194,6 +1246,9 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
         on_retry_callback=None,
         email=None,
         map_index=-1,
+        hostname=None,
+        pid=None,
+        last_heartbeat_at=None,
         **kwargs,
     ) -> TaskInstance:
         from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
@@ -1243,7 +1298,9 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
         ti.state = state
         ti.external_executor_id = external_executor_id
         ti.map_index = map_index
-
+        ti.hostname = hostname or ""
+        ti.pid = pid
+        ti.last_heartbeat_at = last_heartbeat_at
         dag_maker.session.flush()
         return ti
 
