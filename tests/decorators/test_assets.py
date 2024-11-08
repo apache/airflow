@@ -142,19 +142,23 @@ class TestAssetDefinition:
         )
 
         python_callable = _AssetMainOperator.call_args.kwargs["python_callable"]
-        assert python_callable.__wrapped__ == example_asset_func_with_valid_arg_as_inlet_asset
+        assert python_callable == example_asset_func_with_valid_arg_as_inlet_asset
 
 
 class Test_AssetMainOperator:
     def test_determine_kwargs(self, example_asset_func_with_valid_arg_as_inlet_asset, session):
-        example_asset = AssetModel(uri="s3://bucket/object1", name="inlet_asset_1")
-        session.add(example_asset)
-        session.add(AssetActive.for_asset(example_asset))
-        session.commit()
-
+        example_asset_model = AssetModel(uri="s3://bucket/object1", name="inlet_asset_1")
         asset_definition = asset(schedule=None, uri="s3://bucket/object", group="MLModel", extra={"k": "v"})(
             example_asset_func_with_valid_arg_as_inlet_asset
         )
+
+        ad_asset_model = AssetModel.from_public(asset_definition)
+
+        session.add(example_asset_model)
+        session.add(ad_asset_model)
+        session.add(AssetActive.for_asset(example_asset_model))
+        session.add(AssetActive.for_asset(ad_asset_model))
+        session.commit()
 
         op = _AssetMainOperator(
             task_id="__main__",
@@ -164,7 +168,9 @@ class Test_AssetMainOperator:
             definition_name="example_asset_func",
         )
         assert op.determine_kwargs(context={"k": "v"}) == {
-            "_self": Asset(name="example_asset_func"),
+            "self": Asset(
+                name="example_asset_func", uri="s3://bucket/object", group="MLModel", extra={"k": "v"}
+            ),
             "context": {"k": "v"},
             "inlet_asset_1": Asset(name="inlet_asset_1", uri="s3://bucket/object1"),
             "inlet_asset_2": Asset(name="inlet_asset_2"),

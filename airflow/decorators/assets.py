@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import inspect
-from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, Iterator, Mapping
 
 import attrs
@@ -30,8 +29,6 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
-    from typing import Sequence
-
     from airflow.io.path import ObjectStoragePath
 
 
@@ -47,12 +44,7 @@ class _AssetMainOperator(PythonOperator):
         value: Any
         for key in inspect.signature(self.python_callable).parameters:
             if key == "self":
-                key = "_self"
                 value = active_assets.get(self._definition_name)
-                if not value:
-                    value = Asset(name=self._definition_name)
-                    if self._uri is not None:
-                        value.uri = self._uri
             elif key == "context":
                 value = context
             else:
@@ -71,14 +63,6 @@ class _AssetMainOperator(PythonOperator):
         return dict(self._iter_kwargs(context, active_assets))
 
 
-def _handle_self_argument(func: Callable) -> Callable:
-    @wraps(func)
-    def wrapper(_self: Any, *args: Sequence[Any], **kwargs: dict[str, Any]) -> Any:
-        return func(_self, *args, **kwargs)
-
-    return wrapper
-
-
 @attrs.define(kw_only=True)
 class AssetDefinition(Asset):
     """
@@ -92,10 +76,8 @@ class AssetDefinition(Asset):
 
     def __attrs_post_init__(self) -> None:
         parameters = inspect.signature(self.function).parameters
-        if "self" in parameters:
-            self.function: Callable = _handle_self_argument(self.function)
 
-        with DAG(dag_id=self.name, schedule=self.schedule, auto_register=True) as dag:
+        with DAG(dag_id=self.name, schedule=self.schedule, auto_register=True):
             _AssetMainOperator(
                 task_id="__main__",
                 inlets=[
@@ -108,8 +90,6 @@ class AssetDefinition(Asset):
                 definition_name=self.name,
                 uri=self.uri,
             )
-
-        DAG.bulk_write_to_db([dag])
 
     def to_asset(self) -> Asset:
         return Asset(
