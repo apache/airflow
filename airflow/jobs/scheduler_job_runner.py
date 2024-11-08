@@ -99,7 +99,7 @@ TI = TaskInstance
 DR = DagRun
 DM = DagModel
 
-STUCK_IN_QUEUED_EVENT = "stuck in queued"
+TASK_REQUEUE_ATTEMPT_EVENT = "task requeue attempt"
 """:meta private:"""
 
 
@@ -1828,7 +1828,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 session.add(
                     Log(
-                        event=STUCK_IN_QUEUED_EVENT,
+                        event="stuck in queued",
                         task_instance=ti.key,
                         extra=(
                             "Task was in queued state for longer "
@@ -1840,18 +1840,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
                 if num_times_stuck < num_allowed_retries:
+                    executor.change_state(ti.key, State.SCHEDULED)
+                    self._reschedule_stuck_task(ti)
                     session.add(
                         Log(
-                            event="requeing stuck task",
+                            event=TASK_REQUEUE_ATTEMPT_EVENT,
                             task_instance=ti.key,
                             extra=(
-                                "Task was in queued state for longer "
-                                f"than {self._task_queued_timeout} seconds."
+                                "Task was in queued state for longer than allowed; "
+                                "request for requeue submitted."
                             ),
                         )
                     )
-                    executor.change_state(ti.key, State.SCHEDULED)
-                    self._reschedule_stuck_task(ti)
                 else:
                     self.log.warning(
                         "Task requeue attempts exceeded max; marking failed. task_instance=%s", ti
@@ -1895,7 +1895,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Log.run_id == ti.run_id,
                 Log.map_index == ti.map_index,
                 Log.try_number == ti.try_number,
-                Log.event == STUCK_IN_QUEUED_EVENT,
+                Log.event == TASK_REQUEUE_ATTEMPT_EVENT,
             )
             .count()
         )
