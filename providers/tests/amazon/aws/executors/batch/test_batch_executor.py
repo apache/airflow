@@ -98,7 +98,7 @@ class TestBatchJobCollection:
     """Tests BatchJobCollection Class"""
 
     @pytest.fixture(autouse=True)
-    def setup_method(self):
+    def _setup_method(self):
         """
         Create a BatchJobCollection object and add 2 airflow tasks. Populates self.collection,
         self.first/second_task, self.first/second_airflow_key, and self.first/second_airflow_cmd.
@@ -148,7 +148,7 @@ class TestBatchJob:
     """Tests the BatchJob DTO"""
 
     @pytest.fixture(autouse=True)
-    def setup_method(self):
+    def _setup_method(self):
         self.all_statuses = ["SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING", "SUCCEEDED", "FAILED"]
         self.running = "RUNNING"
         self.success = "SUCCEEDED"
