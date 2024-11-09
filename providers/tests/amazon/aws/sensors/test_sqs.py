@@ -47,7 +47,7 @@ def mocked_client():
 
 class TestSqsSensor:
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self):
+    def _setup_test_cases(self):
         self.default_op_kwargs = {
             "task_id": "test_task",
             "aws_conn_id": None,
