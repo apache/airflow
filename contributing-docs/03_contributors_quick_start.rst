@@ -31,8 +31,8 @@ There are three ways you can run the Airflow dev env:
 
 1. With a Docker Containers and Docker Compose (on your local machine). This environment is managed
    with `Breeze <../dev/breeze/doc/README.rst>`_ tool written in Python that makes the environment
-   management, yeah you guessed it - a breeze.
-2. With a local virtual environment (on your local machine).
+   management, yeah you guessed it - a breeze
+2. With a local virtual environment (on your local machine)
 3. With a remote, managed environment (via remote development environment)
 
 Before deciding which method to choose, there are a couple of factors to consider:
@@ -77,14 +77,14 @@ Docker Community Edition
     "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
     $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-2. Install Docker Engine, containerd, and Docker Compose Plugin.
+2. Install Docker Engine, containerd, and Docker Compose Plugin
 
 .. code-block:: bash
 
   sudo apt-get update
   sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-3. Creating group for docker and adding current user to it.
+3. Creating group for docker and adding current user to it
 
 .. code-block:: bash
 
@@ -105,13 +105,13 @@ If you use Colima as your container runtimes engine, please follow the next step
 
 1. `Install buildx manually <https://github.com/docker/buildx#manual-download>`_ and follow its instructions
 
-2. Link the Colima socket to the default socket path. Note that this may break other Docker servers.
+2. Link the Colima socket to the default socket path. Note that this may break other Docker servers
 
 .. code-block:: bash
 
   sudo ln -sf $HOME/.colima/default/docker.sock /var/run/docker.sock
 
-3. Change docker context to use default:
+3. Change docker context to use default
 
 .. code-block:: bash
 
@@ -147,7 +147,7 @@ Setting up virtual-env
    as your build and integration frontend, and we already use ``hatchling`` build backend for Airflow.
    You can read more about Hatch and it's use in Airflow in `Local virtualenv <07_local_virtualenv.rst>`_.
    See [PEP-517](https://peps.python.org/pep-0517/#terminology-and-goals) for explanation of what the
-   frontend and backend meaning is.
+   frontend and backend meaning is
 
 2. After creating, you need to install a few more required packages for Airflow. The below command adds
    basic system-level dependencies on Debian/Ubuntu-like system. You will have to adapt it to install similar packages
@@ -170,12 +170,12 @@ like system, this command will install all necessary dependencies that should be
   software-properties-common sqlite3 sudo unixodbc unixodbc-dev
 
 3. With Hatch you can enter the virtual environment with ``hatch shell`` command, check
-   `Local virtualenvs <./07_local_virtualenv.rst#using-hatch>`__ for more details:
+   `Local virtualenvs <./07_local_virtualenv.rst#using-hatch>`__ for more details
 
 Forking and cloning Project
 ---------------------------
 
-1. Goto |airflow_github| and fork the project.
+1. Goto |airflow_github| and fork the project
 
    .. |airflow_github| raw:: html
 
@@ -188,7 +188,7 @@ Forking and cloning Project
             alt="Forking Apache Airflow project">
      </div>
 
-2. Goto your github account's fork of airflow click on ``Code`` you will find the link to your repo.
+2. Goto your github account's fork of airflow click on ``Code`` you will find the link to your repo
 
    .. raw:: html
 
@@ -199,7 +199,7 @@ Forking and cloning Project
 
 3. Follow `Cloning a repository <https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository>`_
    to clone the repo locally (you can also do it in your IDE - see the `Using your IDE`_
-   chapter below.
+   chapter below
 
 Note: For windows based machines, on cloning, the Git line endings may be different from unix based systems
 and might lead to unexpected behaviour on running breeze tooling. Manually setting a property will mitigate this issue.
@@ -224,11 +224,11 @@ Setting up Breeze
 
 1. Install ``pipx`` (>=1.2.1) - follow the instructions in `Install pipx <https://pipx.pypa.io/stable/>`_
    It is important to install version of pipx >= 1.2.1 to workaround ``packaging`` breaking change introduced
-   in September 2023.
+   in September 2023
 
 2. Run ``pipx install -e ./dev/breeze`` in your checked-out repository. Make sure to follow any instructions
    printed by ``pipx`` during the installation - this is needed to make sure that ``breeze`` command is
-   available in your PATH.
+   available in your PATH
 
 .. warning::
 
@@ -271,11 +271,11 @@ Setting up Breeze
 
 5. When you enter Breeze environment you should see prompt similar to ``root@e4756f6ac886:/opt/airflow#``. This
    means that you are inside the Breeze container and ready to run most of the development tasks. You can leave
-   the environment with ``exit`` and re-enter it with just ``breeze`` command.
+   the environment with ``exit`` and re-enter it with just ``breeze`` command
 
 6. Once you enter breeze environment, create airflow tables and users from the breeze CLI. ``airflow db reset``
    is required to execute at least once for Airflow Breeze to get the database/tables created. If you run
-   tests, however - the test database will be initialized automatically for you.
+   tests, however - the test database will be initialized automatically for you
 
 .. code-block:: bash
 
@@ -293,7 +293,7 @@ Setting up Breeze
 
 7. Exiting Breeze environment. After successfully finishing above command will leave you in container,
    type ``exit`` to exit the container. The database created before will remain and servers will be
-   running though, until you stop breeze environment completely.
+   running though, until you stop breeze environment completely
 
 .. code-block:: bash
 
@@ -301,7 +301,7 @@ Setting up Breeze
   root@b76fcb399bb6:/opt/airflow# exit
 
 8. You can stop the environment (which means deleting the databases and database servers running in the
-   background) via ``breeze down`` command.
+   background) via ``breeze down`` command
 
 .. code-block:: bash
 
@@ -314,7 +314,7 @@ Using Breeze
 1. Starting breeze environment using ``breeze start-airflow`` starts Breeze environment with last configuration run(
    In this case python and backend will be picked up from last execution ``breeze --python 3.9 --backend postgres``)
    It also automatically starts webserver, backend and scheduler. It drops you in tmux with scheduler in bottom left
-   and webserver in bottom right. Use ``[Ctrl + B] and Arrow keys`` to navigate.
+   and webserver in bottom right. Use ``[Ctrl + B] and Arrow keys`` to navigate
 
 .. code-block:: bash
 
@@ -387,7 +387,7 @@ Using Breeze
 
 
 2. Now you can access airflow web interface on your local machine at |http://127.0.0.1:28080| with user name ``admin``
-   and password ``admin``.
+   and password ``admin``
 
    .. |http://127.0.0.1:28080| raw:: html
 
@@ -402,7 +402,7 @@ Using Breeze
 
 3. Setup a PostgreSQL database in your database management tool of choice
    (e.g. DBeaver, DataGrip) with host ``127.0.0.1``, port ``25433``,
-   user ``postgres``,  password ``airflow``, and default schema ``airflow``.
+   user ``postgres``,  password ``airflow``, and default schema ``airflow``
 
    .. raw:: html
 
@@ -602,7 +602,7 @@ on macOS, install via
 Installing airflow in the local venv
 ------------------------------------
 
-1. It may require some packages to be installed; watch the output of the command to see which ones are missing.
+1. It may require some packages to be installed; watch the output of the command to see which ones are missing
 
 .. code-block:: bash
 
@@ -610,7 +610,7 @@ Installing airflow in the local venv
   ./scripts/tools/initialize_virtualenv.py
 
 
-2. Add following line to ~/.bashrc in order to call breeze command from anywhere.
+2. Add following line to ~/.bashrc in order to call breeze command from anywhere
 
 .. code-block:: bash
 
@@ -674,7 +674,7 @@ All Tests are inside ./tests directory.
 
    breeze --backend postgres --postgres-version 15 --python 3.9 --db-reset testing tests --test-type All --integration mongo
 
-- For more information on Testing visit : |09_testing.rst|
+- For more information on Testing visit |09_testing.rst|
 
   .. |09_testing.rst| raw:: html
 
@@ -734,7 +734,7 @@ Raising Pull Request
            alt="Goto fork and select branches">
     </div>
 
-2. Click on ``New pull request`` button on branch from which you want to raise a pull request.
+2. Click on ``New pull request`` button on branch from which you want to raise a pull request
 
    .. raw:: html
 
@@ -743,7 +743,7 @@ Raising Pull Request
              alt="Accessing local airflow">
       </div>
 
-3. Add title and description as per Contributing guidelines and click on ``Create pull request``.
+3. Add title and description as per Contributing guidelines and click on ``Create pull request``
 
    .. raw:: html
 

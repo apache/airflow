@@ -18,6 +18,10 @@
 Airflow Test Infrastructure
 ===========================
 
+Airflow features a comprehensive testing infrastructure encompassing multiple testing methodologies designed to
+ensure reliability and functionality across different deployment scenarios and integrations. The testing framework
+includes:
+
 * `Unit tests <testing/unit_tests.rst>`__ are Python tests that do not require any additional integrations.
   Unit tests are available both in the `Breeze environment <../dev/breeze/doc/README.rst>`__
   and `local virtualenv <07_local_virtualenv.rst>`__. Note that in order for a pull request to be reviewed,
