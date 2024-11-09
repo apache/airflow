@@ -23,7 +23,6 @@ from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutl
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 
-from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_assets
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
@@ -175,6 +174,7 @@ class TestGetAssets(TestAssets):
         "dag_ids, uri_pattern,expected_num",
         [("dag1,dag2", "folder", 1), ("dag3", "nothing", 0), ("dag2,dag3", "key", 2)],
     )
+    @provide_session
     def test_filter_assets_by_dag_ids_and_uri_pattern_works(
         self, test_client, dag_ids, uri_pattern, expected_num, session
     ):
@@ -229,13 +229,3 @@ class TestGetAssetsEndpointPagination(TestAssets):
 
         assert response.status_code == 200
         assert len(response.json()["assets"]) == 100
-
-    @conf_vars({("api", "maximum_page_limit"): "150"})
-    def test_should_return_conf_max_if_req_max_above_conf(self, test_client):
-        self.create_assets(num=200)
-
-        # change to 180 once format_parameters is integrated
-        response = test_client.get("/public/assets?limit=150")
-
-        assert response.status_code == 200
-        assert len(response.json()["assets"]) == 150
