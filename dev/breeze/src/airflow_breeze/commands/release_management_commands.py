@@ -230,9 +230,9 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "24.3.1"
-AIRFLOW_UV_VERSION = "0.5.0"
+AIRFLOW_UV_VERSION = "0.5.1"
 AIRFLOW_USE_UV = False
-# TODO: automate thsese as well
+# TODO: automate these as well
 WHEEL_VERSION = "0.44.0"
 GITPYTHON_VERSION = "3.1.43"
 RICH_VERSION = "13.9.4"
