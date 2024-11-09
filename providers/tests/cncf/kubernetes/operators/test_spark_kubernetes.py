@@ -837,12 +837,13 @@ def test_resolve_application_file_real_file_not_exists(create_task_instance_of_o
     [pytest.param(True, id="use-random_name_suffix"), pytest.param(False, id="skip-random_name_suffix")],
 )
 def test_create_job_name(random_name_suffix: bool):
-    name = f"{uuid4()}"
+    name = f"x{uuid4()}"
     op = SparkKubernetesOperator(task_id="task_id", name=name, random_name_suffix=random_name_suffix)
     pod_name = op.create_job_name()
 
     if random_name_suffix:
         assert pod_name.startswith(name)
+        assert pod_name != name
     else:
         assert pod_name == name
 
