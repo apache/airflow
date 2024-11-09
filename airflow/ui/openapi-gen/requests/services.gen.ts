@@ -51,6 +51,10 @@ import type {
   GetConnectionsResponse,
   PostConnectionData,
   PostConnectionResponse,
+  GetConfigData,
+  GetConfigResponse,
+  GetConfigValueData,
+  GetConfigValueResponse,
   TestConnectionData,
   TestConnectionResponse,
   GetDagRunData,
@@ -1220,6 +1224,68 @@ export class DagService {
       },
     });
   }
+
+export class ConfigService {
+  /**
+   * Get Config
+   * @param data The data for the request.
+   * @param data.section
+   * @param data.contentType
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getConfig(
+    data: GetConfigData,
+  ): CancelablePromise<GetConfigResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/config/",
+      headers: {
+        "content-type": data.contentType,
+      },
+      query: {
+        section: data.section,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Config Value
+   * @param data The data for the request.
+   * @param data.section
+   * @param data.option
+   * @param data.contentType
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getConfigValue(
+    data: GetConfigValueData,
+  ): CancelablePromise<GetConfigValueResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/config/section/{section}/option/{option}",
+      path: {
+        section: data.section,
+        option: data.option,
+      },
+      headers: {
+        "content-type": data.contentType,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
 
   /**
    * Get Dag Tags

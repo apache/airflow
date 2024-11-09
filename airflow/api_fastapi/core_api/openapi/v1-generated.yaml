@@ -2091,6 +2091,116 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/config/:
+    get:
+      tags:
+      - Config
+      summary: Get Config
+      operationId: get_config
+      parameters:
+      - name: section
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Section
+      - name: content-type
+        in: header
+        required: true
+        schema:
+          enum:
+          - application/json
+          - text/plain
+          type: string
+          title: Content-Type
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/config/section/{section}/option/{option}:
+    get:
+      tags:
+      - Config
+      summary: Get Config Value
+      operationId: get_config_value
+      parameters:
+      - name: section
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Section
+      - name: option
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Option
+      - name: content-type
+        in: header
+        required: true
+        schema:
+          enum:
+          - application/json
+          - text/plain
+          type: string
+          title: Content-Type
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/tags:
     get:
       tags:

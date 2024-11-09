@@ -4,6 +4,7 @@ import { type QueryClient } from "@tanstack/react-query";
 import {
   AssetService,
   BackfillService,
+  ConfigService,
   ConnectionService,
   DagRunService,
   DagService,
@@ -731,6 +732,156 @@ export const prefetchUseDagServiceGetDagDetails = (
   queryClient.prefetchQuery({
     queryKey: Common.UseDagServiceGetDagDetailsKeyFn({ dagId }),
     queryFn: () => DagService.getDagDetails({ dagId }),
+  });
+/**
+ * Get Connection
+ * Get a connection entry.
+ * @param data The data for the request.
+ * @param data.connectionId
+ * @returns ConnectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseConnectionServiceGetConnection = (
+  queryClient: QueryClient,
+  {
+    connectionId,
+  }: {
+    connectionId: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }),
+    queryFn: () => ConnectionService.getConnection({ connectionId }),
+  });
+/**
+ * Get Connections
+ * Get all connection entries.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns ConnectionCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseConnectionServiceGetConnections = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({
+      limit,
+      offset,
+      orderBy,
+    }),
+    queryFn: () => ConnectionService.getConnections({ limit, offset, orderBy }),
+  });
+/**
+ * Get Config
+ * @param data The data for the request.
+ * @param data.section
+ * @param data.contentType
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseConfigServiceGetConfig = (
+  queryClient: QueryClient,
+  {
+    contentType,
+    section,
+  }: {
+    contentType: "application/json" | "text/plain";
+    section: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseConfigServiceGetConfigKeyFn({ contentType, section }),
+    queryFn: () => ConfigService.getConfig({ contentType, section }),
+  });
+/**
+ * Get Config Value
+ * @param data The data for the request.
+ * @param data.section
+ * @param data.option
+ * @param data.contentType
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseConfigServiceGetConfigValue = (
+  queryClient: QueryClient,
+  {
+    contentType,
+    option,
+    section,
+  }: {
+    contentType: "application/json" | "text/plain";
+    option: string;
+    section: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseConfigServiceGetConfigValueKeyFn({
+      contentType,
+      option,
+      section,
+    }),
+    queryFn: () =>
+      ConfigService.getConfigValue({ contentType, option, section }),
+  });
+/**
+ * Get Dag Run
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @returns DAGRunResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagRunServiceGetDagRun = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
+    queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }),
+  });
+/**
+ * Get Dag Source
+ * Get source code using file token.
+ * @param data The data for the request.
+ * @param data.fileToken
+ * @param data.accept
+ * @returns DAGSourceResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagSourceServiceGetDagSource = (
+  queryClient: QueryClient,
+  {
+    accept,
+    fileToken,
+  }: {
+    accept?: string;
+    fileToken: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagSourceServiceGetDagSourceKeyFn({
+      accept,
+      fileToken,
+    }),
+    queryFn: () => DagSourceService.getDagSource({ accept, fileToken }),
   });
 /**
  * Get Event Log
