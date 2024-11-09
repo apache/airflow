@@ -725,9 +725,15 @@ def translate_airflow_asset(asset: Asset, lineage_context) -> OpenLineageDataset
     This function returns None if no URI normalizer is defined, no asset converter is found or
     some core Airflow changes are missing and ImportError is raised.
     """
-    try:
+    # TODO: Remove version check block after bumping common provider to 1.3.0
+    from packaging.version import Version
+
+    from airflow import __version__ as AIRFLOW_VERSION
+
+    AIRFLOW_V_3_0_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("3.0.0")
+    if AIRFLOW_V_3_0_PLUS:
         from airflow.sdk.definitions.asset import _get_normalized_scheme
-    except ModuleNotFoundError:
+    else:
         try:
             from airflow.datasets import _get_normalized_scheme  # type: ignore[no-redef, attr-defined]
         except ImportError:
