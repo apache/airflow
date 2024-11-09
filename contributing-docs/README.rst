@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-# Contributors' guide
+Contributors' guide
 ===================
 
 Contributions are welcome and are greatly appreciated! Every little bit helps,
@@ -26,8 +26,10 @@ to detailed documents for the different aspects of contribution. We encourage bo
 Open Source first timers as well as more experienced contributors to read and
 learn about this community's contribution guidelines as it support easy and efficient collaboration.
 
-## Getting Started
-### New Contributor
+Getting Started
+----------------
+New Contributor
+...............
 
 If you are a new contributor, please follow the `Contributors Quick Start <03_contributors_quick_start.rst>`__
 guide for a step-by-step introduction to setting up the development environment and making your
@@ -47,7 +49,8 @@ If you need help with Airflow see the Slack channel ``#user-troubleshooting``.
 To check on how mentoring works for the projects under Apache Software Foundation's
 `Apache Community Development - Mentoring <https://community.apache.org/mentoring/>`_.
 
-### Contribution Basics
+Contribution Basics
+....................
 
 To learn about various roles and communication channels in the Airflow project:
 
@@ -83,9 +86,10 @@ To learn how to setup your environment for development and how to develop and te
 * `Working with Git <10_working_with_git.rst>`__ describes the Git branches used in Airflow,
   how to sync your fork and how to rebase your PR.
 
-## Advanced Topics
-
-### Developing Providers
+Advanced Topics
+----------------
+Developing Providers
+.....................
 
 You can learn how Airflow repository is a monorepo split into airflow and provider packages,
 and how to contribute to the providers:
@@ -94,7 +98,8 @@ and how to contribute to the providers:
   are used in Airflow.
 
 
-### Airflow Deep Dive
+Airflow Deep Dive
+..................
 
 You can also dive deeper into more specific areas that are important for contributing to Airflow:
 
