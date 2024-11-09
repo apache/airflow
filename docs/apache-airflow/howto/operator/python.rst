@@ -253,7 +253,7 @@ With some limitations, you can also use ``Context`` in virtual environments.
 
     You can also use ``get_current_context()`` in the same way as before, but with some limitations.
 
-    * Requires ``pydantic>=2``.
+    * Requires ``apache-airflow>=3.0.0``.
 
     * Set ``use_airflow_context`` to ``True`` to call ``get_current_context()`` in the virtual environment.
 

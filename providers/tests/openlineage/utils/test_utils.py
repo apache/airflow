@@ -43,14 +43,11 @@ from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, BashOperator, PythonOperator
+from tests_common.test_utils.compat import BashOperator, PythonOperator
 from tests_common.test_utils.mock_operators import MockOperator
 
 BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
 PYTHON_OPERATOR_PATH = "airflow.providers.standard.operators.python"
-if not AIRFLOW_V_2_10_PLUS:
-    BASH_OPERATOR_PATH = "airflow.operators.bash"
-    PYTHON_OPERATOR_PATH = "airflow.operators.python"
 
 
 class CustomOperatorForTest(BashOperator):

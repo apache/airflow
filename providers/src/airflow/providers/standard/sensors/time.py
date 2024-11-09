@@ -18,10 +18,27 @@
 from __future__ import annotations
 
 import datetime
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, NoReturn
 
+from airflow.providers.standard import AIRFLOW_V_2_10_PLUS
 from airflow.sensors.base import BaseSensorOperator
-from airflow.triggers.base import StartTriggerArgs
+
+try:
+    from airflow.triggers.base import StartTriggerArgs
+except ImportError:
+    # TODO: Remove this when min airflow version is 2.10.0 for standard provider
+    @dataclass
+    class StartTriggerArgs:  # type: ignore[no-redef]
+        """Arguments required for start task execution from triggerer."""
+
+        trigger_cls: str
+        next_method: str
+        trigger_kwargs: dict[str, Any] | None = None
+        next_kwargs: dict[str, Any] | None = None
+        timeout: datetime.timedelta | None = None
+
+
 from airflow.triggers.temporal import DateTimeTrigger
 from airflow.utils import timezone
 
@@ -102,7 +119,9 @@ class TimeSensorAsync(BaseSensorOperator):
 
     def execute(self, context: Context) -> NoReturn:
         self.defer(
-            trigger=DateTimeTrigger(moment=self.target_datetime, end_from_trigger=self.end_from_trigger),
+            trigger=DateTimeTrigger(moment=self.target_datetime, end_from_trigger=self.end_from_trigger)
+            if AIRFLOW_V_2_10_PLUS
+            else DateTimeTrigger(moment=self.target_datetime),
             method_name="execute_complete",
         )
 
