@@ -132,12 +132,12 @@ class TestHistoricalMetricsDataEndpoint:
         response = test_client.get("/ui/dashboard/historical_metrics_data", params=params)
         assert response.status_code == 200
         assert response.json() == {
-            "dag_run_states": {"failed": 1, "queued": 0, "running": 0, "success": 0},
+            "dag_run_states": {"failed": 1, "queued": 0, "running": 1, "success": 0},
             "dag_run_types": {"backfill": 0, "asset_triggered": 1, "manual": 0, "scheduled": 0},
             "task_instance_states": {
                 "deferred": 0,
                 "failed": 2,
-                "no_status": 0,
+                "no_status": 2,
                 "queued": 0,
                 "removed": 0,
                 "restarting": 0,

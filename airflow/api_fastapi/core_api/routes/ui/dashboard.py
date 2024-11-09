@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from fastapi import Depends, status
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
@@ -64,7 +64,7 @@ def historical_metrics(
         select(DagRun.state, func.count(DagRun.run_id))
         .where(
             DagRun.start_date >= start_date,
-            func.coalesce(DagRun.end_date, timezone.utcnow()) <= end_date,
+            or_(DagRun.end_date <= end_date, DagRun.end_date.is_(None)),
         )
         .group_by(DagRun.state)
     ).all()
@@ -73,10 +73,7 @@ def historical_metrics(
     task_instance_states = session.execute(
         select(TaskInstance.state, func.count(TaskInstance.run_id))
         .join(TaskInstance.dag_run)
-        .where(
-            DagRun.start_date >= start_date,
-            func.coalesce(DagRun.end_date, timezone.utcnow()) <= end_date,
-        )
+        .where(DagRun.start_date >= start_date, or_(DagRun.end_date <= end_date, DagRun.end_date.is_(None)))
         .group_by(TaskInstance.state)
     ).all()
 
