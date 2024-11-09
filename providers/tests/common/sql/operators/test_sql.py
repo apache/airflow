@@ -53,7 +53,6 @@ if AIRFLOW_V_3_0_PLUS:
 
 pytestmark = [
     pytest.mark.db_test,
-    pytest.mark.skipif(reason="Tests for Airflow 2.8.0+ only"),
     pytest.mark.skip_if_database_isolation_mode,
 ]
 
