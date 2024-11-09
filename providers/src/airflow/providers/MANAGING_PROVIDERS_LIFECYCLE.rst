@@ -61,53 +61,53 @@ triggers (and the list changes continuously).
   .. code-block:: bash
 
     GIT apache/airflow/
-    ├── providers/
-    │   ├── src/
-    │   │   └── airflow/
-    │   │       └── providers/<NEW_PROVIDER>/
-    │   │           ├── __init__.py
-    │   │           ├── executors/
-    │   │           │   ├── __init__.py
-    │   │           │   └── *.py
-    │   │           ├── hooks/
-    │   │           │   ├── __init__.py
-    │   │           │   └── *.py
-    │   │           ├── notifications/
-    │   │           │   ├── __init__.py
-    │   │           │   └── *.py
-    │   │           ├── operators/
-    │   │           │   ├── __init__.py
-    │   │           │   └── *.py
-    │   │           ├── transfers/
-    │   │           │   ├── __init__.py
-    │   │           │   └── *.py
-    │   │           └── triggers/
-    │   │               ├── __init__.py
-    │   │               └── *.py
-    │   └── tests/
-    │       └── providers/<NEW_PROVIDER>/
-    │           ├── __init__.py
-    │           ├── executors/
-    │           │   ├── __init__.py
-    │           │   └── test_*.py
-    │           ├── hooks/
-    │           │   ├── __init__.py
-    │           │   └── test_*.py
-    │           ├── notifications/
-    │           │   ├── __init__.py
-    │           │   └── test_*.py
-    │           ├── operators/
-    │           │   ├── __init__.py
-    │           │   └── test_*.py
-    │           ├── transfers/
-    │           │   ├── __init__.py
-    │           │   └── test_*.py
-    │           └── triggers/
-    │               ├── __init__.py
-    │               └── test_*.py
-    └── tests/system/providers/<NEW_PROVIDER>/
-        ├── __init__.py
-        └── example_*.py
+    └── providers/
+        ├── src/
+        │   └── airflow/
+        │       └── providers/<NEW_PROVIDER>/
+        │           ├── __init__.py
+        │           ├── executors/
+        │           │   ├── __init__.py
+        │           │   └── *.py
+        │           ├── hooks/
+        │           │   ├── __init__.py
+        │           │   └── *.py
+        │           ├── notifications/
+        │           │   ├── __init__.py
+        │           │   └── *.py
+        │           ├── operators/
+        │           │   ├── __init__.py
+        │           │   └── *.py
+        │           ├── transfers/
+        │           │   ├── __init__.py
+        │           │   └── *.py
+        │           └── triggers/
+        │               ├── __init__.py
+        │               └── *.py
+        └── tests/
+            ├── <NEW_PROVIDER>/
+            |   ├── __init__.py
+            |   ├── executors/
+            |   │   ├── __init__.py
+            |   │   └── test_*.py
+            |   ├── hooks/
+            |   │   ├── __init__.py
+            |   │   └── test_*.py
+            |   ├── notifications/
+            |   │   ├── __init__.py
+            |   │   └── test_*.py
+            |   ├── operators/
+            |   │   ├── __init__.py
+            |   │   └── test_*.py
+            |   ├── transfers/
+            |   │   ├── __init__.py
+            |   │   └── test_*.py
+            |   └── triggers/
+            |       ├── __init__.py
+            |       └── test_*.py
+            └── system/<NEW_PROVIDER>/
+                ├── __init__.py
+                └── example_*.py
 
 .. note::
       The above structure is work in progress and subject to change till Task SDK feature is complete.
