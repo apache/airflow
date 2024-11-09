@@ -30,21 +30,14 @@ if AIRFLOW_V_3_0_PLUS:
 
     AirflowRouter = AirflowRouter
 else:
-    from functools import wraps
-    from typing import Callable, TypeVar
-
-    from airflow.typing_compat import ParamSpec
-
-    PS = ParamSpec("PS")
-    RT = TypeVar("RT")
+    from typing import Callable
 
     class AirflowRouter:  # type: ignore[no-redef]
         def __init__(self, *_, **__):
             pass
 
-        def get(self, func: Callable[PS, RT]) -> Callable[PS, RT]:
-            @wraps(func)
-            def wrapper(*args, **kwargs) -> RT:
-                return func(*args, **kwargs)
+        def get(self, *_):
+            def decorator(func: Callable) -> Callable:
+                return func
 
-            return wrapper
+            return decorator
