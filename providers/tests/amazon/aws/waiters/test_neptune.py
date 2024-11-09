@@ -30,7 +30,7 @@ class TestCustomNeptuneWaiters:
     """Test waiters from ``amazon/aws/waiters/neptune.json``."""
 
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self, monkeypatch):
+    def _setup_test_cases(self, monkeypatch):
         self.client = boto3.client("neptune", region_name="eu-west-3")
         monkeypatch.setattr(NeptuneHook, "conn", self.client)
 
