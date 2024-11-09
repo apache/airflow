@@ -118,17 +118,18 @@ as "apache" so you can refer to it easily:
 * If you use ssh: ``git remote add apache git@github.com:apache/airflow.git``
 * If you use https: ``git remote add apache https://github.com/apache/airflow.git``
 
-2. You then need to make sure that you have the latest main fetched from the ``apache`` repository. You can do this
+2. You then need to make sure that you have the latest main fetched from the ``apache`` repository. You can feth remote or all remotes, respectively,
    via:
 
-   ``git fetch apache`` (to fetch apache remote)
-
-   ``git fetch --all``  (to fetch all remotes)
+   .. code-block:: bash
+      git fetch apache
+      git fetch --all
 
 3. Assuming that your feature is in a branch in your repository called ``my-branch`` you can easily check
    what is the base commit you should rebase from by:
 
-   ``git merge-base my-branch apache/main``
+   .. code-block:: bash
+      git merge-base my-branch apache/main
 
    This will print the HASH of the base commit which you should use to rebase your feature from.
    For example: ``5abce471e0690c6b8d06ca25685b0845c5fd270f``. Copy that HASH and go to the next step.
@@ -136,20 +137,20 @@ as "apache" so you can refer to it easily:
    Optionally, if you want better control you can also find this commit hash manually.
 
    Run:
-
-   ``git log``
+   .. code-block:: bash
+      git log
 
    And find the first commit that you DO NOT want to "transplant".
 
    Performing:
-
-   ``git rebase HASH``
+   .. code-block:: bash
+      git rebase HASH
 
    Will "transplant" all commits after the commit with the HASH.
 
 4. Providing that you weren't already working on your branch, check out your feature branch locally via:
-
-   ``git checkout my-branch``
+   .. code-block:: bash
+      git checkout my-branch
 
 5. Commit your code change.
 

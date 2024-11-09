@@ -24,8 +24,8 @@ Contributor's Quick Start
 Note to Starters
 ################
 
-Airflow is quite a complex project, and setting up a working environment, but we made it rather simple if
-you follow the guide.
+Airflow is a complex project, but setting up a working environment is quite simple
+if you follow the guide.
 
 There are three ways you can run the Airflow dev env:
 
