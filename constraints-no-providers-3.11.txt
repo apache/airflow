@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-08T19:42:19.131511
+# This constraints file was automatically generated on 2024-11-09T02:07:00.927952
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -22,6 +22,7 @@ Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
 Flask-WTF==1.2.2
 Flask==2.2.5
+GitPython==3.1.43
 Jinja2==3.1.4
 Mako==1.3.6
 MarkupSafe==3.0.2
@@ -78,6 +79,7 @@ fastavro==1.9.7
 frozenlist==1.5.0
 fsspec==2024.10.0
 gevent==24.10.3
+gitdb==4.0.11
 google-re2==1.1.20240702
 googleapis-common-protos==1.65.0
 graphviz==0.20.3
@@ -164,6 +166,7 @@ sentry-sdk==2.18.0
 setproctitle==1.3.3
 shellingham==1.5.4
 six==1.16.0
+smmap==5.0.1
 sniffio==1.3.1
 sqlparse==0.5.1
 starlette==0.41.2
@@ -182,7 +185,7 @@ uc-micro-py==1.0.3
 universal_pathlib==0.2.5
 urllib3==2.2.3
 uuid6==2024.7.10
-uv==0.5.0
+uv==0.5.1
 uvicorn==0.32.0
 uvloop==0.21.0
 vine==5.1.0
