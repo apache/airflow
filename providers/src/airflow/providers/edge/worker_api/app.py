@@ -17,12 +17,21 @@
 
 from __future__ import annotations
 
-from airflow.providers.edge.worker_api.routes._v2_compat import AirflowRouter
+from fastapi import FastAPI
 
-health_router = AirflowRouter(tags=["Health"])
+from airflow.providers.edge.worker_api.routes.health import health_router
 
 
-@health_router.get("/health")
-def health() -> dict[str, str]:
-    """Report API Health."""
-    return {"status": "healthy"}
+def create_edge_worker_api_app() -> FastAPI:
+    """Create FastAPI app for edge worker API."""
+    edge_worker_api_app = FastAPI(
+        title="Airflow Edge Worker API",
+        description="This is Airflow Edge Worker API - which is a the access endpoint for workers running on "
+        "remote sites serving for Apache Airflow jobs. It also proxies internal API to edge endpoints. "
+        "It is not intended to be used by any external code. "
+        "You can find more information in AIP-69 "
+        "https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=301795932",
+    )
+
+    edge_worker_api_app.include_router(health_router)
+    return edge_worker_api_app
