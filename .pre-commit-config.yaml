@@ -444,6 +444,15 @@ repos:
         require_serial: true
         files: ^providers/src/airflow/providers/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
+      - id: check-breeze-uv-lock-consistent
+        name: Check breeze uv.lock
+        description: Ensure Breeze uv.lock is in sync with pyproject.toml
+        language: python
+        entry: uv sync
+        files: ^dev/breeze/.*$
+        pass_filenames: false
+        require_serial: true
+        additional_dependencies: ['uv']
       - id: update-local-yml-file
         name: Update mounts in the local yml file
         entry: ./scripts/ci/pre_commit/local_yml_mounts.py

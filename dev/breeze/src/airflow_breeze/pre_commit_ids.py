@@ -35,6 +35,7 @@ PRE_COMMIT_LIST = [
     "check-base-operator-usage",
     "check-boring-cyborg-configuration",
     "check-breeze-top-dependencies-limited",
+    "check-breeze-uv-lock-consistent",
     "check-builtin-literals",
     "check-changelog-format",
     "check-changelog-has-no-duplicates",
