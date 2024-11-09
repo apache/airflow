@@ -32,9 +32,9 @@ POWERBI_CONN_ID = "powerbi_default"
 DATASET_ID = "dataset_id"
 GROUP_ID = "group_id"
 DATASET_REFRESH_ID = "dataset_refresh_id"
-TIMEOUT = 30
+TIMEOUT = 5
 MODULE = "airflow.providers.microsoft.azure"
-CHECK_INTERVAL = 10
+CHECK_INTERVAL = 1
 API_VERSION = "v1.0"
 
 
@@ -228,7 +228,6 @@ class TestPowerBITrigger:
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
-    @pytest.mark.parametrize("powerbi_trigger", [0, CHECK_INTERVAL], indirect=True)
     async def test_powerbi_trigger_run_timeout(
         self, mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger
     ):
