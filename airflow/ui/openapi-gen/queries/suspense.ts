@@ -957,8 +957,8 @@ export const useConnectionServiceGetConnectionsSuspense = <
 /**
  * Get Config
  * @param data The data for the request.
- * @param data.section
  * @param data.contentType
+ * @param data.section
  * @returns unknown Successful Response
  * @throws ApiError
  */
@@ -972,7 +972,7 @@ export const useConfigServiceGetConfigSuspense = <
     section,
   }: {
     contentType: "application/json" | "text/plain";
-    section: string;
+    section?: string;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,

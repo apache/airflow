@@ -40,7 +40,7 @@ config_router = AirflowRouter(tags=["Config"], prefix="/config")
     ),
 )
 def get_config(
-    section: str,
+    section: str | None = None,
     content_type: Literal["application/json", "text/plain"] = Header(...),
 ) -> Response:
     if conf.get("webserver", "expose_config").lower() == "non-sensitive-only":

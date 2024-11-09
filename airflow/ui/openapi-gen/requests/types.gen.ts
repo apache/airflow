@@ -1402,7 +1402,7 @@ export type PostConnectionResponse = ConnectionResponse;
 
 export type GetConfigData = {
   contentType: "application/json" | "text/plain";
-  section: string;
+  section?: string | null;
 };
 
 export type GetConfigResponse = unknown;

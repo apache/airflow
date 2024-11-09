@@ -50,7 +50,7 @@ class ConfigSection(BaseModel):
         key2 = value2
         ```
         """
-        return f"[{self.name}]\n" + "\n".join(option.text_format for option in self.options)
+        return f"[{self.name}]\n" + "\n".join(option.text_format for option in self.options) + "\n"
 
 
 class Config(BaseModel):

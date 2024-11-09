@@ -629,7 +629,7 @@ export const UseConfigServiceGetConfigKeyFn = (
     section,
   }: {
     contentType: "application/json" | "text/plain";
-    section: string;
+    section?: string;
   },
   queryKey?: Array<unknown>,
 ) => [

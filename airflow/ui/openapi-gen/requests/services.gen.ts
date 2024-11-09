@@ -1133,9 +1133,7 @@ export class DagWarningService {
       },
     });
   }
-}
 
-export class DagService {
   /**
    * Get Dags
    * Get all DAGs.
@@ -1224,13 +1222,14 @@ export class DagService {
       },
     });
   }
+}
 
 export class ConfigService {
   /**
    * Get Config
    * @param data The data for the request.
-   * @param data.section
    * @param data.contentType
+   * @param data.section
    * @returns unknown Successful Response
    * @throws ApiError
    */
@@ -1286,6 +1285,8 @@ export class ConfigService {
     });
   }
 }
+
+export class DagService {
 
   /**
    * Get Dag Tags
