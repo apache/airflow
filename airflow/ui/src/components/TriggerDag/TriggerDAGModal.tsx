@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Text, Heading, VStack } from "@chakra-ui/react";
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import { Dialog } from "src/components/ui";
 
@@ -38,17 +38,28 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   onClose,
   open,
 }) => {
-  const [dagParams, setDagParams] = useState<DagParams>({
-    configJson: {},
-    dagId,
-    logicalDate: "",
-    runId: "",
-  });
+  const initialDagParams = useMemo(
+    () => ({
+      configJson: {},
+      dagId,
+      logicalDate: "",
+      runId: "",
+    }),
+    [dagId],
+  );
+
+  const [dagParams, setDagParams] = useState<DagParams>(initialDagParams);
 
   const handleTrigger = (updatedDagParams: DagParams) => {
     TriggerDag(updatedDagParams);
     onClose();
   };
+
+  useEffect(() => {
+    if (!open) {
+      setDagParams(initialDagParams);
+    }
+  }, [open, initialDagParams]);
 
   return (
     <Dialog.Root onOpenChange={onClose} open={open} size="xl">
