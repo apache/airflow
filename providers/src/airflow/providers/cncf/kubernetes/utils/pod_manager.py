@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import enum
+import itertools
 import json
 import math
 import time
@@ -117,7 +118,13 @@ class PodOperatorHookProtocol(Protocol):
 
 def get_container_status(pod: V1Pod, container_name: str) -> V1ContainerStatus | None:
     """Retrieve container status."""
-    container_statuses = pod.status.container_statuses if pod and pod.status else None
+    if pod and pod.status:
+        container_statuses = itertools.chain(
+            pod.status.container_statuses, pod.status.init_container_statuses
+        )
+    else:
+        container_statuses = None
+
     if container_statuses:
         # In general the variable container_statuses can store multiple items matching different containers.
         # The following generator expression yields all items that have name equal to the container_name.
@@ -164,6 +171,19 @@ def container_is_succeeded(pod: V1Pod, container_name: str) -> bool:
     if not container_status:
         return False
     return container_status.state.terminated.exit_code == 0
+
+
+def container_is_wait(pod: V1Pod, container_name: str) -> bool:
+    """
+    Examine V1Pod ``pod`` to determine whether ``container_name`` is waiting.
+
+    If that container is present and waiting, returns True.  Returns False otherwise.
+    """
+    container_status = get_container_status(pod, container_name)
+    if not container_status:
+        return False
+
+    return container_status.state.waiting is not None
 
 
 def container_is_terminated(pod: V1Pod, container_name: str) -> bool:
@@ -509,7 +529,7 @@ class PodManager(LoggingMixin):
                 time.sleep(1)
 
     def _reconcile_requested_log_containers(
-        self, requested: Iterable[str] | str | bool, actual: list[str], pod_name
+        self, requested: Iterable[str] | str | bool | None, actual: list[str], pod_name
     ) -> list[str]:
         """Return actual containers based on requested."""
         containers_to_log = []
@@ -551,6 +571,31 @@ class PodManager(LoggingMixin):
         else:
             self.log.error("Could not retrieve containers for the pod: %s", pod_name)
         return containers_to_log
+
+    def fetch_requested_init_container_logs(
+        self, pod: V1Pod, init_containers: Iterable[str] | str | Literal[True] | None, follow_logs=False
+    ) -> list[PodLoggingStatus]:
+        """
+        Follow the logs of containers in the specified pod and publish it to airflow logging.
+
+        Returns when all the containers exit.
+
+        :meta private:
+        """
+        pod_logging_statuses = []
+        all_containers = self.get_init_container_names(pod)
+        containers_to_log = self._reconcile_requested_log_containers(
+            requested=init_containers,
+            actual=all_containers,
+            pod_name=pod.metadata.name,
+        )
+        # sort by spec.initContainers because containers runs sequentially
+        containers_to_log = sorted(containers_to_log, key=lambda cn: all_containers.index(cn))
+        for c in containers_to_log:
+            self._await_init_container_start(pod=pod, container_name=c)
+            status = self.fetch_container_logs(pod=pod, container_name=c, follow=follow_logs)
+            pod_logging_statuses.append(status)
+        return pod_logging_statuses
 
     def fetch_requested_container_logs(
         self, pod: V1Pod, containers: Iterable[str] | str | Literal[True], follow_logs=False
@@ -680,8 +725,21 @@ class PodManager(LoggingMixin):
         )
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
+    def get_init_container_names(self, pod: V1Pod) -> list[str]:
+        """
+        Return container names from the POD except for the airflow-xcom-sidecar container.
+
+        :meta private:
+        """
+        return [container_spec.name for container_spec in pod.spec.init_containers]
+
+    @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def get_container_names(self, pod: V1Pod) -> list[str]:
-        """Return container names from the POD except for the airflow-xcom-sidecar container."""
+        """
+        Return container names from the POD except for the airflow-xcom-sidecar container.
+
+        :meta private:
+        """
         pod_info = self.read_pod(pod)
         return [
             container_spec.name
@@ -818,6 +876,20 @@ class PodManager(LoggingMixin):
             if res:
                 return res
         return None
+
+    def _await_init_container_start(self, pod: V1Pod, container_name: str):
+        while True:
+            remote_pod = self.read_pod(pod)
+
+            if (
+                remote_pod.status is not None
+                and remote_pod.status.phase != PodPhase.PENDING
+                and get_container_status(remote_pod, container_name) is not None
+                and not container_is_wait(remote_pod, container_name)
+            ):
+                return
+
+            time.sleep(1)
 
 
 class OnFinishAction(str, enum.Enum):
