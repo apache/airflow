@@ -22,6 +22,7 @@ import json
 from datetime import date
 from unittest import mock
 from unittest.mock import patch
+from uuid import uuid4
 
 import pendulum
 import pytest
@@ -31,6 +32,7 @@ from kubernetes.client import models as k8s
 from airflow import DAG
 from airflow.models import Connection, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
+from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN
 from airflow.utils import db, timezone
 from airflow.utils.types import DagRunType
 
@@ -828,3 +830,26 @@ def test_resolve_application_file_real_file_not_exists(create_task_instance_of_o
     task: SparkKubernetesOperator = ti.task
     with pytest.raises(TypeError, match="application_file body can't transformed into the dictionary"):
         _ = task.template_body
+
+
+@pytest.mark.parametrize(
+    "random_name_suffix",
+    [pytest.param(True, id="use-random_name_suffix"), pytest.param(False, id="skip-random_name_suffix")],
+)
+def test_create_job_name(random_name_suffix: bool):
+    name = f"{uuid4()}"
+    op = SparkKubernetesOperator(task_id="task_id", name=name, random_name_suffix=random_name_suffix)
+    pod_name = op.create_job_name()
+
+    if random_name_suffix:
+        assert pod_name.startswith(name)
+    else:
+        assert pod_name == name
+
+
+def test_create_job_name_should_truncate_long_names():
+    long_name = f"{uuid4()}" + "x" * MAX_LABEL_LEN
+    op = SparkKubernetesOperator(task_id="task_id", name=long_name, random_name_suffix=False)
+    pod_name = op.create_job_name()
+
+    assert pod_name == long_name[:MAX_LABEL_LEN]
