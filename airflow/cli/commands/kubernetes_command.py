@@ -31,7 +31,7 @@ from airflow.models import DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubeConfig
 from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import create_pod_id
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import create_unique_id
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.cli import get_dag
@@ -59,7 +59,7 @@ def generate_pod_yaml(args):
         pod = PodGenerator.construct_pod(
             dag_id=args.dag_id,
             task_id=ti.task_id,
-            pod_id=create_pod_id(args.dag_id, ti.task_id),
+            pod_id=create_unique_id(args.dag_id, ti.task_id),
             try_number=ti.try_number,
             kube_image=kube_config.kube_image,
             date=ti.execution_date,
