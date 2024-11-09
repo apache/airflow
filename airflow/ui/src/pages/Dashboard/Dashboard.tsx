@@ -19,13 +19,16 @@
 import { Box, Heading } from "@chakra-ui/react";
 
 import { Health } from "./Health";
+import { Metrics } from "./Metrics";
 
 export const Dashboard = () => (
   <Box>
     <Heading mb={4}>Welcome</Heading>
-
     <Box>
       <Health />
+    </Box>
+    <Box mt={5}>
+      <Metrics />
     </Box>
   </Box>
 );
