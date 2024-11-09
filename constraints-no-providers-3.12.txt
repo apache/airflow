@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-09T02:11:16.516093
+# This constraints file was automatically generated on 2024-11-09T07:46:41.804507
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -192,7 +192,7 @@ uvloop==0.21.0
 vine==5.1.0
 watchfiles==0.24.0
 websockets==13.1
-wirerope==0.4.7
+wirerope==0.4.8
 wrapt==1.16.0
 yarl==1.17.1
 zipp==3.20.2
