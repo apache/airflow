@@ -28,7 +28,7 @@ from docker.types import DeviceRequest, LogConfig, Mount, Ulimit
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.docker.exceptions import DockerContainerFailedException
-from airflow.providers.docker.operators.docker import DockerOperator
+from airflow.providers.docker.operators.docker import DockerOperator, fetch_logs
 from airflow.utils.task_instance_session import set_current_task_instance_session
 
 TEST_CONN_ID = "docker_test_connection"
@@ -865,3 +865,33 @@ class TestDockerOperator:
                     pytest.raises(ValueError, match="Conflicting `skip_on_exit_code` provided"),
                 ):
                     ti.render_templates()
+
+    @pytest.mark.parametrize(
+        "log_lines, expected_lines",
+        [
+            pytest.param(
+                [
+                    "return self.main(*args, **kwargs)",
+                    "                 ^^^^^^^^^^^^^^^^",
+                ],
+                [
+                    "return self.main(*args, **kwargs)",
+                    "                 ^^^^^^^^^^^^^^^^",
+                ],
+                id="should-not-remove-leading-spaces",
+            ),
+            pytest.param(
+                [
+                    "   ^^^^^^^^^^^^^^^^   ",
+                ],
+                [
+                    "   ^^^^^^^^^^^^^^^^",
+                ],
+                id="should-remove-trailing-spaces",
+            ),
+        ],
+    )
+    @mock.patch("logging.Logger")
+    def test_fetch_logs(self, logger_mock, log_lines, expected_lines):
+        fetch_logs(log_lines, logger_mock)
+        assert logger_mock.info.call_args_list == [call("%s", line) for line in expected_lines]
