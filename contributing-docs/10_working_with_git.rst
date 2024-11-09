@@ -114,8 +114,8 @@ Here is how rebase looks in practice (you can find a summary below these detaile
 so if it's not the first time you are following this tutorial you can skip this step. In this example,
 we will be adding the remote as "apache" so you can refer to it easily
 
-   - If you use ssh: ``git remote add apache git@github.com:apache/airflow.git``
-   - If you use https: ``git remote add apache https://github.com/apache/airflow.git``
+   * If you use ssh: ``git remote add apache git@github.com:apache/airflow.git``
+   * If you use https: ``git remote add apache https://github.com/apache/airflow.git``
 
 2. You then need to make sure that you have the latest main fetched from the ``apache`` repository. You can do this
    via
