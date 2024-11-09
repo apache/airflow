@@ -31,7 +31,9 @@ try:
     from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState
 except ImportError:
     # preserve backward compatibility for older versions of cncf.kubernetes provider, remove this when minimum cncf.kubernetes provider is 10.0
-    from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import ContainerState
+    from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import (
+        ContainerState,  # type: ignore[no-redef]
+    )
 from airflow.providers.google.cloud.triggers.kubernetes_engine import (
     GKEJobTrigger,
     GKEOperationTrigger,

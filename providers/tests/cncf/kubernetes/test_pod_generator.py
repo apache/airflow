@@ -642,13 +642,13 @@ class TestPodGenerator:
         ),
     )
     def test_pod_name_confirm_to_max_length(self, input):
-        actual = add_unique_suffix(name=input, max_len=100)
-        assert len(actual) <= 100
+        actual = add_unique_suffix(name=input)
+        assert len(actual) <= 63
         actual_base, actual_suffix = actual.rsplit("-", maxsplit=1)
         # we limit pod id length to 100
         # random suffix is 8 chars plus the '-' separator
-        # so actual pod id base should first 91 chars of requested pod id
-        assert actual_base == input[:91]
+        # so actual pod id base should first 55 chars of requested pod id
+        assert actual_base == input[:54]
         # suffix should always be 8, the random alphanum
         assert re.match(r"^[a-z0-9]{8}$", actual_suffix)
 
@@ -657,7 +657,7 @@ class TestPodGenerator:
         (
             (
                 "somewhat-long-pod-name-maybe-longer-than-previously-supported-with-hyphen-",
-                "somewhat-long-pod-name-maybe-longer-than-previously-supported-with-hyphen",
+                "somewhat-long-pod-name-maybe-longer-than-previously-su",
             ),
             ("pod-name-with-hyphen-", "pod-name-with-hyphen"),
             ("pod-name-with-double-hyphen--", "pod-name-with-double-hyphen"),
@@ -673,7 +673,7 @@ class TestPodGenerator:
         `make_unique_pod_id` doesn't actually guarantee that the regex passes for any input.
         But I guess this test verifies that an otherwise valid pod_id doesn't get _screwed up_.
         """
-        actual = add_unique_suffix(name=pod_id, max_len=100)
+        actual = add_unique_suffix(name=pod_id)
         assert len(actual) <= 253
         assert actual == actual.lower(), "not lowercase"
         # verify using official k8s regex
