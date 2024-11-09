@@ -18,7 +18,7 @@
  */
 
 export type DagParams = {
-  configJson: Record<string, unknown>;
+  configJson: string;
   dagId: string;
   logicalDate: string;
   runId: string;

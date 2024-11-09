@@ -40,7 +40,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
 }) => {
   const initialDagParams = useMemo(
     () => ({
-      configJson: {},
+      configJson: "{}",
       dagId,
       logicalDate: "",
       runId: "",

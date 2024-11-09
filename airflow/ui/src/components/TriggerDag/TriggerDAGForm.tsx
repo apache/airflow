@@ -17,10 +17,9 @@
  * under the License.
  */
 import { Input, Button, Box, Text, Spacer, HStack } from "@chakra-ui/react";
-import { autocompletion } from "@codemirror/autocomplete";
 import { json } from "@codemirror/lang-json";
 import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
-import CodeMirror, { lineNumbers } from "@uiw/react-codemirror";
+import CodeMirror from "@uiw/react-codemirror";
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 
@@ -118,17 +117,19 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                 render={({ field }) => (
                   <Box mb={4}>
                     <CodeMirror
-                      basicSetup
-                      extensions={[json(), autocompletion(), lineNumbers()]}
+                      {...field}
+                      basicSetup={{
+                        autocompletion: true,
+                        bracketMatching: true,
+                        foldGutter: true,
+                        lineNumbers: true,
+                      }}
+                      extensions={[json()]}
                       height="200px"
                       onChange={(value) => {
+                        field.onChange(value);
                         try {
-                          const parsedConfigJson = JSON.parse(value) as Record<
-                            string,
-                            unknown
-                          >;
-
-                          field.onChange(parsedConfigJson); // Update react-hook-form value
+                          JSON.parse(value);
                           setJsonError(undefined);
                         } catch {
                           setJsonError("Invalid JSON format.");
@@ -141,7 +142,6 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                         padding: "2px",
                       }}
                       theme={colorMode === "dark" ? githubDark : githubLight}
-                      value={JSON.stringify(field.value)}
                     />
                     {Boolean(jsonError) ? (
                       <Text color="red.500" fontSize="sm" mt={2}>

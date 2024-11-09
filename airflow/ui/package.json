@@ -19,8 +19,6 @@
     "@chakra-ui/anatomy": "^2.2.2",
     "@chakra-ui/react": "^3.0.2",
     "@codemirror/lang-json": "^6.0.1",
-    "@codemirror/theme-one-dark": "^6.0.0",
-    "@codemirror/autocomplete": "^6.1.1",
     "@emotion/react": "^11.13.3",
     "@tanstack/react-query": "^5.52.1",
     "@tanstack/react-table": "^8.20.1",
