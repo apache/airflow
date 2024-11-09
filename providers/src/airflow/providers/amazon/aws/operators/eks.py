@@ -45,8 +45,10 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 try:
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 except ImportError:
-    # preserve backward compatibility for older versions of cncf.kubernetes provider
-    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+    # preserve backward compatibility for older versions of cncf.kubernetes provider, remove this when minimum cncf.kubernetes provider is 10.0
+    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (  # type: ignore[no-redef]
+        KubernetesPodOperator,
+    )
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

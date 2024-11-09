@@ -23,12 +23,10 @@ from functools import cache
 from typing import TYPE_CHECKING
 
 import pendulum
-from deprecated import deprecated
 from kubernetes.client.rest import ApiException
 from slugify import slugify
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -62,22 +60,6 @@ def add_unique_suffix(*, name: str, rand_len: int = 8, max_len: int = POD_NAME_M
     return name[: max_len - len(suffix)].strip("-.") + suffix
 
 
-@deprecated(
-    reason="This function is deprecated. Please use `add_unique_suffix`",
-    category=AirflowProviderDeprecationWarning,
-)
-def add_pod_suffix(*, pod_name: str, rand_len: int = 8, max_len: int = POD_NAME_MAX_LENGTH) -> str:
-    """
-    Add random string to pod name while staying under max length.
-
-    :param pod_name: name of the pod
-    :param rand_len: length of the random string to append
-    :param max_len: maximum length of the pod name
-    :meta private:
-    """
-    return add_unique_suffix(name=pod_name, rand_len=rand_len, max_len=max_len)
-
-
 def create_unique_id(
     dag_id: str | None = None,
     task_id: str | None = None,
@@ -108,29 +90,6 @@ def create_unique_id(
         return add_unique_suffix(name=base_name, rand_len=8, max_len=max_length)
     else:
         return base_name
-
-
-@deprecated(
-    reason="This function is deprecated. Please use `create_unique_id`.",
-    category=AirflowProviderDeprecationWarning,
-)
-def create_pod_id(
-    dag_id: str | None = None,
-    task_id: str | None = None,
-    *,
-    max_length: int = POD_NAME_MAX_LENGTH,
-    unique: bool = True,
-) -> str:
-    """
-    Generate unique pod ID given a dag_id and / or task_id.
-
-    :param dag_id: DAG ID
-    :param task_id: Task ID
-    :param max_length: max number of characters
-    :param unique: whether a random string suffix should be added
-    :return: A valid identifier for a kubernetes pod name
-    """
-    return create_unique_id(dag_id=dag_id, task_id=task_id, max_length=max_length, unique=unique)
 
 
 def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:

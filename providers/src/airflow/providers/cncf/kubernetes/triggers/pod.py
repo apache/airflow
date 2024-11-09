@@ -19,12 +19,10 @@ from __future__ import annotations
 import asyncio
 import datetime
 import traceback
-import warnings
 from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, AsyncIterator
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     OnFinishAction,
@@ -71,10 +69,6 @@ class KubernetesPodTrigger(BaseTrigger):
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
         If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
-    :param should_delete_pod: What to do when the pod reaches its final
-        state, or the execution is interrupted. If True (default), delete the
-        pod; if False, leave the pod.
-        Deprecated - use `on_finish_action` instead.
     :param logging_interval: number of seconds to wait before kicking it back to
         the operator to print latest logs. If ``None`` will wait until container done.
     :param last_log_time: where to resume logs from
@@ -95,7 +89,6 @@ class KubernetesPodTrigger(BaseTrigger):
         startup_timeout: int = 120,
         startup_check_interval: int = 5,
         on_finish_action: str = "delete_pod",
-        should_delete_pod: bool | None = None,
         last_log_time: DateTime | None = None,
         logging_interval: int | None = None,
     ):
@@ -114,20 +107,7 @@ class KubernetesPodTrigger(BaseTrigger):
         self.startup_check_interval = startup_check_interval
         self.last_log_time = last_log_time
         self.logging_interval = logging_interval
-
-        if should_delete_pod is not None:
-            warnings.warn(
-                "`should_delete_pod` parameter is deprecated, please use `on_finish_action`",
-                category=AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            self.on_finish_action = (
-                OnFinishAction.DELETE_POD if should_delete_pod else OnFinishAction.KEEP_POD
-            )
-            self.should_delete_pod = should_delete_pod
-        else:
-            self.on_finish_action = OnFinishAction(on_finish_action)
-            self.should_delete_pod = self.on_finish_action == OnFinishAction.DELETE_POD
+        self.on_finish_action = OnFinishAction(on_finish_action)
 
         self._since_time = None
 
@@ -148,7 +128,6 @@ class KubernetesPodTrigger(BaseTrigger):
                 "startup_timeout": self.startup_timeout,
                 "startup_check_interval": self.startup_check_interval,
                 "trigger_start_time": self.trigger_start_time,
-                "should_delete_pod": self.should_delete_pod,
                 "on_finish_action": self.on_finish_action.value,
                 "last_log_time": self.last_log_time,
                 "logging_interval": self.logging_interval,

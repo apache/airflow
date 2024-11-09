@@ -49,12 +49,10 @@ if TYPE_CHECKING:
 
 class TestPodManager:
     def setup_method(self):
-        self.mock_progress_callback = mock.Mock()
         self.mock_kube_client = mock.Mock()
         self.pod_manager = PodManager(
             kube_client=self.mock_kube_client,
             callbacks=MockKubernetesPodOperatorCallback,
-            progress_callback=self.mock_progress_callback,
         )
 
     def test_read_pod_logs_successfully_returns_logs(self):
@@ -296,19 +294,6 @@ class TestPodManager:
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
-    def test_fetch_container_logs_invoke_deprecated_progress_callback(
-        self, mock_read_pod_logs, mock_container_is_running
-    ):
-        message = "2020-10-08T14:16:17.793417674Z message"
-        no_ts_message = "notimestamp"
-        mock_read_pod_logs.return_value = [bytes(message, "utf-8"), bytes(no_ts_message, "utf-8")]
-        mock_container_is_running.return_value = False
-
-        self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock(), follow=True)
-        self.mock_progress_callback.assert_has_calls([mock.call(message), mock.call(no_ts_message)])
-
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
     def test_fetch_container_logs_invoke_progress_callback(
         self, mock_read_pod_logs, mock_container_is_running
     ):
@@ -352,7 +337,6 @@ class TestPodManager:
             mock_container_is_running.side_effect = [True, True, False]
             status = self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock(), follow=True)
         assert status.last_log_time == cast("DateTime", pendulum.parse(last_timestamp_string))
-        assert self.mock_progress_callback.call_count == expected_call_count
         assert mock_callbacks.progress_callback.call_count == expected_call_count
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")

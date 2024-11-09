@@ -34,23 +34,16 @@ from typing import TYPE_CHECKING
 
 import re2
 from dateutil import parser
-from deprecated import deprecated
 from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
-    AirflowProviderDeprecationWarning,
 )
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     POD_NAME_MAX_LENGTH,
     add_unique_suffix,
-    rand_str,
-)
-from airflow.providers.cncf.kubernetes.pod_generator_deprecated import (
-    PodDefaults as PodDefaultsDeprecated,
-    PodGenerator as PodGeneratorDeprecated,
 )
 from airflow.utils import yaml
 from airflow.utils.hashlib_wrapper import md5
@@ -155,40 +148,6 @@ class PodGenerator:
         # Attach sidecar
         self.extract_xcom = extract_xcom
 
-    @deprecated(
-        reason="This method is deprecated and will be removed in the future releases",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def gen_pod(self) -> k8s.V1Pod:
-        """Generate pod."""
-        result = self.ud_pod
-
-        result.metadata.name = add_unique_suffix(name=result.metadata.name)
-
-        if self.extract_xcom:
-            result = self.add_xcom_sidecar(result)
-
-        return result
-
-    @staticmethod
-    @deprecated(
-        reason=(
-            "This function is deprecated. "
-            "Please use airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar instead"
-        ),
-        category=AirflowProviderDeprecationWarning,
-    )
-    def add_xcom_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
-        """Add sidecar."""
-        pod_cp = copy.deepcopy(pod)
-        pod_cp.spec.volumes = pod.spec.volumes or []
-        pod_cp.spec.volumes.insert(0, PodDefaultsDeprecated.VOLUME)
-        pod_cp.spec.containers[0].volume_mounts = pod_cp.spec.containers[0].volume_mounts or []
-        pod_cp.spec.containers[0].volume_mounts.insert(0, PodDefaultsDeprecated.VOLUME_MOUNT)
-        pod_cp.spec.containers.append(PodDefaultsDeprecated.SIDECAR_CONTAINER)
-
-        return pod_cp
-
     @staticmethod
     def from_obj(obj) -> dict | k8s.V1Pod | None:
         """Convert to pod from obj."""
@@ -210,56 +169,10 @@ class PodGenerator:
 
         if isinstance(k8s_object, k8s.V1Pod):
             return k8s_object
-        elif isinstance(k8s_legacy_object, dict):
-            warnings.warn(
-                "Using a dictionary for the executor_config is deprecated and will soon be removed. "
-                'Please use a `kubernetes.client.models.V1Pod` class with a "pod_override" key'
-                " instead. ",
-                category=AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            return PodGenerator.from_legacy_obj(obj)
         else:
             raise TypeError(
                 "Cannot convert a non-kubernetes.client.models.V1Pod object into a KubernetesExecutorConfig"
             )
-
-    @staticmethod
-    def from_legacy_obj(obj) -> k8s.V1Pod | None:
-        """Convert to pod from obj."""
-        if obj is None:
-            return None
-
-        # We do not want to extract constant here from ExecutorLoader because it is just
-        # A name in dictionary rather than executor selection mechanism and it causes cyclic import
-        namespaced = obj.get("KubernetesExecutor", {})
-
-        if not namespaced:
-            return None
-
-        resources = namespaced.get("resources")
-
-        if resources is None:
-            requests = {
-                "cpu": namespaced.pop("request_cpu", None),
-                "memory": namespaced.pop("request_memory", None),
-                "ephemeral-storage": namespaced.get("ephemeral-storage"),  # We pop this one in limits
-            }
-            limits = {
-                "cpu": namespaced.pop("limit_cpu", None),
-                "memory": namespaced.pop("limit_memory", None),
-                "ephemeral-storage": namespaced.pop("ephemeral-storage", None),
-            }
-            all_resources = list(requests.values()) + list(limits.values())
-            if all(r is None for r in all_resources):
-                resources = None
-            else:
-                # remove None's so they don't become 0's
-                requests = {k: v for k, v in requests.items() if v is not None}
-                limits = {k: v for k, v in limits.items() if v is not None}
-                resources = k8s.V1ResourceRequirements(requests=requests, limits=limits)
-        namespaced["resources"] = resources
-        return PodGeneratorDeprecated(**namespaced).gen_pod()
 
     @staticmethod
     def reconcile_pods(base_pod: k8s.V1Pod, client_pod: k8s.V1Pod | None) -> k8s.V1Pod:
@@ -578,37 +491,6 @@ class PodGenerator:
         """
         api_client = ApiClient()
         return api_client._ApiClient__deserialize_model(pod_dict, k8s.V1Pod)
-
-    @staticmethod
-    @deprecated(
-        reason="This method is deprecated. Use `add_pod_suffix` in `kubernetes_helper_functions`.",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def make_unique_pod_id(pod_id: str) -> str | None:
-        r"""
-        Generate a unique Pod name.
-
-        Kubernetes pod names must consist of one or more lowercase
-        rfc1035/rfc1123 labels separated by '.' with a maximum length of 253
-        characters.
-
-        Name must pass the following regex for validation
-        ``^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$``
-
-        For more details, see:
-        https://github.com/kubernetes/kubernetes/blob/release-1.1/docs/design/identifiers.md
-
-        :param pod_id: requested pod name
-        :return: ``str`` valid Pod name of appropriate length
-        """
-        if not pod_id:
-            return None
-
-        max_pod_id_len = 100  # arbitrarily chosen
-        suffix = rand_str(8)  # 8 seems good enough
-        base_pod_id_len = max_pod_id_len - len(suffix) - 1  # -1 for separator
-        trimmed_pod_id = pod_id[:base_pod_id_len].rstrip("-.")
-        return f"{trimmed_pod_id}-{suffix}"
 
 
 def merge_objects(base_obj, client_obj):

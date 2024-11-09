@@ -206,7 +206,7 @@ Read more on termination-log `here <https://kubernetes.io/docs/tasks/debug/debug
 KubernetesPodOperator callbacks
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` supports different
+The :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator` supports different
 callbacks that can be used to trigger actions during the lifecycle of the pod. In order to use them, you need to
 create a subclass of :class:`~airflow.providers.cncf.kubernetes.callbacks.KubernetesPodOperatorCallback` and override
 the callbacks methods you want to use. Then you can pass your callback class to the operator using the ``callbacks``

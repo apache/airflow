@@ -98,8 +98,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         random_name_suffix: bool = True,
         **kwargs,
     ) -> None:
-        if kwargs.get("xcom_push") is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
         super().__init__(name=name, **kwargs)
         self.image = image
         self.code_path = code_path
