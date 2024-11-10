@@ -30,6 +30,24 @@ from airflow.api_fastapi.core_api.datamodels.config import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.configuration import conf
 
+
+def _check_expose_config() -> bool:
+    display_sensitive: bool | None = None
+    if conf.get("webserver", "expose_config").lower() == "non-sensitive-only":
+        expose_config = True
+        display_sensitive = False
+    else:
+        expose_config = conf.getboolean("webserver", "expose_config")
+        display_sensitive = True
+
+    if not expose_config:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your Airflow administrator chose not to expose the configuration, most likely for security reasons.",
+        )
+    return display_sensitive
+
+
 config_router = AirflowRouter(tags=["Config"], prefix="/config")
 
 
@@ -43,18 +61,8 @@ def get_config(
     section: str | None = None,
     content_type: Literal["application/json", "text/plain"] = Header(...),
 ) -> Response:
-    if conf.get("webserver", "expose_config").lower() == "non-sensitive-only":
-        expose_config = True
-        display_sensitive = False
-    else:
-        expose_config = conf.getboolean("webserver", "expose_config")
-        display_sensitive = True
+    display_sensitive = _check_expose_config()
 
-    if not expose_config:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your Airflow administrator chose not to expose the configuration, most likely for security reasons.",
-        )
     if section and not conf.has_section(section):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -93,16 +101,7 @@ def get_config_value(
     option: str,
     content_type: Literal["application/json", "text/plain"] = Header(...),
 ) -> Response:
-    if conf.get("webserver", "expose_config").lower() == "non-sensitive-only":
-        expose_config = True
-    else:
-        expose_config = conf.getboolean("webserver", "expose_config")
-
-    if not expose_config:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your Airflow administrator chose not to expose the configuration, most likely for security reasons.",
-        )
+    _check_expose_config()
 
     if not conf.has_option(section, option):
         raise HTTPException(
