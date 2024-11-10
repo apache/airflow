@@ -35,6 +35,7 @@
     :caption: Guides
 
     Operators <operators/index>
+    Sensors <sensors/index>
     Configuration <configurations-ref>
 
 .. toctree::

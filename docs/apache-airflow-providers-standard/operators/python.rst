@@ -564,35 +564,3 @@ Passing in arguments and Templating
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Argument passing and templating options are the same as with :ref:`howto/operator:PythonOperator`.
-
-.. _howto/operator:PythonSensor:
-
-PythonSensor
-============
-
-The :class:`~airflow.providers.standard.sensors.python.PythonSensor` executes an arbitrary callable and waits for its return
-value to be True.
-
-.. tip::
-    The ``@task.sensor`` decorator is recommended over the classic ``PythonSensor``
-    to execute Python callables to check for True condition.
-
-.. tab-set::
-
-    .. tab-item:: @task.sensor
-        :sync: taskflow
-
-        .. exampleinclude:: /../../airflow/example_dags/example_sensor_decorator.py
-            :language: python
-            :dedent: 4
-            :start-after: [START wait_function]
-            :end-before: [END wait_function]
-
-    .. tab-item:: PythonSensor
-        :sync: operator
-
-        .. exampleinclude:: /../../airflow/example_dags/example_sensors.py
-            :language: python
-            :dedent: 4
-            :start-after: [START example_python_sensors]
-            :end-before: [END example_python_sensors]
