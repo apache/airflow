@@ -46,7 +46,7 @@ class TestDialect:
         assert Dialect(self.test_db_hook).placeholder == "?"
 
     def test_extract_schema_from_table(self):
-        assert Dialect._extract_schema_from_table("schema.table") == ("table", "schema")
+        assert Dialect.extract_schema_from_table("schema.table") == ("table", "schema")
 
     def test_get_column_names(self):
         assert Dialect(self.test_db_hook).get_column_names("table", "schema") == [

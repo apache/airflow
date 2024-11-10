@@ -70,7 +70,7 @@ class Dialect(LoggingMixin):
         return self.hook._escape_column_name_format  # type: ignore
 
     @classmethod
-    def _extract_schema_from_table(cls, table: str) -> tuple[str, str | None]:
+    def extract_schema_from_table(cls, table: str) -> tuple[str, str | None]:
         parts = table.split(".")
         return tuple(parts[::-1]) if len(parts) == 2 else (table, None)
 
@@ -79,7 +79,7 @@ class Dialect(LoggingMixin):
         self, table: str, schema: str | None = None, predicate: Callable[[T], bool] = lambda column: True
     ) -> list[str] | None:
         if schema is None:
-            table, schema = self._extract_schema_from_table(table)
+            table, schema = self.extract_schema_from_table(table)
         column_names = list(
             column["name"]
             for column in filter(
@@ -106,7 +106,7 @@ class Dialect(LoggingMixin):
     @lru_cache(maxsize=None)
     def get_primary_keys(self, table: str, schema: str | None = None) -> list[str] | None:
         if schema is None:
-            table, schema = self._extract_schema_from_table(table)
+            table, schema = self.extract_schema_from_table(table)
         primary_keys = self.inspector.get_pk_constraint(
             table_name=self.remove_quotes(table),
             schema=self.remove_quotes(schema) if schema else None,

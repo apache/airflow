@@ -49,9 +49,6 @@ class TestPostgresDialect:
     def test_placeholder(self):
         assert PostgresDialect(self.test_db_hook).placeholder == "?"
 
-    def test_extract_schema_from_table(self):
-        assert PostgresDialect._extract_schema_from_table("hollywood.actors") == ("actors", "hollywood")
-
     def test_get_column_names(self):
         assert PostgresDialect(self.test_db_hook).get_column_names("hollywood.actors") == [
             "id",
