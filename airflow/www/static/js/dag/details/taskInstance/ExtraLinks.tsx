@@ -55,7 +55,7 @@ const ExtraLinks = ({
 
   const isSanitised = (url: string | null) => {
     if (!url) {
-      return true;
+      return false; // Empty or null urls should cause the link to be disabled
     }
     const path = new URL(url, "http://localhost");
     // Allow Absolute/Relative URL and prevent javascript:() from executing when passed as path.

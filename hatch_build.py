@@ -141,7 +141,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "statsd>=3.3.0",
     ],
     "uv": [
-        "uv>=0.1.32",
+        "uv>=0.5.1",
     ],
 }
 
@@ -194,7 +194,6 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     "devel-devscripts": [
         "click>=8.0",
         "gitpython>=3.1.40",
-        "hatch>=1.9.1",
         "incremental>=24.7.2",
         "pipdeptree>=2.13.1",
         "pygithub>=2.1.1",
@@ -387,6 +386,7 @@ DEPENDENCIES = [
     # We should remove the limitation after 2.3 is released and our dependencies are updated to handle it
     "flask>=2.2.1,<2.3",
     "fsspec>=2023.10.0",
+    "gitpython>=3.1.40",
     'google-re2>=1.0;python_version<"3.12"',
     'google-re2>=1.1;python_version>="3.12"',
     "gunicorn>=20.1.0",
@@ -403,8 +403,8 @@ DEPENDENCIES = [
     "marshmallow-oneofschema>=2.0.1",
     "mdit-py-plugins>=0.3.0",
     "methodtools>=0.4.7",
-    "opentelemetry-api>=1.15.0",
-    "opentelemetry-exporter-otlp>=1.15.0",
+    "opentelemetry-api>=1.24.0",
+    "opentelemetry-exporter-otlp>=1.24.0",
     "packaging>=23.0",
     "pathspec>=0.9.0",
     'pendulum>=2.1.2,<4.0;python_version<"3.12"',
