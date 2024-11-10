@@ -86,7 +86,7 @@ def provide_bucket_name(func: Callable) -> Callable:
     async def maybe_add_bucket_name(*args, **kwargs):
         bound_args = function_signature.bind(*args, **kwargs)
 
-        if "bucket_name" not in bound_args.arguments:
+        if not bound_args.arguments.get("bucket_name"):
             self = args[0]
             if self.aws_conn_id:
                 connection = await sync_to_async(self.get_connection)(self.aws_conn_id)
@@ -116,7 +116,7 @@ def provide_bucket_name(func: Callable) -> Callable:
         def wrapper(*args, **kwargs) -> Callable:
             bound_args = function_signature.bind(*args, **kwargs)
 
-            if "bucket_name" not in bound_args.arguments:
+            if not bound_args.arguments.get("bucket_name"):
                 self = args[0]
 
                 if "bucket_name" in self.service_config:

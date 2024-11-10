@@ -21,7 +21,7 @@ import re2
 
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.serializers.providers import ProviderCollectionResponse, ProviderResponse
+from airflow.api_fastapi.core_api.datamodels.providers import ProviderCollectionResponse, ProviderResponse
 from airflow.providers_manager import ProviderInfo, ProvidersManager
 
 providers_router = AirflowRouter(tags=["Provider"], prefix="/providers")

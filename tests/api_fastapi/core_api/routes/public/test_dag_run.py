@@ -50,7 +50,7 @@ DAG2_RUN1_TRIGGERED_BY = DagRunTriggeredByType.CLI
 DAG2_RUN2_TRIGGERED_BY = DagRunTriggeredByType.REST_API
 START_DATE = datetime(2024, 6, 15, 0, 0, tzinfo=timezone.utc)
 EXECUTION_DATE = datetime(2024, 6, 16, 0, 0, tzinfo=timezone.utc)
-DAG1_NOTE = "test_note"
+DAG1_RUN1_NOTE = "test_note"
 
 
 @pytest.fixture(autouse=True)
@@ -66,13 +66,13 @@ def setup(dag_maker, session=None):
         start_date=START_DATE,
     ):
         EmptyOperator(task_id="task_1")
-    dag1 = dag_maker.create_dagrun(
+    dag_run1 = dag_maker.create_dagrun(
         run_id=DAG1_RUN1_ID,
         state=DAG1_RUN1_STATE,
         run_type=DAG1_RUN1_RUN_TYPE,
         triggered_by=DAG1_RUN1_TRIGGERED_BY,
     )
-    dag1.note = (DAG1_NOTE, 1)
+    dag_run1.note = (DAG1_RUN1_NOTE, 1)
 
     dag_maker.create_dagrun(
         run_id=DAG1_RUN2_ID,
@@ -114,7 +114,14 @@ class TestGetDagRun:
     @pytest.mark.parametrize(
         "dag_id, run_id, state, run_type, triggered_by, dag_run_note",
         [
-            (DAG1_ID, DAG1_RUN1_ID, DAG1_RUN1_STATE, DAG1_RUN1_RUN_TYPE, DAG1_RUN1_TRIGGERED_BY, DAG1_NOTE),
+            (
+                DAG1_ID,
+                DAG1_RUN1_ID,
+                DAG1_RUN1_STATE,
+                DAG1_RUN1_RUN_TYPE,
+                DAG1_RUN1_TRIGGERED_BY,
+                DAG1_RUN1_NOTE,
+            ),
             (DAG1_ID, DAG1_RUN2_ID, DAG1_RUN2_STATE, DAG1_RUN2_RUN_TYPE, DAG1_RUN2_TRIGGERED_BY, None),
             (DAG2_ID, DAG2_RUN1_ID, DAG2_RUN1_STATE, DAG2_RUN1_RUN_TYPE, DAG2_RUN1_TRIGGERED_BY, None),
             (DAG2_ID, DAG2_RUN2_ID, DAG2_RUN2_STATE, DAG2_RUN2_RUN_TYPE, DAG2_RUN2_TRIGGERED_BY, None),
@@ -140,36 +147,85 @@ class TestGetDagRun:
 
 class TestPatchDagRun:
     @pytest.mark.parametrize(
-        "dag_id, run_id, state, response_state",
+        "dag_id, run_id, patch_body, response_body",
         [
-            (DAG1_ID, DAG1_RUN1_ID, DagRunState.FAILED, DagRunState.FAILED),
-            (DAG1_ID, DAG1_RUN2_ID, DagRunState.SUCCESS, DagRunState.SUCCESS),
-            (DAG2_ID, DAG2_RUN1_ID, DagRunState.QUEUED, DagRunState.QUEUED),
+            (
+                DAG1_ID,
+                DAG1_RUN1_ID,
+                {"state": DagRunState.FAILED, "note": "new_note2"},
+                {"state": DagRunState.FAILED, "note": "new_note2"},
+            ),
+            (
+                DAG1_ID,
+                DAG1_RUN2_ID,
+                {"state": DagRunState.SUCCESS},
+                {"state": DagRunState.SUCCESS, "note": None},
+            ),
+            (
+                DAG2_ID,
+                DAG2_RUN1_ID,
+                {"state": DagRunState.QUEUED},
+                {"state": DagRunState.QUEUED, "note": None},
+            ),
+            (
+                DAG1_ID,
+                DAG1_RUN1_ID,
+                {"note": "updated note"},
+                {"state": DagRunState.SUCCESS, "note": "updated note"},
+            ),
+            (
+                DAG1_ID,
+                DAG1_RUN2_ID,
+                {"note": "new note", "state": DagRunState.FAILED},
+                {"state": DagRunState.FAILED, "note": "new note"},
+            ),
+            (DAG1_ID, DAG1_RUN2_ID, {"note": None}, {"state": DagRunState.FAILED, "note": None}),
         ],
     )
-    def test_patch_dag_run(self, test_client, dag_id, run_id, state, response_state):
-        response = test_client.patch(f"/public/dags/{dag_id}/dagRuns/{run_id}", json={"state": state})
+    def test_patch_dag_run(self, test_client, dag_id, run_id, patch_body, response_body):
+        response = test_client.patch(f"/public/dags/{dag_id}/dagRuns/{run_id}", json=patch_body)
         assert response.status_code == 200
         body = response.json()
         assert body["dag_id"] == dag_id
         assert body["run_id"] == run_id
-        assert body["state"] == response_state
+        assert body.get("state") == response_body.get("state")
+        assert body.get("note") == response_body.get("note")
 
     @pytest.mark.parametrize(
-        "query_params, patch_body, expected_status_code",
+        "query_params, patch_body, response_body, expected_status_code",
         [
-            ({"update_mask": ["state"]}, {"state": DagRunState.SUCCESS}, 200),
-            ({}, {"state": DagRunState.SUCCESS}, 200),
-            ({"update_mask": ["random"]}, {"state": DagRunState.SUCCESS}, 400),
+            ({"update_mask": ["state"]}, {"state": DagRunState.SUCCESS}, {"state": "success"}, 200),
+            (
+                {"update_mask": ["note"]},
+                {"state": DagRunState.FAILED, "note": "new_note1"},
+                {"note": "new_note1", "state": "success"},
+                200,
+            ),
+            (
+                {},
+                {"state": DagRunState.FAILED, "note": "new_note2"},
+                {"note": "new_note2", "state": "failed"},
+                200,
+            ),
+            ({"update_mask": ["note"]}, {}, {"state": "success", "note": None}, 200),
+            (
+                {"update_mask": ["random"]},
+                {"state": DagRunState.FAILED},
+                {"state": "success", "note": "test_note"},
+                200,
+            ),
         ],
     )
     def test_patch_dag_run_with_update_mask(
-        self, test_client, query_params, patch_body, expected_status_code
+        self, test_client, query_params, patch_body, response_body, expected_status_code
     ):
         response = test_client.patch(
             f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", params=query_params, json=patch_body
         )
+        response_json = response.json()
         assert response.status_code == expected_status_code
+        for key, value in response_body.items():
+            assert response_json.get(key) == value
 
     def test_patch_dag_run_not_found(self, test_client):
         response = test_client.patch(

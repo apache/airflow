@@ -31,7 +31,6 @@ from urllib3 import HTTPResponse
 
 from airflow.exceptions import (
     AirflowException,
-    AirflowProviderDeprecationWarning,
     AirflowSkipException,
     TaskDeferred,
 )
@@ -1306,31 +1305,6 @@ class TestKubernetesPodOperator:
             mock_await.assert_not_called()
 
     @pytest.mark.parametrize(
-        "on_finish_action",
-        # Regardless what we provide in `on_finish_action`
-        # it doesn't take any affect if `is_delete_operator_pod` provided.
-        [*sorted(OnFinishAction.__members__.values()), None],
-    )
-    @pytest.mark.parametrize(
-        "is_delete_operator_pod, expected_on_finish_action",
-        [
-            pytest.param(True, "delete_pod", id="delete-operator-pod"),
-            pytest.param(False, "keep_pod", id="keep-operator-pod"),
-        ],
-    )
-    def test_deprecated_is_delete_operator_pod(
-        self, is_delete_operator_pod, expected_on_finish_action, on_finish_action
-    ):
-        with pytest.warns(AirflowProviderDeprecationWarning, match="please use `on_finish_action`"):
-            op = KubernetesPodOperator(
-                task_id="task",
-                is_delete_operator_pod=is_delete_operator_pod,
-                on_finish_action=on_finish_action,
-            )
-        assert op.is_delete_operator_pod == is_delete_operator_pod
-        assert op.on_finish_action == expected_on_finish_action
-
-    @pytest.mark.parametrize(
         "task_kwargs, should_fail, should_be_deleted",
         [
             ({}, False, True),
@@ -2271,15 +2245,6 @@ class TestKubernetesPodOperatorAsync:
                     "namespace": TEST_NAMESPACE,
                 },
             )
-
-    def test_deprecated_execute_complete(self):
-        fake_context = mock.sentinel.context
-        fake_event = mock.sentinel.event
-        with mock.patch.object(KubernetesPodOperator, "trigger_reentry") as mocked_trigger_reentry:
-            op = KubernetesPodOperator(task_id="test-task")
-            with pytest.warns(AirflowProviderDeprecationWarning, match="use `trigger_reentry` instead"):
-                op.execute_complete(fake_context, fake_event)
-        mocked_trigger_reentry.assert_called_once_with(context=fake_context, event=fake_event)
 
 
 @pytest.mark.parametrize("do_xcom_push", [True, False])
