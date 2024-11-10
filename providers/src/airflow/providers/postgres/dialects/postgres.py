@@ -38,7 +38,7 @@ class PostgresDialect(Dialect):
         :return: Primary key columns list
         """
         if schema is None:
-            table, schema = self._extract_schema_from_table(table)
+            table, schema = self.extract_schema_from_table(table)
         sql = """
             select kcu.column_name
             from information_schema.table_constraints tco
