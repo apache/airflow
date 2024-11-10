@@ -519,7 +519,12 @@ class ShellParams:
                 _env, "AIRFLOW__CORE__EXECUTOR", "airflow.providers.edge.executors.edge_executor.EdgeExecutor"
             )
             _set_var(_env, "AIRFLOW__EDGE__API_ENABLED", "true")
-            _set_var(_env, "AIRFLOW__EDGE__API_URL", "http://localhost:8080/edge_worker/v1/rpcapi")
+            if self.use_airflow_version and self.use_airflow_version.startswith("2."):
+                # Airflow 2.10 runs it in the webserver atm
+                _set_var(_env, "AIRFLOW__EDGE__API_URL", "http://localhost:8080/edge_worker/v1/rpcapi")
+            else:
+                # Dev Airflow 3 runs API on FastAPI transitional
+                _set_var(_env, "AIRFLOW__EDGE__API_URL", "http://localhost:9091/edge_worker/v1/rpcapi")
         _set_var(_env, "ANSWER", get_forced_answer() or "")
         _set_var(_env, "BACKEND", self.backend)
         _set_var(_env, "BASE_BRANCH", self.base_branch, "main")

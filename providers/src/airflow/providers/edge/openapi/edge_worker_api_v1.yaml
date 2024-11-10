@@ -39,7 +39,7 @@ paths:
     post:
       deprecated: false
       x-openapi-router-controller: airflow.providers.edge.worker_api.routes.rpc_api
-      operationId: edge_worker_api
+      operationId: edge_worker_api_v2
       tags:
       - JSONRPC
       parameters: []

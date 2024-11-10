@@ -14,12 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
 from fastapi import FastAPI
 
 from airflow.providers.edge.worker_api.routes.health import health_router
+from airflow.providers.edge.worker_api.routes.rpc_api import rpc_api_router
 
 
 def create_edge_worker_api_app() -> FastAPI:
@@ -34,4 +34,5 @@ def create_edge_worker_api_app() -> FastAPI:
     )
 
     edge_worker_api_app.include_router(health_router)
+    edge_worker_api_app.include_router(rpc_api_router)
     return edge_worker_api_app
