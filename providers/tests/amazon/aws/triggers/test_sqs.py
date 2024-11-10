@@ -39,7 +39,7 @@ TEST_BOTOCORE_CONFIG = {"region_name": "us-east-1"}
 
 class TestSqsTriggers:
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self):
+    def _setup_test_cases(self):
         self.sqs_trigger = SqsSensorTrigger(
             sqs_queue=TEST_SQS_QUEUE,
             aws_conn_id=TEST_AWS_CONN_ID,
