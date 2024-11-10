@@ -22,6 +22,7 @@ import json
 from datetime import date
 from unittest import mock
 from unittest.mock import patch
+from uuid import uuid4
 
 import pendulum
 import pytest
@@ -31,10 +32,9 @@ from kubernetes.client import models as k8s
 from airflow import DAG
 from airflow.models import Connection, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
+from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN
 from airflow.utils import db, timezone
 from airflow.utils.types import DagRunType
-
-from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
 
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.KubernetesHook")
@@ -780,9 +780,6 @@ def test_resolve_application_file_template_non_dictionary(dag_maker, tmp_path, b
 @pytest.mark.parametrize(
     "use_literal_value", [pytest.param(True, id="literal-value"), pytest.param(False, id="whitespace-compat")]
 )
-@pytest.mark.skipif(
-    not AIRFLOW_V_2_8_PLUS, reason="Skipping tests that require LiteralValue for Airflow < 2.8.0"
-)
 def test_resolve_application_file_real_file(
     create_task_instance_of_operator, tmp_path, use_literal_value, session
 ):
@@ -815,9 +812,6 @@ def test_resolve_application_file_real_file(
 
 
 @pytest.mark.db_test
-@pytest.mark.skipif(
-    not AIRFLOW_V_2_8_PLUS, reason="Skipping tests that require LiteralValue for Airflow < 2.8.0"
-)
 def test_resolve_application_file_real_file_not_exists(create_task_instance_of_operator, tmp_path, session):
     application_file = (tmp_path / "test-application-file.yml").resolve().as_posix()
     from airflow.template.templater import LiteralValue
@@ -836,3 +830,27 @@ def test_resolve_application_file_real_file_not_exists(create_task_instance_of_o
     task: SparkKubernetesOperator = ti.task
     with pytest.raises(TypeError, match="application_file body can't transformed into the dictionary"):
         _ = task.template_body
+
+
+@pytest.mark.parametrize(
+    "random_name_suffix",
+    [pytest.param(True, id="use-random_name_suffix"), pytest.param(False, id="skip-random_name_suffix")],
+)
+def test_create_job_name(random_name_suffix: bool):
+    name = f"x{uuid4()}"
+    op = SparkKubernetesOperator(task_id="task_id", name=name, random_name_suffix=random_name_suffix)
+    pod_name = op.create_job_name()
+
+    if random_name_suffix:
+        assert pod_name.startswith(name)
+        assert pod_name != name
+    else:
+        assert pod_name == name
+
+
+def test_create_job_name_should_truncate_long_names():
+    long_name = f"{uuid4()}" + "x" * MAX_LABEL_LEN
+    op = SparkKubernetesOperator(task_id="task_id", name=long_name, random_name_suffix=False)
+    pod_name = op.create_job_name()
+
+    assert pod_name == long_name[:MAX_LABEL_LEN]

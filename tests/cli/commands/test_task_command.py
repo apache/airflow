@@ -227,7 +227,7 @@ class TestCliTasks:
                 .one()
             )
             # confirm that the serialized dag location has not been updated
-            assert ser_dag.fileloc == orig_file_path.as_posix()
+            assert ser_dag.dag_version.dag_code.fileloc == orig_file_path.as_posix()
             assert ser_dag.data["dag"]["_processor_dags_folder"] == orig_dags_folder.as_posix()
             assert ser_dag.data["dag"]["fileloc"] == orig_file_path.as_posix()
             assert ser_dag.dag._processor_dags_folder == orig_dags_folder.as_posix()

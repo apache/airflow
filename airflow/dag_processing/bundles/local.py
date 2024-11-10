@@ -17,20 +17,31 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pathlib import Path
 
-from airflow.api_fastapi.core_api.serializers.dag_run import DAGRunResponse
-from airflow.api_fastapi.core_api.serializers.dags import DAGResponse
-
-
-class DAGWithLatestDagRunsResponse(DAGResponse):
-    """DAG with latest dag runs response serializer."""
-
-    latest_dag_runs: list[DAGRunResponse]
+from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.exceptions import AirflowException
 
 
-class DAGWithLatestDagRunsCollectionResponse(BaseModel):
-    """DAG with latest dag runs collection response serializer."""
+class LocalDagBundle(BaseDagBundle):
+    """
+    Local DAG bundle - exposes a local directory as a DAG bundle.
 
-    total_entries: int
-    dags: list[DAGWithLatestDagRunsResponse]
+    :param local_folder: Local folder where the DAGs are stored
+    """
+
+    supports_versioning = False
+
+    def __init__(self, *, local_folder: str, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._path = Path(local_folder)
+
+    def get_current_version(self) -> str:
+        raise AirflowException("Not versioned!")
+
+    def refresh(self) -> None:
+        """Nothing to refresh - it's just a local directory."""
+
+    @property
+    def path(self) -> Path:
+        return self._path

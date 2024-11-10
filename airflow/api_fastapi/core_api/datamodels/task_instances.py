@@ -21,8 +21,8 @@ from typing import Annotated
 
 from pydantic import AliasPath, BaseModel, BeforeValidator, ConfigDict, Field
 
-from airflow.api_fastapi.core_api.serializers.job import JobResponse
-from airflow.api_fastapi.core_api.serializers.trigger import TriggerResponse
+from airflow.api_fastapi.core_api.datamodels.job import JobResponse
+from airflow.api_fastapi.core_api.datamodels.trigger import TriggerResponse
 from airflow.utils.state import TaskInstanceState
 
 
@@ -70,3 +70,16 @@ class TaskInstanceCollectionResponse(BaseModel):
 
     task_instances: list[TaskInstanceResponse]
     total_entries: int
+
+
+class TaskDependencyResponse(BaseModel):
+    """Task Dependency serializer for responses."""
+
+    name: str
+    reason: str
+
+
+class TaskDependencyCollectionResponse(BaseModel):
+    """Task scheduling dependencies collection serializer for responses."""
+
+    dependencies: list[TaskDependencyResponse]

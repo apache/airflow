@@ -497,6 +497,9 @@ class ShellParams:
         _set_var(_env, "AIRFLOW__CELERY__BROKER_URL", self.airflow_celery_broker_url)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
         if self.executor == EDGE_EXECUTOR:
+            _set_var(
+                _env, "AIRFLOW__CORE__EXECUTOR", "airflow.providers.edge.executors.edge_executor.EdgeExecutor"
+            )
             _set_var(_env, "AIRFLOW__EDGE__API_ENABLED", "true")
             _set_var(_env, "AIRFLOW__EDGE__API_URL", "http://localhost:8080/edge_worker/v1/rpcapi")
         _set_var(_env, "ANSWER", get_forced_answer() or "")

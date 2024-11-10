@@ -48,8 +48,6 @@ from airflow.providers_manager import ProvidersManager
 DEPRECATED_MODULES = [
     "airflow.providers.apache.hdfs.sensors.hdfs",
     "airflow.providers.apache.hdfs.hooks.hdfs",
-    "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod",
-    "airflow.providers.cncf.kubernetes.operators.kubernetes_pod",
     "airflow.providers.tabular.hooks.tabular",
     "airflow.providers.yandex.hooks.yandexcloud_dataproc",
     "airflow.providers.yandex.operators.yandexcloud_dataproc",

@@ -48,7 +48,6 @@ from airflow.utils.log.secrets_masker import _secrets_masker
 from airflow.utils.state import State
 
 from tests_common.test_utils.compat import (
-    AIRFLOW_V_2_8_PLUS,
     AIRFLOW_V_2_9_PLUS,
     AIRFLOW_V_2_10_PLUS,
     AIRFLOW_V_3_0_PLUS,
@@ -57,12 +56,6 @@ from tests_common.test_utils.compat import (
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
-
-BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
-PYTHON_OPERATOR_PATH = "airflow.providers.standard.operators.python"
-if not AIRFLOW_V_2_10_PLUS:
-    BASH_OPERATOR_PATH = "airflow.operators.bash"
-    PYTHON_OPERATOR_PATH = "airflow.operators.python"
 
 
 class SafeStrDict(dict):
@@ -277,7 +270,7 @@ def test_get_fully_qualified_class_name():
     from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 
     result = get_fully_qualified_class_name(BashOperator(task_id="test", bash_command="exit 0;"))
-    assert result == f"{BASH_OPERATOR_PATH}.BashOperator"
+    assert result == "airflow.providers.standard.operators.bash.BashOperator"
 
     result = get_fully_qualified_class_name(OpenLineageAdapter())
     assert result == "airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter"
@@ -293,8 +286,8 @@ def test_is_operator_disabled(mock_disabled_operators):
     assert is_operator_disabled(op) is False
 
     mock_disabled_operators.return_value = {
-        f"{BASH_OPERATOR_PATH}.BashOperator",
-        f"{PYTHON_OPERATOR_PATH}.PythonOperator",
+        "airflow.providers.standard.operators.bash.BashOperator",
+        "airflow.providers.standard.operators.python.PythonOperator",
     }
     assert is_operator_disabled(op) is True
 
@@ -428,7 +421,7 @@ def test_serialize_timetable_2_9():
 
 
 @pytest.mark.skipif(
-    not AIRFLOW_V_2_8_PLUS or AIRFLOW_V_2_9_PLUS,
+    AIRFLOW_V_2_9_PLUS,
     reason="This test checks serialization only in 2.8 conditions",
 )
 def test_serialize_timetable_2_8():

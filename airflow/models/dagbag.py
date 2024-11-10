@@ -650,13 +650,12 @@ class DagBag(LoggingMixin):
                 )
                 log.debug("Calling the DAG.bulk_sync_to_db method")
                 try:
+                    DAG.bulk_write_to_db(dags.values(), processor_subdir=processor_subdir, session=session)
                     # Write Serialized DAGs to DB, capturing errors
                     for dag in dags.values():
                         serialize_errors.extend(
                             _serialize_dag_capturing_errors(dag, session, processor_subdir)
                         )
-
-                    DAG.bulk_write_to_db(dags.values(), processor_subdir=processor_subdir, session=session)
                 except OperationalError:
                     session.rollback()
                     raise
