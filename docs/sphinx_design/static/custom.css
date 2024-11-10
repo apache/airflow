@@ -37,6 +37,6 @@ div.admonition.warning {
   font-weight: bolder;
 }
 
-p.admonition-title {
+.rst-content .warning .admonition-title {
   background: #cc341d;
 }
