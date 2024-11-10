@@ -17,13 +17,13 @@
  * under the License.
  */
 import { Text, Heading, VStack } from "@chakra-ui/react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Dialog } from "src/components/ui";
 
 import TriggerDAGForm from "./TriggerDAGForm";
 import type { DagParams } from "./TriggerDag";
-import { TriggerDag } from "./TriggerDag";
+import { TriggerDag as triggerDag } from "./TriggerDag";
 
 type TriggerDAGModalProps = {
   dagDisplayName: string;
@@ -50,10 +50,13 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
 
   const [dagParams, setDagParams] = useState<DagParams>(initialDagParams);
 
-  const handleTrigger = (updatedDagParams: DagParams) => {
-    TriggerDag(updatedDagParams);
-    onClose();
-  };
+  const handleTrigger = useCallback(
+    (updatedDagParams: DagParams) => {
+      triggerDag(updatedDagParams);
+      onClose();
+    },
+    [onClose],
+  );
 
   useEffect(() => {
     if (!open) {
@@ -68,9 +71,9 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
           <VStack align="start" gap={2}>
             <Heading size="xl">
               Trigger DAG{" "}
-              {dagDisplayName !== "" && <span>- {dagDisplayName}</span>}
+              {dagDisplayName ? <span>- {dagDisplayName}</span> : undefined}
             </Heading>
-            {dagDisplayName === "" && (
+            {!dagDisplayName && (
               <Text color="gray.500" fontSize="md">
                 DAG ID: {dagId}
               </Text>
