@@ -25,7 +25,7 @@ requires = [
     "GitPython==3.1.43",
     "gitdb==4.0.11",
     "hatchling==1.25.0",
-    "packaging==24.1",
+    "packaging==24.2",
     "pathspec==0.12.1",
     "pluggy==1.5.0",
     "smmap==5.0.1",
@@ -78,8 +78,7 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 # START CORE EXTRAS HERE
 #
 # aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, github-enterprise, google-
-# auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, sentry, statsd, uv,
-# virtualenv
+# auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, sentry, statsd, uv
 #
 # END CORE EXTRAS HERE
 #
@@ -156,37 +155,6 @@ Homepage = "https://airflow.apache.org/"
 Twitter = "https://twitter.com/ApacheAirflow"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
-[tool.hatch.envs.default]
-python = "3.9"
-platforms = ["linux", "macos"]
-description = "Default environment with Python 3.9 for maximum compatibility"
-features = []
-
-[tool.hatch.envs.airflow-39]
-python = "3.9"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.9. No devel installed."
-features = []
-
-[tool.hatch.envs.airflow-310]
-python = "3.10"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.10. No devel installed."
-features = []
-
-[tool.hatch.envs.airflow-311]
-python = "3.11"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.11. No devel installed"
-features = []
-
-[tool.hatch.envs.airflow-312]
-python = "3.12"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.12. No devel installed"
-features = []
-
-
 [tool.hatch.version]
 path = "airflow/__init__.py"
 
@@ -212,7 +180,6 @@ artifacts = [
     "/airflow/git_version",
     "/generated/",
 ]
-
 
 [tool.hatch.build.targets.wheel]
 include = [
@@ -295,7 +262,6 @@ ignore = [
     "E731", # Do not assign a lambda expression, use a def
     "TCH003", # Do not move imports from stdlib to TYPE_CHECKING block
     "PT004", # Fixture does not return anything, add leading underscore
-    "PT005", # Fixture returns a value, remove leading underscore
     "PT006", # Wrong type of names in @pytest.mark.parametrize
     "PT007", # Wrong type of values in @pytest.mark.parametrize
     "PT013", # silly rule prohibiting e.g. `from pytest import param`
@@ -317,6 +283,7 @@ ignore = [
     "COM812",
     "COM819",
     "E501", # Formatted code may exceed the line length, leading to line-too-long (E501) errors.
+    "ASYNC110", # TODO: Use `anyio.Event` instead of awaiting `anyio.sleep` in a `while` loop
 ]
 unfixable = [
     # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
@@ -410,13 +377,6 @@ banned-module-level-imports = ["numpy", "pandas"]
 # Direct import from the airflow package modules and constraints
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
 "airflow.Dataset".msg = "Use airflow.datasets.Dataset instead."
-"airflow.PY36".msg = "Use sys.version_info >= (3, 6) instead."
-"airflow.PY37".msg = "Use sys.version_info >= (3, 7) instead."
-"airflow.PY38".msg = "Use sys.version_info >= (3, 8) instead."
-"airflow.PY39".msg = "Use sys.version_info >= (3, 9) instead."
-"airflow.PY310".msg = "Use sys.version_info >= (3, 10) instead."
-"airflow.PY311".msg = "Use sys.version_info >= (3, 11) instead."
-"airflow.PY312".msg = "Use sys.version_info >= (3, 12) instead."
 # Deprecated imports
 "airflow.models.baseoperator.BaseOperatorLink".msg = "Use airflow.models.baseoperatorlink.BaseOperatorLink"
 "airflow.models.errors.ImportError".msg = "Use airflow.models.errors.ParseImportError"
@@ -470,6 +430,7 @@ fixture-parentheses = false
 ## pytest settings ##
 [tool.pytest.ini_options]
 addopts = [
+    "--tb=short",
     "-rasl",
     "--verbosity=2",
     # Disable `flaky` plugin for pytest. This plugin conflicts with `rerunfailures` because provide the same marker.

@@ -17,11 +17,12 @@
 from __future__ import annotations
 
 import logging
+from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from starlette.routing import Mount
 
-from airflow.api_fastapi.core_api.app import init_dag_bag, init_plugins, init_views
+from airflow.api_fastapi.core_api.app import init_config, init_dag_bag, init_plugins, init_views
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
 
 log = logging.getLogger(__name__)
@@ -29,9 +30,19 @@ log = logging.getLogger(__name__)
 app: FastAPI | None = None
 
 
-def create_app(apps: str = "all") -> FastAPI:
-    from airflow.configuration import conf
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with AsyncExitStack() as stack:
+        for route in app.routes:
+            if isinstance(route, Mount) and isinstance(route.app, FastAPI):
+                await stack.enter_async_context(
+                    route.app.router.lifespan_context(route.app),
+                )
+        app.state.lifespan_called = True
+        yield
 
+
+def create_app(apps: str = "all") -> FastAPI:
     apps_list = apps.split(",") if apps else ["all"]
 
     app = FastAPI(
@@ -39,6 +50,7 @@ def create_app(apps: str = "all") -> FastAPI:
         description="Airflow API. All endpoints located under ``/public`` can be used safely, are stable and backward compatible. "
         "Endpoints located under ``/ui`` are dedicated to the UI and are subject to breaking change "
         "depending on the need of the frontend. Users should not rely on those but use the public ones instead.",
+        lifespan=lifespan,
     )
 
     if "core" in apps_list or "all" in apps_list:
@@ -50,18 +62,7 @@ def create_app(apps: str = "all") -> FastAPI:
         task_exec_api_app = create_task_execution_api_app(app)
         app.mount("/execution", task_exec_api_app)
 
-    allow_origins = conf.getlist("api", "access_control_allow_origins")
-    allow_methods = conf.getlist("api", "access_control_allow_methods")
-    allow_headers = conf.getlist("api", "access_control_allow_headers")
-
-    if allow_origins or allow_methods or allow_headers:
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=allow_origins,
-            allow_credentials=True,
-            allow_methods=allow_methods,
-            allow_headers=allow_headers,
-        )
+    init_config(app)
 
     return app
 

@@ -63,7 +63,7 @@ result_configuration = {"OutputLocation": MOCK_DATA["outputLocation"]}
 
 class TestAthenaOperator:
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self):
+    def _setup_test_cases(self):
         args = {
             "owner": "airflow",
             "start_date": DEFAULT_DATE,
@@ -358,7 +358,7 @@ class TestAthenaOperator:
                                 SchemaDatasetFacetFields(
                                     name="ENDS_ON",
                                     type="timestamp",
-                                    description="from deserializer",
+                                    description=None,
                                 ),
                             ],
                         ),

@@ -108,8 +108,6 @@ looks like:
     class AirflowPlugin:
         # The name of your plugin (str)
         name = None
-        # A list of class(es) derived from BaseHook
-        hooks = []
         # A list of references to inject into the macros namespace
         macros = []
         # A list of Blueprint object created from flask.Blueprint. For use with the flask_appbuilder based GUI
@@ -180,11 +178,6 @@ definitions in Airflow.
     # Importing base classes that we need to derive
     from airflow.hooks.base import BaseHook
     from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
-
-
-    # Will show up in Connections screen in a future version
-    class PluginHook(BaseHook):
-        pass
 
 
     # Will show up under airflow.macros.test_plugin.plugin_macro
@@ -267,7 +260,6 @@ definitions in Airflow.
     # Defining the plugin class
     class AirflowTestPlugin(AirflowPlugin):
         name = "test_plugin"
-        hooks = [PluginHook]
         macros = [plugin_macro]
         flask_blueprints = [bp]
         fastapi_apps = [app_with_metadata]

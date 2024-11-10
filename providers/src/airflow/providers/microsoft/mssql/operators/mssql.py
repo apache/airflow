@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from typing import ClassVar, Sequence
 
 from deprecated import deprecated
 
@@ -59,7 +59,7 @@ class MsSqlOperator(SQLExecuteQueryOperator):
 
     template_fields: Sequence[str] = ("sql",)
     template_ext: Sequence[str] = (".sql",)
-    template_fields_renderers = {"sql": "tsql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "tsql"}
     ui_color = "#ededed"
 
     def __init__(

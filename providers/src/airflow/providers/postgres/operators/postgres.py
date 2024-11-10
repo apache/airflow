@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Mapping
+from typing import ClassVar, Mapping
 
 from deprecated import deprecated
 
@@ -55,7 +55,10 @@ class PostgresOperator(SQLExecuteQueryOperator):
         Deprecated - use `hook_params={'options': '-c <connection_options>'}` instead.
     """
 
-    template_fields_renderers = {**SQLExecuteQueryOperator.template_fields_renderers, "sql": "postgresql"}
+    template_fields_renderers: ClassVar[dict] = {
+        **SQLExecuteQueryOperator.template_fields_renderers,
+        "sql": "postgresql",
+    }
     ui_color = "#ededed"
 
     def __init__(

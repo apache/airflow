@@ -26,7 +26,7 @@ import { getTextWidth } from "src/utils/graph";
 
 import type { NodeType, DepEdge, DepNode } from "src/types";
 
-export interface DatasetDependencies {
+export interface AssetDependencies {
   edges: DepEdge[];
   nodes: DepNode[];
 }
@@ -36,7 +36,7 @@ interface GenerateProps {
   font: string;
 }
 
-export interface DatasetGraph extends ElkShape {
+export interface AssetGraph extends ElkShape {
   children: NodeType[];
   edges: ElkExtendedEdge[];
 }
@@ -69,7 +69,7 @@ const generateGraph = ({ nodes, edges, font }: GenerateProps) => ({
   })),
 });
 
-const formatDependencies = async ({ edges, nodes }: DatasetDependencies) => {
+const formatDependencies = async ({ edges, nodes }: AssetDependencies) => {
   const elk = new ELK();
 
   // get computed style to calculate how large each node should be
@@ -79,21 +79,21 @@ const formatDependencies = async ({ edges, nodes }: DatasetDependencies) => {
 
   const graph = await elk.layout(generateGraph({ nodes, edges, font }));
 
-  return graph as DatasetGraph;
+  return graph as AssetGraph;
 };
 
 export default function useAssetDependencies() {
-  return useQuery("datasetDependencies", async () => {
-    const datasetDepsUrl = getMetaValue("dataset_dependencies_url");
-    return axios.get<AxiosResponse, DatasetDependencies>(datasetDepsUrl);
+  return useQuery("assetDependencies", async () => {
+    const assetDepsUrl = getMetaValue("asset_dependencies_url");
+    return axios.get<AxiosResponse, AssetDependencies>(assetDepsUrl);
   });
 }
 
 export const useAssetGraphs = () => {
-  const { data: datasetDependencies } = useAssetDependencies();
-  return useQuery(["datasetGraphs", datasetDependencies], () => {
-    if (datasetDependencies) {
-      return formatDependencies(datasetDependencies);
+  const { data: assetDependencies } = useAssetDependencies();
+  return useQuery(["assetGraphs", assetDependencies], () => {
+    if (assetDependencies) {
+      return formatDependencies(assetDependencies);
     }
     return undefined;
   });

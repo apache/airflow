@@ -69,8 +69,9 @@ def _balance_parens(after_decorator):
 
 
 class _autostacklevel_warn:
-    def __init__(self):
+    def __init__(self, delta):
         self.warnings = __import__("warnings")
+        self.delta = delta
 
     def __getattr__(self, name):
         return getattr(self.warnings, name)
@@ -79,11 +80,11 @@ class _autostacklevel_warn:
         return dir(self.warnings)
 
     def warn(self, message, category=None, stacklevel=1, source=None):
-        self.warnings.warn(message, category, stacklevel + 2, source)
+        self.warnings.warn(message, category, stacklevel + self.delta, source)
 
 
-def fixup_decorator_warning_stack(func):
+def fixup_decorator_warning_stack(func, delta: int = 2):
     if func.__globals__.get("warnings") is sys.modules["warnings"]:
         # Yes, this is more than slightly hacky, but it _automatically_ sets the right stacklevel parameter to
         # `warnings.warn` to ignore the decorator.
-        func.__globals__["warnings"] = _autostacklevel_warn()
+        func.__globals__["warnings"] = _autostacklevel_warn(delta)

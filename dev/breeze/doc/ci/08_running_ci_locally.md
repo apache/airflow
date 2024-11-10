@@ -63,7 +63,7 @@ In the output of the CI jobs, you will find both - the flags passed and
 environment variables set.
 
 You can read more about it in [Breeze](../README.rst) and
-[Testing](contributing-docs/09_testing.rst)
+[Testing](../../../../contributing-docs/09_testing.rst)
 
 Since we store images from every CI run, you should be able easily
 reproduce any of the CI tests problems locally. You can do it by pulling

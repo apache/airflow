@@ -38,14 +38,13 @@
       "jsonpath_ng>=1.5.3",
       "python3-saml>=1.16.0",
       "redshift_connector>=2.0.918",
-      "sqlalchemy_redshift>=0.8.6",
       "watchtower>=3.0.0,!=3.3.0,<4"
     ],
     "devel-deps": [
       "aiobotocore>=2.13.0",
       "aws_xray_sdk>=2.12.0",
       "moto[cloudformation,glue]>=5.0.0",
-      "mypy-boto3-appflow>=1.34.0",
+      "mypy-boto3-appflow>=1.34.0,<1.35.39",
       "mypy-boto3-rds>=1.34.90",
       "mypy-boto3-redshift-data>=1.34.0",
       "mypy-boto3-s3>=1.34.90",
@@ -82,6 +81,7 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
+      "common.compat",
       "google"
     ],
     "excluded-python-versions": [
@@ -286,7 +286,8 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "cncf.kubernetes"
+      "cncf.kubernetes",
+      "common.compat"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -353,7 +354,6 @@
   "cloudant": {
     "deps": [
       "apache-airflow>=2.8.0",
-      "ibmcloudant==0.7.0 ; python_version < \"3.10\"",
       "ibmcloudant==0.9.1 ; python_version >= \"3.10\""
     ],
     "devel-deps": [],
@@ -398,7 +398,8 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "openlineage"
+      "openlineage",
+      "standard"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -518,7 +519,9 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -534,7 +537,9 @@
         "plugin-class": "airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin"
       }
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "not-ready"
   },
@@ -572,7 +577,7 @@
     "deps": [
       "apache-airflow-providers-common-compat>=1.2.1",
       "apache-airflow>=2.9.0",
-      "flask-appbuilder==4.5.0",
+      "flask-appbuilder==4.5.2",
       "flask-login>=0.6.2",
       "flask>=2.2,<2.3",
       "google-re2>=1.0",
@@ -626,7 +631,7 @@
   "google": {
     "deps": [
       "PyOpenSSL>=23.0.0",
-      "apache-airflow-providers-common-compat>=1.1.0",
+      "apache-airflow-providers-common-compat>=1.2.1",
       "apache-airflow-providers-common-sql>=1.7.2",
       "apache-airflow>=2.8.0",
       "asgiref>=3.5.2",
@@ -635,7 +640,7 @@
       "gcloud-aio-bigquery>=6.1.2",
       "gcloud-aio-storage>=9.0.0",
       "gcsfs>=2023.10.0",
-      "google-ads>=25.0.0",
+      "google-ads>=25.1.0",
       "google-analytics-admin>=0.9.0",
       "google-api-core>=2.11.0,!=2.16.0,!=2.18.0",
       "google-api-python-client>=2.0.2",
@@ -836,7 +841,7 @@
       "msgraph-core>=1.0.0"
     ],
     "devel-deps": [
-      "pywinrm"
+      "pywinrm>=0.4"
     ],
     "plugins": [],
     "cross-providers-deps": [
@@ -904,7 +909,7 @@
       "apache-airflow-providers-common-sql>=1.17.0",
       "apache-airflow>=2.8.0",
       "mysql-connector-python>=8.0.29",
-      "mysqlclient>=1.4.0"
+      "mysqlclient>=1.4.0; sys_platform != 'darwin'"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -971,8 +976,8 @@
       "apache-airflow-providers-common-sql>=1.6.0",
       "apache-airflow>=2.8.0",
       "attrs>=22.2",
-      "openlineage-integration-common>=1.22.0",
-      "openlineage-python>=1.22.0"
+      "openlineage-integration-common>=1.24.2",
+      "openlineage-python>=1.24.2"
     ],
     "devel-deps": [],
     "plugins": [
@@ -1038,11 +1043,11 @@
   "papermill": {
     "deps": [
       "apache-airflow>=2.8.0",
-      "ipykernel",
+      "ipykernel>=6.29.4",
       "pandas>=1.5.3,<2.2;python_version<\"3.9\"",
       "pandas>=2.1.2,<2.2;python_version>=\"3.9\"",
       "papermill[all]>=2.6.0",
-      "scrapbook[all]"
+      "scrapbook[all]>=0.5.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -1280,13 +1285,14 @@
   },
   "standard": {
     "deps": [
-      "apache-airflow>=2.10.0"
+      "apache-airflow-providers-common-sql>=1.18.0",
+      "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [],
     "excluded-python-versions": [],
-    "state": "not-ready"
+    "state": "ready"
   },
   "tableau": {
     "deps": [

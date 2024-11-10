@@ -112,7 +112,6 @@ class BaseExecutor(LoggingMixin):
     """
 
     supports_ad_hoc_ti_run: bool = False
-    supports_pickling: bool = True
     supports_sentry: bool = False
 
     is_local: bool = False
@@ -172,7 +171,6 @@ class BaseExecutor(LoggingMixin):
         self,
         task_instance: TaskInstance,
         mark_success: bool = False,
-        pickle_id: int | None = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         wait_for_past_depends_before_skipping: bool = False,
@@ -196,7 +194,6 @@ class BaseExecutor(LoggingMixin):
             ignore_task_deps=ignore_task_deps,
             ignore_ti_state=ignore_ti_state,
             pool=pool,
-            pickle_id=pickle_id,
             # cfg_path is needed to propagate the config values if using impersonation
             # (run_as_user), given that there are different code paths running tasks.
             # https://github.com/apache/airflow/pull/2991

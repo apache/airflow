@@ -84,7 +84,7 @@ class OpenLineageAdapter(LoggingMixin):
                     "OpenLineage configuration found. Transport type: `%s`",
                     config.get("type", "no type provided"),
                 )
-                self._client = OpenLineageClient.from_dict(config=config)
+                self._client = OpenLineageClient(config=config)
             else:
                 self.log.debug(
                     "OpenLineage configuration not found directly in Airflow. "
@@ -98,9 +98,7 @@ class OpenLineageAdapter(LoggingMixin):
         openlineage_config_path = conf.config_path(check_legacy_env_var=False)
         if openlineage_config_path:
             config = self._read_yaml_config(openlineage_config_path)
-            if config:
-                return config.get("transport", None)
-            self.log.debug("OpenLineage config file is empty: `%s`", openlineage_config_path)
+            return config
         else:
             self.log.debug("OpenLineage config_path configuration not found.")
 
@@ -109,7 +107,7 @@ class OpenLineageAdapter(LoggingMixin):
         if not transport_config:
             self.log.debug("OpenLineage transport configuration not found.")
             return None
-        return transport_config
+        return {"transport": transport_config}
 
     @staticmethod
     def _read_yaml_config(path: str) -> dict | None:

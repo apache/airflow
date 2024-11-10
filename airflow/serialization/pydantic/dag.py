@@ -80,10 +80,7 @@ class DagModelPydantic(BaseModelPydantic):
     is_paused: bool = is_paused_at_creation
     is_active: Optional[bool] = False
     last_parsed_time: Optional[datetime]
-    last_pickled: Optional[datetime]
     last_expired: Optional[datetime]
-    scheduler_lock: Optional[bool]
-    pickle_id: Optional[int]
     fileloc: str
     processor_subdir: Optional[str]
     owners: Optional[str]

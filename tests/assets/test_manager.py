@@ -59,6 +59,7 @@ def clear_assets():
 @pytest.fixture
 def mock_task_instance():
     return TaskInstancePydantic(
+        id="1",
         task_id="5",
         dag_id="7",
         run_id="11",
@@ -121,7 +122,7 @@ class TestAssetManager:
             task_instance=mock_task_instance, asset=asset, session=mock_session
         )
 
-        # Ensure that we have ignored the asset and _not_ created a AssetEvent or
+        # Ensure that we have ignored the asset and _not_ created an AssetEvent or
         # AssetDagRunQueue rows
         mock_session.add.assert_not_called()
         mock_session.merge.assert_not_called()

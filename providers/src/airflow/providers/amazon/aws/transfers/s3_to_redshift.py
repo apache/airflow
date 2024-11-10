@@ -241,7 +241,7 @@ class S3ToRedshiftOperator(BaseOperator):
 
         output_dataset = Dataset(
             namespace=f"redshift://{authority}",
-            name=f"{database}.{self.schema}.{self.table}",
+            name=f"{database}.{self.schema}.{self.table}" if database else f"{self.schema}.{self.table}",
             facets=output_dataset_facets,
         )
 

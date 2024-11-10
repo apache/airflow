@@ -28,6 +28,14 @@ core:
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/dags"
+    dag_bundle_storage_path:
+      description: |
+        The folder where Airflow bundles can store files locally (if required).
+        By default, this is ``tempfile.gettempdir()/airflow``. This path must be absolute.
+      version_added: 3.0.0
+      type: string
+      example: "`tempfile.gettempdir()/dag_bundles"
+      default: ~
     hostname_callable:
       description: |
         Hostname by providing a path to a callable, which will resolve the hostname.
@@ -218,15 +226,6 @@ core:
       type: string
       example: ~
       default: "50"
-    task_runner:
-      description: |
-        The class to use for running task instances in a subprocess.
-        Choices include StandardTaskRunner, CgroupTaskRunner or the full import path to the class
-        when using a custom task runner.
-      version_added: ~
-      type: string
-      example: ~
-      default: "StandardTaskRunner"
     default_impersonation:
       description: |
         If set, tasks without a ``run_as_user`` argument will be run with this user
@@ -475,7 +474,7 @@ core:
       version_added: 3.0.0
       type: string
       default: ~
-      example: 'airflow.datasets.manager.AssetManager'
+      example: 'airflow.assets.manager.AssetManager'
     asset_manager_kwargs:
       description: Kwargs to supply to asset manager.
       version_added: 3.0.0
@@ -2266,7 +2265,7 @@ scheduler:
     parsing_cleanup_interval:
       description: |
         How often (in seconds) to check for stale DAGs (DAGs which are no longer present in
-        the expected files) which should be deactivated, as well as datasets that are no longer
+        the expected files) which should be deactivated, as well as assets that are no longer
         referenced and should be marked as orphaned.
       version_added: 2.5.0
       type: integer
@@ -2427,15 +2426,6 @@ scheduler:
       type: integer
       default: "20"
       see_also: ":ref:`scheduler:ha:tunables`"
-    schedule_after_task_execution:
-      description: |
-        Should the Task supervisor process perform a "mini scheduler" to attempt to schedule more tasks of the
-        same DAG. Leaving this on will mean tasks in the same DAG execute quicker, but might starve out other
-        dags in some circumstances
-      example: ~
-      version_added: 2.0.0
-      type: boolean
-      default: "True"
     parsing_pre_import_modules:
       description: |
         The scheduler reads dag files to extract the airflow modules that are going to be used,

@@ -244,7 +244,7 @@ const Dag = () => {
               </Tr>
               {!!dagDetailsData.assetExpression && (
                 <Tr>
-                  <Td>Dataset Conditions</Td>
+                  <Td>Asset Conditions</Td>
                   <Td>
                     <Code>
                       <pre>

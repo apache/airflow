@@ -16,14 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Switch } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 
 import {
+  UseDagServiceGetDagDetailsKeyFn,
   useDagServiceGetDagsKey,
   useDagServicePatchDag,
 } from "openapi/queries";
+
+import { Switch } from "./ui";
 
 type Props = {
   readonly dagId: string;
@@ -36,6 +38,10 @@ export const TogglePause = ({ dagId, isPaused }: Props) => {
   const onSuccess = async () => {
     await queryClient.invalidateQueries({
       queryKey: [useDagServiceGetDagsKey],
+    });
+
+    await queryClient.invalidateQueries({
+      queryKey: UseDagServiceGetDagDetailsKeyFn({ dagId }),
     });
   };
 
@@ -52,5 +58,12 @@ export const TogglePause = ({ dagId, isPaused }: Props) => {
     });
   }, [dagId, isPaused, mutate]);
 
-  return <Switch isChecked={!isPaused} onChange={onChange} size="sm" />;
+  return (
+    <Switch
+      checked={!isPaused}
+      colorPalette="blue"
+      onCheckedChange={onChange}
+      size="sm"
+    />
+  );
 };

@@ -246,155 +246,6 @@ servers:
 
 paths:
   # Database entities
-  /backfills:
-    get:
-      summary: List backfills
-      x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
-      operationId: list_backfills
-      tags: [Backfill]
-      parameters:
-        - name: dag_id
-          in: query
-          schema:
-            type: string
-          required: true
-          description: |
-            List backfills for this dag.
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BackfillCollection"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-
-    post:
-      summary: Create a backfill job.
-      x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
-      operationId: create_backfill
-      tags: [Backfill]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/Backfill"
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Backfill"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-
-  /backfills/{backfill_id}:
-    parameters:
-      - $ref: "#/components/parameters/BackfillIdPath"
-    get:
-        summary: Get a backfill
-        x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
-        operationId: get_backfill
-        tags: [Backfill]
-        responses:
-          "200":
-            description: Success.
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/Backfill"
-          "401":
-            $ref: "#/components/responses/Unauthenticated"
-          "403":
-            $ref: "#/components/responses/PermissionDenied"
-          "404":
-            $ref: "#/components/responses/NotFound"
-
-  /backfills/{backfill_id}/pause:
-    parameters:
-      - $ref: "#/components/parameters/BackfillIdPath"
-    post:
-        summary: Pause a backfill
-        x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
-        operationId: pause_backfill
-        tags: [Backfill]
-        responses:
-          "200":
-            description: Success.
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/Backfill"
-          "401":
-            $ref: "#/components/responses/Unauthenticated"
-          "403":
-            $ref: "#/components/responses/PermissionDenied"
-          "404":
-            $ref: "#/components/responses/NotFound"
-          "409":
-            $ref: "#/components/responses/Conflict"
-
-  /backfills/{backfill_id}/unpause:
-    parameters:
-      - $ref: "#/components/parameters/BackfillIdPath"
-    post:
-        summary: Pause a backfill
-        x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
-        operationId: unpause_backfill
-        tags: [Backfill]
-        responses:
-          "200":
-            description: Success.
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/Backfill"
-          "401":
-            $ref: "#/components/responses/Unauthenticated"
-          "403":
-            $ref: "#/components/responses/PermissionDenied"
-          "404":
-            $ref: "#/components/responses/NotFound"
-          "409":
-            $ref: "#/components/responses/Conflict"
-
-  /backfills/{backfill_id}/cancel:
-    parameters:
-      - $ref: "#/components/parameters/BackfillIdPath"
-    post:
-        summary: Cancel a backfill
-        description: |
-          When a backfill is cancelled, all queued dag runs will be marked as failed.
-          Running dag runs will be allowed to continue.
-        x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
-        operationId: cancel_backfill
-        tags: [Backfill]
-        responses:
-          "200":
-            description: Success.
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/Backfill"
-          "401":
-            $ref: "#/components/responses/Unauthenticated"
-          "403":
-            $ref: "#/components/responses/PermissionDenied"
-          "404":
-            $ref: "#/components/responses/NotFound"
-          "409":
-            $ref: "#/components/responses/Conflict"
-
-  # Database entities
   /connections:
     get:
       summary: List connections
@@ -1364,7 +1215,7 @@ paths:
     delete:
       summary: Delete queued Asset events for an Asset.
       description: |
-        Delete queued Asset events for a Asset.
+        Delete queued Asset events for an Asset.
 
         *New in version 2.9.0*
         *Changed in 3.0.0*: The endpoint value was renamed from "/assets/queuedEvent/{uri}"
@@ -2902,6 +2753,16 @@ components:
           type: boolean
           nullable: true
           description: is_paused
+        reprocess_behavior:
+          type: string
+          default: none
+          enum:
+            - none
+            - failed
+            - completed
+          description: |
+            Controls whether new runs will be created when there's an existing run
+            for a given logical date.
         max_active_runs:
           type: integer
           nullable: true
@@ -3051,15 +2912,6 @@ components:
             The last time the DAG was parsed.
 
             *New in version 2.3.0*
-        last_pickled:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
-          description: |
-            The last time the DAG was pickled.
-
-            *New in version 2.3.0*
         last_expired:
           type: string
           format: date-time
@@ -3068,14 +2920,6 @@ components:
           description: |
             Time when the DAG last received a refresh signal
             (e.g. the DAG's "refresh" button was clicked in the web UI)
-
-            *New in version 2.3.0*
-        scheduler_lock:
-          type: boolean
-          readOnly: true
-          nullable: true
-          description: |
-            Whether (one of) the scheduler is scheduling this DAG at the moment
 
             *New in version 2.3.0*
         pickle_id:
@@ -5038,6 +4882,15 @@ components:
     ListTaskInstanceForm:
       type: object
       properties:
+        page_offset:
+          type: integer
+          minimum: 0
+          description: The number of items to skip before starting to collect the result set.
+        page_limit:
+          type: integer
+          minimum: 1
+          default: 100
+          description: The numbers of items to return.
         dag_ids:
           type: array
           items:

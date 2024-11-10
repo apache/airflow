@@ -18,13 +18,14 @@
 from __future__ import annotations
 
 import argparse
+import warnings
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Container
 
 import packaging.version
 from connexion import FlaskApi
-from flask import Blueprint, url_for
+from flask import Blueprint, g, url_for
 from packaging.version import Version
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
@@ -46,7 +47,7 @@ from airflow.cli.cli_config import (
     GroupCommand,
 )
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.exceptions import AirflowConfigException, AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import DagModel
 from airflow.providers.fab.auth_manager.cli_commands.definition import (
     DB_COMMANDS,
@@ -182,8 +183,19 @@ class FabAuthManager(BaseAuthManager):
         return f"{first_name} {last_name}".strip()
 
     def get_user(self) -> User:
-        """Return the user associated to the user in session."""
+        """
+        Return the user associated to the user in session.
+
+        Attempt to find the current user in g.user, as defined by the kerberos authentication backend.
+        If no such user is found, return the `current_user` local proxy object, linked to the user session.
+
+        """
         from flask_login import current_user
+
+        # If a user has gone through the Kerberos dance, the kerberos authentication manager
+        # has linked it with a User model, stored in g.user, and not the session.
+        if current_user.is_anonymous and getattr(g, "user", None) is not None and not g.user.is_anonymous:
+            return g.user
 
         return current_user
 
@@ -270,6 +282,16 @@ class FabAuthManager(BaseAuthManager):
         self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_ASSET, user=user)
+
+    def is_authorized_dataset(
+        self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
+    ) -> bool:
+        warnings.warn(
+            "is_authorized_dataset will be renamed as is_authorized_asset in Airflow 3 and will be removed when the minimum Airflow version is set to 3.0 for the fab provider",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.is_authorized_asset(method=method, user=user)
 
     def is_authorized_pool(
         self, *, method: ResourceMethod, details: PoolDetails | None = None, user: BaseUser | None = None

@@ -533,7 +533,10 @@ class TestSlackHook:
     @pytest.mark.parametrize("filename", [None, "foo.bar"])
     @pytest.mark.parametrize("channel", [None, "#random"])
     @pytest.mark.parametrize("filetype", [None, "auto"])
-    def test_send_file_v1_to_v2_content(self, initial_comment, title, filename, channel, filetype):
+    @pytest.mark.parametrize("snippet_type", [None, "text"])
+    def test_send_file_v1_to_v2_content(
+        self, initial_comment, title, filename, channel, filetype, snippet_type
+    ):
         hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
         with mock.patch.object(SlackHook, "send_file_v2") as mocked_send_file_v2:
             hook.send_file_v1_to_v2(
@@ -543,6 +546,7 @@ class TestSlackHook:
                 initial_comment=initial_comment,
                 title=title,
                 filetype=filetype,
+                snippet_type=snippet_type,
             )
             mocked_send_file_v2.assert_called_once_with(
                 channel_id=channel,
@@ -550,7 +554,7 @@ class TestSlackHook:
                     "content": '{"foo": "bar"}',
                     "filename": filename,
                     "title": title,
-                    "snippet_type": filetype,
+                    "snippet_type": snippet_type,
                 },
                 initial_comment=initial_comment,
             )
@@ -560,7 +564,8 @@ class TestSlackHook:
     @pytest.mark.parametrize("filename", [None, "foo.bar"])
     @pytest.mark.parametrize("channel", [None, "#random"])
     @pytest.mark.parametrize("filetype", [None, "auto"])
-    def test_send_file_v1_to_v2_file(self, initial_comment, title, filename, channel, filetype):
+    @pytest.mark.parametrize("snippet_type", [None, "text"])
+    def test_send_file_v1_to_v2_file(self, initial_comment, title, filename, channel, filetype, snippet_type):
         hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
         with mock.patch.object(SlackHook, "send_file_v2") as mocked_send_file_v2:
             hook.send_file_v1_to_v2(
@@ -570,6 +575,7 @@ class TestSlackHook:
                 initial_comment=initial_comment,
                 title=title,
                 filetype=filetype,
+                snippet_type=snippet_type,
             )
             mocked_send_file_v2.assert_called_once_with(
                 channel_id=channel,
@@ -577,7 +583,7 @@ class TestSlackHook:
                     "file": "/foo/bar/spam.egg",
                     "filename": filename or "spam.egg",
                     "title": title,
-                    "snippet_type": filetype,
+                    "snippet_type": snippet_type,
                 },
                 initial_comment=initial_comment,
             )

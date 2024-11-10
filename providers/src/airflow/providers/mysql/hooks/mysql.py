@@ -35,7 +35,15 @@ if TYPE_CHECKING:
         from mysql.connector.abstracts import MySQLConnectionAbstract
     except ModuleNotFoundError:
         logger.warning("The package 'mysql-connector-python' is not installed. Import skipped")
-    from MySQLdb.connections import Connection as MySQLdbConnection
+    try:
+        from MySQLdb.connections import Connection as MySQLdbConnection
+    except ImportError:
+        raise RuntimeError(
+            "You do not have `mysqlclient` package installed. "
+            "Please install it with `pip install mysqlclient` and make sure you have system "
+            "mysql libraries installed, as well as well as `pkg-config` system package "
+            "installed in case you see compilation error during installation."
+        )
 
 MySQLConnectionTypes = Union["MySQLdbConnection", "MySQLConnectionAbstract"]
 
@@ -125,14 +133,27 @@ class MySqlHook(DbApiHook):
             if conn_config["charset"].lower() in ("utf8", "utf-8"):
                 conn_config["use_unicode"] = True
         if conn.extra_dejson.get("cursor", False):
-            import MySQLdb.cursors
+            try:
+                import MySQLdb.cursors
+            except ImportError:
+                raise RuntimeError(
+                    "You do not have `mysqlclient` package installed. "
+                    "Please install it with `pip install mysqlclient` and make sure you have system "
+                    "mysql libraries installed, as well as well as `pkg-config` system package "
+                    "installed in case you see compilation error during installation."
+                )
 
-            if (conn.extra_dejson["cursor"]).lower() == "sscursor":
-                conn_config["cursorclass"] = MySQLdb.cursors.SSCursor
-            elif (conn.extra_dejson["cursor"]).lower() == "dictcursor":
-                conn_config["cursorclass"] = MySQLdb.cursors.DictCursor
-            elif (conn.extra_dejson["cursor"]).lower() == "ssdictcursor":
-                conn_config["cursorclass"] = MySQLdb.cursors.SSDictCursor
+            cursor_type = conn.extra_dejson.get("cursor", "").lower()
+            # Dictionary mapping cursor types to their respective classes
+            cursor_classes = {
+                "sscursor": MySQLdb.cursors.SSCursor,
+                "dictcursor": MySQLdb.cursors.DictCursor,
+                "ssdictcursor": MySQLdb.cursors.SSDictCursor,
+            }
+            # Set the cursor class in the connection configuration based on the cursor type
+            if cursor_type in cursor_classes:
+                conn_config["cursorclass"] = cursor_classes[cursor_type]
+
         if conn.extra_dejson.get("ssl", False):
             # SSL parameter for MySQL has to be a dictionary and in case
             # of extra/dejson we can get string if extra is passed via
@@ -189,7 +210,15 @@ class MySqlHook(DbApiHook):
         client_name = conn.extra_dejson.get("client", "mysqlclient")
 
         if client_name == "mysqlclient":
-            import MySQLdb
+            try:
+                import MySQLdb
+            except ImportError:
+                raise RuntimeError(
+                    "You do not have `mysqlclient` package installed. "
+                    "Please install it with `pip install mysqlclient` and make sure you have system "
+                    "mysql libraries installed, as well as well as `pkg-config` system package "
+                    "installed in case you see compilation error during installation."
+                )
 
             conn_config = self._get_conn_config_mysql_client(conn)
             return MySQLdb.connect(**conn_config)

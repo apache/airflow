@@ -79,6 +79,7 @@ class LoggingMixin:
 
     def __init__(self, context=None):
         self._set_context(context)
+        super().__init__()
 
     @staticmethod
     def _create_logger_name(

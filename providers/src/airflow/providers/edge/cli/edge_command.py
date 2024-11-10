@@ -39,7 +39,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.edge import __version__ as edge_provider_version
 from airflow.providers.edge.models.edge_job import EdgeJob
 from airflow.providers.edge.models.edge_logs import EdgeLogs
-from airflow.providers.edge.models.edge_worker import EdgeWorker, EdgeWorkerState
+from airflow.providers.edge.models.edge_worker import EdgeWorker, EdgeWorkerState, EdgeWorkerVersionException
 from airflow.utils import cli as cli_utils
 from airflow.utils.platform import IS_WINDOWS
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -77,8 +77,6 @@ def force_use_internal_api_on_edge_worker():
         os.environ["AIRFLOW_ENABLE_AIP_44"] = "True"
         os.environ["AIRFLOW__CORE__INTERNAL_API_URL"] = api_url
         InternalApiConfig.set_use_internal_api("edge-worker")
-        # Disable mini-scheduler post task execution and leave next task schedule to core scheduler
-        os.environ["AIRFLOW__SCHEDULER__SCHEDULE_AFTER_TASK_EXECUTION"] = "False"
 
 
 force_use_internal_api_on_edge_worker()
@@ -95,9 +93,9 @@ def _pid_file_path(pid_file: str | None) -> str:
     return cli_utils.setup_locations(process=EDGE_WORKER_PROCESS_NAME, pid=pid_file)[0]
 
 
-def _write_pid_to_pidfile(pid_file_path):
+def _write_pid_to_pidfile(pid_file_path: str):
     """Write PIDs for Edge Workers to disk, handling existing PID files."""
-    if pid_file_path.exists():
+    if Path(pid_file_path).exists():
         # Handle existing PID files on disk
         logger.info("An existing PID file has been found: %s.", pid_file_path)
         pid_stored_in_pid_file = read_pid_from_pidfile(pid_file_path)
@@ -142,7 +140,7 @@ class _EdgeWorkerCli:
 
     def __init__(
         self,
-        pid_file_path: Path,
+        pid_file_path: str,
         hostname: str,
         queues: list[str] | None,
         concurrency: int,
@@ -175,6 +173,9 @@ class _EdgeWorkerCli:
             self.last_hb = EdgeWorker.register_worker(
                 self.hostname, EdgeWorkerState.STARTING, self.queues, self._get_sysinfo()
             ).last_update
+        except EdgeWorkerVersionException as e:
+            logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
+            raise SystemExit(str(e))
         except AirflowException as e:
             if "404:NOT FOUND" in str(e):
                 raise SystemExit("Error: API endpoint is not ready, please set [edge] api_enabled=True.")
@@ -186,7 +187,10 @@ class _EdgeWorkerCli:
                 self.loop()
 
             logger.info("Quitting worker, signal being offline.")
-            EdgeWorker.set_state(self.hostname, EdgeWorkerState.OFFLINE, 0, self._get_sysinfo())
+            try:
+                EdgeWorker.set_state(self.hostname, EdgeWorkerState.OFFLINE, 0, self._get_sysinfo())
+            except EdgeWorkerVersionException:
+                logger.info("Version mismatch of Edge worker and Core. Quitting worker anyway.")
         finally:
             remove_existing_pidfile(self.pid_file_path)
 
@@ -238,14 +242,18 @@ class _EdgeWorkerCli:
                     EdgeJob.set_state(job.edge_job.key, TaskInstanceState.FAILED)
             if job.logfile.exists() and job.logfile.stat().st_size > job.logsize:
                 with job.logfile.open("r") as logfile:
+                    push_log_chunk_size = conf.getint("edge", "push_log_chunk_size")
                     logfile.seek(job.logsize, os.SEEK_SET)
-                    logdata = logfile.read()
-                    EdgeLogs.push_logs(
-                        task=job.edge_job.key,
-                        log_chunk_time=datetime.now(),
-                        log_chunk_data=logdata,
-                    )
-                    job.logsize += len(logdata)
+                    while True:
+                        logdata = logfile.read(push_log_chunk_size)
+                        if not logdata:
+                            break
+                        EdgeLogs.push_logs(
+                            task=job.edge_job.key,
+                            log_chunk_time=datetime.now(),
+                            log_chunk_data=logdata,
+                        )
+                        job.logsize += len(logdata)
 
     def heartbeat(self) -> None:
         """Report liveness state of worker to central site with stats."""
@@ -255,7 +263,11 @@ class _EdgeWorkerCli:
             else EdgeWorkerState.IDLE
         )
         sysinfo = self._get_sysinfo()
-        self.queues = EdgeWorker.set_state(self.hostname, state, len(self.jobs), sysinfo)
+        try:
+            self.queues = EdgeWorker.set_state(self.hostname, state, len(self.jobs), sysinfo)
+        except EdgeWorkerVersionException:
+            logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
+            _EdgeWorkerCli.drain = True
 
     def interruptible_sleep(self):
         """Sleeps but stops sleeping if drain is made."""

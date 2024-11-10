@@ -89,6 +89,7 @@ class TestDagRunEndpoint:
             session.add(dag_instance)
         dag = DAG(dag_id=dag_id, schedule=None, params={"validated_number": Param(1, minimum=1, maximum=10)})
         self.app.dag_bag.bag_dag(dag)
+        self.app.dag_bag.sync_to_db()
         return dag_instance
 
     def _create_test_dag_run(self, state=DagRunState.RUNNING, extra_dag=False, commit=True, idx_start=1):
@@ -1205,12 +1206,14 @@ class TestPostDagRun(TestDagRunEndpoint):
         assert "Invalid input for param" in response.json["detail"]
 
     @mock.patch("airflow.api_connexion.endpoints.dag_run_endpoint.get_airflow_app")
-    def test_dagrun_creation_exception_is_handled(self, mock_get_app, session):
+    @mock.patch("airflow.api_connexion.endpoints.dag_run_endpoint.DagVersion")
+    def test_dagrun_creation_exception_is_handled(self, mock_get_dag_version, mock_get_app, session):
         self._create_dag("TEST_DAG_ID")
         error_message = "Encountered Error"
         mock_get_app.return_value.dag_bag.get_dag.return_value.create_dagrun.side_effect = ValueError(
             error_message
         )
+        mock_get_dag_version.get_latest_version.return_value = mock.MagicMock()
         response = self.client.post(
             "api/v1/dags/TEST_DAG_ID/dagRuns",
             json={"execution_date": "2020-11-10T08:25:56Z"},
@@ -1772,7 +1775,7 @@ class TestClearDagRun(TestDagRunEndpoint):
 
 
 @pytest.mark.need_serialized_dag
-class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
+class TestGetDagRunAssetTriggerEvents(TestDagRunEndpoint):
     def test_should_respond_200(self, dag_maker, session):
         asset1 = Asset(uri="ds1")
 

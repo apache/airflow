@@ -1,0 +1,4 @@
+Support for adding executors via Airflow Plugins is removed
+
+Executors should no longer be registered or imported via Airflow's plugin mechanism -- these types of classes
+are just treated as plain Python classes by Airflow, so there is no need to register them with Airflow.

@@ -1,0 +1,16 @@
+Support for adding Hooks via Airflow Plugins is removed
+
+Hooks should no longer be registered or imported via Airflow's plugin mechanism -- these types of classes
+are just treated as plain Python classes by Airflow, so there is no need to register them with Airflow.
+
+Before:
+
+.. code-block:: python
+
+  from airflow.hooks.my_plugin import MyHook
+
+You should instead import it as:
+
+.. code-block:: python
+
+  from my_plugin import MyHook

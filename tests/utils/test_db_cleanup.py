@@ -32,7 +32,7 @@ from sqlalchemy.ext.declarative import DeclarativeMeta
 
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils import timezone
 from airflow.utils.db_cleanup import (
     ARCHIVE_TABLE_PREFIX,
@@ -338,7 +338,6 @@ class TestDBCleanup:
             "log_template",  # not a significant source of data; age not indicative of staleness
             "dag_tag",  # not a significant source of data; age not indicative of staleness,
             "dag_owner_attributes",  # not a significant source of data; age not indicative of staleness,
-            "dag_pickle",  # unsure of consequences
             "dag_code",  # self-maintaining
             "dag_warning",  # self-maintaining
             "connection",  # leave alone
@@ -353,6 +352,7 @@ class TestDBCleanup:
             "rendered_task_instance_fields",  # foreign key with TI
             "dag_priority_parsing_request",  # Records are purged once per DAG Processing loop, not a
             # significant source of data.
+            "dag_version",  # self-maintaining
         }
 
         from airflow.utils.db_cleanup import config_dict

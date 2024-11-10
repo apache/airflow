@@ -26,8 +26,7 @@ import os
 import re
 import shlex
 import string
-import warnings
-from collections.abc import Container
+from collections.abc import Container, Mapping
 from contextlib import AbstractContextManager
 from enum import Enum
 from functools import cached_property
@@ -35,7 +34,6 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable, Literal, Sequence
 
 import kubernetes
 import tenacity
-from deprecated import deprecated
 from kubernetes.client import CoreV1Api, V1Pod, models as k8s
 from kubernetes.client.exceptions import ApiException
 from kubernetes.stream import stream
@@ -44,7 +42,6 @@ from urllib3.exceptions import HTTPError
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
-    AirflowProviderDeprecationWarning,
     AirflowSkipException,
     TaskDeferred,
 )
@@ -215,18 +212,12 @@ class KubernetesPodOperator(BaseOperator):
     :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
         If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
-    :param is_delete_operator_pod: What to do when the pod reaches its final
-        state, or the execution is interrupted. If True (default), delete the
-        pod; if False, leave the pod.
-        Deprecated - use `on_finish_action` instead.
     :param termination_message_policy: The termination message policy of the base container.
         Default value is "File"
     :param active_deadline_seconds: The active_deadline_seconds which translates to active_deadline_seconds
         in V1PodSpec.
     :param callbacks: KubernetesPodOperatorCallback instance contains the callbacks methods on different step
         of KubernetesPodOperator.
-    :param progress_callback: Callback function for receiving k8s container logs.
-        `progress_callback` is deprecated, please use :param `callbacks` instead.
     :param logging_interval: max time in seconds that task should be in deferred state before
         resuming to fetch the latest logs. If ``None``, then the task will remain in deferred state until pod
         is done, and no logs will be visible until that time.
@@ -404,19 +395,8 @@ class KubernetesPodOperator(BaseOperator):
         self.poll_interval = poll_interval
         self.remote_pod: k8s.V1Pod | None = None
         self.log_pod_spec_on_failure = log_pod_spec_on_failure
-        if is_delete_operator_pod is not None:
-            warnings.warn(
-                "`is_delete_operator_pod` parameter is deprecated, please use `on_finish_action`",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            self.on_finish_action = (
-                OnFinishAction.DELETE_POD if is_delete_operator_pod else OnFinishAction.KEEP_POD
-            )
-            self.is_delete_operator_pod = is_delete_operator_pod
-        else:
-            self.on_finish_action = OnFinishAction(on_finish_action)
-            self.is_delete_operator_pod = self.on_finish_action == OnFinishAction.DELETE_POD
+        self.on_finish_action = OnFinishAction(on_finish_action)
+        self.is_delete_operator_pod = self.on_finish_action == OnFinishAction.DELETE_POD
         self.termination_message_policy = termination_message_policy
         self.active_deadline_seconds = active_deadline_seconds
         self.logging_interval = logging_interval
@@ -436,7 +416,7 @@ class KubernetesPodOperator(BaseOperator):
     def _render_nested_template_fields(
         self,
         content: Any,
-        context: Context,
+        context: Mapping[str, Any],
         jinja_env: jinja2.Environment,
         seen_oids: set,
     ) -> None:
@@ -512,9 +492,7 @@ class KubernetesPodOperator(BaseOperator):
 
     @cached_property
     def pod_manager(self) -> PodManager:
-        return PodManager(
-            kube_client=self.client, callbacks=self.callbacks, progress_callback=self._progress_callback
-        )
+        return PodManager(kube_client=self.client, callbacks=self.callbacks)
 
     @cached_property
     def hook(self) -> PodOperatorHookProtocol:
@@ -1160,10 +1138,6 @@ class KubernetesPodOperator(BaseOperator):
         """
         pod = self.build_pod_request_obj()
         print(yaml.dump(prune_dict(pod.to_dict(), mode="strict")))
-
-    @deprecated(reason="use `trigger_reentry` instead.", category=AirflowProviderDeprecationWarning)
-    def execute_complete(self, context: Context, event: dict, **kwargs):
-        return self.trigger_reentry(context=context, event=event)
 
     def process_duplicate_label_pods(self, pod_list: list[k8s.V1Pod]) -> k8s.V1Pod:
         """
