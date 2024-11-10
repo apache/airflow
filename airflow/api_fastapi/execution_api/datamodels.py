@@ -134,6 +134,15 @@ class ConnectionResponse(BaseModel):
     extra: str | None
 
 
+class VariableResponse(BaseModel):
+    """Variable schema for responses with fields that are needed for Runtime."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    key: str
+    val: str | None = Field(alias="value")
+
+
 # TODO: This is a placeholder for Task Identity Token schema.
 class TIToken(BaseModel):
     """Task Identity Token."""

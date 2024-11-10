@@ -85,8 +85,8 @@ COMMAND = """
                 exit 1
             fi
 
-            expiration_timestamp=$(echo "$output" | grep -oP 'expirationTimestamp:\s*\K[^,]+')
-            token=$(echo "$output" | grep -oP 'token:\s*\K[^,]+')
+            expiration_timestamp=$(echo "$output" | grep -oP 'expirationTimestamp: \\K[^,]+')
+            token=$(echo "$output" | grep -oP 'token: \\K[^,]+')
 
             json_string=$(printf '{{"kind": "ExecCredential","apiVersion": \
                 "client.authentication.k8s.io/v1alpha1","spec": {{}},"status": \
