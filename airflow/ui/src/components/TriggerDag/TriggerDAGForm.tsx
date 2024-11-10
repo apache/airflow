@@ -40,26 +40,18 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
   onTrigger,
   setDagParams,
 }) => {
-  const [jsonError, setJsonError] = useState<string | undefined>(undefined);
+  const [jsonError, setJsonError] = useState<string | undefined>();
   const {
     control,
     formState: { isDirty },
     handleSubmit,
     reset,
   } = useForm<DagParams>({
-    defaultValues: {
-      configJson: dagParams.configJson,
-      logicalDate: dagParams.logicalDate,
-      runId: dagParams.runId,
-    },
+    defaultValues: dagParams,
   });
 
   useEffect(() => {
-    reset({
-      configJson: dagParams.configJson,
-      logicalDate: dagParams.logicalDate,
-      runId: dagParams.runId,
-    });
+    reset(dagParams);
   }, [dagParams, reset]);
 
   const onSubmit = (data: DagParams) => {
@@ -143,11 +135,11 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                       }}
                       theme={colorMode === "dark" ? githubDark : githubLight}
                     />
-                    {Boolean(jsonError) ? (
+                    {Boolean(jsonError) && (
                       <Text color="red.500" fontSize="sm" mt={2}>
                         {jsonError}
                       </Text>
-                    ) : undefined}
+                    )}
                   </Box>
                 )}
               />
