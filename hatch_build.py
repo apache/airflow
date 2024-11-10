@@ -194,7 +194,6 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     "devel-devscripts": [
         "click>=8.0",
         "gitpython>=3.1.40",
-        "hatchling>=1.25.0,!=1.26.0",
         "incremental>=24.7.2",
         "pipdeptree>=2.13.1",
         "pygithub>=2.1.1",

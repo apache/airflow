@@ -189,7 +189,7 @@ jobs:
         run: |
           python -m pip install --upgrade pipx
           pipx ensurepath
-          pipx install hatch --force
+          pipx install hatch hatchling!=1.26.0
       - name: Run tests
         run: hatch run run-coverage
         env:
