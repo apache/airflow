@@ -15,6 +15,7 @@ import {
   DashboardService,
   EventLogService,
   ImportErrorService,
+  JobService,
   MonitorService,
   PluginService,
   PoolService,
@@ -1261,6 +1262,95 @@ export const useImportErrorServiceGetImportErrorsSuspense = <
     ),
     queryFn: () =>
       ImportErrorService.getImportErrors({ limit, offset, orderBy }) as TData,
+    ...options,
+  });
+/**
+ * Get Jobs
+ * Get all jobs.
+ * @param data The data for the request.
+ * @param data.state
+ * @param data.jobType
+ * @param data.hostname
+ * @param data.executorClass
+ * @param data.isAlive
+ * @param data.startDateGte
+ * @param data.startDateLte
+ * @param data.endDateGte
+ * @param data.endDateLte
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns JobCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useJobServiceGetJobsSuspense = <
+  TData = Common.JobServiceGetJobsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    endDateGte,
+    endDateLte,
+    executorClass,
+    hostname,
+    isAlive,
+    jobType,
+    limit,
+    offset,
+    orderBy,
+    startDateGte,
+    startDateLte,
+    state,
+  }: {
+    endDateGte?: string;
+    endDateLte?: string;
+    executorClass?: string;
+    hostname?: string;
+    isAlive?: boolean;
+    jobType?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    startDateGte?: string;
+    startDateLte?: string;
+    state?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseJobServiceGetJobsKeyFn(
+      {
+        endDateGte,
+        endDateLte,
+        executorClass,
+        hostname,
+        isAlive,
+        jobType,
+        limit,
+        offset,
+        orderBy,
+        startDateGte,
+        startDateLte,
+        state,
+      },
+      queryKey,
+    ),
+    queryFn: () =>
+      JobService.getJobs({
+        endDateGte,
+        endDateLte,
+        executorClass,
+        hostname,
+        isAlive,
+        jobType,
+        limit,
+        offset,
+        orderBy,
+        startDateGte,
+        startDateLte,
+        state,
+      }) as TData,
     ...options,
   });
 /**

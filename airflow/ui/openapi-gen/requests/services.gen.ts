@@ -98,6 +98,8 @@ import type {
   GetImportErrorResponse,
   GetImportErrorsData,
   GetImportErrorsResponse,
+  GetJobsData,
+  GetJobsResponse,
   GetPluginsData,
   GetPluginsResponse,
   DeletePoolData,
@@ -1642,6 +1644,56 @@ export class ImportErrorService {
         order_by: data.orderBy,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class JobService {
+  /**
+   * Get Jobs
+   * Get all jobs.
+   * @param data The data for the request.
+   * @param data.state
+   * @param data.jobType
+   * @param data.hostname
+   * @param data.executorClass
+   * @param data.isAlive
+   * @param data.startDateGte
+   * @param data.startDateLte
+   * @param data.endDateGte
+   * @param data.endDateLte
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @returns JobCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getJobs(
+    data: GetJobsData = {},
+  ): CancelablePromise<GetJobsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/jobs/",
+      query: {
+        state: data.state,
+        job_type: data.jobType,
+        hostname: data.hostname,
+        executor_class: data.executorClass,
+        is_alive: data.isAlive,
+        start_date_gte: data.startDateGte,
+        start_date_lte: data.startDateLte,
+        end_date_gte: data.endDateGte,
+        end_date_lte: data.endDateLte,
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+      },
+      errors: {
+        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         422: "Validation Error",
