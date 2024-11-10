@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.6.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Support for FastAPI in Airflow 3 as API backend.``
+
 0.5.5pre0
 .........
 
