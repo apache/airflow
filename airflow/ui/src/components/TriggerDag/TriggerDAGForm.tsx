@@ -60,6 +60,20 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
     setJsonError(undefined);
   };
 
+  const validateAndPrettifyJson = (value: string) => {
+    try {
+      const parsedJson = JSON.parse(value) as JSON;
+
+      setJsonError(undefined);
+
+      return JSON.stringify(parsedJson, undefined, 2);
+    } catch {
+      setJsonError("Invalid JSON format.");
+
+      return value;
+    }
+  };
+
   const { colorMode } = useColorMode();
 
   return (
@@ -118,14 +132,12 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                       }}
                       extensions={[json()]}
                       height="200px"
-                      onChange={(value) => {
-                        field.onChange(value);
-                        try {
-                          JSON.parse(value);
-                          setJsonError(undefined);
-                        } catch {
-                          setJsonError("Invalid JSON format.");
-                        }
+                      onBlur={() => {
+                        const prettifiedJson = validateAndPrettifyJson(
+                          field.value,
+                        );
+
+                        field.onChange(prettifiedJson);
                       }}
                       style={{
                         border: "1px solid #CBD5E0",
