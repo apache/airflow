@@ -240,12 +240,14 @@ NODE_VERSION = "22.2.0"
 PRE_COMMIT_VERSION = "4.0.1"
 HATCH_VERSION = "1.13.0"
 PYYAML_VERSION = "6.0.2"
+# hatchling recent version broke: https://github.com/pypa/hatch/issues/1793
+HATCHLING_VERSION = "1.25.0"
 
 AIRFLOW_BUILD_DOCKERFILE = f"""
 FROM python:{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}-slim-{ALLOWED_DEBIAN_VERSIONS[0]}
 RUN apt-get update && apt-get install -y --no-install-recommends git
 RUN pip install --root-user-action ignore pip=={AIRFLOW_PIP_VERSION} hatch=={HATCH_VERSION} pyyaml=={PYYAML_VERSION}\
- gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} pre-commit=={PRE_COMMIT_VERSION}
+ gitpython=={GITPYTHON_VERSION} rich=={RICH_VERSION} pre-commit=={PRE_COMMIT_VERSION} hatchling=={HATCHLING_VERSION}
 COPY . /opt/airflow
 """
 
