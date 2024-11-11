@@ -256,10 +256,7 @@ important to watch DagRun activity status in time when introducing
 new ``depends_on_past=True``, unless you are planning on running a backfill
 for the new task(s).
 
-It is also important to note that the task's ``start_date``, in the context of a
-backfill CLI command, gets overridden by the backfill's ``start_date`` commands.
-This allows for a backfill on tasks that have ``depends_on_past=True`` to
-actually start. If this were not the case, the backfill just would not start.
+It is also important to note that the task's ``start_date`` is ignored in backfills.
 
 Using time zones
 ----------------
@@ -401,7 +398,7 @@ What does ``TemplateNotFound`` mean?
 -------------------------------------
 
 ``TemplateNotFound`` errors are usually due to misalignment with user expectations when passing path to operator
-that trigger Jinja templating. A common occurrence is with :ref:`BashOperators<howto/operator:BashOperator>`.
+that trigger Jinja templating. A common occurrence is with :class:`~airflow.providers.standard.operators.BashOperator`.
 
 Another commonly missed fact is that the files are resolved relative to where the pipeline file lives. You can add
 other directories to the ``template_searchpath`` of the DAG object to allow for other non-relative location.
@@ -545,6 +542,3 @@ The telemetry data collected is limited to the following:
 - Operating system & machine architecture
 - Executor
 - Metadata DB type & its version
-- Number of DAGs
-- Number of Airflow plugins
-- Number of timetables, Flask blueprints, Flask AppBuilder views, and Flask Appbuilder menu items from Airflow plugins

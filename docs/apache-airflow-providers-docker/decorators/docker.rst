@@ -162,7 +162,7 @@ ulimits
 Usage Example
 -------------
 
-.. exampleinclude:: /../../tests/system/providers/docker/example_taskflow_api_docker_virtualenv.py
+.. exampleinclude:: /../../providers/tests/system/docker/example_taskflow_api_docker_virtualenv.py
     :language: python
     :start-after: [START transform_docker]
     :end-before: [END transform_docker]

@@ -42,14 +42,59 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.25.0
+.......
+
+Latest change: 2024-10-25
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`b4363f4684 <https://github.com/apache/airflow/commit/b4363f4684b4a878c04ce100b260d783f4d96d81>`_  2024-10-25   ``Add a debug log for creating batch workloads in dataproc (#43265)``
+`cc762293ca <https://github.com/apache/airflow/commit/cc762293ca5ce20d475af787822ea48b6d3c874f>`_  2024-10-23   ``feat: add Hook Level Lineage support for GCSHook (#42507)``
+`ca2c809b30 <https://github.com/apache/airflow/commit/ca2c809b30607af7ee320510587fe93b1ab90218>`_  2024-10-23   ``feat: sensor to check status of Dataform action (#43055)``
+`014808b362 <https://github.com/apache/airflow/commit/014808b3622d8791ea0b28a1e59a8b2d2a610bfc>`_  2024-10-20   ``Fix outdated CloudRunExecuteJobOperator docs (#43195)``
+`424cf507a8 <https://github.com/apache/airflow/commit/424cf507a849a0bf3239f1055beda7d7f36c785b>`_  2024-10-18   ``add min version to plyvel (#43129)``
+`aeb7e90f0e <https://github.com/apache/airflow/commit/aeb7e90f0e680d32ad78216e7de3cf2d135fdbf5>`_  2024-10-17   ``Fix TestTranslationLegacyModelPredictLink dataset_id error (#42463)``
+`f587edf2ee <https://github.com/apache/airflow/commit/f587edf2ee74169f1da6a408a04d7ed3c372d270>`_  2024-10-17   ``vertex ai training operators: add display_name to rendered fields (#43028)``
+`f1f9201a21 <https://github.com/apache/airflow/commit/f1f9201a2199c7fd78c7146ca3a02ab25ca8de91>`_  2024-10-15   ``Create Operators for Google Cloud Vertex AI Context Caching (#43008)``
+`732e0564d4 <https://github.com/apache/airflow/commit/732e0564d47813dfb05b22b9b30a108d4668a3e5>`_  2024-10-15   ``Make google provider pyarrow dependency explicit (#42996)``
+`7d8ea68bda <https://github.com/apache/airflow/commit/7d8ea68bdaae3258bd391b8f6ae0277258a7c437>`_  2024-10-12   ``Restrict looker-sdk version 24.18.0 and microsoft-kiota-http 1.3.4 (#42954)``
+`70b8e50ddc <https://github.com/apache/airflow/commit/70b8e50ddce305582802b6d08b1c948fa3ef086a>`_  2024-10-10   ``Remove dag.run() method (#42761)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ========================================================================================
+
+10.24.0
+.......
+
+Latest change: 2024-10-09
+
+=================================================================================================  ===========  ======================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
+`1cb9294c64 <https://github.com/apache/airflow/commit/1cb9294c6442f4e6792c1ea2b1948b1d38284326>`_  2024-10-06   ``Removed conditional check for task context logging in airflow version 2.8.0 and above (#42764)``
+`2ffc389574 <https://github.com/apache/airflow/commit/2ffc389574042939f11fcae75a35a8b697583b8d>`_  2024-10-04   ``Add 'retry_if_resource_not_ready' logic for DataprocCreateClusterOperator and DataprocCreateBatchOperator (#42703)``
+`8a255f3e1e <https://github.com/apache/airflow/commit/8a255f3e1e32d5084623527053116777cc4f72f9>`_  2024-10-04   ``Publish Dataproc Serverless Batch link after it starts if batch_id was provided (#41153)``
+`9ec21405c0 <https://github.com/apache/airflow/commit/9ec21405c0abe23f6de2e0acd704faa6631fbe76>`_  2024-10-03   ``fix PubSubAsyncHook in PubsubPullTrigger to use gcp_conn_id (#42671)``
+`64e972c977 <https://github.com/apache/airflow/commit/64e972c977fd4fa03b8db9df23410adb9862d5eb>`_  2024-10-02   ``Fix consistent return response from PubSubPullSensor (#42080)``
+`ede7cb27fd <https://github.com/apache/airflow/commit/ede7cb27fd39e233889d127490a2255df8c5d27d>`_  2024-09-30   ``Rename dataset related python variable names to asset (#41348)``
+`5689d64911 <https://github.com/apache/airflow/commit/5689d64911fbfd5176fc129f06e7483cc5e4ed03>`_  2024-09-27   ``Undo partition exclusion from the table name when splitting a full BigQuery table name (#42541)``
+`dc43d31c5a <https://github.com/apache/airflow/commit/dc43d31c5a80b1b58cb1c2be4f6b1e0079d579fa>`_  2024-09-27   ``Fix gcp text to speech uri fetch (#42309)``
+`56ab422a97 <https://github.com/apache/airflow/commit/56ab422a97768f59dc7ff4dc4f3262c0bb11002c>`_  2024-09-27   ``Deprecate AutoMLBatchPredictOperator and refactor AutoMl system tests (#42260)``
+`b0234cbaf7 <https://github.com/apache/airflow/commit/b0234cbaf73bdf28640b77e2f1c378d5c489b26a>`_  2024-09-27   ``Refactor ''bucket.get_blob'' calls in ''GCSHook'' to handle validation for non-existent objects. (#42474)``
+`eed1d0d254 <https://github.com/apache/airflow/commit/eed1d0d2548a98bc3cd66d469ff09e1e2bc0945e>`_  2024-09-24   ``Bugfix/dataflow job location passing (#41887)``
+=================================================================================================  ===========  ======================================================================================================================
+
 10.23.0
 .......
 
-Latest change: 2024-09-20
+Latest change: 2024-09-21
 
 =================================================================================================  ===========  ====================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================================================================
+`7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
 `c051d0aa4c <https://github.com/apache/airflow/commit/c051d0aa4c7215b35a4390822aa6ece3ac945900>`_  2024-09-20   ``Add ability to create Flink Jobs in dataproc cluster (#42342)``
 `f278e62255 <https://github.com/apache/airflow/commit/f278e62255e513c26f26c76e41a8734ec36fb07a>`_  2024-09-19   ``Minor fixes to ensure successful Vertex AI LLMops pipeline (#41997)``
 `d7343816b3 <https://github.com/apache/airflow/commit/d7343816b3406470dd7f963e1959171c32ef956f>`_  2024-09-19   ``Mark VertexAI AutoMLText deprecation (#42251)``

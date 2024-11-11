@@ -1,0 +1,20 @@
+Removed deprecated aliases support for providers.
+
+
+* Removed deprecated ``atlas`` alias support. Please use ``apache-atlas`` instead.
+* Removed deprecated ``aws`` alias support. Please use ``amazon`` instead.
+* Removed deprecated ``azure`` alias support. Please use ``microsoft-azure`` instead.
+* Removed deprecated ``cassandra`` alias support. Please use ``apache-cassandra`` instead.
+* Removed deprecated ``crypto`` alias support.
+* Removed deprecated ``druid`` alias support. Please use ``apache-druid`` instead.
+* Removed deprecated ``gcp`` alias support. Please use ``google`` instead.
+* Removed deprecated ``gcp-api`` alias support. Please use ``google`` instead.
+* Removed deprecated ``hdfs`` alias support. Please use ``apache-hdfs`` instead.
+* Removed deprecated ``hive`` alias support. Please use ``apache-hive`` instead.
+* Removed deprecated ``kubernetes`` alias support. Please use ``cncf-kubernetes`` instead.
+* Removed deprecated ``mssql`` alias support. Please use ``microsoft-mssql`` instead.
+* Removed deprecated ``pinot`` alias support. Please use ``apache-pinot`` instead.
+* Removed deprecated ``s3`` alias support. Please use ``amazon`` instead.
+* Removed deprecated ``spark`` alias support. Please use ``apache-spark`` instead.
+* Removed deprecated ``webhdfs`` alias support. Please use ``apache-webhdfs`` instead.
+* Removed deprecated ``winrm`` alias support. Please use ``microsoft-winrm`` instead.

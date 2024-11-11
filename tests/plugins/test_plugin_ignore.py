@@ -77,7 +77,7 @@ class TestIgnorePluginFile:
             "test_load_sub1.py",
         }
         ignore_list_file = ".airflowignore"
-        for file_path in find_path_from_directory(plugin_folder_path, ignore_list_file):
+        for file_path in find_path_from_directory(plugin_folder_path, ignore_list_file, "regexp"):
             file_path = Path(file_path)
             if file_path.is_file() and file_path.suffix == ".py":
                 detected_files.add(file_path.name)

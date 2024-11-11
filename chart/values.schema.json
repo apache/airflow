@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.10.2",
+            "default": "2.10.3",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.10.2",
+            "default": "2.10.3",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -841,7 +841,7 @@
                         "tag": {
                             "description": "The StatsD image tag.",
                             "type": "string",
-                            "default": "v0.27.2-pr579"
+                            "default": "v0.28.0"
                         },
                         "pullPolicy": {
                             "description": "The StatsD image pull policy.",
@@ -895,7 +895,7 @@
                         "tag": {
                             "description": "The PgBouncer image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-2024.01.19-1.21.0"
+                            "default": "airflow-pgbouncer-2024.09.19-1.22.1"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer image pull policy.",
@@ -949,7 +949,7 @@
                         "tag": {
                             "description": "The gitSync image tag.",
                             "type": "string",
-                            "default": "v4.1.0"
+                            "default": "v4.3.0"
                         },
                         "pullPolicy": {
                             "description": "The gitSync image pull policy.",
@@ -1597,6 +1597,18 @@
                         "object"
                     ],
                     "default": null
+                },
+                "podManagementPolicy": {
+                    "description": "Specifies the policy for managing pods within the worker. Only applicable to StatefulSet.",
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "default": null,
+                    "enum": [
+                        "OrderedReady",
+                        "Parallel"
+                    ]
                 },
                 "strategy": {
                     "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment.",
@@ -4651,6 +4663,16 @@
                         "null"
                     ],
                     "default": 300
+                },
+                "env": {
+                    "description": "Add additional env vars to migrate database job.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "x-kubernetes-patch-merge-key": "name",
+                    "x-kubernetes-patch-strategy": "merge"
                 }
             }
         },
@@ -7660,6 +7682,39 @@
                     "type": "integer",
                     "default": 600
                 },
+                "service": {
+                    "description": "service configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "type": {
+                            "description": "Service type.",
+                            "enum": [
+                                "ClusterIP",
+                                "NodePort",
+                                "LoadBalancer"
+                            ],
+                            "type": "string",
+                            "default": "ClusterIP"
+                        },
+                        "clusterIP": {
+                            "description": "If using `ClusterIP` service type, custom IP address can be specified.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "nodePort": {
+                            "description": "If using `NodePort` service type, custom node port can be specified.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
+                        }
+                    }
+                },
                 "persistence": {
                     "description": "Persistence configuration.",
                     "type": "object",
@@ -7928,7 +7983,7 @@
             "additionalProperties": false,
             "properties": {
                 "secretName": {
-                    "description": "Registry connection string secret.",
+                    "description": "Name of the Kubernetes secret containing Base64 encoded credentials to connect to a private registry (will get passed to imagePullSecrets).",
                     "type": [
                         "string",
                         "null"
@@ -7936,7 +7991,7 @@
                     "default": null
                 },
                 "connection": {
-                    "description": "Registry connection configuration.",
+                    "description": "Credentials to connect to a private registry, these will get Base64 encoded and stored in a secret (will get passed to imagePullSecrets).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": false,
@@ -7952,12 +8007,12 @@
                             "default": ""
                         },
                         "host": {
-                            "description": "Host",
+                            "description": "Registry Server URL (e.g. https://index.docker.io/v1/ for DockerHub)",
                             "type": "string",
                             "default": ""
                         },
                         "email": {
-                            "description": "Email",
+                            "description": "Email Address",
                             "type": "string",
                             "default": ""
                         }

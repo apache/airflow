@@ -41,14 +41,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/singularity/index>
+    System Tests <_api/tests/system/singularity/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-singularity/|version|/tests/system/providers/singularity/example_singularity.py>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-singularity/|version|/providers/tests/system/singularity/example_singularity.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-singularity/>
     Installing from sources <installing-providers-from-sources>
 

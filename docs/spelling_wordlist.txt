@@ -32,6 +32,7 @@ airbyte
 AirflowException
 airflowignore
 ajax
+aks
 AlertApi
 alertPolicies
 Alibaba
@@ -88,6 +89,8 @@ asctime
 asend
 asia
 assertEqualIgnoreMultipleSpaces
+AssetEvent
+AssetEvents
 assigment
 ast
 astroid
@@ -156,6 +159,7 @@ balancers
 Banco
 Bas
 BaseClient
+BaseHook
 BaseObject
 BaseOperator
 baseOperator
@@ -225,7 +229,6 @@ cgi
 Cgroups
 cgroups
 cgroupspy
-Chainable
 chakra
 Changelog
 changelog
@@ -788,6 +791,7 @@ ignoreUnknownValues
 ImageAnnotatorClient
 imageORfile
 imagePullPolicy
+imagePullSecrets
 imageVersion
 Imap
 imap
@@ -829,8 +833,15 @@ ints
 intvl
 Investorise
 io
+IP
 ip
 ipc
+IPv
+ipv
+IPv4
+ipv4
+IPv6
+ipv6
 iPython
 irreproducible
 IRSA
@@ -1483,6 +1494,9 @@ SlackResponse
 slas
 smtp
 SnowflakeHook
+Snowpark
+snowpark
+SnowparkOperator
 somecollection
 somedatabase
 sortable
@@ -1722,6 +1736,7 @@ unarchived
 unassigns
 uncomment
 uncommenting
+uncompress
 Undead
 undead
 Undeads

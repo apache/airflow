@@ -42,7 +42,7 @@ from tabulate import tabulate
 
 import airflow.models
 from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.callbacks.callback_requests import CallbackRequest, SlaCallbackRequest
+from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.models.dag import DagModel
@@ -50,7 +50,6 @@ from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.secrets.cache import SecretCache
 from airflow.stats import Stats
 from airflow.traces.tracer import Trace, add_span
@@ -117,7 +116,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         for unlimited.
     :param processor_timeout: How long to wait before timing out a DAG file processor
     :param dag_ids: if specified, only schedule tasks with these DAG IDs
-    :param pickle_dags: whether to pickle DAGs.
     :param async_mode: Whether to start agent in async mode
     """
 
@@ -127,7 +125,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         max_runs: int,
         processor_timeout: timedelta,
         dag_ids: list[str] | None,
-        pickle_dags: bool,
         async_mode: bool,
     ):
         super().__init__()
@@ -135,7 +132,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         self._max_runs = max_runs
         self._processor_timeout = processor_timeout
         self._dag_ids = dag_ids
-        self._pickle_dags = pickle_dags
         self._async_mode = async_mode
         # Map from file path to the processor
         self._processors: dict[str, DagFileProcessorProcess] = {}
@@ -163,7 +159,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
                 self._processor_timeout,
                 child_signal_conn,
                 self._dag_ids,
-                self._pickle_dags,
                 self._async_mode,
             ),
         )
@@ -223,7 +218,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         processor_timeout: timedelta,
         signal_conn: MultiprocessingConnection,
         dag_ids: list[str] | None,
-        pickle_dags: bool,
         async_mode: bool,
     ) -> None:
         # Make this process start as a new process group - that makes it easy
@@ -240,7 +234,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
             max_runs=max_runs,
             processor_timeout=processor_timeout,
             dag_ids=dag_ids,
-            pickle_dags=pickle_dags,
             signal_conn=signal_conn,
             async_mode=async_mode,
         )
@@ -353,7 +346,6 @@ class DagFileProcessorManager(LoggingMixin):
     :param processor_timeout: How long to wait before timing out a DAG file processor
     :param signal_conn: connection to communicate signal with processor agent.
     :param dag_ids: if specified, only schedule tasks with these DAG IDs
-    :param pickle_dags: whether to pickle DAGs.
     :param async_mode: whether to start the manager in async mode
     """
 
@@ -372,7 +364,6 @@ class DagFileProcessorManager(LoggingMixin):
         max_runs: int,
         processor_timeout: timedelta,
         dag_ids: list[str] | None,
-        pickle_dags: bool,
         signal_conn: MultiprocessingConnection | None = None,
         async_mode: bool = True,
     ):
@@ -383,7 +374,6 @@ class DagFileProcessorManager(LoggingMixin):
         self._max_runs = max_runs
         # signal_conn is None for dag_processor_standalone mode.
         self._direct_scheduler_conn = signal_conn
-        self._pickle_dags = pickle_dags
         self._dag_ids = dag_ids
         self._async_mode = async_mode
         self._parsing_start_time: float | None = None
@@ -547,10 +537,6 @@ class DagFileProcessorManager(LoggingMixin):
             deactivated = deactivated_dagmodel.rowcount
             if deactivated:
                 cls.logger().info("Deactivated %i DAGs which are no longer present in file.", deactivated)
-
-            for dag_id in to_deactivate:
-                SerializedDagModel.remove_dag(dag_id)
-                cls.logger().info("Deleted DAG %s in serialized_dag table", dag_id)
 
     def _run_parsing_loop(self):
         # In sync mode we want timeout=None -- wait forever until a message is received
@@ -752,40 +738,17 @@ class DagFileProcessorManager(LoggingMixin):
         return callback_queue
 
     def _add_callback_to_queue(self, request: CallbackRequest):
-        # requests are sent by dag processors. SLAs exist per-dag, but can be generated once per SLA-enabled
-        # task in the dag. If treated like other callbacks, SLAs can cause feedback where a SLA arrives,
-        # goes to the front of the queue, gets processed, triggers more SLAs from the same DAG, which go to
-        # the front of the queue, and we never get round to picking stuff off the back of the queue
-        if isinstance(request, SlaCallbackRequest):
-            if request in self._callback_to_execute[request.full_filepath]:
-                self.log.debug("Skipping already queued SlaCallbackRequest")
-                return
-
-            # not already queued, queue the callback
-            # do NOT add the file of this SLA to self._file_path_queue. SLAs can arrive so rapidly that
-            # they keep adding to the file queue and never letting it drain. This in turn prevents us from
-            # ever rescanning the dags folder for changes to existing dags. We simply store the callback, and
-            # periodically, when self._file_path_queue is drained, we rescan and re-queue all DAG files.
-            # The SLAs will be picked up then. It means a delay in reacting to the SLAs (as controlled by the
-            # min_file_process_interval config) but stops SLAs from DoS'ing the queue.
-            self.log.debug("Queuing SlaCallbackRequest for %s", request.dag_id)
-            self._callback_to_execute[request.full_filepath].append(request)
-            Stats.incr("dag_processing.sla_callback_count")
-
-        # Other callbacks have a higher priority over DAG Run scheduling, so those callbacks gazump, even if
-        # already in the file path queue
-        else:
-            self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
-            self._callback_to_execute[request.full_filepath].append(request)
-            if request.full_filepath in self._file_path_queue:
-                # Remove file paths matching request.full_filepath from self._file_path_queue
-                # Since we are already going to use that filepath to run callback,
-                # there is no need to have same file path again in the queue
-                self._file_path_queue = deque(
-                    file_path for file_path in self._file_path_queue if file_path != request.full_filepath
-                )
-            self._add_paths_to_queue([request.full_filepath], True)
-            Stats.incr("dag_processing.other_callback_count")
+        self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
+        self._callback_to_execute[request.full_filepath].append(request)
+        if request.full_filepath in self._file_path_queue:
+            # Remove file paths matching request.full_filepath from self._file_path_queue
+            # Since we are already going to use that filepath to run callback,
+            # there is no need to have same file path again in the queue
+            self._file_path_queue = deque(
+                file_path for file_path in self._file_path_queue if file_path != request.full_filepath
+            )
+        self._add_paths_to_queue([request.full_filepath], True)
+        Stats.incr("dag_processing.other_callback_count")
 
     def _refresh_requested_filelocs(self) -> None:
         """Refresh filepaths from dag dir as requested by users via APIs."""
@@ -851,17 +814,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             dag_filelocs = {full_loc for path in self._file_paths for full_loc in _iter_dag_filelocs(path)}
 
-            from airflow.models.dagcode import DagCode
-
-            SerializedDagModel.remove_deleted_dags(
-                alive_dag_filelocs=dag_filelocs,
-                processor_subdir=self.get_dag_directory(),
-            )
             DagModel.deactivate_deleted_dags(
-                dag_filelocs,
-                processor_subdir=self.get_dag_directory(),
-            )
-            DagCode.remove_deleted_code(
                 dag_filelocs,
                 processor_subdir=self.get_dag_directory(),
             )
@@ -1214,11 +1167,10 @@ class DagFileProcessorManager(LoggingMixin):
         self.log.debug("%s file paths queued for processing", len(self._file_path_queue))
 
     @staticmethod
-    def _create_process(file_path, pickle_dags, dag_ids, dag_directory, callback_requests):
+    def _create_process(file_path, dag_ids, dag_directory, callback_requests):
         """Create DagFileProcessorProcess instance."""
         return DagFileProcessorProcess(
             file_path=file_path,
-            pickle_dags=pickle_dags,
             dag_ids=dag_ids,
             dag_directory=dag_directory,
             callback_requests=callback_requests,
@@ -1240,7 +1192,6 @@ class DagFileProcessorManager(LoggingMixin):
             callback_to_execute_for_file = self._callback_to_execute[file_path]
             processor = self._create_process(
                 file_path,
-                self._pickle_dags,
                 self._dag_ids,
                 self.get_dag_directory(),
                 callback_to_execute_for_file,

@@ -18,30 +18,21 @@
 
 from __future__ import annotations
 
-from functools import wraps
-from typing import Any, Callable, TypeVar, cast
+import warnings
+from typing import Any
 
-from flask import Response
-
-from airflow.www.extensions.init_auth_manager import get_auth_manager
+import airflow.providers.fab.auth_manager.api.auth.backend.session as fab_session
+from airflow.exceptions import RemovedInAirflow3Warning
 
 CLIENT_AUTH: tuple[str, str] | Any | None = None
 
 
-def init_app(_):
-    """Initialize authentication backend."""
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.fab.auth_manager.api.auth.backend.session` instead.",
+    RemovedInAirflow3Warning,
+    stacklevel=2,
+)
 
 
-T = TypeVar("T", bound=Callable)
-
-
-def requires_authentication(function: T):
-    """Decorate functions that require authentication."""
-
-    @wraps(function)
-    def decorated(*args, **kwargs):
-        if not get_auth_manager().is_logged_in():
-            return Response("Unauthorized", 401, {})
-        return function(*args, **kwargs)
-
-    return cast(T, decorated)
+init_app = fab_session.init_app
+requires_authentication = fab_session.requires_authentication

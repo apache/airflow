@@ -107,7 +107,7 @@ def get_executor_under_test(dotted_path):
     from airflow.executors.executor_loader import ExecutorLoader
 
     if dotted_path == "MockExecutor":
-        from tests.test_utils.mock_executor import MockExecutor as executor
+        from tests_common.test_utils.mock_executor import MockExecutor as executor
 
     else:
         executor = ExecutorLoader.load_executor(dotted_path)
@@ -133,13 +133,11 @@ def reset_dag(dag, session):
     DR = airflow.models.DagRun
     DM = airflow.models.DagModel
     TI = airflow.models.TaskInstance
-    TF = airflow.models.TaskFail
     dag_id = dag.dag_id
 
     session.query(DM).filter(DM.dag_id == dag_id).update({"is_paused": False})
     session.query(DR).filter(DR.dag_id == dag_id).delete()
     session.query(TI).filter(TI.dag_id == dag_id).delete()
-    session.query(TF).filter(TF.dag_id == dag_id).delete()
 
 
 def pause_all_dags(session):
@@ -280,7 +278,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
 
     executor = ShortCircuitExecutor(dag_ids_to_watch=dag_ids, num_runs=num_runs)
     scheduler_job = Job(executor=executor)
-    job_runner = SchedulerJobRunner(job=scheduler_job, dag_ids=dag_ids, do_pickle=False)
+    job_runner = SchedulerJobRunner(job=scheduler_job, dag_ids=dag_ids)
     executor.job_runner = job_runner
 
     total_tasks = sum(len(dag.tasks) for dag in dags)
@@ -303,7 +301,7 @@ def main(num_runs, repeat, pre_create_dag_runs, executor_class, dag_ids):
                     reset_dag(dag, session)
             executor.reset(dag_ids)
             scheduler_job = Job(executor=executor)
-            job_runner = SchedulerJobRunner(job=scheduler_job, dag_ids=dag_ids, do_pickle=False)
+            job_runner = SchedulerJobRunner(job=scheduler_job, dag_ids=dag_ids)
             executor.scheduler_job = scheduler_job
 
         gc.disable()

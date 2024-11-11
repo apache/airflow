@@ -44,10 +44,6 @@ def test_supports_sentry():
     assert not BaseExecutor.supports_sentry
 
 
-def test_supports_pickling():
-    assert BaseExecutor.supports_pickling
-
-
 def test_is_local_default_value():
     assert not BaseExecutor.is_local
 
@@ -145,7 +141,7 @@ def test_gauge_executor_metrics_single_executor(mock_stats_gauge, mock_trigger_t
 @mock.patch("airflow.executors.sequential_executor.SequentialExecutor.sync")
 @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
 @mock.patch("airflow.executors.base_executor.Stats.gauge")
-@mock.patch("airflow.executors.executor_loader.ExecutorLoader.get_executor_names")
+@mock.patch("airflow.executors.base_executor.ExecutorLoader.get_executor_names")
 def test_gauge_executor_metrics_with_multiple_executors(
     mock_get_executor_names,
     mock_stats_gauge,

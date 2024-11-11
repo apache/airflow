@@ -32,7 +32,7 @@ from sqlalchemy.ext.declarative import DeclarativeMeta
 
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils import timezone
 from airflow.utils.db_cleanup import (
     ARCHIVE_TABLE_PREFIX,
@@ -48,7 +48,13 @@ from airflow.utils.db_cleanup import (
     run_cleanup,
 )
 from airflow.utils.session import create_session
-from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, drop_tables_with_prefix
+
+from tests_common.test_utils.db import (
+    clear_db_assets,
+    clear_db_dags,
+    clear_db_runs,
+    drop_tables_with_prefix,
+)
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -57,11 +63,11 @@ pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 def clean_database():
     """Fixture that cleans the database before and after every test."""
     clear_db_runs()
-    clear_db_datasets()
+    clear_db_assets()
     clear_db_dags()
     yield  # Test runs here
     clear_db_dags()
-    clear_db_datasets()
+    clear_db_assets()
     clear_db_runs()
 
 
@@ -324,28 +330,29 @@ class TestDBCleanup:
             "backfill_dag_run",  # todo: AIP-78
             "ab_user",
             "variable",  # leave alone
-            "dataset",  # not good way to know if "stale"
-            "dataset_alias",  # not good way to know if "stale"
+            "asset_active",  # not good way to know if "stale"
+            "asset",  # not good way to know if "stale"
+            "asset_alias",  # not good way to know if "stale"
             "task_map",  # keys to TI, so no need
             "serialized_dag",  # handled through FK to Dag
             "log_template",  # not a significant source of data; age not indicative of staleness
             "dag_tag",  # not a significant source of data; age not indicative of staleness,
             "dag_owner_attributes",  # not a significant source of data; age not indicative of staleness,
-            "dag_pickle",  # unsure of consequences
             "dag_code",  # self-maintaining
             "dag_warning",  # self-maintaining
             "connection",  # leave alone
             "slot_pool",  # leave alone
-            "dag_schedule_dataset_reference",  # leave alone for now
-            "dag_schedule_dataset_alias_reference",  # leave alone for now
-            "task_outlet_dataset_reference",  # leave alone for now
-            "dataset_dag_run_queue",  # self-managed
-            "dataset_event_dag_run",  # foreign keys
+            "dag_schedule_asset_reference",  # leave alone for now
+            "dag_schedule_asset_alias_reference",  # leave alone for now
+            "task_outlet_asset_reference",  # leave alone for now
+            "asset_dag_run_queue",  # self-managed
+            "asset_event_dag_run",  # foreign keys
             "task_instance_note",  # foreign keys
             "dag_run_note",  # foreign keys
             "rendered_task_instance_fields",  # foreign key with TI
             "dag_priority_parsing_request",  # Records are purged once per DAG Processing loop, not a
             # significant source of data.
+            "dag_version",  # self-maintaining
         }
 
         from airflow.utils.db_cleanup import config_dict

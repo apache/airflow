@@ -30,7 +30,7 @@ Using the Operator
 
 You could send simple text message
 
-.. exampleinclude:: /../../tests/system/providers/slack/example_slack_webhook.py
+.. exampleinclude:: /../../providers/tests/system/slack/example_slack_webhook.py
     :language: python
     :dedent: 4
     :start-after: [START slack_webhook_operator_text_howto_guide]
@@ -39,7 +39,7 @@ You could send simple text message
 
 Or you could use `Block Kit <https://api.slack.com/reference/block-kit>`_ for create app layouts
 
-.. exampleinclude:: /../../tests/system/providers/slack/example_slack_webhook.py
+.. exampleinclude:: /../../providers/tests/system/slack/example_slack_webhook.py
     :language: python
     :dedent: 4
     :start-after: [START slack_webhook_operator_blocks_howto_guide]

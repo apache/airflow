@@ -27,7 +27,7 @@ from airflow.api_connexion.schemas.dag_schema import (
     DAGDetailSchema,
     DAGSchema,
 )
-from airflow.datasets import Dataset
+from airflow.assets import Asset
 from airflow.models import DagModel, DagTag
 from airflow.models.dag import DAG
 
@@ -67,13 +67,10 @@ def test_serialize_test_dag_schema(url_safe_serializer):
         "next_dagrun_create_after": None,
         "last_expired": None,
         "max_active_tasks": 16,
-        "last_pickled": None,
         "default_view": None,
         "last_parsed_time": None,
-        "scheduler_lock": None,
         "timetable_description": None,
         "has_import_errors": None,
-        "pickle_id": None,
     } == serialized_dag
 
 
@@ -104,13 +101,10 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
                 "last_expired": None,
                 "max_active_tasks": 16,
                 "max_consecutive_failed_dag_runs": 0,
-                "last_pickled": None,
                 "default_view": None,
                 "last_parsed_time": None,
-                "scheduler_lock": None,
                 "timetable_description": None,
                 "has_import_errors": None,
-                "pickle_id": None,
             },
             {
                 "dag_id": "test_dag_id_b",
@@ -132,13 +126,10 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
                 "last_expired": None,
                 "max_active_tasks": 16,
                 "max_consecutive_failed_dag_runs": 0,
-                "last_pickled": None,
                 "default_view": None,
                 "last_parsed_time": None,
-                "scheduler_lock": None,
                 "timetable_description": None,
                 "has_import_errors": None,
-                "pickle_id": None,
             },
         ],
         "total_entries": 2,
@@ -162,7 +153,6 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
 
     expected = {
         "catchup": True,
-        "concurrency": 16,
         "max_active_tasks": 16,
         "dag_id": "test_dag",
         "dag_display_name": "test_dag",
@@ -194,7 +184,6 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
         "timezone": UTC_JSON_REPR,
         "max_active_runs": 16,
         "max_consecutive_failed_dag_runs": 0,
-        "pickle_id": None,
         "end_date": None,
         "is_paused_upon_creation": None,
         "render_template_as_native_obj": False,
@@ -210,9 +199,9 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
 
 @pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
-def test_serialize_test_dag_with_dataset_schedule_detail_schema(url_safe_serializer):
-    dataset1 = Dataset(uri="s3://bucket/obj1")
-    dataset2 = Dataset(uri="s3://bucket/obj2")
+def test_serialize_test_dag_with_asset_schedule_detail_schema(url_safe_serializer):
+    asset1 = Asset(uri="s3://bucket/obj1")
+    asset2 = Asset(uri="s3://bucket/obj2")
     dag = DAG(
         dag_id="test_dag",
         start_date=datetime(2020, 6, 19),
@@ -220,14 +209,13 @@ def test_serialize_test_dag_with_dataset_schedule_detail_schema(url_safe_seriali
         orientation="LR",
         default_view="duration",
         params={"foo": 1},
-        schedule=dataset1 & dataset2,
+        schedule=asset1 & asset2,
         tags=["example1", "example2"],
     )
     schema = DAGDetailSchema()
 
     expected = {
         "catchup": True,
-        "concurrency": 16,
         "max_active_tasks": 16,
         "dag_id": "test_dag",
         "dag_display_name": "test_dag",
@@ -255,11 +243,10 @@ def test_serialize_test_dag_with_dataset_schedule_detail_schema(url_safe_seriali
             key=lambda val: val["name"],
         ),
         "template_searchpath": None,
-        "timetable_summary": "Dataset",
+        "timetable_summary": "Asset",
         "timezone": UTC_JSON_REPR,
         "max_active_runs": 16,
         "max_consecutive_failed_dag_runs": 0,
-        "pickle_id": None,
         "end_date": None,
         "is_paused_upon_creation": None,
         "render_template_as_native_obj": False,

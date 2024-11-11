@@ -49,14 +49,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/apache/spark/index>
+    System Tests <_api/tests/system/apache/spark/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-spark/|version|/tests/system/providers/apache/spark>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-spark/|version|/providers/tests/system/apache/spark>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-spark/>
     Installing from sources <installing-providers-from-sources>
 
@@ -77,7 +77,7 @@ apache-airflow-providers-apache-spark package
 `Apache Spark <https://spark.apache.org/>`__
 
 
-Release: 4.11.0
+Release: 4.11.2
 
 Provider package
 ----------------
@@ -130,5 +130,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-spark 4.11.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-4.11.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-4.11.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-4.11.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-spark 4.11.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-4.11.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-4.11.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-4.11.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-spark 4.11.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-4.11.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-4.11.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-4.11.2.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-spark 4.11.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-4.11.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-4.11.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_spark-4.11.2-py3-none-any.whl.sha512>`__)

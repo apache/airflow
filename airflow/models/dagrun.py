@@ -38,6 +38,7 @@ from sqlalchemy import (
     UniqueConstraint,
     and_,
     func,
+    not_,
     or_,
     text,
     update,
@@ -46,6 +47,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
 from sqlalchemy.sql.expression import case, false, select, true
+from sqlalchemy.sql.functions import coalesce
+from sqlalchemy_utils import UUIDType
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -55,7 +58,9 @@ from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import Log
 from airflow.models.abstractoperator import NotMapped
+from airflow.models.backfill import Backfill
 from airflow.models.base import Base, StringID
+from airflow.models.dag_version import DagVersion
 from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
@@ -67,6 +72,7 @@ from airflow.utils import timezone
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, tuple_in_condition, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -87,7 +93,7 @@ if TYPE_CHECKING:
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
 
-RUN_ID_REGEX = r"^(?:manual|scheduled|dataset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00)$"
+RUN_ID_REGEX = r"^(?:manual|scheduled|asset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00)$"
 
 
 class TISchedulingDecision(NamedTuple):
@@ -140,7 +146,6 @@ class DagRun(Base, LoggingMixin):
     data_interval_end = Column(UtcDateTime)
     # When a scheduler last attempted to schedule TIs for this DagRun
     last_scheduling_decision = Column(UtcDateTime)
-    dag_hash = Column(String(32))
     # Foreign key to LogTemplate. DagRun rows created prior to this column's
     # existence have this set to NULL. Later rows automatically populate this on
     # insert to point to the latest LogTemplate entry.
@@ -154,6 +159,14 @@ class DagRun(Base, LoggingMixin):
     # This number is incremented only when the DagRun is re-Queued,
     # when the DagRun is cleared.
     clear_number = Column(Integer, default=0, nullable=False, server_default="0")
+    backfill_id = Column(Integer, ForeignKey("backfill.id"), nullable=True)
+    """
+    The backfill this DagRun is currently associated with.
+
+    It's possible this could change if e.g. the dag run is cleared to be rerun, or perhaps re-backfilled.
+    """
+    dag_version_id = Column(UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"))
+    dag_version = relationship("DagVersion", back_populates="dag_runs")
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -198,6 +211,10 @@ class DagRun(Base, LoggingMixin):
         uselist=False,
         cascade="all, delete, delete-orphan",
     )
+    backfill = relationship(Backfill, uselist=False)
+    backfill_max_active_runs = association_proxy("backfill", "max_active_runs")
+    max_active_runs = association_proxy("dag_model", "max_active_runs")
+
     note = association_proxy("dag_run_note", "content", creator=_creator_note)
 
     DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
@@ -217,10 +234,11 @@ class DagRun(Base, LoggingMixin):
         conf: Any | None = None,
         state: DagRunState | None = None,
         run_type: str | None = None,
-        dag_hash: str | None = None,
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
         triggered_by: DagRunTriggeredByType | None = None,
+        backfill_id: int | None = None,
+        dag_version: DagVersion | None = None,
     ):
         if data_interval is None:
             # Legacy: Only happen for runs created prior to Airflow 2.2.
@@ -241,10 +259,11 @@ class DagRun(Base, LoggingMixin):
         else:
             self.queued_at = queued_at
         self.run_type = run_type
-        self.dag_hash = dag_hash
         self.creating_job_id = creating_job_id
+        self.backfill_id = backfill_id
         self.clear_number = 0
         self.triggered_by = triggered_by
+        self.dag_version = dag_version
         super().__init__()
 
     def __repr__(self):
@@ -370,30 +389,29 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def active_runs_of_dags(
         cls,
-        dag_ids: Iterable[str] | None = None,
-        only_running: bool = False,
+        *,
+        dag_ids: Iterable[str],
+        exclude_backfill,
         session: Session = NEW_SESSION,
     ) -> dict[str, int]:
-        """Get the number of active dag runs for each dag."""
-        query = select(cls.dag_id, func.count("*"))
-        if dag_ids is not None:
-            # 'set' called to avoid duplicate dag_ids, but converted back to 'list'
-            # because SQLAlchemy doesn't accept a set here.
-            query = query.where(cls.dag_id.in_(set(dag_ids)))
-        if only_running:
-            query = query.where(cls.state == DagRunState.RUNNING)
-        else:
-            query = query.where(cls.state.in_((DagRunState.RUNNING, DagRunState.QUEUED)))
-        query = query.group_by(cls.dag_id)
+        """
+        Get the number of active dag runs for each dag.
+
+        :meta private:
+        """
+        query = (
+            select(cls.dag_id, func.count("*"))
+            .where(cls.dag_id.in_(set(dag_ids)))
+            .where(cls.state.in_((DagRunState.RUNNING, DagRunState.QUEUED)))
+            .group_by(cls.dag_id)
+        )
+        if exclude_backfill:
+            query = query.where(cls.run_type != DagRunType.BACKFILL_JOB)
         return dict(iter(session.execute(query)))
 
     @classmethod
-    def next_dagruns_to_examine(
-        cls,
-        state: DagRunState,
-        session: Session,
-        max_number: int | None = None,
-    ) -> Query:
+    @retry_db_transaction
+    def get_running_dag_runs_to_examine(cls, session: Session) -> Query:
         """
         Return the next DagRuns that the scheduler should attempt to schedule.
 
@@ -401,43 +419,119 @@ class DagRun(Base, LoggingMixin):
         query, you should ensure that any scheduling decisions are made in a single transaction -- as soon as
         the transaction is committed it will be unlocked.
 
+        :meta private:
         """
+        from airflow.models.backfill import BackfillDagRun
         from airflow.models.dag import DagModel
 
-        if max_number is None:
-            max_number = cls.DEFAULT_DAGRUNS_TO_EXAMINE
-
-        # TODO: Bake this query, it is run _A lot_
         query = (
             select(cls)
             .with_hint(cls, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
-            .where(cls.state == state, cls.run_type != DagRunType.BACKFILL_JOB)
+            .where(cls.state == DagRunState.RUNNING)
             .join(DagModel, DagModel.dag_id == cls.dag_id)
-            .where(DagModel.is_paused == false(), DagModel.is_active == true())
-        )
-        if state == DagRunState.QUEUED:
-            # For dag runs in the queued state, we check if they have reached the max_active_runs limit
-            # and if so we drop them
-            running_drs = (
-                select(DagRun.dag_id, func.count(DagRun.state).label("num_running"))
-                .where(DagRun.state == DagRunState.RUNNING)
-                .group_by(DagRun.dag_id)
-                .subquery()
+            .join(BackfillDagRun, BackfillDagRun.dag_run_id == DagRun.id, isouter=True)
+            .where(
+                DagModel.is_paused == false(),
+                DagModel.is_active == true(),
             )
-            query = query.outerjoin(running_drs, running_drs.c.dag_id == DagRun.dag_id).where(
-                func.coalesce(running_drs.c.num_running, 0) < DagModel.max_active_runs
+            .order_by(
+                nulls_first(BackfillDagRun.sort_ordinal, session=session),
+                nulls_first(cls.last_scheduling_decision, session=session),
+                cls.execution_date,
             )
-        query = query.order_by(
-            nulls_first(cls.last_scheduling_decision, session=session),
-            cls.execution_date,
+            .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
         )
 
         if not settings.ALLOW_FUTURE_EXEC_DATES:
             query = query.where(DagRun.execution_date <= func.now())
 
-        return session.scalars(
-            with_row_locks(query.limit(max_number), of=cls, session=session, skip_locked=True)
+        return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True))
+
+    @classmethod
+    @retry_db_transaction
+    def get_queued_dag_runs_to_set_running(cls, session: Session) -> Query:
+        """
+        Return the next queued DagRuns that the scheduler should attempt to schedule.
+
+        This will return zero or more DagRun rows that are row-level-locked with a "SELECT ... FOR UPDATE"
+        query, you should ensure that any scheduling decisions are made in a single transaction -- as soon as
+        the transaction is committed it will be unlocked.
+
+        :meta private:
+        """
+        from airflow.models.backfill import Backfill, BackfillDagRun
+        from airflow.models.dag import DagModel
+
+        # For dag runs in the queued state, we check if they have reached the max_active_runs limit
+        # and if so we drop them
+        running_drs = (
+            select(
+                DagRun.dag_id,
+                DagRun.backfill_id,
+                func.count(DagRun.id).label("num_running"),
+            )
+            .where(DagRun.state == DagRunState.RUNNING)
+            .group_by(DagRun.dag_id, DagRun.backfill_id)
+            .subquery()
         )
+
+        query = (
+            select(cls)
+            .where(cls.state == DagRunState.QUEUED)
+            .join(
+                DagModel,
+                and_(
+                    DagModel.dag_id == cls.dag_id,
+                    DagModel.is_paused == false(),
+                    DagModel.is_active == true(),
+                ),
+            )
+            .join(
+                BackfillDagRun,
+                and_(
+                    BackfillDagRun.dag_run_id == DagRun.id,
+                    BackfillDagRun.backfill_id == DagRun.backfill_id,
+                ),
+                isouter=True,
+            )
+            .join(Backfill, isouter=True)
+            .join(
+                running_drs,
+                and_(
+                    running_drs.c.dag_id == DagRun.dag_id,
+                    coalesce(running_drs.c.backfill_id, text("-1"))
+                    == coalesce(DagRun.backfill_id, text("-1")),
+                ),
+                isouter=True,
+            )
+            .where(
+                # there are two levels of checks for num_running
+                # the one done in this query verifies that the dag is not maxed out
+                # it could return many more dag runs than runnable if there is even
+                # capacity for 1.  this could be improved.
+                coalesce(running_drs.c.num_running, text("0"))
+                < coalesce(Backfill.max_active_runs, DagModel.max_active_runs),
+                # don't set paused dag runs as running
+                not_(coalesce(Backfill.is_paused, False)),
+            )
+            .order_by(
+                # ordering by backfill sort ordinal first ensures that backfill dag runs
+                # have lower priority than all other dag run types (since sort_ordinal >= 1).
+                # additionally, sorting by sort_ordinal ensures that the backfill
+                # dag runs are created in the right order when that matters.
+                # todo: AIP-78 use row_number to avoid starvation; limit the number of returned runs per-dag
+                nulls_first(BackfillDagRun.sort_ordinal, session=session),
+                nulls_first(cls.last_scheduling_decision, session=session),
+                nulls_first(running_drs.c.num_running, session=session),  # many running -> lower priority
+                cls.execution_date,
+            )
+            .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
+        )
+
+        if not settings.ALLOW_FUTURE_EXEC_DATES:
+            query = query.where(DagRun.execution_date <= func.now())
+
+        return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True))
 
     @classmethod
     @provide_session
@@ -903,8 +997,9 @@ class DagRun(Base, LoggingMixin):
                 "DagRun Finished: dag_id=%s, execution_date=%s, run_id=%s, "
                 "run_start_date=%s, run_end_date=%s, run_duration=%s, "
                 "state=%s, external_trigger=%s, run_type=%s, "
-                "data_interval_start=%s, data_interval_end=%s, dag_hash=%s"
+                "data_interval_start=%s, data_interval_end=%s, dag_version_name=%s"
             )
+            dagv = session.scalar(select(DagVersion).where(DagVersion.id == self.dag_version_id))
             self.log.info(
                 msg,
                 self.dag_id,
@@ -922,7 +1017,7 @@ class DagRun(Base, LoggingMixin):
                 self.run_type,
                 self.data_interval_start,
                 self.data_interval_end,
-                self.dag_hash,
+                dagv.version if dagv else None,
             )
 
             with Trace.start_span_from_dagrun(dagrun=self) as span:
@@ -946,7 +1041,7 @@ class DagRun(Base, LoggingMixin):
                     "run_type": str(self.run_type),
                     "data_interval_start": str(self.data_interval_start),
                     "data_interval_end": str(self.data_interval_end),
-                    "dag_hash": str(self.dag_hash),
+                    "dag_version": str(dagv.version if dagv else None),
                     "conf": str(self.conf),
                 }
                 if span.is_recording():
@@ -1023,7 +1118,7 @@ class DagRun(Base, LoggingMixin):
         elif self.state == DagRunState.FAILED:
             get_listener_manager().hook.on_dag_run_failed(dag_run=self, msg=msg)
         # deliberately not notifying on QUEUED
-        # we can't get all the state changes on SchedulerJob, BackfillJob
+        # we can't get all the state changes on SchedulerJob,
         # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that
 
     def _get_ready_tis(
@@ -1233,7 +1328,7 @@ class DagRun(Base, LoggingMixin):
 
         def task_filter(task: Operator) -> bool:
             return task.task_id not in task_ids and (
-                self.is_backfill
+                self.run_type == DagRunType.BACKFILL_JOB
                 or (task.start_date is None or task.start_date <= self.execution_date)
                 and (task.end_date is None or self.execution_date <= task.end_date)
             )
@@ -1363,7 +1458,9 @@ class DagRun(Base, LoggingMixin):
             def create_ti_mapping(task: Operator, indexes: Iterable[int]) -> Iterator[dict[str, Any]]:
                 created_counts[task.task_type] += 1
                 for map_index in indexes:
-                    yield TI.insert_mapping(self.run_id, task, map_index=map_index)
+                    yield TI.insert_mapping(
+                        self.run_id, task, map_index=map_index, dag_version_id=self.dag_version_id
+                    )
 
             creator = create_ti_mapping
 
@@ -1371,7 +1468,7 @@ class DagRun(Base, LoggingMixin):
 
             def create_ti(task: Operator, indexes: Iterable[int]) -> Iterator[TI]:
                 for map_index in indexes:
-                    ti = TI(task, run_id=self.run_id, map_index=map_index)
+                    ti = TI(task, run_id=self.run_id, map_index=map_index, dag_version_id=self.dag_version_id)
                     ti_mutation_hook(ti)
                     created_counts[ti.operator] += 1
                     yield ti
@@ -1503,10 +1600,6 @@ class DagRun(Base, LoggingMixin):
             ti.refresh_from_task(task)
             session.flush()
             yield ti
-
-    @property
-    def is_backfill(self) -> bool:
-        return self.run_type == DagRunType.BACKFILL_JOB
 
     @classmethod
     @provide_session
@@ -1657,7 +1750,7 @@ class DagRunNote(Base):
 
     __tablename__ = "dag_run_note"
 
-    user_id = Column(Integer, nullable=True)
+    user_id = Column(String(128), nullable=True)
     dag_run_id = Column(Integer, primary_key=True, nullable=False)
     content = Column(String(1000).with_variant(Text(1000), "mysql"))
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)

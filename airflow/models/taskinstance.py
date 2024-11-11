@@ -31,6 +31,7 @@ from collections import defaultdict
 from contextlib import nullcontext
 from datetime import timedelta
 from enum import Enum
+from functools import cache
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Mapping, Tuple
 from urllib.parse import quote
 
@@ -38,19 +39,23 @@ import dill
 import jinja2
 import lazy_object_proxy
 import pendulum
+import uuid6
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
     Column,
     DateTime,
     Float,
+    ForeignKey,
     ForeignKeyConstraint,
     Index,
     Integer,
     PrimaryKeyConstraint,
     String,
     Text,
+    UniqueConstraint,
     and_,
     delete,
+    extract,
     false,
     func,
     inspect,
@@ -58,19 +63,20 @@ from sqlalchemy import (
     text,
     update,
 )
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import lazyload, reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy.sql.expression import case, select
+from sqlalchemy_utils import UUIDType
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
-from airflow.compat.functools import cache
+from airflow.assets import Asset, AssetAlias
+from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
-from airflow.datasets import Dataset, DatasetAlias
-from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -87,13 +93,12 @@ from airflow.exceptions import (
     XComForMappingNotPushed,
 )
 from airflow.listeners.listener import get_listener_manager
+from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
-from airflow.models.dataset import DatasetAliasModel, DatasetModel
 from airflow.models.log import Log
 from airflow.models.param import process_params
 from airflow.models.renderedtifields import get_serialized_template_fields
-from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
@@ -131,7 +136,7 @@ from airflow.utils.sqlalchemy import (
     tuple_in_condition,
     with_row_locks,
 )
-from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.timeout import timeout
@@ -149,18 +154,20 @@ if TYPE_CHECKING:
     from pathlib import PurePath
     from types import TracebackType
 
+    from sqlalchemy.engine import Connection as SAConnection, Engine
     from sqlalchemy.orm.session import Session
+    from sqlalchemy.sql import Update
     from sqlalchemy.sql.elements import BooleanClauseList
     from sqlalchemy.sql.expression import ColumnOperators
 
     from airflow.models.abstractoperator import TaskStateChangeCallback
     from airflow.models.baseoperator import BaseOperator
-    from airflow.models.dag import DAG, DagModel
+    from airflow.models.dag import DAG as SchedulerDAG, DagModel
     from airflow.models.dagrun import DagRun
-    from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
+    from airflow.sdk import DAG
+    from airflow.serialization.pydantic.asset import AssetEventPydantic
     from airflow.serialization.pydantic.dag import DagModelPydantic
-    from airflow.serialization.pydantic.dataset import DatasetEventPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Literal, TypeGuard
@@ -219,11 +226,16 @@ def _add_log(
     )
 
 
+@internal_api_call
+@provide_session
+def _update_ti_heartbeat(id: str, when: datetime, session: Session = NEW_SESSION):
+    session.execute(update(TaskInstance).where(TaskInstance.id == id).values(last_heartbeat_at=when))
+
+
 def _run_raw_task(
     ti: TaskInstance | TaskInstancePydantic,
     mark_success: bool = False,
     test_mode: bool = False,
-    job_id: str | None = None,
     pool: str | None = None,
     raise_on_defer: bool = False,
     session: Session | None = None,
@@ -247,7 +259,6 @@ def _run_raw_task(
     ti.test_mode = test_mode
     ti.refresh_from_task(ti.task, pool_override=pool)
     ti.refresh_from_db(session=session)
-    ti.job_id = job_id
     ti.hostname = get_hostname()
     ti.pid = os.getpid()
     if not test_mode:
@@ -366,7 +377,7 @@ def _run_raw_task(
         if not test_mode:
             _add_log(event=ti.state, task_instance=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
-                ti._register_dataset_changes(events=context["outlet_events"], session=session)
+                ti._register_asset_changes(events=context["outlet_events"], session=session)
 
             TaskInstance.save_to_db(ti=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
@@ -449,7 +460,6 @@ def clear_task_instances(
         If set to False, DagRuns state will not be changed.
     :param dag: DAG object
     """
-    job_ids = []
     # Keys: dag_id -> run_id -> map_indexes -> try_numbers -> task_id
     task_id_by_key: dict[str, dict[str, dict[int, dict[int, set[str]]]]] = defaultdict(
         lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
@@ -460,11 +470,9 @@ def clear_task_instances(
     for ti in tis:
         TaskInstanceHistory.record_ti(ti, session)
         if ti.state == TaskInstanceState.RUNNING:
-            if ti.job_id:
-                # If a task is cleared when running, set its state to RESTARTING so that
-                # the task is terminated and becomes eligible for retry.
-                ti.state = TaskInstanceState.RESTARTING
-                job_ids.append(ti.job_id)
+            # If a task is cleared when running, set its state to RESTARTING so that
+            # the task is terminated and becomes eligible for retry.
+            ti.state = TaskInstanceState.RESTARTING
         else:
             ti_dag = dag if dag and dag.dag_id == ti.dag_id else dag_bag.get_dag(ti.dag_id, session=session)
             task_id = ti.task_id
@@ -519,11 +527,6 @@ def clear_task_instances(
 
         delete_qry = TR.__table__.delete().where(conditions)
         session.execute(delete_qry)
-
-    if job_ids:
-        from airflow.jobs.job import Job
-
-        session.execute(update(Job).where(Job.id.in_(job_ids)).values(state=JobState.RESTARTING))
 
     if dag_run_state is not False and tis:
         from airflow.models.dagrun import DagRun  # Avoid circular import
@@ -795,6 +798,7 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
 
 def _set_ti_attrs(target, source, include_dag_run=False):
     # Fields ordered per model definition
+    target.id = source.id
     target.start_date = source.start_date
     target.end_date = source.end_date
     target.duration = source.duration
@@ -803,7 +807,6 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.max_tries = source.max_tries
     target.hostname = source.hostname
     target.unixname = source.unixname
-    target.job_id = source.job_id
     target.pool = source.pool
     target.pool_slots = source.pool_slots or 1
     target.queue = source.queue
@@ -812,6 +815,7 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.custom_operator_name = source.custom_operator_name
     target.queued_dttm = source.queued_dttm
     target.queued_by_job_id = source.queued_by_job_id
+    target.last_heartbeat_at = source.last_heartbeat_at
     target.pid = source.pid
     target.executor = source.executor
     target.executor_config = source.executor_config
@@ -819,6 +823,7 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.trigger_id = source.trigger_id
     target.next_method = source.next_method
     target.next_kwargs = source.next_kwargs
+    target.dag_version_id = source.dag_version_id
 
     if include_dag_run:
         target.execution_date = source.execution_date
@@ -837,7 +842,7 @@ def _set_ti_attrs(target, source, include_dag_run=False):
         target.dag_run.data_interval_start = source.dag_run.data_interval_start
         target.dag_run.data_interval_end = source.dag_run.data_interval_end
         target.dag_run.last_scheduling_decision = source.dag_run.last_scheduling_decision
-        target.dag_run.dag_hash = source.dag_run.dag_hash
+        target.dag_run.dag_version_id = source.dag_run.dag_version_id
         target.dag_run.updated_at = source.dag_run.updated_at
         target.dag_run.log_template_id = source.dag_run.log_template_id
 
@@ -929,7 +934,7 @@ def _clear_next_method_args(*, task_instance: TaskInstance | TaskInstancePydanti
 def _get_template_context(
     *,
     task_instance: TaskInstance | TaskInstancePydantic,
-    dag: DAG,
+    dag: SchedulerDAG,
     session: Session | None = None,
     ignore_param_exceptions: bool = True,
 ) -> Context:
@@ -959,7 +964,8 @@ def _get_template_context(
         assert task.dag
 
     if task.dag.__class__ is AttributeRemoved:
-        task.dag = dag  # required after deserialization
+        # TODO: Task-SDK: Remove this after AIP-44 code is removed
+        task.dag = dag  # type: ignore[assignment]  # required after deserialization
 
     dag_run = task_instance.get_dagrun(session)
     data_interval = dag.get_run_data_interval(dag_run)
@@ -1077,7 +1083,7 @@ def _get_template_context(
             return None
         return prev_ds.replace("-", "")
 
-    def get_triggering_events() -> dict[str, list[DatasetEvent | DatasetEventPydantic]]:
+    def get_triggering_events() -> dict[str, list[AssetEvent | AssetEventPydantic]]:
         if TYPE_CHECKING:
             assert session is not None
 
@@ -1087,11 +1093,11 @@ def _get_template_context(
         nonlocal dag_run
         if dag_run not in session:
             dag_run = session.merge(dag_run, load=False)
-        dataset_events = dag_run.consumed_dataset_events
-        triggering_events: dict[str, list[DatasetEvent | DatasetEventPydantic]] = defaultdict(list)
-        for event in dataset_events:
-            if event.dataset:
-                triggering_events[event.dataset.uri].append(event)
+        asset_events = dag_run.consumed_asset_events
+        triggering_events: dict[str, list[AssetEvent | AssetEventPydantic]] = defaultdict(list)
+        for event in asset_events:
+            if event.asset:
+                triggering_events[event.asset.uri].append(event)
 
         return triggering_events
 
@@ -1144,7 +1150,7 @@ def _get_template_context(
         "ti": task_instance,
         "tomorrow_ds": get_tomorrow_ds(),
         "tomorrow_ds_nodash": get_tomorrow_ds_nodash(),
-        "triggering_dataset_events": lazy_object_proxy.Proxy(get_triggering_events),
+        "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
         "ts": ts,
         "ts_nodash": ts_nodash,
         "ts_nodash_with_tz": ts_nodash_with_tz,
@@ -1317,8 +1323,10 @@ def _record_task_map_for_downstreams(
     """
     from airflow.models.mappedoperator import MappedOperator
 
+    # TODO: Task-SDK: Remove this after AIP-44 code is removed
     if task.dag.__class__ is AttributeRemoved:
-        task.dag = dag  # required after deserialization
+        # required after deserialization
+        task.dag = dag  # type: ignore[assignment]
 
     if next(task.iter_mapped_dependants(), None) is None:  # No mapped dependants, no need to validate.
         return
@@ -1632,11 +1640,12 @@ def _get_previous_ti(
 
 @internal_api_call
 @provide_session
-def _update_rtif(ti, rendered_fields, session: Session | None = None):
+def _update_rtif(ti, rendered_fields, session: Session = NEW_SESSION):
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
     rtif = RenderedTaskInstanceFields(ti=ti, render_templates=False, rendered_fields=rendered_fields)
     RenderedTaskInstanceFields.write(rtif, session=session)
+    session.flush()
     RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id, session=session)
 
 
@@ -1793,6 +1802,11 @@ def _handle_reschedule(
     return ti
 
 
+def uuid7() -> str:
+    """Generate a new UUID7 string."""
+    return str(uuid6.uuid7())
+
+
 class TaskInstance(Base, LoggingMixin):
     """
     Task instances store the state of a task instance.
@@ -1813,10 +1827,16 @@ class TaskInstance(Base, LoggingMixin):
     """
 
     __tablename__ = "task_instance"
-    task_id = Column(StringID(), primary_key=True, nullable=False)
-    dag_id = Column(StringID(), primary_key=True, nullable=False)
-    run_id = Column(StringID(), primary_key=True, nullable=False)
-    map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
+    id = Column(
+        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        primary_key=True,
+        default=uuid7,
+        nullable=False,
+    )
+    task_id = Column(StringID(), nullable=False)
+    dag_id = Column(StringID(), nullable=False)
+    run_id = Column(StringID(), nullable=False)
+    map_index = Column(Integer, nullable=False, server_default=text("-1"))
 
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
@@ -1826,7 +1846,6 @@ class TaskInstance(Base, LoggingMixin):
     max_tries = Column(Integer, server_default=text("-1"))
     hostname = Column(String(1000))
     unixname = Column(String(1000))
-    job_id = Column(Integer)
     pool = Column(String(256), nullable=False)
     pool_slots = Column(Integer, default=1, nullable=False)
     queue = Column(String(256))
@@ -1835,6 +1854,8 @@ class TaskInstance(Base, LoggingMixin):
     custom_operator_name = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
     queued_by_job_id = Column(Integer)
+
+    last_heartbeat_at = Column(UtcDateTime)
     pid = Column(Integer)
     executor = Column(String(1000))
     executor_config = Column(ExecutorConfigType(pickler=dill))
@@ -1858,8 +1879,10 @@ class TaskInstance(Base, LoggingMixin):
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
     _task_display_property_value = Column("task_display_name", String(2000), nullable=True)
+    dag_version_id = Column(UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"))
+    dag_version = relationship("DagVersion", back_populates="task_instances")
     # If adding new fields here then remember to add them to
-    # refresh_from_db() or they won't display in the UI correctly
+    # _set_ti_attrs() or they won't display in the UI correctly
 
     __table_args__ = (
         Index("ti_dag_state", dag_id, state),
@@ -1867,9 +1890,10 @@ class TaskInstance(Base, LoggingMixin):
         Index("ti_state", state),
         Index("ti_state_lkp", dag_id, task_id, run_id, state),
         Index("ti_pool", pool, state, priority_weight),
-        Index("ti_job_id", job_id),
         Index("ti_trigger_id", trigger_id),
-        PrimaryKeyConstraint("dag_id", "task_id", "run_id", "map_index", name="task_instance_pkey"),
+        Index("ti_heartbeat", last_heartbeat_at),
+        PrimaryKeyConstraint("id", name="task_instance_pkey"),
+        UniqueConstraint("dag_id", "task_id", "run_id", "map_index", name="task_instance_composite_key"),
         ForeignKeyConstraint(
             [trigger_id],
             ["trigger.id"],
@@ -1923,11 +1947,13 @@ class TaskInstance(Base, LoggingMixin):
         run_id: str | None = None,
         state: str | None = None,
         map_index: int = -1,
+        dag_version_id: UUIDType | None = None,
     ):
         super().__init__()
         self.dag_id = task.dag_id
         self.task_id = task.task_id
         self.map_index = map_index
+        self.dag_version_id = dag_version_id
         self.refresh_from_task(task)
         if TYPE_CHECKING:
             assert self.task
@@ -1938,6 +1964,8 @@ class TaskInstance(Base, LoggingMixin):
         self.run_id = run_id
         self.try_number = 0
         self.max_tries = self.task.retries
+        if not self.id:
+            self.id = uuid7()
         self.unixname = getuser()
         if state:
             self.state = state
@@ -1957,7 +1985,7 @@ class TaskInstance(Base, LoggingMixin):
         return _stats_tags(task_instance=self)
 
     @staticmethod
-    def insert_mapping(run_id: str, task: Operator, map_index: int) -> dict[str, Any]:
+    def insert_mapping(run_id: str, task: Operator, map_index: int, dag_version_id: int) -> dict[str, Any]:
         """
         Insert mapping.
 
@@ -1986,6 +2014,7 @@ class TaskInstance(Base, LoggingMixin):
             "custom_operator_name": getattr(task, "custom_operator_name", None),
             "map_index": map_index,
             "_task_display_property_value": task.task_display_name,
+            "dag_version_id": dag_version_id,
         }
 
     @reconstructor
@@ -2012,9 +2041,7 @@ class TaskInstance(Base, LoggingMixin):
         wait_for_past_depends_before_skipping: bool = False,
         ignore_ti_state: bool = False,
         local: bool = False,
-        pickle_id: int | None = None,
         raw: bool = False,
-        job_id: str | None = None,
         pool: str | None = None,
         cfg_path: str | None = None,
     ) -> list[str]:
@@ -2030,14 +2057,11 @@ class TaskInstance(Base, LoggingMixin):
         if dag is None:
             raise ValueError("DagModel is empty")
 
-        should_pass_filepath = not pickle_id and dag
-        path: PurePath | None = None
-        if should_pass_filepath:
-            path = dag.relative_fileloc
+        path = dag.relative_fileloc
 
-            if path:
-                if not path.is_absolute():
-                    path = "DAGS_FOLDER" / path
+        if path:
+            if not path.is_absolute():
+                path = "DAGS_FOLDER" / path
 
         return TaskInstance.generate_command(
             ti.dag_id,
@@ -2050,10 +2074,8 @@ class TaskInstance(Base, LoggingMixin):
             wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
             ignore_ti_state=ignore_ti_state,
             local=local,
-            pickle_id=pickle_id,
             file_path=path,
             raw=raw,
-            job_id=job_id,
             pool=pool,
             cfg_path=cfg_path,
             map_index=ti.map_index,
@@ -2068,9 +2090,7 @@ class TaskInstance(Base, LoggingMixin):
         wait_for_past_depends_before_skipping: bool = False,
         ignore_ti_state: bool = False,
         local: bool = False,
-        pickle_id: int | None = None,
         raw: bool = False,
-        job_id: str | None = None,
         pool: str | None = None,
         cfg_path: str | None = None,
     ) -> list[str]:
@@ -2088,9 +2108,7 @@ class TaskInstance(Base, LoggingMixin):
             wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
             ignore_ti_state=ignore_ti_state,
             local=local,
-            pickle_id=pickle_id,
             raw=raw,
-            job_id=job_id,
             pool=pool,
             cfg_path=cfg_path,
         )
@@ -2107,10 +2125,8 @@ class TaskInstance(Base, LoggingMixin):
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         local: bool = False,
-        pickle_id: int | None = None,
         file_path: PurePath | str | None = None,
         raw: bool = False,
-        job_id: str | None = None,
         pool: str | None = None,
         cfg_path: str | None = None,
         map_index: int = -1,
@@ -2131,11 +2147,8 @@ class TaskInstance(Base, LoggingMixin):
             and trigger rule
         :param ignore_ti_state: Ignore the task instance's previous failure/success
         :param local: Whether to run the task locally
-        :param pickle_id: If the DAG was serialized to the DB, the ID
-            associated with the pickled DAG
         :param file_path: path to the file containing the DAG definition
         :param raw: raw mode (needs more details)
-        :param job_id: job ID (needs more details)
         :param pool: the Airflow pool that the task should run in
         :param cfg_path: the Path to the configuration file
         :return: shell command that can be used to run the task instance
@@ -2143,10 +2156,6 @@ class TaskInstance(Base, LoggingMixin):
         cmd = ["airflow", "tasks", "run", dag_id, task_id, run_id]
         if mark_success:
             cmd.extend(["--mark-success"])
-        if pickle_id:
-            cmd.extend(["--pickle", str(pickle_id)])
-        if job_id:
-            cmd.extend(["--job-id", str(job_id)])
         if ignore_all_deps:
             cmd.extend(["--ignore-all-dependencies"])
         if ignore_task_deps:
@@ -2620,7 +2629,6 @@ class TaskInstance(Base, LoggingMixin):
         mark_success: bool = False,
         test_mode: bool = False,
         hostname: str = "",
-        job_id: str | None = None,
         pool: str | None = None,
         external_executor_id: str | None = None,
         session: Session = NEW_SESSION,
@@ -2640,7 +2648,6 @@ class TaskInstance(Base, LoggingMixin):
         :param mark_success: Don't run the task, mark its state as success
         :param test_mode: Doesn't record success or failure in the DB
         :param hostname: The hostname of the worker running the task instance.
-        :param job_id: Job (BackfillJob / LocalTaskJob / SchedulerJob) ID
         :param pool: specifies the pool to use to run the task instance
         :param external_executor_id: The identifier of the celery executor
         :param session: SQLAlchemy ORM Session
@@ -2663,7 +2670,6 @@ class TaskInstance(Base, LoggingMixin):
         ti.refresh_from_task(task, pool_override=pool)
         ti.test_mode = test_mode
         ti.refresh_from_db(session=session, lock_for_update=True)
-        ti.job_id = job_id
         ti.hostname = hostname
         ti.pid = None
 
@@ -2768,7 +2774,6 @@ class TaskInstance(Base, LoggingMixin):
         ignore_ti_state: bool = False,
         mark_success: bool = False,
         test_mode: bool = False,
-        job_id: str | None = None,
         pool: str | None = None,
         external_executor_id: str | None = None,
         session: Session = NEW_SESSION,
@@ -2784,7 +2789,6 @@ class TaskInstance(Base, LoggingMixin):
             mark_success=mark_success,
             test_mode=test_mode,
             hostname=get_hostname(),
-            job_id=job_id,
             pool=pool,
             external_executor_id=external_executor_id,
             session=session,
@@ -2855,7 +2859,6 @@ class TaskInstance(Base, LoggingMixin):
         self,
         mark_success: bool = False,
         test_mode: bool = False,
-        job_id: str | None = None,
         pool: str | None = None,
         raise_on_defer: bool = False,
         session: Session = NEW_SESSION,
@@ -2880,70 +2883,62 @@ class TaskInstance(Base, LoggingMixin):
             ti=self,
             mark_success=mark_success,
             test_mode=test_mode,
-            job_id=job_id,
             pool=pool,
             raise_on_defer=raise_on_defer,
             session=session,
         )
 
-    def _register_dataset_changes(self, *, events: OutletEventAccessors, session: Session) -> None:
+    def _register_asset_changes(self, *, events: OutletEventAccessors, session: Session) -> None:
         if TYPE_CHECKING:
             assert self.task
 
-        # One task only triggers one dataset event for each dataset with the same extra.
-        # This tuple[dataset uri, extra] to sets alias names mapping is used to find whether
-        # there're datasets with same uri but different extra that we need to emit more than one dataset events.
-        dataset_tuple_to_alias_names_mapping: dict[tuple[str, frozenset], set[str]] = defaultdict(set)
+        # One task only triggers one asset event for each asset with the same extra.
+        # This tuple[asset uri, extra] to sets alias names mapping is used to find whether
+        # there're assets with same uri but different extra that we need to emit more than one asset events.
+        asset_alias_names: dict[tuple[str, frozenset], set[str]] = defaultdict(set)
         for obj in self.task.outlets or []:
             self.log.debug("outlet obj %s", obj)
-            # Lineage can have other types of objects besides datasets
-            if isinstance(obj, Dataset):
-                dataset_manager.register_dataset_change(
+            # Lineage can have other types of objects besides assets
+            if isinstance(obj, Asset):
+                asset_manager.register_asset_change(
                     task_instance=self,
-                    dataset=obj,
+                    asset=obj,
                     extra=events[obj].extra,
                     session=session,
                 )
-            elif isinstance(obj, DatasetAlias):
-                for dataset_alias_event in events[obj].dataset_alias_events:
-                    dataset_alias_name = dataset_alias_event["source_alias_name"]
-                    dataset_uri = dataset_alias_event["dest_dataset_uri"]
-                    extra = dataset_alias_event["extra"]
-                    frozen_extra = frozenset(extra.items())
+            elif isinstance(obj, AssetAlias):
+                for asset_alias_event in events[obj].asset_alias_events:
+                    asset_alias_name = asset_alias_event["source_alias_name"]
+                    asset_uri = asset_alias_event["dest_asset_uri"]
+                    frozen_extra = frozenset(asset_alias_event["extra"].items())
+                    asset_alias_names[(asset_uri, frozen_extra)].add(asset_alias_name)
 
-                    dataset_tuple_to_alias_names_mapping[(dataset_uri, frozen_extra)].add(dataset_alias_name)
+        asset_models: dict[str, AssetModel] = {
+            asset_obj.uri: asset_obj
+            for asset_obj in session.scalars(
+                select(AssetModel).where(AssetModel.uri.in_(uri for uri, _ in asset_alias_names))
+            )
+        }
+        if missing_assets := [Asset(uri=u) for u, _ in asset_alias_names if u not in asset_models]:
+            asset_models.update(
+                (asset_obj.uri, asset_obj)
+                for asset_obj in asset_manager.create_assets(missing_assets, session=session)
+            )
+            self.log.warning("Created new assets for alias reference: %s", missing_assets)
+            session.flush()  # Needed because we need the id for fk.
 
-        dataset_objs_cache: dict[str, DatasetModel] = {}
-        for (uri, extra_items), alias_names in dataset_tuple_to_alias_names_mapping.items():
-            if uri not in dataset_objs_cache:
-                dataset_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == uri).limit(1))
-                dataset_objs_cache[uri] = dataset_obj
-            else:
-                dataset_obj = dataset_objs_cache[uri]
-
-            if not dataset_obj:
-                dataset_obj = DatasetModel(uri=uri)
-                dataset_manager.create_datasets(dataset_models=[dataset_obj], session=session)
-                self.log.warning("Created a new %r as it did not exist.", dataset_obj)
-                session.flush()
-                dataset_objs_cache[uri] = dataset_obj
-
-            for alias in alias_names:
-                alias_obj = session.scalar(
-                    select(DatasetAliasModel).where(DatasetAliasModel.name == alias).limit(1)
-                )
-                dataset_obj.aliases.append(alias_obj)
-
-            extra = {k: v for k, v in extra_items}
+        for (uri, extra_items), alias_names in asset_alias_names.items():
+            asset_obj = asset_models[uri]
             self.log.info(
                 'Creating event for %r through aliases "%s"',
-                dataset_obj,
+                asset_obj,
                 ", ".join(alias_names),
             )
-            dataset_manager.register_dataset_change(
+            asset_manager.register_asset_change(
                 task_instance=self,
-                dataset=dataset_obj,
-                extra=extra,
+                asset=asset_obj,
+                aliases=[AssetAlias(name=name) for name in alias_names],
+                extra=dict(extra_items),
                 session=session,
                 source_alias_names=alias_names,
             )
@@ -3057,6 +3052,11 @@ class TaskInstance(Base, LoggingMixin):
         """
         return _execute_task(self, context, task_orig)
 
+    def update_heartbeat(self):
+        cm = nullcontext() if InternalApiConfig.get_use_internal_api() else create_session()
+        with cm as session_or_null:
+            _update_ti_heartbeat(self.id, timezone.utcnow(), session_or_null)
+
     @provide_session
     def defer_task(self, exception: TaskDeferred | None, session: Session = NEW_SESSION) -> None:
         """
@@ -3087,7 +3087,6 @@ class TaskInstance(Base, LoggingMixin):
         ignore_ti_state: bool = False,
         mark_success: bool = False,
         test_mode: bool = False,
-        job_id: str | None = None,
         pool: str | None = None,
         session: Session = NEW_SESSION,
         raise_on_defer: bool = False,
@@ -3102,7 +3101,6 @@ class TaskInstance(Base, LoggingMixin):
             ignore_ti_state=ignore_ti_state,
             mark_success=mark_success,
             test_mode=test_mode,
-            job_id=job_id,
             pool=pool,
             session=session,
         )
@@ -3112,7 +3110,6 @@ class TaskInstance(Base, LoggingMixin):
         self._run_raw_task(
             mark_success=mark_success,
             test_mode=test_mode,
-            job_id=job_id,
             pool=pool,
             session=session,
             raise_on_defer=raise_on_defer,
@@ -3176,9 +3173,15 @@ class TaskInstance(Base, LoggingMixin):
         fail_stop: bool = False,
     ):
         """
-        Handle Failure for the TaskInstance.
+        Fetch the context needed to handle a failure.
 
-        :param fail_stop: if true, stop remaining tasks in dag
+        :param ti: TaskInstance
+        :param error: if specified, log the specific exception if thrown
+        :param test_mode: doesn't record success or failure in the DB if True
+        :param context: Jinja2 context
+        :param force_fail: if True, task does not retry
+        :param session: SQLAlchemy ORM Session
+        :param fail_stop: if True, fail all downstream tasks
         """
         if error:
             if isinstance(error, BaseException):
@@ -3199,9 +3202,6 @@ class TaskInstance(Base, LoggingMixin):
 
         if not test_mode:
             session.add(Log(TaskInstanceState.FAILED.value, ti))
-
-            # Log failure duration
-            session.add(TaskFail(ti=ti))
 
         ti.clear_next_method_args()
 
@@ -3411,53 +3411,6 @@ class TaskInstance(Base, LoggingMixin):
             self.task = context["ti"].task
 
         return original_task
-
-    def render_k8s_pod_yaml(self) -> dict | None:
-        """Render the k8s pod yaml."""
-        try:
-            from airflow.providers.cncf.kubernetes.template_rendering import (
-                render_k8s_pod_yaml as render_k8s_pod_yaml_from_provider,
-            )
-        except ImportError:
-            raise RuntimeError(
-                "You need to have the `cncf.kubernetes` provider installed to use this feature. "
-                "Also rather than calling it directly you should import "
-                "render_k8s_pod_yaml from airflow.providers.cncf.kubernetes.template_rendering "
-                "and call it with TaskInstance as the first argument."
-            )
-        warnings.warn(
-            "You should not call `task_instance.render_k8s_pod_yaml` directly. This method will be removed"
-            "in Airflow 3. Rather than calling it directly you should import "
-            "`render_k8s_pod_yaml` from `airflow.providers.cncf.kubernetes.template_rendering` "
-            "and call it with `TaskInstance` as the first argument.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return render_k8s_pod_yaml_from_provider(self)
-
-    @provide_session
-    def get_rendered_k8s_spec(self, session: Session = NEW_SESSION):
-        """Render the k8s pod yaml."""
-        try:
-            from airflow.providers.cncf.kubernetes.template_rendering import (
-                get_rendered_k8s_spec as get_rendered_k8s_spec_from_provider,
-            )
-        except ImportError:
-            raise RuntimeError(
-                "You need to have the `cncf.kubernetes` provider installed to use this feature. "
-                "Also rather than calling it directly you should import "
-                "`get_rendered_k8s_spec` from `airflow.providers.cncf.kubernetes.template_rendering` "
-                "and call it with `TaskInstance` as the first argument."
-            )
-        warnings.warn(
-            "You should not call `task_instance.render_k8s_pod_yaml` directly. This method will be removed"
-            "in Airflow 3. Rather than calling it directly you should import "
-            "`get_rendered_k8s_spec` from `airflow.providers.cncf.kubernetes.template_rendering` "
-            "and call it with `TaskInstance` as the first argument.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return get_rendered_k8s_spec_from_provider(self, session=session)
 
     def get_email_subject_content(
         self, exception: BaseException, task: BaseOperator | None = None
@@ -3694,106 +3647,6 @@ class TaskInstance(Base, LoggingMixin):
             return filters[0]
         return or_(*filters)
 
-    @classmethod
-    @provide_session
-    def _schedule_downstream_tasks(
-        cls,
-        ti: TaskInstance | TaskInstancePydantic,
-        session: Session = NEW_SESSION,
-        max_tis_per_query: int | None = None,
-    ):
-        from sqlalchemy.exc import OperationalError
-
-        from airflow.models.dagrun import DagRun
-
-        try:
-            # Re-select the row with a lock
-            dag_run = with_row_locks(
-                session.query(DagRun).filter_by(
-                    dag_id=ti.dag_id,
-                    run_id=ti.run_id,
-                ),
-                session=session,
-                skip_locked=True,
-            ).one_or_none()
-
-            if not dag_run:
-                cls.logger().debug("Skip locked rows, rollback")
-                session.rollback()
-                return
-
-            task = ti.task
-            if TYPE_CHECKING:
-                assert task
-                assert task.dag
-
-            # Get a partial DAG with just the specific tasks we want to examine.
-            # In order for dep checks to work correctly, we include ourself (so
-            # TriggerRuleDep can check the state of the task we just executed).
-            partial_dag = task.dag.partial_subset(
-                task.downstream_task_ids,
-                include_downstream=True,
-                include_upstream=False,
-                include_direct_upstream=True,
-            )
-
-            dag_run.dag = partial_dag
-            info = dag_run.task_instance_scheduling_decisions(session)
-
-            skippable_task_ids = {
-                task_id for task_id in partial_dag.task_ids if task_id not in task.downstream_task_ids
-            }
-
-            schedulable_tis = [
-                ti
-                for ti in info.schedulable_tis
-                if ti.task_id not in skippable_task_ids
-                and not (
-                    ti.task.inherits_from_empty_operator
-                    and not ti.task.on_execute_callback
-                    and not ti.task.on_success_callback
-                    and not ti.task.outlets
-                )
-            ]
-            for schedulable_ti in schedulable_tis:
-                if getattr(schedulable_ti, "task", None) is None:
-                    schedulable_ti.task = task.dag.get_task(schedulable_ti.task_id)
-
-            num = dag_run.schedule_tis(schedulable_tis, session=session, max_tis_per_query=max_tis_per_query)
-            cls.logger().info("%d downstream tasks scheduled from follow-on schedule check", num)
-
-            session.flush()
-
-        except OperationalError as e:
-            # Any kind of DB error here is _non fatal_ as this block is just an optimisation.
-            cls.logger().warning(
-                "Skipping mini scheduling run due to exception: %s",
-                e.statement,
-                exc_info=True,
-            )
-            session.rollback()
-
-    @provide_session
-    def schedule_downstream_tasks(self, session: Session = NEW_SESSION, max_tis_per_query: int | None = None):
-        """
-        Schedule downstream tasks of this task instance.
-
-        :meta: private
-        """
-        try:
-            return TaskInstance._schedule_downstream_tasks(
-                ti=self, session=session, max_tis_per_query=max_tis_per_query
-            )
-        except Exception:
-            self.log.exception(
-                "Error scheduling downstream tasks. Skipping it as this is entirely optional optimisation. "
-                "There might be various reasons for it, please take a look at the stack trace to figure "
-                "out if the root cause can be diagnosed and fixed. See the issue "
-                "https://github.com/apache/airflow/issues/39717 for details and an example problem. If you "
-                "would like to get help in solving root cause, open discussion with all details with your "
-                "managed service support or in Airflow repository."
-            )
-
     def get_relevant_upstream_map_indexes(
         self,
         upstream: Operator,
@@ -3891,7 +3744,6 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         tables: list[type[TaskInstanceDependencies]] = [
-            TaskFail,
             TaskInstanceNote,
             TaskReschedule,
             XCom,
@@ -3907,6 +3759,39 @@ class TaskInstance(Base, LoggingMixin):
                     table.map_index == self.map_index,
                 )
             )
+
+    @classmethod
+    def duration_expression_update(
+        cls, end_date: datetime, query: Update, bind: Engine | SAConnection
+    ) -> Update:
+        """Return a SQL expression for calculating the duration of this TI, based on the start and end date columns."""
+        # TODO: Compare it with self._set_duration method
+
+        if bind.dialect.name == "sqlite":
+            return query.values(
+                {
+                    "end_date": end_date,
+                    "duration": (func.julianday(end_date) - func.julianday(cls.start_date)) * 86400,
+                }
+            )
+        elif bind.dialect.name == "postgresql":
+            return query.values(
+                {
+                    "end_date": end_date,
+                    "duration": extract("EPOCH", end_date - cls.start_date),
+                }
+            )
+
+        return query.values(
+            {
+                "end_date": end_date,
+                "duration": (
+                    func.timestampdiff(text("MICROSECOND"), cls.start_date, end_date)
+                    # Turn microseconds into floating point seconds.
+                    / 1_000_000
+                ),
+            }
+        )
 
 
 def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:
@@ -3978,7 +3863,11 @@ class SimpleTaskInstance:
         self.queue = queue
         self.key = key
 
-    def __eq__(self, other):
+    def __repr__(self) -> str:
+        attrs = ", ".join(f"{k}={v!r}" for k, v in self.__dict__.items())
+        return f"SimpleTaskInstance({attrs})"
+
+    def __eq__(self, other) -> bool:
         if isinstance(other, self.__class__):
             return self.__dict__ == other.__dict__
         return NotImplemented
@@ -4009,7 +3898,7 @@ class TaskInstanceNote(TaskInstanceDependencies):
 
     __tablename__ = "task_instance_note"
 
-    user_id = Column(Integer, nullable=True)
+    user_id = Column(String(128), nullable=True)
     task_id = Column(StringID(), primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     run_id = Column(StringID(), primary_key=True, nullable=False)

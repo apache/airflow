@@ -57,7 +57,7 @@ class OtelTrace:
     When OTEL is enabled, the Trace class will be replaced by this class.
     """
 
-    def __init__(self, span_exporter: ConsoleSpanExporter | OTLPSpanExporter, tag_string: str | None = None):
+    def __init__(self, span_exporter: OTLPSpanExporter, tag_string: str | None = None):
         self.span_exporter = span_exporter
         self.span_processor = BatchSpanProcessor(self.span_exporter)
         self.tag_string = tag_string
@@ -75,6 +75,10 @@ class OtelTrace:
             )
         else:
             tracer_provider = TracerProvider(resource=resource)
+        debug = conf.getboolean("traces", "otel_debugging_on")
+        if debug is True:
+            log.info("[ConsoleSpanExporter] is being used")
+            tracer_provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
         tracer_provider.add_span_processor(self.span_processor)
         tracer = tracer_provider.get_tracer(component)
         """
@@ -199,7 +203,12 @@ class OtelTrace:
 
         _links.append(
             Link(
-                context=trace.get_current_span().get_span_context(),
+                context=SpanContext(
+                    trace_id=trace.get_current_span().get_span_context().trace_id,
+                    span_id=span_id,
+                    is_remote=True,
+                    trace_flags=TraceFlags(0x01),
+                ),
                 attributes={"meta.annotation_type": "link", "from": "parenttrace"},
             )
         )
@@ -260,21 +269,16 @@ def get_otel_tracer(cls) -> OtelTrace:
     """Get OTEL tracer from airflow configuration."""
     host = conf.get("traces", "otel_host")
     port = conf.getint("traces", "otel_port")
-    debug = conf.getboolean("traces", "otel_debugging_on")
     ssl_active = conf.getboolean("traces", "otel_ssl_active")
     tag_string = cls.get_constant_tags()
 
-    if debug is True:
-        log.info("[ConsoleSpanExporter] is being used")
-        return OtelTrace(span_exporter=ConsoleSpanExporter(), tag_string=tag_string)
-    else:
-        protocol = "https" if ssl_active else "http"
-        endpoint = f"{protocol}://{host}:{port}/v1/traces"
-        log.info("[OTLPSpanExporter] Connecting to OpenTelemetry Collector at %s", endpoint)
-        return OtelTrace(
-            span_exporter=OTLPSpanExporter(endpoint=endpoint, headers={"Content-Type": "application/json"}),
-            tag_string=tag_string,
-        )
+    protocol = "https" if ssl_active else "http"
+    endpoint = f"{protocol}://{host}:{port}/v1/traces"
+    log.info("[OTLPSpanExporter] Connecting to OpenTelemetry Collector at %s", endpoint)
+    return OtelTrace(
+        span_exporter=OTLPSpanExporter(endpoint=endpoint, headers={"Content-Type": "application/json"}),
+        tag_string=tag_string,
+    )
 
 
 class AirflowOtelIdGenerator(IdGenerator):

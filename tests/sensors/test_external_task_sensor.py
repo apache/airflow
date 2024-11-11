@@ -35,9 +35,9 @@ from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.xcom_arg import XComArg
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.time import TimeSensor
 from airflow.sensors.external_task import (
     ExternalTaskMarker,
@@ -51,10 +51,11 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
+
 from tests.models import TEST_DAGS_FOLDER
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.db import clear_db_runs
-from tests.test_utils.mock_operators import MockOperator
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.db import clear_db_runs
+from tests_common.test_utils.mock_operators import MockOperator
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -123,6 +124,7 @@ class TestExternalTaskSensor:
         with self.dag as dag:
             with TaskGroup(group_id=TEST_TASK_GROUP_ID) as task_group:
                 _ = [EmptyOperator(task_id=f"task{i}") for i in range(len(target_states))]
+            dag.sync_to_db()
             SerializedDagModel.write_dag(dag)
 
         for idx, task in enumerate(task_group):
@@ -145,7 +147,7 @@ class TestExternalTaskSensor:
 
                 fake_task()
                 fake_mapped_task.expand(x=list(map_indexes))
-
+        dag.sync_to_db()
         SerializedDagModel.write_dag(dag)
 
         for task in task_group:

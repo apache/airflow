@@ -28,9 +28,10 @@ import signal
 import stat
 import subprocess
 import sys
-from functools import lru_cache
+from collections.abc import Mapping
+from functools import cache
 from pathlib import Path
-from typing import Mapping, Union
+from typing import Union
 
 from rich.markup import escape
 
@@ -218,14 +219,14 @@ def assert_pre_commit_installed():
     python_executable = sys.executable
     get_console().print(f"[info]Checking pre-commit installed for {python_executable}[/]")
     command_result = run_command(
-        [python_executable, "-m", "pre_commit", "--version"],
+        ["pre-commit", "--version"],
         capture_output=True,
         text=True,
         check=False,
     )
     if command_result.returncode == 0:
         if command_result.stdout:
-            pre_commit_version = command_result.stdout.split(" ")[-1].strip()
+            pre_commit_version = command_result.stdout.split(" ")[1].strip()
             if Version(pre_commit_version) >= Version(min_pre_commit_version):
                 get_console().print(
                     f"\n[success]Package pre_commit is installed. "
@@ -237,6 +238,20 @@ def assert_pre_commit_installed():
                     f"aat least {min_pre_commit_version} and is {pre_commit_version}.[/]\n\n"
                 )
                 sys.exit(1)
+            if "pre-commit-uv" not in command_result.stdout:
+                get_console().print(
+                    "\n[warning]You can significantly improve speed of installing your pre-commit envs "
+                    "by installing `pre-commit-uv` with it.[/]\n"
+                )
+                get_console().print(
+                    "\n[warning]With uv you can install it with:[/]\n\n"
+                    "        uv tool install pre-commit --with pre-commit-uv --force-reinstall\n"
+                )
+                get_console().print(
+                    "\n[warning]With pipx you can install it with:[/]\n\n"
+                    "        pipx inject pre-commit pre-commit-uv # optionally if you want to use uv to "
+                    "install virtualenvs\n"
+                )
         else:
             get_console().print(
                 "\n[warning]Could not determine version of pre-commit. You might need to update it![/]\n"
@@ -362,7 +377,7 @@ def check_if_buildx_plugin_installed() -> bool:
     return False
 
 
-@lru_cache(maxsize=None)
+@cache
 def commit_sha():
     """Returns commit SHA of current repo. Cached for various usages."""
     command_result = run_command(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False)
@@ -458,9 +473,7 @@ def run_compile_www_assets(
             "[info]However, it requires you to have local yarn installation.\n"
         )
     command_to_execute = [
-        sys.executable,
-        "-m",
-        "pre_commit",
+        "pre-commit",
         "run",
         "--hook-stage",
         "manual",
@@ -511,9 +524,7 @@ def run_compile_ui_assets(
             "[info]However, it requires you to have local pnpm installation.\n"
         )
     command_to_execute = [
-        sys.executable,
-        "-m",
-        "pre_commit",
+        "pre-commit",
         "run",
         "--hook-stage",
         "manual",

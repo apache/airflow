@@ -18,13 +18,19 @@
  */
 import type { SortingState } from "@tanstack/react-table";
 
+import {
+  SearchParamsKeys,
+  type SearchParamsKeysType,
+} from "src/constants/searchParams";
+
 import type { TableState } from "./types";
 
-export const LIMIT_PARAM = "limit";
-export const OFFSET_PARAM = "offset";
-export const SORT_PARAM = "sort";
+const {
+  LIMIT: LIMIT_PARAM,
+  OFFSET: OFFSET_PARAM,
+  SORT: SORT_PARAM,
+}: SearchParamsKeysType = SearchParamsKeys;
 
-// eslint-disable-next-line max-statements
 export const stateToSearchParams = (
   state: TableState,
   defaultTableState?: TableState,
@@ -88,7 +94,9 @@ export const searchParamsToState = (
     id: sort.replace("-", ""),
   }));
 
-  urlState = { ...urlState, sorting };
+  if (sorting.length) {
+    urlState = { ...urlState, sorting };
+  }
 
   return { ...defaultState, ...urlState };
 };

@@ -1,0 +1,7 @@
+Default ``.airflowignore`` syntax changed to ``glob``
+
+The default value to the configuration ``[core] dag_ignore_file_syntax`` has
+been changed to ``glob``, which better matches the ignore file behavior of many
+popular tools.
+
+To revert to the previous behavior, set the configuration to ``regexp``.

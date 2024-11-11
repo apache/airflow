@@ -32,14 +32,14 @@ to ``true``.
 
 Here we are poking until httpbin gives us a response text containing ``httpbin``.
 
-.. exampleinclude:: /../../tests/system/providers/http/example_http.py
+.. exampleinclude:: /../../providers/tests/system/http/example_http.py
     :language: python
     :start-after: [START howto_operator_http_http_sensor_check]
     :end-before: [END howto_operator_http_http_sensor_check]
 
 This sensor can also be used in deferrable mode
 
-.. exampleinclude:: /../../tests/system/providers/http/example_http.py
+.. exampleinclude:: /../../providers/tests/system/http/example_http.py
     :language: python
     :start-after: [START howto_operator_http_http_sensor_check_deferrable]
     :end-before: [END howto_operator_http_http_sensor_check_deferrable]
@@ -76,14 +76,14 @@ the response text back.
 In the first example we are calling a ``POST`` with json data and succeed when we get the same json data back
 otherwise the task will fail.
 
-.. exampleinclude:: /../../tests/system/providers/http/example_http.py
+.. exampleinclude:: /../../providers/tests/system/http/example_http.py
     :language: python
     :start-after: [START howto_operator_http_task_post_op]
     :end-before: [END howto_operator_http_task_post_op]
 
 Here we are calling a ``GET`` request and pass params to it. The task will succeed regardless of the response text.
 
-.. exampleinclude:: /../../tests/system/providers/http/example_http.py
+.. exampleinclude:: /../../providers/tests/system/http/example_http.py
     :language: python
     :start-after: [START howto_operator_http_task_get_op]
     :end-before: [END howto_operator_http_task_get_op]
@@ -98,7 +98,7 @@ it on the next task downstream use ``response_filter``. This is useful if:
 Below is an example of retrieving data from a REST API and only returning a nested property instead of the full
 response body.
 
-.. exampleinclude:: /../../tests/system/providers/http/example_http.py
+.. exampleinclude:: /../../providers/tests/system/http/example_http.py
     :language: python
     :start-after: [START howto_operator_http_task_get_op_response_filter]
     :end-before: [END howto_operator_http_task_get_op_response_filter]
@@ -106,7 +106,7 @@ response body.
 In the third example we are performing a ``PUT`` operation to put / set data according to the data that is being
 provided to the request.
 
-.. exampleinclude:: /../../tests/system/providers/http/example_http.py
+.. exampleinclude:: /../../providers/tests/system/http/example_http.py
     :language: python
     :start-after: [START howto_operator_http_task_put_op]
     :end-before: [END howto_operator_http_task_put_op]
@@ -114,14 +114,14 @@ provided to the request.
 In this example we call a ``DELETE`` operation to the ``delete`` endpoint. This time we are passing form data to the
 request.
 
-.. exampleinclude:: /../../tests/system/providers/http/example_http.py
+.. exampleinclude:: /../../providers/tests/system/http/example_http.py
     :language: python
     :start-after: [START howto_operator_http_task_del_op]
     :end-before: [END howto_operator_http_task_del_op]
 
 Here we pass form data to a ``POST`` operation which is equal to a usual form submit.
 
-.. exampleinclude:: /../../tests/system/providers/http/example_http.py
+.. exampleinclude:: /../../providers/tests/system/http/example_http.py
     :language: python
     :start-after: [START howto_operator_http_task_post_op_formenc]
     :end-before: [END howto_operator_http_task_post_op_formenc]
@@ -140,7 +140,7 @@ You can write a ``pagination_function`` that will receive the raw ``request.Resp
 generate new request parameters (as ``dict``) based on this cursor. The HttpOperator will repeat calls to the
 API until the function stop returning anything.
 
-.. exampleinclude:: /../../tests/system/providers/http/example_http.py
+.. exampleinclude:: /../../providers/tests/system/http/example_http.py
     :language: python
     :start-after: [START howto_operator_http_pagination_function]
     :end-before: [END howto_operator_http_pagination_function]

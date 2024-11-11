@@ -21,6 +21,106 @@
 
 .. towncrier release notes start
 
+Airflow 2.10.3 (2024-11-05)
+---------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+"""""""""
+- Improves the handling of value masking when setting Airflow variables for enhanced security.  (#43123) (#43278)
+- Adds support for task_instance_mutation_hook to handle mapped operators with index 0. (#42661) (#43089)
+- Fixes executor cleanup to properly handle zombie tasks when task instances are terminated. (#43065)
+- Adds retry logic for HTTP 502 and 504 errors in internal API calls to handle webserver startup issues. (#42994) (#43044)
+- Restores the use of separate sessions for writing and deleting RTIF data to prevent StaleDataError. (#42928) (#43012)
+- Fixes PythonOperator error by replacing hyphens with underscores in DAG names. (#42993)
+- Improving validation of task retries to handle None values (#42532) (#42915)
+- Fixes error handling in dataset managers when resolving dataset aliases into new datasets (#42733)
+- Enables clicking on task names in the DAG Graph View to correctly select the corresponding task. (#38782) (#42697)
+- Prevent redirect loop on /home with tags/last run filters (#42607) (#42609) (#42628)
+- Support of host.name in OTEL metrics and usage of OTEL_RESOURCE_ATTRIBUTES in metrics (#42428) (#42604)
+- Reduce eyestrain in dark mode with reduced contrast and saturation (#42567) (#42583)
+- Handle ENTER key correctly in trigger form and allow manual JSON (#42525) (#42535)
+- Ensure DAG trigger form submits with updated parameters upon keyboard submit (#42487) (#42499)
+- Do not attempt to provide not ``stringified`` objects to UI via xcom if pickling is active (#42388) (#42486)
+- Fix the span link of task instance to point to the correct span in the scheduler_job_loop (#42430) (#42480)
+- Bugfix task execution from runner in Windows (#42426) (#42478)
+- Allows overriding the hardcoded OTEL_SERVICE_NAME with an environment variable (#42242) (#42441)
+- Improves trigger performance by using ``selectinload`` instead of ``joinedload`` (#40487) (#42351)
+- Suppress warnings when masking sensitive configs (#43335) (#43337)
+- Masking configuration values irrelevant to DAG author (#43040) (#43336)
+- Execute templated bash script as file in BashOperator (#43191)
+- Fixes schedule_downstream_tasks to include upstream tasks for one_success trigger rule (#42582) (#43299)
+- Add retry logic in the scheduler for updating trigger timeouts in case of deadlocks. (#41429) (#42651)
+- Mark all tasks as skipped when failing a dag_run manually (#43572)
+- Fix ``TrySelector`` for Mapped Tasks in Logs and Details Grid Panel (#43566)
+- Conditionally add OTEL events when processing executor events (#43558) (#43567)
+- Fix broken stat ``scheduler_loop_duration`` (#42886) (#43544)
+- Ensure total_entries in /api/v1/dags (#43377) (#43429)
+- Include limit and offset in request body schema for List task instances (batch) endpoint (#43479)
+- Don't raise a warning in ExecutorSafeguard when execute is called from an extended operator (#42849) (#43577)
+
+Miscellaneous
+"""""""""""""
+- Deprecate session auth backend (#42911)
+- Removed unicodecsv dependency for providers with Airflow version 2.8.0 and above (#42765) (#42970)
+- Remove the referrer from Webserver to Scarf (#42901) (#42942)
+- Bump ``dompurify`` from 2.2.9 to 2.5.6 in /airflow/www (#42263) (#42270)
+- Correct docstring format in _get_template_context (#42244) (#42272)
+- Backport: Bump Flask-AppBuilder to ``4.5.2`` (#43309) (#43318)
+- Check python version that was used to install pre-commit venvs (#43282) (#43310)
+- Resolve warning in Dataset Alias migration (#43425)
+
+Doc Only Changes
+""""""""""""""""
+- Clarifying PLUGINS_FOLDER permissions by DAG authors (#43022) (#43029)
+- Add templating info to TaskFlow tutorial (#42992)
+- Airflow local settings no longer importable from dags folder (#42231) (#42603)
+- Fix documentation for cpu and memory usage (#42147) (#42256)
+- Fix instruction for docker compose (#43119) (#43321)
+- Updates documentation to reflect that dag_warnings is returned instead of import_errors. (#42858) (#42888)
+
+
+Airflow 2.10.2 (2024-09-18)
+---------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+"""""""""
+- Revert "Fix: DAGs are not marked as stale if the dags folder change" (#42220, #42217)
+- Add missing open telemetry span and correct scheduled slots documentation (#41985)
+- Fix require_confirmation_dag_change (#42063) (#42211)
+- Only treat null/undefined as falsy when rendering XComEntry (#42199) (#42213)
+- Add extra and ``renderedTemplates`` as keys to skip ``camelCasing`` (#42206) (#42208)
+- Do not ``camelcase`` xcom entries (#42182) (#42187)
+- Fix task_instance and dag_run links from list views (#42138) (#42143)
+- Support multi-line input for Params of type string in trigger UI form (#40414) (#42139)
+- Fix details tab log url detection (#42104) (#42114)
+- Add new type of exception to catch timeout (#42064) (#42078)
+- Rewrite how DAG to dataset / dataset alias are stored (#41987) (#42055)
+- Allow dataset alias to add more than one dataset events (#42189) (#42247)
+
+Miscellaneous
+"""""""""""""
+- Limit universal-pathlib below ``0.2.4`` as it breaks our integration (#42101)
+- Auto-fix default deferrable with ``LibCST`` (#42089)
+- Deprecate ``--tree`` flag for ``tasks list`` cli command (#41965)
+
+Doc Only Changes
+""""""""""""""""
+- Update ``security_model.rst`` to clear unauthenticated endpoints exceptions (#42085)
+- Add note about dataclasses and attrs to XComs page (#42056)
+- Improve docs on markdown docs in DAGs (#42013)
+- Add warning that listeners can be dangerous (#41968)
+
+
 Airflow 2.10.1 (2024-09-05)
 ---------------------------
 
@@ -38,7 +138,7 @@ Bug Fixes
 - Fix compatibility with FAB provider versions <1.3.0 (#41809)
 - Don't Fail LocalTaskJob on heartbeat (#41810)
 - Remove deprecation warning for cgitb in Plugins Manager (#41793)
-- Fix log for notifier(instance) without __name__ (#41699)
+- Fix log for notifier(instance) without ``__name__`` (#41699)
 - Splitting syspath preparation into stages (#41694)
 - Adding url sanitization for extra links (#41680)
 - Fix InletEventsAccessors type stub (#41607)
@@ -64,12 +164,17 @@ Doc Only Changes
 - Add an example for auth with ``keycloak`` (#41791)
 
 
-
 Airflow 2.10.0 (2024-08-15)
 ---------------------------
 
 Significant Changes
 ^^^^^^^^^^^^^^^^^^^
+
+Scarf based telemetry: Airflow now collect telemetry data (#39510)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+Airflow integrates Scarf to collect basic usage data during operation. Deployments can opt-out of data collection by
+setting the ``[usage_data_collection]enabled`` option to ``False``, or the ``SCARF_ANALYTICS=false`` environment variable.
+See :ref:`Usage data collection FAQ <usage-data-collection>` for more information.
 
 Datasets no longer trigger inactive DAGs (#38891)
 """""""""""""""""""""""""""""""""""""""""""""""""
@@ -118,12 +223,6 @@ Using Multiple Executors Concurrently (#40701)
 Previously known as hybrid executors, this new feature allows Airflow to use multiple executors concurrently. DAGs, or even individual tasks, can be configured
 to use a specific executor that suits its needs best. A single DAG can contain tasks all using different executors. Please see the Airflow documentation for
 more details. Note: This feature is still experimental. See `documentation on Executor <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently>`_ for a more detailed description.
-
-Scarf based telemetry: Does Airflow collect any telemetry data? (#39510)
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-Airflow integrates Scarf to collect basic usage data during operation. Deployments can opt-out of data collection by setting the ``[usage_data_collection]enabled`` option to False, or the SCARF_ANALYTICS=false environment variable.
-See `FAQ on this <https://airflow.apache.org/docs/apache-airflow/stable/faq.html#does-airflow-collect-any-telemetry-data>`_ for more information.
-
 
 New Features
 """"""""""""
@@ -606,7 +705,7 @@ Dataset URIs are now validated on input (#37005)
 
 Datasets must use a URI that conform to rules laid down in AIP-60, and the value
 will be automatically normalized when the DAG file is parsed. See
-`documentation on Datasets <https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/datasets.html>`_ for
+`documentation on Datasets <https://airflow.apache.org/docs/apache-airflow/2.9.0/authoring-and-scheduling/datasets.html>`_ for
 a more detailed description on the rules.
 
 You may need to change your Dataset identifiers if they look like a URI, but are
@@ -3215,8 +3314,7 @@ And to mark a task as producing a dataset pass the dataset(s) to the ``outlets``
 .. code-block:: python
 
     @task(outlets=[dataset])
-    def my_task():
-        ...
+    def my_task(): ...
 
 
     # Or for classic operators
@@ -3228,7 +3326,7 @@ If you have the producer and consumer in different files you do not need to use 
 Datasets represent the abstract concept of a dataset, and (for now) do not have any direct read or write
 capability - in this release we are adding the foundational feature that we will build upon.
 
-For more info on Datasets please see :doc:`/authoring-and-scheduling/datasets`.
+For more info on Datasets please see `Datasets documentation <https://airflow.apache.org/docs/apache-airflow/2.4.0/authoring-and-scheduling/datasets.html>`_.
 
 Expanded dynamic task mapping support
 """""""""""""""""""""""""""""""""""""
@@ -3250,8 +3348,7 @@ Previously you had to assign a DAG to a module-level variable in order for Airfl
 
 
    @dag
-   def dag_maker():
-       ...
+   def dag_maker(): ...
 
 
    dag2 = dag_maker()
@@ -3266,8 +3363,7 @@ can become
 
 
    @dag
-   def dag_maker():
-       ...
+   def dag_maker(): ...
 
 
    dag_maker()
@@ -3598,13 +3694,11 @@ For example, in your ``custom_config.py``:
 
 
     # before
-    class YourCustomFormatter(logging.Formatter):
-        ...
+    class YourCustomFormatter(logging.Formatter): ...
 
 
     # after
-    class YourCustomFormatter(TimezoneAware):
-        ...
+    class YourCustomFormatter(TimezoneAware): ...
 
 
     AIRFLOW_FORMATTER = LOGGING_CONFIG["formatters"]["airflow"]
@@ -6294,27 +6388,22 @@ The old syntax of passing ``context`` as a dictionary will continue to work with
 
 .. code-block:: python
 
-   def execution_date_fn(execution_date, ctx):
-       ...
+   def execution_date_fn(execution_date, ctx): ...
 
 ``execution_date_fn`` can take in any number of keyword arguments available in the task context dictionary. The following forms of ``execution_date_fn`` are all supported:
 
 .. code-block:: python
 
-   def execution_date_fn(dt):
-       ...
+   def execution_date_fn(dt): ...
 
 
-   def execution_date_fn(execution_date):
-       ...
+   def execution_date_fn(execution_date): ...
 
 
-   def execution_date_fn(execution_date, ds_nodash):
-       ...
+   def execution_date_fn(execution_date, ds_nodash): ...
 
 
-   def execution_date_fn(execution_date, ds_nodash, dag):
-       ...
+   def execution_date_fn(execution_date, ds_nodash, dag): ...
 
 The default value for ``[webserver] cookie_samesite`` has been changed to ``Lax``
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -7041,8 +7130,7 @@ Previous signature:
        external_trigger=False,
        conf=None,
        session=None,
-   ):
-       ...
+   ): ...
 
 current:
 
@@ -7058,8 +7146,7 @@ current:
        conf=None,
        run_type=None,
        session=None,
-   ):
-       ...
+   ): ...
 
 If user provides ``run_id`` then the ``run_type`` will be derived from it by checking prefix, allowed types
 : ``manual``\ , ``scheduled``\ , ``backfill`` (defined by ``airflow.utils.types.DagRunType``\ ).
@@ -7157,8 +7244,9 @@ can be replaced by the following code:
 
    logger = logging.getLogger("custom-logger")
 
-   with redirect_stdout(StreamLogWriter(logger, logging.INFO)), redirect_stderr(
-       StreamLogWriter(logger, logging.WARN)
+   with (
+       redirect_stdout(StreamLogWriter(logger, logging.INFO)),
+       redirect_stderr(StreamLogWriter(logger, logging.WARN)),
    ):
        print("I Love Airflow")
 
@@ -7187,8 +7275,7 @@ are deprecated and will be removed in future versions.
        include_examples=conf.getboolean("core", "LOAD_EXAMPLES"),
        safe_mode=conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE"),
        store_serialized_dags=False,
-   ):
-       ...
+   ): ...
 
 **current**\ :
 
@@ -7199,8 +7286,7 @@ are deprecated and will be removed in future versions.
        include_examples=conf.getboolean("core", "LOAD_EXAMPLES"),
        safe_mode=conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE"),
        read_dags_from_db=False,
-   ):
-       ...
+   ): ...
 
 If you were using positional arguments, it requires no change but if you were using keyword
 arguments, please change ``store_serialized_dags`` to ``read_dags_from_db``.
@@ -8022,8 +8108,7 @@ Before:
        dataset_id: str,
        dataset_resource: dict,
        # ...
-   ):
-       ...
+   ): ...
 
 After:
 
@@ -8033,8 +8118,7 @@ After:
        dataset_resource: dict,
        dataset_id: Optional[str] = None,
        # ...
-   ):
-       ...
+   ): ...
 
 Changes in ``amazon`` provider package
 """"""""""""""""""""""""""""""""""""""""""
@@ -10114,16 +10198,14 @@ Old signature:
 
 .. code-block:: python
 
-   def get_task_instances(self, session, start_date=None, end_date=None):
-       ...
+   def get_task_instances(self, session, start_date=None, end_date=None): ...
 
 New signature:
 
 .. code-block:: python
 
    @provide_session
-   def get_task_instances(self, start_date=None, end_date=None, session=None):
-       ...
+   def get_task_instances(self, start_date=None, end_date=None, session=None): ...
 
 For ``DAG``
 ~~~~~~~~~~~~~~~
@@ -10132,16 +10214,14 @@ Old signature:
 
 .. code-block:: python
 
-   def get_task_instances(self, session, start_date=None, end_date=None, state=None):
-       ...
+   def get_task_instances(self, session, start_date=None, end_date=None, state=None): ...
 
 New signature:
 
 .. code-block:: python
 
    @provide_session
-   def get_task_instances(self, start_date=None, end_date=None, state=None, session=None):
-       ...
+   def get_task_instances(self, start_date=None, end_date=None, state=None, session=None): ...
 
 In either case, it is necessary to rewrite calls to the ``get_task_instances`` method that currently provide the ``session`` positional argument. New calls to this method look like:
 
@@ -10622,15 +10702,13 @@ Old signature:
 
 .. code-block:: python
 
-   def create_transfer_job(self, description, schedule, transfer_spec, project_id=None):
-       ...
+   def create_transfer_job(self, description, schedule, transfer_spec, project_id=None): ...
 
 New signature:
 
 .. code-block:: python
 
-   def create_transfer_job(self, body):
-       ...
+   def create_transfer_job(self, body): ...
 
 It is necessary to rewrite calls to method. The new call looks like this:
 
@@ -10655,15 +10733,13 @@ Old signature:
 
 .. code-block:: python
 
-   def wait_for_transfer_job(self, job):
-       ...
+   def wait_for_transfer_job(self, job): ...
 
 New signature:
 
 .. code-block:: python
 
-   def wait_for_transfer_job(self, job, expected_statuses=(GcpTransferOperationStatus.SUCCESS,)):
-       ...
+   def wait_for_transfer_job(self, job, expected_statuses=(GcpTransferOperationStatus.SUCCESS,)): ...
 
 The behavior of ``wait_for_transfer_job`` has changed:
 

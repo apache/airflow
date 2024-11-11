@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Collection, Iterable, Iterator,
 import attr
 import methodtools
 
-from airflow.exceptions import AirflowException, UnmappableOperator
+from airflow.exceptions import UnmappableOperator
 from airflow.models.abstractoperator import (
     DEFAULT_EXECUTOR,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
@@ -201,8 +201,8 @@ class OperatorPartial:
         task_id = partial_kwargs.pop("task_id")
         dag = partial_kwargs.pop("dag")
         task_group = partial_kwargs.pop("task_group")
-        start_date = partial_kwargs.pop("start_date")
-        end_date = partial_kwargs.pop("end_date")
+        start_date = partial_kwargs.pop("start_date", None)
+        end_date = partial_kwargs.pop("end_date", None)
 
         try:
             operator_name = self.operator_class.custom_operator_name  # type: ignore
@@ -328,17 +328,13 @@ class MappedOperator(AbstractOperator):
         for k, v in self.partial_kwargs.items():
             if k in self.template_fields:
                 XComArg.apply_upstream_relationship(self, v)
-        if self.partial_kwargs.get("sla") is not None:
-            raise AirflowException(
-                f"SLAs are unsupported with mapped tasks. Please set `sla=None` for task "
-                f"{self.task_id!r}."
-            )
 
     @methodtools.lru_cache(maxsize=None)
     @classmethod
     def get_serialized_fields(cls):
         # Not using 'cls' here since we only want to serialize base fields.
-        return frozenset(attr.fields_dict(MappedOperator)) - {
+        return (frozenset(attr.fields_dict(MappedOperator)) | {"task_type"}) - {
+            "_task_type",
             "dag",
             "deps",
             "expand_input",  # This is needed to be able to accept XComArg.
@@ -546,14 +542,6 @@ class MappedOperator(AbstractOperator):
     @weight_rule.setter
     def weight_rule(self, value: str | PriorityWeightStrategy) -> None:
         self.partial_kwargs["weight_rule"] = validate_and_load_priority_weight_strategy(value)
-
-    @property
-    def sla(self) -> datetime.timedelta | None:
-        return self.partial_kwargs.get("sla")
-
-    @sla.setter
-    def sla(self, value: datetime.timedelta | None) -> None:
-        self.partial_kwargs["sla"] = value
 
     @property
     def max_active_tis_per_dag(self) -> int | None:

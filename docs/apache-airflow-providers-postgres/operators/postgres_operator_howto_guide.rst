@@ -45,7 +45,7 @@ Creating a Postgres database table
 
 The code snippets below are based on Airflow-2.0
 
-.. exampleinclude:: /../../tests/system/providers/postgres/example_postgres.py
+.. exampleinclude:: /../../providers/tests/system/postgres/example_postgres.py
     :language: python
     :start-after: [START postgres_sql_execute_query_operator_howto_guide]
     :end-before: [END postgres_sql_execute_query_operator_howto_guide_create_pet_table]
@@ -123,10 +123,11 @@ Passing Parameters into SQLExecuteQueryOperator for Postgres
 
 SQLExecuteQueryOperator provides ``parameters`` attribute which makes it possible to dynamically inject values into your
 SQL requests during runtime. The BaseOperator class has the ``params`` attribute which is available to the SQLExecuteQueryOperator
-by virtue of inheritance. Both ``parameters`` and ``params`` make it possible to dynamically pass in parameters in many
-interesting ways.
+by virtue of inheritance. While both ``parameters`` and ``params`` make it possible to dynamically pass in parameters in many
+interesting ways, their usage is slightly different as demonstrated in the examples below.
 
-To find the owner of the pet called 'Lester':
+To find the birth dates of all pets between two dates, when we use the SQL statements directly in our code, we will use the
+``parameters`` attribute:
 
 .. code-block:: python
 
@@ -137,16 +138,15 @@ To find the owner of the pet called 'Lester':
       parameters={"begin_date": "2020-01-01", "end_date": "2020-12-31"},
   )
 
-Now lets refactor our ``get_birth_date`` task. Instead of dumping SQL statements directly into our code, let's tidy things up
-by creating a sql file.
+Now lets refactor our ``get_birth_date`` task. Now, instead of dumping SQL statements directly into our code, let's tidy things up
+by creating a sql file. And this time we will use the ``params`` attribute which we get for free from the parent ``BaseOperator``
+class.
 
 ::
 
   -- dags/sql/birth_date.sql
   SELECT * FROM pet WHERE birth_date BETWEEN SYMMETRIC {{ params.begin_date }} AND {{ params.end_date }};
 
-And this time we will use the ``params`` attribute which we get for free from the parent ``BaseOperator``
-class.
 
 .. code-block:: python
 
@@ -181,7 +181,7 @@ SQLExecuteQueryOperator provides ``hook_params`` attribute that allows you to pa
 You can pass ``options`` argument this way so that you specify `command-line options <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNECT-OPTIONS>`_
 sent to the server at connection start.
 
-.. exampleinclude:: /../../tests/system/providers/postgres/example_postgres.py
+.. exampleinclude:: /../../providers/tests/system/postgres/example_postgres.py
     :language: python
     :start-after: [START postgres_sql_execute_query_operator_howto_guide_get_birth_date]
     :end-before: [END postgres_sql_execute_query_operator_howto_guide_get_birth_date]
@@ -192,7 +192,7 @@ The complete Postgres Operator DAG
 
 When we put everything together, our DAG should look like this:
 
-.. exampleinclude:: /../../tests/system/providers/postgres/example_postgres.py
+.. exampleinclude:: /../../providers/tests/system/postgres/example_postgres.py
     :language: python
     :start-after: [START postgres_sql_execute_query_operator_howto_guide]
     :end-before: [END postgres_sql_execute_query_operator_howto_guide]

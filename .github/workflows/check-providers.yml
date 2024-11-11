@@ -102,16 +102,15 @@ jobs:
         run: breeze release-management prepare-airflow-package --version-suffix-for-pypi dev0
       - name: "Verify wheel packages with twine"
         run: |
-          pipx uninstall twine || true
-          pipx install twine && twine check dist/*.whl
+          uv tool uninstall twine || true
+          uv tool install twine && twine check dist/*.whl
       - name: "Test providers issue generation automatically"
         run: >
           breeze release-management generate-issue-content-providers
           --only-available-in-dist --disable-progress
-      - name: >
-          Remove incompatible Python ${{ matrix.python-version }} provider packages
+      - name: Remove Python 3.9-incompatible provider packages
         run: |
-          echo "Removing Python 3.8-incompatible provider: cloudant"
+          echo "Removing Python 3.9-incompatible provider: cloudant"
           rm -vf dist/apache_airflow_providers_cloudant*
       - name: "Generate source constraints from CI image"
         shell: bash
@@ -171,8 +170,8 @@ jobs:
           --version-suffix-for-pypi dev0 --package-format sdist
       - name: "Verify sdist packages with twine"
         run: |
-          pipx uninstall twine || true
-          pipx install twine && twine check dist/*.tar.gz
+          uv tool uninstall twine || true
+          uv tool install twine && twine check dist/*.tar.gz
       - name: "Generate source constraints from CI image"
         shell: bash
         run: >

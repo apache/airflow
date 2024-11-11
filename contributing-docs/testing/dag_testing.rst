@@ -20,31 +20,22 @@ DAG Testing
 ===========
 
 To ease and speed up the process of developing DAGs, you can use
-py:class:`~airflow.executors.debug_executor.DebugExecutor`, which is a single process executor
-for debugging purposes. Using this executor, you can run and debug DAGs from your IDE.
+py:meth:`~airflow.models.dag.DAG.test`, which will run a dag in a single process.
 
 To set up the IDE:
 
 1. Add ``main`` block at the end of your DAG file to make it runnable.
-It will run a backfill job:
 
 .. code-block:: python
 
   if __name__ == "__main__":
-      dag.clear()
-      dag.run()
+      dag.test()
 
-
-2. Set up ``AIRFLOW__CORE__EXECUTOR=DebugExecutor`` in the run configuration of your IDE.
-   Make sure to also set up all environment variables required by your DAG.
 
 3. Run and debug the DAG file.
 
-Additionally, ``DebugExecutor`` can be used in a fail-fast mode that will make
-all other running or scheduled tasks fail immediately. To enable this option, set
-``AIRFLOW__DEBUG__FAIL_FAST=True`` or adjust ``fail_fast`` option in your ``airflow.cfg``.
 
-Also, with the Airflow CLI command ``airflow dags test``, you can execute one complete run of a DAG:
+You can also run the dag in the same manner with the Airflow CLI command ``airflow dags test``:
 
 .. code-block:: bash
 

@@ -234,9 +234,6 @@ ARG_SKIP_SERVE_LOGS = Arg(
 )
 
 # list_dag_runs
-ARG_DAG_ID_REQ_FLAG = Arg(
-    ("-d", "--dag-id"), required=True, help="The id of the dag"
-)  # TODO: convert this to a positional arg in Airflow 3
 ARG_NO_BACKFILL = Arg(
     ("--no-backfill",), help="filter all the backfill dagruns given the dag id", action="store_true"
 )
@@ -267,7 +264,7 @@ ARG_NUM_EXECUTIONS = Arg(
     help="The number of next execution datetimes to show",
 )
 
-# backfill
+# misc
 ARG_MARK_SUCCESS = Arg(
     ("-m", "--mark-success"), help="Mark jobs as succeeded without running them", action="store_true"
 )
@@ -303,78 +300,47 @@ ARG_DEFAULTS = Arg(
 )
 ARG_VERBOSE = Arg(("-v", "--verbose"), help="Make logging output more verbose", action="store_true")
 ARG_LOCAL = Arg(("-l", "--local"), help="Run the task using the LocalExecutor", action="store_true")
-ARG_DONOT_PICKLE = Arg(
-    ("-x", "--donot-pickle"),
-    help=(
-        "Do not attempt to pickle the DAG object to send over "
-        "to the workers, just tell the workers to run their version "
-        "of the code"
-    ),
-    action="store_true",
-)
-ARG_BF_IGNORE_DEPENDENCIES = Arg(
-    ("-i", "--ignore-dependencies"),
-    help=(
-        "Skip upstream tasks, run only the tasks "
-        "matching the regexp. Only works in conjunction "
-        "with task_regex"
-    ),
-    action="store_true",
-)
 ARG_POOL = Arg(("--pool",), "Resource pool to use")
-ARG_DELAY_ON_LIMIT = Arg(
-    ("--delay-on-limit",),
-    help=(
-        "Amount of time in seconds to wait when the limit "
-        "on maximum active dag runs (max_active_runs) has "
-        "been reached before trying to execute a dag run "
-        "again"
-    ),
-    type=float,
-    default=1.0,
+
+
+# backfill
+ARG_BACKFILL_DAG = Arg(flags=("--dag-id",), help="The dag to backfill.", required=True)
+ARG_BACKFILL_FROM_DATE = Arg(
+    ("--from-date",), help="Earliest logical date to backfill.", type=parsedate, required=True
 )
-ARG_RESET_DAG_RUN = Arg(
-    ("--reset-dagruns",),
-    help=(
-        "if set, the backfill will delete existing "
-        "backfill-related DAG runs and start "
-        "anew with fresh, running DAG runs"
-    ),
-    action="store_true",
+ARG_BACKFILL_TO_DATE = Arg(
+    ("--to-date",), help="Latest logical date to backfill", type=parsedate, required=True
 )
-ARG_RERUN_FAILED_TASKS = Arg(
-    ("--rerun-failed-tasks",),
-    help=(
-        "if set, the backfill will auto-rerun "
-        "all the failed tasks for the backfill date range "
-        "instead of throwing exceptions"
-    ),
-    action="store_true",
-)
-ARG_CONTINUE_ON_FAILURES = Arg(
-    ("--continue-on-failures",),
-    help=("if set, the backfill will keep going even if some of the tasks failed"),
-    action="store_true",
-)
-ARG_DISABLE_RETRY = Arg(
-    ("--disable-retry",),
-    help=("if set, the backfill will set tasks as failed without retrying."),
-    action="store_true",
-)
+ARG_DAG_RUN_CONF = Arg(flags=("--dag-run-conf",), help="JSON dag run configuration.")
 ARG_RUN_BACKWARDS = Arg(
-    (
-        "-B",
-        "--run-backwards",
-    ),
+    flags=("--run-backwards",),
     help=(
-        "if set, the backfill will run tasks from the most "
-        "recent day first.  if there are tasks that depend_on_past "
-        "this option will throw an exception"
+        "If set, the backfill will run tasks from the most recent logical date first. "
+        "Not supported if there are tasks that depend_on_past."
     ),
     action="store_true",
 )
+ARG_MAX_ACTIVE_RUNS = Arg(
+    ("--max-active-runs",),
+    type=positive_int(allow_zero=False),
+    help="Max active runs for this backfill.",
+)
+ARG_BACKFILL_DRY_RUN = Arg(
+    ("--dry-run",),
+    help="Perform a dry run",
+    action="store_true",
+)
+ARG_BACKFILL_REPROCESS_BEHAVIOR = Arg(
+    ("--reprocess-behavior",),
+    help=(
+        "When a run exists for the logical date, controls whether new runs will be "
+        "created for the date. Default is none."
+    ),
+    choices=("none", "completed", "failed"),
+)
 
 
+# misc
 ARG_TREAT_DAG_ID_AS_REGEX = Arg(
     ("--treat-dag-id-as-regex",),
     help=("if set, dag_id will be treated as regex instead of an exact string"),
@@ -610,11 +576,6 @@ ARG_DEPENDS_ON_PAST = Arg(
     choices={"check", "ignore", "wait"},
     default="check",
 )
-ARG_SHIP_DAG = Arg(
-    ("--ship-dag",), help="Pickles (serializes) the DAG and ships it to the worker", action="store_true"
-)
-ARG_PICKLE = Arg(("-p", "--pickle"), help="Serialized pickle object of the entire dag (used internally)")
-ARG_JOB_ID = Arg(("-j", "--job-id"), help=argparse.SUPPRESS)
 ARG_CFG_PATH = Arg(("--cfg-path",), help="Path to config file to use instead of airflow.cfg")
 ARG_MAP_INDEX = Arg(("--map-index",), type=int, default=-1, help="Mapped task index")
 ARG_READ_FROM_DB = Arg(("--read-from-db",), help="Read dag from DB instead of dag file", action="store_true")
@@ -816,6 +777,11 @@ ARG_FASTAPI_API_ACCESS_LOGFORMAT = Arg(
     ("-L", "--access-logformat"),
     help="The access log format for gunicorn logs",
 )
+ARG_FASTAPI_API_APPS = Arg(
+    ("--apps",),
+    help="Applications to run (comma-separated). Default is all. Options: core, execution, all",
+    default="all",
+)
 
 
 # scheduler
@@ -824,16 +790,6 @@ ARG_NUM_RUNS = Arg(
     default=conf.getint("scheduler", "num_runs"),
     type=int,
     help="Set the number of runs to execute before exiting",
-)
-ARG_DO_PICKLE = Arg(
-    ("-p", "--do-pickle"),
-    default=False,
-    help=(
-        "Attempt to pickle the DAG object to send over "
-        "to the workers, instead of letting workers run their version "
-        "of the code"
-    ),
-    action="store_true",
 )
 
 ARG_WITHOUT_MINGLE = Arg(
@@ -971,7 +927,7 @@ ARG_MIN_PENDING_MINUTES = Arg(
 # jobs check
 ARG_JOB_TYPE_FILTER = Arg(
     ("--job-type",),
-    choices=("BackfillJob", "LocalTaskJob", "SchedulerJob", "TriggererJob", "DagProcessorJob"),
+    choices=("LocalTaskJob", "SchedulerJob", "TriggererJob", "DagProcessorJob"),
     action="store",
     help="The type of job(s) that will be checked.",
 )
@@ -1059,6 +1015,24 @@ class GroupCommand(NamedTuple):
 
 CLICommand = Union[ActionCommand, GroupCommand]
 
+BACKFILL_COMMANDS = (
+    ActionCommand(
+        name="create",
+        help="Create a backfill for a dag.",
+        description="Run subsections of a DAG for a specified date range.",
+        func=lazy_load_command("airflow.cli.commands.backfill_command.create_backfill"),
+        args=(
+            ARG_BACKFILL_DAG,
+            ARG_BACKFILL_FROM_DATE,
+            ARG_BACKFILL_TO_DATE,
+            ARG_DAG_RUN_CONF,
+            ARG_RUN_BACKWARDS,
+            ARG_MAX_ACTIVE_RUNS,
+            ARG_BACKFILL_REPROCESS_BEHAVIOR,
+            ARG_BACKFILL_DRY_RUN,
+        ),
+    ),
+)
 DAGS_COMMANDS = (
     ActionCommand(
         name="details",
@@ -1096,7 +1070,7 @@ DAGS_COMMANDS = (
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_dag_runs"),
         args=(
-            ARG_DAG_ID_REQ_FLAG,
+            ARG_DAG_ID,
             ARG_NO_BACKFILL,
             ARG_DR_STATE,
             ARG_OUTPUT,
@@ -1228,40 +1202,6 @@ DAGS_COMMANDS = (
             ARG_SAVE,
             ARG_IMGCAT,
             ARG_VERBOSE,
-        ),
-    ),
-    ActionCommand(
-        name="backfill",
-        help="Run subsections of a DAG for a specified date range",
-        description=(
-            "Run subsections of a DAG for a specified date range. If reset_dag_run option is used, "
-            "backfill will first prompt users whether airflow should clear all the previous dag_run and "
-            "task_instances within the backfill date range. If rerun_failed_tasks is used, backfill "
-            "will auto re-run the previous failed task instances  within the backfill date range"
-        ),
-        func=lazy_load_command("airflow.cli.commands.dag_command.dag_backfill"),
-        args=(
-            ARG_DAG_ID,
-            ARG_TASK_REGEX,
-            ARG_START_DATE,
-            ARG_END_DATE,
-            ARG_MARK_SUCCESS,
-            ARG_LOCAL,
-            ARG_DONOT_PICKLE,
-            ARG_YES,
-            ARG_CONTINUE_ON_FAILURES,
-            ARG_DISABLE_RETRY,
-            ARG_BF_IGNORE_DEPENDENCIES,
-            ARG_SUBDIR,
-            ARG_POOL,
-            ARG_DELAY_ON_LIMIT,
-            ARG_DRY_RUN,
-            ARG_VERBOSE,
-            ARG_CONF,
-            ARG_RESET_DAG_RUN,
-            ARG_RERUN_FAILED_TASKS,
-            ARG_RUN_BACKWARDS,
-            ARG_TREAT_DAG_ID_AS_REGEX,
         ),
     ),
     ActionCommand(
@@ -1397,9 +1337,6 @@ TASKS_COMMANDS = (
             ARG_IGNORE_ALL_DEPENDENCIES,
             ARG_IGNORE_DEPENDENCIES,
             ARG_DEPENDS_ON_PAST,
-            ARG_SHIP_DAG,
-            ARG_PICKLE,
-            ARG_JOB_ID,
             ARG_INTERACTIVE,
             ARG_SHUT_DOWN_LOGGING,
             ARG_MAP_INDEX,
@@ -1917,6 +1854,11 @@ core_commands: list[CLICommand] = [
         subcommands=DAGS_COMMANDS,
     ),
     GroupCommand(
+        name="backfill",
+        help="Manage backfills",
+        subcommands=BACKFILL_COMMANDS,
+    ),
+    GroupCommand(
         name="tasks",
         help="Manage tasks",
         subcommands=TASKS_COMMANDS,
@@ -1996,6 +1938,7 @@ core_commands: list[CLICommand] = [
             ARG_FASTAPI_API_ACCESS_LOGFILE,
             ARG_FASTAPI_API_ERROR_LOGFILE,
             ARG_FASTAPI_API_ACCESS_LOGFORMAT,
+            ARG_FASTAPI_API_APPS,
             ARG_LOG_FILE,
             ARG_SSL_CERT,
             ARG_SSL_KEY,
@@ -2009,7 +1952,6 @@ core_commands: list[CLICommand] = [
         args=(
             ARG_SUBDIR,
             ARG_NUM_RUNS,
-            ARG_DO_PICKLE,
             ARG_PID,
             ARG_DAEMON,
             ARG_STDOUT,
@@ -2051,7 +1993,6 @@ core_commands: list[CLICommand] = [
             ARG_DAEMON,
             ARG_SUBDIR,
             ARG_NUM_RUNS,
-            ARG_DO_PICKLE,
             ARG_STDOUT,
             ARG_STDERR,
             ARG_LOG_FILE,
