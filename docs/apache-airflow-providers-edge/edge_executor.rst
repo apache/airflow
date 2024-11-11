@@ -212,7 +212,7 @@ perspective (you want a worker running from a specific location where required
 infrastructure is available).
 
 Concurrency slot handling
------------------
+-------------------------
 
 Some tasks may need more resources than other tasks, to handle these use case the Edge worker supports
 concurrency slot handling. The logic behind this is the same as the pool slot feature
