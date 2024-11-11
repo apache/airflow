@@ -53,8 +53,8 @@ import type {
   GetDagRunResponse,
   DeleteDagRunData,
   DeleteDagRunResponse,
-  PatchDagRunStateData,
-  PatchDagRunStateResponse,
+  PatchDagRunData,
+  PatchDagRunResponse,
   GetDagSourceData,
   GetDagSourceResponse,
   GetEventLogData,
@@ -858,7 +858,7 @@ export class DagRunService {
   }
 
   /**
-   * Patch Dag Run State
+   * Patch Dag Run
    * Modify a DAG Run.
    * @param data The data for the request.
    * @param data.dagId
@@ -868,9 +868,9 @@ export class DagRunService {
    * @returns DAGRunResponse Successful Response
    * @throws ApiError
    */
-  public static patchDagRunState(
-    data: PatchDagRunStateData,
-  ): CancelablePromise<PatchDagRunStateResponse> {
+  public static patchDagRun(
+    data: PatchDagRunData,
+  ): CancelablePromise<PatchDagRunResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
       url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}",

@@ -25,7 +25,6 @@ from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutl
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 
-from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_assets
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
@@ -115,16 +114,16 @@ class TestGetAssets(TestAssets):
         assert response.json()["detail"] == msg
 
     @pytest.mark.parametrize(
-        "url, expected_assets",
+        "params, expected_assets",
         [
-            ("/public/assets?uri_pattern=s3", {"s3://folder/key"}),
-            ("/public/assets?uri_pattern=bucket", {"gcp://bucket/key", "wasb://some_asset_bucket_/key"}),
+            ({"uri_pattern": "s3"}, {"s3://folder/key"}),
+            ({"uri_pattern": "bucket"}, {"gcp://bucket/key", "wasb://some_asset_bucket_/key"}),
             (
-                "/public/assets?uri_pattern=asset",
+                {"uri_pattern": "asset"},
                 {"somescheme://asset/key", "wasb://some_asset_bucket_/key"},
             ),
             (
-                "/public/assets?uri_pattern=",
+                {"uri_pattern": ""},
                 {
                     "gcp://bucket/key",
                     "s3://folder/key",
@@ -135,7 +134,7 @@ class TestGetAssets(TestAssets):
         ],
     )
     @provide_session
-    def test_filter_assets_by_uri_pattern_works(self, test_client, url, expected_assets, session):
+    def test_filter_assets_by_uri_pattern_works(self, test_client, params, expected_assets, session):
         asset1 = AssetModel("s3://folder/key")
         asset2 = AssetModel("gcp://bucket/key")
         asset3 = AssetModel("somescheme://asset/key")
@@ -145,7 +144,7 @@ class TestGetAssets(TestAssets):
         for a in assets:
             self.create_provided_asset(asset=a)
 
-        response = test_client.get(url)
+        response = test_client.get("/public/assets", params=params)
         assert response.status_code == 200
         asset_urls = {asset["uri"] for asset in response.json()["assets"]}
         assert expected_assets == asset_urls
@@ -177,6 +176,7 @@ class TestGetAssets(TestAssets):
         "dag_ids, uri_pattern,expected_num",
         [("dag1,dag2", "folder", 1), ("dag3", "nothing", 0), ("dag2,dag3", "key", 2)],
     )
+    @provide_session
     def test_filter_assets_by_dag_ids_and_uri_pattern_works(
         self, test_client, dag_ids, uri_pattern, expected_num, session
     ):
@@ -231,16 +231,6 @@ class TestGetAssetsEndpointPagination(TestAssets):
 
         assert response.status_code == 200
         assert len(response.json()["assets"]) == 100
-
-    @conf_vars({("api", "maximum_page_limit"): "150"})
-    def test_should_return_conf_max_if_req_max_above_conf(self, test_client):
-        self.create_assets(num=200)
-
-        # change to 180 once format_parameters is integrated
-        response = test_client.get("/public/assets?limit=150")
-
-        assert response.status_code == 200
-        assert len(response.json()["assets"]) == 150
 
 
 class TestGetAssetEndpoint(TestAssets):

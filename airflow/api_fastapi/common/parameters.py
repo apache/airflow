@@ -417,24 +417,24 @@ class _UriPatternSearch(_SearchParam):
         return self.set_value(uri_pattern)
 
 
-class _DagIdAssetReferencePatternSearch(_SearchParam):
+class _DagIdAssetReferenceFilter(BaseParam[list[str]]):
     """Search on dag_id."""
 
     def __init__(self, skip_none: bool = True) -> None:
         super().__init__(AssetModel.consuming_dags, skip_none)
-        self.task_attribute = AssetModel.producing_tasks
 
-    def depends(self, dag_ids: str | None = None) -> _DagIdAssetReferencePatternSearch:
+    def depends(self, dag_ids: list[str] = Query(None)) -> _DagIdAssetReferenceFilter:
+        # needed to handle cases where dag_ids=a1,b1
+        if dag_ids and len(dag_ids) == 1 and "," in dag_ids[0]:
+            dag_ids = dag_ids[0].split(",")
         return self.set_value(dag_ids)
 
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
             return select
-        if self.value is not None:
-            dags_list = self.value.split(",")
-        return select.filter(
-            (self.attribute.any(DagScheduleAssetReference.dag_id.in_(dags_list)))
-            | (self.task_attribute.any(TaskOutletAssetReference.dag_id.in_(dags_list)))
+        return select.where(
+            (AssetModel.consuming_dags.any(DagScheduleAssetReference.dag_id.in_(self.value)))
+            | (AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id.in_(self.value)))
         )
 
 
@@ -533,5 +533,5 @@ QueryTIExecutorFilter = Annotated[_TIExecutorFilter, Depends(_TIExecutorFilter()
 # Assets
 QueryUriPatternSearch = Annotated[_UriPatternSearch, Depends(_UriPatternSearch().depends)]
 QueryAssetDagIdPatternSearch = Annotated[
-    _DagIdAssetReferencePatternSearch, Depends(_DagIdAssetReferencePatternSearch().depends)
+    _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter().depends)
 ]

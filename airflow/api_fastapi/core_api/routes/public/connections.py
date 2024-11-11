@@ -24,12 +24,12 @@ from typing_extensions import Annotated
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.connections import (
+from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionBody,
     ConnectionCollectionResponse,
     ConnectionResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models import Connection
 from airflow.utils import helpers
 
@@ -43,7 +43,7 @@ connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
         [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
     ),
 )
-async def delete_connection(
+def delete_connection(
     connection_id: str,
     session: Annotated[Session, Depends(get_session)],
 ):
@@ -64,7 +64,7 @@ async def delete_connection(
         [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
     ),
 )
-async def get_connection(
+def get_connection(
     connection_id: str,
     session: Annotated[Session, Depends(get_session)],
 ) -> ConnectionResponse:
@@ -85,7 +85,7 @@ async def get_connection(
         [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
     ),
 )
-async def get_connections(
+def get_connections(
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -125,7 +125,7 @@ async def get_connections(
         [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_409_CONFLICT]
     ),
 )
-async def post_connection(
+def post_connection(
     post_body: ConnectionBody,
     session: Annotated[Session, Depends(get_session)],
 ) -> ConnectionResponse:
@@ -156,7 +156,7 @@ async def post_connection(
         ]
     ),
 )
-async def patch_connection(
+def patch_connection(
     connection_id: str,
     patch_body: ConnectionBody,
     session: Annotated[Session, Depends(get_session)],

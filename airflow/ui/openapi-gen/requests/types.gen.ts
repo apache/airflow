@@ -216,7 +216,8 @@ export type DAGResponse = {
  * DAG Run Serializer for PATCH requests.
  */
 export type DAGRunPatchBody = {
-  state: DAGRunPatchStates;
+  state?: DAGRunPatchStates | null;
+  note?: string | null;
 };
 
 /**
@@ -494,7 +495,7 @@ export type HealthInfoSchema = {
 export type HistoricalMetricDataResponse = {
   dag_run_types: DAGRunTypes;
   dag_run_states: DAGRunStates;
-  task_instance_states: airflow__api_fastapi__core_api__serializers__ui__dashboard__TaskInstanceState;
+  task_instance_states: TaskInstanceStateCount;
 };
 
 /**
@@ -669,7 +670,7 @@ export type TaskInstanceResponse = {
   start_date: string | null;
   end_date: string | null;
   duration: number | null;
-  state: airflow__utils__state__TaskInstanceState | null;
+  state: TaskInstanceState | null;
   try_number: number;
   max_tries: number;
   task_display_name: string;
@@ -691,6 +692,44 @@ export type TaskInstanceResponse = {
   };
   trigger: TriggerResponse | null;
   triggerer_job: JobResponse | null;
+};
+
+/**
+ * All possible states that a Task Instance can be in.
+ *
+ * Note that None is also allowed, so always use this in a type hint with Optional.
+ */
+export type TaskInstanceState =
+  | "removed"
+  | "scheduled"
+  | "queued"
+  | "running"
+  | "success"
+  | "restarting"
+  | "failed"
+  | "up_for_retry"
+  | "up_for_reschedule"
+  | "upstream_failed"
+  | "skipped"
+  | "deferred";
+
+/**
+ * TaskInstance serializer for responses.
+ */
+export type TaskInstanceStateCount = {
+  no_status: number;
+  removed: number;
+  scheduled: number;
+  queued: number;
+  running: number;
+  success: number;
+  restarting: number;
+  failed: number;
+  up_for_retry: number;
+  up_for_reschedule: number;
+  upstream_failed: number;
+  skipped: number;
+  deferred: number;
 };
 
 /**
@@ -762,45 +801,6 @@ export type VersionInfo = {
   git_version: string | null;
 };
 
-/**
- * TaskInstance serializer for responses.
- */
-export type airflow__api_fastapi__core_api__serializers__ui__dashboard__TaskInstanceState =
-  {
-    no_status: number;
-    removed: number;
-    scheduled: number;
-    queued: number;
-    running: number;
-    success: number;
-    restarting: number;
-    failed: number;
-    up_for_retry: number;
-    up_for_reschedule: number;
-    upstream_failed: number;
-    skipped: number;
-    deferred: number;
-  };
-
-/**
- * All possible states that a Task Instance can be in.
- *
- * Note that None is also allowed, so always use this in a type hint with Optional.
- */
-export type airflow__utils__state__TaskInstanceState =
-  | "removed"
-  | "scheduled"
-  | "queued"
-  | "running"
-  | "success"
-  | "restarting"
-  | "failed"
-  | "up_for_retry"
-  | "up_for_reschedule"
-  | "upstream_failed"
-  | "skipped"
-  | "deferred";
-
 export type NextRunAssetsData = {
   dagId: string;
 };
@@ -810,7 +810,7 @@ export type NextRunAssetsResponse = {
 };
 
 export type GetAssetsData = {
-  dagIds?: string | null;
+  dagIds?: Array<string>;
   limit?: number;
   offset?: number;
   orderBy?: string;
@@ -999,14 +999,14 @@ export type DeleteDagRunData = {
 
 export type DeleteDagRunResponse = void;
 
-export type PatchDagRunStateData = {
+export type PatchDagRunData = {
   dagId: string;
   dagRunId: string;
   requestBody: DAGRunPatchBody;
   updateMask?: Array<string> | null;
 };
 
-export type PatchDagRunStateResponse = DAGRunResponse;
+export type PatchDagRunResponse = DAGRunResponse;
 
 export type GetDagSourceData = {
   accept?: string;
@@ -1896,7 +1896,7 @@ export type $OpenApiTs = {
       };
     };
     patch: {
-      req: PatchDagRunStateData;
+      req: PatchDagRunData;
       res: {
         /**
          * Successful Response

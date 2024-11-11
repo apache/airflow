@@ -26,14 +26,14 @@ from typing_extensions import Annotated
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.pools import (
+from airflow.api_fastapi.core_api.datamodels.pools import (
     BasePool,
     PoolCollectionResponse,
     PoolPatchBody,
     PoolPostBody,
     PoolResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models.pool import Pool
 
 pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
@@ -51,7 +51,7 @@ pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
         ]
     ),
 )
-async def delete_pool(
+def delete_pool(
     pool_name: str,
     session: Annotated[Session, Depends(get_session)],
 ):
@@ -71,7 +71,7 @@ async def delete_pool(
         [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
     ),
 )
-async def get_pool(
+def get_pool(
     pool_name: str,
     session: Annotated[Session, Depends(get_session)],
 ) -> PoolResponse:
@@ -89,7 +89,7 @@ async def get_pool(
         [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
     ),
 )
-async def get_pools(
+def get_pools(
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -127,7 +127,7 @@ async def get_pools(
         ]
     ),
 )
-async def patch_pool(
+def patch_pool(
     pool_name: str,
     patch_body: PoolPatchBody,
     session: Annotated[Session, Depends(get_session)],
@@ -170,7 +170,7 @@ async def patch_pool(
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
-async def post_pool(
+def post_pool(
     post_body: PoolPostBody,
     session: Annotated[Session, Depends(get_session)],
 ) -> PoolResponse:

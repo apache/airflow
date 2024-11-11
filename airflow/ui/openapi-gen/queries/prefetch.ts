@@ -65,7 +65,7 @@ export const prefetchUseAssetServiceGetAssets = (
     orderBy,
     uriPattern,
   }: {
-    dagIds?: string;
+    dagIds?: string[];
     limit?: number;
     offset?: number;
     orderBy?: string;
