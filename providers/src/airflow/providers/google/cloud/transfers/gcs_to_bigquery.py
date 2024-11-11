@@ -174,6 +174,7 @@ class GCSToBigQueryOperator(BaseOperator):
         destination table is newly created. If the table already exists and a value different than the
         current description is provided, the job will fail.
     :param deferrable: Run operator in the deferrable mode
+    :param force_delete: Force the destination table to be deleted if it already exists.
     """
 
     template_fields: Sequence[str] = (
@@ -231,6 +232,7 @@ class GCSToBigQueryOperator(BaseOperator):
         force_rerun: bool = True,
         reattach_states: set[str] | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
+        force_delete: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -296,6 +298,7 @@ class GCSToBigQueryOperator(BaseOperator):
         self.force_rerun = force_rerun
         self.reattach_states: set[str] = reattach_states or set()
         self.cancel_on_kill = cancel_on_kill
+        self.force_delete = force_delete
 
         self.source_uris: list[str] = []
 
@@ -378,7 +381,11 @@ class GCSToBigQueryOperator(BaseOperator):
                 max_id = self._find_max_value_in_column()
                 return max_id
         else:
-            self.log.info("Using existing BigQuery table for storing data...")
+            if self.force_delete:
+                self.log.info("Deleting table %s", self.destination_project_dataset_table)
+                hook.delete_table(table_id=self.destination_project_dataset_table)
+            else:
+                self.log.info("Using existing BigQuery table for storing data...")
             self.configuration = self._use_existing_table()
 
             try:
