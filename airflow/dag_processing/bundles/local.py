@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,17 +14,34 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use :mod:`airflow.providers.cncf.kubernetes.operators.pod` instead."""
 
 from __future__ import annotations
 
-import warnings
+from pathlib import Path
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.cncf.kubernetes.operators.pod import *  # noqa: F403
+from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.exceptions import AirflowException
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.cncf.kubernetes.operators.pod` instead.",
-    AirflowProviderDeprecationWarning,
-    stacklevel=2,
-)
+
+class LocalDagBundle(BaseDagBundle):
+    """
+    Local DAG bundle - exposes a local directory as a DAG bundle.
+
+    :param local_folder: Local folder where the DAGs are stored
+    """
+
+    supports_versioning = False
+
+    def __init__(self, *, local_folder: str, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._path = Path(local_folder)
+
+    def get_current_version(self) -> str:
+        raise AirflowException("Not versioned!")
+
+    def refresh(self) -> None:
+        """Nothing to refresh - it's just a local directory."""
+
+    @property
+    def path(self) -> Path:
+        return self._path
