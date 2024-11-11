@@ -90,6 +90,19 @@ def hooks_list(args):
 
 @suppress_logs_and_warning
 @providers_configuration_loaded
+def dialects_list(args):
+    AirflowConsole().print_as(
+        data=list(ProvidersManager().dialects.values()),
+        output=args.output,
+        mapper=lambda x: {
+            "dialect_name": x.name,
+            "class": x.dialect_class_name,
+        },
+    )
+
+
+@suppress_logs_and_warning
+@providers_configuration_loaded
 def triggers_list(args):
     AirflowConsole().print_as(
         data=ProvidersManager().trigger,

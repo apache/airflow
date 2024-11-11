@@ -158,6 +158,27 @@
                 "additionalProperties": true
             }
         },
+        "dialects": {
+            "type": "array",
+            "description": "Array of dialects mapped to dialect class names",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "dialect-type": {
+                        "description": "Type of dialect defined by the provider",
+                        "type": "string"
+                    },
+                    "dialect-class-name": {
+                        "description": "Dialect class name that implements the dialect type",
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "dialect-type",
+                    "dialect-class-name"
+                ]
+            }
+        },
         "hooks": {
             "type": "array",
             "items": {

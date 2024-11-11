@@ -218,6 +218,14 @@ class HookClassProvider(NamedTuple):
     package_name: str
 
 
+class DialectInfo(NamedTuple):
+    """Dialect class and Provider it comes from."""
+
+    name: str
+    dialect_class_name: str
+    provider_name: str
+
+
 class TriggerInfo(NamedTuple):
     """Trigger class and provider it comes from."""
 
@@ -250,6 +258,7 @@ class HookInfo(NamedTuple):
     hook_name: str
     connection_type: str
     connection_testable: bool
+    dialects: list[str] = []
 
 
 class ConnectionFormWidgetInfo(NamedTuple):
@@ -428,6 +437,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._taskflow_decorators: dict[str, Callable] = LazyDictWithCache()  # type: ignore[assignment]
         # keeps mapping between connection_types and hook class, package they come from
         self._hook_provider_dict: dict[str, HookClassProvider] = {}
+        self._dialect_provider_dict: dict[str, DialectInfo] = {}
         # Keeps dict of hooks keyed by connection type. They are lazy evaluated at access time
         self._hooks_lazy_dict: LazyDictWithCache[str, HookInfo | Callable] = LazyDictWithCache()
         # Keeps methods that should be used to add custom widgets tuple of keyed by name of the extra field
@@ -844,6 +854,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         for package_name, provider in self._provider_dict.items():
             duplicated_connection_types: set[str] = set()
             hook_class_names_registered: set[str] = set()
+            self._discover_provider_dialects(package_name, provider)
             provider_uses_connection_types = self._discover_hooks_from_connection_types(
                 hook_class_names_registered, duplicated_connection_types, package_name, provider
             )
@@ -855,6 +866,20 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 provider_uses_connection_types,
             )
         self._hook_provider_dict = dict(sorted(self._hook_provider_dict.items()))
+
+    def _discover_provider_dialects(self, provider_name: str, provider: ProviderInfo):
+        dialects = provider.data.get("dialects", [])
+        if dialects:
+            self._dialect_provider_dict.update(
+                {
+                    item["dialect-type"]: DialectInfo(
+                        name=item["dialect-type"],
+                        dialect_class_name=item["dialect-class-name"],
+                        provider_name=provider_name,
+                    )
+                    for item in dialects
+                }
+            )
 
     @provider_info_cache("import_all_hooks")
     def _import_info_from_all_hooks(self):
@@ -1258,6 +1283,13 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         return self._hooks_lazy_dict
 
     @property
+    def dialects(self) -> MutableMapping[str, DialectInfo]:
+        """Return dictionary of connection_type-to-dialect mapping."""
+        self.initialize_providers_hooks()
+        # When we return dialects here it will only be used to retrieve dialect information
+        return self._dialect_provider_dict
+
+    @property
     def plugins(self) -> list[PluginInfo]:
         """Returns information about plugins available in providers."""
         self.initialize_providers_plugins()
@@ -1353,6 +1385,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._fs_set.clear()
         self._taskflow_decorators.clear()
         self._hook_provider_dict.clear()
+        self._dialect_provider_dict.clear()
         self._hooks_lazy_dict.clear()
         self._connection_form_widgets.clear()
         self._field_behaviours.clear()
