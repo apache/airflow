@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-10T19:41:24.754344
+# This constraints file was automatically generated on 2024-11-11T02:14:51.786545
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -304,7 +304,7 @@ itsdangerous==2.2.0
 jaraco.classes==3.4.0
 jaraco.context==6.0.1
 jaraco.functools==4.1.0
-jedi==0.19.1
+jedi==0.19.2
 jeepney==0.8.0
 jiter==0.7.0
 jmespath==0.10.0
