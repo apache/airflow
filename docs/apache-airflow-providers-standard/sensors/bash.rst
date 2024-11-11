@@ -17,17 +17,16 @@
 
 
 
-Using Operators
-===============
+.. _howto/operator:BashSensor:
 
-An operator represents a single, ideally idempotent, task. Operators
-determine what actually executes when your DAG runs.
+BashSensor
+==========
 
-.. note::
-    See the :doc:`Operators Concepts </core-concepts/operators>` documentation.
+Use the :class:`~airflow.providers.standard.sensors.bash.BashSensor` to use arbitrary command for sensing. The command
+should return 0 when it succeeds, any other value otherwise.
 
-.. toctree::
-    :maxdepth: 2
-
-    file
-    external_task_sensor
+.. exampleinclude:: /../../airflow/example_dags/example_sensors.py
+    :language: python
+    :dedent: 4
+    :start-after: [START example_bash_sensors]
+    :end-before: [END example_bash_sensors]

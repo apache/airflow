@@ -15,8 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-.. contents:: Table of Contents
-    :depth: 2
+
 
 .. _howto/operator:TimeDeltaSensor:
 
@@ -77,19 +76,6 @@ It is an async version of the operator and requires Triggerer to run.
     :dedent: 4
     :start-after: [START example_time_sensors_async]
     :end-before: [END example_time_sensors_async]
-
-.. _howto/operator:BranchDayOfWeekOperator:
-
-BranchDayOfWeekOperator
-=======================
-
-Use the :class:`~airflow.operators.weekday.BranchDayOfWeekOperator` to branch your workflow based on week day value.
-
-.. exampleinclude:: /../../airflow/example_dags/example_branch_day_of_week_operator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_day_of_week_branch]
-    :end-before: [END howto_operator_day_of_week_branch]
 
 .. _howto/operator:DayOfWeekSensor:
 

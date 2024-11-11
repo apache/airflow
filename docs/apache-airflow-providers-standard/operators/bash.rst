@@ -403,18 +403,3 @@ Or call a function to help build a Bash command:
     :end-before: [END howto_decorator_bash_build_cmd]
 
 There are numerous possibilities with this type of pre-execution enrichment.
-
-
-.. _howto/operator:BashSensor:
-
-BashSensor
-==========
-
-Use the :class:`~airflow.providers.standard.sensors.bash.BashSensor` to use arbitrary command for sensing. The command
-should return 0 when it succeeds, any other value otherwise.
-
-.. exampleinclude:: /../../airflow/example_dags/example_sensors.py
-    :language: python
-    :dedent: 4
-    :start-after: [START example_bash_sensors]
-    :end-before: [END example_bash_sensors]

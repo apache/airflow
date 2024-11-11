@@ -15,9 +15,6 @@
     specific language governing permissions and limitations
     under the License.
 
-.. contents:: Table of Contents
-    :depth: 2
-
 .. _howto/operator:BranchDateTimeOperator:
 
 BranchDateTimeOperator
@@ -73,3 +70,16 @@ back-filled.
     :language: python
     :start-after: [START howto_branch_datetime_operator_logical_date]
     :end-before: [END howto_branch_datetime_operator_logical_date]
+
+.. _howto/operator:BranchDayOfWeekOperator:
+
+BranchDayOfWeekOperator
+=======================
+
+Use the :class:`~airflow.operators.weekday.BranchDayOfWeekOperator` to branch your workflow based on week day value.
+
+.. exampleinclude:: /../../airflow/example_dags/example_branch_day_of_week_operator.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_day_of_week_branch]
+    :end-before: [END howto_operator_day_of_week_branch]
