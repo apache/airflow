@@ -33,7 +33,6 @@ class TriggerRule(str, Enum):
     NONE_FAILED = "none_failed"
     NONE_FAILED_OR_SKIPPED = "none_failed_or_skipped"
     NONE_SKIPPED = "none_skipped"
-    DUMMY = "dummy"
     ALWAYS = "always"
     NONE_FAILED_MIN_ONE_SUCCESS = "none_failed_min_one_success"
     ALL_SKIPPED = "all_skipped"
