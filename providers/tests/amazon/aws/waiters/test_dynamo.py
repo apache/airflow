@@ -37,7 +37,7 @@ class TestCustomDynamoDBServiceWaiters:
     IMPORT_STATUS_IN_PROGRESS = "IN_PROGRESS"
 
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self, monkeypatch):
+    def _setup_test_cases(self, monkeypatch):
         self.resource = boto3.resource("dynamodb", region_name="eu-west-3")
         monkeypatch.setattr(DynamoDBHook, "conn", self.resource)
         self.client = self.resource.meta.client

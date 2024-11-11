@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, Query
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import delete, select
@@ -26,14 +26,14 @@ from typing_extensions import Annotated
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.pools import (
+from airflow.api_fastapi.core_api.datamodels.pools import (
     BasePool,
     PoolCollectionResponse,
     PoolPatchBody,
     PoolPostBody,
     PoolResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models.pool import Pool
 
 pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
@@ -41,44 +41,55 @@ pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
 
 @pools_router.delete(
     "/{pool_name}",
-    status_code=204,
-    responses=create_openapi_http_exception_doc([400, 401, 403, 404]),
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
 )
-async def delete_pool(
+def delete_pool(
     pool_name: str,
     session: Annotated[Session, Depends(get_session)],
 ):
     """Delete a pool entry."""
     if pool_name == "default_pool":
-        raise HTTPException(400, "Default Pool can't be deleted")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Default Pool can't be deleted")
 
     affected_count = session.execute(delete(Pool).where(Pool.pool == pool_name)).rowcount
 
     if affected_count == 0:
-        raise HTTPException(404, f"The Pool with name: `{pool_name}` was not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Pool with name: `{pool_name}` was not found")
 
 
 @pools_router.get(
     "/{pool_name}",
-    responses=create_openapi_http_exception_doc([401, 403, 404]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
+    ),
 )
-async def get_pool(
+def get_pool(
     pool_name: str,
     session: Annotated[Session, Depends(get_session)],
 ) -> PoolResponse:
     """Get a pool."""
     pool = session.scalar(select(Pool).where(Pool.pool == pool_name))
     if pool is None:
-        raise HTTPException(404, f"The Pool with name: `{pool_name}` was not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Pool with name: `{pool_name}` was not found")
 
     return PoolResponse.model_validate(pool, from_attributes=True)
 
 
 @pools_router.get(
     "/",
-    responses=create_openapi_http_exception_doc([401, 403, 404]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
+    ),
 )
-async def get_pools(
+def get_pools(
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -105,8 +116,18 @@ async def get_pools(
     )
 
 
-@pools_router.patch("/{pool_name}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
-async def patch_pool(
+@pools_router.patch(
+    "/{pool_name}",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
+def patch_pool(
     pool_name: str,
     patch_body: PoolPatchBody,
     session: Annotated[Session, Depends(get_session)],
@@ -118,11 +139,16 @@ async def patch_pool(
         if update_mask and all(mask.strip() in {"slots", "include_deferred"} for mask in update_mask):
             pass
         else:
-            raise HTTPException(400, "Only slots and included_deferred can be modified on Default Pool")
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Only slots and included_deferred can be modified on Default Pool",
+            )
 
     pool = session.scalar(select(Pool).where(Pool.pool == pool_name).limit(1))
     if not pool:
-        raise HTTPException(404, detail=f"The Pool with name: `{pool_name}` was not found")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail=f"The Pool with name: `{pool_name}` was not found"
+        )
 
     if update_mask:
         data = patch_body.model_dump(include=set(update_mask), by_alias=True)
@@ -139,8 +165,12 @@ async def patch_pool(
     return PoolResponse.model_validate(pool, from_attributes=True)
 
 
-@pools_router.post("/", status_code=201, responses=create_openapi_http_exception_doc([401, 403]))
-async def post_pool(
+@pools_router.post(
+    "/",
+    status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
+)
+def post_pool(
     post_body: PoolPostBody,
     session: Annotated[Session, Depends(get_session)],
 ) -> PoolResponse:

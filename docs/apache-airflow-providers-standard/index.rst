@@ -34,8 +34,9 @@
     :maxdepth: 1
     :caption: Guides
 
-    Operators <operators>
-    Sensors <sensors>
+    Operators <operators/index>
+    Sensors <sensors/index>
+    Configuration <configurations-ref>
 
 .. toctree::
     :hidden:

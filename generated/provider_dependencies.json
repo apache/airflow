@@ -841,7 +841,7 @@
       "msgraph-core>=1.0.0"
     ],
     "devel-deps": [
-      "pywinrm"
+      "pywinrm>=0.4"
     ],
     "plugins": [],
     "cross-providers-deps": [
@@ -909,7 +909,7 @@
       "apache-airflow-providers-common-sql>=1.17.0",
       "apache-airflow>=2.8.0",
       "mysql-connector-python>=8.0.29",
-      "mysqlclient>=1.4.0"
+      "mysqlclient>=1.4.0; sys_platform != 'darwin'"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -976,8 +976,8 @@
       "apache-airflow-providers-common-sql>=1.6.0",
       "apache-airflow>=2.8.0",
       "attrs>=22.2",
-      "openlineage-integration-common>=1.22.0",
-      "openlineage-python>=1.22.0"
+      "openlineage-integration-common>=1.24.2",
+      "openlineage-python>=1.24.2"
     ],
     "devel-deps": [],
     "plugins": [
@@ -1043,11 +1043,11 @@
   "papermill": {
     "deps": [
       "apache-airflow>=2.8.0",
-      "ipykernel",
+      "ipykernel>=6.29.4",
       "pandas>=1.5.3,<2.2;python_version<\"3.9\"",
       "pandas>=2.1.2,<2.2;python_version>=\"3.9\"",
       "papermill[all]>=2.6.0",
-      "scrapbook[all]"
+      "scrapbook[all]>=0.5.0"
     ],
     "devel-deps": [],
     "plugins": [],

@@ -391,10 +391,7 @@ def create_virtualenv(force_venv_setup: bool) -> RunCommandResult:
             "[info]You can uninstall breeze and install it again with earlier Python "
             "version. For example:[/]\n"
         )
-        get_console().print("pipx reinstall --python PYTHON_PATH apache-airflow-breeze\n")
-        get_console().print(
-            f"[info]PYTHON_PATH - path to your Python binary(< {higher_python_version_tuple})[/]\n"
-        )
+
         get_console().print("[info]Then recreate your k8s virtualenv with:[/]\n")
         get_console().print("breeze k8s setup-env --force-venv-setup\n")
         sys.exit(1)

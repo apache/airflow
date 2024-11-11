@@ -24,7 +24,6 @@ class ConnectorSource(Enum):
     """Enum of supported executor import sources."""
 
     CORE = "core"
-    PLUGIN = "plugin"
     CUSTOM_PATH = "custom path"
 
 

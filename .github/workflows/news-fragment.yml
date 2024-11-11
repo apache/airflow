@@ -38,7 +38,8 @@ jobs:
 
       - name: Check news fragment
         run: >
-          pipx run towncrier check
+          python -m pip install --upgrade uv &&
+          uv tool run towncrier check
           --dir .
           --config newsfragments/config.toml
           --compare-with origin/${{ github.base_ref }}

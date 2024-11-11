@@ -16,15 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import Depends, Header, HTTPException, Request, Response
+from fastapi import Depends, Header, HTTPException, Request, Response, status
 from itsdangerous import BadSignature, URLSafeSerializer
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.dag_sources import DAGSourceResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.dag_sources import DAGSourceResponse
 from airflow.models.dagcode import DagCode
 
 dag_sources_router = AirflowRouter(tags=["DagSource"], prefix="/dagSources")
@@ -37,7 +37,15 @@ mime_type_any = "*/*"
 @dag_sources_router.get(
     "/{file_token}",
     responses={
-        **create_openapi_http_exception_doc([400, 401, 403, 404, 406]),
+        **create_openapi_http_exception_doc(
+            [
+                status.HTTP_400_BAD_REQUEST,
+                status.HTTP_401_UNAUTHORIZED,
+                status.HTTP_403_FORBIDDEN,
+                status.HTTP_404_NOT_FOUND,
+                status.HTTP_406_NOT_ACCEPTABLE,
+            ]
+        ),
         "200": {
             "description": "Successful Response",
             "content": {
@@ -47,7 +55,7 @@ mime_type_any = "*/*"
     },
     response_model=DAGSourceResponse,
 )
-async def get_dag_source(
+def get_dag_source(
     file_token: str,
     session: Annotated[Session, Depends(get_session)],
     request: Request,
@@ -62,10 +70,10 @@ async def get_dag_source(
             content=DagCode.code(path, session=session),
         )
     except (BadSignature, FileNotFoundError):
-        raise HTTPException(404, "DAG source not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "DAG source not found")
 
     if accept.startswith(mime_type_text):
         return Response(dag_source_model.content, media_type=mime_type_text)
     if accept.startswith(mime_type_json) or accept.startswith(mime_type_any):
         return dag_source_model
-    raise HTTPException(406, "Content not available for Accept header")
+    raise HTTPException(status.HTTP_406_NOT_ACCEPTABLE, "Content not available for Accept header")

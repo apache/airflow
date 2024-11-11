@@ -59,10 +59,16 @@ class PostgresHook(DbApiHook):
     "aws_default" connection to get the temporary token unless you override
     in extras.
     extras example: ``{"iam":true, "aws_conn_id":"my_aws_conn"}``
+
     For Redshift, also use redshift in the extra connection parameters and
     set it to true. The cluster-identifier is extracted from the beginning of
     the host field, so is optional. It can however be overridden in the extra field.
     extras example: ``{"iam":true, "redshift":true, "cluster-identifier": "my_cluster_id"}``
+
+    For Redshift Serverless, use redshift-serverless in the extra connection parameters and
+    set it to true. The workgroup-name is extracted from the beginning of
+    the host field, so is optional. It can however be overridden in the extra field.
+    extras example: ``{"iam":true, "redshift-serverless":true, "workgroup-name": "my_serverless_workgroup"}``
 
     :param postgres_conn_id: The :ref:`postgres conn id <howto/connection:postgres>`
         reference to a specific postgres database.
@@ -172,8 +178,10 @@ class PostgresHook(DbApiHook):
             if arg_name not in [
                 "iam",
                 "redshift",
+                "redshift-serverless",
                 "cursor",
                 "cluster-identifier",
+                "workgroup-name",
                 "aws_conn_id",
             ]:
                 conn_args[arg_name] = arg_val
@@ -247,9 +255,9 @@ class PostgresHook(DbApiHook):
         try:
             from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
         except ImportError:
-            from airflow.exceptions import AirflowException
+            from airflow.exceptions import AirflowOptionalProviderFeatureException
 
-            raise AirflowException(
+            raise AirflowOptionalProviderFeatureException(
                 "apache-airflow-providers-amazon not installed, run: "
                 "pip install 'apache-airflow-providers-postgres[amazon]'."
             )
@@ -262,7 +270,7 @@ class PostgresHook(DbApiHook):
             # ex. my-cluster.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns my-cluster
             cluster_identifier = conn.extra_dejson.get("cluster-identifier", conn.host.split(".")[0])
             redshift_client = AwsBaseHook(aws_conn_id=aws_conn_id, client_type="redshift").conn
-            # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html#Redshift.Client.get_cluster_credentials
+            # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift/client/get_cluster_credentials.html#Redshift.Client.get_cluster_credentials
             cluster_creds = redshift_client.get_cluster_credentials(
                 DbUser=login,
                 DbName=self.database or conn.schema,
@@ -271,10 +279,26 @@ class PostgresHook(DbApiHook):
             )
             token = cluster_creds["DbPassword"]
             login = cluster_creds["DbUser"]
+        elif conn.extra_dejson.get("redshift-serverless", False):
+            port = conn.port or 5439
+            # Pull the workgroup-name from the query params/extras, if not there then pull it from the
+            # beginning of the Redshift URL
+            # ex. workgroup-name.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns workgroup-name
+            workgroup_name = conn.extra_dejson.get("workgroup-name", conn.host.split(".")[0])
+            redshift_serverless_client = AwsBaseHook(
+                aws_conn_id=aws_conn_id, client_type="redshift-serverless"
+            ).conn
+            # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift-serverless/client/get_credentials.html#RedshiftServerless.Client.get_credentials
+            cluster_creds = redshift_serverless_client.get_credentials(
+                dbName=self.database or conn.schema,
+                workgroupName=workgroup_name,
+            )
+            token = cluster_creds["dbPassword"]
+            login = cluster_creds["dbUser"]
         else:
             port = conn.port or 5432
             rds_client = AwsBaseHook(aws_conn_id=aws_conn_id, client_type="rds").conn
-            # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html#RDS.Client.generate_db_auth_token
+            # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds/client/generate_db_auth_token.html#RDS.Client.generate_db_auth_token
             token = rds_client.generate_db_auth_token(conn.host, port, conn.login)
         return login, token, port
 
@@ -371,9 +395,9 @@ class PostgresHook(DbApiHook):
         try:
             from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
         except ImportError:
-            from airflow.exceptions import AirflowException
+            from airflow.exceptions import AirflowOptionalProviderFeatureException
 
-            raise AirflowException(
+            raise AirflowOptionalProviderFeatureException(
                 "apache-airflow-providers-amazon not installed, run: "
                 "pip install 'apache-airflow-providers-postgres[amazon]'."
             )
