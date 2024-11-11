@@ -47,7 +47,7 @@ def mock_get_excluded_provider_folders():
 
 
 @pytest.fixture(autouse=True)
-def mock_sleep():
+def _mock_sleep():
     """_run_test does a 10-second sleep in CI, so we mock the sleep function to save CI test time."""
     with patch("airflow_breeze.commands.testing_commands.sleep"):
         yield

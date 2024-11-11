@@ -39,6 +39,9 @@ Airflow 3.0
 
   * The ``virtualenv`` package is no longer installed in the reference container. Airflow 3 and standard
     provider relies on ``venv`` module from Python standard library.
+  * There is no ``pipx`` and ``mssql-cli`` installed in the image by default. We recommend to use
+    ``uv tool`` instead of ``pipx`` and ``mssql-cli`` is not used in the image by default as we do not
+    have mssql metadata support any more.
 
 Airflow 2.10
 ~~~~~~~~~~~~
