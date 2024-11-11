@@ -14,14 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.execution_api.routes import connections, health, task_instance, variables, xcoms
+from typing import Annotated
 
-execution_api_router = AirflowRouter()
-execution_api_router.include_router(connections.router, prefix="/connections", tags=["Connections"])
-execution_api_router.include_router(health.router, tags=["Health"])
-execution_api_router.include_router(task_instance.router, prefix="/task_instance", tags=["Task Instance"])
-execution_api_router.include_router(variables.router, prefix="/variables", tags=["Variables"])
-execution_api_router.include_router(xcoms.router, prefix="/xcoms", tags=["XComs"])
+from fastapi import Depends
+
+from airflow.api_fastapi.execution_api import datamodels
+
+
+def get_task_token() -> datamodels.TIToken:
+    """TODO: Placeholder for task identity authentication. This should be replaced with actual JWT decoding and validation."""
+    return datamodels.TIToken(ti_key="test_key")
+
+
+TokenDep = Annotated[datamodels.TIToken, Depends(get_task_token)]

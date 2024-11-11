@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, Union
+from typing import Annotated, Any, Literal, Union
 
 from pydantic import (
     BaseModel,
@@ -141,6 +141,27 @@ class VariableResponse(BaseModel):
 
     key: str
     val: str | None = Field(alias="value")
+
+
+class BaseXComResponse(BaseModel):
+    """XCom schema for responses with fields that are needed for Runtime."""
+
+    key: str
+    is_serialized: bool
+
+
+class XComResponseSerialized(BaseXComResponse):
+    """XCom schema when the value is serialized."""
+
+    value: str
+    is_serialized: Literal[True]
+
+
+class XComResponseDeserialized(BaseXComResponse):
+    """XCom schema when the value is serialized."""
+
+    value: Any
+    is_serialized: Literal[False]
 
 
 # TODO: This is a placeholder for Task Identity Token schema.
