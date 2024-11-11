@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-11T02:14:52.033102
+# This constraints file was automatically generated on 2024-11-11T07:47:12.915205
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -420,7 +420,6 @@ pinecone-plugin-inference==1.1.0
 pinecone-plugin-interface==0.0.7
 pinotdb==5.6.0
 pipdeptree==2.23.4
-pipx==1.7.1
 pkginfo==1.10.0
 platformdirs==4.3.6
 pluggy==1.5.0
@@ -619,7 +618,6 @@ uc-micro-py==1.0.3
 universal_pathlib==0.2.5
 uritemplate==4.1.1
 urllib3==1.26.20
-userpath==1.9.2
 uuid6==2024.7.10
 uv==0.5.1
 uvicorn==0.32.0
