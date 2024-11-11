@@ -2284,7 +2284,7 @@ paths:
                 properties:
                   content:
                     type: string
-            plain/text:
+            text/plain:
               schema:
                 type: string
 
