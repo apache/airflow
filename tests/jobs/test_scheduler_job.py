@@ -57,6 +57,7 @@ from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
+from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
@@ -6284,6 +6285,88 @@ class TestSchedulerJob:
         assert not DagRun.find(dag_id="testdag1", session=session)
         # Check if the second dagrun was created
         assert DagRun.find(dag_id="testdag2", session=session)
+
+    def test_activate_referenced_assets_with_no_existing_warning(self, session):
+        dag_warnings = session.query(DagWarning).all()
+        assert dag_warnings == []
+
+        dag_id1 = "test_asset_dag1"
+        asset1_name = "asset1"
+        asset_extra = {"foo": "bar"}
+
+        asset1 = Asset(name=asset1_name, uri="s3://bucket/key/1", extra=asset_extra)
+        asset1_1 = Asset(name=asset1_name, uri="it's duplicate", extra=asset_extra)
+        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=[asset1, asset1_1])
+
+        DAG.bulk_write_to_db([dag1], session=session)
+
+        asset_models = session.scalars(select(AssetModel)).all()
+
+        SchedulerJobRunner._activate_referenced_assets(asset_models, session=session)
+        session.flush()
+
+        dag_warning = session.scalar(
+            select(DagWarning).where(
+                DagWarning.dag_id == dag_id1, DagWarning.warning_type == "asset conflict"
+            )
+        )
+        assert dag_warning.message == (
+            "Cannot activate asset AssetModel(name='asset1', uri=\"it's duplicate\", extra={'foo': 'bar'}); "
+            "name is already associated to 's3://bucket/key/1'"
+        )
+
+    def test_activate_referenced_assets_with_existing_warnings(self, session):
+        dag_ids = [f"test_asset_dag{i}" for i in range(1, 4)]
+        asset1_name = "asset1"
+        asset_extra = {"foo": "bar"}
+
+        session.add_all(
+            [
+                DagWarning(dag_id=dag_id, warning_type="asset conflict", message="will not exist")
+                for dag_id in dag_ids
+            ]
+        )
+
+        asset1 = Asset(name=asset1_name, uri="s3://bucket/key/1", extra=asset_extra)
+        asset1_1 = Asset(name=asset1_name, uri="it's duplicate", extra=asset_extra)
+        asset1_2 = Asset(name=asset1_name, uri="it's duplicate 2", extra=asset_extra)
+        dag1 = DAG(dag_id=dag_ids[0], start_date=DEFAULT_DATE, schedule=[asset1, asset1_1])
+        dag2 = DAG(dag_id=dag_ids[1], start_date=DEFAULT_DATE)
+        dag3 = DAG(dag_id=dag_ids[2], start_date=DEFAULT_DATE, schedule=[asset1_2])
+
+        DAG.bulk_write_to_db([dag1, dag2, dag3], session=session)
+
+        asset_models = session.scalars(select(AssetModel)).all()
+
+        SchedulerJobRunner._activate_referenced_assets(asset_models, session=session)
+        session.flush()
+
+        dag_warning = session.scalar(
+            select(DagWarning).where(
+                DagWarning.dag_id == dag_ids[0], DagWarning.warning_type == "asset conflict"
+            )
+        )
+        assert dag_warning.message == (
+            "Cannot activate asset AssetModel(name='asset1', uri=\"it's duplicate\", extra={'foo': 'bar'}); "
+            "name is already associated to 's3://bucket/key/1'"
+        )
+
+        dag_warning = session.scalar(
+            select(DagWarning).where(
+                DagWarning.dag_id == dag_ids[1], DagWarning.warning_type == "asset conflict"
+            )
+        )
+        assert dag_warning is None
+
+        dag_warning = session.scalar(
+            select(DagWarning).where(
+                DagWarning.dag_id == dag_ids[2], DagWarning.warning_type == "asset conflict"
+            )
+        )
+        assert dag_warning.message == (
+            "Cannot activate asset AssetModel(name='asset1', uri=\"it's duplicate 2\", extra={'foo': 'bar'}); "
+            "name is already associated to 's3://bucket/key/1'"
+        )
 
 
 @pytest.mark.need_serialized_dag

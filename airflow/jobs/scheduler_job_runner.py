@@ -2138,14 +2138,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session.execute(
             delete(DagWarning).where(
                 DagWarning.warning_type == DagWarningType.ASSET_CONFLICT,
-                DagWarning.dag_id.in_(warnings_to_have),
+                DagWarning.dag_id.not_in(warnings_to_have),
             )
         )
         existing_warned_dag_ids: set[str] = set(
             session.scalars(
                 select(DagWarning.dag_id).where(
                     DagWarning.warning_type == DagWarningType.ASSET_CONFLICT,
-                    DagWarning.dag_id.not_in(warnings_to_have),
+                    DagWarning.dag_id.in_(warnings_to_have),
                 )
             )
         )
