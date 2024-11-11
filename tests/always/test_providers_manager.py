@@ -32,6 +32,7 @@ from wtforms import BooleanField, Field, StringField
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers_manager import (
+    DialectInfo,
     HookClassProvider,
     LazyDictWithCache,
     PluginInfo,
@@ -195,6 +196,32 @@ class TestProviderManager:
             name="plugin1",
             plugin_class="airflow.providers.apache.hive.plugins.hive.HivePlugin",
             provider_name="apache-airflow-providers-apache-hive",
+        )
+
+    def test_providers_manager_register_dialects(self):
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict = LazyDictWithCache()
+        providers_manager._provider_dict["airflow.providers.common.sql"] = ProviderInfo(
+            version="1.19.0",
+            data={
+                "dialects": [
+                    {
+                        "dialect-type": "default",
+                        "dialect-class-name": "airflow.providers.common.sql.dialects.dialect.Dialect",
+                    }
+                ]
+            },
+            package_or_source="package",
+        )
+        providers_manager._discover_hooks()
+        assert len(providers_manager._dialect_provider_dict) == 1
+        assert providers_manager._dialect_provider_dict.popitem() == (
+            "default",
+            DialectInfo(
+                name="default",
+                dialect_class_name="airflow.providers.common.sql.dialects.dialect.Dialect",
+                provider_name="airflow.providers.common.sql",
+            ),
         )
 
     def test_hooks(self):
@@ -415,6 +442,11 @@ class TestProviderManager:
         provider_manager = ProvidersManager()
         auth_manager_class_names = list(provider_manager.auth_managers)
         assert len(auth_manager_class_names) > 0
+
+    def test_dialects(self):
+        provider_manager = ProvidersManager()
+        dialect_class_names = list(provider_manager.dialects)
+        assert len(dialect_class_names) == 0
 
     @patch("airflow.providers_manager.import_string")
     def test_optional_feature_no_warning(self, mock_importlib_import_string):
