@@ -70,8 +70,8 @@ class EdgeExecutor(BaseExecutor):
         except NoSuchTableError:
             pass
 
-        # version 0.6.0rc1 added new column need_capacity
-        if edge_job_columns and "need_capacity" not in edge_job_columns:
+        # version 0.6.0rc1 added new column concurrency_slots
+        if edge_job_columns and "concurrency_slots" not in edge_job_columns:
             EdgeJobModel.metadata.drop_all(engine, tables=[EdgeJobModel.__table__])
 
     @provide_session
@@ -104,7 +104,7 @@ class EdgeExecutor(BaseExecutor):
                 try_number=key.try_number,
                 state=TaskInstanceState.QUEUED,
                 queue=queue or DEFAULT_QUEUE,
-                need_capacity=executor_config.get("need_capacity", 1) if executor_config else 1,
+                concurrency_slots=executor_config.get("concurrency_slots", 1) if executor_config else 1,
                 command=str(command),
             )
         )

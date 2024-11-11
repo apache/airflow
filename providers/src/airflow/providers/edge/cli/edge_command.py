@@ -143,7 +143,7 @@ class _EdgeWorkerCli:
         pid_file_path: str,
         hostname: str,
         queues: list[str] | None,
-        capacity: int,
+        concurrency: int,
         job_poll_interval: int,
         heartbeat_interval: int,
     ):
@@ -152,8 +152,8 @@ class _EdgeWorkerCli:
         self.hb_interval = heartbeat_interval
         self.hostname = hostname
         self.queues = queues
-        self.capacity = capacity
-        self.free_capacity = capacity
+        self.concurrency = concurrency
+        self.free_concurrency = concurrency
 
     @staticmethod
     def signal_handler(sig, frame):
@@ -171,8 +171,8 @@ class _EdgeWorkerCli:
         return {
             "airflow_version": airflow_version,
             "edge_provider_version": edge_provider_version,
-            "capacity": self.capacity,
-            "free_capacity": self.free_capacity,
+            "concurrency": self.concurrency,
+            "free_concurrency": self.free_concurrency,
         }
 
     def start(self):
@@ -206,7 +206,7 @@ class _EdgeWorkerCli:
     def loop(self):
         """Run a loop of scheduling and monitoring tasks."""
         new_job = False
-        if not _EdgeWorkerCli.drain and self.free_capacity > 0:
+        if not _EdgeWorkerCli.drain and self.free_concurrency > 0:
             new_job = self.fetch_job()
         self.check_running_jobs()
 
@@ -221,7 +221,7 @@ class _EdgeWorkerCli:
         """Fetch and start a new job from central site."""
         logger.debug("Attempting to fetch a new job...")
         edge_job = EdgeJob.reserve_task(
-            worker_name=self.hostname, free_capacity=self.free_capacity, queues=self.queues
+            worker_name=self.hostname, free_concurrency=self.free_concurrency, queues=self.queues
         )
         if edge_job:
             logger.info("Received job: %s", edge_job)
@@ -240,7 +240,7 @@ class _EdgeWorkerCli:
 
     def check_running_jobs(self) -> None:
         """Check which of the running tasks/jobs are completed and report back."""
-        used_capacity = 0
+        used_concurrency = 0
         for i in range(len(self.jobs) - 1, -1, -1):
             job = self.jobs[i]
             job.process.poll()
@@ -253,7 +253,7 @@ class _EdgeWorkerCli:
                     logger.error("Job failed: %s", job.edge_job)
                     EdgeJob.set_state(job.edge_job.key, TaskInstanceState.FAILED)
             else:
-                used_capacity += job.edge_job.need_capacity
+                used_concurrency += job.edge_job.concurrency_slots
 
             if job.logfile.exists() and job.logfile.stat().st_size > job.logsize:
                 with job.logfile.open("rb") as logfile:
@@ -275,7 +275,7 @@ class _EdgeWorkerCli:
                             log_chunk_data=chunk_data,
                         )
 
-        self.free_capacity = self.capacity - used_capacity
+        self.free_concurrency = self.concurrency - used_concurrency
 
     def heartbeat(self) -> None:
         """Report liveness state of worker to central site with stats."""
@@ -311,7 +311,7 @@ def worker(args):
         pid_file_path=_pid_file_path(args.pid),
         hostname=args.edge_hostname or _hostname(),
         queues=args.queues.split(",") if args.queues else None,
-        capacity=args.capacity,
+        concurrency=args.concurrency,
         job_poll_interval=conf.getint("edge", "job_poll_interval"),
         heartbeat_interval=conf.getint("edge", "heartbeat_interval"),
     )
@@ -332,11 +332,11 @@ def stop(args):
         logger.warning("Could not find PID of worker.")
 
 
-ARG_CAPACITY = Arg(
-    ("-c", "--capacity"),
+ARG_CONCURRENCY = Arg(
+    ("-c", "--concurrency"),
     type=int,
     help="The number of worker processes",
-    default=conf.getint("edge", "worker_capacity", fallback=8),
+    default=conf.getint("edge", "worker_concurrency", fallback=8),
 )
 ARG_QUEUES = Arg(
     ("-q", "--queues"),
@@ -352,7 +352,7 @@ EDGE_COMMANDS: list[ActionCommand] = [
         help=worker.__doc__,
         func=worker,
         args=(
-            ARG_CAPACITY,
+            ARG_CONCURRENCY,
             ARG_QUEUES,
             ARG_EDGE_HOSTNAME,
             ARG_PID,

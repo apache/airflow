@@ -78,12 +78,12 @@ config:
         type: integer
         example: "10"
         default: "30"
-      worker_capacity:
+      worker_concurrency:
         description: |
-          The capacity defined the max parallel running task instances and can be defined during
-          starting worker with the ``airflow edge worker`` command. So size up your workers
-          based on the resources on your worker box and the nature of your tasks. The parameter
-          works together with the need_capacity parameter of a task.
+          The concurrency defines the default max parallel running task instances and can also be set during
+          start of worker with the ``airflow edge worker`` command parameter. The size of the workers
+          and the resources must support the nature of your tasks. The parameter
+          works together with the concurrency_slots parameter of a task.
         version_added: ~
         type: integer
         example: ~

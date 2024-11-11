@@ -64,17 +64,17 @@ class TestEdgeExecutor:
         assert jobs[0].dag_id == "test_dag"
         assert jobs[0].run_id == "test_run"
         assert jobs[0].task_id == "test_task"
-        assert jobs[0].need_capacity == 1
+        assert jobs[0].concurrency_slots == 1
 
     @pytest.mark.parametrize(
-        "executor_config, expected_capacity",
+        "executor_config, expected_concurrency",
         [
             pytest.param(None, 1, id="no_config"),
             pytest.param({}, 1, id="missing_key"),
-            pytest.param({"need_capacity": 5}, 5, id="with_config"),
+            pytest.param({"concurrency_slots": 5}, 5, id="with_config"),
         ],
     )
-    def test_execute_async_capacity(self, executor_config, expected_capacity):
+    def test_execute_async_concurrency(self, executor_config, expected_concurrency):
         executor = EdgeExecutor()
         executor.execute_async(
             TaskInstanceKey(
@@ -89,7 +89,7 @@ class TestEdgeExecutor:
         assert jobs[0].dag_id == "test_dag"
         assert jobs[0].run_id == "test_run"
         assert jobs[0].task_id == "test_task"
-        assert jobs[0].need_capacity == expected_capacity
+        assert jobs[0].concurrency_slots == expected_concurrency
 
     @patch("airflow.providers.edge.executors.edge_executor.EdgeExecutor.running_state")
     @patch("airflow.providers.edge.executors.edge_executor.EdgeExecutor.success")
@@ -119,7 +119,7 @@ class TestEdgeExecutor:
                         try_number=1,
                         state=state,
                         queue="default",
-                        need_capacity=1,
+                        concurrency_slots=1,
                         command="dummy",
                         last_update=timezone.utcnow(),
                     )
@@ -154,7 +154,7 @@ class TestEdgeExecutor:
                     map_index=-1,
                     try_number=1,
                     state=state,
-                    need_capacity=1,
+                    concurrency_slots=1,
                     queue="default",
                     command="dummy",
                     last_update=timezone.utcnow(),

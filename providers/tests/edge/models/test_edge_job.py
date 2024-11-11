@@ -37,18 +37,18 @@ class TestEdgeJob:
         session.query(EdgeJobModel).delete()
 
     def test_reserve_task_no_job(self):
-        job = EdgeJob.reserve_task("worker", free_capacity=10)
+        job = EdgeJob.reserve_task("worker", free_concurrency=10)
         assert job is None
 
     @pytest.mark.parametrize(
-        "need_capacity, free_capacity, expected_job",
+        "concurrency_slots, free_concurrency, expected_job",
         [
-            pytest.param(10, 9, False, id="less_free_capacity"),
-            pytest.param(10, 10, True, id="equal_free_capacity"),
-            pytest.param(10, 11, True, id="more_free_capacity"),
+            pytest.param(10, 9, False, id="less_free_concurrency"),
+            pytest.param(10, 10, True, id="equal_free_concurrency"),
+            pytest.param(10, 11, True, id="more_free_concurrency"),
         ],
     )
-    def test_reserve_task_has_one(self, need_capacity, free_capacity, expected_job, session: Session):
+    def test_reserve_task_has_one(self, concurrency_slots, free_concurrency, expected_job, session: Session):
         rjm = EdgeJobModel(
             dag_id="test_dag",
             task_id="test_task",
@@ -57,14 +57,14 @@ class TestEdgeJob:
             try_number=1,
             state=TaskInstanceState.QUEUED,
             queue="default",
-            need_capacity=need_capacity,
+            concurrency_slots=concurrency_slots,
             command=str(["hello", "world"]),
             queued_dttm=timezone.utcnow(),
         )
         session.add(rjm)
         session.commit()
 
-        job = EdgeJob.reserve_task("worker", free_capacity=free_capacity)
+        job = EdgeJob.reserve_task("worker", free_concurrency=free_concurrency)
         if expected_job:
             assert job
             assert job.edge_worker == "worker"
@@ -72,7 +72,7 @@ class TestEdgeJob:
             assert job.dag_id == "test_dag"
             assert job.task_id == "test_task"
             assert job.run_id == "test_run"
-            assert job.need_capacity == need_capacity
+            assert job.concurrency_slots == concurrency_slots
         else:
             assert job is None
 
@@ -83,7 +83,7 @@ class TestEdgeJob:
         assert jobs[0].dag_id == "test_dag"
         assert jobs[0].task_id == "test_task"
         assert jobs[0].run_id == "test_run"
-        assert jobs[0].need_capacity == need_capacity
+        assert jobs[0].concurrency_slots == concurrency_slots
 
         if expected_job:
             assert jobs[0].state == TaskInstanceState.RUNNING
@@ -101,7 +101,7 @@ class TestEdgeJob:
             try_number=1,
             state=TaskInstanceState.RUNNING,
             queue="default",
-            need_capacity=5,
+            concurrency_slots=5,
             command=str(["hello", "world"]),
             queued_dttm=timezone.utcnow(),
         )
@@ -118,4 +118,4 @@ class TestEdgeJob:
         assert jobs[0].dag_id == "test_dag"
         assert jobs[0].task_id == "test_task"
         assert jobs[0].run_id == "test_run"
-        assert jobs[0].need_capacity == 5
+        assert jobs[0].concurrency_slots == 5
