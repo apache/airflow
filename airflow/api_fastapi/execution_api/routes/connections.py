@@ -18,9 +18,9 @@
 from __future__ import annotations
 
 import logging
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api import datamodels

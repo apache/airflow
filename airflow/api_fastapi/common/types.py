@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Annotated
+
 from pydantic import AfterValidator, AwareDatetime
-from typing_extensions import Annotated
 
 from airflow.utils import timezone
 

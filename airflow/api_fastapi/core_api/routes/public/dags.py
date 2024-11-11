@@ -17,10 +17,11 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
 from airflow.api.common import delete_dag as delete_dag_module
 from airflow.api_fastapi.common.db.common import (

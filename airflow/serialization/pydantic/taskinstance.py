@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Iterable, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Iterable, Optional
 
 from pydantic import (
     BaseModel as BaseModelPydantic,
@@ -25,7 +25,6 @@ from pydantic import (
     PlainSerializer,
     PlainValidator,
 )
-from typing_extensions import Annotated
 
 from airflow.exceptions import AirflowRescheduleException, TaskDeferred
 from airflow.models import Operator
