@@ -229,7 +229,7 @@ export const Metrics = () => {
                 <Text bg="blue.500" borderRadius={20} px={5} py={1}>
                   {taskRunTotal}
                 </Text>
-                <Heading>Task Runs</Heading>
+                <Heading>Task Instances</Heading>
               </HStack>
               <TaskRunStateInfo
                 taskRunStates={data.task_instance_states}
