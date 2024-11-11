@@ -73,7 +73,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
               Trigger DAG{" "}
               {dagDisplayName ? <span>- {dagDisplayName}</span> : undefined}
             </Heading>
-            {!dagDisplayName && (
+            {dagDisplayName !== dagId && (
               <Text color="gray.500" fontSize="md">
                 DAG ID: {dagId}
               </Text>

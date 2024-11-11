@@ -67,8 +67,11 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
       setJsonError(undefined);
 
       return JSON.stringify(parsedJson, undefined, 2);
-    } catch {
-      setJsonError("Invalid JSON format.");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error occurred.";
+
+      setJsonError(`Invalid JSON format: ${errorMessage}`);
 
       return value;
     }
