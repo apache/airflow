@@ -29,11 +29,11 @@ jobs:
     name: Backport PR ${{ github.event.pull_request.number }}
     if: >
       github.event.pull_request.merged == true &&
-      contains(join(github.event.pull_request.labels.*.name, ' '), 'backport-to-v')
+      contains(join(github.event.pull_request.labels.*.name, ' '), 'backport-to-')
     runs-on: ubuntu-latest
     steps:
       - name: Execute Backport Action
-        uses: sorenlouv/backport-github-action@ad888e978060bc1b2798690dd9d03c4036560947
+        uses: sorenlouv/backport-github-action@ad888e978060bc1b2798690dd9d03c4036560947  # v9.5.1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           auto_backport_label_prefix: backport-to-
