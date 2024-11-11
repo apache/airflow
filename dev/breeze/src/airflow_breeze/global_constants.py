@@ -379,6 +379,7 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.10.0": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "2.10.1": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "2.10.2": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.10.3": ["3.8", "3.9", "3.10", "3.11", "3.12"],
 }
 
 DB_RESET = False
@@ -585,7 +586,7 @@ BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.9",
-        "airflow-version": "2.10.1",
+        "airflow-version": "2.10.3",
         "remove-providers": "cloudant",
         "run-tests": "true",
     },
