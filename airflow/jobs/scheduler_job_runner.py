@@ -27,8 +27,9 @@ import time
 from collections import Counter, defaultdict, deque
 from datetime import timedelta
 from functools import lru_cache, partial
+from itertools import groupby
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator, Sequence
 
 from sqlalchemy import and_, delete, exists, func, not_, select, text, update
 from sqlalchemy.exc import OperationalError
@@ -2108,15 +2109,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         active_name_to_uri: dict[str, str] = {name: uri for name, uri in active_assets}
         active_uri_to_name: dict[str, str] = {uri: name for name, uri in active_assets}
 
-        def _generate_dag_warnings(offending: AssetModel, attr: str, value: str) -> Iterator[DagWarning]:
+        def _generate_warning_message(
+            offending: AssetModel, attr: str, value: str
+        ) -> Iterator[tuple[str, str]]:
             for ref in itertools.chain(offending.consuming_dags, offending.producing_tasks):
-                yield DagWarning(
-                    dag_id=ref.dag_id,
-                    warning_type=DagWarningType.ASSET_CONFLICT,
-                    message=f"Cannot activate asset {offending}; {attr} is already associated to {value!r}",
+                yield (
+                    ref.dag_id,
+                    f"Cannot activate asset {offending}; {attr} is already associated to {value!r}",
                 )
 
-        def _activate_assets_generate_warnings() -> Iterator[DagWarning]:
+        def _activate_assets_generate_warnings() -> Iterator[tuple[str, str]]:
             incoming_name_to_uri: dict[str, str] = {}
             incoming_uri_to_name: dict[str, str] = {}
             for asset in assets:
@@ -2124,17 +2126,30 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     continue
                 existing_uri = active_name_to_uri.get(asset.name) or incoming_name_to_uri.get(asset.name)
                 if existing_uri is not None and existing_uri != asset.uri:
-                    yield from _generate_dag_warnings(asset, "name", existing_uri)
+                    yield from _generate_warning_message(asset, "name", existing_uri)
                     continue
                 existing_name = active_uri_to_name.get(asset.uri) or incoming_uri_to_name.get(asset.uri)
                 if existing_name is not None and existing_name != asset.name:
-                    yield from _generate_dag_warnings(asset, "uri", existing_name)
+                    yield from _generate_warning_message(asset, "uri", existing_name)
                     continue
                 incoming_name_to_uri[asset.name] = asset.uri
                 incoming_uri_to_name[asset.uri] = asset.name
                 session.add(AssetActive.for_asset(asset))
 
-        warnings_to_have = {w.dag_id: w for w in _activate_assets_generate_warnings()}
+        def _get_first_item(x: Sequence[Any]) -> Any:
+            return x[0]
+
+        warnings_to_have = {
+            dag_id: DagWarning(
+                dag_id=dag_id,
+                error_type=DagWarningType.ASSET_CONFLICT,
+                message="\n".join([row[1] for row in group]),
+            )
+            for dag_id, group in groupby(
+                sorted(_activate_assets_generate_warnings(), key=_get_first_item), key=_get_first_item
+            )
+        }
+
         session.execute(
             delete(DagWarning).where(
                 DagWarning.warning_type == DagWarningType.ASSET_CONFLICT,
