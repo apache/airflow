@@ -17,10 +17,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, field_validator
-from typing_extensions import Annotated
 
 from airflow.plugins_manager import AirflowPluginSource
 
