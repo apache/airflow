@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 
 class DagScheduleAssetReference(BaseModel):
@@ -63,4 +63,46 @@ class AssetCollectionResponse(BaseModel):
     """Asset collection response."""
 
     assets: list[AssetResponse]
+    total_entries: int
+
+
+class DagRunAssetReference(BaseModel):
+    """Serializable version of the DagRunAssetReference ORM SqlAlchemyModel."""
+
+    run_id: str
+    dag_id: str
+    execution_date: datetime = Field(alias="logical_date")
+    start_date: datetime
+    end_date: datetime
+    state: str
+    data_interval_start: datetime
+    data_interval_end: datetime
+
+
+class AssetEventResponse(BaseModel):
+    """Asset event serializer for responses."""
+
+    id: int
+    asset_id: int
+    asset_uri: str
+    extra: dict | None = None
+    source_task_id: str | None = None
+    source_dag_id: str | None = None
+    source_run_id: str | None = None
+    source_map_index: int
+    created_dagruns: list[DagRunAssetReference]
+    timestamp: datetime
+
+    @model_validator(mode="before")
+    def rename_uri_to_asset_uri(cls, values):
+        """Rename 'uri' to 'asset_uri' during serialization."""
+        if hasattr(values, "uri") and values.uri:
+            values.asset_uri = values.uri
+        return values
+
+
+class AssetEventCollectionResponse(BaseModel):
+    """Asset collection response."""
+
+    asset_events: list[AssetEventResponse]
     total_entries: int

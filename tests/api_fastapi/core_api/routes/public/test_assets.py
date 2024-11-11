@@ -19,9 +19,12 @@ from __future__ import annotations
 import pytest
 
 from airflow.models import DagModel
-from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
+from airflow.models.asset import AssetEvent, AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
+from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
+from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_assets
@@ -50,6 +53,59 @@ def _create_provided_asset(session, asset: AssetModel) -> None:
     session.commit()
 
 
+def _create_assets_events(session, num: int = 2) -> None:
+    default_time = "2020-06-11T18:00:00+00:00"
+    assets_events = [
+        AssetEvent(
+            id=i,
+            asset_id=i,
+            extra={"foo": "bar"},
+            source_task_id="source_task_id",
+            source_dag_id="source_dag_id",
+            source_run_id=f"source_run_id_{i}",
+            timestamp=timezone.parse(default_time),
+        )
+        for i in range(1, 1 + num)
+    ]
+    session.add_all(assets_events)
+    session.commit()
+
+
+def _create_provided_asset_event(session, asset_event: AssetEvent) -> None:
+    session.add(asset_event)
+    session.commit()
+
+
+def _create_dag_run(session, num: int = 2):
+    default_time = "2020-06-11T18:00:00+00:00"
+    dag_runs = [
+        DagRun(
+            dag_id="source_dag_id",
+            run_id=f"source_run_id_{i}",
+            run_type=DagRunType.MANUAL,
+            execution_date=timezone.parse(default_time),
+            start_date=timezone.parse(default_time),
+            data_interval=(timezone.parse(default_time), timezone.parse(default_time)),
+            external_trigger=True,
+            state=DagRunState.SUCCESS,
+        )
+        for i in range(1, 1 + num)
+    ]
+    for dag_run in dag_runs:
+        dag_run.end_date = timezone.parse(default_time)
+    session.add_all(dag_runs)
+    session.commit()
+
+
+def _create_asset_dag_run(session, num: int = 2):
+    for i in range(1, 1 + num):
+        dag_run = session.query(DagRun).filter_by(run_id=f"source_run_id_{i}").first()
+        asset_event = session.query(AssetEvent).filter_by(id=i).first()
+        if dag_run and asset_event:
+            dag_run.consumed_asset_events.append(asset_event)
+    session.commit()
+
+
 class TestAssets:
     default_time = "2020-06-11T18:00:00+00:00"
 
@@ -67,6 +123,22 @@ class TestAssets:
     @provide_session
     def create_provided_asset(self, session, asset: AssetModel):
         _create_provided_asset(session=session, asset=asset)
+
+    @provide_session
+    def create_assets_events(self, session, num: int = 2):
+        _create_assets_events(session=session, num=num)
+
+    @provide_session
+    def create_provided_asset_event(self, session, asset_event: AssetEvent):
+        _create_provided_asset_event(session=session, asset_event=asset_event)
+
+    @provide_session
+    def create_dag_run(self, session, num: int = 2):
+        _create_dag_run(num=num, session=session)
+
+    @provide_session
+    def create_asset_dag_run(self, session, num: int = 2):
+        _create_asset_dag_run(num=num, session=session)
 
 
 class TestGetAssets(TestAssets):
@@ -239,3 +311,74 @@ class TestGetAssetsEndpointPagination(TestAssets):
 
         assert response.status_code == 200
         assert len(response.json()["assets"]) == 150
+
+
+class TestGetAssetsEvents(TestAssets):
+    def test_should_respond_200(self, test_client, session):
+        self.create_assets()
+        self.create_assets_events()
+        self.create_dag_run()
+        self.create_asset_dag_run()
+        assets = session.query(AssetEvent).all()
+        assert len(assets) == 2
+        response = test_client.get("/public/assets/events")
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data == {
+            "asset_events": [
+                {
+                    "id": 1,
+                    "asset_id": 1,
+                    "uri": "s3://bucket/key/1",
+                    "extra": {"foo": "bar"},
+                    "source_task_id": "source_task_id",
+                    "source_dag_id": "source_dag_id",
+                    "source_run_id": "source_run_id_1",
+                    "source_map_index": -1,
+                    "created_dagruns": [
+                        {
+                            "run_id": "source_run_id_1",
+                            "dag_id": "source_dag_id",
+                            "logical_date": "2020-06-11T18:00:00Z",
+                            "start_date": "2020-06-11T18:00:00Z",
+                            "end_date": "2020-06-11T18:00:00Z",
+                            "state": "success",
+                            "data_interval_start": "2020-06-11T18:00:00Z",
+                            "data_interval_end": "2020-06-11T18:00:00Z",
+                        }
+                    ],
+                    "timestamp": "2020-06-11T18:00:00Z",
+                },
+                {
+                    "id": 2,
+                    "asset_id": 2,
+                    "uri": "s3://bucket/key/2",
+                    "extra": {"foo": "bar"},
+                    "source_task_id": "source_task_id",
+                    "source_dag_id": "source_dag_id",
+                    "source_run_id": "source_run_id_2",
+                    "source_map_index": -1,
+                    "created_dagruns": [
+                        {
+                            "run_id": "source_run_id_2",
+                            "dag_id": "source_dag_id",
+                            "logical_date": "2020-06-11T18:00:00Z",
+                            "start_date": "2020-06-11T18:00:00Z",
+                            "end_date": "2020-06-11T18:00:00Z",
+                            "state": "success",
+                            "data_interval_start": "2020-06-11T18:00:00Z",
+                            "data_interval_end": "2020-06-11T18:00:00Z",
+                        }
+                    ],
+                    "timestamp": "2020-06-11T18:00:00Z",
+                },
+            ],
+            "total_entries": 2,
+        }
+
+    def test_order_by_raises_400_for_invalid_attr(self, test_client, session):
+        response = test_client.get("/public/assets/events?order_by=fake")
+
+        assert response.status_code == 400
+        msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
+        assert response.json()["detail"] == msg

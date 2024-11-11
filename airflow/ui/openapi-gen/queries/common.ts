@@ -67,6 +67,50 @@ export const UseAssetServiceGetAssetsKeyFn = (
   useAssetServiceGetAssetsKey,
   ...(queryKey ?? [{ dagIds, limit, offset, orderBy, uriPattern }]),
 ];
+export type AssetServiceGetAssetEventsDefaultResponse = Awaited<
+  ReturnType<typeof AssetService.getAssetEvents>
+>;
+export type AssetServiceGetAssetEventsQueryResult<
+  TData = AssetServiceGetAssetEventsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useAssetServiceGetAssetEventsKey = "AssetServiceGetAssetEvents";
+export const UseAssetServiceGetAssetEventsKeyFn = (
+  {
+    assetId,
+    limit,
+    offset,
+    orderBy,
+    sourceDagId,
+    sourceMapIndex,
+    sourceRunId,
+    sourceTaskId,
+  }: {
+    assetId?: number;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    sourceDagId?: string;
+    sourceMapIndex?: number;
+    sourceRunId?: string;
+    sourceTaskId?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useAssetServiceGetAssetEventsKey,
+  ...(queryKey ?? [
+    {
+      assetId,
+      limit,
+      offset,
+      orderBy,
+      sourceDagId,
+      sourceMapIndex,
+      sourceRunId,
+      sourceTaskId,
+    },
+  ]),
+];
 export type DashboardServiceHistoricalMetricsDefaultResponse = Awaited<
   ReturnType<typeof DashboardService.historicalMetrics>
 >;
