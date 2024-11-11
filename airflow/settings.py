@@ -459,8 +459,8 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     else:
         connect_args = {}
 
-    if os.environ.get("AIRFLOW__CORE__UNIT_TEST_MODE") == "True" and os.environ.get("BACKEND") == "sqlite":
-        # FastAPI runs sync endpoints in a separate thread. SQLite does note allow
+    if os.environ.get("AIRFLOW__CORE__UNIT_TEST_MODE") == "True" and SQL_ALCHEMY_CONN.startswith("sqlite"):
+        # FastAPI runs sync endpoints in a separate thread. SQLite does not allow
         # to use objects created in another threads by default. Allowing that in test
         # to so the `test` thread and the tested endpoints can use common objects.
         connect_args["check_same_thread"] = False
