@@ -6368,6 +6368,32 @@ class TestSchedulerJob:
             "name is already associated to 's3://bucket/key/1'"
         )
 
+    def test_activate_referenced_assets_with_multiple_conflict_asset_in_one_dag(self, session):
+        dag_id = "test_asset_dag"
+        asset1_name = "asset1"
+        asset_extra = {"foo": "bar"}
+
+        session.add(DagWarning(dag_id=dag_id, warning_type="asset conflict", message="will not exist"))
+
+        schedule = [Asset(name=asset1_name, uri="s3://bucket/key/1", extra=asset_extra)]
+        schedule.extend(
+            [Asset(name=asset1_name, uri=f"it's duplicate {i}", extra=asset_extra) for i in range(100)]
+        )
+        dag1 = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, schedule=schedule)
+
+        DAG.bulk_write_to_db([dag1], session=session)
+
+        asset_models = session.scalars(select(AssetModel)).all()
+
+        SchedulerJobRunner._activate_referenced_assets(asset_models, session=session)
+        session.flush()
+
+        dag_warning = session.scalar(
+            select(DagWarning).where(DagWarning.dag_id == dag_id, DagWarning.warning_type == "asset conflict")
+        )
+        for i in range(100):
+            assert f"it's duplicate {i}" in dag_warning.message
+
 
 @pytest.mark.need_serialized_dag
 def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
