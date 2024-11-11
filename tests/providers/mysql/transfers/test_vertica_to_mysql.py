@@ -31,17 +31,26 @@ except ImportError:
 
 
 def mock_get_conn():
+
+    class MockCol:
+        def __init__(self, name):
+            self.name = name
+
+    col_a = MockCol(name="a")
+    col_b = MockCol(name="b")
+    col_c = MockCol(name="c")
+
     commit_mock = mock.MagicMock()
     cursor_mock = mock.MagicMock(
-        execute=[],
-        fetchall=[["1", "2", "3"]],
-        description=["a", "b", "c"],
-        iterate=[["1", "2", "3"]],
+        description = [col_a, col_b, col_c]
     )
-    conn_mock = mock.MagicMock(
-        commit=commit_mock,
-        cursor=cursor_mock,
-    )
+    cursor_mock.execute.return_value=[]
+    cursor_mock.fetchall.return_value=[["1", "2", "3"]]
+    cursor_mock.iterate.return_value=[["1", "2", "3"]]
+    conn_mock = mock.MagicMock()
+    conn_mock.commit.return_value = commit_mock
+    conn_mock.cursor.return_value = cursor_mock
+
     return conn_mock
 
 
