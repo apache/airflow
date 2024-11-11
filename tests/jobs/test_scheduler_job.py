@@ -157,10 +157,7 @@ class TestSchedulerJob:
         # Speed up some tests by not running the tasks, just look at what we
         # enqueue!
         self.null_exec: MockExecutor | None = MockExecutor()
-        # Since we don't want to store the code for the DAG defined in this file
-        with patch("airflow.models.serialized_dag.SerializedDagModel.remove_deleted_dags"):
-            yield
-
+        yield
         self.null_exec = None
 
     @pytest.fixture
