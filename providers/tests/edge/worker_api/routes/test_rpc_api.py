@@ -34,7 +34,6 @@ from airflow.operators.empty import EmptyOperator
 from airflow.providers.edge.models.edge_job import EdgeJob
 from airflow.providers.edge.models.edge_logs import EdgeLogs
 from airflow.providers.edge.models.edge_worker import EdgeWorker
-from airflow.providers.edge.worker_api.routes._v2_compat import HTTPException
 from airflow.providers.edge.worker_api.routes.rpc_api import _initialize_method_map
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.serialized_objects import BaseSerialization
@@ -246,12 +245,13 @@ class TestRpcApiEndpointV2:
             "method": TEST_METHOD_NAME,
             "params": {},
         }
-        with pytest.raises(HTTPException, match="Unable to authenticate API via token."):
-            self.client.post(
-                TEST_API_ENDPOINT,
-                headers={"Content-Type": "application/json", "Accept": "application/json"},
-                data=json.dumps(input_data),
-            )
+        response = self.client.post(
+            TEST_API_ENDPOINT,
+            headers={"Content-Type": "application/json", "Accept": "application/json"},
+            data=json.dumps(input_data),
+        )
+        assert response.status_code == 403
+        assert "Unable to authenticate API via token." in response.text
 
     def test_invalid_token(self, setup_attrs, signer: JWTSigner):
         headers = {
@@ -261,10 +261,9 @@ class TestRpcApiEndpointV2:
         }
         data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}}
 
-        with pytest.raises(
-            HTTPException, match="Bad Signature. Please use only the tokens provided by the API."
-        ):
-            self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
+        response = self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
+        assert response.status_code == 403
+        assert "Bad Signature. Please use only the tokens provided by the API." in response.text
 
     def test_missing_accept(self, setup_attrs, signer: JWTSigner):
         headers = {
@@ -273,8 +272,9 @@ class TestRpcApiEndpointV2:
         }
         data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}}
 
-        with pytest.raises(HTTPException, match="Expected Accept: application/json"):
-            self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
+        response = self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
+        assert response.status_code == 403
+        assert "Expected Accept: application/json" in response.text
 
     def test_wrong_accept(self, setup_attrs, signer: JWTSigner):
         headers = {
@@ -284,5 +284,6 @@ class TestRpcApiEndpointV2:
         }
         data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}}
 
-        with pytest.raises(HTTPException, match="Expected Accept: application/json"):
-            self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
+        response = self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
+        assert response.status_code == 403
+        assert "Expected Accept: application/json" in response.text

@@ -169,7 +169,7 @@ def rpcapi(body: JsonRpcRequest) -> dict | None:
         if body.params:
             params = BaseSerialization.deserialize(body.params, use_pydantic_models=True)
     except Exception:
-        return error_response("Error deserializing parameters.", status.HTTP_400_BAD_REQUEST)
+        raise error_response("Error deserializing parameters.", status.HTTP_400_BAD_REQUEST)
 
     log.debug("Calling method %s\nparams: %s", body.method, params)
     try:
@@ -187,7 +187,7 @@ def rpcapi(body: JsonRpcRequest) -> dict | None:
         )
         return exception_json
     except Exception:
-        return error_response(
+        raise error_response(
             f"Error executing method '{body.method}'.", status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
@@ -199,20 +199,21 @@ def edge_worker_api_v2(body: dict[str, Any]) -> APIResponse:
     # As of rework for FastAPI in Airflow 3.0, this is updated and to be removed in future.
     from flask import Response, request
 
-    json_request_headers(
-        content_type=request.headers.get("Content-Type", ""), accept=request.headers.get("Accept", "")
-    )
+    try:
+        json_request_headers(
+            content_type=request.headers.get("Content-Type", ""), accept=request.headers.get("Accept", "")
+        )
 
-    auth = request.headers.get("Authorization", "")
-    json_rpc = body.get("jsonrpc", "")
-    method_name = body.get("method", "")
-    request_obj = JsonRpcRequest(method=method_name, jsonrpc=json_rpc, params=body.get("params"))
-    jwt_token_authorization(request_obj, auth)
+        auth = request.headers.get("Authorization", "")
+        json_rpc = body.get("jsonrpc", "")
+        method_name = body.get("method", "")
+        request_obj = JsonRpcRequest(method=method_name, jsonrpc=json_rpc, params=body.get("params"))
+        jwt_token_authorization(request_obj, auth)
 
-    json_rpc_version(request_obj)
+        json_rpc_version(request_obj)
 
-    output_json = rpcapi(request_obj)
-    # TODO can not serialize HTTPException
-    # ---------------------- !!!!!!!!!!!!!!!
-    response = json.dumps(output_json) if output_json is not None else None
-    return Response(response=response, headers={"Content-Type": "application/json"})
+        output_json = rpcapi(request_obj)
+        response = json.dumps(output_json) if output_json is not None else None
+        return Response(response=response, headers={"Content-Type": "application/json"})
+    except HTTPException as e:
+        return e.to_response()  # type: ignore[attr-defined]

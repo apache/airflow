@@ -82,6 +82,11 @@ else:
                 detail=detail,
             )
 
+        def to_response(self):
+            from flask import Response
+
+            return Response(response=self.detail, status=self.status)
+
     class AirflowRouter:  # type: ignore[no-redef]
         def __init__(self, *_, **__):
             pass
