@@ -96,8 +96,12 @@ def get_package_setup_metadata_hash() -> str:
         from importlib_metadata import distribution  # type: ignore[no-redef, assignment]
 
     prefix = "Package config hash: "
-
-    for line in distribution("apache-airflow-breeze").metadata.as_string().splitlines(keepends=False):
+    metadata = distribution("apache-airflow-breeze").metadata
+    try:
+        description = metadata.json["description"]  # type: ignore[attr-defined]
+    except AttributeError:
+        description = metadata.as_string()
+    for line in description.splitlines(keepends=False):
         if line.startswith(prefix):
             return line[len(prefix) :]
     return "NOT FOUND"

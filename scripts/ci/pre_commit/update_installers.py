@@ -32,6 +32,7 @@ FILES_TO_UPDATE = [
     AIRFLOW_SOURCES_ROOT_PATH / "Dockerfile.ci",
     AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "ci" / "install_breeze.sh",
     AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "docker" / "common.sh",
+    AIRFLOW_SOURCES_ROOT_PATH / "scripts" / "tools" / "setup_breeze",
     AIRFLOW_SOURCES_ROOT_PATH / "pyproject.toml",
     AIRFLOW_SOURCES_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py",
     AIRFLOW_SOURCES_ROOT_PATH
@@ -60,12 +61,14 @@ def get_latest_pypi_version(package_name: str) -> str:
 AIRFLOW_PIP_PATTERN = re.compile(r"(AIRFLOW_PIP_VERSION=)([0-9.]+)")
 AIRFLOW_PIP_QUOTED_PATTERN = re.compile(r"(AIRFLOW_PIP_VERSION = )(\"[0-9.]+\")")
 PIP_QUOTED_PATTERN = re.compile(r"(PIP_VERSION = )(\"[0-9.]+\")")
+PIP_QUOTED_PATTERN_NO_SPACES = re.compile(r"(PIP_VERSION=)(\"[0-9.]+\")")
 AIRFLOW_PIP_DOC_PATTERN = re.compile(r"(\| *`AIRFLOW_PIP_VERSION` *\| *)(`[0-9.]+`)( *\|)")
 AIRFLOW_PIP_UPGRADE_PATTERN = re.compile(r"(python -m pip install --upgrade pip==)([0-9.]+)")
 
 AIRFLOW_UV_PATTERN = re.compile(r"(AIRFLOW_UV_VERSION=)([0-9.]+)")
 AIRFLOW_UV_QUOTED_PATTERN = re.compile(r"(AIRFLOW_UV_VERSION = )(\"[0-9.]+\")")
 UV_QUOTED_PATTERN = re.compile(r"(UV_VERSION = )(\"[0-9.]+\")")
+UV_QUOTED_PATTERN_NO_SPACES = re.compile(r"(UV_VERSION=)(\"[0-9.]+\")")
 AIRFLOW_UV_DOC_PATTERN = re.compile(r"(\| *`AIRFLOW_UV_VERSION` *\| *)(`[0-9.]+`)( *\|)")
 UV_GREATER_PATTERN = re.compile(r'"(uv>=)([0-9]+)"')
 
@@ -115,6 +118,9 @@ if __name__ == "__main__":
             new_content = replace_group_2_while_keeping_total_length(
                 PIP_QUOTED_PATTERN, f'"{pip_version}"', new_content
             )
+            new_content = replace_group_2_while_keeping_total_length(
+                PIP_QUOTED_PATTERN_NO_SPACES, f'"{pip_version}"', new_content
+            )
         if UPGRADE_UV:
             new_content = replace_group_2_while_keeping_total_length(
                 AIRFLOW_UV_PATTERN, uv_version, new_content
@@ -127,6 +133,9 @@ if __name__ == "__main__":
             )
             new_content = replace_group_2_while_keeping_total_length(
                 UV_QUOTED_PATTERN, f'"{uv_version}"', new_content
+            )
+            new_content = replace_group_2_while_keeping_total_length(
+                UV_QUOTED_PATTERN_NO_SPACES, f'"{uv_version}"', new_content
             )
         if new_content != file_content:
             file.write_text(new_content)

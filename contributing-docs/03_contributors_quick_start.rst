@@ -222,18 +222,20 @@ see in CI in your local environment.
 Setting up Breeze
 -----------------
 
-1. Install ``pipx`` (>=1.2.1) - follow the instructions in `Install pipx <https://pipx.pypa.io/stable/>`_
+1. Install ``uv`` or ``pipx``. We recommend to install ``uv`` as general purpose python development
+   environment - you can install it via https://docs.astral.sh/uv/getting-started/installation/ or you can
+   install ``pipx`` (>=1.2.1) - follow the instructions in `Install pipx <https://pipx.pypa.io/stable/>`_
    It is important to install version of pipx >= 1.2.1 to workaround ``packaging`` breaking change introduced
    in September 2023
 
-2. Run ``pipx install -e ./dev/breeze`` in your checked-out repository. Make sure to follow any instructions
-   printed by ``pipx`` during the installation - this is needed to make sure that ``breeze`` command is
-   available in your PATH
+2. Run ``uv tool install -e ./dev/breeze`` (or ``pipx install -e ./dev/breeze`` in your checked-out
+   repository. Make sure to follow any instructions printed by during the installation - this is needed
+   to make sure that ``breeze`` command is available in your PATH
 
 .. warning::
 
-  If you see below warning - it means that you hit `known issue <https://github.com/pypa/pipx/issues/1092>`_
-  with ``packaging`` version 23.2:
+  If you see below warning while running pipx - it means that you hit the
+  `known issue <https://github.com/pypa/pipx/issues/1092>`_ with ``packaging`` version 23.2:
   ⚠️ Ignoring --editable install option. pipx disallows it for anything but a local path,
   to avoid having to create a new src/ directory.
 
@@ -244,7 +246,6 @@ Setting up Breeze
 
      pip install "packaging==23.1"
      pipx install -e ./dev/breeze --force
-
 
 3. Initialize breeze autocomplete
 
@@ -454,9 +455,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
 .. note::
 
-    We have recently started to recommend ``uv`` for our local development. Currently (October 2024) ``uv``
-    speeds up installation more than 10x comparing to ``pip``. While we still describe ``pip`` and ``pipx``
-    below, we also show the ``uv`` alternatives.
+    We have recently started to recommend ``uv`` for our local development.
 
 .. note::
 
@@ -464,26 +463,28 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
     started to use Python 3.9+ features in Airflow and accompanying scripts.
 
 
-Installing pre-commit is best done with ``pipx``:
+Installing pre-commit is best done with ``uv`` (recommended) or ``pipx``:
+
+This will install ``pre-commit`` with ``uv``, and it will change it to use ``uv`` to install its own
+virtualenvs.
+
+.. code-block:: bash
+
+    uv tool install pre-commit --with pre-commit-uv
+
+or
 
 .. code-block:: bash
 
     pipx install pre-commit
 
-You can still add uv support for pre-commit if you use pipx using the commands:
+You can add ````uv`` support for ``pre-commit`` even you install it with ``pipx`` using the commands
+(then pre-commit will use ``uv`` to create virtualenvs for the hooks):
 
 .. code-block:: bash
 
     pipx install pre-commit
-    pipx inject
-    pipx inject prepare_breeze_and_image
-
-Also, if you already use ``uvx`` instead of ``pipx``, use this command:
-
-.. code-block:: bash
-
-    uv tool install pre-commit --with pre-commit-uv --force-reinstall
-
+    pipx inject pre-commit pre-commit-uv  # optionally if you want to use uv to install virtualenvs
 
 1.  Installing required packages
 
@@ -499,11 +500,18 @@ on macOS, install via
 
   brew install libxml2
 
-2. Installing required Python packages
+2. Installing pre-commit (if you have not done it yet):
+
+.. code-block:: bash
+
+  uv tool install pre-commit --with pre-commit-uv
+
+or
 
 .. code-block:: bash
 
   pipx install pre-commit
+  pipx install inject pre-commit pre-commit-uv
 
 3. Go to your project directory
 
@@ -512,7 +520,7 @@ on macOS, install via
   cd ~/Projects/airflow
 
 
-1. Running pre-commit hooks
+4. Running pre-commit hooks
 
 .. code-block:: bash
 
@@ -547,7 +555,6 @@ on macOS, install via
   pre-commit run  --files airflow/utils/decorators.py tests/utils/test_task_group.py
 
 
-
 6. Running specific hook for selected files
 
 .. code-block:: bash
@@ -556,7 +563,6 @@ on macOS, install via
     black...............................................................Passed
   pre-commit run ruff --files airflow/decorators.py tests/utils/test_task_group.py
     Run ruff............................................................Passed
-
 
 
 7. Enabling Pre-commit check before push. It will run pre-commit automatically before committing and stops the commit
@@ -573,7 +579,6 @@ on macOS, install via
 
   cd ~/Projects/airflow
   pre-commit uninstall
-
 
 - For more information on visit |08_static_code_checks.rst|
 

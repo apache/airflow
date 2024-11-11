@@ -187,9 +187,8 @@ jobs:
         working-directory: ./airflow-client-python
       - name: Install hatch
         run: |
-          python -m pip install --upgrade pipx
-          pipx ensurepath
-          pipx install hatch
+          python -m pip install --upgrade uv
+          uv tool install hatch
       - name: Run tests
         run: hatch run run-coverage
         env:

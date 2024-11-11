@@ -262,25 +262,18 @@ Set your working directory to the root of this cloned repository.
 
     cd  airflow
 
-Run this command to install Breeze (make sure to use ``-e`` flag):
+Run this command to install Breeze (make sure to use ``-e`` flag) - you can choose ``uv`` (recommended) or
+``pipx``:
+
+
+.. code-block:: bash
+
+    uv tool install -e ./dev/breeze
+
 
 .. code-block:: bash
 
     pipx install -e ./dev/breeze
-
-.. warning::
-
-  If you see below warning - it means that you hit `known issue <https://github.com/pypa/pipx/issues/1092>`_
-  with ``packaging`` version 23.2:
-  ⚠️ Ignoring --editable install option. pipx disallows it for anything but a local path,
-  to avoid having to create a new src/ directory.
-
-  The workaround is to downgrade packaging to 23.1 and re-running the ``pipx install`` command.
-
-  .. code-block:: bash
-
-     pip install "packaging<23.2"
-     pipx install -e ./dev/breeze --force
 
 
 .. note:: Note for Windows users
@@ -288,6 +281,12 @@ Run this command to install Breeze (make sure to use ``-e`` flag):
     The ``./dev/breeze`` in command about is a PATH to sub-folder where breeze source packages are.
     If you are on Windows, you should use Windows way to point to the ``dev/breeze`` sub-folder
     of Airflow either as absolute or relative path. For example:
+
+    .. code-block:: bash
+
+        uv tool install -e dev\breeze
+
+    or
 
     .. code-block:: bash
 
@@ -329,7 +328,13 @@ that Breeze works on
 .. warning:: Upgrading from earlier Python version
 
     If you used Breeze with Python 3.8 and when running it, it will complain that it needs Python 3.9. In this
-    case you should force-reinstall Breeze with ``pipx``:
+    case you should force-reinstall Breeze with ``uv`` (or ``pipx``):
+
+        .. code-block:: bash
+
+            uv tool install --force -e ./dev/breeze
+
+        or
 
         .. code-block:: bash
 
@@ -343,28 +348,33 @@ that Breeze works on
 
         .. code-block:: bash
 
+            uv tool install --force -e dev\breeze
+
+        or
+
+        .. code-block:: bash
+
             pipx install --force -e dev\breeze
 
-    .. note:: creating pipx virtual env ``apache-airflow-breeze`` with a specific python version
 
-        In ``pipx install -e ./dev/breeze`` or ``pipx install  -e dev\breeze``, ``pipx`` uses default
-        system python version to create virtual env for breeze.
-        We can use a specific version by providing python executable in ``--python``  argument. For example:
+    .. note:: creating virtual env for ``apache-airflow-breeze`` with a specific python version
 
+        The ``uv tool install`` or  ``pipx install`` use default system python version to create virtual
+        env for breeze. You can use a specific version by providing python version in ``uv`` or
+        python executable in ``pipx`` in ``--python``.
 
         If you have breeze installed already with another Python version you can reinstall breeze with reinstall
         command
 
         .. code-block:: bash
 
-            pipx reinstall --python /Users/airflow/.pyenv/versions/3.9.16/bin/python apache-airflow-breeze
+            uv tool install  --python 3.9.16 ./dev/breeze --force
 
-        Or you can uninstall breeze and install it with a specific python version:
+        or
 
         .. code-block:: bash
 
-            pipx uninstall apache-airflow-breeze
-            pipx install -e ./dev/breeze --python /Users/airflow/.pyenv/versions/3.9.16/bin/python
+            pipx install -e ./dev/breeze --python /Users/airflow/.pyenv/versions/3.9.16/bin/python --force
 
 
 Running Breeze for the first time
@@ -477,19 +487,18 @@ Automating breeze installation
 ------------------------------
 
 Breeze on POSIX-compliant systems (Linux, MacOS) can be automatically installed by running the
-``scripts/tools/setup_breeze`` bash script. This includes checking and installing ``pipx``, setting up
+``scripts/tools/setup_breeze`` bash script. This includes checking and installing ``uv``, setting up
 ``breeze`` with it and setting up autocomplete.
 
 
 Uninstalling Breeze
 -------------------
 
-Since Breeze is installed with ``pipx``, with ``pipx list``, you can list the installed packages.
-Once you have the name of ``breeze`` package you can proceed to uninstall it.
+Since Breeze is installed with ``uv tool`` or ``pipx``, you need to use the appropriate tool to uninstall it.
 
 .. code-block:: bash
 
-    pipx list
+    uv tool uninstall apache-airflow-breeze
 
 This will also remove breeze from the folder: ``${HOME}.local/bin/``
 
