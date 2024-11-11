@@ -20,7 +20,9 @@ from __future__ import annotations
 import datetime
 
 import pytest
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.branch import BaseBranchOperator
 from airflow.operators.empty import EmptyOperator
@@ -29,7 +31,8 @@ from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -75,7 +78,7 @@ class TestBranchOperator:
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        for ti in dag_maker.session.query(TI).filter(TI.dag_id == dag_id, TI.execution_date == DEFAULT_DATE):
+        for ti in dag_maker.session.query(TI).filter(TI.dag_id == dag_id, TI.logical_date == DEFAULT_DATE):
             if ti.task_id == "make_choice":
                 assert ti.state == State.SUCCESS
             elif ti.task_id == "branch_1":
@@ -114,7 +117,7 @@ class TestBranchOperator:
             "branch_3": State.SKIPPED,
         }
 
-        for ti in dag_maker.session.query(TI).filter(TI.dag_id == dag_id, TI.execution_date == DEFAULT_DATE):
+        for ti in dag_maker.session.query(TI).filter(TI.dag_id == dag_id, TI.logical_date == DEFAULT_DATE):
             if ti.task_id in expected:
                 assert ti.state == expected[ti.task_id]
             else:
@@ -137,7 +140,7 @@ class TestBranchOperator:
         dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,
@@ -151,7 +154,7 @@ class TestBranchOperator:
             "branch_2": State.SKIPPED,
         }
 
-        for ti in dag_maker.session.query(TI).filter(TI.dag_id == dag_id, TI.execution_date == DEFAULT_DATE):
+        for ti in dag_maker.session.query(TI).filter(TI.dag_id == dag_id, TI.logical_date == DEFAULT_DATE):
             if ti.task_id in expected:
                 assert ti.state == expected[ti.task_id]
             else:
@@ -175,7 +178,7 @@ class TestBranchOperator:
         dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,
@@ -189,7 +192,7 @@ class TestBranchOperator:
             "branch_2": State.NONE,
         }
 
-        for ti in dag_maker.session.query(TI).filter(TI.dag_id == dag_id, TI.execution_date == DEFAULT_DATE):
+        for ti in dag_maker.session.query(TI).filter(TI.dag_id == dag_id, TI.logical_date == DEFAULT_DATE):
             if ti.task_id in expected:
                 assert ti.state == expected[ti.task_id]
             else:
@@ -213,7 +216,7 @@ class TestBranchOperator:
         dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,
@@ -221,7 +224,7 @@ class TestBranchOperator:
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        for ti in dag_maker.session.query(TI).filter(TI.dag_id == dag_id, TI.execution_date == DEFAULT_DATE):
+        for ti in dag_maker.session.query(TI).filter(TI.dag_id == dag_id, TI.logical_date == DEFAULT_DATE):
             if ti.task_id == "make_choice":
                 assert ti.xcom_pull(task_ids="make_choice") == "branch_1"
 
@@ -247,7 +250,7 @@ class TestBranchOperator:
         dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,
@@ -255,7 +258,7 @@ class TestBranchOperator:
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-        for ti in dag_maker.session.query(TI).filter(TI.dag_id == dag_id, TI.execution_date == DEFAULT_DATE):
+        for ti in dag_maker.session.query(TI).filter(TI.dag_id == dag_id, TI.logical_date == DEFAULT_DATE):
             if ti.task_id == "make_choice":
                 assert ti.state == State.SUCCESS
             elif ti.task_id == "branch_1":

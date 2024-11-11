@@ -23,17 +23,24 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
+from packaging.version import Version
 from prestodb.transaction import IsolationLevel
 
+from airflow import __version__ as airflow_version
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.presto.hooks.presto import PrestoHook, generate_presto_client_info
 
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+
 
 def test_generate_airflow_presto_client_info_header():
+    date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
+    environ_date_key = "AIRFLOW_CTX_LOGICAL_DATE" if AIRFLOW_V_3_0_PLUS else "AIRFLOW_CTX_EXECUTION_DATE"
     env_vars = {
         "AIRFLOW_CTX_DAG_ID": "dag_id",
-        "AIRFLOW_CTX_EXECUTION_DATE": "2022-01-01T00:00:00",
+        environ_date_key: "2022-01-01T00:00:00",
         "AIRFLOW_CTX_TASK_ID": "task_id",
         "AIRFLOW_CTX_TRY_NUMBER": "1",
         "AIRFLOW_CTX_DAG_RUN_ID": "dag_run_id",
@@ -42,7 +49,7 @@ def test_generate_airflow_presto_client_info_header():
     expected = json.dumps(
         {
             "dag_id": "dag_id",
-            "execution_date": "2022-01-01T00:00:00",
+            date_key: "2022-01-01T00:00:00",
             "task_id": "task_id",
             "try_number": "1",
             "dag_run_id": "dag_run_id",
@@ -157,10 +164,11 @@ class TestPrestoHookConn:
         mock_get_connection.return_value = Connection(
             login="login", password="password", host="host", schema="hive"
         )
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         client = json.dumps(
             {
                 "dag_id": "dag-id",
-                "execution_date": "2022-01-01T00:00:00",
+                date_key: "2022-01-01T00:00:00",
                 "task_id": "task-id",
                 "try_number": "1",
                 "dag_run_id": "dag-run-id",

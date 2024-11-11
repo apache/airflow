@@ -22,7 +22,9 @@ from unittest import mock
 
 import pytest
 from google.cloud.storage.retry import DEFAULT_RETRY
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.exceptions import (
     AirflowProviderDeprecationWarning,
     TaskDeferred,
@@ -41,6 +43,9 @@ from airflow.providers.google.cloud.triggers.gcs import (
     GCSPrefixBlobTrigger,
     GCSUploadSessionTrigger,
 )
+
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 TEST_BUCKET = "TEST_BUCKET"
 

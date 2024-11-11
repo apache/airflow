@@ -21,7 +21,9 @@ from datetime import date, timedelta
 from typing import TYPE_CHECKING, Dict, Tuple, Union
 
 import pytest
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException, XComNotFound
@@ -41,7 +43,9 @@ from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from providers.tests.standard.operators.test_python import BasePythonTest
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -458,7 +462,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         dr = self.dag_non_serialized.create_dagrun(
             run_id=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=self.dag_non_serialized.timetable.infer_manual_data_interval(
                 run_after=DEFAULT_DATE
@@ -523,7 +527,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         dr = self.dag_non_serialized.create_dagrun(
             run_id=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=self.dag_non_serialized.timetable.infer_manual_data_interval(
                 run_after=DEFAULT_DATE

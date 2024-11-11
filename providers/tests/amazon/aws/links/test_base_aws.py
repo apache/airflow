@@ -21,13 +21,17 @@ from typing import TYPE_CHECKING, NamedTuple
 from unittest import mock
 
 import pytest
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.models.xcom import XCom
 from airflow.providers.amazon.aws.links.base_aws import BaseAwsLink
 from airflow.serialization.serialized_objects import SerializedDAG
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.mock_operators import MockOperator
+
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
@@ -154,7 +158,7 @@ class BaseAwsLinksTestCase:
         *,
         dag_id,
         task_id,
-        execution_date=None,
+        logical_date=None,
         session=None,
         **operator_kwargs,
     ):
@@ -166,7 +170,7 @@ class BaseAwsLinksTestCase:
                 op,
                 dag_id=dag_id,
                 task_id=task_id,
-                execution_date=execution_date,
+                logical_date=logical_date,
                 session=session,
                 **operator_kwargs,
             ),

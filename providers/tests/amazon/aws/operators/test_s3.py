@@ -652,10 +652,14 @@ class TestS3DeleteObjectsOperator:
             to_datetime="{{ macros.ds_add(ds, 1) }}",
             dag=dag,
         )
-
-        dag_run = DagRun(
-            dag_id=dag.dag_id, execution_date=execution_date, run_id="test", run_type=DagRunType.MANUAL
-        )
+        if hasattr(DagRun, "execution_date"):  # Airflow 2.x.
+            dag_run = DagRun(
+                dag_id=dag.dag_id, execution_date=execution_date, run_id="test", run_type=DagRunType.MANUAL
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=dag.dag_id, logical_date=execution_date, run_id="test", run_type=DagRunType.MANUAL
+            )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run
         session.add(ti)

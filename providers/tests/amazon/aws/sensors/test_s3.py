@@ -23,7 +23,9 @@ from unittest import mock
 import pytest
 import time_machine
 from moto import mock_aws
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.variable import Variable
@@ -31,6 +33,9 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
+
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 
@@ -115,9 +120,9 @@ class TestS3KeySensor:
 
         Variable.set("test_bucket_key", "s3://bucket/key", session=session)
 
-        execution_date = timezone.datetime(2020, 1, 1)
+        logical_date = timezone.datetime(2020, 1, 1)
 
-        dag = DAG("test_s3_key", schedule=None, start_date=execution_date)
+        dag = DAG("test_s3_key", schedule=None, start_date=logical_date)
         op = S3KeySensor(
             task_id="s3_key_sensor",
             bucket_key="{{ var.value.test_bucket_key }}",
@@ -125,9 +130,14 @@ class TestS3KeySensor:
             dag=dag,
         )
 
-        dag_run = DagRun(
-            dag_id=dag.dag_id, execution_date=execution_date, run_id="test", run_type=DagRunType.MANUAL
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=dag.dag_id, logical_date=logical_date, run_id="test", run_type=DagRunType.MANUAL
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=dag.dag_id, execution_date=logical_date, run_id="test", run_type=DagRunType.MANUAL
+            )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run
         session.add(ti)
@@ -146,19 +156,23 @@ class TestS3KeySensor:
 
         Variable.set("test_bucket_key", ["s3://bucket/file1", "s3://bucket/file2"], session=session)
 
-        execution_date = timezone.datetime(2020, 1, 1)
+        logical_date = timezone.datetime(2020, 1, 1)
 
-        dag = DAG("test_s3_key", schedule=None, start_date=execution_date, render_template_as_native_obj=True)
+        dag = DAG("test_s3_key", schedule=None, start_date=logical_date, render_template_as_native_obj=True)
         op = S3KeySensor(
             task_id="s3_key_sensor",
             bucket_key="{{ var.value.test_bucket_key }}",
             bucket_name=None,
             dag=dag,
         )
-
-        dag_run = DagRun(
-            dag_id=dag.dag_id, execution_date=execution_date, run_id="test", run_type=DagRunType.MANUAL
-        )
+        if hasattr(DagRun, "execution_date"):  # Airflow 2.x.
+            dag_run = DagRun(
+                dag_id=dag.dag_id, execution_date=logical_date, run_id="test", run_type=DagRunType.MANUAL
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=dag.dag_id, logical_date=logical_date, run_id="test", run_type=DagRunType.MANUAL
+            )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run
         session.add(ti)

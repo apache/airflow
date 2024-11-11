@@ -21,7 +21,9 @@ import datetime
 
 import pytest
 from dateutil import relativedelta
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.decorators import task
 from airflow.decorators.python import _PythonDecoratedOperator
 from airflow.jobs.job import Job
@@ -46,7 +48,9 @@ from airflow.utils.state import State
 from airflow.utils.types import AttributeRemoved, DagRunType
 
 from tests.models import DEFAULT_DATE
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -73,7 +77,7 @@ def test_serializing_pydantic_task_instance(session, create_task_instance):
     assert deserialized_model.dag_id == dag_id
     assert deserialized_model.state == State.RUNNING
     assert deserialized_model.try_number == ti.try_number
-    assert deserialized_model.execution_date == ti.execution_date
+    assert deserialized_model.logical_date == ti.logical_date
     assert deserialized_model.next_kwargs == {"foo": "bar"}
 
 
@@ -238,17 +242,17 @@ def test_serializing_pydantic_asset_event(session, create_task_instance, create_
         with_dagrun_type=DagRunType.MANUAL,
         session=session,
     )
-    execution_date = timezone.utcnow()
+    logical_date = timezone.utcnow()
     TracebackSessionForTests.set_allow_db_access(session, True)
 
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dr = dag.create_dagrun(
         run_id="test2",
         run_type=DagRunType.ASSET_TRIGGERED,
-        execution_date=execution_date,
+        logical_date=logical_date,
         state=None,
         session=session,
-        data_interval=(execution_date, execution_date),
+        data_interval=(logical_date, logical_date),
         **triggered_by_kwargs,
     )
     asset1_event = AssetEvent(asset_id=1)

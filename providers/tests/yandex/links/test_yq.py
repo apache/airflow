@@ -19,12 +19,15 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XCom
 from airflow.providers.yandex.links.yq import YQLink
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 from tests_common.test_utils.mock_operators import MockOperator
 
 yandexcloud = pytest.importorskip("yandexcloud")

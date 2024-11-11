@@ -21,13 +21,18 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.exceptions import AirflowException
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.apache.kylin.operators.kylin_cube import KylinCubeOperator
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
+
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 DEFAULT_DATE = timezone.datetime(2020, 1, 1)
 
@@ -169,12 +174,20 @@ class TestKylinCubeOperator:
             },
         )
         ti = TaskInstance(operator, run_id="kylin_test")
-        ti.dag_run = DagRun(
-            dag_id=self.dag.dag_id,
-            run_id="kylin_test",
-            execution_date=DEFAULT_DATE,
-            run_type=DagRunType.MANUAL,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            ti.dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                run_id="kylin_test",
+                logical_date=DEFAULT_DATE,
+                run_type=DagRunType.MANUAL,
+            )
+        else:
+            ti.dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                run_id="kylin_test",
+                execution_date=DEFAULT_DATE,
+                run_type=DagRunType.MANUAL,
+            )
         session.add(ti)
         session.commit()
         ti.render_templates()

@@ -34,7 +34,7 @@ class XComCollectionItemSchema(SQLAlchemySchema):
 
     key = auto_field()
     timestamp = auto_field()
-    execution_date = auto_field()
+    logical_date = auto_field()
     map_index = auto_field()
     task_id = auto_field()
     dag_id = auto_field()

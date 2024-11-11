@@ -69,7 +69,7 @@ class TestDagEndpoint:
         dagrun_failed = DagRun(
             dag_id=DAG3_ID,
             run_id="run1",
-            execution_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            logical_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             start_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             run_type=DagRunType.SCHEDULED,
             state=DagRunState.FAILED,
@@ -79,7 +79,7 @@ class TestDagEndpoint:
         dagrun_success = DagRun(
             dag_id=DAG3_ID,
             run_id="run2",
-            execution_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            logical_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             start_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             run_type=DagRunType.MANUAL,
             state=DagRunState.SUCCESS,
@@ -178,6 +178,7 @@ class TestGetDags(TestDagEndpoint):
     )
     def test_get_dags(self, test_client, query_params, expected_total_entries, expected_ids):
         response = test_client.get("/public/dags", params=query_params)
+        print("Response JSON:", response.json())
 
         assert response.status_code == 200
         body = response.json()

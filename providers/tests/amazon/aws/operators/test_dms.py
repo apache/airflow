@@ -21,8 +21,9 @@ from unittest import mock
 
 import pendulum
 import pytest
+from packaging.version import Version
 
-from airflow import DAG
+from airflow import DAG, __version__ as airflow_version
 from airflow.models import DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
 from airflow.providers.amazon.aws.operators.dms import (
@@ -36,6 +37,9 @@ from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
+
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 TASK_ARN = "test_arn"
 
@@ -279,12 +283,20 @@ class TestDmsDescribeTasksOperator:
             task_id="describe_tasks", dag=self.dag, describe_tasks_kwargs={"Filters": [self.FILTER]}
         )
 
-        dag_run = DagRun(
-            dag_id=self.dag.dag_id,
-            execution_date=timezone.utcnow(),
-            run_id="test",
-            run_type=DagRunType.MANUAL,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                logical_date=timezone.utcnow(),
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                execution_date=timezone.utcnow(),
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
         ti = TaskInstance(task=describe_task)
         ti.dag_run = dag_run
         session.add(ti)

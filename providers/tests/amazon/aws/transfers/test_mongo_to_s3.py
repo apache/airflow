@@ -20,11 +20,16 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.transfers.mongo_to_s3 import MongoToS3Operator
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
+
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 TASK_ID = "test_mongo_to_s3_operator"
 MONGO_CONN_ID = "default_mongo"
@@ -80,12 +85,20 @@ class TestMongoToS3Operator:
 
     @pytest.mark.db_test
     def test_render_template(self, session):
-        dag_run = DagRun(
-            dag_id=self.mock_operator.dag_id,
-            execution_date=DEFAULT_DATE,
-            run_id="test",
-            run_type=DagRunType.MANUAL,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=self.mock_operator.dag_id,
+                logical_date=DEFAULT_DATE,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=self.mock_operator.dag_id,
+                execution_date=DEFAULT_DATE,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
         ti = TaskInstance(task=self.mock_operator)
         ti.dag_run = dag_run
         session.add(ti)

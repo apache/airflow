@@ -18,7 +18,9 @@
 from __future__ import annotations
 
 import pytest
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.security import permissions
 from airflow.utils import timezone
@@ -31,13 +33,14 @@ from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     delete_user,
 )
 from tests.www.views.test_views_tasks import _get_appbuilder_pk_string
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.www import (
     check_content_in_response,
     check_content_not_in_response,
     client_with_login,
 )
 
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
@@ -127,7 +130,7 @@ def test_create_dagrun_permission_denied(session, client_dr_without_dag_run_crea
     data = {
         "state": "running",
         "dag_id": "example_bash_operator",
-        "execution_date": "2018-07-06 05:06:03",
+        "logical_date": "2018-07-06 05:06:03",
         "run_id": "test_list_dagrun_includes_conf",
         "conf": '{"include": "me"}',
     }
@@ -139,12 +142,12 @@ def test_create_dagrun_permission_denied(session, client_dr_without_dag_run_crea
 @pytest.fixture
 def running_dag_run(session):
     dag = DagBag().get_dag("example_bash_operator")
-    execution_date = timezone.datetime(2016, 1, 9)
+    logical_date = timezone.datetime(2016, 1, 9)
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dr = dag.create_dagrun(
         state="running",
-        execution_date=execution_date,
-        data_interval=(execution_date, execution_date),
+        logical_date=logical_date,
+        data_interval=(logical_date, logical_date),
         run_id="test_dag_runs_action",
         session=session,
         **triggered_by_kwargs,
@@ -162,12 +165,12 @@ def running_dag_run(session):
 @pytest.fixture
 def completed_dag_run_with_missing_task(session):
     dag = DagBag().get_dag("example_bash_operator")
-    execution_date = timezone.datetime(2016, 1, 9)
+    logical_date = timezone.datetime(2016, 1, 9)
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dr = dag.create_dagrun(
         state="success",
-        execution_date=execution_date,
-        data_interval=(execution_date, execution_date),
+        logical_date=logical_date,
+        data_interval=(logical_date, logical_date),
         run_id="test_dag_runs_action",
         session=session,
         **triggered_by_kwargs,
@@ -317,12 +320,12 @@ def dag_run_with_all_done_task(session):
     # Re-sync the DAG to the DB
     dag.sync_to_db()
 
-    execution_date = timezone.datetime(2016, 1, 9)
+    logical_date = timezone.datetime(2016, 1, 9)
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dr = dag.create_dagrun(
         state="running",
-        execution_date=execution_date,
-        data_interval=(execution_date, execution_date),
+        logical_date=logical_date,
+        data_interval=(logical_date, logical_date),
         run_id="test_dagrun_failed",
         session=session,
         **triggered_by_kwargs,

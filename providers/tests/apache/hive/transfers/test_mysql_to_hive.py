@@ -43,7 +43,7 @@ class TestTransfer:
     env_vars = {
         "AIRFLOW_CTX_DAG_ID": "test_dag_id",
         "AIRFLOW_CTX_TASK_ID": "test_task_id",
-        "AIRFLOW_CTX_EXECUTION_DATE": "2015-01-01T00:00:00+00:00",
+        "AIRFLOW_CTX_LOGICAL_DATE": "2015-01-01T00:00:00+00:00",
         "AIRFLOW_CTX_DAG_RUN_ID": "55",
         "AIRFLOW_CTX_DAG_OWNER": "airflow",
         "AIRFLOW_CTX_DAG_EMAIL": "test@airflow.com",

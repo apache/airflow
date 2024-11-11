@@ -19,11 +19,16 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.utils import timezone
+
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 TEST_CONN = "aws_test_conn"
 
@@ -116,7 +121,10 @@ class TestAwsBaseOperator:
         with dag_maker("test_aws_base_operator", serialized=True):
             FakeS3Operator(task_id="fake-task-id", **op_kwargs)
 
-        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        if AIRFLOW_V_3_0_PLUS:
+            dagrun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
+        else:
+            dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
         tis = {ti.task_id: ti for ti in dagrun.task_instances}
         tis["fake-task-id"].run()
 

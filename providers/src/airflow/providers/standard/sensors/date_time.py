@@ -54,7 +54,7 @@ class DateTimeSensor(BaseSensorOperator):
     It handles some cases for which ``TimeSensor`` and ``TimeDeltaSensor`` are not suited.
 
     **Example** 1 :
-        If a task needs to wait for 11am on each ``execution_date``. Using
+        If a task needs to wait for 11am on each ``logical_date``. Using
         ``TimeSensor`` or ``TimeDeltaSensor``, all backfill tasks started at
         1am have to wait for 10 hours. This is unnecessary, e.g. a backfill
         task with ``{{ ds }} = '1970-01-01'`` does not need to wait because
@@ -69,7 +69,7 @@ class DateTimeSensor(BaseSensorOperator):
 
             DateTimeSensor(
                 task_id="wait_for_0100",
-                target_time="{{ next_execution_date.tomorrow().replace(hour=1) }}",
+                target_time="{{ next_logical_date.tomorrow().replace(hour=1) }}",
             )
 
     :param target_time: datetime after which the job succeeds. (templated)

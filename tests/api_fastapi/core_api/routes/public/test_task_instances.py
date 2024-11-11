@@ -63,7 +63,7 @@ class TestTaskInstanceEndpoint:
     def setup_attrs(self, session) -> None:
         self.default_time = DEFAULT
         self.ti_init = {
-            "execution_date": self.default_time,
+            "logical_date": self.default_time,
             "state": State.RUNNING,
         }
         self.ti_extras = {
@@ -98,7 +98,7 @@ class TestTaskInstanceEndpoint:
             counter = min(len(task_instances), counter)
 
         run_id = "TEST_DAG_RUN_ID"
-        execution_date = self.ti_init.pop("execution_date", self.default_time)
+        logical_date = self.ti_init.pop("logical_date", self.default_time)
         dr = None
 
         tis = []
@@ -110,16 +110,16 @@ class TestTaskInstanceEndpoint:
             else:
                 self.ti_init.update(task_instances[i])
 
-            if "execution_date" in self.ti_init:
+            if "logical_date" in self.ti_init:
                 run_id = f"TEST_DAG_RUN_ID_{i}"
-                execution_date = self.ti_init.pop("execution_date")
+                logical_date = self.ti_init.pop("logical_date")
                 dr = None
 
             if not dr:
                 dr = DagRun(
                     run_id=run_id,
                     dag_id=dag_id,
-                    execution_date=execution_date,
+                    logical_date=logical_date,
                     run_type=DagRunType.MANUAL,
                     state=dag_run_state,
                 )
@@ -462,7 +462,7 @@ class TestGetMappedTaskInstances:
     def setup_attrs(self) -> None:
         self.default_time = DEFAULT_DATETIME_1
         self.ti_init = {
-            "execution_date": self.default_time,
+            "logical_date": self.default_time,
             "state": State.RUNNING,
         }
         self.ti_extras = {
@@ -775,9 +775,9 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         [
             pytest.param(
                 [
-                    {"execution_date": DEFAULT_DATETIME_1},
-                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
-                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
+                    {"logical_date": DEFAULT_DATETIME_1},
+                    {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
+                    {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
                 ],
                 False,
                 "/public/dags/example_python_operator/dagRuns/~/taskInstances",
@@ -956,7 +956,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             self.create_task_instances(
                 session,
                 task_instances=[
-                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=i)}
+                    {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=i)}
                     for i in range(task_instances[dag_id])
                 ],
                 dag_id=dag_id,
@@ -1072,13 +1072,13 @@ class TestGetTaskDependencies(TestTaskInstanceEndpoint):
                 {
                     "dependencies": [
                         {
-                            "name": "Execution Date",
-                            "reason": "The execution date is 2020-01-01T00:00:00+00:00 but this is "
+                            "name": "Logical Date",
+                            "reason": "The logical date is 2020-01-01T00:00:00+00:00 but this is "
                             "before the task's start date 2021-01-01T00:00:00+00:00.",
                         },
                         {
-                            "name": "Execution Date",
-                            "reason": "The execution date is 2020-01-01T00:00:00+00:00 but this is "
+                            "name": "Logical Date",
+                            "reason": "The logical date is 2020-01-01T00:00:00+00:00 but this is "
                             "before the task's DAG's start date 2021-01-01T00:00:00+00:00.",
                         },
                     ],
@@ -1089,12 +1089,12 @@ class TestGetTaskDependencies(TestTaskInstanceEndpoint):
                 {
                     "dependencies": [
                         {
-                            "name": "Execution Date",
-                            "reason": "The execution date is 2020-01-01T00:00:00+00:00 but this is before the task's start date 2021-01-01T00:00:00+00:00.",
+                            "name": "Logical Date",
+                            "reason": "The logical date is 2020-01-01T00:00:00+00:00 but this is before the task's start date 2021-01-01T00:00:00+00:00.",
                         },
                         {
-                            "name": "Execution Date",
-                            "reason": "The execution date is 2020-01-01T00:00:00+00:00 but this is before the task's DAG's start date 2021-01-01T00:00:00+00:00.",
+                            "name": "Logical Date",
+                            "reason": "The logical date is 2020-01-01T00:00:00+00:00 but this is before the task's DAG's start date 2021-01-01T00:00:00+00:00.",
                         },
                         {"name": "Task Instance State", "reason": "Task is in the 'None' state."},
                     ]

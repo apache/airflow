@@ -25,7 +25,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 from botocore.waiter import Waiter
 from jinja2 import StrictUndefined
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.exceptions import TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
@@ -35,6 +37,9 @@ from airflow.utils.types import DagRunType
 
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
 from providers.tests.amazon.aws.utils.test_waiter import assert_expected_waiter_type
+
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 TASK_ID = "test_task"
 
@@ -96,12 +101,20 @@ class TestEmrCreateJobFlowOperator:
     @pytest.mark.db_test
     def test_render_template(self, session, clean_dags_and_dagruns):
         self.operator.job_flow_overrides = self._config
-        dag_run = DagRun(
-            dag_id=self.operator.dag_id,
-            execution_date=DEFAULT_DATE,
-            run_id="test",
-            run_type=DagRunType.MANUAL,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=self.operator.dag_id,
+                logical_date=DEFAULT_DATE,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=self.operator.dag_id,
+                execution_date=DEFAULT_DATE,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
         ti = TaskInstance(task=self.operator)
         ti.dag_run = dag_run
         session.add(ti)
@@ -134,12 +147,20 @@ class TestEmrCreateJobFlowOperator:
         self.operator.job_flow_overrides = "job.j2.json"
         self.operator.params = {"releaseLabel": "5.11.0"}
 
-        dag_run = DagRun(
-            dag_id=self.operator.dag_id,
-            execution_date=DEFAULT_DATE,
-            run_id="test",
-            run_type=DagRunType.MANUAL,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=self.operator.dag_id,
+                logical_date=DEFAULT_DATE,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=self.operator.dag_id,
+                execution_date=DEFAULT_DATE,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
         ti = TaskInstance(task=self.operator)
         ti.dag_run = dag_run
         session.add(ti)

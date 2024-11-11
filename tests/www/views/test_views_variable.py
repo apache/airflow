@@ -129,7 +129,7 @@ def test_import_variables_success(session, admin_client):
         "/variable/varimport", data={"file": (bytes_content, "test.json")}, follow_redirects=True
     )
     check_content_in_response("4 variable(s) successfully updated.", resp)
-    _check_last_log(session, dag_id=None, event="variables.varimport", execution_date=None)
+    _check_last_log(session, dag_id=None, event="variables.varimport", logical_date=None)
 
 
 def test_import_variables_override_existing_variables_if_set(session, admin_client, caplog):
@@ -144,7 +144,7 @@ def test_import_variables_override_existing_variables_if_set(session, admin_clie
         follow_redirects=True,
     )
     check_content_in_response("2 variable(s) successfully updated.", resp)
-    _check_last_log(session, dag_id=None, event="variables.varimport", execution_date=None)
+    _check_last_log(session, dag_id=None, event="variables.varimport", logical_date=None)
 
 
 def test_import_variables_skips_update_if_set(session, admin_client, caplog):
@@ -163,7 +163,7 @@ def test_import_variables_skips_update_if_set(session, admin_client, caplog):
     check_content_in_response(
         "The variables with these keys: &#39;str_key&#39; were skipped because they already exists", resp
     )
-    _check_last_log(session, dag_id=None, event="variables.varimport", execution_date=None)
+    _check_last_log(session, dag_id=None, event="variables.varimport", logical_date=None)
     assert "Variable: str_key already exists, skipping." in caplog.text
 
 

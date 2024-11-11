@@ -36,12 +36,17 @@ if TYPE_CHECKING:
 
 from google.api_core.exceptions import Conflict
 from google.cloud.exceptions import GoogleCloudError
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import FileDetailsLink, StorageLink
 from airflow.utils import timezone
+
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 
 class GCSCreateBucketOperator(GoogleCloudBaseOperator):
@@ -683,7 +688,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
     :param source_bucket: The bucket to fetch data from. (templated)
     :param source_prefix: Prefix string which filters objects whose name begin with
-           this prefix. Can interpolate execution date and time components. (templated)
+           this prefix. Can interpolate logical date and time components. (templated)
     :param source_gcp_conn_id: The connection ID to use connecting to Google Cloud
            to download files to be processed.
     :param source_impersonation_chain: Optional service account to impersonate using short-term
@@ -697,7 +702,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
     :param destination_bucket: The bucket to write data to. (templated)
     :param destination_prefix: Prefix string for the upload location.
-        Can interpolate execution date and time components. (templated)
+        Can interpolate logical date and time components. (templated)
     :param destination_gcp_conn_id: The connection ID to use connecting to Google Cloud
            to upload processed files.
     :param destination_impersonation_chain: Optional service account to impersonate using short-term
@@ -794,7 +799,10 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
             orig_start = context["data_interval_start"]
             orig_end = context["data_interval_end"]
         except KeyError:
-            orig_start = pendulum.instance(context["execution_date"])
+            if AIRFLOW_V_3_0_PLUS:
+                orig_start = pendulum.instance(context["logical_date"])
+            else:
+                orig_start = pendulum.instance(context["execution_date"])  # type: ignore[typeddict-item]
             next_dagrun = context["dag"].next_dagrun_info(last_automated_dagrun=None, restricted=False)
             if next_dagrun and next_dagrun.data_interval and next_dagrun.data_interval.end:
                 orig_end = next_dagrun.data_interval.end

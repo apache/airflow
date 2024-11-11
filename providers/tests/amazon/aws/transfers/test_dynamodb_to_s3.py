@@ -23,8 +23,9 @@ from decimal import Decimal
 from unittest.mock import MagicMock, patch
 
 import pytest
+from packaging.version import Version
 
-from airflow import DAG
+from airflow import DAG, __version__ as airflow_version
 from airflow.models import DagRun, TaskInstance
 from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import (
     DynamoDBToS3Operator,
@@ -32,6 +33,9 @@ from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import (
 )
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
+
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 
 class TestJSONEncoder:
@@ -272,12 +276,20 @@ class TestDynamodbToS3:
             dest_aws_conn_id="{{ ds }}",
         )
         ti = TaskInstance(operator, run_id="something")
-        ti.dag_run = DagRun(
-            dag_id=dag.dag_id,
-            run_id="something",
-            execution_date=timezone.datetime(2020, 1, 1),
-            run_type=DagRunType.MANUAL,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            ti.dag_run = DagRun(
+                dag_id=dag.dag_id,
+                run_id="something",
+                logical_date=timezone.datetime(2020, 1, 1),
+                run_type=DagRunType.MANUAL,
+            )
+        else:
+            ti.dag_run = DagRun(
+                dag_id=dag.dag_id,
+                run_id="something",
+                execution_date=timezone.datetime(2020, 1, 1),
+                run_type=DagRunType.MANUAL,
+            )
         session.add(ti)
         session.commit()
         ti.render_templates()

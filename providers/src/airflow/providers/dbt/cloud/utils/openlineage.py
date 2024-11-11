@@ -142,7 +142,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
         parent_run_id = OpenLineageAdapter.build_task_instance_run_id(
             dag_id=task_instance.dag_id,
             task_id=operator.task_id,
-            execution_date=task_instance.execution_date,
+            logical_date=task_instance.logical_date,
             try_number=_get_try_number(task_instance),
         )
 

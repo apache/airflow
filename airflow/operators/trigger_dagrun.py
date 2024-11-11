@@ -195,7 +195,7 @@ class TriggerDagRunOperator(BaseOperator):
                 dag_id=self.trigger_dag_id,
                 run_id=run_id,
                 conf=self.conf,
-                execution_date=parsed_logical_date,
+                logical_date=parsed_logical_date,
                 replace_microseconds=False,
                 triggered_by=DagRunTriggeredByType.OPERATOR,
             )
@@ -234,7 +234,7 @@ class TriggerDagRunOperator(BaseOperator):
                     trigger=DagStateTrigger(
                         dag_id=self.trigger_dag_id,
                         states=self.allowed_states + self.failed_states,
-                        execution_dates=[dag_run.logical_date],
+                        logical_dates=[dag_run.logical_date],
                         poll_interval=self.poke_interval,
                     ),
                     method_name="execute_complete",
@@ -261,12 +261,12 @@ class TriggerDagRunOperator(BaseOperator):
     @provide_session
     def execute_complete(self, context: Context, session: Session, event: tuple[str, dict[str, Any]]):
         # This logical_date is parsed from the return trigger event
-        provided_logical_date = event[1]["execution_dates"][0]
+        provided_logical_date = event[1]["logical_dates"][0]
         try:
             # Note: here execution fails on database isolation mode. Needs structural changes for AIP-72
             dag_run = session.execute(
                 select(DagRun).where(
-                    DagRun.dag_id == self.trigger_dag_id, DagRun.execution_date == provided_logical_date
+                    DagRun.dag_id == self.trigger_dag_id, DagRun.logical_date == provided_logical_date
                 )
             ).scalar_one()
         except NoResultFound:

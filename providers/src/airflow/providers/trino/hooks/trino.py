@@ -23,14 +23,19 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, TypeVar
 
 import trino
+from packaging.version import Version
 from trino.exceptions import DatabaseError
 from trino.transaction import IsolationLevel
 
+from airflow import __version__ as airflow_version
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import exactly_one
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
+
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -39,17 +44,18 @@ T = TypeVar("T")
 
 
 def generate_trino_client_info() -> str:
-    """Return json string with dag_id, task_id, execution_date and try_number."""
+    """Return json string with dag_id, task_id, logical_date and try_number."""
     context_var = {
         format_map["default"].replace(DEFAULT_FORMAT_PREFIX, ""): os.environ.get(
             format_map["env_var_format"], ""
         )
         for format_map in AIRFLOW_VAR_NAME_FORMAT_MAPPING.values()
     }
+    date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
     task_info = {
         "dag_id": context_var["dag_id"],
         "task_id": context_var["task_id"],
-        "execution_date": context_var["execution_date"],
+        date_key: context_var["logical_date"] if AIRFLOW_V_3_0_PLUS else context_var["execution_date"],
         "try_number": context_var["try_number"],
         "dag_run_id": context_var["dag_run_id"],
         "dag_owner": context_var["dag_owner"],

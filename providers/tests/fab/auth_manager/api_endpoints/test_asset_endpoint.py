@@ -20,16 +20,19 @@ from typing import Generator
 
 import pytest
 import time_machine
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.security import permissions
 from airflow.utils import timezone
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_assets, clear_db_runs
 from tests_common.test_utils.www import _check_last_log
 
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 try:
     from airflow.models.asset import AssetDagRunQueue, AssetModel
 except ImportError:
@@ -168,9 +171,7 @@ class TestDeleteDagAssetQueuedEvent(TestAssetEndpoint):
         assert response.status_code == 204
         conn = session.query(AssetDagRunQueue).all()
         assert len(conn) == 0
-        _check_last_log(
-            session, dag_id=dag_id, event="api.delete_dag_asset_queued_event", execution_date=None
-        )
+        _check_last_log(session, dag_id=dag_id, event="api.delete_dag_asset_queued_event", logical_date=None)
 
     def test_should_respond_404(self):
         dag_id = "not_exists"
@@ -309,7 +310,7 @@ class TestDeleteDatasetQueuedEvents(TestQueuedEventEndpoint):
         assert response.status_code == 204
         conn = session.query(AssetDagRunQueue).all()
         assert len(conn) == 0
-        _check_last_log(session, dag_id=None, event="api.delete_asset_queued_events", execution_date=None)
+        _check_last_log(session, dag_id=None, event="api.delete_asset_queued_events", logical_date=None)
 
     def test_should_respond_404(self):
         asset_uri = "not_exists"

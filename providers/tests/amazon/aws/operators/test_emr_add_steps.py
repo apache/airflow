@@ -24,7 +24,9 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 from jinja2 import StrictUndefined
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.emr import EmrAddStepsOperator
@@ -33,6 +35,9 @@ from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
+
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
@@ -98,12 +103,20 @@ class TestEmrAddStepsOperator:
 
     @pytest.mark.db_test
     def test_render_template(self, session, clean_dags_and_dagruns):
-        dag_run = DagRun(
-            dag_id=self.operator.dag.dag_id,
-            execution_date=DEFAULT_DATE,
-            run_id="test",
-            run_type=DagRunType.MANUAL,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=self.operator.dag.dag_id,
+                logical_date=DEFAULT_DATE,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=self.operator.dag.dag_id,
+                execution_date=DEFAULT_DATE,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
         ti = TaskInstance(task=self.operator)
         ti.dag_run = dag_run
         session.add(ti)
@@ -155,9 +168,20 @@ class TestEmrAddStepsOperator:
             dag=dag,
             do_xcom_push=False,
         )
-        dag_run = DagRun(
-            dag_id=dag.dag_id, execution_date=timezone.utcnow(), run_id="test", run_type=DagRunType.MANUAL
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=dag.dag_id,
+                logical_date=timezone.utcnow(),
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=dag.dag_id,
+                execution_date=timezone.utcnow(),
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
         ti = TaskInstance(task=test_task)
         ti.dag_run = dag_run
         session.add(ti)

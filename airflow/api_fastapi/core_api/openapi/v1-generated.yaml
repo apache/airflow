@@ -6119,10 +6119,10 @@ components:
           type: string
           format: date-time
           title: Timestamp
-        execution_date:
+        logical_date:
           type: string
           format: date-time
-          title: Execution Date
+          title: Logical Date
         map_index:
           type: integer
           title: Map Index
@@ -6138,7 +6138,7 @@ components:
       required:
       - key
       - timestamp
-      - execution_date
+      - logical_date
       - map_index
       - task_id
       - dag_id
@@ -6154,10 +6154,10 @@ components:
           type: string
           format: date-time
           title: Timestamp
-        execution_date:
+        logical_date:
           type: string
           format: date-time
-          title: Execution Date
+          title: Logical Date
         map_index:
           type: integer
           title: Map Index
@@ -6176,7 +6176,7 @@ components:
       required:
       - key
       - timestamp
-      - execution_date
+      - logical_date
       - map_index
       - task_id
       - dag_id

@@ -26,8 +26,9 @@ from unittest.mock import MagicMock, patch
 from zipfile import ZipFile
 
 import pytest
+from packaging.version import Version
 
-from airflow import settings
+from airflow import __version__ as airflow_version, settings
 from airflow.callbacks.callback_requests import TaskCallbackRequest
 from airflow.configuration import TEST_DAGS_FOLDER, conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
@@ -41,7 +42,7 @@ from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, ParseImportError
+from tests_common.test_utils.compat import ParseImportError
 from tests_common.test_utils.config import conf_vars, env_vars
 from tests_common.test_utils.db import (
     clear_db_dags,
@@ -53,6 +54,8 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.mock_executor import MockExecutor
 
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
@@ -127,7 +130,7 @@ class TestDagFileProcessor:
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dagrun = dag.create_dagrun(
                 state=State.RUNNING,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
                 session=session,
@@ -165,7 +168,7 @@ class TestDagFileProcessor:
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dagrun = dag.create_dagrun(
                 state=State.RUNNING,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
                 session=session,
@@ -203,7 +206,7 @@ class TestDagFileProcessor:
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dagrun = dag.create_dagrun(
                 state=State.RUNNING,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
                 session=session,
@@ -239,7 +242,7 @@ class TestDagFileProcessor:
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dagrun = dag.create_dagrun(
                 state=State.RUNNING,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
                 session=session,

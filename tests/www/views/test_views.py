@@ -24,7 +24,9 @@ from unittest.mock import patch
 
 import pytest
 from markupsafe import Markup
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.configuration import (
     initialize_config,
     write_default_airflow_configuration_if_needed,
@@ -41,11 +43,12 @@ from airflow.www.views import (
     get_value_from_path,
 )
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
 from tests_common.test_utils.www import check_content_in_response, check_content_not_in_response
 
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
@@ -224,11 +227,11 @@ def test_endpoint_should_not_be_unauthenticated(app):
     "url, content",
     [
         (
-            "/taskinstance/list/?_flt_0_execution_date=2018-10-09+22:44:31",
+            "/taskinstance/list/?_flt_0_logical_date=2018-10-09+22:44:31",
             "List Task Instance",
         ),
         (
-            "/taskreschedule/list/?_flt_0_execution_date=2018-10-09+22:44:31",
+            "/taskreschedule/list/?_flt_0_logical_date=2018-10-09+22:44:31",
             "List Task Reschedule",
         ),
     ],
@@ -317,7 +320,6 @@ def test_mark_task_instance_state(test_app):
     Test that _mark_task_instance_state() does all three things:
     - Marks the given TaskInstance as SUCCESS;
     - Clears downstream TaskInstances in FAILED/UPSTREAM_FAILED state;
-    - Set DagRun to QUEUED.
     """
     from airflow.models.dag import DAG
     from airflow.models.dagbag import DagBag
@@ -345,7 +347,7 @@ def test_mark_task_instance_state(test_app):
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dagrun = dag.create_dagrun(
         start_date=start_date,
-        execution_date=start_date,
+        logical_date=start_date,
         data_interval=(start_date, start_date),
         state=State.FAILED,
         run_type=DagRunType.SCHEDULED,
@@ -358,7 +360,7 @@ def test_mark_task_instance_state(test_app):
             .filter(
                 TaskInstance.dag_id == dag.dag_id,
                 TaskInstance.task_id == task.task_id,
-                TaskInstance.execution_date == start_date,
+                TaskInstance.logical_date == start_date,
             )
             .one()
         )
@@ -448,7 +450,7 @@ def test_mark_task_group_state(test_app):
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dagrun = dag.create_dagrun(
         start_date=start_date,
-        execution_date=start_date,
+        logical_date=start_date,
         data_interval=(start_date, start_date),
         state=State.FAILED,
         run_type=DagRunType.SCHEDULED,
@@ -461,7 +463,7 @@ def test_mark_task_group_state(test_app):
             .filter(
                 TaskInstance.dag_id == dag.dag_id,
                 TaskInstance.task_id == task.task_id,
-                TaskInstance.execution_date == start_date,
+                TaskInstance.logical_date == start_date,
             )
             .one()
         )
@@ -571,31 +573,31 @@ INVALID_DATETIME_RESPONSE = re.compile(r"Invalid datetime: &#x?\d+;invalid&#x?\d
     "url, content",
     [
         (
-            "/rendered-templates?execution_date=invalid",
+            "/rendered-templates?logical_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "/log?dag_id=tutorial&execution_date=invalid",
+            "/log?dag_id=tutorial&logical_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "/redirect_to_external_log?execution_date=invalid",
+            "/redirect_to_external_log?logical_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "/task?execution_date=invalid",
+            "/task?logical_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "dags/example_bash_operator/graph?execution_date=invalid",
+            "dags/example_bash_operator/graph?logical_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "dags/example_bash_operator/gantt?execution_date=invalid",
+            "dags/example_bash_operator/gantt?logical_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "extra_links?execution_date=invalid",
+            "extra_links?logical_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
     ],

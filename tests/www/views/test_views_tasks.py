@@ -26,8 +26,9 @@ from getpass import getuser
 import pendulum
 import pytest
 import time_machine
+from packaging.version import Version
 
-from airflow import settings
+from airflow import __version__ as airflow_version, settings
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
@@ -49,7 +50,7 @@ from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     delete_roles,
     delete_user,
 )
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BashOperator
+from tests_common.test_utils.compat import BashOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
 from tests_common.test_utils.www import (
@@ -58,6 +59,8 @@ from tests_common.test_utils.www import (
     client_with_login,
 )
 
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
@@ -84,7 +87,7 @@ def _init_dagruns(app):
         app.dag_bag.get_dag("example_bash_operator").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             start_date=timezone.utcnow(),
             state=State.RUNNING,
@@ -93,7 +96,7 @@ def _init_dagruns(app):
         app.dag_bag.get_dag("example_python_operator").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             start_date=timezone.utcnow(),
             state=State.RUNNING,
@@ -109,7 +112,7 @@ def _init_dagruns(app):
         app.dag_bag.get_dag("example_xcom").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             start_date=timezone.utcnow(),
             state=State.RUNNING,
@@ -118,7 +121,7 @@ def _init_dagruns(app):
         app.dag_bag.get_dag("latest_only").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             start_date=timezone.utcnow(),
             state=State.RUNNING,
@@ -127,7 +130,7 @@ def _init_dagruns(app):
         app.dag_bag.get_dag("example_task_group").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             start_date=timezone.utcnow(),
             state=State.RUNNING,
@@ -178,38 +181,38 @@ def client_ti_without_dag_edit(app):
             id="delete-dag-button-normal",
         ),
         pytest.param(
-            f"task?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}",
+            f"task?task_id=runme_0&dag_id=example_bash_operator&logical_date={DEFAULT_VAL}",
             ["Grid"],
             id="task-grid-button",
         ),
         pytest.param(
-            f"task?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}",
+            f"task?task_id=runme_0&dag_id=example_bash_operator&logical_date={DEFAULT_VAL}",
             ["Task Instance Details"],
             id="task",
         ),
         pytest.param(
-            f"log?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}",
+            f"log?task_id=runme_0&dag_id=example_bash_operator&logical_date={DEFAULT_VAL}",
             ["Grid"],
             id="log-grid-button",
         ),
         pytest.param(
-            f"xcom?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}",
+            f"xcom?task_id=runme_0&dag_id=example_bash_operator&logical_date={DEFAULT_VAL}",
             ["XCom"],
             id="xcom",
         ),
         pytest.param(
-            f"xcom?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}",
+            f"xcom?task_id=runme_0&dag_id=example_bash_operator&logical_date={DEFAULT_VAL}",
             ["Grid"],
             id="xcom-grid-button",
         ),
         pytest.param("xcom/list", ["List XComs"], id="xcom-list"),
         pytest.param(
-            f"rendered-templates?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}",
+            f"rendered-templates?task_id=runme_0&dag_id=example_bash_operator&logical_date={DEFAULT_VAL}",
             ["Rendered Template"],
             id="rendered-templates",
         ),
         pytest.param(
-            f"rendered-templates?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}",
+            f"rendered-templates?task_id=runme_0&dag_id=example_bash_operator&logical_date={DEFAULT_VAL}",
             ["Grid"],
             id="rendered-templates-grid-button",
         ),
@@ -362,7 +365,7 @@ def test_views_get(admin_client, url, contents):
 
 
 def test_xcom_return_value_is_not_bytes(admin_client):
-    url = f"xcom?dag_id=example_bash_operator&task_id=runme_0&execution_date={DEFAULT_VAL}&map_index=-1"
+    url = f"xcom?dag_id=example_bash_operator&task_id=runme_0&logical_date={DEFAULT_VAL}&map_index=-1"
     resp = admin_client.get(url, follow_redirects=True)
     # check that {"x":1} is in the response
     content = "{&#39;x&#39;:1}"
@@ -373,7 +376,7 @@ def test_xcom_return_value_is_not_bytes(admin_client):
 
 
 def test_rendered_task_view(admin_client):
-    url = f"task?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}"
+    url = f"task?task_id=runme_0&dag_id=example_bash_operator&logical_date={DEFAULT_VAL}"
     resp = admin_client.get(url, follow_redirects=True)
     resp_html = resp.data.decode("utf-8")
     assert resp.status_code == 200
@@ -382,7 +385,7 @@ def test_rendered_task_view(admin_client):
 
 
 def test_rendered_k8s(admin_client):
-    url = f"rendered-k8s?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}"
+    url = f"rendered-k8s?task_id=runme_0&dag_id=example_bash_operator&logical_date={DEFAULT_VAL}"
     with unittest.mock.patch.object(settings, "IS_K8S_OR_K8SCELERY_EXECUTOR", True):
         resp = admin_client.get(url, follow_redirects=True)
         check_content_in_response("K8s Pod Spec", resp)
@@ -390,7 +393,7 @@ def test_rendered_k8s(admin_client):
 
 @conf_vars({("core", "executor"): "LocalExecutor"})
 def test_rendered_k8s_without_k8s(admin_client):
-    url = f"rendered-k8s?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}"
+    url = f"rendered-k8s?task_id=runme_0&dag_id=example_bash_operator&logical_date={DEFAULT_VAL}"
     resp = admin_client.get(url, follow_redirects=True)
     assert 404 == resp.status_code
 
@@ -399,7 +402,7 @@ def test_tree_trigger_origin_tree_view(app, admin_client):
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     app.dag_bag.get_dag("test_tree_view").create_dagrun(
         run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
+        logical_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
@@ -417,7 +420,7 @@ def test_graph_trigger_origin_grid_view(app, admin_client):
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     app.dag_bag.get_dag("test_tree_view").create_dagrun(
         run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
+        logical_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
@@ -435,7 +438,7 @@ def test_gantt_trigger_origin_grid_view(app, admin_client):
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     app.dag_bag.get_dag("test_tree_view").create_dagrun(
         run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
+        logical_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
@@ -554,7 +557,7 @@ def test_code_from_db_all_example_dags(admin_client):
             dict(
                 task_id="runme_1",
                 dag_id="example_bash_operator",
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 upstream="false",
                 downstream="false",
                 future="false",
@@ -568,7 +571,7 @@ def test_code_from_db_all_example_dags(admin_client):
             dict(
                 group_id="section_1",
                 dag_id="example_task_group",
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 upstream="false",
                 downstream="false",
                 future="false",
@@ -597,7 +600,7 @@ def test_dag_never_run(admin_client, url):
     form = dict(
         task_id="run_this_last",
         dag_id=dag_id,
-        execution_date=DEFAULT_DATE,
+        logical_date=DEFAULT_DATE,
         upstream="false",
         downstream="false",
         future="false",
@@ -797,7 +800,7 @@ def _get_appbuilder_pk_string(model_view_cls, instance) -> str:
 def test_task_instance_delete(session, admin_client, create_task_instance):
     task_instance_to_delete = create_task_instance(
         task_id="test_task_instance_delete",
-        execution_date=timezone.utcnow(),
+        logical_date=timezone.utcnow(),
         state=State.DEFERRED,
     )
     composite_key = _get_appbuilder_pk_string(TaskInstanceModelView, task_instance_to_delete)
@@ -811,7 +814,7 @@ def test_task_instance_delete(session, admin_client, create_task_instance):
 def test_task_instance_delete_permission_denied(session, client_ti_without_dag_edit, create_task_instance):
     task_instance_to_delete = create_task_instance(
         task_id="test_task_instance_delete_permission_denied",
-        execution_date=timezone.utcnow(),
+        logical_date=timezone.utcnow(),
         state=State.DEFERRED,
         session=session,
     )
@@ -875,7 +878,7 @@ def test_task_instance_clear_downstream(session, admin_client, dag_maker):
         run_id="run_1",
         state=DagRunState.SUCCESS,
         run_type=DagRunType.SCHEDULED,
-        execution_date=dag_maker.dag.start_date,
+        logical_date=dag_maker.dag.start_date,
         start_date=dag_maker.dag.start_date,
         session=session,
         **triggered_by_kwargs,
@@ -885,7 +888,7 @@ def test_task_instance_clear_downstream(session, admin_client, dag_maker):
         run_id="run_2",
         state=DagRunState.SUCCESS,
         run_type=DagRunType.SCHEDULED,
-        execution_date=dag_maker.dag.start_date.add(days=1),
+        logical_date=dag_maker.dag.start_date.add(days=1),
         start_date=dag_maker.dag.start_date.add(days=1),
         session=session,
         **triggered_by_kwargs,
@@ -1054,10 +1057,10 @@ def test_get_date_time_num_runs_dag_runs_form_data_graph_view(app, dag_maker, ad
     """Test the get_date_time_num_runs_dag_runs_form_data function."""
     from airflow.www.views import get_date_time_num_runs_dag_runs_form_data
 
-    execution_date = pendulum.now(tz="UTC")
+    logical_date = pendulum.now(tz="UTC")
     with dag_maker(
         dag_id="test_get_date_time_num_runs_dag_runs_form_data",
-        start_date=execution_date,
+        start_date=logical_date,
     ) as dag:
         BashOperator(task_id="task_1", bash_command="echo test")
 
@@ -1073,16 +1076,16 @@ def test_get_date_time_num_runs_dag_runs_form_data_graph_view(app, dag_maker, ad
         dttm = pendulum.parse(data["dttm"].isoformat())
         base_date = pendulum.parse(data["base_date"].isoformat())
 
-        assert dttm.date() == execution_date.date()
-        assert dttm.time().hour == _safe_parse_datetime(execution_date.time().isoformat()).time().hour
-        assert dttm.time().minute == _safe_parse_datetime(execution_date.time().isoformat()).time().minute
-        assert base_date.date() == execution_date.date()
+        assert dttm.date() == logical_date.date()
+        assert dttm.time().hour == _safe_parse_datetime(logical_date.time().isoformat()).time().hour
+        assert dttm.time().minute == _safe_parse_datetime(logical_date.time().isoformat()).time().minute
+        assert base_date.date() == logical_date.date()
 
 
 def test_task_instances(admin_client):
     """Test task_instances view."""
     resp = admin_client.get(
-        f"/object/task_instances?dag_id=example_bash_operator&execution_date={STR_DEFAULT_DATE}",
+        f"/object/task_instances?dag_id=example_bash_operator&logical_date={STR_DEFAULT_DATE}",
         follow_redirects=True,
     )
     assert resp.status_code == 200
@@ -1092,7 +1095,7 @@ def test_task_instances(admin_client):
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
-            "execution_date": DEFAULT_DATE.isoformat(),
+            "logical_date": DEFAULT_DATE.isoformat(),
             "executor": None,
             "executor_config": {},
             "external_executor_id": None,
@@ -1129,7 +1132,7 @@ def test_task_instances(admin_client):
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
-            "execution_date": DEFAULT_DATE.isoformat(),
+            "logical_date": DEFAULT_DATE.isoformat(),
             "executor": None,
             "executor_config": {},
             "external_executor_id": None,
@@ -1166,7 +1169,7 @@ def test_task_instances(admin_client):
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
-            "execution_date": DEFAULT_DATE.isoformat(),
+            "logical_date": DEFAULT_DATE.isoformat(),
             "executor": None,
             "executor_config": {},
             "external_executor_id": None,
@@ -1203,7 +1206,7 @@ def test_task_instances(admin_client):
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
-            "execution_date": DEFAULT_DATE.isoformat(),
+            "logical_date": DEFAULT_DATE.isoformat(),
             "executor": None,
             "executor_config": {},
             "external_executor_id": None,
@@ -1240,7 +1243,7 @@ def test_task_instances(admin_client):
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
-            "execution_date": DEFAULT_DATE.isoformat(),
+            "logical_date": DEFAULT_DATE.isoformat(),
             "executor": None,
             "executor_config": {},
             "external_executor_id": None,
@@ -1277,7 +1280,7 @@ def test_task_instances(admin_client):
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
-            "execution_date": DEFAULT_DATE.isoformat(),
+            "logical_date": DEFAULT_DATE.isoformat(),
             "executor": None,
             "executor_config": {},
             "external_executor_id": None,
@@ -1314,7 +1317,7 @@ def test_task_instances(admin_client):
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
-            "execution_date": DEFAULT_DATE.isoformat(),
+            "logical_date": DEFAULT_DATE.isoformat(),
             "executor": None,
             "executor_config": {},
             "external_executor_id": None,

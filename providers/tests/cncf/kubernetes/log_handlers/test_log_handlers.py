@@ -26,7 +26,9 @@ from unittest.mock import patch
 
 import pytest
 from kubernetes.client import models as k8s
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.executors import executor_loader
 from airflow.models.dag import DAG
@@ -41,9 +43,11 @@ from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, PythonOperator
+from tests_common.test_utils.compat import PythonOperator
 from tests_common.test_utils.config import conf_vars
 
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
@@ -81,7 +85,7 @@ class TestFileTaskLogHandler:
             dag_id="dag_for_testing_k8s_executor_log_read",
             task_id="task_for_testing_k8s_executor_log_read",
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
         )
         ti.state = state
         ti.triggerer_job = None
@@ -122,13 +126,22 @@ class TestFileTaskLogHandler:
                 executor_config={"pod_override": pod_override},
             )
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dagrun = dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
-            state=State.RUNNING,
-            execution_date=DEFAULT_DATE,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
-            **triggered_by_kwargs,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dagrun = dag.create_dagrun(
+                run_type=DagRunType.MANUAL,
+                state=State.RUNNING,
+                logical_date=DEFAULT_DATE,
+                data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
+                **triggered_by_kwargs,
+            )
+        else:
+            dagrun = dag.create_dagrun(
+                run_type=DagRunType.MANUAL,
+                state=State.RUNNING,
+                execution_date=DEFAULT_DATE,
+                data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
+                **triggered_by_kwargs,
+            )
         ti = TaskInstance(task=task, run_id=dagrun.run_id)
         ti.try_number = 3
 

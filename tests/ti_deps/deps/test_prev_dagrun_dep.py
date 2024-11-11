@@ -21,7 +21,9 @@ from datetime import timedelta
 from unittest.mock import ANY, Mock, patch
 
 import pytest
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.ti_deps.dep_context import DepContext
@@ -30,9 +32,10 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.timezone import convert_to_utc, datetime
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_runs
 
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
@@ -63,7 +66,7 @@ class TestPrevDagrunDep:
         dag.create_dagrun(
             run_id="old_run",
             state=TaskInstanceState.SUCCESS,
-            execution_date=old_task.start_date,
+            logical_date=old_task.start_date,
             run_type=DagRunType.SCHEDULED,
             data_interval=(old_task.start_date, old_task.start_date),
             **triggered_by_kwargs,
@@ -78,13 +81,13 @@ class TestPrevDagrunDep:
         )
 
         # New DAG run will include 1st TaskInstance of new_task
-        execution_date = convert_to_utc(datetime(2016, 1, 2))
+        logical_date = convert_to_utc(datetime(2016, 1, 2))
         dr = dag.create_dagrun(
             run_id="new_run",
             state=DagRunState.RUNNING,
-            execution_date=execution_date,
+            logical_date=logical_date,
             run_type=DagRunType.SCHEDULED,
-            data_interval=(execution_date, execution_date),
+            data_interval=(logical_date, logical_date),
             **triggered_by_kwargs,
         )
 
@@ -275,7 +278,7 @@ def test_dagrun_dep(mock_get_previous_scheduled_dagrun, kwargs):
         wait_for_downstream=wait_for_downstream,
     )
     if prev_tis:
-        prev_dagrun = Mock(execution_date=datetime(2016, 1, 2))
+        prev_dagrun = Mock(logical_date=datetime(2016, 1, 2))
     else:
         prev_dagrun = None
     mock_get_previous_scheduled_dagrun.return_value = prev_dagrun

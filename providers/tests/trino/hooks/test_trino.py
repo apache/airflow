@@ -23,11 +23,16 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
+from packaging.version import Version
 from trino.transaction import IsolationLevel
 
+from airflow import __version__ as airflow_version
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.trino.hooks.trino import TrinoHook
+
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 HOOK_GET_CONNECTION = "airflow.providers.trino.hooks.trino.TrinoHook.get_connection"
 BASIC_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.BasicAuthentication"
@@ -68,10 +73,11 @@ class TestTrinoHookConn:
         mock_get_connection.return_value = Connection(
             login="login", password="password", host="host", schema="hive"
         )
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         client = json.dumps(
             {
                 "dag_id": "dag-id",
-                "execution_date": "2022-01-01T00:00:00",
+                date_key: "2022-01-01T00:00:00",
                 "task_id": "task-id",
                 "try_number": "1",
                 "dag_run_id": "dag-run-id",

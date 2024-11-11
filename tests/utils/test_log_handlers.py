@@ -29,9 +29,11 @@ from unittest.mock import patch
 
 import pendulum
 import pytest
+from packaging.version import Version
 from pydantic.v1.utils import deep_update
 from requests.adapters import Response
 
+from airflow import __version__ as airflow_version
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.executors import executor_loader
 from airflow.jobs.job import Job
@@ -55,8 +57,10 @@ from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
+
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -100,7 +104,7 @@ class TestFileTaskLogHandler:
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
             **triggered_by_kwargs,
         )
@@ -155,7 +159,7 @@ class TestFileTaskLogHandler:
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
             **triggered_by_kwargs,
         )
@@ -217,7 +221,7 @@ class TestFileTaskLogHandler:
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
             **triggered_by_kwargs,
         )
@@ -280,7 +284,7 @@ class TestFileTaskLogHandler:
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
             **triggered_by_kwargs,
         )
@@ -358,7 +362,7 @@ class TestFileTaskLogHandler:
             dag_id="dag_for_testing_local_log_read",
             task_id="task_for_testing_local_log_read",
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
         )
         fth = FileTaskHandler("")
         actual = fth._read(ti=local_log_file_read, try_number=1)
@@ -407,7 +411,7 @@ class TestFileTaskLogHandler:
             dag_id="dag_for_testing_celery_executor_log_read",
             task_id="task_for_testing_celery_executor_log_read",
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
         )
         ti.state = TaskInstanceState.SUCCESS  # we're testing scenario when task is done
         with conf_vars({("core", "executor"): executor_name}):
@@ -440,7 +444,7 @@ class TestFileTaskLogHandler:
     @pytest.mark.parametrize("is_a_trigger", [True, False])
     def test_set_context_trigger(self, create_dummy_dag, dag_maker, is_a_trigger, session, tmp_path):
         create_dummy_dag(dag_id="test_fth", task_id="dummy")
-        (ti,) = dag_maker.create_dagrun(execution_date=pendulum.datetime(2023, 1, 1, tz="UTC")).task_instances
+        (ti,) = dag_maker.create_dagrun(logical_date=pendulum.datetime(2023, 1, 1, tz="UTC")).task_instances
         assert isinstance(ti, TaskInstance)
         if is_a_trigger:
             ti.is_trigger_log_context = True
@@ -461,12 +465,12 @@ class TestFileTaskLogHandler:
 
 class TestFilenameRendering:
     def test_python_formatting(self, create_log_template, create_task_instance):
-        create_log_template("{dag_id}/{task_id}/{execution_date}/{try_number}.log")
+        create_log_template("{dag_id}/{task_id}/{logical_date}/{try_number}.log")
         filename_rendering_ti = create_task_instance(
             dag_id="dag_for_testing_filename_rendering",
             task_id="task_for_testing_filename_rendering",
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
         )
 
         expected_filename = (
@@ -483,7 +487,7 @@ class TestFilenameRendering:
             dag_id="dag_for_testing_filename_rendering",
             task_id="task_for_testing_filename_rendering",
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
         )
 
         expected_filename = (
@@ -501,7 +505,7 @@ class TestLogUrl:
             dag_id="dag_for_testing_filename_rendering",
             task_id="task_for_testing_filename_rendering",
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
         )
         log_url_ti.hostname = "hostname"
         actual = FileTaskHandler("")._get_log_retrieval_url(log_url_ti, "DYNAMIC_PATH")
@@ -512,7 +516,7 @@ class TestLogUrl:
             dag_id="dag_for_testing_filename_rendering",
             task_id="task_for_testing_filename_rendering",
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
         )
         ti.hostname = "hostname"
         trigger = Trigger("", {})
@@ -544,7 +548,7 @@ log_sample = """[2022-11-16T00:05:54.278-0800] {taskinstance.py:1257} INFO -
 AIRFLOW_CTX_DAG_OWNER=airflow
 AIRFLOW_CTX_DAG_ID=simple_async_timedelta
 AIRFLOW_CTX_TASK_ID=wait
-AIRFLOW_CTX_EXECUTION_DATE=2022-11-16T08:05:52.324532+00:00
+AIRFLOW_CTX_LOGICAL_DATE=2022-11-16T08:05:52.324532+00:00
 AIRFLOW_CTX_TRY_NUMBER=1
 AIRFLOW_CTX_DAG_RUN_ID=manual__2022-11-16T08:05:52.324532+00:00
 [2022-11-16T00:05:54.604-0800] {taskinstance.py:1360} INFO - Pausing task as DEFERRED. dag_id=simple_async_timedelta, task_id=wait, execution_date=20221116T080552, start_date=20221116T080554
@@ -601,7 +605,7 @@ def test_interleave_interleaves():
             "[2022-11-16T00:05:54.592-0800] {taskinstance.py:1485} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER=airflow",
             "AIRFLOW_CTX_DAG_ID=simple_async_timedelta",
             "AIRFLOW_CTX_TASK_ID=wait",
-            "AIRFLOW_CTX_EXECUTION_DATE=2022-11-16T08:05:52.324532+00:00",
+            "AIRFLOW_CTX_LOGICAL_DATE=2022-11-16T08:05:52.324532+00:00",
             "AIRFLOW_CTX_TRY_NUMBER=1",
             "AIRFLOW_CTX_DAG_RUN_ID=manual__2022-11-16T08:05:52.324532+00:00",
             "[2022-11-16T00:05:54.604-0800] {taskinstance.py:1360} INFO - Pausing task as DEFERRED. dag_id=simple_async_timedelta, task_id=wait, execution_date=20221116T080552, start_date=20221116T080554",
@@ -618,7 +622,7 @@ def test_interleave_interleaves():
             "[2022-11-16T00:05:54.592-0800] {taskinstance.py:1485} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER=airflow",
             "AIRFLOW_CTX_DAG_ID=simple_async_timedelta",
             "AIRFLOW_CTX_TASK_ID=wait",
-            "AIRFLOW_CTX_EXECUTION_DATE=2022-11-16T08:05:52.324532+00:00",
+            "AIRFLOW_CTX_LOGICAL_DATE=2022-11-16T08:05:52.324532+00:00",
             "AIRFLOW_CTX_TRY_NUMBER=1",
             "AIRFLOW_CTX_DAG_RUN_ID=manual__2022-11-16T08:05:52.324532+00:00",
             "[2022-11-16T00:05:54.604-0800] {taskinstance.py:1360} INFO - Pausing task as DEFERRED. dag_id=simple_async_timedelta, task_id=wait, execution_date=20221116T080552, start_date=20221116T080554",
@@ -637,7 +641,7 @@ long_sample = """
 [2023-01-15T22:36:46.530-0800] {standard_task_runner.py:83} INFO - Running: ['airflow', 'tasks', 'run', 'example_time_delta_sensor_async', 'wait', 'manual__2023-01-16T06:36:43.044492+00:00', '--job-id', '487', '--raw', '--subdir', '/Users/dstandish/code/airflow/airflow/example_dags/example_time_delta_sensor_async.py', '--cfg-path', '/var/folders/7_/1xx0hqcs3txd7kqt0ngfdjth0000gn/T/tmpiwyl54bn', '--no-shut-down-logging']
 [2023-01-15T22:36:46.536-0800] {standard_task_runner.py:84} INFO - Job 487: Subtask wait
 [2023-01-15T22:36:46.624-0800] {task_command.py:417} INFO - Running <TaskInstance: example_time_delta_sensor_async.wait manual__2023-01-16T06:36:43.044492+00:00 [running]> on host daniels-mbp-2.lan
-[2023-01-15T22:36:46.918-0800] {taskinstance.py:1558} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='airflow' AIRFLOW_CTX_DAG_ID='example_time_delta_sensor_async' AIRFLOW_CTX_TASK_ID='wait' AIRFLOW_CTX_EXECUTION_DATE='2023-01-16T06:36:43.044492+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2023-01-16T06:36:43.044492+00:00'
+[2023-01-15T22:36:46.918-0800] {taskinstance.py:1558} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='airflow' AIRFLOW_CTX_DAG_ID='example_time_delta_sensor_async' AIRFLOW_CTX_TASK_ID='wait' AIRFLOW_CTX_LOGICAL_DATE='2023-01-16T06:36:43.044492+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2023-01-16T06:36:43.044492+00:00'
 [2023-01-15T22:36:46.929-0800] {taskinstance.py:1433} INFO - Pausing task as DEFERRED. dag_id=example_time_delta_sensor_async, task_id=wait, execution_date=20230116T063643, start_date=20230116T063646
 [2023-01-15T22:36:46.981-0800] {local_task_job.py:218} INFO - Task exited with return code 100 (task deferral)
 
@@ -649,7 +653,7 @@ long_sample = """
 [2023-01-15T22:36:46.530-0800] {standard_task_runner.py:83} INFO - Running: ['airflow', 'tasks', 'run', 'example_time_delta_sensor_async', 'wait', 'manual__2023-01-16T06:36:43.044492+00:00', '--job-id', '487', '--raw', '--subdir', '/Users/dstandish/code/airflow/airflow/example_dags/example_time_delta_sensor_async.py', '--cfg-path', '/var/folders/7_/1xx0hqcs3txd7kqt0ngfdjth0000gn/T/tmpiwyl54bn', '--no-shut-down-logging']
 [2023-01-15T22:36:46.536-0800] {standard_task_runner.py:84} INFO - Job 487: Subtask wait
 [2023-01-15T22:36:46.624-0800] {task_command.py:417} INFO - Running <TaskInstance: example_time_delta_sensor_async.wait manual__2023-01-16T06:36:43.044492+00:00 [running]> on host daniels-mbp-2.lan
-[2023-01-15T22:36:46.918-0800] {taskinstance.py:1558} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='airflow' AIRFLOW_CTX_DAG_ID='example_time_delta_sensor_async' AIRFLOW_CTX_TASK_ID='wait' AIRFLOW_CTX_EXECUTION_DATE='2023-01-16T06:36:43.044492+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2023-01-16T06:36:43.044492+00:00'
+[2023-01-15T22:36:46.918-0800] {taskinstance.py:1558} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='airflow' AIRFLOW_CTX_DAG_ID='example_time_delta_sensor_async' AIRFLOW_CTX_TASK_ID='wait' AIRFLOW_CTX_LOGICAL_DATE='2023-01-16T06:36:43.044492+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2023-01-16T06:36:43.044492+00:00'
 [2023-01-15T22:36:46.929-0800] {taskinstance.py:1433} INFO - Pausing task as DEFERRED. dag_id=example_time_delta_sensor_async, task_id=wait, execution_date=20230116T063643, start_date=20230116T063646
 [2023-01-15T22:36:46.981-0800] {local_task_job.py:218} INFO - Task exited with return code 100 (task deferral)
 [2023-01-15T22:37:17.673-0800] {taskinstance.py:1131} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: example_time_delta_sensor_async.wait manual__2023-01-16T06:36:43.044492+00:00 [queued]>

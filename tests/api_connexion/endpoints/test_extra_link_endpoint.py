@@ -20,7 +20,9 @@ import os
 from urllib.parse import quote_plus
 
 import pytest
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
@@ -32,11 +34,13 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.api_connexion_utils import create_user, delete_user
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BaseOperatorLink
+from tests_common.test_utils.compat import BaseOperatorLink
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
 from tests_common.test_utils.mock_operators import CustomOperator
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
 
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
@@ -79,7 +83,7 @@ class TestGetExtraLinks:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         self.dag.create_dagrun(
             run_id="TEST_DAG_RUN_ID",
-            execution_date=self.default_time,
+            logical_date=self.default_time,
             run_type=DagRunType.MANUAL,
             state=DagRunState.SUCCESS,
             session=session,

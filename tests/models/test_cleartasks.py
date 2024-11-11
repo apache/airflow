@@ -21,9 +21,10 @@ import datetime
 import random
 
 import pytest
+from packaging.version import Version
 from sqlalchemy import select
 
-from airflow import settings
+from airflow import __version__ as airflow_version, settings
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, clear_task_instances
@@ -37,7 +38,9 @@ from airflow.utils.types import DagRunType
 
 from tests.models import DEFAULT_DATE
 from tests_common.test_utils import db
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -644,7 +647,7 @@ class TestClearTasks:
 
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dr = dag.create_dagrun(
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 state=State.RUNNING,
                 run_type=DagRunType.SCHEDULED,
                 session=session,

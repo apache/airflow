@@ -3895,10 +3895,10 @@ export const $XComResponseNative = {
       format: "date-time",
       title: "Timestamp",
     },
-    execution_date: {
+    logical_date: {
       type: "string",
       format: "date-time",
-      title: "Execution Date",
+      title: "Logical Date",
     },
     map_index: {
       type: "integer",
@@ -3920,7 +3920,7 @@ export const $XComResponseNative = {
   required: [
     "key",
     "timestamp",
-    "execution_date",
+    "logical_date",
     "map_index",
     "task_id",
     "dag_id",
@@ -3941,10 +3941,10 @@ export const $XComResponseString = {
       format: "date-time",
       title: "Timestamp",
     },
-    execution_date: {
+    logical_date: {
       type: "string",
       format: "date-time",
-      title: "Execution Date",
+      title: "Logical Date",
     },
     map_index: {
       type: "integer",
@@ -3974,7 +3974,7 @@ export const $XComResponseString = {
   required: [
     "key",
     "timestamp",
-    "execution_date",
+    "logical_date",
     "map_index",
     "task_id",
     "dag_id",

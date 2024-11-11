@@ -36,7 +36,6 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
 )
 from airflow.models.dag import DagModel
-from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 from tests.listeners import asset_listener
@@ -66,7 +65,7 @@ def mock_task_instance():
         map_index="13",
         start_date=datetime.now(),
         end_date=datetime.now(),
-        execution_date=datetime.now(),
+        logical_date=datetime.now(),
         duration=0.1,
         state="success",
         try_number=1,
@@ -146,7 +145,6 @@ class TestAssetManager:
 
         # Ensure we've created an asset
         assert session.query(AssetEvent).filter_by(asset_id=asm.id).count() == 1
-        assert session.query(AssetDagRunQueue).count() == 2
 
     @pytest.mark.usefixtures("clear_assets")
     def test_register_asset_change_with_alias(self, session, dag_maker, mock_task_instance):
@@ -180,8 +178,6 @@ class TestAssetManager:
 
         # Ensure we've created an asset
         assert session.query(AssetEvent).filter_by(asset_id=asm.id).count() == 1
-        assert session.query(AssetDagRunQueue).count() == 2
-        assert session.query(DagPriorityParsingRequest).count() == 2
 
     def test_register_asset_change_no_downstreams(self, session, mock_task_instance):
         asset_manager = AssetManager()

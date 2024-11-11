@@ -95,9 +95,7 @@ def get_mapped_task_instances(
     dag_run_id: str,
     task_id: str,
     request: Request,
-    logical_date_range: Annotated[
-        RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI, "execution_date"))
-    ],
+    logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI))],
     start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", TI))],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TI))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],
@@ -270,9 +268,7 @@ def get_task_instances(
     dag_id: str,
     dag_run_id: str,
     request: Request,
-    logical_date: Annotated[
-        RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI, "execution_date"))
-    ],
+    logical_date: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI))],
     start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", TI))],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TI))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],

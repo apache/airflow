@@ -21,7 +21,9 @@ import os
 from unittest import mock
 
 import pytest
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
@@ -42,6 +44,9 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
+
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 TEST_DAG_ID = "unit_tests"
 DEFAULT_DATE = datetime(2018, 1, 1)
@@ -232,12 +237,20 @@ class TestAthenaOperator:
         self, mock_conn, mock_run_query, mock_check_query_status, session, clean_dags_and_dagruns
     ):
         """Test we return the right value -- that will get put in to XCom by the execution engine"""
-        dag_run = DagRun(
-            dag_id=self.dag.dag_id,
-            execution_date=timezone.utcnow(),
-            run_id="test",
-            run_type=DagRunType.MANUAL,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                logical_date=timezone.utcnow(),
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                execution_date=timezone.utcnow(),
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
         ti = TaskInstance(task=self.athena)
         ti.dag_run = dag_run
         session.add(ti)

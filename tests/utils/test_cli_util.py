@@ -45,8 +45,7 @@ repo_root = Path(airflow.__file__).parent.parent
 class TestCliUtil:
     def test_metrics_build(self):
         func_name = "test"
-        exec_date = timezone.utcnow()
-        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", execution_date=exec_date)
+        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test")
         metrics = cli._build_metrics(func_name, namespace)
 
         expected = {
@@ -54,7 +53,6 @@ class TestCliUtil:
             "sub_command": "test",
             "dag_id": "foo",
             "task_id": "bar",
-            "execution_date": exec_date,
         }
         for k, v in expected.items():
             assert v == metrics.get(k)
@@ -132,7 +130,7 @@ class TestCliUtil:
         expected_command = expected_masked_command.split()
 
         exec_date = timezone.utcnow()
-        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", execution_date=exec_date)
+        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", logical_date=exec_date)
         with mock.patch.object(sys, "argv", args), mock.patch(
             "airflow.utils.session.create_session"
         ) as mock_create_session:
@@ -236,15 +234,33 @@ def success_func(_):
 
 def test__search_for_dags_file():
     dags_folder = settings.DAGS_FOLDER
-    assert _search_for_dag_file("") is None
-    assert _search_for_dag_file(None) is None
-    # if it's a file, and one can be find in subdir, should return full path
-    assert _search_for_dag_file("any/hi/test_dags_folder.py") == str(
-        Path(dags_folder) / "test_dags_folder.py"
-    )
-    # if a folder, even if exists, should return dags folder
-    existing_folder = Path(settings.DAGS_FOLDER, "subdir1")
-    assert existing_folder.exists()
-    assert _search_for_dag_file(existing_folder.as_posix()) is None
-    # when multiple files found, default to the dags folder
-    assert _search_for_dag_file("any/hi/__init__.py") is None
+    temp_dags_folder = Path(dags_folder)
+
+    temp_test_file = temp_dags_folder / "test_dags_folder.py"
+    temp_subdir = temp_dags_folder / "subdir1"
+    temp_created_files = []
+    try:
+        if not temp_test_file.exists():
+            temp_test_file.touch()
+            temp_created_files.append(temp_test_file)
+
+        if not temp_subdir.exists():
+            temp_subdir.mkdir()
+            temp_created_files.append(temp_subdir)
+
+        assert _search_for_dag_file("") is None
+        assert _search_for_dag_file(None) is None
+        # if it's a file, and one can be find in subdir, should return full path
+        assert _search_for_dag_file("any/hi/test_dags_folder.py") == str(temp_test_file)
+        # If a folder, even if it exists, should return None
+        assert temp_subdir.exists()
+        assert _search_for_dag_file(temp_subdir.as_posix()) is None
+
+        # When multiple files are found, should return None
+        assert _search_for_dag_file("any/hi/__init__.py") is None
+    finally:
+        for file in temp_created_files:
+            if file.is_file():
+                file.unlink(missing_ok=True)
+            elif file.is_dir() and not any(file.iterdir()):
+                file.rmdir()
