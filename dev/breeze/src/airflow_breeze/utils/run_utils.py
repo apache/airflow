@@ -249,8 +249,8 @@ def assert_pre_commit_installed():
                 )
                 get_console().print(
                     "\n[warning]With pipx you can install it with:[/]\n\n"
-                    "        pipx inject\n"
-                    "        pipx inject pre-commit pre-commit-uv\n"
+                    "        pipx inject pre-commit pre-commit-uv # optionally if you want to use uv to "
+                    "install virtualenvs\n"
                 )
         else:
             get_console().print(
