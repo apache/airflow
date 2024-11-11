@@ -411,6 +411,31 @@ export const prefetchUseDagRunServiceGetDagRun = (
     queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }),
   });
 /**
+ * Get Upstream Asset Events
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagRunServiceGetUpstreamAssetEvents = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({
+      dagId,
+      dagRunId,
+    }),
+    queryFn: () => DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }),
+  });
+/**
  * Get Dag Source
  * Get source code using file token.
  * @param data The data for the request.

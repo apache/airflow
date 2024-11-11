@@ -51,6 +51,8 @@ import type {
   DeleteDagRunResponse,
   PatchDagRunData,
   PatchDagRunResponse,
+  GetUpstreamAssetEventsData,
+  GetUpstreamAssetEventsResponse,
   GetDagSourceData,
   GetDagSourceResponse,
   GetEventLogData,
@@ -819,6 +821,34 @@ export class DagRunService {
       },
       body: data.requestBody,
       mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Upstream Asset Events
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getUpstreamAssetEvents(
+    data: GetUpstreamAssetEventsData,
+  ): CancelablePromise<GetUpstreamAssetEventsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+      },
       errors: {
         400: "Bad Request",
         401: "Unauthorized",

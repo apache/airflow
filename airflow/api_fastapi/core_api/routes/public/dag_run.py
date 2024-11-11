@@ -147,3 +147,20 @@ def patch_dag_run(
     dag_run = session.get(DagRun, dag_run.id)
 
     return DAGRunResponse.model_validate(dag_run, from_attributes=True)
+
+
+@dag_run_router.get(
+    "/{dag_run_id}/upstreamDatasetEvents",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
+def get_upstream_asset_events(
+    dag_id: str, dag_run_id: str, session: Annotated[Session, Depends(get_session)]
+):
+    pass

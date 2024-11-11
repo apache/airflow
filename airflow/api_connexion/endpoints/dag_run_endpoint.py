@@ -115,6 +115,7 @@ def get_dag_run(
         raise BadRequest("DAGRunSchema error", detail=str(e))
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
 @security.requires_access_asset("GET")
 @provide_session

@@ -941,6 +941,13 @@ export type PatchDagRunData = {
 
 export type PatchDagRunResponse = DAGRunResponse;
 
+export type GetUpstreamAssetEventsData = {
+  dagId: string;
+  dagRunId: string;
+};
+
+export type GetUpstreamAssetEventsResponse = unknown;
+
 export type GetDagSourceData = {
   accept?: string;
   fileToken: string;
@@ -1781,6 +1788,37 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: DAGRunResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents": {
+    get: {
+      req: GetUpstreamAssetEventsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
         /**
          * Bad Request
          */

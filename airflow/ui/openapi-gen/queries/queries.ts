@@ -515,6 +515,38 @@ export const useDagRunServiceGetDagRun = <
     ...options,
   });
 /**
+ * Get Upstream Asset Events
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useDagRunServiceGetUpstreamAssetEvents = <
+  TData = Common.DagRunServiceGetUpstreamAssetEventsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn(
+      { dagId, dagRunId },
+      queryKey,
+    ),
+    queryFn: () =>
+      DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }) as TData,
+    ...options,
+  });
+/**
  * Get Dag Source
  * Get source code using file token.
  * @param data The data for the request.
