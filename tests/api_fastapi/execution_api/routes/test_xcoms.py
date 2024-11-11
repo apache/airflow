@@ -40,36 +40,14 @@ class TestXComsGetEndpoint:
     @pytest.mark.parametrize(
         ("value", "expected_value"),
         [
-            ("value1", '"value1"'),
-            ({"key2": "value2"}, '{"key2": "value2"}'),
-            ({"key2": "value2", "key3": ["value3"]}, '{"key2": "value2", "key3": ["value3"]}'),
-        ],
-    )
-    def test_xcom_get_from_db_serialized(self, client, create_task_instance, session, value, expected_value):
-        ti = create_task_instance()
-        ti.xcom_push(key="xcom_1", value=value, session=session)
-
-        session.commit()
-
-        response = client.get(
-            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
-            params={"deserialize": False},
-        )
-
-        assert response.status_code == 200
-        assert response.json() == {"key": "xcom_1", "value": expected_value, "is_serialized": True}
-
-    @pytest.mark.parametrize(
-        ("value", "expected_value"),
-        [
             ("value1", "value1"),
             ({"key2": "value2"}, {"key2": "value2"}),
             ({"key2": "value2", "key3": ["value3"]}, {"key2": "value2", "key3": ["value3"]}),
+            (["value1"], ["value1"]),
         ],
     )
-    def test_xcom_get_from_db_deserialized(
-        self, client, create_task_instance, session, value, expected_value
-    ):
+    def test_xcom_get_from_db(self, client, create_task_instance, session, value, expected_value):
+        """Test that XCom value is returned from the database in JSON-compatible format."""
         ti = create_task_instance()
         ti.xcom_push(key="xcom_1", value=value, session=session)
 
@@ -78,7 +56,7 @@ class TestXComsGetEndpoint:
         response = client.get(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1")
 
         assert response.status_code == 200
-        assert response.json() == {"key": "xcom_1", "value": expected_value, "is_serialized": False}
+        assert response.json() == {"key": "xcom_1", "value": expected_value}
 
     def test_xcom_not_found(self, client, create_task_instance):
         response = client.get("/execution/xcoms/dag/runid/task/xcom_non_existent")

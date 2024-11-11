@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Annotated
 
@@ -51,8 +52,7 @@ def get_xcom(
     token: deps.TokenDep,
     session: Annotated[Session, Depends(get_session)],
     map_index: Annotated[int, Query()] = -1,
-    deserialize: Annotated[bool, Query()] = True,
-) -> datamodels.XComResponseSerialized | datamodels.XComResponseDeserialized:
+) -> datamodels.XComResponse:
     """Get an Airflow XCom from database - not other XCom Backends."""
     if not has_xcom_access(key, token):
         raise HTTPException(
@@ -63,6 +63,11 @@ def get_xcom(
             },
         )
 
+    # We use `BaseXCom.get_many` to fetch XComs directly from the database, bypassing the XCom Backend.
+    # This avoids deserialization via the backend (e.g., from a remote storage like S3) and instead
+    # retrieves the raw serialized value from the database. By not relying on `XCom.get_many` or `XCom.get_one`
+    # (which automatically deserializes using the backend), we avoid potential
+    # performance hits from retrieving large data files into the API server.
     query = BaseXCom.get_many(
         run_id=run_id,
         key=key,
@@ -83,20 +88,19 @@ def get_xcom(
                 "message": f"XCom with key '{key}' not found for task '{task_id}' in DAG '{dag_id}'",
             },
         )
-    if deserialize:
-        # JSON serialized value
-        return datamodels.XComResponseDeserialized(
-            key=key,
-            value=BaseXCom.deserialize_value(result),
-            is_serialized=False,
+
+    try:
+        xcom_value = BaseXCom.deserialize_value(result)
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail={
+                "reason": "invalid_format",
+                "message": "XCom value is not a valid JSON",
+            },
         )
 
-    # String'ified value
-    return datamodels.XComResponseSerialized(
-        key=key,
-        value=result[0],
-        is_serialized=True,
-    )
+    return datamodels.XComResponse(key=key, value=xcom_value)
 
 
 def has_xcom_access(xcom_key: str, token: datamodels.TIToken) -> bool:
