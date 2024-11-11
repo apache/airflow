@@ -1946,3 +1946,28 @@ class TestAsyncGCSToBigQueryOperator:
             "task_instance": task_instance,
             "logical_date": logical_date,
         }
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_force_delete_should_execute_successfully(self, hook):
+        hook.return_value.insert_job.side_effect = [
+            MagicMock(job_id=REAL_JOB_ID, error_result=False),
+            REAL_JOB_ID,
+        ]
+        hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+        hook.return_value.get_job.return_value.result.return_value = ("1",)
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            write_disposition=WRITE_DISPOSITION,
+            schema_fields=SCHEMA_FIELDS_INT,
+            autodetect=True,
+            project_id=JOB_PROJECT_ID,
+            force_delete=True,
+        )
+
+        operator.execute(context=MagicMock())
+        hook.return_value.delete_table.assert_called_once_with(table_id=TEST_EXPLICIT_DEST)
