@@ -79,7 +79,7 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - :mod:`airflow.sensors.external_task`
      - :doc:`How to use <howto/operator/external_task_sensor>`
 
-   * - :mod:`airflow.sensors.filesystem`
+   * - :mod:`airflow.providers.standard.sensors.filesystem`
      - :ref:`How to use <howto/operator:FileSensor>`
 
 
