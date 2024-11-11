@@ -1798,8 +1798,15 @@ export const $DagRunAssetReference = {
       title: "Start Date",
     },
     end_date: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "End Date",
     },
     state: {
@@ -1823,7 +1830,6 @@ export const $DagRunAssetReference = {
     "dag_id",
     "logical_date",
     "start_date",
-    "end_date",
     "state",
     "data_interval_start",
     "data_interval_end",
