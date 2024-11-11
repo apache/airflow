@@ -23,6 +23,7 @@ Module to update db migration information in Airflow
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 from checksumdir import dirhash
@@ -34,9 +35,19 @@ HASH_FILE = SVG_FILE.with_suffix(".sha256")
 
 MIGRATIONS_DIR = AIRFLOW_SOURCES_ROOT / "airflow" / "migrations"
 if __name__ == "__main__":
-    from eralchemy2 import render_er
-
     console = Console(width=400, color_system="standard")
+    try:
+        from eralchemy2 import render_er
+    except ImportError:
+        if sys.platform == "darwin":
+            console.print(
+                "[red]Likely you have no graphviz installed[/]"
+                "Please install eralchemy2 package to run this script. "
+                "This will require to install graphviz, "
+                "and installing graphviz might be difficult for MacOS. Please follow: "
+                "https://pygraphviz.github.io/documentation/stable/install.html#macos ."
+            )
+        raise
 
     console.print("[bright_blue]Preparing diagram for Airflow ERD")
     sha256hash = dirhash(
