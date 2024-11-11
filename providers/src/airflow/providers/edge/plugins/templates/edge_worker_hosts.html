@@ -50,6 +50,8 @@
             <td>
               {%- if host.state == "offline" -%}
                 <span class="label" style="color:white; background-color:black;" title="Current State: {{ host.state }}">{{ host.state }}</span>
+              {%- elif host.state == "unknown" -%}
+                <span class="label" style="color:white; background-color:red;" title="Current State: {{ host.state }}">{{ host.state }}</span>
               {%- elif host.last_update.timestamp() <= five_min_ago.timestamp() -%}
                 Reported <span class="label" style="color:white; background-color:red;" title="Current State: {{ host.state }}">{{ host.state }}</span>
                 but no heartbeat
@@ -61,8 +63,6 @@
                 <span class="label" style="color:black; background-color:gray;" title="Current State: {{ host.state }}">{{ host.state }}</span>
               {%- elif host.state == "terminating" -%}
                 <span class="label" style="color:black; background-color:violet;" title="Current State: {{ host.state }}">{{ host.state }}</span>
-              {%- elif host.state == "unknown" -%}
-                <span class="label" style="color:white; background-color:red;" title="Current State: {{ host.state }}">{{ host.state }}</span>
               {%- else -%}
                 <span class="label" style="color:white; background-color:hotpink;" title="Current State: {{ host.state }}">{{ host.state }}</span>
               {%- endif -%}
@@ -71,7 +71,9 @@
               {% if host.queues %}
                 <ul>
                   {% for item in host.queues %}
-                    <li>{{ item }}</li>
+                    <li>
+                      <a href="../taskinstance/list/?_flt_7_state=success&_flt_7_state=failed&_flt_3_queue={{ item }}#"">{{ item }}</a>
+                    </li>
                   {% endfor %}
                 </ul>
               {% else %}
@@ -80,7 +82,9 @@
             </td>
             <td><time datetime="{{ host.first_online }}">{{ host.first_online }}</time></td>
             <td>{% if host.last_update %}<time datetime="{{ host.last_update }}">{{ host.last_update }}</time>{% endif %}</td>
-            <td>{{ host.jobs_active }}</td>
+            <td>
+              <a href="../taskinstance/list/?_flt_3_hostname={{ host.worker_name }}&_flt_7_state=success&_flt_7_state=failed#">{{ host.jobs_active }}</a>
+            </td>
             <!-- Stats are not collected (yet) leave the columns out until available
               <td>{{ host.jobs_taken }}</td>
               <td>{{ host.jobs_success }}</td>
