@@ -69,7 +69,11 @@ export const useDags = (
       (runsDag) => runsDag.dag_id === dag.dag_id,
     );
 
-    return dagWithRuns ?? { ...dag, latest_dag_runs: [] };
+    // For dags with recent dag runs replace the dag data from useDagsServiceRecentDagRuns
+    // which might be stale with updated dag data from useDagServiceGetDags
+    return dagWithRuns
+      ? { ...dagWithRuns, ...dag }
+      : { ...dag, latest_dag_runs: [] };
   });
 
   return {
