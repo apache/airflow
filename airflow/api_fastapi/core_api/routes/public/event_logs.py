@@ -86,6 +86,7 @@ def get_event_logs(
                     "extra",
                 ],
                 Log,
+                to_replace={"when": "dttm", "event_log_id": "id"},
             ).dynamic_depends()
         ),
     ],

@@ -17,17 +17,12 @@
  * under the License.
  */
 import { Box, Flex, VStack } from "@chakra-ui/react";
-import {
-  FiCornerUpLeft,
-  FiDatabase,
-  FiGlobe,
-  FiHome,
-  FiSettings,
-} from "react-icons/fi";
+import { FiCornerUpLeft, FiDatabase, FiHome, FiSettings } from "react-icons/fi";
 
 import { AirflowPin } from "src/assets/AirflowPin";
 import { DagIcon } from "src/assets/DagIcon";
 
+import { BrowseButton } from "./BrowseButton";
 import { DocsButton } from "./DocsButton";
 import { NavButton } from "./NavButton";
 import { UserSettingsButton } from "./UserSettingsButton";
@@ -61,12 +56,7 @@ export const Nav = () => (
         title="Assets"
         to="assets"
       />
-      <NavButton
-        disabled
-        icon={<FiGlobe size="1.75rem" />}
-        title="Browse"
-        to="browse"
-      />
+      <BrowseButton />
       <NavButton
         disabled
         icon={<FiSettings size="1.75rem" />}

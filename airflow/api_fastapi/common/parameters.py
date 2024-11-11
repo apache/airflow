@@ -177,13 +177,12 @@ class SortParam(BaseParam[str]):
     }
 
     def __init__(
-        self,
-        allowed_attrs: list[str],
-        model: Base,
+        self, allowed_attrs: list[str], model: Base, to_replace: dict[str, str] | None = None
     ) -> None:
         super().__init__()
         self.allowed_attrs = allowed_attrs
         self.model = model
+        self.to_replace = to_replace
 
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:
@@ -193,6 +192,9 @@ class SortParam(BaseParam[str]):
             return select
 
         lstriped_orderby = self.value.lstrip("-")
+        if self.to_replace:
+            lstriped_orderby = self.to_replace.get(lstriped_orderby, lstriped_orderby)
+
         if self.allowed_attrs and lstriped_orderby not in self.allowed_attrs:
             raise HTTPException(
                 400,
