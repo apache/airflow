@@ -29,6 +29,7 @@ from airflow.api.common.mark_tasks import (
 )
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.assets import AssetEventCollectionResponse, AssetEventResponse
 from airflow.api_fastapi.core_api.datamodels.dag_run import (
     DAGRunPatchBody,
     DAGRunPatchStates,
@@ -147,3 +148,41 @@ def patch_dag_run(
     dag_run = session.get(DagRun, dag_run.id)
 
     return DAGRunResponse.model_validate(dag_run, from_attributes=True)
+
+
+@dag_run_router.get(
+    "/{dag_run_id}/upstreamAssetEvents",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
+def get_upstream_asset_events(
+    dag_id: str, dag_run_id: str, session: Annotated[Session, Depends(get_session)]
+) -> AssetEventCollectionResponse:
+    """If dag run is asset-triggered, return the asset events that triggered it."""
+    dag_run: DagRun | None = session.scalar(
+        select(DagRun).where(
+            DagRun.dag_id == dag_id,
+            DagRun.run_id == dag_run_id,
+        )
+    )
+    if dag_run is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
+        )
+    events = dag_run.consumed_asset_events
+
+    print("events" * 10)
+    print(events)
+
+    return AssetEventCollectionResponse(
+        asset_events=[
+            AssetEventResponse.model_validate(asset_event, from_attributes=True) for asset_event in events
+        ],
+        total_entries=len(events),
+    )

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class DagScheduleAssetReference(BaseModel):
@@ -63,4 +63,41 @@ class AssetCollectionResponse(BaseModel):
     """Asset collection response."""
 
     assets: list[AssetResponse]
+    total_entries: int
+
+
+class DagRunAssetReference(BaseModel):
+    """Serializable version of the DagRunAssetReference ORM SqlAlchemyModel."""
+
+    run_id: str
+    dag_id: str
+    execution_date: datetime = Field(alias="logical_date")
+    start_date: datetime
+    end_date: datetime
+    state: str
+    data_interval_start: datetime
+    data_interval_end: datetime
+
+
+class AssetEventResponse(BaseModel):
+    """Asset event serializer for responses."""
+
+    id: int
+    asset_id: int
+    # piggyback on the fix for https://github.com/apache/airflow/issues/43845 for asset_uri
+    # meanwhile, unblock by adding uri below
+    uri: str
+    extra: dict | None = None
+    source_task_id: str | None = None
+    source_dag_id: str | None = None
+    source_run_id: str | None = None
+    source_map_index: int
+    created_dagruns: list[DagRunAssetReference]
+    timestamp: datetime
+
+
+class AssetEventCollectionResponse(BaseModel):
+    """Asset collection response."""
+
+    asset_events: list[AssetEventResponse]
     total_entries: int

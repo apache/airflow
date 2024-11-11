@@ -38,6 +38,32 @@ export type AssetCollectionResponse = {
 };
 
 /**
+ * Asset collection response.
+ */
+export type AssetEventCollectionResponse = {
+  asset_events: Array<AssetEventResponse>;
+  total_entries: number;
+};
+
+/**
+ * Asset event serializer for responses.
+ */
+export type AssetEventResponse = {
+  id: number;
+  asset_id: number;
+  uri: string;
+  extra?: {
+    [key: string]: unknown;
+  } | null;
+  source_task_id?: string | null;
+  source_dag_id?: string | null;
+  source_run_id?: string | null;
+  source_map_index: number;
+  created_dagruns: Array<DagRunAssetReference>;
+  timestamp: string;
+};
+
+/**
  * Asset serializer for responses.
  */
 export type AssetResponse = {
@@ -347,6 +373,20 @@ export type DAGWithLatestDagRunsResponse = {
 export type DagProcessorInfoSchema = {
   status: string | null;
   latest_dag_processor_heartbeat: string | null;
+};
+
+/**
+ * Serializable version of the DagRunAssetReference ORM SqlAlchemyModel.
+ */
+export type DagRunAssetReference = {
+  run_id: string;
+  dag_id: string;
+  logical_date: string;
+  start_date: string;
+  end_date: string;
+  state: string;
+  data_interval_start: string;
+  data_interval_end: string;
 };
 
 /**
@@ -1001,6 +1041,13 @@ export type PatchDagRunData = {
 };
 
 export type PatchDagRunResponse = DAGRunResponse;
+
+export type GetUpstreamAssetEventsData = {
+  dagId: string;
+  dagRunId: string;
+};
+
+export type GetUpstreamAssetEventsResponse = AssetEventCollectionResponse;
 
 export type GetDagSourceData = {
   accept?: string;
@@ -1873,6 +1920,33 @@ export type $OpenApiTs = {
          * Bad Request
          */
         400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents": {
+    get: {
+      req: GetUpstreamAssetEventsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: AssetEventCollectionResponse;
         /**
          * Unauthorized
          */

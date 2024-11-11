@@ -1387,6 +1387,58 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents:
+    get:
+      tags:
+      - DagRun
+      summary: Get Upstream Asset Events
+      description: If dag run is asset-triggered, return the asset events that triggered
+        it.
+      operationId: get_upstream_asset_events
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetEventCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dagSources/{file_token}:
     get:
       tags:
@@ -3259,6 +3311,75 @@ components:
       - total_entries
       title: AssetCollectionResponse
       description: Asset collection response.
+    AssetEventCollectionResponse:
+      properties:
+        asset_events:
+          items:
+            $ref: '#/components/schemas/AssetEventResponse'
+          type: array
+          title: Asset Events
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - asset_events
+      - total_entries
+      title: AssetEventCollectionResponse
+      description: Asset collection response.
+    AssetEventResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        asset_id:
+          type: integer
+          title: Asset Id
+        uri:
+          type: string
+          title: Uri
+        extra:
+          anyOf:
+          - type: object
+          - type: 'null'
+          title: Extra
+        source_task_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Task Id
+        source_dag_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Dag Id
+        source_run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Run Id
+        source_map_index:
+          type: integer
+          title: Source Map Index
+        created_dagruns:
+          items:
+            $ref: '#/components/schemas/DagRunAssetReference'
+          type: array
+          title: Created Dagruns
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+      type: object
+      required:
+      - id
+      - asset_id
+      - uri
+      - source_map_index
+      - created_dagruns
+      - timestamp
+      title: AssetEventResponse
+      description: Asset event serializer for responses.
     AssetResponse:
       properties:
         id:
@@ -4230,6 +4351,49 @@ components:
       - latest_dag_processor_heartbeat
       title: DagProcessorInfoSchema
       description: Schema for DagProcessor info.
+    DagRunAssetReference:
+      properties:
+        run_id:
+          type: string
+          title: Run Id
+        dag_id:
+          type: string
+          title: Dag Id
+        logical_date:
+          type: string
+          format: date-time
+          title: Logical Date
+        start_date:
+          type: string
+          format: date-time
+          title: Start Date
+        end_date:
+          type: string
+          format: date-time
+          title: End Date
+        state:
+          type: string
+          title: State
+        data_interval_start:
+          type: string
+          format: date-time
+          title: Data Interval Start
+        data_interval_end:
+          type: string
+          format: date-time
+          title: Data Interval End
+      type: object
+      required:
+      - run_id
+      - dag_id
+      - logical_date
+      - start_date
+      - end_date
+      - state
+      - data_interval_start
+      - data_interval_end
+      title: DagRunAssetReference
+      description: Serializable version of the DagRunAssetReference ORM SqlAlchemyModel.
     DagRunState:
       type: string
       enum:
