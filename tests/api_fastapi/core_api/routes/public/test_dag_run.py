@@ -21,6 +21,8 @@ from datetime import datetime, timezone
 
 import pytest
 
+from airflow import Asset
+from airflow.models.asset import AssetEvent, AssetModel
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
@@ -254,3 +256,77 @@ class TestDeleteDagRun:
         assert response.status_code == 404
         body = response.json()
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
+
+
+class TestGetDagRunAssetTriggerEvents:
+    def test_should_respond_200(self, test_client, dag_maker, session):
+        asset1 = Asset(uri="ds1")
+
+        with dag_maker(dag_id="source_dag", start_date=START_DATE, session=session):
+            EmptyOperator(task_id="task", outlets=[asset1])
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+
+        asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
+        event = AssetEvent(
+            asset_id=asset1_id,
+            source_task_id=ti.task_id,
+            source_dag_id=ti.dag_id,
+            source_run_id=ti.run_id,
+            source_map_index=ti.map_index,
+        )
+        session.add(event)
+
+        with dag_maker(dag_id="TEST_DAG_ID", start_date=START_DATE, session=session):
+            pass
+        dr = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.ASSET_TRIGGERED)
+        dr.consumed_asset_events.append(event)
+
+        session.commit()
+        assert event.timestamp
+
+        response = test_client.get(
+            "/public/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",
+        )
+        assert response.status_code == 200
+        expected_response = {
+            "asset_events": [
+                {
+                    "timestamp": event.timestamp.isoformat().replace("+00:00", "Z"),
+                    "asset_id": asset1_id,
+                    # piggyback on the fix for https://github.com/apache/airflow/issues/43845 for asset_uri
+                    # meanwhile, unblock by adding uri below
+                    "uri": asset1.uri,
+                    "extra": {},
+                    "id": event.id,
+                    "source_dag_id": ti.dag_id,
+                    "source_map_index": ti.map_index,
+                    "source_run_id": ti.run_id,
+                    "source_task_id": ti.task_id,
+                    "created_dagruns": [
+                        {
+                            "dag_id": "TEST_DAG_ID",
+                            "run_id": "TEST_DAG_RUN_ID",
+                            "data_interval_end": dr.data_interval_end.isoformat().replace("+00:00", "Z"),
+                            "data_interval_start": dr.data_interval_start.isoformat().replace("+00:00", "Z"),
+                            "end_date": None,
+                            "logical_date": dr.logical_date.isoformat().replace("+00:00", "Z"),
+                            "start_date": dr.start_date.isoformat().replace("+00:00", "Z"),
+                            "state": "running",
+                        }
+                    ],
+                }
+            ],
+            "total_entries": 1,
+        }
+        assert response.json() == expected_response
+
+    def test_should_respond_404(self, test_client):
+        response = test_client.get(
+            "public/dags/invalid-id/dagRuns/invalid-id/upstreamAssetEvents",
+        )
+        assert response.status_code == 404
+        assert (
+            "The DagRun with dag_id: `invalid-id` and run_id: `invalid-id` was not found"
+            == response.json()["detail"]
+        )
