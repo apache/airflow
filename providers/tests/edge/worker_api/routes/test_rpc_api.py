@@ -111,7 +111,7 @@ class TestRpcApiEndpointV2:
             import airflow.providers.edge.plugins.edge_executor_plugin as plugin_module
 
             class TestingEdgeExecutorPlugin(plugin_module.EdgeExecutorPlugin):
-                flask_blueprints = [plugin_module._get_api_endpoints(), plugin_module.template_bp]
+                flask_blueprints = [plugin_module._get_airflow_2_api_endpoint(), plugin_module.template_bp]
 
             testing_edge_plugin = TestingEdgeExecutorPlugin()
             assert len(testing_edge_plugin.flask_blueprints) > 0
