@@ -38,6 +38,7 @@ jobs:
 
       - name: Check news fragment
         run: >
+          python -m pip install --upgrade uv &&
           uv tool run towncrier check
           --dir .
           --config newsfragments/config.toml
