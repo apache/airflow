@@ -44,9 +44,19 @@ def main():
         hash_file = source_file.with_suffix(".md5sum")
         if not hash_file.exists() or not hash_file.read_text().strip() == str(checksum).strip():
             console.print(f"[bright_blue]Changes in {source_file}. Regenerating the image.")
-            subprocess.run(
-                [sys.executable, source_file.resolve().as_posix()], check=True, cwd=source_file.parent
+            process = subprocess.run(
+                [sys.executable, source_file.resolve().as_posix()], check=False, cwd=source_file.parent
             )
+            if process.returncode != 0:
+                if sys.platform == "darwin":
+                    console.print(
+                        "[red]Likely you have no graphviz installed[/]"
+                        "Please install eralchemy2 package to run this script. "
+                        "This will require to install graphviz, "
+                        "and installing graphviz might be difficult for MacOS. Please follow: "
+                        "https://pygraphviz.github.io/documentation/stable/install.html#macos ."
+                    )
+                sys.exit(process.returncode)
             hash_file.write_text(str(checksum) + "\n")
         else:
             console.print(f"[bright_blue]No changes in {source_file}. Not regenerating the image.")

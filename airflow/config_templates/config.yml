@@ -28,6 +28,14 @@ core:
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/dags"
+    dag_bundle_storage_path:
+      description: |
+        The folder where Airflow bundles can store files locally (if required).
+        By default, this is ``tempfile.gettempdir()/airflow``. This path must be absolute.
+      version_added: 3.0.0
+      type: string
+      example: "`tempfile.gettempdir()/dag_bundles"
+      default: ~
     hostname_callable:
       description: |
         Hostname by providing a path to a callable, which will resolve the hostname.
@@ -474,13 +482,6 @@ core:
       sensitive: true
       default: ~
       example: '{"some_param": "some_value"}'
-    strict_asset_uri_validation:
-      description: |
-        Asset URI validation should raise an exception if it is not compliant with AIP-60.
-      default: "True"
-      example: ~
-      version_added: 2.9.2
-      type: boolean
     database_access_isolation:
       description: (experimental) Whether components should use Airflow Internal API for DB connectivity.
       version_added: 2.6.0

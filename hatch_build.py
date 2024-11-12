@@ -141,7 +141,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "statsd>=3.3.0",
     ],
     "uv": [
-        "uv>=0.5.0",
+        "uv>=0.5.1",
     ],
 }
 
@@ -180,8 +180,11 @@ DOC_EXTRAS: dict[str, list[str]] = {
     ],
     "doc-gen": [
         "apache-airflow[doc]",
-        "diagrams>=0.23.4",
-        "eralchemy2>=1.3.8",
+        # The graphviz package creates friction when installing on MacOS as it needs graphviz system package to
+        # be installed, and it's really only used for very obscure features of Airflow, so we can skip it on MacOS
+        # Instead, if someone attempts to use it on MacOS, they will get explanatory error on how to install it
+        "diagrams>=0.23.4; sys_platform != 'darwin'",
+        "eralchemy2>=1.3.8; sys_platform != 'darwin'",
     ],
     # END OF doc extras
 }
@@ -190,6 +193,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     # START OF devel extras
     "devel-debuggers": [
         "ipdb>=0.13.13",
+        "pdbr>=0.8.9",
     ],
     "devel-devscripts": [
         "click>=8.0",
@@ -245,7 +249,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     "devel-static-checks": [
         "black>=23.12.0",
         "pre-commit>=3.5.0",
-        "ruff==0.7.2",
+        "ruff==0.7.3",
         "yamllint>=1.33.0",
     ],
     "devel-tests": [
@@ -386,6 +390,7 @@ DEPENDENCIES = [
     # We should remove the limitation after 2.3 is released and our dependencies are updated to handle it
     "flask>=2.2.1,<2.3",
     "fsspec>=2023.10.0",
+    "gitpython>=3.1.40",
     'google-re2>=1.0;python_version<"3.12"',
     'google-re2>=1.1;python_version>="3.12"',
     "gunicorn>=20.1.0",

@@ -634,35 +634,6 @@ function common::import_trusted_gpg() {
 }
 EOF
 
-# The content below is automatically copied from scripts/docker/install_pipx_tools.sh
-COPY <<"EOF" /install_pipx_tools.sh
-#!/usr/bin/env bash
-. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
-
-function install_pipx_tools() {
-    echo
-    echo "${COLOR_BLUE}Installing pipx tools${COLOR_RESET}"
-    echo
-    # Make sure PIPX is installed in latest version
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "pipx>=1.2.1"
-    if [[ $(uname -m) != "aarch64" ]]; then
-        # Do not install mssql-cli for ARM
-        # Install all the tools we need available in command line but without impacting the current environment
-        pipx install mssql-cli
-
-        # Unfortunately mssql-cli installed by `pipx` does not work out of the box because it uses
-        # its own execution bash script which is not compliant with the auto-activation of
-        # pipx venvs - we need to manually patch Python executable in the script to fix it: ¯\_(ツ)_/¯
-        sed "s/python /\/root\/\.local\/pipx\/venvs\/mssql-cli\/bin\/python /" -i /root/.local/bin/mssql-cli
-    fi
-}
-
-common::get_colors
-common::get_packaging_tool
-
-install_pipx_tools
-EOF
-
 # The content below is automatically copied from scripts/docker/install_airflow.sh
 COPY <<"EOF" /install_airflow.sh
 #!/usr/bin/env bash
@@ -1373,7 +1344,7 @@ RUN bash /scripts/docker/install_packaging_tools.sh; \
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=24.3.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.5.0
+ARG AIRFLOW_UV_VERSION=0.5.1
 
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION}
@@ -1381,13 +1352,10 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
 # The PATH is needed for PIPX to find the tools installed
 ENV PATH="/root/.local/bin:${PATH}"
 
-COPY --from=scripts install_pipx_tools.sh /scripts/docker/
-
 # Install useful command line tools in their own virtualenv so that they do not clash with
 # dependencies installed in Airflow also reinstall PIP and UV to make sure they are installed
 # in the version specified above
-RUN bash /scripts/docker/install_packaging_tools.sh; \
-    bash /scripts/docker/install_pipx_tools.sh
+RUN bash /scripts/docker/install_packaging_tools.sh
 
 # Airflow sources change frequently but dependency configuration won't change that often
 # We copy pyproject.toml and other files needed to perform setup of dependencies

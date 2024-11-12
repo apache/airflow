@@ -19,14 +19,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Generic, List, Optional, TypeVar
+from typing import TYPE_CHECKING, Annotated, Any, Callable, Generic, List, Optional, TypeVar
 
 from fastapi import Depends, HTTPException, Query
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel
 from sqlalchemy import Column, case, or_
 from sqlalchemy.inspection import inspect
-from typing_extensions import Annotated, Self
 
 from airflow.api_connexion.endpoints.task_instance_endpoint import _convert_ti_states
 from airflow.models import Base, Connection
@@ -36,6 +35,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.taskinstance import TaskInstance
+from airflow.typing_compat import Self
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 
@@ -178,13 +178,12 @@ class SortParam(BaseParam[str]):
     }
 
     def __init__(
-        self,
-        allowed_attrs: list[str],
-        model: Base,
+        self, allowed_attrs: list[str], model: Base, to_replace: dict[str, str] | None = None
     ) -> None:
         super().__init__()
         self.allowed_attrs = allowed_attrs
         self.model = model
+        self.to_replace = to_replace
 
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:
@@ -194,6 +193,9 @@ class SortParam(BaseParam[str]):
             return select
 
         lstriped_orderby = self.value.lstrip("-")
+        if self.to_replace:
+            lstriped_orderby = self.to_replace.get(lstriped_orderby, lstriped_orderby)
+
         if self.allowed_attrs and lstriped_orderby not in self.allowed_attrs:
             raise HTTPException(
                 400,

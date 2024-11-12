@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,17 +14,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use :mod:`airflow.providers.cncf.kubernetes.triggers.pod` instead."""
-
 from __future__ import annotations
 
-import warnings
+from datetime import datetime
+from typing import Any
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.cncf.kubernetes.triggers.pod import *  # noqa: F403
+from pydantic import BaseModel, field_validator
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.cncf.kubernetes.triggers.pod` instead.",
-    AirflowProviderDeprecationWarning,
-    stacklevel=2,
-)
+
+class XComResponse(BaseModel):
+    """Serializer for a xcom item."""
+
+    key: str
+    timestamp: datetime
+    execution_date: datetime
+    map_index: int
+    task_id: str
+    dag_id: str
+
+
+class XComResponseNative(XComResponse):
+    """XCom response serializer with native return type."""
+
+    value: Any
+
+
+class XComResponseString(XComResponse):
+    """XCom response serializer with string return type."""
+
+    value: Any
+
+    @field_validator("value")
+    def value_to_string(cls, v):
+        return str(v) if v is not None else None

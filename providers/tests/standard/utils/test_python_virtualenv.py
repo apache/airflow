@@ -25,6 +25,7 @@ import pytest
 from airflow.providers.standard.utils.python_virtualenv import _generate_pip_conf, _use_uv, prepare_virtualenv
 from airflow.utils.decorators import remove_task_decorator
 
+from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
 from tests_common.test_utils.config import conf_vars
 
 
@@ -204,7 +205,10 @@ class TestPrepareVirtualenv:
     def test_remove_decorator_including_comment(self):
         py_source = "@task.virtualenv\ndef f():\n# @task.virtualenv\nimport funcsigs"
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
-        assert res == "def f():\n# @task.virtualenv\nimport funcsigs"
+        if AIRFLOW_V_2_9_PLUS:
+            assert res == "def f():\n# @task.virtualenv\nimport funcsigs"
+        else:
+            assert res == "def f():\n# "
 
     def test_remove_decorator_nested(self):
         py_source = "@foo\n@task.virtualenv\n@bar\ndef f():\nimport funcsigs"
