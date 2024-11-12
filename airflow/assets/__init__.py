@@ -36,9 +36,6 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm.session import Session
 
-
-from airflow.configuration import conf
-
 __all__ = ["Asset", "AssetAll", "AssetAny", "Dataset"]
 
 
@@ -104,19 +101,7 @@ def _sanitize_uri(uri: str) -> str:
         fragment="",  # Ignore any fragments.
     )
     if (normalizer := _get_uri_normalizer(normalized_scheme)) is not None:
-        try:
-            parsed = normalizer(parsed)
-        except ValueError as exception:
-            if conf.getboolean("core", "strict_asset_uri_validation", fallback=True):
-                log.error(
-                    (
-                        "The Asset URI %s is not AIP-60 compliant: %s. "
-                        "Please check https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/assets.html"
-                    ),
-                    uri,
-                    exception,
-                )
-                raise
+        parsed = normalizer(parsed)
     return urllib.parse.urlunsplit(parsed)
 
 
