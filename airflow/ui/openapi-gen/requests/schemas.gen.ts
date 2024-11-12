@@ -3096,3 +3096,95 @@ export const $VersionInfo = {
   title: "VersionInfo",
   description: "Version information serializer for responses.",
 } as const;
+
+export const $XComResponseNative = {
+  properties: {
+    key: {
+      type: "string",
+      title: "Key",
+    },
+    timestamp: {
+      type: "string",
+      format: "date-time",
+      title: "Timestamp",
+    },
+    execution_date: {
+      type: "string",
+      format: "date-time",
+      title: "Execution Date",
+    },
+    map_index: {
+      type: "integer",
+      title: "Map Index",
+    },
+    task_id: {
+      type: "string",
+      title: "Task Id",
+    },
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    value: {
+      title: "Value",
+    },
+  },
+  type: "object",
+  required: [
+    "key",
+    "timestamp",
+    "execution_date",
+    "map_index",
+    "task_id",
+    "dag_id",
+    "value",
+  ],
+  title: "XComResponseNative",
+  description: "XCom response serializer with native return type.",
+} as const;
+
+export const $XComResponseString = {
+  properties: {
+    key: {
+      type: "string",
+      title: "Key",
+    },
+    timestamp: {
+      type: "string",
+      format: "date-time",
+      title: "Timestamp",
+    },
+    execution_date: {
+      type: "string",
+      format: "date-time",
+      title: "Execution Date",
+    },
+    map_index: {
+      type: "integer",
+      title: "Map Index",
+    },
+    task_id: {
+      type: "string",
+      title: "Task Id",
+    },
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    value: {
+      title: "Value",
+    },
+  },
+  type: "object",
+  required: [
+    "key",
+    "timestamp",
+    "execution_date",
+    "map_index",
+    "task_id",
+    "dag_id",
+    "value",
+  ],
+  title: "XComResponseString",
+  description: "XCom response serializer with string return type.",
+} as const;
