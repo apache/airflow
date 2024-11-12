@@ -569,6 +569,7 @@ def _xcom_pull(
     session: Session = NEW_SESSION,
     map_indexes: int | Iterable[int] | None = None,
     default: Any = None,
+    run_id: str | None = None,
 ) -> Any:
     """
     Pull XComs that optionally meet certain criteria.
@@ -588,6 +589,8 @@ def _xcom_pull(
     :param include_prior_dates: If False, only XComs from the current
         execution_date are returned. If *True*, XComs from previous dates
         are returned as well.
+    :param run_id: If provided, only pulls XComs from a DagRun w/a matching run_id.
+        If *None* (default), the run_id of the calling task is used.
 
     When pulling one single task (``task_id`` is *None* or a str) without
     specifying ``map_indexes``, the return value is inferred from whether
@@ -603,10 +606,12 @@ def _xcom_pull(
     """
     if dag_id is None:
         dag_id = ti.dag_id
+    if run_id is None:
+        run_id = ti.run_id
 
     query = XCom.get_many(
         key=key,
-        run_id=ti.run_id,
+        run_id=run_id,
         dag_ids=dag_id,
         task_ids=task_ids,
         map_indexes=map_indexes,
@@ -3472,6 +3477,7 @@ class TaskInstance(Base, LoggingMixin):
         *,
         map_indexes: int | Iterable[int] | None = None,
         default: Any = None,
+        run_id: str | None = None,
     ) -> Any:
         """
         Pull XComs that optionally meet certain criteria.
@@ -3491,6 +3497,8 @@ class TaskInstance(Base, LoggingMixin):
         :param include_prior_dates: If False, only XComs from the current
             execution_date are returned. If *True*, XComs from previous dates
             are returned as well.
+        :param run_id: If provided, only pulls XComs from a DagRun w/a matching run_id.
+            If *None* (default), the run_id of the calling task is used.
 
         When pulling one single task (``task_id`` is *None* or a str) without
         specifying ``map_indexes``, the return value is inferred from whether
@@ -3513,6 +3521,7 @@ class TaskInstance(Base, LoggingMixin):
             session=session,
             map_indexes=map_indexes,
             default=default,
+            run_id=run_id,
         )
 
     @provide_session
