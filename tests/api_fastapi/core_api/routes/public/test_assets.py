@@ -27,7 +27,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_assets
+from tests_common.test_utils.db import clear_db_assets, clear_db_runs
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -112,9 +112,11 @@ class TestAssets:
     @pytest.fixture(autouse=True)
     def setup(self) -> None:
         clear_db_assets()
+        clear_db_runs()
 
     def teardown_method(self) -> None:
         clear_db_assets()
+        clear_db_runs()
 
     @provide_session
     def create_assets(self, session, num: int = 2):
@@ -382,3 +384,23 @@ class TestGetAssetsEvents(TestAssets):
         assert response.status_code == 400
         msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
         assert response.json()["detail"] == msg
+
+    @pytest.mark.parametrize(
+        "filter_type, filter_value, total_entries",
+        [
+            ("asset_id", "2", 1),
+            ("source_dag_id", "source_dag_id", 2),
+            ("source_task_id", "source_task_id", 2),
+            ("source_run_id", "source_run_id_1", 1),
+            ("source_map_index", "-1", 2),
+        ],
+    )
+    @provide_session
+    def test_filter_events_by_asset_id(self, test_client, filter_type, filter_value, total_entries, session):
+        self.create_assets()
+        self.create_assets_events()
+        self.create_dag_run()
+        self.create_asset_dag_run()
+        response = test_client.get(f"/public/assets/events?{filter_type}={filter_value}")
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == total_entries
