@@ -3979,8 +3979,8 @@ class TestSchedulerJob:
         - That dag_model has next_dagrun
         """
 
-        asset1 = Asset(uri="ds1")
-        asset2 = Asset(uri="ds2")
+        asset1 = Asset(uri="test://asset1", name="test_asset", group="test_group")
+        asset2 = Asset(uri="test://asset2", name="test_asset_2", group="test_group")
 
         with dag_maker(dag_id="assets-1", start_date=timezone.utcnow(), session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset1])
@@ -4075,15 +4075,14 @@ class TestSchedulerJob:
         ],
     )
     def test_no_create_dag_runs_when_dag_disabled(self, session, dag_maker, disable, enable):
-        ds = Asset("ds")
-        with dag_maker(dag_id="consumer", schedule=[ds], session=session):
+        asset = Asset(uri="test://asset_1", name="test_asset_1", group="test_group")
+        with dag_maker(dag_id="consumer", schedule=[asset], session=session):
             pass
         with dag_maker(dag_id="producer", schedule="@daily", session=session):
-            BashOperator(task_id="task", bash_command="echo 1", outlets=ds)
+            BashOperator(task_id="task", bash_command="echo 1", outlets=asset)
         asset_manger = AssetManager()
 
-        asset_id = session.scalars(select(AssetModel.id).filter_by(uri=ds.uri)).one()
-
+        asset_id = session.scalars(select(AssetModel.id).filter_by(uri=asset.uri, name=asset.name)).one()
         ase_q = select(AssetEvent).where(AssetEvent.asset_id == asset_id).order_by(AssetEvent.timestamp)
         adrq_q = select(AssetDagRunQueue).where(
             AssetDagRunQueue.asset_id == asset_id, AssetDagRunQueue.target_dag_id == "consumer"
@@ -4096,7 +4095,7 @@ class TestSchedulerJob:
         dr1: DagRun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
         asset_manger.register_asset_change(
             task_instance=dr1.get_task_instance("task", session=session),
-            asset=ds,
+            asset=asset,
             session=session,
         )
         session.flush()
@@ -4110,7 +4109,7 @@ class TestSchedulerJob:
         dr2: DagRun = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
         asset_manger.register_asset_change(
             task_instance=dr2.get_task_instance("task", session=session),
-            asset=ds,
+            asset=asset,
             session=session,
         )
         session.flush()
@@ -6187,11 +6186,11 @@ class TestSchedulerJob:
     def test_asset_orphaning(self, dag_maker, session):
         self.job_runner = SchedulerJobRunner(job=Job(), subdir=os.devnull)
 
-        asset1 = Asset(uri="ds1")
-        asset2 = Asset(uri="ds2")
-        asset3 = Asset(uri="ds3")
-        asset4 = Asset(uri="ds4")
-        asset5 = Asset(uri="ds5")
+        asset1 = Asset(uri="test://asset_1", name="test_asset_1", group="test_group")
+        asset2 = Asset(uri="test://asset_2", name="test_asset_2", group="test_group")
+        asset3 = Asset(uri="test://asset_3", name="test_asset_3", group="test_group")
+        asset4 = Asset(uri="test://asset_4", name="test_asset_4", group="test_group")
+        asset5 = Asset(uri="test://asset_5", name="test_asset_5", group="test_group")
 
         with dag_maker(dag_id="assets-1", schedule=[asset1, asset2], session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset3, asset4])
@@ -6230,7 +6229,7 @@ class TestSchedulerJob:
     def test_asset_orphaning_ignore_orphaned_assets(self, dag_maker, session):
         self.job_runner = SchedulerJobRunner(job=Job(), subdir=os.devnull)
 
-        asset1 = Asset(uri="ds1")
+        asset1 = Asset(uri="test://asset_1", name="test_asset_1", group="test_group")
 
         with dag_maker(dag_id="assets-1", schedule=[asset1], session=session):
             BashOperator(task_id="task", bash_command="echo 1")
