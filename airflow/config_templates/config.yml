@@ -482,13 +482,6 @@ core:
       sensitive: true
       default: ~
       example: '{"some_param": "some_value"}'
-    strict_asset_uri_validation:
-      description: |
-        Asset URI validation should raise an exception if it is not compliant with AIP-60.
-      default: "True"
-      example: ~
-      version_added: 2.9.2
-      type: boolean
     database_access_isolation:
       description: (experimental) Whether components should use Airflow Internal API for DB connectivity.
       version_added: 2.6.0
