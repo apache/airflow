@@ -1551,6 +1551,27 @@ def test_expected_output_pull_request_v2_7(
             id="Tests for all airflow core types except providers should run if "
             "any other than API/WWW/CLI/Operators file changed.",
         ),
+        pytest.param(
+            ("airflow/api_fastapi/core_api/openapi/v1-generated.yaml",),
+            {
+                "affected-providers-list-as-string": None,
+                "all-python-versions": "['3.9']",
+                "all-python-versions-list-as-string": "3.9",
+                "ci-image-build": "true",
+                "needs-helm-tests": "false",
+                "run-tests": "true",
+                "docs-build": "false",
+                "docs-list-as-string": None,
+                "upgrade-to-newer-dependencies": "false",
+                "skip-pre-commits": "check-provider-yaml-valid,flynt,identity,lint-helm-chart,"
+                "mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,ts-compile-format-lint-www",
+                "skip-provider-tests": "true",
+                "parallel-test-types-list-as-string": None,
+                "needs-mypy": "false",
+                "mypy-checks": "[]",
+            },
+            id="pre commit ts-compile-format-lint should not be ignored if openapi spec changed.",
+        ),
     ],
 )
 def test_expected_output_pull_request_target(
