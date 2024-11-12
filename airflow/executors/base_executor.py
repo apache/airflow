@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import warnings
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
@@ -399,7 +400,7 @@ class BaseExecutor(LoggingMixin):
                 span.set_attribute("queue", str(queue))
                 span.set_attribute("executor_config", str(executor_config))
                 del self.queued_tasks[key]
-                self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
+                self.run(ti=task_instance, command=command, queue=queue, executor_config=executor_config)
                 self.running.add(key)
 
     def change_state(
@@ -504,6 +505,28 @@ class BaseExecutor(LoggingMixin):
                     cleared_events[ti_key] = self.event_buffer.pop(ti_key)
 
         return cleared_events
+
+    def run(
+        self,
+        ti: TaskInstance,
+        command: CommandType,
+        queue: str | None = None,
+        executor_config: Any | None = None,
+    ) -> None:  # pragma: no cover
+        """
+        Run task instance command.
+
+        :param ti: task instance to run
+        :param command: Command to run
+        :param queue: name of the queue
+        :param executor_config: Configuration passed to the executor.
+        """
+        warnings.warn(
+            f"Old execute_async function is used. Please update your executor: {type(self).__name__} to use new run function with updated interface.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.execute_async(key=ti.key, command=command, queue=queue, executor_config=executor_config)
 
     def execute_async(
         self,
