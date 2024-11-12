@@ -22,7 +22,7 @@ from datetime import datetime
 from opentelemetry import trace
 
 from airflow import DAG
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.traces import otel_tracer
 from airflow.traces.otel_tracer import CTX_PROP_SUFFIX
 from airflow.traces.tracer import Trace

@@ -1297,7 +1297,7 @@ traces:
         All the children spans will be created using context propagation.
         This doesn't replace any of the existing spans, but it creates additional ones.
         The default value is False.
-      version_added: 2.10.2
+      version_added: 2.10.3
       type: string
       example: ~
       default: "False"

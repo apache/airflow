@@ -872,11 +872,7 @@ class DagRun(Base, LoggingMixin):
         return leaf_tis
 
     @staticmethod
-    def _set_dagrun_span_attrs(span: Span, dag_run: DagRun):
-        # This is necessary to avoid an error in case of testing a paused dag.
-        if dag_run.queued_at is None and dag_run.start_date is not None:
-            dag_run.queued_at = dag_run.start_date
-
+    def _set_dagrun_span_attrs(span: Span, dag_run: DagRun, dagv: DagVersion):
         if dag_run._state is DagRunState.FAILED:
             span.set_attribute("airflow.dag_run.error", True)
         attributes = {
@@ -897,7 +893,7 @@ class DagRun(Base, LoggingMixin):
             "airflow.dag_run.run_type": str(dag_run.run_type),
             "airflow.dag_run.data_interval_start": str(dag_run.data_interval_start),
             "airflow.dag_run.data_interval_end": str(dag_run.data_interval_end),
-            "airflow.dag_run.dag_hash": str(dag_run.dag_hash),
+            "airflow.dag_version.version": str(dagv.version if dagv else None),
             "airflow.dag_run.conf": str(dag_run.conf),
         }
         if span.is_recording():
@@ -1101,7 +1097,7 @@ class DagRun(Base, LoggingMixin):
                         self.state,
                     )
 
-                    self._set_dagrun_span_attrs(span=active_span, dag_run=self)
+                    self._set_dagrun_span_attrs(span=active_span, dag_run=self, dagv=dagv)
                     active_span.end()
                     # Remove the span from the dict.
                     self.active_spans.delete(self.run_id)
@@ -1114,7 +1110,7 @@ class DagRun(Base, LoggingMixin):
                     )
 
             with Trace.start_span_from_dagrun(dagrun=self) as span:
-                self._set_dagrun_span_attrs(span=span, dag_run=self)
+                self._set_dagrun_span_attrs(span=span, dag_run=self, dagv=dagv)
 
             session.flush()
 

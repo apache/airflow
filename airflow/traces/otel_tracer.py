@@ -72,7 +72,8 @@ class OtelTrace:
         use_simple_processor: bool = False,
     ):
         self.span_exporter = span_exporter
-        if use_simple_processor:
+        self.use_simple_processor = use_simple_processor
+        if self.use_simple_processor:
             # With a BatchSpanProcessor, spans are exported at an interval.
             # A task can run fast and finish before spans have enough time to get exported to the collector.
             # When creating spans from inside a task, a SimpleSpanProcessor needs to be used because
@@ -105,9 +106,14 @@ class OtelTrace:
         debug = conf.getboolean("traces", "otel_debugging_on")
         if debug is True:
             log.info("[ConsoleSpanExporter] is being used")
-            tracer_provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
+            if self.use_simple_processor:
+                span_processor_for_tracer_prov = SimpleSpanProcessor(ConsoleSpanExporter())
+            else:
+                span_processor_for_tracer_prov = BatchSpanProcessor(ConsoleSpanExporter())
         else:
-            tracer_provider.add_span_processor(self.span_processor)
+            span_processor_for_tracer_prov = self.span_processor
+
+        tracer_provider.add_span_processor(span_processor_for_tracer_prov)
         return tracer_provider
 
     def get_tracer(
