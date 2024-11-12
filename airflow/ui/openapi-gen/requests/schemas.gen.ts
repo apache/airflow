@@ -3172,6 +3172,14 @@ export const $XComResponseString = {
       title: "Dag Id",
     },
     value: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Value",
     },
   },
