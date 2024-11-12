@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import Body, Depends, HTTPException, status
@@ -25,7 +26,6 @@ from sqlalchemy import update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import select
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter

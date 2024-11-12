@@ -20,8 +20,8 @@ from __future__ import annotations
 import json
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from typing_extensions import Self
 
+from airflow.typing_compat import Self
 from airflow.utils.log.secrets_masker import redact
 
 
