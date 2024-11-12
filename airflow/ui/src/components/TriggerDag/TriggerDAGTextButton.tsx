@@ -20,13 +20,15 @@ import { Box, Button } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
 import { FiPlay } from "react-icons/fi";
 
-import TriggerDAGModal from "./TriggerDAGModal";
-import type { TriggerDAGButtonProps } from "./TriggerDag";
+import type { DAGResponse } from "openapi/requests/types.gen";
 
-const TriggerDAGIconButton: React.FC<TriggerDAGButtonProps> = ({
-  dagDisplayName,
-  dagId,
-}) => {
+import TriggerDAGModal from "./TriggerDAGModal";
+
+type Props = {
+  readonly dag: DAGResponse;
+};
+
+const TriggerDAGIconButton: React.FC<Props> = ({ dag }) => {
   const { onClose, onOpen, open } = useDisclosure();
 
   return (
@@ -37,8 +39,9 @@ const TriggerDAGIconButton: React.FC<TriggerDAGButtonProps> = ({
       </Button>
 
       <TriggerDAGModal
-        dagDisplayName={dagDisplayName}
-        dagId={dagId}
+        dagDisplayName={dag.dag_display_name}
+        dagId={dag.dag_id}
+        isPaused={dag.is_paused}
         onClose={onClose}
         open={open}
       />

@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text, Heading, VStack } from "@chakra-ui/react";
+import { Heading, VStack } from "@chakra-ui/react";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 
-import { Dialog } from "src/components/ui";
+import { Alert, Dialog } from "src/components/ui";
 
+import { TogglePause } from "../TogglePause";
 import TriggerDAGForm from "./TriggerDAGForm";
 import type { DagParams } from "./TriggerDag";
 import { TriggerDag as triggerDag } from "./TriggerDag";
@@ -28,6 +29,7 @@ import { TriggerDag as triggerDag } from "./TriggerDag";
 type TriggerDAGModalProps = {
   dagDisplayName: string;
   dagId: string;
+  isPaused: boolean;
   onClose: () => void;
   open: boolean;
 };
@@ -35,6 +37,7 @@ type TriggerDAGModalProps = {
 const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
   dagDisplayName,
   dagId,
+  isPaused,
   onClose,
   open,
 }) => {
@@ -69,16 +72,16 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
     <Dialog.Root onOpenChange={onClose} open={open} size="xl">
       <Dialog.Content backdrop>
         <Dialog.Header>
-          <VStack align="start" gap={2}>
+          <VStack align="start" gap={4}>
             <Heading size="xl">
-              Trigger DAG{" "}
-              {dagDisplayName ? <span>- {dagDisplayName}</span> : undefined}
+              Trigger DAG - {dagDisplayName}{" "}
+              <TogglePause dagId={dagParams.dagId} isPaused={isPaused} />
             </Heading>
-            {dagDisplayName !== dagId && (
-              <Text color="gray.500" fontSize="md">
-                DAG ID: {dagId}
-              </Text>
-            )}
+            {isPaused ? (
+              <Alert status="warning" title="Paused DAG">
+                You can not trigger a paused DAG, Unpause DAG to trigger
+              </Alert>
+            ) : undefined}
           </VStack>
         </Dialog.Header>
 
@@ -87,6 +90,7 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
         <Dialog.Body>
           <TriggerDAGForm
             dagParams={dagParams}
+            isPaused={isPaused}
             onClose={onClose}
             onTrigger={handleTrigger}
             setDagParams={setDagParams}

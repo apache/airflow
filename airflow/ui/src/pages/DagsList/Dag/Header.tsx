@@ -55,12 +55,7 @@ export const Header = ({
             <TogglePause dagId={dag.dag_id} isPaused={dag.is_paused} />
           )}
         </HStack>
-        <Flex>
-          <TriggerDAGTextButton
-            dagDisplayName={dag?.dag_display_name ?? ""}
-            dagId={dag?.dag_id ?? ""}
-          />
-        </Flex>
+        <Flex>{dag ? <TriggerDAGTextButton dag={dag} /> : undefined}</Flex>
       </Flex>
       <SimpleGrid columns={4} gap={4} my={2}>
         <VStack align="flex-start" gap={1}>

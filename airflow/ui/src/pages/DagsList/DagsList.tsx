@@ -126,12 +126,7 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
   },
   {
     accessorKey: "trigger",
-    cell: ({ row }) => (
-      <TriggerDAGIconButton
-        dagDisplayName={row.original.dag_display_name}
-        dagId={row.original.dag_id}
-      />
-    ),
+    cell: ({ row }) => <TriggerDAGIconButton dag={row.original} />,
     enableSorting: false,
     header: "",
   },

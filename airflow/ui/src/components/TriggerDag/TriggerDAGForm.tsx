@@ -31,6 +31,7 @@ import type { DagParams } from "./TriggerDag";
 
 type TriggerDAGFormProps = {
   dagParams: DagParams;
+  isPaused: boolean;
   onClose: () => void;
   onTrigger: (updatedDagParams: DagParams) => void;
   setDagParams: React.Dispatch<React.SetStateAction<DagParams>>;
@@ -38,6 +39,7 @@ type TriggerDAGFormProps = {
 
 const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
   dagParams,
+  isPaused,
   onTrigger,
   setDagParams,
 }) => {
@@ -54,7 +56,6 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
     defaultValues: dagParams,
   });
 
-  // Watch the date fields for dynamic min/max constraints
   const dataIntervalStart = watch("dataIntervalStart");
   const dataIntervalEnd = watch("dataIntervalEnd");
 
@@ -85,18 +86,19 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
     }
   };
 
-  // Function to validate and enforce date constraints based on which field is edited
   const validateDates = (
     fieldName: "dataIntervalEnd" | "dataIntervalStart",
   ) => {
-    const startDate = dataIntervalStart ? new Date(dataIntervalStart) : null;
-    const endDate = dataIntervalEnd ? new Date(dataIntervalEnd) : null;
+    const startDate = dataIntervalStart
+      ? new Date(dataIntervalStart)
+      : undefined;
+    const endDate = dataIntervalEnd ? new Date(dataIntervalEnd) : undefined;
 
     if (startDate && endDate) {
       if (fieldName === "dataIntervalStart" && startDate > endDate) {
-        setValue("dataIntervalStart", dataIntervalEnd); // Adjust start to match end if invalid
+        setValue("dataIntervalStart", dataIntervalEnd);
       } else if (fieldName === "dataIntervalEnd" && endDate < startDate) {
-        setValue("dataIntervalEnd", dataIntervalStart); // Adjust end to match start if invalid
+        setValue("dataIntervalEnd", dataIntervalStart);
       }
     }
   };
@@ -107,7 +109,9 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
     <>
       <Accordion.Root collapsible size="lg" variant="enclosed">
         <Accordion.Item key="advancedOptions" value="advancedOptions">
-          <Accordion.ItemTrigger>Advanced Options</Accordion.ItemTrigger>
+          <Accordion.ItemTrigger cursor="button">
+            Advanced Options
+          </Accordion.ItemTrigger>
           <Accordion.ItemContent>
             <Box p={5}>
               <Text fontSize="md" mb={2}>
@@ -217,7 +221,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
           <Spacer />
           <Button
             colorPalette="blue"
-            disabled={Boolean(jsonError)}
+            disabled={Boolean(jsonError) || isPaused}
             onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiPlay /> Trigger
