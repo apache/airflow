@@ -137,6 +137,7 @@ def mock_context(task) -> Context:
             key: str = XCOM_RETURN_KEY,
             include_prior_dates: bool = False,
             session: Session = NEW_SESSION,
+            run_id: str | None = None,
             *,
             map_indexes: Iterable[int] | int | None = None,
             default: Any | None = None,

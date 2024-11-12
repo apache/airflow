@@ -65,7 +65,7 @@ with DAG(
         df.write.save_as_table(table_name, mode="overwrite")
         return table_name
 
-    table_name = setup_data()  # type: ignore[call-arg]
+    table_name = setup_data()  # type: ignore[call-arg, misc]
 
     @task.snowpark
     def check_num_rows(table_name: str):
