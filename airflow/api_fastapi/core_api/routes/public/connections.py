@@ -16,9 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Annotated
-
 import os
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
