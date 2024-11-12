@@ -159,6 +159,12 @@ class _EdgeWorkerCli:
         logger.info("Request to show down Edge Worker received, waiting for jobs to complete.")
         _EdgeWorkerCli.drain = True
 
+    def shutdown_handler(self, sig, frame):
+        logger.info("SIGTERM received. Terminating all jobs and quit")
+        for job in self.jobs:
+            os.killpg(job.process.pid, signal.SIGTERM)
+        _EdgeWorkerCli.drain = True
+
     def _get_sysinfo(self) -> dict:
         """Produce the sysinfo from worker to post to central site."""
         return {
@@ -182,6 +188,7 @@ class _EdgeWorkerCli:
             raise SystemExit(str(e))
         _write_pid_to_pidfile(self.pid_file_path)
         signal.signal(signal.SIGINT, _EdgeWorkerCli.signal_handler)
+        signal.signal(signal.SIGTERM, self.shutdown_handler)
         try:
             while not _EdgeWorkerCli.drain or self.jobs:
                 self.loop()
