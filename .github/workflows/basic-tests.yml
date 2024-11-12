@@ -187,9 +187,8 @@ jobs:
         working-directory: ./airflow-client-python
       - name: Install hatch
         run: |
-          python -m pip install --upgrade pipx
-          pipx ensurepath
-          pipx install hatch --force
+          python -m pip install --upgrade uv
+          uv tool install hatch
       - name: Run tests
         run: hatch run run-coverage
         env:
@@ -198,7 +197,7 @@ jobs:
       - name: "Prepare FAB+standard provider packages: wheel"
         run: >
             breeze release-management prepare-provider-packages fab standard \
-              --package-format wheel --skip-tag-check
+              --package-format wheel --skip-tag-check --version-suffix-for-pypi dev0
       - name: "Install Airflow with fab for webserver tests"
         run: pip install . dist/apache_airflow_providers_fab-*.whl
       - name: "Install Airflow with standard provider for webserver tests"

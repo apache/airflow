@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import Body, Depends, HTTPException, status
@@ -25,7 +26,6 @@ from sqlalchemy import update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import select
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -35,16 +35,13 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 
 # TODO: Add dependency on JWT token
-ti_router = AirflowRouter(
-    prefix="/task_instance",
-    tags=["Task Instance"],
-)
+router = AirflowRouter()
 
 
 log = logging.getLogger(__name__)
 
 
-@ti_router.patch(
+@router.patch(
     "/{task_instance_id}/state",
     status_code=status.HTTP_204_NO_CONTENT,
     # TODO: Add description to the operation
@@ -133,7 +130,7 @@ def ti_update_state(
         )
 
 
-@ti_router.put(
+@router.put(
     "/{task_instance_id}/heartbeat",
     status_code=status.HTTP_204_NO_CONTENT,
     responses={

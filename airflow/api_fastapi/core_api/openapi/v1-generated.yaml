@@ -3104,6 +3104,99 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}:
+    get:
+      tags:
+      - XCom
+      summary: Get Xcom Entry
+      description: Get an XCom entry.
+      operationId: get_xcom_entry
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: xcom_key
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Xcom Key
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
+      - name: deserialize
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Deserialize
+      - name: stringify
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          title: Stringify
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/XComResponseNative'
+                - $ref: '#/components/schemas/XComResponseString'
+                title: Response Get Xcom Entry
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/assets/:
     get:
       tags:
@@ -5376,3 +5469,73 @@ components:
       - git_version
       title: VersionInfo
       description: Version information serializer for responses.
+    XComResponseNative:
+      properties:
+        key:
+          type: string
+          title: Key
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        execution_date:
+          type: string
+          format: date-time
+          title: Execution Date
+        map_index:
+          type: integer
+          title: Map Index
+        task_id:
+          type: string
+          title: Task Id
+        dag_id:
+          type: string
+          title: Dag Id
+        value:
+          title: Value
+      type: object
+      required:
+      - key
+      - timestamp
+      - execution_date
+      - map_index
+      - task_id
+      - dag_id
+      - value
+      title: XComResponseNative
+      description: XCom response serializer with native return type.
+    XComResponseString:
+      properties:
+        key:
+          type: string
+          title: Key
+        timestamp:
+          type: string
+          format: date-time
+          title: Timestamp
+        execution_date:
+          type: string
+          format: date-time
+          title: Execution Date
+        map_index:
+          type: integer
+          title: Map Index
+        task_id:
+          type: string
+          title: Task Id
+        dag_id:
+          type: string
+          title: Dag Id
+        value:
+          title: Value
+      type: object
+      required:
+      - key
+      - timestamp
+      - execution_date
+      - map_index
+      - task_id
+      - dag_id
+      - value
+      title: XComResponseString
+      description: XCom response serializer with string return type.

@@ -17,11 +17,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import (
     get_session,
@@ -86,6 +86,7 @@ def get_event_logs(
                     "extra",
                 ],
                 Log,
+                to_replace={"when": "dttm", "event_log_id": "id"},
             ).dynamic_depends()
         ),
     ],
