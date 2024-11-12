@@ -218,7 +218,9 @@ class _EdgeWorkerCli:
             env["AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION"] = "True"
             env["AIRFLOW__CORE__INTERNAL_API_URL"] = conf.get("edge", "api_url")
             env["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
+            signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT})
             process = Popen(edge_job.command, close_fds=True, env=env)
+            signal.pthread_sigmask(signal.SIG_UNBLOCK, {signal.SIGINT})
             logfile = EdgeLogs.logfile_path(edge_job.key)
             self.jobs.append(_Job(edge_job, process, logfile, 0))
             EdgeJob.set_state(edge_job.key, TaskInstanceState.RUNNING)
