@@ -778,6 +778,10 @@ triggers:
   - integration-name: Amazon Neptune
     python-modules:
       - airflow.providers.amazon.aws.triggers.neptune
+  - integration-name: AWS Database Migration Service
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.dms
+
 
 transfers:
   - source-integration-name: Amazon DynamoDB
