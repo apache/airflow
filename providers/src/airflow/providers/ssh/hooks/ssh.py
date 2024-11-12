@@ -260,8 +260,8 @@ class SSHHook(BaseHook):
             with open(user_ssh_config_filename) as config_fd:
                 ssh_conf.parse(config_fd)
             host_info = ssh_conf.lookup(self.remote_host)
-            """If the proxy command is already set via the extra options - pass"""
-            if self.host_proxy_cmd is None:
+            # If the proxy command is already set via the extra options, it will not be overwritten"""
+            if not self.host_proxy_cmd:
                 if host_info and host_info.get("proxycommand"):
                     self.host_proxy_cmd = host_info["proxycommand"]
 
