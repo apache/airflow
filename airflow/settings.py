@@ -209,14 +209,14 @@ def load_policy_plugins(pm: pluggy.PluginManager):
     pm.load_setuptools_entrypoints("airflow.policy")
 
 
-def _get_async_conn_uri_from_sync():
-    scheme, rest = SQL_ALCHEMY_CONN.split(":", maxsplit=1)
+def _get_async_conn_uri_from_sync(sync_uri):
+    scheme, rest = sync_uri.split(":", maxsplit=1)
     scheme = scheme.split("+", maxsplit=1)[0]
     aiolib = AIO_LIBS_MAPPING.get(scheme)
     if aiolib:
         return f"{scheme}+{aiolib}:{rest}"
     else:
-        return SQL_ALCHEMY_CONN
+        return sync_uri
 
 
 def configure_vars():
@@ -227,7 +227,7 @@ def configure_vars():
     global PLUGINS_FOLDER
     global DONOT_MODIFY_HANDLERS
     SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN")
-    SQL_ALCHEMY_CONN_ASYNC = _get_async_conn_uri_from_sync()
+    SQL_ALCHEMY_CONN_ASYNC = _get_async_conn_uri_from_sync(sync_uri=SQL_ALCHEMY_CONN)
 
     DAGS_FOLDER = os.path.expanduser(conf.get("core", "DAGS_FOLDER"))
 
