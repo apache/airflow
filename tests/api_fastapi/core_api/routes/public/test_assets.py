@@ -249,6 +249,7 @@ class TestGetAssets(TestAssets):
         "dag_ids, uri_pattern,expected_num",
         [("dag1,dag2", "folder", 1), ("dag3", "nothing", 0), ("dag2,dag3", "key", 2)],
     )
+    @provide_session
     def test_filter_assets_by_dag_ids_and_uri_pattern_works(
         self, test_client, dag_ids, uri_pattern, expected_num, session
     ):

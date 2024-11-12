@@ -426,6 +426,9 @@ class _DagIdAssetReferenceFilter(BaseParam[list[str]]):
         super().__init__(AssetModel.consuming_dags, skip_none)
 
     def depends(self, dag_ids: list[str] = Query(None)) -> _DagIdAssetReferenceFilter:
+        # needed to handle cases where dag_ids=a1,b1
+        if dag_ids and len(dag_ids) == 1 and "," in dag_ids[0]:
+            dag_ids = dag_ids[0].split(",")
         return self.set_value(dag_ids)
 
     def to_orm(self, select: Select) -> Select:
