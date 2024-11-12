@@ -58,7 +58,7 @@ class TestTIUpdateState:
         session.commit()
 
         response = client.patch(
-            f"/execution/task_instances/{ti.id}/state",
+            f"/execution/task-instances/{ti.id}/state",
             json={
                 "state": "running",
                 "hostname": "random-hostname",
@@ -91,7 +91,7 @@ class TestTIUpdateState:
         session.commit()
 
         response = client.patch(
-            f"/execution/task_instances/{ti.id}/state",
+            f"/execution/task-instances/{ti.id}/state",
             json={
                 "state": "running",
                 "hostname": "random-hostname",
@@ -131,7 +131,7 @@ class TestTIUpdateState:
         session.commit()
 
         response = client.patch(
-            f"/execution/task_instances/{ti.id}/state",
+            f"/execution/task-instances/{ti.id}/state",
             json={
                 "state": state,
                 "end_date": end_date.isoformat(),
@@ -158,7 +158,7 @@ class TestTIUpdateState:
 
         payload = {"state": "success", "end_date": "2024-10-31T12:30:00Z"}
 
-        response = client.patch(f"/execution/task_instances/{task_instance_id}/state", json=payload)
+        response = client.patch(f"/execution/task-instances/{task_instance_id}/state", json=payload)
         assert response.status_code == 404
         assert response.json()["detail"] == {
             "reason": "not_found",
@@ -189,7 +189,7 @@ class TestTIUpdateState:
                 SQLAlchemyError("Database error"),  # Second call raises an error
             ],
         ):
-            response = client.patch(f"/execution/task_instances/{ti.id}/state", json=payload)
+            response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
             assert response.status_code == 500
             assert response.json()["detail"] == "Database error occurred"
 
@@ -263,7 +263,7 @@ class TestTIHealthEndpoint:
         assert ti.last_heartbeat_at is None
 
         response = client.put(
-            f"/execution/task_instances/{task_instance_id}/heartbeat",
+            f"/execution/task-instances/{task_instance_id}/heartbeat",
             json={"hostname": hostname, "pid": pid},
         )
 
@@ -287,7 +287,7 @@ class TestTIHealthEndpoint:
         assert session.scalar(select(TaskInstance.id).where(TaskInstance.id == task_instance_id)) is None
 
         response = client.put(
-            f"/execution/task_instances/{task_instance_id}/heartbeat",
+            f"/execution/task-instances/{task_instance_id}/heartbeat",
             json={"hostname": "random-hostname", "pid": 1547},
         )
 
@@ -315,7 +315,7 @@ class TestTIHealthEndpoint:
         task_instance_id = ti.id
 
         response = client.put(
-            f"/execution/task_instances/{task_instance_id}/heartbeat",
+            f"/execution/task-instances/{task_instance_id}/heartbeat",
             json={"hostname": "random-hostname", "pid": 1547},
         )
 
@@ -352,7 +352,7 @@ class TestTIHealthEndpoint:
         time_machine.move_to(new_time, tick=False)
 
         response = client.put(
-            f"/execution/task_instances/{task_instance_id}/heartbeat",
+            f"/execution/task-instances/{task_instance_id}/heartbeat",
             json={"hostname": "random-hostname", "pid": 1547},
         )
 
