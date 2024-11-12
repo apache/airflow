@@ -3368,9 +3368,7 @@ class TaskInstance(Base, LoggingMixin):
         Make an XCom available for tasks to pull.
 
         :param key: Key to store the value under.
-        :param value: Value to store. What types are possible depends on whether
-            ``enable_xcom_pickling`` is true or not. If so, this can be any
-            picklable object; only be JSON-serializable may be used otherwise.
+        :param value: Value to store. Only be JSON-serializable may be used otherwise.
         """
         XCom.set(
             key=key,

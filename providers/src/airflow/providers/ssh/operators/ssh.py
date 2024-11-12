@@ -188,7 +188,8 @@ class SSHOperator(BaseOperator):
 
         with self.get_ssh_client() as ssh_client:
             result = self.run_ssh_client_command(ssh_client, self.command, context=context)
-        enable_pickling = conf.getboolean("core", "enable_xcom_pickling")
+        # TODO: Remove this after minimum Airflow version is 3.0
+        enable_pickling = conf.getboolean("core", "enable_xcom_pickling", fallback=False)
         if not enable_pickling:
             result = b64encode(result).decode("utf-8")
 
