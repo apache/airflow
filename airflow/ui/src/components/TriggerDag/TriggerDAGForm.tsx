@@ -22,6 +22,7 @@ import { githubLight, githubDark } from "@uiw/codemirror-themes-all";
 import CodeMirror from "@uiw/react-codemirror";
 import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
+import { FiPlay } from "react-icons/fi";
 
 import { useColorMode } from "src/context/colorMode";
 
@@ -176,7 +177,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
             disabled={Boolean(jsonError)}
             onClick={() => void handleSubmit(onSubmit)()}
           >
-            Trigger
+            <FiPlay /> Trigger
           </Button>
         </HStack>
       </Box>
