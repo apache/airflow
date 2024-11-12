@@ -26,8 +26,6 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import quote, urljoin, urlparse
 
 import httpx
-from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowNotFoundException
-from airflow.hooks.base import BaseHook
 from azure.identity import ClientSecretCredential
 from httpx import Timeout
 from kiota_abstractions.api_error import APIError
@@ -44,6 +42,9 @@ from kiota_serialization_json.json_parse_node_factory import JsonParseNodeFactor
 from kiota_serialization_text.text_parse_node_factory import TextParseNodeFactory
 from msgraph_core import APIVersion, GraphClientFactory
 from msgraph_core._enums import NationalClouds
+
+from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowNotFoundException
+from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
     from kiota_abstractions.request_adapter import RequestAdapter
