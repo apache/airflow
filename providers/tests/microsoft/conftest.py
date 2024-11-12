@@ -132,14 +132,15 @@ def mock_context(task) -> Context:
 
         def xcom_pull(
             self,
-            task_ids: Iterable[str] | str | None = None,
+            task_ids: str | Iterable[str] | None = None,
             dag_id: str | None = None,
             key: str = XCOM_RETURN_KEY,
             include_prior_dates: bool = False,
             session: Session = NEW_SESSION,
             *,
-            map_indexes: Iterable[int] | int | None = None,
-            default: Any | None = None,
+            map_indexes: int | Iterable[int] | None = None,
+            default: Any = None,
+            run_id: str | None = None,
         ) -> Any:
             if map_indexes:
                 return values.get(f"{task_ids or self.task_id}_{dag_id or self.dag_id}_{key}_{map_indexes}")
