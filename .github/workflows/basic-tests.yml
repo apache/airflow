@@ -197,7 +197,7 @@ jobs:
       - name: "Prepare FAB+standard provider packages: wheel"
         run: >
             breeze release-management prepare-provider-packages fab standard \
-              --package-format wheel --skip-tag-check
+              --package-format wheel --skip-tag-check --version-suffix-for-pypi dev0
       - name: "Install Airflow with fab for webserver tests"
         run: pip install . dist/apache_airflow_providers_fab-*.whl
       - name: "Install Airflow with standard provider for webserver tests"
