@@ -16,9 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import os
+from unittest import mock
+
 import pytest
 
 from airflow.models import Connection
+from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.db import clear_db_connections
@@ -296,7 +300,7 @@ class TestPostConnection(TestConnectionEndpoint):
 
 class TestPatchConnection(TestConnectionEndpoint):
     @pytest.mark.parametrize(
-        "payload",
+        "body",
         [
             {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "extra": '{"key": "var"}'},
             {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "host": "test_host_patch"},
@@ -317,14 +321,14 @@ class TestPatchConnection(TestConnectionEndpoint):
         ],
     )
     @provide_session
-    def test_patch_should_respond_200(self, test_client, payload, session):
+    def test_patch_should_respond_200(self, test_client, body, session):
         self.create_connection()
 
-        response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=payload)
+        response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=body)
         assert response.status_code == 200
 
     @pytest.mark.parametrize(
-        "payload, updated_connection, update_mask",
+        "body, updated_connection, update_mask",
         [
             (
                 {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "extra": '{"key": "var"}'},
@@ -414,17 +418,17 @@ class TestPatchConnection(TestConnectionEndpoint):
         ],
     )
     def test_patch_should_respond_200_with_update_mask(
-        self, test_client, session, payload, updated_connection, update_mask
+        self, test_client, session, body, updated_connection, update_mask
     ):
         self.create_connection()
-        response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=payload, params=update_mask)
+        response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=body, params=update_mask)
         assert response.status_code == 200
         connection = session.query(Connection).filter_by(conn_id=TEST_CONN_ID).first()
         assert connection.password is None
         assert response.json() == updated_connection
 
     @pytest.mark.parametrize(
-        "payload",
+        "body",
         [
             {
                 "connection_id": "i_am_not_a_connection",
@@ -456,9 +460,9 @@ class TestPatchConnection(TestConnectionEndpoint):
             },
         ],
     )
-    def test_patch_should_respond_400(self, test_client, payload):
+    def test_patch_should_respond_400(self, test_client, body):
         self.create_connection()
-        response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=payload)
+        response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=body)
         assert response.status_code == 400
         print(response.json())
         assert {
@@ -466,7 +470,7 @@ class TestPatchConnection(TestConnectionEndpoint):
         } == response.json()
 
     @pytest.mark.parametrize(
-        "payload",
+        "body",
         [
             {
                 "connection_id": "i_am_not_a_connection",
@@ -498,11 +502,11 @@ class TestPatchConnection(TestConnectionEndpoint):
             },
         ],
     )
-    def test_patch_should_respond_404(self, test_client, payload):
-        response = test_client.patch(f"/public/connections/{payload['connection_id']}", json=payload)
+    def test_patch_should_respond_404(self, test_client, body):
+        response = test_client.patch(f"/public/connections/{body['connection_id']}", json=body)
         assert response.status_code == 404
         assert {
-            "detail": f"The Connection with connection_id: `{payload['connection_id']}` was not found",
+            "detail": f"The Connection with connection_id: `{body['connection_id']}` was not found",
         } == response.json()
 
     @pytest.mark.enable_redact
@@ -563,3 +567,48 @@ class TestPatchConnection(TestConnectionEndpoint):
         response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=body)
         assert response.status_code == 200
         assert response.json() == expected_response
+
+
+class TestConnection(TestConnectionEndpoint):
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"connection_id": TEST_CONN_ID, "conn_type": "sqlite"},
+            {"connection_id": TEST_CONN_ID, "conn_type": "ftp"},
+        ],
+    )
+    def test_should_respond_200(self, test_client, body):
+        response = test_client.post("/public/connections/test", json=body)
+        assert response.status_code == 200
+        assert response.json() == {
+            "status": True,
+            "message": "Connection successfully tested",
+        }
+
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"connection_id": TEST_CONN_ID, "conn_type": "sqlite"},
+            {"connection_id": TEST_CONN_ID, "conn_type": "ftp"},
+        ],
+    )
+    def test_connection_env_is_cleaned_after_run(self, test_client, body):
+        test_client.post("/public/connections/test", json=body)
+        assert not any([key.startswith(CONN_ENV_PREFIX) for key in os.environ.keys()])
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"connection_id": TEST_CONN_ID, "conn_type": "sqlite"},
+            {"connection_id": TEST_CONN_ID, "conn_type": "ftp"},
+        ],
+    )
+    def test_should_respond_403_by_default(self, test_client, body):
+        response = test_client.post("/public/connections/test", json=body)
+        assert response.status_code == 403
+        assert response.json() == {
+            "detail": "Testing connections is disabled in Airflow configuration. "
+            "Contact your deployment admin to enable it."
+        }
