@@ -807,7 +807,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         self.params = ParamsDict(params)
 
-        self.priority_weight = max(MINIMUM_PRIORITY_WEIGHT, min(MAXIMUM_PRIORITY_WEIGHT, priority_weight))
+        self.priority_weight = priority_weight
         self.weight_rule = validate_and_load_priority_weight_strategy(weight_rule)
 
         self.max_active_tis_per_dag: int | None = max_active_tis_per_dag
@@ -873,6 +873,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             self.dag = dag
 
         validate_instance_args(self, BASEOPERATOR_ARGS_EXPECTED_TYPES)
+
+        # Ensure priority_weight is within the valid range
+        self.priority_weight = max(
+            MINIMUM_PRIORITY_WEIGHT, min(MAXIMUM_PRIORITY_WEIGHT, self.priority_weight)
+        )
 
     def __eq__(self, other):
         if type(self) is type(other):
