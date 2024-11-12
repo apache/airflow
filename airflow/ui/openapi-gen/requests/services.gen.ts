@@ -103,6 +103,8 @@ import type {
   GetVersionResponse,
   GetDagStatsData,
   GetDagStatsResponse,
+  GetXcomEntryData,
+  GetXcomEntryResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -1678,6 +1680,49 @@ export class DagStatsService {
       url: "/public/dagStats/",
       query: {
         dag_ids: data.dagIds,
+      },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class XcomService {
+  /**
+   * Get Xcom Entry
+   * Get an XCom entry.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.taskId
+   * @param data.dagRunId
+   * @param data.xcomKey
+   * @param data.mapIndex
+   * @param data.deserialize
+   * @param data.stringify
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getXcomEntry(
+    data: GetXcomEntryData,
+  ): CancelablePromise<GetXcomEntryResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
+      path: {
+        dag_id: data.dagId,
+        task_id: data.taskId,
+        dag_run_id: data.dagRunId,
+        xcom_key: data.xcomKey,
+      },
+      query: {
+        map_index: data.mapIndex,
+        deserialize: data.deserialize,
+        stringify: data.stringify,
       },
       errors: {
         400: "Bad Request",

@@ -34,7 +34,8 @@ versions:
 dependencies:
   - apache-airflow>=2.8.0
   - apache-airflow-providers-common-sql>=1.20.0
-  - ydb>=3.12.1
+  - ydb>=3.18.8
+  - ydb-dbapi>=0.1.0
 
 integrations:
   - integration-name: YDB
@@ -53,10 +54,6 @@ hooks:
   - integration-name: YDB
     python-modules:
       - airflow.providers.ydb.hooks.ydb
-      - airflow.providers.ydb.hooks._vendor.dbapi.connection
-      - airflow.providers.ydb.hooks._vendor.dbapi.constants
-      - airflow.providers.ydb.hooks._vendor.dbapi.cursor
-      - airflow.providers.ydb.hooks._vendor.dbapi.errors
 
 connection-types:
   - hook-class-name: airflow.providers.ydb.hooks.ydb.YDBHook
