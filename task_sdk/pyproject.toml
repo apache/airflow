@@ -33,6 +33,8 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/airflow"]
+# This file only exists to make pyright/VSCode happy, don't ship it
+exclude = ["src/airflow/__init__.py"]
 
 [tool.ruff]
 extend = "../pyproject.toml"
@@ -45,6 +47,9 @@ namespace-packages = ["src/airflow"]
 "!src/*" = ["D", "TID253", "S101", "TRY002"]
 
 "src/airflow/sdk/__init__.py" = ["TCH004"]
+
+# Pycharm barfs if this "stub" file has future imports
+"src/airflow/__init__.py" = ["I002"]
 
 [tool.uv]
 dev-dependencies = [
