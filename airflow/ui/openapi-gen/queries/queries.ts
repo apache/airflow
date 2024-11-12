@@ -67,6 +67,54 @@ export const useAssetServiceNextRunAssets = <
     ...options,
   });
 /**
+ * Get Assets
+ * Get assets.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.uriPattern
+ * @param data.dagIds
+ * @param data.orderBy
+ * @returns AssetCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceGetAssets = <
+  TData = Common.AssetServiceGetAssetsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagIds,
+    limit,
+    offset,
+    orderBy,
+    uriPattern,
+  }: {
+    dagIds?: string[];
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    uriPattern?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseAssetServiceGetAssetsKeyFn(
+      { dagIds, limit, offset, orderBy, uriPattern },
+      queryKey,
+    ),
+    queryFn: () =>
+      AssetService.getAssets({
+        dagIds,
+        limit,
+        offset,
+        orderBy,
+        uriPattern,
+      }) as TData,
+    ...options,
+  });
+/**
  * Historical Metrics
  * Return cluster activity historical metrics.
  * @param data The data for the request.

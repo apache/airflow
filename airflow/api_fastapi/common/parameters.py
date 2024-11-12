@@ -29,6 +29,7 @@ from sqlalchemy.inspection import inspect
 
 from airflow.api_connexion.endpoints.task_instance_endpoint import _convert_ti_states
 from airflow.models import Base, Connection
+from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
@@ -408,6 +409,37 @@ class _DagIdFilter(BaseParam[str]):
         return self.set_value(dag_id)
 
 
+class _UriPatternSearch(_SearchParam):
+    """Search on uri."""
+
+    def __init__(self, skip_none: bool = True) -> None:
+        super().__init__(AssetModel.uri, skip_none)
+
+    def depends(self, uri_pattern: str | None = None) -> _UriPatternSearch:
+        return self.set_value(uri_pattern)
+
+
+class _DagIdAssetReferenceFilter(BaseParam[list[str]]):
+    """Search on dag_id."""
+
+    def __init__(self, skip_none: bool = True) -> None:
+        super().__init__(AssetModel.consuming_dags, skip_none)
+
+    def depends(self, dag_ids: list[str] = Query(None)) -> _DagIdAssetReferenceFilter:
+        # needed to handle cases where dag_ids=a1,b1
+        if dag_ids and len(dag_ids) == 1 and "," in dag_ids[0]:
+            dag_ids = dag_ids[0].split(",")
+        return self.set_value(dag_ids)
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(
+            (AssetModel.consuming_dags.any(DagScheduleAssetReference.dag_id.in_(self.value)))
+            | (AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id.in_(self.value)))
+        )
+
+
 class Range(BaseModel, Generic[T]):
     """Range with a lower and upper bound."""
 
@@ -493,8 +525,15 @@ QueryWarningTypeFilter = Annotated[_WarningTypeFilter, Depends(_WarningTypeFilte
 
 # DAGTags
 QueryDagTagPatternSearch = Annotated[_DagTagNamePatternSearch, Depends(_DagTagNamePatternSearch().depends)]
+
 # TI
 QueryTIStateFilter = Annotated[_TIStateFilter, Depends(_TIStateFilter().depends)]
 QueryTIPoolFilter = Annotated[_TIPoolFilter, Depends(_TIPoolFilter().depends)]
 QueryTIQueueFilter = Annotated[_TIQueueFilter, Depends(_TIQueueFilter().depends)]
 QueryTIExecutorFilter = Annotated[_TIExecutorFilter, Depends(_TIExecutorFilter().depends)]
+
+# Assets
+QueryUriPatternSearch = Annotated[_UriPatternSearch, Depends(_UriPatternSearch().depends)]
+QueryAssetDagIdPatternSearch = Annotated[
+    _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter().depends)
+]
