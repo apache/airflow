@@ -212,8 +212,11 @@ def load_policy_plugins(pm: pluggy.PluginManager):
 def _get_async_conn_uri_from_sync():
     scheme, rest = SQL_ALCHEMY_CONN.split(":", maxsplit=1)
     scheme = scheme.split("+", maxsplit=1)[0]
-    aiolib = AIO_LIBS_MAPPING[scheme]
-    return f"{scheme}+{aiolib}:{rest}"
+    aiolib = AIO_LIBS_MAPPING.get(scheme)
+    if aiolib:
+        return f"{scheme}+{aiolib}:{rest}"
+    else:
+        return SQL_ALCHEMY_CONN
 
 
 def configure_vars():
