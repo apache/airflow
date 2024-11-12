@@ -33,7 +33,8 @@ Changelog
 Misc
 ~~~~
 
-* ``Fix SIGINT handling of child processes.``
+* ``Fix SIGINT handling of child processes. Ensure graceful shutdown when SIGINT in received (not killing working tasks).``
+* ``Fix SIGTERM handling of child processes. Ensure all childs are terminated on SIGTERM.``
 
 
 0.5.3pre0
