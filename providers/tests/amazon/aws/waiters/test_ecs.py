@@ -27,7 +27,7 @@ from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook, Ec
 
 class TestCustomECSServiceWaiters:
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self, monkeypatch):
+    def _setup_test_cases(self, monkeypatch):
         self.client = boto3.client("ecs", region_name="eu-west-3")
         monkeypatch.setattr(EcsHook, "conn", self.client)
 
