@@ -44,7 +44,7 @@ export const MetricSection = ({ runs, state, total }: MetricSectionProps) => {
       <Flex justify="space-between">
         <HStack>
           <MetricsBadge
-            color={stateColor[state as keyof typeof stateColor]}
+            backgroundColor={stateColor[state as keyof typeof stateColor]}
             runs={runs}
           />
           <Text> {capitalize(state)} </Text>
@@ -60,7 +60,7 @@ export const MetricSection = ({ runs, state, total }: MetricSectionProps) => {
           width={`${stateWidth}%`}
         />
         <Box
-          bg={stateColor.queued}
+          bg="bg.emphasized"
           borderLeftRadius={runs === 0 ? 5 : 0} // When there are no states then have left radius too since this is the only bar displayed
           borderRightRadius={5}
           height={`${BAR_HEIGHT}px`}

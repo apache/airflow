@@ -36,9 +36,9 @@ const DAGRUN_STATES: Array<keyof DAGRunStates> = [
 
 export const DagRunMetrics = ({ dagRunStates, total }: DagRunMetricsProps) => (
   <Box borderRadius={5} borderWidth={1} p={2}>
-    <HStack mb={2}>
-      <MetricsBadge color="blue.solid" runs={total} />
-      <Heading>Dag Runs</Heading>
+    <HStack mb={4}>
+      <MetricsBadge backgroundColor="blue.solid" runs={total} />
+      <Heading size="md">Dag Runs</Heading>
     </HStack>
     {DAGRUN_STATES.map((state) => (
       <MetricSection

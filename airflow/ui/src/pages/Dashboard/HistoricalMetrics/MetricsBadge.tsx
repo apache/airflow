@@ -16,15 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge } from "@chakra-ui/react";
+import { Badge, type BadgeProps } from "@chakra-ui/react";
 
 type MetricBadgeProps = {
-  readonly color: string;
+  readonly backgroundColor: string;
+  readonly color?: string;
   readonly runs: number;
-};
+} & BadgeProps;
 
-export const MetricsBadge = ({ color, runs }: MetricBadgeProps) => (
-  <Badge bg={color} borderRadius={15} minWidth={10} px={5} py={2} size="lg">
+export const MetricsBadge = ({
+  backgroundColor,
+  color = "fg.inverted",
+  runs,
+}: MetricBadgeProps) => (
+  <Badge
+    bg={backgroundColor}
+    borderRadius={15}
+    color={color}
+    minWidth={10}
+    px={4}
+    py={1}
+    size="md"
+  >
     {runs}
   </Badge>
 );
