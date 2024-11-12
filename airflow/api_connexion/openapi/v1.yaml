@@ -2922,14 +2922,6 @@ components:
             (e.g. the DAG's "refresh" button was clicked in the web UI)
 
             *New in version 2.3.0*
-        pickle_id:
-          type: string
-          readOnly: true
-          nullable: true
-          description: |
-            Foreign key to the latest pickle_id
-
-            *New in version 2.3.0*
         default_view:
           type: string
           nullable: true
