@@ -750,6 +750,32 @@ export type VersionInfo = {
   git_version: string | null;
 };
 
+/**
+ * XCom response serializer with native return type.
+ */
+export type XComResponseNative = {
+  key: string;
+  timestamp: string;
+  execution_date: string;
+  map_index: number;
+  task_id: string;
+  dag_id: string;
+  value: unknown;
+};
+
+/**
+ * XCom response serializer with string return type.
+ */
+export type XComResponseString = {
+  key: string;
+  timestamp: string;
+  execution_date: string;
+  map_index: number;
+  task_id: string;
+  dag_id: string;
+  value: unknown;
+};
+
 export type NextRunAssetsData = {
   dagId: string;
 };
@@ -1174,6 +1200,18 @@ export type GetDagStatsData = {
 };
 
 export type GetDagStatsResponse = DagStatsCollectionResponse;
+
+export type GetXcomEntryData = {
+  dagId: string;
+  dagRunId: string;
+  deserialize?: boolean;
+  mapIndex?: number;
+  stringify?: boolean;
+  taskId: string;
+  xcomKey: string;
+};
+
+export type GetXcomEntryResponse = XComResponseNative | XComResponseString;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -2440,6 +2478,37 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: DagStatsCollectionResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}": {
+    get: {
+      req: GetXcomEntryData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: XComResponseNative | XComResponseString;
         /**
          * Bad Request
          */
