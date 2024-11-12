@@ -27,6 +27,15 @@
 Changelog
 ---------
 
+0.5.4pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix SIGINT handling of child processes.``
+
+
 0.5.3pre0
 .........
 
