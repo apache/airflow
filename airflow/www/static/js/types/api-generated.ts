@@ -1544,16 +1544,6 @@ export interface components {
     TaskInstanceCollection: {
       task_instances?: components["schemas"]["TaskInstance"][];
     } & components["schemas"]["CollectionInfo"];
-    TaskInstanceReference: {
-      /** @description The task ID. */
-      task_id?: string;
-      /** @description The DAG ID. */
-      dag_id?: string;
-      /** Format: datetime */
-      execution_date?: string;
-      /** @description The DAG run ID. */
-      dag_run_id?: string;
-    };
     TaskInstanceHistory: {
       task_id?: string;
       /**
@@ -1569,6 +1559,8 @@ export interface components {
        * *New in version 2.3.0*
        */
       dag_run_id?: string;
+      /** Format: datetime */
+      execution_date?: string;
       /** Format: datetime */
       start_date?: string | null;
       /** Format: datetime */
@@ -1597,24 +1589,24 @@ export interface components {
       executor?: string | null;
       executor_config?: string;
     };
-        /**
-     * @description Collection of task instances.
+    /**
+     * @description Collection of task instances .
      *
      * *Changed in version 2.1.0*&#58; 'total_entries' field is added.
      */
-        TaskInstanceHistoryCollection: {
-          task_instances?: components["schemas"]["TaskInstanceHistory"][];
-        } & components["schemas"]["CollectionInfo"];
-        TaskInstanceHistoryReference: {
-          /** @description The task ID. */
-          task_id?: string;
-          /** @description The DAG ID. */
-          dag_id?: string;
-          /** Format: datetime */
-          execution_date?: string;
-          /** @description The DAG run ID. */
-          dag_run_id?: string;
-        };
+    TaskInstanceHistoryCollection: {
+      task_instances_history?: components["schemas"]["TaskInstanceHistory"][];
+    } & components["schemas"]["CollectionInfo"];
+    TaskInstanceReference: {
+      /** @description The task ID. */
+      task_id?: string;
+      /** @description The DAG ID. */
+      dag_id?: string;
+      /** Format: datetime */
+      execution_date?: string;
+      /** @description The DAG run ID. */
+      dag_run_id?: string;
+    };
     TaskInstanceReferenceCollection: {
       task_instances?: components["schemas"]["TaskInstanceReference"][];
     };
