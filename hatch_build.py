@@ -193,6 +193,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     # START OF devel extras
     "devel-debuggers": [
         "ipdb>=0.13.13",
+        "pdbr>=0.8.9",
     ],
     "devel-devscripts": [
         "click>=8.0",
@@ -248,7 +249,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     "devel-static-checks": [
         "black>=23.12.0",
         "pre-commit>=3.5.0",
-        "ruff==0.7.2",
+        "ruff==0.7.3",
         "yamllint>=1.33.0",
     ],
     "devel-tests": [

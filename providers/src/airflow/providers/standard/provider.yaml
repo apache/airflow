@@ -36,7 +36,9 @@ integrations:
     external-doc-url: https://airflow.apache.org/
     tags: [apache]
     how-to-guide:
-      - /docs/apache-airflow-providers-standard/operators.rst
+      - /docs/apache-airflow-providers-standard/operators/bash.rst
+      - /docs/apache-airflow-providers-standard/operators/python.rst
+      - /docs/apache-airflow-providers-standard/operators/datetime.rst
 
 operators:
   - integration-name: Standard
