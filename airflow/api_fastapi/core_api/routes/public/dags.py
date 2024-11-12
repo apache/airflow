@@ -50,10 +50,14 @@ from airflow.api_fastapi.core_api.datamodels.dags import (
     DAGPatchBody,
     DAGResponse,
     DAGTagCollectionResponse,
+    QueuedEventCollectionResponse,
+    QueuedEventResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DAG, DagModel, DagTag
+from airflow.models.asset import AssetDagRunQueue, AssetModel
+from airflow.utils import timezone
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
@@ -314,3 +318,46 @@ def delete_dag(
             status.HTTP_409_CONFLICT, f"Task instances of dag with id: '{dag_id}' are still running"
         )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@dags_router.get(
+    "/{dag_id}/assets/queuedEvent",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
+def get_dag_asset_queued_events(
+    dag_id: str,
+    session: Annotated[Session, Depends(get_session)],
+    # move it to DateTimeQuery
+    before: str = Query(None),
+) -> QueuedEventCollectionResponse:
+    """Get queued asset events for a DAG."""
+    where_clause = [AssetDagRunQueue.target_dag_id == dag_id]
+    if before:
+        before_parsed = timezone.parse(before)
+        where_clause.append(AssetDagRunQueue.created_at < before_parsed)
+    query = (
+        select(AssetDagRunQueue, AssetModel.uri)
+        .join(AssetModel, AssetDagRunQueue.asset_id == AssetModel.id)
+        .where(*where_clause)
+    )
+    result = session.execute(query).all()
+    total_entries = len(result)
+    if not result:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Queue event with dag_id: `{dag_id}` was not found")
+    queued_events = [
+        QueuedEventResponse(created_at=adrq.created_at, dag_id=adrq.target_dag_id, uri=uri)
+        for adrq, uri in result
+    ]
+    return QueuedEventCollectionResponse(
+        queued_events=[
+            QueuedEventResponse.model_validate(queued_event, from_attributes=True)
+            for queued_event in queued_events
+        ],
+        total_entries=total_entries,
+    )

@@ -579,6 +579,23 @@ export type ProviderResponse = {
 };
 
 /**
+ * QueuedEventCollection serializer for responses.
+ */
+export type QueuedEventCollectionResponse = {
+  queued_events: Array<QueuedEventResponse>;
+  total_entries: number;
+};
+
+/**
+ * QueuedEvent serializer for responses..
+ */
+export type QueuedEventResponse = {
+  uri: string;
+  dag_id: string;
+  created_at: string;
+};
+
+/**
  * Internal enum for setting reprocess behavior in a backfill.
  *
  * :meta private:
@@ -909,6 +926,13 @@ export type GetDagDetailsData = {
 };
 
 export type GetDagDetailsResponse = DAGDetailsResponse;
+
+export type GetDagAssetQueuedEventsData = {
+  before?: string;
+  dagId: string;
+};
+
+export type GetDagAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 
 export type DeleteConnectionData = {
   connectionId: string;
@@ -1605,6 +1629,33 @@ export type $OpenApiTs = {
          * Bad Request
          */
         400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/assets/queuedEvent": {
+    get: {
+      req: GetDagAssetQueuedEventsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: QueuedEventCollectionResponse;
         /**
          * Unauthorized
          */

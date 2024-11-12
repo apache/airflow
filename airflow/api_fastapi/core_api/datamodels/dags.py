@@ -159,3 +159,18 @@ class DAGTagCollectionResponse(BaseModel):
 
     tags: list[str]
     total_entries: int
+
+
+class QueuedEventResponse(BaseModel):
+    """QueuedEvent serializer for responses.."""
+
+    uri: str
+    dag_id: str
+    created_at: datetime
+
+
+class QueuedEventCollectionResponse(BaseModel):
+    """QueuedEventCollection serializer for responses."""
+
+    queued_events: list[QueuedEventResponse]
+    total_entries: int

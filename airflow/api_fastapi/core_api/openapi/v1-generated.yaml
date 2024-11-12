@@ -959,6 +959,57 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/assets/queuedEvent:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag Asset Queued Events
+      description: Get queued asset events for a DAG.
+      operationId: get_dag_asset_queued_events
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: before
+        in: query
+        required: false
+        schema:
+          type: string
+          title: Before
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueuedEventCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/connections/{connection_id}:
     delete:
       tags:
@@ -4780,6 +4831,41 @@ components:
       - version
       title: ProviderResponse
       description: Provider serializer for responses.
+    QueuedEventCollectionResponse:
+      properties:
+        queued_events:
+          items:
+            $ref: '#/components/schemas/QueuedEventResponse'
+          type: array
+          title: Queued Events
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - queued_events
+      - total_entries
+      title: QueuedEventCollectionResponse
+      description: QueuedEventCollection serializer for responses.
+    QueuedEventResponse:
+      properties:
+        uri:
+          type: string
+          title: Uri
+        dag_id:
+          type: string
+          title: Dag Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+      type: object
+      required:
+      - uri
+      - dag_id
+      - created_at
+      title: QueuedEventResponse
+      description: QueuedEvent serializer for responses..
     ReprocessBehavior:
       type: string
       enum:

@@ -262,6 +262,28 @@ export const UseDagServiceGetDagDetailsKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useDagServiceGetDagDetailsKey, ...(queryKey ?? [{ dagId }])];
+export type DagServiceGetDagAssetQueuedEventsDefaultResponse = Awaited<
+  ReturnType<typeof DagService.getDagAssetQueuedEvents>
+>;
+export type DagServiceGetDagAssetQueuedEventsQueryResult<
+  TData = DagServiceGetDagAssetQueuedEventsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagServiceGetDagAssetQueuedEventsKey =
+  "DagServiceGetDagAssetQueuedEvents";
+export const UseDagServiceGetDagAssetQueuedEventsKeyFn = (
+  {
+    before,
+    dagId,
+  }: {
+    before?: string;
+    dagId: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useDagServiceGetDagAssetQueuedEventsKey,
+  ...(queryKey ?? [{ before, dagId }]),
+];
 export type ConnectionServiceGetConnectionDefaultResponse = Awaited<
   ReturnType<typeof ConnectionService.getConnection>
 >;

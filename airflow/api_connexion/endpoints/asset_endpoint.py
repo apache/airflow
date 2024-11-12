@@ -47,6 +47,7 @@ from airflow.assets import Asset
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.utils import timezone
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.decorators import action_logging
@@ -218,6 +219,7 @@ def delete_dag_asset_queued_event(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("GET")
 @security.requires_access_dag("GET")
 @provide_session
