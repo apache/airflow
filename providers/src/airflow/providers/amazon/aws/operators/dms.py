@@ -17,12 +17,23 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
+from airflow.providers.amazon.aws.triggers.dms import (
+    DmsReplicationCompleteTrigger,
+    DmsReplicationConfigDeletedTrigger,
+    DmsReplicationDeprovisionedTrigger,
+    DmsReplicationStoppedTrigger,
+    DmsReplicationTerminalStatusTrigger,
+)
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
+from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -278,3 +289,551 @@ class DmsStopTaskOperator(AwsBaseOperator[DmsHook]):
         """Stop AWS DMS replication task from Airflow."""
         self.hook.stop_replication_task(replication_task_arn=self.replication_task_arn)
         self.log.info("DMS replication task(%s) is stopping.", self.replication_task_arn)
+
+
+class DmsDescribeReplicationConfigsOperator(AwsBaseOperator[DmsHook]):
+    """
+    Describes AWS DMS Serverless replication configurations.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DmsDescribeReplicationConfigsOperator`
+
+    :param describe_config_filter: Filters block for filtering results.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+    """
+
+    aws_hook_class = DmsHook
+    template_fields: Sequence[str] = aws_template_fields("filter")
+    template_fields_renderers = {"filter": "json"}
+
+    def __init__(
+        self,
+        *,
+        filter: list[dict] | None = None,
+        aws_conn_id: str | None = "aws_default",
+        **kwargs,
+    ):
+        super().__init__(aws_conn_id=aws_conn_id, **kwargs)
+        self.filter = filter
+
+    def execute(self, context: Context) -> list:
+        """
+        Describe AWS DMS replication configurations.
+
+        :return: List of replication configurations
+        """
+        return self.hook.describe_replication_configs(filters=self.filter)
+
+
+class DmsCreateReplicationConfigOperator(AwsBaseOperator[DmsHook]):
+    """
+
+    Creates an AWS DMS Serverless replication configuration.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DmsCreateReplicationConfigOperator`
+
+    :param replication_config_id: Unique identifier used to create a ReplicationConfigArn.
+    :param source_endpoint_arn: ARN of the source endpoint
+    :param target_endpoint_arn: ARN of the target endpoint
+    :param compute_config: Parameters for provisioning an DMS Serverless replication.
+    :param replication_type: type of DMS Serverless replication
+    :param table_mappings: JSON table mappings
+    :param tags: Key-value tag pairs
+    :param additional_config_kwargs: Additional configuration parameters for DMS Serverless replication. Passed directly to the API
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+    """
+
+    aws_hook_class = DmsHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "replication_config_id",
+        "source_endpoint_arn",
+        "target_endpoint_arn",
+        "compute_config",
+        "replication_type",
+        "table_mappings",
+    )
+
+    template_fields_renderers = {"compute_config": "json", "tableMappings": "json"}
+
+    def __init__(
+        self,
+        *,
+        replication_config_id: str,
+        source_endpoint_arn: str,
+        target_endpoint_arn: str,
+        compute_config: dict[str, Any],
+        replication_type: str,
+        table_mappings: str,
+        additional_config_kwargs: dict | None = None,
+        aws_conn_id: str | None = "aws_default",
+        **kwargs,
+    ):
+        super().__init__(
+            aws_conn_id=aws_conn_id,
+            **kwargs,
+        )
+
+        self.replication_config_id = replication_config_id
+        self.source_endpoint_arn = source_endpoint_arn
+        self.target_endpoint_arn = target_endpoint_arn
+        self.compute_config = compute_config
+        self.replication_type = replication_type
+        self.table_mappings = table_mappings
+        self.additional_config_kwargs = additional_config_kwargs or {}
+
+    def execute(self, context: Context) -> str:
+        resp = self.hook.create_replication_config(
+            replication_config_id=self.replication_config_id,
+            source_endpoint_arn=self.source_endpoint_arn,
+            target_endpoint_arn=self.target_endpoint_arn,
+            compute_config=self.compute_config,
+            replication_type=self.replication_type,
+            table_mappings=self.table_mappings,
+            additional_config_kwargs=self.additional_config_kwargs,
+        )
+
+        self.log.info("DMS replication config(%s) has been created.", self.replication_config_id)
+        return resp
+
+
+class DmsDeleteReplicationConfigOperator(AwsBaseOperator[DmsHook]):
+    """
+
+    Deletes an AWS DMS Serverless replication configuration.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DmsDeleteReplicationConfigOperator`
+
+    :param replication_config_arn: ARN of the replication config
+    :param wait_for_completion: If True, waits for the replication config to be deleted before returning.
+        If False, the operator will return immediately after the request is made.
+    :param deferrable: Run the operator in deferrable mode.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+    """
+
+    aws_hook_class = DmsHook
+    template_fields: Sequence[str] = aws_template_fields("replication_config_arn")
+
+    VALID_STATES = ["failed", "stopped", "created"]
+    DELETING_STATES = ["deleting"]
+    TERMINAL_PROVISION_STATES = ["deprovisioned", ""]
+
+    def __init__(
+        self,
+        *,
+        replication_config_arn: str,
+        wait_for_completion: bool = True,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        waiter_delay: int = 5,
+        waiter_max_attempts: int = 60,
+        aws_conn_id: str | None = "aws_default",
+        **kwargs,
+    ):
+        super().__init__(
+            aws_conn_id=aws_conn_id,
+            **kwargs,
+        )
+
+        self.replication_config_arn = replication_config_arn
+        self.wait_for_completion = wait_for_completion
+        self.deferrable = deferrable
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+
+    def execute(self, context: Context) -> None:
+        results = self.hook.describe_replications(
+            filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}]
+        )
+
+        if len(results) > 0:
+            current_state = results[0].get("Status", "")
+            self.log.info(
+                "Current state of replication config(%s) is %s.", self.replication_config_arn, current_state
+            )
+            # replication must be deprovisioned before deleting
+            provision_status = self.hook.get_provision_status(
+                replication_config_arn=self.replication_config_arn
+            )
+
+            if (
+                current_state.lower() in self.VALID_STATES
+                and provision_status in self.TERMINAL_PROVISION_STATES
+            ):
+                self.log.info("DMS replication config(%s) is in valid state.", self.replication_config_arn)
+
+                self.hook.delete_replication_config(
+                    replication_config_arn=self.replication_config_arn,
+                    delay=self.waiter_delay,
+                    max_attempts=self.waiter_max_attempts,
+                )
+                self.handle_delete_wait()
+
+            else:
+                # Must be in a terminal state to delete
+                self.log.info(
+                    "DMS replication config(%s) cannot be deleted until replication is in terminal state and deprovisioned. Waiting for terminal state.",
+                    self.replication_config_arn,
+                )
+                if self.deferrable:
+                    if current_state.lower() not in self.VALID_STATES:
+                        self.log.info("Deferring until terminal status reached.")
+                        self.defer(
+                            trigger=DmsReplicationTerminalStatusTrigger(
+                                replication_config_arn=self.replication_config_arn,
+                                waiter_delay=self.waiter_delay,
+                                waiter_max_attempts=self.waiter_max_attempts,
+                                aws_conn_id=self.aws_conn_id,
+                            ),
+                            method_name="retry_execution",
+                        )
+                    if provision_status not in self.TERMINAL_PROVISION_STATES:  # not deprovisioned:
+                        self.log.info("Deferring until deprovisioning completes.")
+                        self.defer(
+                            trigger=DmsReplicationDeprovisionedTrigger(
+                                replication_config_arn=self.replication_config_arn,
+                                waiter_delay=self.waiter_delay,
+                                waiter_max_attempts=self.waiter_max_attempts,
+                                aws_conn_id=self.aws_conn_id,
+                            ),
+                            method_name="retry_execution",
+                        )
+
+                else:
+                    self.hook.get_waiter("replication_terminal_status").wait(
+                        Filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}],
+                        WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+                    )
+                    self.hook.get_waiter("replication_deprovisioned").wait(
+                        Filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}],
+                        WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+                    )
+                    self.hook.delete_replication_config(self.replication_config_arn)
+                    self.handle_delete_wait()
+
+        else:
+            self.log.info("DMS replication config(%s) does not exist.", self.replication_config_arn)
+
+    def handle_delete_wait(self):
+        if self.deferrable:
+            self.log.info("Deferring until replication config is deleted.")
+            self.defer(
+                trigger=DmsReplicationConfigDeletedTrigger(
+                    replication_config_arn=self.replication_config_arn,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+
+        if self.wait_for_completion:
+            self.hook.get_waiter("replication_config_deleted").wait(
+                Filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}],
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
+            self.log.info("DMS replication config(%s) deleted.", self.replication_config_arn)
+
+    def execute_complete(self, context, event=None):
+        self.replication_config_arn = event.get("replication_config_arn")
+        self.log.info("DMS replication config(%s) deleted.", self.replication_config_arn)
+
+    def retry_execution(self, context, event=None):
+        self.replication_config_arn = event.get("replication_config_arn")
+        self.log.info("Retrying replication config(%s) deletion.", self.replication_config_arn)
+        self.execute(context)
+
+
+class DmsDescribeReplicationsOperator(AwsBaseOperator[DmsHook]):
+    """
+    Describes AWS DMS Serverless replications.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DmsDescribeReplicationsOperator`
+
+    :param filter: Filters block for filtering results.
+
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+    """
+
+    aws_hook_class = DmsHook
+    template_fields: Sequence[str] = aws_template_fields("filter")
+    template_fields_renderer = {"filter": "json"}
+
+    def __init__(
+        self,
+        *,
+        filter: list[dict[str, Any]] | None = None,
+        aws_conn_id: str | None = "aws_default",
+        **kwargs,
+    ):
+        super().__init__(
+            aws_conn_id=aws_conn_id,
+            **kwargs,
+        )
+
+        self.filter = filter
+
+    def execute(self, context: Context) -> list[dict[str, Any]]:
+        """
+        Describe AWS DMS replications.
+
+        :return: Replications
+        """
+        return self.hook.describe_replications(self.filter)
+
+
+class DmsStartReplicationOperator(AwsBaseOperator[DmsHook]):
+    """
+    Starts an AWS DMS Serverless replication.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DmsStartReplicationOperator`
+
+    :param replication_config_arn: ARN of the replication config
+    :param replication_start_type: Type of replication.
+    :param cdc_start_time: Start time of CDC
+    :param cdc_start_pos: Indicates when to start CDC.
+    :param cdc_stop_pos: Indicates when to stop CDC.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+    """
+
+    RUNNING_STATES = ["running"]
+    STARTABLE_STATES = ["stopped", "failed", "created"]
+    TERMINAL_STATES = ["failed", "stopped", "created"]
+    TERMINAL_PROVISION_STATES = ["deprovisioned", ""]
+
+    aws_hook_class = DmsHook
+    template_fields: Sequence[str] = aws_template_fields(
+        "replication_config_arn", "replication_start_type", "cdc_start_time", "cdc_start_pos", "cdc_stop_pos"
+    )
+
+    def __init__(
+        self,
+        *,
+        replication_config_arn: str,
+        replication_start_type: str,
+        cdc_start_time: datetime | str | None = None,
+        cdc_start_pos: str | None = None,
+        cdc_stop_pos: str | None = None,
+        wait_for_completion: bool = True,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        aws_conn_id: str | None = "aws_default",
+        **kwargs,
+    ):
+        super().__init__(
+            aws_conn_id=aws_conn_id,
+            **kwargs,
+        )
+
+        self.replication_config_arn = replication_config_arn
+        self.replication_start_type = replication_start_type
+        self.cdc_start_time = cdc_start_time
+        self.cdc_start_pos = cdc_start_pos
+        self.cdc_stop_pos = cdc_stop_pos
+        self.deferrable = deferrable
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.wait_for_completion = wait_for_completion
+
+        if self.cdc_start_time and self.cdc_start_pos:
+            raise AirflowException("Only one of cdc_start_time or cdc_start_pos should be provided.")
+
+    def execute(self, context: Context):
+        result = self.hook.describe_replications(
+            filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}]
+        )
+
+        try:
+            current_status = result[0].get("Status", "")
+        except Exception as ex:
+            self.log.error("Error while getting replication status: %s. Unable to start replication", str(ex))
+            raise ex
+
+        provision_status = self.hook.get_provision_status(replication_config_arn=self.replication_config_arn)
+
+        if provision_status == "deprovisioning":
+            # wait for deprovisioning to complete before start/restart
+            self.log.info(
+                "Replication is deprovisioning. Must wait for deprovisioning before running replication"
+            )
+            if self.deferrable:
+                self.log.info("Deferring until deprovisioning completes.")
+                self.defer(
+                    trigger=DmsReplicationDeprovisionedTrigger(
+                        replication_config_arn=self.replication_config_arn,
+                        waiter_delay=self.waiter_delay,
+                        waiter_max_attempts=self.waiter_max_attempts,
+                        aws_conn_id=self.aws_conn_id,
+                    ),
+                    method_name="retry_execution",
+                )
+            else:
+                self.hook.get_waiter("replication_deprovisioned").wait(
+                    Filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}],
+                    WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+                )
+                provision_status = self.hook.get_provision_status(
+                    replication_config_arn=self.replication_config_arn
+                )
+                self.log.info("Replication deprovisioning complete. Provision status: %s", provision_status)
+
+        if (
+            current_status.lower() in self.STARTABLE_STATES
+            and provision_status in self.TERMINAL_PROVISION_STATES
+        ):
+            resp = self.hook.start_replication(
+                replication_config_arn=self.replication_config_arn,
+                start_replication_type=self.replication_start_type,
+                cdc_start_time=self.cdc_start_time,
+                cdc_start_pos=self.cdc_start_pos,
+                cdc_stop_pos=self.cdc_stop_pos,
+            )
+
+            current_status = resp.get("Replication", {}).get("Status", "Unknown")
+            self.log.info(
+                "Replication(%s) started with status %s.",
+                self.replication_config_arn,
+                current_status,
+            )
+
+            if self.deferrable:
+                self.log.info("Deferring until %s replication completes.", self.replication_config_arn)
+                self.defer(
+                    trigger=DmsReplicationCompleteTrigger(
+                        replication_config_arn=self.replication_config_arn,
+                        waiter_delay=self.waiter_delay,
+                        waiter_max_attempts=self.waiter_max_attempts,
+                        aws_conn_id=self.aws_conn_id,
+                    ),
+                    method_name="execute_complete",
+                )
+
+            if self.wait_for_completion:
+                self.log.info("Waiting for %s replication to complete.", self.replication_config_arn)
+
+                self.hook.get_waiter("replication_complete").wait(
+                    Filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}],
+                    WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+                )
+                self.log.info("Replication(%s) has completed.", self.replication_config_arn)
+
+        else:
+            self.log.info("Replication(%s) is not in startable state.", self.replication_config_arn)
+            self.log.info("Status: %s Provision status: %s", current_status, provision_status)
+
+    def execute_complete(self, context, event=None):
+        self.replication_config_arn = event.get("replication_config_arn")
+        self.log.info("Replication(%s) has completed.", self.replication_config_arn)
+
+    def retry_execution(self, context, event=None):
+        self.replication_config_arn = event.get("replication_config_arn")
+        self.log.info("Retrying replication %s.", self.replication_config_arn)
+        self.execute(context)
+
+
+class DmsStopReplicationOperator(AwsBaseOperator[DmsHook]):
+    """
+    Stops an AWS DMS Serverless replication.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DmsStopReplicationOperator`
+
+    :param replication_config_arn: ARN of the replication config
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+    """
+
+    STOPPED_STATES = ["stopped"]
+    NON_STOPPABLE_STATES = ["stopped"]
+
+    aws_hook_class = DmsHook
+    template_fields: Sequence[str] = aws_template_fields("replication_config_arn")
+
+    def __init__(
+        self,
+        *,
+        replication_config_arn: str,
+        wait_for_completion: bool = True,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        aws_conn_id: str | None = "aws_default",
+        **kwargs,
+    ):
+        super().__init__(
+            aws_conn_id=aws_conn_id,
+            **kwargs,
+        )
+
+        self.replication_config_arn = replication_config_arn
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
+
+    def execute(self, context: Context) -> None:
+        results = self.hook.describe_replications(
+            filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}]
+        )
+
+        current_state = results[0].get("Status", "")
+        self.log.info(
+            "Current state of replication config(%s) is %s.", self.replication_config_arn, current_state
+        )
+
+        if current_state.lower() in self.STOPPED_STATES:
+            self.log.info("DMS replication config(%s) is already stopped.", self.replication_config_arn)
+        else:
+            resp = self.hook.stop_replication(self.replication_config_arn)
+            status = resp.get("Replication", {}).get("Status", "Unknown")
+            self.log.info(
+                "Stopping DMS replication config(%s). Current status: %s", self.replication_config_arn, status
+            )
+
+            if self.deferrable:
+                self.log.info("Deferring until %s replication stops.", self.replication_config_arn)
+                self.defer(
+                    trigger=DmsReplicationStoppedTrigger(
+                        replication_config_arn=self.replication_config_arn,
+                        waiter_delay=self.waiter_delay,
+                        waiter_max_attempts=self.waiter_max_attempts,
+                        aws_conn_id=self.aws_conn_id,
+                    ),
+                    method_name="execute_complete",
+                )
+            if self.wait_for_completion:
+                self.log.info("Waiting for %s replication to stop.", self.replication_config_arn)
+                self.hook.get_waiter("replication_stopped").wait(
+                    Filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}],
+                    WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+                )
+
+    def execute_complete(self, context, event=None):
+        self.replication_config_arn = event.get("replication_config_arn")
+        self.log.info("Replication(%s) has stopped.", self.replication_config_arn)
