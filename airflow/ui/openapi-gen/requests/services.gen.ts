@@ -5,6 +5,8 @@ import { request as __request } from "./core/request";
 import type {
   NextRunAssetsData,
   NextRunAssetsResponse,
+  GetAssetsData,
+  GetAssetsResponse,
   HistoricalMetricsData,
   HistoricalMetricsResponse,
   RecentDagRunsData,
@@ -125,6 +127,40 @@ export class AssetService {
         dag_id: data.dagId,
       },
       errors: {
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Assets
+   * Get assets.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.uriPattern
+   * @param data.dagIds
+   * @param data.orderBy
+   * @returns AssetCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getAssets(
+    data: GetAssetsData = {},
+  ): CancelablePromise<GetAssetsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/assets/",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        uri_pattern: data.uriPattern,
+        dag_ids: data.dagIds,
+        order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
         422: "Validation Error",
       },
     });
