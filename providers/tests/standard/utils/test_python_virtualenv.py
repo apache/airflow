@@ -22,7 +22,6 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.standard.utils.python_virtualenv import _generate_pip_conf, _use_uv, prepare_virtualenv
 from airflow.utils.decorators import remove_task_decorator
 
 from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
@@ -32,6 +31,8 @@ from tests_common.test_utils.config import conf_vars
 class TestPrepareVirtualenv:
     @mock.patch("shutil.which")
     def test_use_uv(self, mock_shutil_which):
+        from airflow.providers.standard.utils.python_virtualenv import _use_uv
+
         with conf_vars({("standard", "venv_install_method"): "auto"}):
             mock_shutil_which.side_effect = [True]
             assert _use_uv() is True
@@ -69,6 +70,8 @@ class TestPrepareVirtualenv:
         unexpected_pip_conf_content: list[str],
         tmp_path: Path,
     ):
+        from airflow.providers.standard.utils.python_virtualenv import _generate_pip_conf
+
         tmp_file = tmp_path / "pip.conf"
         _generate_pip_conf(tmp_file, index_urls)
         generated_conf = tmp_file.read_text()
@@ -80,6 +83,8 @@ class TestPrepareVirtualenv:
     @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
     @conf_vars({("standard", "venv_install_method"): "pip"})
     def test_should_create_virtualenv_pip(self, mock_execute_in_subprocess):
+        from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv
+
         python_bin = prepare_virtualenv(
             venv_directory="/VENV", python_bin="pythonVER", system_site_packages=False, requirements=[]
         )
@@ -89,6 +94,8 @@ class TestPrepareVirtualenv:
     @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
     @conf_vars({("standard", "venv_install_method"): "uv"})
     def test_should_create_virtualenv_uv(self, mock_execute_in_subprocess):
+        from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv
+
         python_bin = prepare_virtualenv(
             venv_directory="/VENV", python_bin="pythonVER", system_site_packages=False, requirements=[]
         )
@@ -100,6 +107,8 @@ class TestPrepareVirtualenv:
     @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
     @conf_vars({("standard", "venv_install_method"): "pip"})
     def test_should_create_virtualenv_with_system_packages_pip(self, mock_execute_in_subprocess):
+        from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv
+
         python_bin = prepare_virtualenv(
             venv_directory="/VENV", python_bin="pythonVER", system_site_packages=True, requirements=[]
         )
@@ -111,6 +120,8 @@ class TestPrepareVirtualenv:
     @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
     @conf_vars({("standard", "venv_install_method"): "uv"})
     def test_should_create_virtualenv_with_system_packages_uv(self, mock_execute_in_subprocess):
+        from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv
+
         python_bin = prepare_virtualenv(
             venv_directory="/VENV", python_bin="pythonVER", system_site_packages=True, requirements=[]
         )
@@ -131,6 +142,8 @@ class TestPrepareVirtualenv:
     @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
     @conf_vars({("standard", "venv_install_method"): "pip"})
     def test_pip_install_options_pip(self, mock_execute_in_subprocess):
+        from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv
+
         pip_install_options = ["--no-deps"]
         python_bin = prepare_virtualenv(
             venv_directory="/VENV",
@@ -148,6 +161,8 @@ class TestPrepareVirtualenv:
     @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
     @conf_vars({("standard", "venv_install_method"): "uv"})
     def test_pip_install_options_uv(self, mock_execute_in_subprocess):
+        from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv
+
         pip_install_options = ["--no-deps"]
         python_bin = prepare_virtualenv(
             venv_directory="/VENV",
@@ -165,6 +180,8 @@ class TestPrepareVirtualenv:
     @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
     @conf_vars({("standard", "venv_install_method"): "pip"})
     def test_should_create_virtualenv_with_extra_packages_pip(self, mock_execute_in_subprocess):
+        from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv
+
         python_bin = prepare_virtualenv(
             venv_directory="/VENV",
             python_bin="pythonVER",
@@ -180,6 +197,8 @@ class TestPrepareVirtualenv:
     @mock.patch("airflow.providers.standard.utils.python_virtualenv.execute_in_subprocess")
     @conf_vars({("standard", "venv_install_method"): "uv"})
     def test_should_create_virtualenv_with_extra_packages_uv(self, mock_execute_in_subprocess):
+        from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv
+
         python_bin = prepare_virtualenv(
             venv_directory="/VENV",
             python_bin="pythonVER",
