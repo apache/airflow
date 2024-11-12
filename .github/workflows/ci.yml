@@ -127,6 +127,7 @@ jobs:
       latest-versions-only: ${{ steps.selective-checks.outputs.latest-versions-only }}
       chicken-egg-providers: ${{ steps.selective-checks.outputs.chicken-egg-providers }}
       has-migrations: ${{ steps.selective-checks.outputs.has-migrations }}
+      only-new-ui-files: ${{ steps.selective-checks.outputs.only-new-ui-files }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       in-workflow-build: ${{ steps.source-run-info.outputs.in-workflow-build }}
@@ -279,7 +280,9 @@ jobs:
     name: "Generate constraints"
     needs: [build-info, wait-for-ci-images]
     uses: ./.github/workflows/generate-constraints.yml
-    if: needs.build-info.outputs.ci-image-build == 'true'
+    if: >
+      needs.build-info.outputs.ci-image-build == 'true' &&
+      needs.build-info.outputs.only-new-ui-files != 'true'
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
@@ -381,7 +384,7 @@ jobs:
       run-migration-tests: "true"
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.only-new-ui-files != 'true'
 
   tests-mysql:
     name: "MySQL tests"
@@ -406,7 +409,7 @@ jobs:
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.only-new-ui-files != 'true'
 
   tests-sqlite:
     name: "Sqlite tests"
@@ -433,7 +436,7 @@ jobs:
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.only-new-ui-files != 'true'
 
   tests-non-db:
     name: "Non-DB tests"
@@ -459,7 +462,7 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.only-new-ui-files != 'true'
 
   tests-special:
     name: "Special tests"
@@ -664,7 +667,8 @@ jobs:
       run-task-sdk-tests: ${{ needs.build-info.outputs.run-task-sdk-tests }}
     if: >
       ( needs.build-info.outputs.run-task-sdk-tests == 'true' ||
-      needs.build-info.outputs.run-tests == 'true')
+      needs.build-info.outputs.run-tests == 'true' &&
+      needs.build-info.outputs.only-new-ui-files != 'true')
 
   finalize-tests:
     name: Finalize tests
