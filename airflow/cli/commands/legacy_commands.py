@@ -52,7 +52,10 @@ COMMAND_MAP = {
 def check_legacy_command(action, value):
     """Check command value and raise error if value is in removed command."""
     new_command = COMMAND_MAP.get(value)
+    if not hasattr(action, "_prog_prefix"):
+        return
     prefix = action._prog_prefix.replace("airflow ", "")
+
     full_command = f"{prefix} {value}"
     if not new_command:
         new_command = COMMAND_MAP.get(full_command)
