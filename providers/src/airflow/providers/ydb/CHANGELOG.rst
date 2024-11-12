@@ -27,6 +27,10 @@
 Changelog
 ---------
 
+.. note::
+  This release removes YDBScanQueryOperator from this provider package.
+  At this point, YDBExecuteQueryOperator could load unlimited amount of rows, so no specific operator is needed.
+
 1.4.0
 .....
 
