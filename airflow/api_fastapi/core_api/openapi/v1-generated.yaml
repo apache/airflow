@@ -3141,6 +3141,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: -1
           default: -1
           title: Map Index
       - name: deserialize
@@ -5285,6 +5286,9 @@ components:
           type: string
           title: Dag Id
         value:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Value
       type: object
       required:

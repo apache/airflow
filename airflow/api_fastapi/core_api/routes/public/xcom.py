@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import copy
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
@@ -40,7 +40,14 @@ xcom_router = AirflowRouter(
 
 @xcom_router.get(
     "/{xcom_key}",
-    responses=create_openapi_http_exception_doc([400, 401, 403, 404]),
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
 )
 def get_xcom_entry(
     dag_id: str,
@@ -48,18 +55,19 @@ def get_xcom_entry(
     dag_run_id: str,
     xcom_key: str,
     session: Annotated[Session, Depends(get_session)],
-    map_index: int = -1,
-    deserialize: bool = False,
-    stringify: bool = True,
+    map_index: Annotated[int, Query(ge=-1)] = -1,
+    deserialize: Annotated[bool, Query()] = False,
+    stringify: Annotated[bool, Query()] = True,
 ) -> XComResponseNative | XComResponseString:
     """Get an XCom entry."""
     if deserialize:
         if not conf.getboolean("api", "enable_xcom_deserialize_support", fallback=False):
-            raise HTTPException(400, "XCom deserialization is disabled in configuration.")
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "XCom deserialization is disabled in configuration."
+            )
         query = select(XCom, XCom.value)
     else:
         query = select(XCom)
-        print()
 
     query = query.where(
         XCom.dag_id == dag_id, XCom.task_id == task_id, XCom.key == xcom_key, XCom.map_index == map_index
@@ -73,7 +81,7 @@ def get_xcom_entry(
         item = session.scalars(query).one_or_none()
 
     if item is None:
-        raise HTTPException(404, f"XCom entry with key: `{xcom_key}` not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"XCom entry with key: `{xcom_key}` not found")
 
     if deserialize:
         xcom, value = item

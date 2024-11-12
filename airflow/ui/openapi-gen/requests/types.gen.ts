@@ -773,7 +773,7 @@ export type XComResponseString = {
   map_index: number;
   task_id: string;
   dag_id: string;
-  value: unknown;
+  value: string | null;
 };
 
 export type NextRunAssetsData = {
