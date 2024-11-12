@@ -1290,14 +1290,6 @@ traces:
       type: string
       example: ~
       default: "False"
-    otel_task_log_event:
-      description: |
-        If True, after the task is complete, the full task log messages will be added as the
-        span events, chunked by 64k size. defaults to False.
-      version_added: 2.10.0
-      type: string
-      example: ~
-      default: "False"
 secrets:
   description: ~
   options:
