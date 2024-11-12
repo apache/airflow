@@ -93,7 +93,7 @@ def get_xcom(
         xcom_value = BaseXCom.deserialize_value(result)
     except json.JSONDecodeError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
                 "reason": "invalid_format",
                 "message": "XCom value is not a valid JSON",
