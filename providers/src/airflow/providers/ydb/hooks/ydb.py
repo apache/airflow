@@ -20,19 +20,19 @@ from typing import TYPE_CHECKING, Any, Mapping, Sequence
 
 import ydb
 from sqlalchemy.engine import URL
+from ydb_dbapi import Connection as DbApiConnection
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.ydb.hooks._vendor.dbapi.connection import Connection as DbApiConnection
-from airflow.providers.ydb.hooks._vendor.dbapi.cursor import YdbQuery
 from airflow.providers.ydb.utils.credentials import get_credentials_from_connection
 from airflow.providers.ydb.utils.defaults import CONN_NAME_ATTR, CONN_TYPE, DEFAULT_CONN_NAME
 
 DEFAULT_YDB_GRPCS_PORT: int = 2135
 
 if TYPE_CHECKING:
+    from ydb_dbapi import Cursor as DbApiCursor
+
     from airflow.models.connection import Connection
-    from airflow.providers.ydb.hooks._vendor.dbapi.cursor import Cursor as DbApiCursor
 
 
 class YDBCursor:
@@ -46,8 +46,10 @@ class YDBCursor:
         if parameters is not None:
             raise AirflowException("parameters is not supported yet")
 
-        q = YdbQuery(yql_text=sql, is_ddl=self.is_ddl)
-        return self.delegatee.execute(q, parameters)
+        if self.is_ddl:
+            return self.delegatee.execute_scheme(sql, parameters)
+
+        return self.delegatee.execute(sql, parameters)
 
     def executemany(self, sql: str, seq_of_parameters: Sequence[Mapping[str, Any]]):
         for parameters in seq_of_parameters:
@@ -95,11 +97,12 @@ class YDBCursor:
 class YDBConnection:
     """YDB connection wrapper."""
 
-    def __init__(self, ydb_session_pool: Any, is_ddl: bool, use_scan_query: bool):
+    def __init__(self, database: str, ydb_session_pool: Any, is_ddl: bool):
         self.is_ddl = is_ddl
-        self.use_scan_query = use_scan_query
-        self.delegatee: DbApiConnection = DbApiConnection(ydb_session_pool=ydb_session_pool)
-        self.delegatee.set_ydb_scan_query(use_scan_query)
+        self.delegatee: DbApiConnection = DbApiConnection(
+            database=database,
+            ydb_session_pool=ydb_session_pool,
+        )
 
     def cursor(self) -> YDBCursor:
         return YDBCursor(self.delegatee.cursor(), is_ddl=self.is_ddl)
@@ -123,7 +126,7 @@ class YDBConnection:
         self.delegatee.close()
 
     def bulk_upsert(self, table_name: str, rows: Sequence, column_types: ydb.BulkUpsertColumns):
-        self.delegatee.driver.table_client.bulk_upsert(table_name, rows=rows, column_types=column_types)
+        self.delegatee.bulk_upsert(table_name, rows=rows, column_types=column_types)
 
 
 class YDBHook(DbApiHook):
@@ -136,12 +139,11 @@ class YDBHook(DbApiHook):
     supports_autocommit: bool = True
     supports_executemany: bool = True
 
-    def __init__(self, *args, is_ddl: bool = False, use_scan_query: bool = False, **kwargs) -> None:
+    def __init__(self, *args, is_ddl: bool = False, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.is_ddl = is_ddl
-        self.use_scan_query = use_scan_query
 
-        conn: Connection = self.get_connection(self.get_conn_id())
+        conn: Connection = self.connection
         host: str | None = conn.host
         if not host:
             raise ValueError("YDB host must be specified")
@@ -161,13 +163,13 @@ class YDBHook(DbApiHook):
         driver_config = ydb.DriverConfig(
             endpoint=endpoint,
             database=database,
-            table_client_settings=YDBHook._get_table_client_settings(),
+            query_client_settings=YDBHook._get_query_client_settings(),
             credentials=credentials,
         )
         driver = ydb.Driver(driver_config)
         # wait until driver become initialized
         driver.wait(fail_fast=True, timeout=10)
-        self.ydb_session_pool = ydb.SessionPool(driver, size=5)
+        self.ydb_session_pool = ydb.QuerySessionPool(driver, size=5)
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
@@ -237,7 +239,7 @@ class YDBHook(DbApiHook):
 
     def get_conn(self) -> YDBConnection:
         """Establish a connection to a YDB database."""
-        return YDBConnection(self.ydb_session_pool, is_ddl=self.is_ddl, use_scan_query=self.use_scan_query)
+        return YDBConnection(self.database, self.ydb_session_pool, is_ddl=self.is_ddl)
 
     @staticmethod
     def _serialize_cell(cell: object, conn: YDBConnection | None = None) -> Any:
@@ -251,12 +253,12 @@ class YDBHook(DbApiHook):
 
             https://ydb.tech/docs/en/recipes/ydb-sdk/bulk-upsert
         """
-        self.get_conn().bulk_upsert(f"{self.database}/{table_name}", rows, column_types)
+        self.get_conn().bulk_upsert(table_name, rows, column_types)
 
     @staticmethod
-    def _get_table_client_settings() -> ydb.TableClientSettings:
+    def _get_query_client_settings() -> ydb.QueryClientSettings:
         return (
-            ydb.TableClientSettings()
+            ydb.QueryClientSettings()
             .with_native_date_in_result_sets(True)
             .with_native_datetime_in_result_sets(True)
             .with_native_timestamp_in_result_sets(True)
