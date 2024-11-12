@@ -6965,7 +6965,7 @@ The change is backwards compatible, setting ``provide_context`` will add the ``p
 PR: `#5990 <https://github.com/apache/airflow/pull/5990>`_
 
 ``airflow.providers.standard.sensors.filesystem.FileSensor``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 FileSensor is now takes a glob pattern, not just a filename. If the filename you are looking for has ``*``\ , ``?``\ , or ``[`` in it then you should replace these with ``[*]``\ , ``[?]``\ , and ``[[]``.
 
