@@ -1560,8 +1560,6 @@ export interface components {
        */
       dag_run_id?: string;
       /** Format: datetime */
-      execution_date?: string;
-      /** Format: datetime */
       start_date?: string | null;
       /** Format: datetime */
       end_date?: string | null;

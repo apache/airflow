@@ -3803,9 +3803,6 @@ components:
             The DagRun ID for this task instance
 
             *New in version 2.3.0*
-        execution_date:
-          type: string
-          format: datetime
         start_date:
           type: string
           format: datetime
