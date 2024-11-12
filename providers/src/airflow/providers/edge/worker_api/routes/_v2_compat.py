@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Compatibility layer for API to provide both FastAPI as wenn as Connexion based endpoints."""
+"""Compatibility layer for API to provide both FastAPI as well as Connexion based endpoints."""
 
 from __future__ import annotations
 
@@ -27,12 +27,10 @@ AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 if AIRFLOW_V_3_0_PLUS:
     # Just re-import the types from FastAPI and Airflow Core
-    from fastapi import Depends as Depends, Header as Header, HTTPException as HTTPException, status as status
+    from fastapi import Depends, Header, HTTPException, status
 
-    from airflow.api_fastapi.common.router import AirflowRouter as AirflowRouter
-    from airflow.api_fastapi.core_api.openapi.exceptions import (
-        create_openapi_http_exception_doc as create_openapi_http_exception_doc,
-    )
+    from airflow.api_fastapi.common.router import AirflowRouter
+    from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 else:
     # Mock the external dependnecies
     from typing import Callable
