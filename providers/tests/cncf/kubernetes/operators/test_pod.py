@@ -143,6 +143,8 @@ class TestKubernetesPodOperator:
             session=session,
             dag_id=dag_id,
             task_id="task-id",
+            name="{{ dag.dag_id }}",
+            hostname="{{ dag.dag_id }}",
             namespace="{{ dag.dag_id }}",
             container_resources=k8s.V1ResourceRequirements(
                 requests={"memory": "{{ dag.dag_id }}", "cpu": "{{ dag.dag_id }}"},
@@ -184,6 +186,8 @@ class TestKubernetesPodOperator:
         assert dag_id == rendered.container_resources.requests["cpu"]
         assert dag_id == rendered.volume_mounts[0].name
         assert dag_id == rendered.volume_mounts[0].sub_path
+        assert dag_id == ti.task.hostname
+        assert dag_id == ti.task.name
         assert dag_id == ti.task.image
         assert dag_id == ti.task.cmds
         assert dag_id == ti.task.namespace
