@@ -27,14 +27,9 @@ class FakeDriver:
         pass
 
 
-class FakeSessionPoolImpl:
-    def __init__(self, driver):
-        self._driver = driver
-
-
 class FakeSessionPool:
     def __init__(self, driver):
-        self._pool_impl = FakeSessionPoolImpl(driver)
+        self._driver = driver
 
 
 class FakeYDBCursor:
@@ -63,10 +58,8 @@ class FakeYDBCursor:
 
 @patch("airflow.hooks.base.BaseHook.get_connection")
 @patch("ydb.Driver")
-@patch("ydb.SessionPool")
-@patch(
-    "airflow.providers.ydb.hooks._vendor.dbapi.connection.Connection._cursor_class", new_callable=PropertyMock
-)
+@patch("ydb.QuerySessionPool")
+@patch("ydb_dbapi.Connection._cursor_cls", new_callable=PropertyMock)
 def test_execute(cursor_class, mock_session_pool, mock_driver, mock_get_connection):
     mock_get_connection.return_value = Connection(
         conn_type="ydb",
