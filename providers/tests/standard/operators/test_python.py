@@ -941,7 +941,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             *intentionally_excluded_context_keys,
         }
         if not AIRFLOW_V_3_0_PLUS:
-            declared_keys.add(
+            additional_keys = {
                 "next_ds",
                 "next_ds_nodash",
                 "prev_ds",
@@ -950,7 +950,8 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
                 "tomorrow_ds_nodash",
                 "yesterday_ds",
                 "yesterday_ds_nodash",
-            )
+            }
+            declared_keys.update(additional_keys)
         assert set(context) == declared_keys
 
     @pytest.mark.parametrize(
