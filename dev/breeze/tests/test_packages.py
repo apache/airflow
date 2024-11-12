@@ -221,6 +221,7 @@ def test_get_documentation_package_path():
             """
     "apache-airflow-providers-common-sql>=1.20.0",
     "apache-airflow>=2.8.0",
+    "asyncpg>=0.30.0",
     "psycopg2-binary>=2.9.4",
     """,
             id="No suffix postgres",
