@@ -35,7 +35,7 @@ class TestMSGraphSensor(Base):
                 task_id="check_workspaces_status",
                 conn_id="powerbi",
                 url="myorg/admin/workspaces/scanStatus/{scanId}",
-                path_parameters={"scanId": lambda: "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"},
+                path_parameters=lambda context, jinja_env: {"scanId": "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"},
                 result_processor=lambda context, result: result["id"],
                 timeout=350.0,
             )

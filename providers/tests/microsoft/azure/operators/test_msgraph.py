@@ -144,7 +144,7 @@ class TestMSGraphAsyncOperator(Base):
                 conn_id="msgraph_api",
                 response_type="bytes",
                 url="/drives/{drive_id}/root/content",
-                path_parameters={"drive_id": lambda: drive_id},
+                path_parameters=lambda context, jinja_env: {"drive_id": drive_id},
             )
 
             results, events = self.execute_operator(operator)

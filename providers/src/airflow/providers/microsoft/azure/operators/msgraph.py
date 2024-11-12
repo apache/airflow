@@ -137,15 +137,6 @@ class MSGraphAsyncOperator(BaseOperator):
         self.event_handler = event_handler or default_event_handler
         self.serializer: ResponseSerializer = serializer()
 
-    def render_template_fields(
-        self,
-        context: Context,
-        jinja_env: jinja2.Environment | None = None,
-    ) -> None:
-        super().render_template_fields(context=context, jinja_env=jinja_env)
-        KiotaRequestAdapterHook.evaluate_parameters(self.path_parameters)
-        KiotaRequestAdapterHook.evaluate_parameters(self.query_parameters)
-
     def execute(self, context: Context) -> None:
         self.defer(
             trigger=MSGraphTrigger(
