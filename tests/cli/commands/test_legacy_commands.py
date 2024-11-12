@@ -35,7 +35,7 @@ LEGACY_COMMANDS = [
     "show_dag",
     "list_dag",
     "dag_status",
-    "backfill",
+    "dags backfill",
     "list_dag_runs",
     "pause",
     "unpause",
@@ -69,8 +69,8 @@ class TestCliDeprecatedCommandsValue:
 
         assert 2 == ctx.value.code
         assert (
-            "`airflow worker` command, has been removed, "
-            "please use `airflow celery worker`, see help above." in temp_stderr.getvalue().strip()
+            "Command `airflow worker` has been removed. "
+            "Please use `airflow celery worker`" in temp_stderr.getvalue().strip()
         )
 
     def test_command_map(self):
@@ -78,10 +78,11 @@ class TestCliDeprecatedCommandsValue:
             assert COMMAND_MAP[item] is not None
 
     def test_check_legacy_command(self):
-        action = MagicMock()
-        with pytest.raises(ArgumentError) as ctx:
-            check_legacy_command(action, "list_users")
-        assert (
-            str(ctx.value)
-            == "argument : `airflow list_users` command, has been removed, please use `airflow users list`"
-        )
+        mock_action = MagicMock()
+        mock_action._prog_prefix = "airflow"
+        with pytest.raises(
+            ArgumentError,
+            match="argument : Command `airflow list_users` has been removed. "
+            "Please use `airflow users list`",
+        ):
+            check_legacy_command(mock_action, "list_users")
