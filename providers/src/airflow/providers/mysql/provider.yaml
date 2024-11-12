@@ -75,6 +75,7 @@ dependencies:
   # Instead, if someone attempts to use it on MacOS, they will get explanatory error on how to install it
   - mysqlclient>=1.4.0; sys_platform != 'darwin'
   - mysql-connector-python>=8.0.29
+  - aiomysql>=0.2.0
 
 additional-extras:
   # only needed for backwards compatibility

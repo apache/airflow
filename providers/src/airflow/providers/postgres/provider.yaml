@@ -69,6 +69,7 @@ dependencies:
   - apache-airflow>=2.8.0
   - apache-airflow-providers-common-sql>=1.20.0
   - psycopg2-binary>=2.9.4
+  - asyncpg>=0.30.0
 
 additional-extras:
   - name: amazon
