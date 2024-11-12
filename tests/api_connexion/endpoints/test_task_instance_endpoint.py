@@ -3013,6 +3013,23 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         assert response.json["total_entries"] == 2  # The task instance and its history
         assert len(response.json["task_instances"]) == 2
 
+    def test_ti_in_retry_state_not_returned(self, session):
+        self.create_task_instances(
+            session=session, task_instances=[{"state": State.SUCCESS}], with_ti_history=True
+        )
+        ti = session.query(TaskInstance).one()
+        ti.state = State.UP_FOR_RETRY
+        session.merge(ti)
+        session.commit()
+
+        response = self.client.get(
+            "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json["total_entries"] == 1
+        assert len(response.json["task_instances"]) == 1
+
     def test_mapped_task_should_respond_200(self, session):
         tis = self.create_task_instances(session, task_instances=[{"state": State.FAILED}])
         old_ti = tis[0]
