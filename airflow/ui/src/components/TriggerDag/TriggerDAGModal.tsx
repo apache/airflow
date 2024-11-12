@@ -42,7 +42,8 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
     () => ({
       configJson: "{}",
       dagId,
-      logicalDate: "",
+      dataIntervalEnd: "",
+      dataIntervalStart: "",
       runId: "",
     }),
     [dagId],

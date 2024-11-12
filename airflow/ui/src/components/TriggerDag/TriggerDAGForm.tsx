@@ -42,14 +42,21 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
   setDagParams,
 }) => {
   const [jsonError, setJsonError] = useState<string | undefined>();
+
   const {
     control,
     formState: { isDirty },
     handleSubmit,
     reset,
+    setValue,
+    watch,
   } = useForm<DagParams>({
     defaultValues: dagParams,
   });
+
+  // Watch the date fields for dynamic min/max constraints
+  const dataIntervalStart = watch("dataIntervalStart");
+  const dataIntervalEnd = watch("dataIntervalEnd");
 
   useEffect(() => {
     reset(dagParams);
@@ -78,6 +85,22 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
     }
   };
 
+  // Function to validate and enforce date constraints based on which field is edited
+  const validateDates = (
+    fieldName: "dataIntervalEnd" | "dataIntervalStart",
+  ) => {
+    const startDate = dataIntervalStart ? new Date(dataIntervalStart) : null;
+    const endDate = dataIntervalEnd ? new Date(dataIntervalEnd) : null;
+
+    if (startDate && endDate) {
+      if (fieldName === "dataIntervalStart" && startDate > endDate) {
+        setValue("dataIntervalStart", dataIntervalEnd); // Adjust start to match end if invalid
+      } else if (fieldName === "dataIntervalEnd" && endDate < startDate) {
+        setValue("dataIntervalEnd", dataIntervalStart); // Adjust end to match start if invalid
+      }
+    }
+  };
+
   const { colorMode } = useColorMode();
 
   return (
@@ -88,14 +111,34 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
           <Accordion.ItemContent>
             <Box p={5}>
               <Text fontSize="md" mb={2}>
-                Logical date
+                Data Interval Start Date
               </Text>
               <Controller
                 control={control}
-                name="logicalDate"
+                name="dataIntervalStart"
                 render={({ field }) => (
                   <Input
                     {...field}
+                    max={dataIntervalEnd || undefined}
+                    onBlur={() => validateDates("dataIntervalStart")}
+                    placeholder="yyyy-mm-ddThh:mm"
+                    size="sm"
+                    type="datetime-local"
+                  />
+                )}
+              />
+
+              <Text fontSize="md" mb={2} mt={6}>
+                Data Interval End Date
+              </Text>
+              <Controller
+                control={control}
+                name="dataIntervalEnd"
+                render={({ field }) => (
+                  <Input
+                    {...field}
+                    min={dataIntervalStart || undefined}
+                    onBlur={() => validateDates("dataIntervalEnd")}
                     placeholder="yyyy-mm-ddThh:mm"
                     size="sm"
                     type="datetime-local"
@@ -151,11 +194,11 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
                       }}
                       theme={colorMode === "dark" ? githubDark : githubLight}
                     />
-                    {Boolean(jsonError) && (
+                    {Boolean(jsonError) ? (
                       <Text color="red.500" fontSize="sm" mt={2}>
                         {jsonError}
                       </Text>
-                    )}
+                    ) : undefined}
                   </Box>
                 )}
               />

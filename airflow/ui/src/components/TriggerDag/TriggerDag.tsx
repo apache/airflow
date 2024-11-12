@@ -20,7 +20,8 @@
 export type DagParams = {
   configJson: string;
   dagId: string;
-  logicalDate: string;
+  dataIntervalEnd: string;
+  dataIntervalStart: string;
   runId: string;
 };
 
@@ -35,7 +36,8 @@ export const TriggerDag = (dagParams: DagParams) => {
     Triggering DAG with the following parameters:
 
     Config JSON: ${JSON.stringify(dagParams.configJson)}
-    Logical Date: ${dagParams.logicalDate}
+    Data Interval Start Date: ${dagParams.dataIntervalStart}
+    Data Interval End Date: ${dagParams.dataIntervalEnd}
     Run ID: ${dagParams.runId}
 
     TODO: This trigger button is under progress.
