@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.routes.public.assets import assets_router
 from airflow.api_fastapi.core_api.routes.public.backfills import backfills_router
 from airflow.api_fastapi.core_api.routes.public.connections import connections_router
 from airflow.api_fastapi.core_api.routes.public.dag_run import dag_run_router
@@ -34,6 +35,7 @@ from airflow.api_fastapi.core_api.routes.public.providers import providers_route
 from airflow.api_fastapi.core_api.routes.public.task_instances import task_instances_router
 from airflow.api_fastapi.core_api.routes.public.variables import variables_router
 from airflow.api_fastapi.core_api.routes.public.version import version_router
+from airflow.api_fastapi.core_api.routes.public.xcom import xcom_router
 
 public_router = AirflowRouter(prefix="/public")
 
@@ -56,3 +58,5 @@ public_router.include_router(variables_router)
 public_router.include_router(variables_router)
 public_router.include_router(version_router)
 public_router.include_router(dag_stats_router)
+public_router.include_router(xcom_router)
+public_router.include_router(assets_router)

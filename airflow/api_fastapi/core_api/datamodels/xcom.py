@@ -16,12 +16,34 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.execution_api.routes import connections, health, task_instances, variables, xcoms
+from datetime import datetime
+from typing import Any
 
-execution_api_router = AirflowRouter()
-execution_api_router.include_router(connections.router, prefix="/connections", tags=["Connections"])
-execution_api_router.include_router(health.router, tags=["Health"])
-execution_api_router.include_router(task_instances.router, prefix="/task-instances", tags=["Task Instances"])
-execution_api_router.include_router(variables.router, prefix="/variables", tags=["Variables"])
-execution_api_router.include_router(xcoms.router, prefix="/xcoms", tags=["XComs"])
+from pydantic import BaseModel, field_validator
+
+
+class XComResponse(BaseModel):
+    """Serializer for a xcom item."""
+
+    key: str
+    timestamp: datetime
+    execution_date: datetime
+    map_index: int
+    task_id: str
+    dag_id: str
+
+
+class XComResponseNative(XComResponse):
+    """XCom response serializer with native return type."""
+
+    value: Any
+
+
+class XComResponseString(XComResponse):
+    """XCom response serializer with string return type."""
+
+    value: str | None
+
+    @field_validator("value", mode="before")
+    def value_to_string(cls, v):
+        return str(v) if v is not None else None
