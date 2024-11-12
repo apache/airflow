@@ -162,6 +162,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.API_CODEGEN_FILES: [
             r"^airflow/api_connexion/openapi/v1\.yaml",
+            r"^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml",
             r"^clients/gen",
         ],
         FileGroupForCi.LEGACY_API_FILES: [
@@ -1107,7 +1108,12 @@ class SelectiveChecks:
             FileGroupForCi.LEGACY_WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
         ):
             pre_commits_to_skip.add("ts-compile-format-lint-www")
-        if not self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES):
+        if not (
+            self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
+            or self._matching_files(
+                FileGroupForCi.API_CODEGEN_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+        ):
             pre_commits_to_skip.add("ts-compile-format-lint-ui")
         if not self._matching_files(
             FileGroupForCi.ALL_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES

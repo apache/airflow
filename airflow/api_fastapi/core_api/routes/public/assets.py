@@ -60,9 +60,7 @@ def get_assets(
     dag_ids: QueryAssetDagIdPatternSearch,
     order_by: Annotated[
         SortParam,
-        Depends(
-            SortParam(["id", "uri", "created_at", "updated_at", "timestamp"], AssetModel).dynamic_depends()
-        ),
+        Depends(SortParam(["id", "uri", "created_at", "updated_at"], AssetModel).dynamic_depends()),
     ],
     session: Annotated[Session, Depends(get_session)],
 ) -> AssetCollectionResponse:
@@ -77,11 +75,8 @@ def get_assets(
     )
 
     assets = session.scalars(assets_select).all()
-    print(f"assets are {assets}")
-    assets = [AssetResponse.model_validate(asset, from_attributes=True) for asset in assets]
-    print(f"updated assetss are {assets}")
     return AssetCollectionResponse(
-        assets=assets,
+        assets=[AssetResponse.model_validate(asset, from_attributes=True) for asset in assets],
         total_entries=total_entries,
     )
 
