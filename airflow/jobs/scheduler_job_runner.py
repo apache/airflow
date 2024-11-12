@@ -29,7 +29,7 @@ from datetime import timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
 from sqlalchemy import and_, delete, exists, func, not_, select, text, update
 from sqlalchemy.exc import OperationalError
@@ -2136,17 +2136,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 incoming_uri_to_name[asset.uri] = asset.name
                 session.add(AssetActive.for_asset(asset))
 
-        def _get_first_item(x: Sequence[Any]) -> Any:
-            return x[0]
-
         warnings_to_have = {
             dag_id: DagWarning(
                 dag_id=dag_id,
-                error_type=DagWarningType.ASSET_CONFLICT,
-                message="\n".join([row[1] for row in group]),
+                warning_type=DagWarningType.ASSET_CONFLICT,
+                message="\n".join([message for _, message in group]),
             )
             for dag_id, group in groupby(
-                sorted(_activate_assets_generate_warnings(), key=_get_first_item), key=_get_first_item
+                sorted(_activate_assets_generate_warnings()), key=operator.itemgetter(0)
             )
         }
 
