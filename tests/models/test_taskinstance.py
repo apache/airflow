@@ -2411,7 +2411,7 @@ class TestTaskInstance:
 
             @task(outlets=Dataset("test_outlet_dataset_extra_1"))
             def write1(*, outlet_events):
-                outlet_events["test_outlet_dataset_extra_1"].extra = {"foo": "bar"}
+                outlet_events[Dataset("test_outlet_dataset_extra_1")].extra = {"foo": "bar"}
 
             write1()
 
@@ -2453,8 +2453,8 @@ class TestTaskInstance:
 
             @task(outlets=Dataset("test_outlet_dataset_extra"))
             def write(*, outlet_events):
-                outlet_events["test_outlet_dataset_extra"].extra = {"one": 1}
-                outlet_events["different_uri"].extra = {"foo": "bar"}  # Will be silently dropped.
+                outlet_events[Dataset("test_outlet_dataset_extra")].extra = {"one": 1}
+                outlet_events[Dataset("different_uri")].extra = {"foo": "bar"}  # Will be silently dropped.
 
             write()
 
@@ -2722,22 +2722,22 @@ class TestTaskInstance:
 
             @task(outlets=Dataset("test_inlet_dataset_extra"))
             def write(*, ti, outlet_events):
-                outlet_events["test_inlet_dataset_extra"].extra = {"from": ti.task_id}
+                outlet_events[Dataset("test_inlet_dataset_extra")].extra = {"from": ti.task_id}
 
             @task(inlets=Dataset("test_inlet_dataset_extra"))
             def read(*, inlet_events):
-                second_event = inlet_events["test_inlet_dataset_extra"][1]
+                second_event = inlet_events[Dataset("test_inlet_dataset_extra")][1]
                 assert second_event.uri == "test_inlet_dataset_extra"
                 assert second_event.extra == {"from": "write2"}
 
-                last_event = inlet_events["test_inlet_dataset_extra"][-1]
+                last_event = inlet_events[Dataset("test_inlet_dataset_extra")][-1]
                 assert last_event.uri == "test_inlet_dataset_extra"
                 assert last_event.extra == {"from": "write3"}
 
                 with pytest.raises(KeyError):
-                    inlet_events["does_not_exist"]
+                    inlet_events[Dataset("does_not_exist")]
                 with pytest.raises(IndexError):
-                    inlet_events["test_inlet_dataset_extra"][5]
+                    inlet_events[Dataset("test_inlet_dataset_extra")][5]
 
                 # TODO: Support slices.
 
@@ -2798,7 +2798,7 @@ class TestTaskInstance:
                 assert last_event.extra == {"from": "write3"}
 
                 with pytest.raises(KeyError):
-                    inlet_events["does_not_exist"]
+                    inlet_events[Dataset("does_not_exist")]
                 with pytest.raises(KeyError):
                     inlet_events[DatasetAlias("does_not_exist")]
                 with pytest.raises(IndexError):
