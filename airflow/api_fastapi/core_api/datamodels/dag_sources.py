@@ -24,5 +24,4 @@ class DAGSourceResponse(BaseModel):
 
     content: str | None
     dag_id: str
-    version_name: str | None
     version_number: int | None

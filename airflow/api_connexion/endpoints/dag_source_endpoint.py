@@ -44,16 +44,13 @@ if TYPE_CHECKING:
 def get_dag_source(
     *,
     dag_id: str,
-    version_name: str | None = None,
     version_number: int | None = None,
     session: Session = NEW_SESSION,
 ) -> Response:
     """Get source code from DagCode."""
-    dag_version = DagVersion.get_version(dag_id, version_number, version_name, session=session)
+    dag_version = DagVersion.get_version(dag_id, version_number, session=session)
     if not dag_version:
-        raise NotFound(
-            f"The source code of the DAG {dag_id}, version {version_name} and version_number {version_number} was not found"
-        )
+        raise NotFound(f"The source code of the DAG {dag_id}, version_number {version_number} was not found")
     path = dag_version.dag_code.fileloc
     dag_ids = session.scalars(select(DagModel.dag_id).where(DagModel.fileloc == path)).all()
     requests: Sequence[IsAuthorizedDagRequest] = [
@@ -69,7 +66,6 @@ def get_dag_source(
         raise PermissionDenied()
     dag_source = dag_version.dag_code.source_code
     version_number = dag_version.version_number
-    version_name = dag_version.version_name
 
     return_type = request.accept_mimetypes.best_match(["text/plain", "application/json"])
     if return_type == "text/plain":
@@ -79,7 +75,6 @@ def get_dag_source(
             {
                 "content": dag_source,
                 "dag_id": dag_id,
-                "version_name": version_name,
                 "version_number": version_number,
             }
         )

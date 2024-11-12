@@ -2274,7 +2274,6 @@ paths:
       operationId: get_dag_source
       tags: [DAG]
       parameters:
-        - $ref: "#/components/parameters/VersionName"
         - $ref: "#/components/parameters/VersionNumber"
       responses:
         "200":
@@ -5862,13 +5861,6 @@ components:
       description: |
         List of field for return.
 
-    VersionName:
-      in: query
-      name: version_name
-      schema:
-        type: string
-      description: |
-        The name of the version.
     VersionNumber:
       in: query
       name: version_number

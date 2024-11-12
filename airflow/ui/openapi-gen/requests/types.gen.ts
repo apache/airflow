@@ -309,7 +309,6 @@ export type DAGRunTypes = {
 export type DAGSourceResponse = {
   content: string | null;
   dag_id: string;
-  version_name: string | null;
   version_number: number | null;
 };
 
@@ -1121,7 +1120,6 @@ export type PatchDagRunResponse = DAGRunResponse;
 export type GetDagSourceData = {
   accept?: string;
   dagId: string;
-  versionName?: string | null;
   versionNumber?: number | null;
 };
 

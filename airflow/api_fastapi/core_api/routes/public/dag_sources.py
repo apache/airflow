@@ -70,9 +70,7 @@ async def get_dag_source(
 
     dag_source = dag_version.dag_code.source_code
     version_number = dag_version.version_number
-    dag_source_model = DAGSourceResponse(
-        dag_id=dag_id, content=dag_source, version_number=version_number
-    )
+    dag_source_model = DAGSourceResponse(dag_id=dag_id, content=dag_source, version_number=version_number)
 
     if accept.startswith(mime_type_text):
         return Response(dag_source_model.content, media_type=mime_type_text)

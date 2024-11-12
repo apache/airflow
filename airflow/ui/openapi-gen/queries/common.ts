@@ -69,50 +69,6 @@ export const UseAssetServiceGetAssetsKeyFn = (
   useAssetServiceGetAssetsKey,
   ...(queryKey ?? [{ dagIds, limit, offset, orderBy, uriPattern }]),
 ];
-export type AssetServiceGetAssetEventsDefaultResponse = Awaited<
-  ReturnType<typeof AssetService.getAssetEvents>
->;
-export type AssetServiceGetAssetEventsQueryResult<
-  TData = AssetServiceGetAssetEventsDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useAssetServiceGetAssetEventsKey = "AssetServiceGetAssetEvents";
-export const UseAssetServiceGetAssetEventsKeyFn = (
-  {
-    assetId,
-    limit,
-    offset,
-    orderBy,
-    sourceDagId,
-    sourceMapIndex,
-    sourceRunId,
-    sourceTaskId,
-  }: {
-    assetId?: number;
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-    sourceDagId?: string;
-    sourceMapIndex?: number;
-    sourceRunId?: string;
-    sourceTaskId?: string;
-  } = {},
-  queryKey?: Array<unknown>,
-) => [
-  useAssetServiceGetAssetEventsKey,
-  ...(queryKey ?? [
-    {
-      assetId,
-      limit,
-      offset,
-      orderBy,
-      sourceDagId,
-      sourceMapIndex,
-      sourceRunId,
-      sourceTaskId,
-    },
-  ]),
-];
 export type AssetServiceGetAssetDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getAsset>
 >;
@@ -351,28 +307,6 @@ export const UseDagRunServiceGetDagRunKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useDagRunServiceGetDagRunKey, ...(queryKey ?? [{ dagId, dagRunId }])];
-export type DagRunServiceGetUpstreamAssetEventsDefaultResponse = Awaited<
-  ReturnType<typeof DagRunService.getUpstreamAssetEvents>
->;
-export type DagRunServiceGetUpstreamAssetEventsQueryResult<
-  TData = DagRunServiceGetUpstreamAssetEventsDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useDagRunServiceGetUpstreamAssetEventsKey =
-  "DagRunServiceGetUpstreamAssetEvents";
-export const UseDagRunServiceGetUpstreamAssetEventsKeyFn = (
-  {
-    dagId,
-    dagRunId,
-  }: {
-    dagId: string;
-    dagRunId: string;
-  },
-  queryKey?: Array<unknown>,
-) => [
-  useDagRunServiceGetUpstreamAssetEventsKey,
-  ...(queryKey ?? [{ dagId, dagRunId }]),
-];
 export type DagSourceServiceGetDagSourceDefaultResponse = Awaited<
   ReturnType<typeof DagSourceService.getDagSource>
 >;
@@ -395,7 +329,7 @@ export const UseDagSourceServiceGetDagSourceKeyFn = (
   queryKey?: Array<unknown>,
 ) => [
   useDagSourceServiceGetDagSourceKey,
-  ...(queryKey ?? [{ accept, dagId, versionName, versionNumber }]),
+  ...(queryKey ?? [{ accept, dagId, versionNumber }]),
 ];
 export type DagStatsServiceGetDagStatsDefaultResponse = Awaited<
   ReturnType<typeof DagStatsService.getDagStats>
@@ -669,6 +603,18 @@ export const UseImportErrorServiceGetImportErrorsKeyFn = (
 ) => [
   useImportErrorServiceGetImportErrorsKey,
   ...(queryKey ?? [{ limit, offset, orderBy }]),
+];
+export type MonitorServiceGetHealthDefaultResponse = Awaited<
+  ReturnType<typeof MonitorService.getHealth>
+>;
+export type MonitorServiceGetHealthQueryResult<
+  TData = MonitorServiceGetHealthDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useMonitorServiceGetHealthKey = "MonitorServiceGetHealth";
+export const UseMonitorServiceGetHealthKeyFn = (queryKey?: Array<unknown>) => [
+  useMonitorServiceGetHealthKey,
+  ...(queryKey ?? []),
 ];
 export type PluginServiceGetPluginsDefaultResponse = Awaited<
   ReturnType<typeof PluginService.getPlugins>
@@ -1001,24 +947,6 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     },
   ]),
 ];
-export type TaskServiceGetTasksDefaultResponse = Awaited<
-  ReturnType<typeof TaskService.getTasks>
->;
-export type TaskServiceGetTasksQueryResult<
-  TData = TaskServiceGetTasksDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useTaskServiceGetTasksKey = "TaskServiceGetTasks";
-export const UseTaskServiceGetTasksKeyFn = (
-  {
-    dagId,
-    orderBy,
-  }: {
-    dagId: string;
-    orderBy?: string;
-  },
-  queryKey?: Array<unknown>,
-) => [useTaskServiceGetTasksKey, ...(queryKey ?? [{ dagId, orderBy }])];
 export type TaskServiceGetTaskDefaultResponse = Awaited<
   ReturnType<typeof TaskService.getTask>
 >;
@@ -1076,6 +1004,18 @@ export const UseVariableServiceGetVariablesKeyFn = (
   useVariableServiceGetVariablesKey,
   ...(queryKey ?? [{ limit, offset, orderBy }]),
 ];
+export type VersionServiceGetVersionDefaultResponse = Awaited<
+  ReturnType<typeof VersionService.getVersion>
+>;
+export type VersionServiceGetVersionQueryResult<
+  TData = VersionServiceGetVersionDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useVersionServiceGetVersionKey = "VersionServiceGetVersion";
+export const UseVersionServiceGetVersionKeyFn = (queryKey?: Array<unknown>) => [
+  useVersionServiceGetVersionKey,
+  ...(queryKey ?? []),
+];
 export type XcomServiceGetXcomEntryDefaultResponse = Awaited<
   ReturnType<typeof XcomService.getXcomEntry>
 >;
@@ -1109,33 +1049,6 @@ export const UseXcomServiceGetXcomEntryKeyFn = (
     { dagId, dagRunId, deserialize, mapIndex, stringify, taskId, xcomKey },
   ]),
 ];
-export type MonitorServiceGetHealthDefaultResponse = Awaited<
-  ReturnType<typeof MonitorService.getHealth>
->;
-export type MonitorServiceGetHealthQueryResult<
-  TData = MonitorServiceGetHealthDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useMonitorServiceGetHealthKey = "MonitorServiceGetHealth";
-export const UseMonitorServiceGetHealthKeyFn = (queryKey?: Array<unknown>) => [
-  useMonitorServiceGetHealthKey,
-  ...(queryKey ?? []),
-];
-export type VersionServiceGetVersionDefaultResponse = Awaited<
-  ReturnType<typeof VersionService.getVersion>
->;
-export type VersionServiceGetVersionQueryResult<
-  TData = VersionServiceGetVersionDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useVersionServiceGetVersionKey = "VersionServiceGetVersion";
-export const UseVersionServiceGetVersionKeyFn = (queryKey?: Array<unknown>) => [
-  useVersionServiceGetVersionKey,
-  ...(queryKey ?? []),
-];
-export type AssetServiceCreateAssetEventMutationResult = Awaited<
-  ReturnType<typeof AssetService.createAssetEvent>
->;
 export type BackfillServiceCreateBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.createBackfill>
 >;
@@ -1145,14 +1058,8 @@ export type ConnectionServicePostConnectionMutationResult = Awaited<
 export type ConnectionServiceTestConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.testConnection>
 >;
-export type DagRunServiceClearDagRunMutationResult = Awaited<
-  ReturnType<typeof DagRunService.clearDagRun>
->;
 export type PoolServicePostPoolMutationResult = Awaited<
   ReturnType<typeof PoolService.postPool>
->;
-export type TaskInstanceServiceGetTaskInstancesBatchMutationResult = Awaited<
-  ReturnType<typeof TaskInstanceService.getTaskInstancesBatch>
 >;
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>

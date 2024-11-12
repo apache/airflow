@@ -2759,8 +2759,6 @@ export interface components {
     UpdateMask: string[];
     /** @description List of field for return. */
     ReturnFields: string[];
-    /** @description The name of the version. */
-    VersionName: string;
     /** @description The version number. */
     VersionNumber: number;
   };
@@ -4953,8 +4951,6 @@ export interface operations {
         dag_id: components["parameters"]["DAGID"];
       };
       query: {
-        /** The name of the version. */
-        version_name?: components["parameters"]["VersionName"];
         /** The version number. */
         version_number?: components["parameters"]["VersionNumber"];
       };

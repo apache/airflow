@@ -96,7 +96,6 @@ class TestGetSource:
         assert response.json == {
             "content": dag_content,
             "dag_id": TEST_DAG_ID,
-            "version_name": None,
             "version_number": 1,
         }
         assert "application/json" == response.headers["Content-Type"]
@@ -136,7 +135,6 @@ class TestGetSource:
             assert response.json == {
                 "content": dag_content2,
                 "dag_id": TEST_DAG_ID,
-                "version_name": None,
                 "version_number": 2,
             }
 
