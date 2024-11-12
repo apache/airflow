@@ -193,6 +193,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     # START OF devel extras
     "devel-debuggers": [
         "ipdb>=0.13.13",
+        "pdbr>=0.8.9",
     ],
     "devel-devscripts": [
         "click>=8.0",
