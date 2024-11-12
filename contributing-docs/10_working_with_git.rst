@@ -112,21 +112,20 @@ Here is how rebase looks in practice (you can find a summary below these detaile
 
 1. You first need to add the Apache project remote to your git repository. This is only necessary once,
 so if it's not the first time you are following this tutorial you can skip this step. In this example,
-we will be adding the remote
-as "apache" so you can refer to it easily:
+we will be adding the remote as "apache" so you can refer to it easily
 
 * If you use ssh: ``git remote add apache git@github.com:apache/airflow.git``
 * If you use https: ``git remote add apache https://github.com/apache/airflow.git``
 
 2. You then need to make sure that you have the latest main fetched from the ``apache`` repository. You can do this
-   via:
+   via
 
    ``git fetch apache`` (to fetch apache remote)
 
    ``git fetch --all``  (to fetch all remotes)
 
 3. Assuming that your feature is in a branch in your repository called ``my-branch`` you can easily check
-   what is the base commit you should rebase from by:
+   what is the base commit you should rebase from via
 
    ``git merge-base my-branch apache/main``
 
@@ -147,11 +146,11 @@ as "apache" so you can refer to it easily:
 
    Will "transplant" all commits after the commit with the HASH.
 
-4. Providing that you weren't already working on your branch, check out your feature branch locally via:
+4. Providing that you weren't already working on your branch, check out your feature branch locally via
 
    ``git checkout my-branch``
 
-5. Commit your code change.
+5. Commit your code change
 
    ``git add .``
 
@@ -165,7 +164,7 @@ as "apache" so you can refer to it easily:
 
    You can add the ``--global`` flag to avoid setting it for every cloned repo.
 
-6. Rebase:
+6. Rebase
 
    ``git rebase HASH --onto apache/main``
 
@@ -175,12 +174,12 @@ as "apache" so you can refer to it easily:
 
 7. If you have no conflicts - that's cool. You rebased. You can now run ``git push --force-with-lease`` to
    push your changes to your repository. That should trigger the build in our CI if you have a
-   Pull Request (PR) opened already.
+   Pull Request (PR) opened already
 
 8. While rebasing you might have conflicts. Read carefully what git tells you when it prints information
    about the conflicts. You need to solve the conflicts manually. This is sometimes the most difficult
    part and requires deliberately correcting your code and looking at what has changed since you developed your
-   changes.
+   changes
 
    There are various tools that can help you with this. You can use:
 
@@ -191,7 +190,7 @@ as "apache" so you can refer to it easily:
    you have a very intuitive and helpful merge tool. For more information, see
    `Resolve conflicts <https://www.jetbrains.com/help/idea/resolving-conflicts.html>`_.
 
-9. After you've solved your conflict run:
+9. After you've solved your conflict run
 
    ``git rebase --continue``
 

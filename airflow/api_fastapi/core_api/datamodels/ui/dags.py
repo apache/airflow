@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,17 +14,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use :mod:`airflow.providers.cncf.kubernetes.operators.pod` instead."""
 
 from __future__ import annotations
 
-import warnings
+from pydantic import BaseModel
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.cncf.kubernetes.operators.pod import *  # noqa: F403
+from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
+from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.cncf.kubernetes.operators.pod` instead.",
-    AirflowProviderDeprecationWarning,
-    stacklevel=2,
-)
+
+class DAGWithLatestDagRunsResponse(DAGResponse):
+    """DAG with latest dag runs response serializer."""
+
+    latest_dag_runs: list[DAGRunResponse]
+
+
+class DAGWithLatestDagRunsCollectionResponse(BaseModel):
+    """DAG with latest dag runs collection response serializer."""
+
+    total_entries: int
+    dags: list[DAGWithLatestDagRunsResponse]

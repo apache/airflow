@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pathlib
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Annotated, Any, List, Optional
 
 from pydantic import (
     BaseModel as BaseModelPydantic,
@@ -27,7 +27,6 @@ from pydantic import (
     PlainValidator,
     ValidationInfo,
 )
-from typing_extensions import Annotated
 
 from airflow import DAG, settings
 from airflow.configuration import conf as airflow_conf

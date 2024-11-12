@@ -14,23 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-from pydantic import BaseModel
+from datetime import datetime
+from typing import Annotated
 
-from airflow.api_fastapi.core_api.serializers.dag_run import DAGRunResponse
-from airflow.api_fastapi.core_api.serializers.dags import DAGResponse
-
-
-class DAGWithLatestDagRunsResponse(DAGResponse):
-    """DAG with latest dag runs response serializer."""
-
-    latest_dag_runs: list[DAGRunResponse]
+from pydantic import BaseModel, BeforeValidator, ConfigDict
 
 
-class DAGWithLatestDagRunsCollectionResponse(BaseModel):
-    """DAG with latest dag runs collection response serializer."""
+class TriggerResponse(BaseModel):
+    """Trigger serializer for responses."""
 
-    total_entries: int
-    dags: list[DAGWithLatestDagRunsResponse]
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: int
+    classpath: str
+    kwargs: Annotated[str, BeforeValidator(str)]
+    created_date: datetime
+    triggerer_id: int | None

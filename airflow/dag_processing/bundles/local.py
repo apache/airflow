@@ -14,21 +14,34 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from datetime import datetime
+from pathlib import Path
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict
-from typing_extensions import Annotated
+from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.exceptions import AirflowException
 
 
-class TriggerResponse(BaseModel):
-    """Trigger serializer for responses."""
+class LocalDagBundle(BaseDagBundle):
+    """
+    Local DAG bundle - exposes a local directory as a DAG bundle.
 
-    model_config = ConfigDict(populate_by_name=True)
+    :param local_folder: Local folder where the DAGs are stored
+    """
 
-    id: int
-    classpath: str
-    kwargs: Annotated[str, BeforeValidator(str)]
-    created_date: datetime
-    triggerer_id: int | None
+    supports_versioning = False
+
+    def __init__(self, *, local_folder: str, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._path = Path(local_folder)
+
+    def get_current_version(self) -> str:
+        raise AirflowException("Not versioned!")
+
+    def refresh(self) -> None:
+        """Nothing to refresh - it's just a local directory."""
+
+    @property
+    def path(self) -> Path:
+        return self._path

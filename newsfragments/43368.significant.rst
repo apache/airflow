@@ -1,0 +1,5 @@
+Deprecated trigger rule ``TriggerRule.DUMMY`` removed
+
+**Breaking Change**
+
+The trigger rule ``TriggerRule.DUMMY`` was removed.

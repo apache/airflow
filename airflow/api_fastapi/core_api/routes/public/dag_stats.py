@@ -17,9 +17,10 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, status
 from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import (
     get_session,
@@ -28,12 +29,12 @@ from airflow.api_fastapi.common.db.common import (
 from airflow.api_fastapi.common.db.dag_runs import dagruns_select_with_state_count
 from airflow.api_fastapi.common.parameters import QueryDagIdsFilter
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.dag_stats import (
+from airflow.api_fastapi.core_api.datamodels.dag_stats import (
     DagStatsCollectionResponse,
     DagStatsResponse,
     DagStatsStateResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.utils.state import DagRunState
 
 dag_stats_router = AirflowRouter(tags=["DagStats"], prefix="/dagStats")
