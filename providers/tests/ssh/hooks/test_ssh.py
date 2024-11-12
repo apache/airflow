@@ -755,6 +755,24 @@ class TestSSHHook:
             transport = ssh_mock.return_value.get_transport.return_value
             assert transport.get_security_options.return_value.ciphers == TEST_CIPHERS
 
+    def test_host_proxy_cmd_in_extra():
+        TEST_HOST_PROXY_CMD = "ncat --proxy-auth proxy_user:**** --proxy proxy_host:port %h %p"
+        session = settings.Session()
+        try:
+            conn = Connection(
+                conn_id="ssh_with_proxy_cmd",
+                host="localhost",
+                conn_type="ssh",
+                extra={"host_proxy_cmd": TEST_HOST_PROXY_CMD},
+            )
+            session.add(conn)
+            session.flush()
+            hook = SSHHook(ssh_conn_id=conn.conn_id)
+            assert hook.host_proxy_cmd == TEST_HOST_PROXY_CMD
+        finally:
+            session.delete(conn)
+            session.commit()
+
     def test_openssh_private_key(self):
         # Paramiko behaves differently with OpenSSH generated keys to paramiko
         # generated keys, so we need a test one.

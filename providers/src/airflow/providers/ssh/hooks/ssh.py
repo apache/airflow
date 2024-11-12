@@ -170,6 +170,19 @@ class SSHHook(BaseHook):
                 if private_key:
                     self.pkey = self._pkey_from_private_key(private_key, passphrase=private_key_passphrase)
 
+                if "host_proxy_cmd" in extra_options:
+                    self.host_proxy_cmd = extra_options.get("host_proxy_cmd")
+
+                if "timeout" in extra_options:
+                    warnings.warn(
+                        "Extra option `timeout` is deprecated."
+                        "Please use `conn_timeout` instead."
+                        "The old option `timeout` will be removed in a future version.",
+                        category=AirflowProviderDeprecationWarning,
+                        stacklevel=2,
+                    )
+                    self.timeout = int(extra_options["timeout"])
+
                 if "conn_timeout" in extra_options and self.conn_timeout is None:
                     self.conn_timeout = int(extra_options["conn_timeout"])
 
@@ -247,8 +260,10 @@ class SSHHook(BaseHook):
             with open(user_ssh_config_filename) as config_fd:
                 ssh_conf.parse(config_fd)
             host_info = ssh_conf.lookup(self.remote_host)
-            if host_info and host_info.get("proxycommand") and not self.host_proxy_cmd:
-                self.host_proxy_cmd = host_info["proxycommand"]
+            """If the proxy command is already set via the extra options - pass"""
+            if self.host_proxy_cmd is None:
+                if host_info and host_info.get("proxycommand"):
+                    self.host_proxy_cmd = host_info["proxycommand"]
 
             if not (self.password or self.key_file):
                 if host_info and host_info.get("identityfile"):

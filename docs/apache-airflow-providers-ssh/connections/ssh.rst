@@ -57,6 +57,7 @@ Extra (optional)
     * ``host_key`` - The base64 encoded ssh-rsa public key of the host or "ssh-<key type> <key data>" (as you would find in the ``known_hosts`` file). Specifying this allows making the connection if and only if the public key of the endpoint matches this value.
     * ``disabled_algorithms`` - A dictionary mapping algorithm type to an iterable of algorithm identifiers, which will be disabled for the lifetime of the transport.
     * ``ciphers`` - A list of ciphers to use in order of preference.
+    * ``host_proxy_cmd`` - A proxy command to be executed.
 
     Example "extras" field:
 
