@@ -16,15 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, Header, HTTPException, Request, Response, status
 from itsdangerous import BadSignature, URLSafeSerializer
 from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.dag_sources import DAGSourceResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.dag_sources import DAGSourceResponse
 from airflow.models.dagcode import DagCode
 
 dag_sources_router = AirflowRouter(tags=["DagSource"], prefix="/dagSources")
@@ -55,7 +56,7 @@ mime_type_any = "*/*"
     },
     response_model=DAGSourceResponse,
 )
-async def get_dag_source(
+def get_dag_source(
     file_token: str,
     session: Annotated[Session, Depends(get_session)],
     request: Request,

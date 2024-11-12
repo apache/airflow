@@ -17,10 +17,11 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import (
     get_session,
@@ -38,9 +39,9 @@ from airflow.api_fastapi.common.parameters import (
     QueryTagsFilter,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.serializers.dag_run import DAGRunResponse
-from airflow.api_fastapi.core_api.serializers.dags import DAGResponse
-from airflow.api_fastapi.core_api.serializers.ui.dags import (
+from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
+from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
+from airflow.api_fastapi.core_api.datamodels.ui.dags import (
     DAGWithLatestDagRunsCollectionResponse,
     DAGWithLatestDagRunsResponse,
 )
@@ -50,7 +51,7 @@ dags_router = AirflowRouter(prefix="/dags", tags=["Dags"])
 
 
 @dags_router.get("/recent_dag_runs", include_in_schema=False, response_model_exclude_none=True)
-async def recent_dag_runs(
+def recent_dag_runs(
     limit: QueryLimit,
     offset: QueryOffset,
     tags: QueryTagsFilter,

@@ -981,11 +981,29 @@ export const $DAGResponse = {
 export const $DAGRunPatchBody = {
   properties: {
     state: {
-      $ref: "#/components/schemas/DAGRunPatchStates",
+      anyOf: [
+        {
+          $ref: "#/components/schemas/DAGRunPatchStates",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
+    note: {
+      anyOf: [
+        {
+          type: "string",
+          maxLength: 1000,
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Note",
     },
   },
   type: "object",
-  required: ["state"],
   title: "DAGRunPatchBody",
   description: "DAG Run Serializer for PATCH requests.",
 } as const;
@@ -1893,7 +1911,7 @@ export const $HistoricalMetricDataResponse = {
       $ref: "#/components/schemas/DAGRunStates",
     },
     task_instance_states: {
-      $ref: "#/components/schemas/airflow__api_fastapi__core_api__serializers__ui__dashboard__TaskInstanceState",
+      $ref: "#/components/schemas/TaskInstanceStateCount",
     },
   },
   type: "object",
@@ -2448,6 +2466,60 @@ export const $SchedulerInfoSchema = {
   description: "Schema for Scheduler info.",
 } as const;
 
+export const $TaskDependencyCollectionResponse = {
+  properties: {
+    dependencies: {
+      items: {
+        $ref: "#/components/schemas/TaskDependencyResponse",
+      },
+      type: "array",
+      title: "Dependencies",
+    },
+  },
+  type: "object",
+  required: ["dependencies"],
+  title: "TaskDependencyCollectionResponse",
+  description:
+    "Task scheduling dependencies collection serializer for responses.",
+} as const;
+
+export const $TaskDependencyResponse = {
+  properties: {
+    name: {
+      type: "string",
+      title: "Name",
+    },
+    reason: {
+      type: "string",
+      title: "Reason",
+    },
+  },
+  type: "object",
+  required: ["name", "reason"],
+  title: "TaskDependencyResponse",
+  description: "Task Dependency serializer for responses.",
+} as const;
+
+export const $TaskInstanceCollectionResponse = {
+  properties: {
+    task_instances: {
+      items: {
+        $ref: "#/components/schemas/TaskInstanceResponse",
+      },
+      type: "array",
+      title: "Task Instances",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["task_instances", "total_entries"],
+  title: "TaskInstanceCollectionResponse",
+  description: "Task Instance Collection serializer for responses.",
+} as const;
+
 export const $TaskInstanceResponse = {
   properties: {
     id: {
@@ -2513,7 +2585,7 @@ export const $TaskInstanceResponse = {
     state: {
       anyOf: [
         {
-          $ref: "#/components/schemas/airflow__utils__state__TaskInstanceState",
+          $ref: "#/components/schemas/TaskInstanceState",
         },
         {
           type: "null",
@@ -2713,6 +2785,103 @@ export const $TaskInstanceResponse = {
     "triggerer_job",
   ],
   title: "TaskInstanceResponse",
+  description: "TaskInstance serializer for responses.",
+} as const;
+
+export const $TaskInstanceState = {
+  type: "string",
+  enum: [
+    "removed",
+    "scheduled",
+    "queued",
+    "running",
+    "success",
+    "restarting",
+    "failed",
+    "up_for_retry",
+    "up_for_reschedule",
+    "upstream_failed",
+    "skipped",
+    "deferred",
+  ],
+  title: "TaskInstanceState",
+  description: `All possible states that a Task Instance can be in.
+
+Note that None is also allowed, so always use this in a type hint with Optional.`,
+} as const;
+
+export const $TaskInstanceStateCount = {
+  properties: {
+    no_status: {
+      type: "integer",
+      title: "No Status",
+    },
+    removed: {
+      type: "integer",
+      title: "Removed",
+    },
+    scheduled: {
+      type: "integer",
+      title: "Scheduled",
+    },
+    queued: {
+      type: "integer",
+      title: "Queued",
+    },
+    running: {
+      type: "integer",
+      title: "Running",
+    },
+    success: {
+      type: "integer",
+      title: "Success",
+    },
+    restarting: {
+      type: "integer",
+      title: "Restarting",
+    },
+    failed: {
+      type: "integer",
+      title: "Failed",
+    },
+    up_for_retry: {
+      type: "integer",
+      title: "Up For Retry",
+    },
+    up_for_reschedule: {
+      type: "integer",
+      title: "Up For Reschedule",
+    },
+    upstream_failed: {
+      type: "integer",
+      title: "Upstream Failed",
+    },
+    skipped: {
+      type: "integer",
+      title: "Skipped",
+    },
+    deferred: {
+      type: "integer",
+      title: "Deferred",
+    },
+  },
+  type: "object",
+  required: [
+    "no_status",
+    "removed",
+    "scheduled",
+    "queued",
+    "running",
+    "success",
+    "restarting",
+    "failed",
+    "up_for_retry",
+    "up_for_reschedule",
+    "upstream_failed",
+    "skipped",
+    "deferred",
+  ],
+  title: "TaskInstanceStateCount",
   description: "TaskInstance serializer for responses.",
 } as const;
 
@@ -2928,100 +3097,94 @@ export const $VersionInfo = {
   description: "Version information serializer for responses.",
 } as const;
 
-export const $airflow__api_fastapi__core_api__serializers__ui__dashboard__TaskInstanceState =
-  {
-    properties: {
-      no_status: {
-        type: "integer",
-        title: "No Status",
-      },
-      removed: {
-        type: "integer",
-        title: "Removed",
-      },
-      scheduled: {
-        type: "integer",
-        title: "Scheduled",
-      },
-      queued: {
-        type: "integer",
-        title: "Queued",
-      },
-      running: {
-        type: "integer",
-        title: "Running",
-      },
-      success: {
-        type: "integer",
-        title: "Success",
-      },
-      restarting: {
-        type: "integer",
-        title: "Restarting",
-      },
-      failed: {
-        type: "integer",
-        title: "Failed",
-      },
-      up_for_retry: {
-        type: "integer",
-        title: "Up For Retry",
-      },
-      up_for_reschedule: {
-        type: "integer",
-        title: "Up For Reschedule",
-      },
-      upstream_failed: {
-        type: "integer",
-        title: "Upstream Failed",
-      },
-      skipped: {
-        type: "integer",
-        title: "Skipped",
-      },
-      deferred: {
-        type: "integer",
-        title: "Deferred",
-      },
+export const $XComResponseNative = {
+  properties: {
+    key: {
+      type: "string",
+      title: "Key",
     },
-    type: "object",
-    required: [
-      "no_status",
-      "removed",
-      "scheduled",
-      "queued",
-      "running",
-      "success",
-      "restarting",
-      "failed",
-      "up_for_retry",
-      "up_for_reschedule",
-      "upstream_failed",
-      "skipped",
-      "deferred",
-    ],
-    title: "TaskInstanceState",
-    description: "TaskInstance serializer for responses.",
-  } as const;
-
-export const $airflow__utils__state__TaskInstanceState = {
-  type: "string",
-  enum: [
-    "removed",
-    "scheduled",
-    "queued",
-    "running",
-    "success",
-    "restarting",
-    "failed",
-    "up_for_retry",
-    "up_for_reschedule",
-    "upstream_failed",
-    "skipped",
-    "deferred",
+    timestamp: {
+      type: "string",
+      format: "date-time",
+      title: "Timestamp",
+    },
+    execution_date: {
+      type: "string",
+      format: "date-time",
+      title: "Execution Date",
+    },
+    map_index: {
+      type: "integer",
+      title: "Map Index",
+    },
+    task_id: {
+      type: "string",
+      title: "Task Id",
+    },
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    value: {
+      title: "Value",
+    },
+  },
+  type: "object",
+  required: [
+    "key",
+    "timestamp",
+    "execution_date",
+    "map_index",
+    "task_id",
+    "dag_id",
+    "value",
   ],
-  title: "TaskInstanceState",
-  description: `All possible states that a Task Instance can be in.
+  title: "XComResponseNative",
+  description: "XCom response serializer with native return type.",
+} as const;
 
-Note that None is also allowed, so always use this in a type hint with Optional.`,
+export const $XComResponseString = {
+  properties: {
+    key: {
+      type: "string",
+      title: "Key",
+    },
+    timestamp: {
+      type: "string",
+      format: "date-time",
+      title: "Timestamp",
+    },
+    execution_date: {
+      type: "string",
+      format: "date-time",
+      title: "Execution Date",
+    },
+    map_index: {
+      type: "integer",
+      title: "Map Index",
+    },
+    task_id: {
+      type: "string",
+      title: "Task Id",
+    },
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    value: {
+      title: "Value",
+    },
+  },
+  type: "object",
+  required: [
+    "key",
+    "timestamp",
+    "execution_date",
+    "map_index",
+    "task_id",
+    "dag_id",
+    "value",
+  ],
+  title: "XComResponseString",
+  description: "XCom response serializer with string return type.",
 } as const;

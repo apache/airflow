@@ -37,6 +37,7 @@ from airflow.exceptions import (
     TaskAlreadyInTaskGroup,
 )
 from airflow.sdk.definitions.node import DAGNode
+from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
     from airflow.models.expandinput import ExpandInput
@@ -195,10 +196,15 @@ class TaskGroup(DAGNode):
 
     def __iter__(self):
         for child in self.children.values():
-            if isinstance(child, TaskGroup):
-                yield from child
-            else:
-                yield child
+            yield from self._iter_child(child)
+
+    @staticmethod
+    def _iter_child(child):
+        """Iterate over the children of this TaskGroup."""
+        if isinstance(child, TaskGroup):
+            yield from child
+        else:
+            yield child
 
     def add(self, task: DAGNode) -> DAGNode:
         """
@@ -573,6 +579,14 @@ class MappedTaskGroup(TaskGroup):
     def __init__(self, *, expand_input: ExpandInput, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._expand_input = expand_input
+
+    def __iter__(self):
+        from airflow.models.abstractoperator import AbstractOperator
+
+        for child in self.children.values():
+            if isinstance(child, AbstractOperator) and child.trigger_rule == TriggerRule.ALWAYS:
+                raise ValueError("Tasks in a mapped task group cannot have trigger_rule set to 'ALWAYS'")
+            yield from self._iter_child(child)
 
     def iter_mapped_dependencies(self) -> Iterator[DAGNode]:
         """Upstream dependencies that provide XComs used by this mapped task group."""

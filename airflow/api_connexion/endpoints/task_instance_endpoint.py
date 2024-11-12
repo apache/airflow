@@ -130,6 +130,7 @@ def get_mapped_task_instance(
     return task_instance_schema.dump(task_instance)
 
 
+@mark_fastapi_migration_done
 @format_parameters(
     {
         "execution_date_gte": format_datetime,
@@ -283,6 +284,7 @@ def _get_order_by_params(order_by: str | None = None) -> tuple[ColumnOperators, 
     raise _UnsupportedOrderBy(order_by)
 
 
+@mark_fastapi_migration_done
 @format_parameters(
     {
         "execution_date_gte": format_datetime,
@@ -719,6 +721,7 @@ def get_task_instance_dependencies(
     return task_dependencies_collection_schema.dump({"dependencies": deps})
 
 
+@mark_fastapi_migration_done
 def get_mapped_task_instance_dependencies(
     *, dag_id: str, dag_run_id: str, task_id: str, map_index: int
 ) -> APIResponse:
@@ -807,7 +810,12 @@ def get_task_instance_tries(
         )
         return query
 
-    task_instances = session.scalars(_query(TIH)).all() + session.scalars(_query(TI)).all()
+    # Exclude TaskInstance with state UP_FOR_RETRY since they have been recorded in TaskInstanceHistory
+    tis = session.scalars(
+        _query(TI).where(or_(TI.state != TaskInstanceState.UP_FOR_RETRY, TI.state.is_(None)))
+    ).all()
+
+    task_instances = session.scalars(_query(TIH)).all() + tis
     return task_instance_history_collection_schema.dump(
         TaskInstanceHistoryCollection(task_instances=task_instances, total_entries=len(task_instances))
     )

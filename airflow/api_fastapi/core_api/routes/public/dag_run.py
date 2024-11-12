@@ -17,10 +17,11 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
 from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_failed,
@@ -29,12 +30,12 @@ from airflow.api.common.mark_tasks import (
 )
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.dag_run import (
+from airflow.api_fastapi.core_api.datamodels.dag_run import (
     DAGRunPatchBody,
     DAGRunPatchStates,
     DAGRunResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models import DAG, DagRun
 
 dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
@@ -50,7 +51,7 @@ dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
         ]
     ),
 )
-async def get_dag_run(
+def get_dag_run(
     dag_id: str, dag_run_id: str, session: Annotated[Session, Depends(get_session)]
 ) -> DAGRunResponse:
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
@@ -75,7 +76,7 @@ async def get_dag_run(
         ]
     ),
 )
-async def delete_dag_run(dag_id: str, dag_run_id: str, session: Annotated[Session, Depends(get_session)]):
+def delete_dag_run(dag_id: str, dag_run_id: str, session: Annotated[Session, Depends(get_session)]):
     """Delete a DAG Run entry."""
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
 
@@ -99,7 +100,7 @@ async def delete_dag_run(dag_id: str, dag_run_id: str, session: Annotated[Sessio
         ]
     ),
 )
-async def patch_dag_run_state(
+def patch_dag_run(
     dag_id: str,
     dag_run_id: str,
     patch_body: DAGRunPatchBody,
@@ -121,22 +122,28 @@ async def patch_dag_run_state(
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id {dag_id} was not found")
 
     if update_mask:
-        if update_mask != ["state"]:
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST, "Only `state` field can be updated through the REST API"
-            )
+        data = patch_body.model_dump(include=set(update_mask))
     else:
-        update_mask = ["state"]
+        data = patch_body.model_dump()
 
-    for attr_name in update_mask:
+    for attr_name, attr_value in data.items():
         if attr_name == "state":
-            state = getattr(patch_body, attr_name)
-            if state == DAGRunPatchStates.SUCCESS:
-                set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True)
-            elif state == DAGRunPatchStates.QUEUED:
-                set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True)
+            attr_value = getattr(patch_body, "state")
+            if attr_value == DAGRunPatchStates.SUCCESS:
+                set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+            elif attr_value == DAGRunPatchStates.QUEUED:
+                set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+            elif attr_value == DAGRunPatchStates.FAILED:
+                set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True, session=session)
+        elif attr_name == "note":
+            # Once Authentication is implemented in this FastAPI app,
+            # user id will be added when updating dag run note
+            # Refer to https://github.com/apache/airflow/issues/43534
+            dag_run = session.get(DagRun, dag_run.id)
+            if dag_run.dag_run_note is None:
+                dag_run.note = (attr_value, None)
             else:
-                set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True)
+                dag_run.dag_run_note.content = attr_value
 
     dag_run = session.get(DagRun, dag_run.id)
 

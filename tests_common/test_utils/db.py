@@ -62,16 +62,13 @@ def initial_db_init():
     from airflow.www.extensions.init_appbuilder import init_appbuilder
     from airflow.www.extensions.init_auth_manager import get_auth_manager
 
-    from tests_common.test_utils.compat import AIRFLOW_V_2_8_PLUS
-
     db.resetdb()
     db.bootstrap_dagbag()
     # minimal app to add roles
     flask_app = Flask(__name__)
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
     init_appbuilder(flask_app)
-    if AIRFLOW_V_2_8_PLUS:
-        get_auth_manager().init()
+    get_auth_manager().init()
 
 
 def clear_db_runs():
