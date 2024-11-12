@@ -20,6 +20,17 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  The new version of the Fab provider is only compatible with Airflow 3.
+  It is impossible to use ``apache-airflow-providers-fab`` >= 2.0 with Airflow 2.X.
+  If you use Airflow 2.X, please use ``apache-airflow-providers-fab`` 1.X.
+
 1.5.0
 .....
 
