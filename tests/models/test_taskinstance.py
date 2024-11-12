@@ -1762,6 +1762,40 @@ class TestTaskInstance:
         # We *should* get a value using 'include_prior_dates'
         assert ti.xcom_pull(task_ids="test_xcom", key=key, include_prior_dates=True) == value
 
+    def test_xcom_pull_different_run_ids(self, create_task_instance):
+        """
+        tests xcom fetch behavior w/different run ids
+        """
+        key = "xcom_key"
+        task_id = "test_xcom"
+        diff_run_id = "diff_run_id"
+        same_run_id_value = "xcom_value_same_run_id"
+        diff_run_id_value = "xcom_value_different_run_id"
+
+        ti_same_run_id = create_task_instance(
+            dag_id="test_xcom",
+            task_id=task_id,
+        )
+        ti_same_run_id.run(mark_success=True)
+        ti_same_run_id.xcom_push(key=key, value=same_run_id_value)
+
+        ti_diff_run_id = create_task_instance(
+            dag_id="test_xcom",
+            task_id=task_id,
+            run_id=diff_run_id,
+        )
+        ti_diff_run_id.run(mark_success=True)
+        ti_diff_run_id.xcom_push(key=key, value=diff_run_id_value)
+
+        assert (
+            ti_same_run_id.xcom_pull(run_id=ti_same_run_id.dag_run.run_id, task_ids=task_id, key=key)
+            == same_run_id_value
+        )
+        assert (
+            ti_same_run_id.xcom_pull(run_id=ti_diff_run_id.dag_run.run_id, task_ids=task_id, key=key)
+            == diff_run_id_value
+        )
+
     def test_xcom_push_flag(self, dag_maker):
         """
         Tests the option for Operators to push XComs
