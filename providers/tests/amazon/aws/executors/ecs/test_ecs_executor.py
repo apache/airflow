@@ -172,9 +172,9 @@ def mock_executor(set_env_vars) -> AwsEcsExecutor:
 class TestEcsTaskCollection:
     """Tests EcsTaskCollection Class."""
 
-    # You can't use a fixture in setup_method unless you declare setup_method to be a fixture itself.
+    # You can't use a fixture in _setup_method unless you declare _setup_method to be a fixture itself.
     @pytest.fixture(autouse=True)
-    def setup_method(self, mock_airflow_key):
+    def _setup_method(self, mock_airflow_key):
         # Create a new Collection and verify it is empty.
         self.collection = EcsTaskCollection()
         assert len(self.collection) == 0

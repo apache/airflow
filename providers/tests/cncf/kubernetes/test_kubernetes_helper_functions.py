@@ -18,12 +18,10 @@
 from __future__ import annotations
 
 import re
-from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import create_pod_id, create_unique_id
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import create_unique_id
 
 pod_name_regex = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
 
@@ -110,20 +108,3 @@ class TestCreateUniqueId:
             assert re.match(r"-[a-z0-9]{8}", actual[-9:])
         else:
             assert actual == base[:length]
-
-    @pytest.mark.parametrize("dag_id", ["fake-dag", None])
-    @pytest.mark.parametrize("task_id", ["fake-task", None])
-    @pytest.mark.parametrize("max_length", [10, 42, None])
-    @pytest.mark.parametrize("unique", [True, False])
-    def test_back_compat_create_pod_id(self, dag_id, task_id, max_length, unique):
-        with mock.patch(
-            "airflow.providers.cncf.kubernetes.kubernetes_helper_functions.create_unique_id"
-        ) as mocked_create_unique_id:
-            with pytest.warns(
-                AirflowProviderDeprecationWarning, match=r"deprecated. Please use `create_unique_id`"
-            ):
-                create_pod_id(dag_id, task_id, max_length=max_length, unique=unique)
-
-        mocked_create_unique_id.assert_called_once_with(
-            dag_id=dag_id, task_id=task_id, max_length=max_length, unique=unique
-        )
