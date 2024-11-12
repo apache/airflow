@@ -29,7 +29,7 @@ class TaskConcurrencyDep(BaseTIDep):
     IS_TASK_DEP = True
 
     @provide_session
-    def _get_dep_statuses(self, ti, session, dep_context):
+    async def _get_dep_statuses(self, ti, session, dep_context):
         if ti.task.max_active_tis_per_dag is None and ti.task.max_active_tis_per_dagrun is None:
             yield self._passing_status(reason="Task concurrency is not set.")
             return

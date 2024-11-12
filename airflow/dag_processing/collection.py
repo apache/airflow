@@ -140,11 +140,12 @@ class _RunInfo(NamedTuple):
             return cls({}, {})
 
         latest_runs = {run.dag_id: run for run in session.scalars(_get_latest_runs_stmt(dag_ids=dags.keys()))}
-        active_run_counts = DagRun.active_runs_of_dags(
+        query = DagRun.active_runs_of_dags_query(
             dag_ids=dags.keys(),
             exclude_backfill=True,
             session=session,
         )
+        active_run_counts = dict(iter(session.execute(query)))
 
         return cls(latest_runs, active_run_counts)
 

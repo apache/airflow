@@ -27,7 +27,7 @@ class MappedTaskIsExpanded(BaseTIDep):
     IGNORABLE = False
     IS_TASK_DEP = False
 
-    def _get_dep_statuses(self, ti, session, dep_context):
+    async def _get_dep_statuses(self, ti, session, dep_context):
         if dep_context.ignore_unmapped_tasks:
             return
         if ti.map_index == -1:

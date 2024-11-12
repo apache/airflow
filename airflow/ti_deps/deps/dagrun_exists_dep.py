@@ -29,7 +29,7 @@ class DagrunRunningDep(BaseTIDep):
     IGNORABLE = True
 
     @provide_session
-    def _get_dep_statuses(self, ti, session, dep_context):
+    async def _get_dep_statuses(self, ti, session, dep_context):
         dr = ti.get_dagrun(session)
         if dr.state != DagRunState.RUNNING:
             yield self._failing_status(

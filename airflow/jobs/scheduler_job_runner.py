@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import itertools
 import multiprocessing
 import operator
@@ -28,10 +29,12 @@ from collections import Counter, defaultdict, deque
 from datetime import timedelta
 from functools import lru_cache, partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterator
 
+from asgiref.sync import sync_to_async
 from sqlalchemy import and_, delete, exists, func, not_, select, text, update
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
@@ -58,11 +61,12 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+from airflow.settings import create_async_session
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
-from airflow.traces import utils as trace_utils
 from airflow.traces.tracer import Trace, add_span
 from airflow.utils import timezone
 from airflow.utils.dates import datetime_to_nano
@@ -258,6 +262,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.info("Debug dump for the executor %s", executor)
             executor.debug_dump()
             self.log.info("-" * 80)
+
+    async def _schedule_a_dag_run(self):
+        session = create_async_session()
+
+        async with session.begin():
+            dag_run = await DagRun.get_running_dag_run_to_examine(session=session)
+
+            # callback_tuples = asyncio.run(self.schedule_dag_run(guard, dag_run, session))
+
+            if dag_run is not None:
+                await self._schedule_dag_run(dag_run, session=session)
+            else:
+                print("nothing to schedule!")
 
     def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> list[TI]:
         """
@@ -1207,12 +1224,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self._start_queued_dagruns(session)
             guard.commit()
 
-            # Bulk fetch the currently active dag runs for the dags we are
-            # examining, rather than making one query per DagRun
-            dag_runs = DagRun.get_running_dag_runs_to_examine(session=session)
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(self._schedule_a_dag_run())
 
-            callback_tuples = self._schedule_all_dag_runs(guard, dag_runs, session)
-
+        callback_tuples = []
         # Send the callbacks after we commit to ensure the context is up to date when it gets run
         # cache saves time during scheduling of many dag_runs for same dag
         cached_get_dag: Callable[[str], DAG | None] = lru_cache()(
@@ -1325,14 +1340,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # backfill runs are not created by scheduler and their concurrency is separate
         # so we exclude them here
         dag_ids = (dm.dag_id for dm in dag_models)
-        active_runs_of_dags = Counter(
-            DagRun.active_runs_of_dags(
-                dag_ids=dag_ids,
-                exclude_backfill=True,
-                session=session,
-            )
+        query = DagRun.active_runs_of_dags_query(
+            dag_ids=dag_ids,
+            exclude_backfill=True,
+            session=session,
         )
-
+        active_runs_of_dags = Counter(dict(iter(session.execute(query))))
         for dag_model in dag_models:
             dag = self.dagbag.get_dag(dag_model.dag_id, session=session)
             if not dag:
@@ -1483,14 +1496,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_run.dag_id)
                 )
 
-    def _should_update_dag_next_dagruns(
+    async def _should_update_dag_next_dagruns(
         self,
         dag: DAG,
         dag_model: DagModel,
         *,
         last_dag_run: DagRun | None = None,
         active_non_backfill_runs: int | None = None,
-        session: Session,
+        session: AsyncSession,
     ) -> bool:
         """Check if the dag's next_dagruns_create_after should be updated."""
         # If last_dag_run is defined, the update was triggered by a scheduling decision in this DAG run.
@@ -1505,7 +1518,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return False
 
         if active_non_backfill_runs is None:
-            runs_dict = DagRun.active_runs_of_dags(
+            runs_dict = await DagRun.active_runs_of_dags(
                 dag_ids=[dag.dag_id],
                 exclude_backfill=True,
                 session=session,
@@ -1626,22 +1639,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             _update_state(dag, dag_run)
             dag_run.notify_dagrun_state_changed()
 
-    @retry_db_transaction
-    def _schedule_all_dag_runs(
-        self,
-        guard: CommitProhibitorGuard,
-        dag_runs: Iterable[DagRun],
-        session: Session,
-    ) -> list[tuple[DagRun, DagCallbackRequest | None]]:
-        """Make scheduling decisions for all `dag_runs`."""
-        callback_tuples = [(run, self._schedule_dag_run(run, session=session)) for run in dag_runs]
-        guard.commit()
-        return callback_tuples
-
-    def _schedule_dag_run(
+    # async def schedule_dag_run(
+    #     self,
+    #     guard: CommitProhibitorGuard,
+    #     run: DagRun,
+    #     session: Session,
+    # ) -> list[tuple[DagRun, DagCallbackRequest | None]]:
+    #     """Make scheduling decisions for a `dag_run`."""
+    #     callback_tuples = [(run, self._schedule_dag_run(run, session=session))]
+    #     guard.commit()
+    #     return callback_tuples
+    #
+    async def _schedule_dag_run(
         self,
         dag_run: DagRun,
-        session: Session,
+        session: AsyncSession,
     ) -> DagCallbackRequest | None:
         """
         Make scheduling decisions about an individual dag run.
@@ -1649,101 +1661,68 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param dag_run: The DagRun to schedule
         :return: Callback that needs to be executed
         """
-        trace_id = int(trace_utils.gen_trace_id(dag_run=dag_run, as_int=True))
-        span_id = int(trace_utils.gen_dag_span_id(dag_run=dag_run, as_int=True))
-        links = [{"trace_id": trace_id, "span_id": span_id}]
+        callback: DagCallbackRequest | None = None
 
-        with Trace.start_span(
-            span_name="_schedule_dag_run", component="SchedulerJobRunner", links=links
-        ) as span:
-            span.set_attribute("dag_id", dag_run.dag_id)
-            span.set_attribute("run_id", dag_run.run_id)
-            span.set_attribute("run_type", dag_run.run_type)
-            callback: DagCallbackRequest | None = None
+        serdag = await session.scalar(
+            select(SerializedDagModel).where(SerializedDagModel.dag_id == dag_run.dag_id)
+        )  # todo: cache this?
+        dag = serdag.dag
+        dag_run.dag = serdag.dag
+        dag_model = await session.get(DagModel, dag_run.dag_id)
 
-            dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
-            dag_model = DM.get_dagmodel(dag_run.dag_id, session)
+        if not dag or not dag_model:
+            self.log.error("Couldn't find DAG %s in DAG bag or database!", dag_run.dag_id)
+            return callback
 
-            if not dag or not dag_model:
-                self.log.error("Couldn't find DAG %s in DAG bag or database!", dag_run.dag_id)
-                return callback
+        if (
+            dag_run.start_date
+            and dag.dagrun_timeout
+            and dag_run.start_date < timezone.utcnow() - dag.dagrun_timeout
+        ):
+            dag_run.set_state(DagRunState.FAILED)
+            unfinished_task_instances = await session.scalars(
+                select(TI)
+                .where(TI.dag_id == dag_run.dag_id)
+                .where(TI.run_id == dag_run.run_id)
+                .where(TI.state.in_(State.unfinished))
+            )
+            async for task_instance in unfinished_task_instances:
+                task_instance.state = TaskInstanceState.SKIPPED
+                await session.merge(task_instance)
+            await session.flush()
+            self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
 
-            if (
-                dag_run.start_date
-                and dag.dagrun_timeout
-                and dag_run.start_date < timezone.utcnow() - dag.dagrun_timeout
-            ):
-                dag_run.set_state(DagRunState.FAILED)
-                unfinished_task_instances = session.scalars(
-                    select(TI)
-                    .where(TI.dag_id == dag_run.dag_id)
-                    .where(TI.run_id == dag_run.run_id)
-                    .where(TI.state.in_(State.unfinished))
-                )
-                for task_instance in unfinished_task_instances:
-                    task_instance.state = TaskInstanceState.SKIPPED
-                    session.merge(task_instance)
-                session.flush()
-                self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
+            callback_to_execute = DagCallbackRequest(
+                full_filepath=dag.fileloc,
+                dag_id=dag.dag_id,
+                run_id=dag_run.run_id,
+                is_failure_callback=True,
+                processor_subdir=dag_model.processor_subdir,
+                msg="timed_out",
+            )
 
-                if self._should_update_dag_next_dagruns(
-                    dag, dag_model, last_dag_run=dag_run, session=session
-                ):
-                    dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
+            dag_run.notify_dagrun_state_changed()
+            return callback_to_execute
 
-                callback_to_execute = DagCallbackRequest(
-                    full_filepath=dag.fileloc,
-                    dag_id=dag.dag_id,
-                    run_id=dag_run.run_id,
-                    is_failure_callback=True,
-                    processor_subdir=dag_model.processor_subdir,
-                    msg="timed_out",
-                )
+        if dag_run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:
+            self.log.error("Execution date is in future: %s", dag_run.execution_date)
+            return callback
 
-                dag_run.notify_dagrun_state_changed()
-                duration = dag_run.end_date - dag_run.start_date
-                Stats.timing(f"dagrun.duration.failed.{dag_run.dag_id}", duration)
-                Stats.timing("dagrun.duration.failed", duration, tags={"dag_id": dag_run.dag_id})
-                span.set_attribute("error", True)
-                if span.is_recording():
-                    span.add_event(
-                        name="error",
-                        attributes={
-                            "message": f"Run {dag_run.run_id} of {dag_run.dag_id} has timed-out",
-                            "duration": str(duration),
-                        },
-                    )
-                return callback_to_execute
+        await dag_run.verify_integrity(session=session)
+        # if not self._verify_integrity_if_dag_changed(dag_run=dag_run, session=session):
+        #     self.log.warning(
+        #         "The DAG disappeared before verifying integrity: %s. Skipping.", dag_run.dag_id
+        #     )
+        #     return callback
+        schedulable_tis, callback_to_run = await dag_run.update_state(
+            session=session, execute_callbacks=False
+        )
 
-            if dag_run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:
-                self.log.error("Execution date is in future: %s", dag_run.execution_date)
-                return callback
+        if await self._should_update_dag_next_dagruns(dag, dag_model, last_dag_run=dag_run, session=session):
+            dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
+        await dag_run.schedule_tis(schedulable_tis, session, max_tis_per_query=self.job.max_tis_per_query)
 
-            if not self._verify_integrity_if_dag_changed(dag_run=dag_run, session=session):
-                self.log.warning(
-                    "The DAG disappeared before verifying integrity: %s. Skipping.", dag_run.dag_id
-                )
-                return callback
-            # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
-            schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
-
-            if self._should_update_dag_next_dagruns(dag, dag_model, last_dag_run=dag_run, session=session):
-                dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
-            # This will do one query per dag run. We "could" build up a complex
-            # query to update all the TIs across all the execution dates and dag
-            # IDs in a single query, but it turns out that can be _very very slow_
-            # see #11147/commit ee90807ac for more details
-            if span.is_recording():
-                span.add_event(
-                    name="schedule_tis",
-                    attributes={
-                        "message": "dag_run scheduling its tis",
-                        "schedulable_tis": [_ti.task_id for _ti in schedulable_tis],
-                    },
-                )
-            dag_run.schedule_tis(schedulable_tis, session, max_tis_per_query=self.job.max_tis_per_query)
-
-            return callback_to_run
+        return callback_to_run
 
     def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session: Session) -> bool:
         """

@@ -94,7 +94,7 @@ class TriggerRuleDep(BaseTIDep):
     IGNORABLE = True
     IS_TASK_DEP = True
 
-    def _get_dep_statuses(
+    async def _get_dep_statuses(
         self,
         ti: TaskInstance,
         session: Session,
@@ -110,9 +110,10 @@ class TriggerRuleDep(BaseTIDep):
         if ti.task.trigger_rule == TR.ALWAYS:
             yield self._passing_status(reason="The task had a always trigger rule set.")
             return
-        yield from self._evaluate_trigger_rule(ti=ti, dep_context=dep_context, session=session)
+        async for thing in self._evaluate_trigger_rule(ti=ti, dep_context=dep_context, session=session):
+            yield thing
 
-    def _evaluate_trigger_rule(
+    async def _evaluate_trigger_rule(
         self,
         *,
         ti: TaskInstance,
@@ -574,4 +575,5 @@ class TriggerRuleDep(BaseTIDep):
                         # no need to evaluate trigger rule; we've already marked as skipped or failed
                         return
 
-        yield from _evaluate_direct_relatives()
+        for thing in  _evaluate_direct_relatives():
+            yield thing

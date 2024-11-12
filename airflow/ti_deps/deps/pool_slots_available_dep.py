@@ -32,7 +32,7 @@ class PoolSlotsAvailableDep(BaseTIDep):
     IGNORABLE = True
 
     @provide_session
-    def _get_dep_statuses(self, ti, session, dep_context=None):
+    async def _get_dep_statuses(self, ti, session, dep_context=None):
         """
         Determine if the pool task instance is in has available slots.
 

@@ -1085,6 +1085,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.17.0",
       "apache-airflow>=2.8.0",
+      "asyncpg",
       "psycopg2-binary>=2.9.4"
     ],
     "devel-deps": [],

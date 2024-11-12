@@ -65,6 +65,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import lazyload, reconstructor, relationship
@@ -1102,6 +1103,7 @@ def _get_template_context(
         return triggering_events
 
     try:
+        # todo: this is an async call
         expanded_ti_count: int | None = task.get_mapped_ti_count(task_instance.run_id, session=session)
     except NotMapped:
         expanded_ti_count = None
@@ -1649,18 +1651,18 @@ def _update_rtif(ti, rendered_fields, session: Session = NEW_SESSION):
     RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id, session=session)
 
 
-def _coalesce_to_orm_ti(*, ti: TaskInstancePydantic | TaskInstance, session: Session):
+def _coalesce_to_orm_ti(*, ti: TaskInstancePydantic | TaskInstance, session: AsyncSession):
     from airflow.models.dagrun import DagRun
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
     if isinstance(ti, TaskInstancePydantic):
-        orm_ti = DagRun.fetch_task_instance(
+        query = DagRun.fetch_task_instance_query(
             dag_id=ti.dag_id,
             dag_run_id=ti.run_id,
             task_id=ti.task_id,
             map_index=ti.map_index,
-            session=session,
         )
+        orm_ti = session.scalar(query)
         if TYPE_CHECKING:
             assert orm_ti
         ti, pydantic_ti = orm_ti, ti
@@ -1671,10 +1673,10 @@ def _coalesce_to_orm_ti(*, ti: TaskInstancePydantic | TaskInstance, session: Ses
 
 @internal_api_call
 @provide_session
-def _defer_task(
+async def _defer_task(
     ti: TaskInstance | TaskInstancePydantic,
     exception: TaskDeferred | None = None,
-    session: Session = NEW_SESSION,
+    session: AsyncSession = NEW_SESSION,
 ) -> TaskInstancePydantic | TaskInstance:
     from airflow.models.trigger import Trigger
 
@@ -1685,7 +1687,7 @@ def _defer_task(
         timeout = exception.timeout
     elif ti.task is not None and ti.task.start_trigger_args is not None:
         context = ti.get_template_context()
-        start_trigger_args = ti.task.expand_start_trigger_args(context=context, session=session)
+        start_trigger_args = await ti.task.expand_start_trigger_args(context=context, session=session)
         if start_trigger_args is None:
             raise TaskDeferralError(
                 "A none 'None' start_trigger_args has been change to 'None' during expandion"
@@ -1704,7 +1706,7 @@ def _defer_task(
 
     # First, make the trigger entry
     session.add(trigger_row)
-    session.flush()
+    await session.flush()
 
     ti = _coalesce_to_orm_ti(ti=ti, session=session)  # ensure orm obj in case it's pydantic
 
@@ -1739,8 +1741,8 @@ def _defer_task(
         _add_log(event=ti.state, task_instance=ti, session=session)
 
     if exception is not None:
-        session.merge(ti)
-        session.commit()
+        await session.merge(ti)
+        await session.commit()
     return ti
 
 
@@ -2459,8 +2461,11 @@ class TaskInstance(Base, LoggingMixin):
         return _get_previous_start_date(task_instance=self, state=state, session=session)
 
     @provide_session
-    def are_dependencies_met(
-        self, dep_context: DepContext | None = None, session: Session = NEW_SESSION, verbose: bool = False
+    async def are_dependencies_met(
+        self,
+        dep_context: DepContext | None = None,
+        session: AsyncSession = NEW_SESSION,
+        verbose: bool = False,
     ) -> bool:
         """
         Are all conditions met for this task instance to be run given the context for the dependencies.
@@ -2474,7 +2479,7 @@ class TaskInstance(Base, LoggingMixin):
         dep_context = dep_context or DepContext()
         failed = False
         verbose_aware_logger = self.log.info if verbose else self.log.debug
-        for dep_status in self.get_failed_dep_statuses(dep_context=dep_context, session=session):
+        async for dep_status in self.get_failed_dep_statuses(dep_context=dep_context, session=session):
             failed = True
 
             verbose_aware_logger(
@@ -2491,14 +2496,16 @@ class TaskInstance(Base, LoggingMixin):
         return True
 
     @provide_session
-    def get_failed_dep_statuses(self, dep_context: DepContext | None = None, session: Session = NEW_SESSION):
+    async def get_failed_dep_statuses(
+        self, dep_context: DepContext | None = None, session: Session = NEW_SESSION
+    ):
         """Get failed Dependencies."""
         if TYPE_CHECKING:
             assert self.task
 
         dep_context = dep_context or DepContext()
         for dep in dep_context.deps | self.task.deps:
-            for dep_status in dep.get_dep_statuses(self, session, dep_context):
+            async for dep_status in dep.get_dep_statuses(self, session, dep_context):
                 self.log.debug(
                     "%s dependency '%s' PASSED: %s, %s",
                     self,
@@ -3058,13 +3065,13 @@ class TaskInstance(Base, LoggingMixin):
             _update_ti_heartbeat(self.id, timezone.utcnow(), session_or_null)
 
     @provide_session
-    def defer_task(self, exception: TaskDeferred | None, session: Session = NEW_SESSION) -> None:
+    async def defer_task(self, exception: TaskDeferred | None, session: Session = NEW_SESSION) -> None:
         """
         Mark the task as deferred and sets up the trigger that is needed to resume it when TaskDeferred is raised.
 
         :meta: private
         """
-        _defer_task(ti=self, exception=exception, session=session)
+        await _defer_task(ti=self, exception=exception, session=session)
 
     def _run_execute_callback(self, context: Context, task: BaseOperator) -> None:
         """Functions that need to be run before a Task is executed."""
@@ -3437,11 +3444,11 @@ class TaskInstance(Base, LoggingMixin):
         _set_duration(task_instance=self)
 
     @provide_session
-    def xcom_push(
+    async def xcom_push(
         self,
         key: str,
         value: Any,
-        session: Session = NEW_SESSION,
+        session: AsyncSession = NEW_SESSION,
     ) -> None:
         """
         Make an XCom available for tasks to pull.
@@ -3451,7 +3458,7 @@ class TaskInstance(Base, LoggingMixin):
             ``enable_xcom_pickling`` is true or not. If so, this can be any
             picklable object; only be JSON-serializable may be used otherwise.
         """
-        XCom.set(
+        await XCom.set(
             key=key,
             value=value,
             task_id=self.task_id,
@@ -3733,7 +3740,7 @@ class TaskInstance(Base, LoggingMixin):
         map_index_start = ancestor_map_index * further_count
         return range(map_index_start, map_index_start + further_count)
 
-    def clear_db_references(self, session: Session):
+    async def clear_db_references(self, session: AsyncSession):
         """
         Clear db tables that have a reference to this instance.
 
@@ -3751,7 +3758,7 @@ class TaskInstance(Base, LoggingMixin):
             TaskMap,
         ]
         for table in tables:
-            session.execute(
+            await session.execute(
                 delete(table).where(
                     table.dag_id == self.dag_id,
                     table.task_id == self.task_id,

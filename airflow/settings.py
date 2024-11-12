@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import pluggy
 from packaging.version import Version
 from sqlalchemy import create_engine, exc, text
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -97,6 +98,8 @@ DAGS_FOLDER: str = os.path.expanduser(conf.get_mandatory_value("core", "DAGS_FOL
 
 engine: Engine
 Session: Callable[..., SASession]
+async_engine: AsyncEngine
+create_async_session: Callable[..., AsyncSession]
 
 # The JSON library to use for DAG Serialization and De-Serialization
 json = json
@@ -465,8 +468,17 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
         # to so the `test` thread and the tested endpoints can use common objects.
         connect_args["check_same_thread"] = False
 
-    engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args, future=True)
+    scheme, rest = SQL_ALCHEMY_CONN.split(":", maxsplit=1)
+    scheme = scheme.split('+', maxsplit=1)[0]
+    aiolibs = {"sqlite": "aiosqlite", "postgresql": "asyncpg"}
+    aiolib = aiolibs[scheme]
+    SQL_ALCHEMY_CONN_ASYNC = f"{scheme}+{aiolib}:{rest}"
 
+    engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args, future=True)
+    global async_engine
+    global create_async_session
+    async_engine = create_async_engine(SQL_ALCHEMY_CONN_ASYNC, future=True)
+    create_async_session = sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
     mask_secret(engine.url.password)
 
     setup_event_handlers(engine)

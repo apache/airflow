@@ -24,6 +24,7 @@ from collections.abc import Sized
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Mapping, NamedTuple, Sequence, Union
 
 import attr
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -60,7 +61,7 @@ class MappedArgument(ResolveMixin):
     _input: ExpandInput
     _key: str
 
-    def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
+    async def get_task_map_length(self, run_id: str, *, session: AsyncSession) -> int | None:
         # TODO (AIP-42): Implement run-time task map length inspection. This is
         # needed when we implement task mapping inside a mapped task group.
         raise NotImplementedError()
@@ -69,8 +70,8 @@ class MappedArgument(ResolveMixin):
         yield from self._input.iter_references()
 
     @provide_session
-    def resolve(self, context: Context, *, include_xcom: bool = True, session: Session = NEW_SESSION) -> Any:
-        data, _ = self._input.resolve(context, session=session, include_xcom=include_xcom)
+    async def resolve(self, context: Context, *, include_xcom: bool = True, session: Session = NEW_SESSION) -> Any:
+        data, _ = await self._input.resolve(context, session=session, include_xcom=include_xcom)
         return data[self._key]
 
 
@@ -133,7 +134,7 @@ class DictOfListsExpandInput(NamedTuple):
             raise NotFullyPopulated(set(self.value).difference(literal_keys))
         return functools.reduce(operator.mul, literal_values, 1)
 
-    def _get_map_lengths(self, run_id: str, *, session: Session) -> dict[str, int]:
+    async def _get_map_lengths(self, run_id: str, *, session: AsyncSession) -> dict[str, int]:
         """
         Return dict of argument name to map length.
 
@@ -143,34 +144,34 @@ class DictOfListsExpandInput(NamedTuple):
 
         # TODO: This initiates one database call for each XComArg. Would it be
         # more efficient to do one single db call and unpack the value here?
-        def _get_length(v: OperatorExpandArgument) -> int | None:
+        async def _get_length(v: OperatorExpandArgument) -> int | None:
             if _needs_run_time_resolution(v):
-                return v.get_task_map_length(run_id, session=session)
+                return await v.get_task_map_length(run_id, session=session)
             # Unfortunately a user-defined TypeGuard cannot apply negative type
             # narrowing. https://github.com/python/typing/discussions/1013
             if TYPE_CHECKING:
                 assert isinstance(v, Sized)
             return len(v)
 
-        map_lengths_iterator = ((k, _get_length(v)) for k, v in self.value.items())
+        map_lengths_iterator = ((k, await _get_length(v)) for k, v in self.value.items())
 
         map_lengths = {k: v for k, v in map_lengths_iterator if v is not None}
         if len(map_lengths) < len(self.value):
             raise NotFullyPopulated(set(self.value).difference(map_lengths))
         return map_lengths
 
-    def get_total_map_length(self, run_id: str, *, session: Session) -> int:
+    async def get_total_map_length(self, run_id: str, *, session: AsyncSession) -> int:
         if not self.value:
             return 0
-        lengths = self._get_map_lengths(run_id, session=session)
+        lengths = await self._get_map_lengths(run_id, session=session)
         return functools.reduce(operator.mul, (lengths[name] for name in self.value), 1)
 
-    def _expand_mapped_field(
+    async def _expand_mapped_field(
         self, key: str, value: Any, context: Context, *, session: Session, include_xcom: bool
     ) -> Any:
         if _needs_run_time_resolution(value):
             value = (
-                value.resolve(context, session=session, include_xcom=include_xcom)
+                await value.resolve(context, session=session, include_xcom=include_xcom)
                 if include_xcom
                 else str(value)
             )
@@ -209,11 +210,11 @@ class DictOfListsExpandInput(NamedTuple):
             if isinstance(x, XComArg):
                 yield from x.iter_references()
 
-    def resolve(
+    async def resolve(
         self, context: Context, session: Session, *, include_xcom: bool = True
     ) -> tuple[Mapping[str, Any], set[int]]:
         data = {
-            k: self._expand_mapped_field(k, v, context, session=session, include_xcom=include_xcom)
+            k: await self._expand_mapped_field(k, v, context, session=session, include_xcom=include_xcom)
             for k, v in self.value.items()
         }
         literal_keys = {k for k, _ in self._iter_parse_time_resolved_kwargs()}
@@ -259,8 +260,8 @@ class ListOfDictsExpandInput(NamedTuple):
                 if isinstance(x, XComArg):
                     yield from x.iter_references()
 
-    def resolve(
-        self, context: Context, session: Session, *, include_xcom: bool = True
+    async def resolve(
+        self, context: Context, session: AsyncSession, *, include_xcom: bool = True
     ) -> tuple[Mapping[str, Any], set[int]]:
         map_index = context["ti"].map_index
         if map_index < 0:
@@ -270,9 +271,9 @@ class ListOfDictsExpandInput(NamedTuple):
         if isinstance(self.value, collections.abc.Sized):
             mapping = self.value[map_index]
             if not isinstance(mapping, collections.abc.Mapping):
-                mapping = mapping.resolve(context, session, include_xcom=include_xcom)
+                mapping = await mapping.resolve(context, session, include_xcom=include_xcom)
         elif include_xcom:
-            mappings = self.value.resolve(context, session, include_xcom=include_xcom)
+            mappings = await self.value.resolve(context, session, include_xcom=include_xcom)
             if not isinstance(mappings, collections.abc.Sequence):
                 raise ValueError(f"expand_kwargs() expects a list[dict], not {_describe_type(mappings)}")
             mapping = mappings[map_index]

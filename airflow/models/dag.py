@@ -46,6 +46,7 @@ import methodtools
 import pendulum
 import re2
 import sqlalchemy_jsonfield
+from asgiref.sync import async_to_sync
 from dateutil.relativedelta import relativedelta
 from packaging import version as packaging_version
 from sqlalchemy import (
@@ -65,6 +66,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql import Select, expression
@@ -97,7 +99,7 @@ from airflow.models.tasklog import LogTemplate
 from airflow.sdk import DAG as TaskSDKDag, dag as task_sdk_dag_decorator
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow.security import permissions
-from airflow.settings import json
+from airflow.settings import json, create_async_session
 from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
@@ -261,7 +263,7 @@ def _create_orm_dagrun(
     creating_job_id,
     data_interval,
     backfill_id,
-    session,
+    session: Session,
     triggered_by,
 ):
     run = DagRun(
@@ -287,7 +289,7 @@ def _create_orm_dagrun(
     run.dag = dag
     # create the associated task instances
     # state is None at the moment of creation
-    run.verify_integrity(session=session)
+    # run.verify_integrity(session=session)
     return run
 
 
@@ -2425,7 +2427,7 @@ def _run_task(
     log.info("[DAG TEST] end task task_id=%s map_index=%s", ti.task_id, ti.map_index)
 
 
-def _get_or_create_dagrun(
+async def _get_or_create_dagrun(
     dag: DAG,
     conf: dict[Any, Any] | None,
     start_date: datetime,
@@ -2457,7 +2459,7 @@ def _get_or_create_dagrun(
         session.delete(dr)
         session.commit()
     dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
-    dr = dag.create_dagrun(
+    dr = await dag.create_dagrun(
         state=DagRunState.RUNNING,
         execution_date=execution_date,
         run_id=run_id,
