@@ -37,7 +37,6 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 if TYPE_CHECKING:
     from io import BytesIO
 
-    import jinja2  # Slow import.
     from kiota_abstractions.request_adapter import ResponseType
     from kiota_abstractions.request_information import QueryParams
     from msgraph_core import APIVersion

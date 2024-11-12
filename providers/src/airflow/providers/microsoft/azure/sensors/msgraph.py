@@ -29,7 +29,6 @@ if TYPE_CHECKING:
     from datetime import timedelta
     from io import BytesIO
 
-    import jinja2  # Slow import.
     from kiota_abstractions.request_information import QueryParams
     from kiota_http.httpx_request_adapter import ResponseType
     from msgraph_core import APIVersion
