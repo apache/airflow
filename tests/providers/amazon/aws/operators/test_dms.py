@@ -17,20 +17,32 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 from unittest import mock
 
 import pendulum
 import pytest
 
-from airflow import DAG
-from airflow.models import DagRun, TaskInstance
+from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.models import DAG, DagRun, TaskInstance
+from airflow.models.variable import Variable
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
 from airflow.providers.amazon.aws.operators.dms import (
+    DmsCreateReplicationConfigOperator,
     DmsCreateTaskOperator,
+    DmsDeleteReplicationConfigOperator,
     DmsDeleteTaskOperator,
+    DmsDescribeReplicationConfigsOperator,
+    DmsDescribeReplicationsOperator,
     DmsDescribeTasksOperator,
+    DmsStartReplicationOperator,
     DmsStartTaskOperator,
+    DmsStopReplicationOperator,
     DmsStopTaskOperator,
+)
+from airflow.providers.amazon.aws.triggers.dms import (
+    DmsReplicationDeprovisionedTrigger,
+    DmsReplicationTerminalStatusTrigger,
 )
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
@@ -440,3 +452,569 @@ class TestDmsStopTaskOperator:
         )
 
         validate_template_fields(op)
+
+
+class TestDmsDescribeReplicationConfigsOperator:
+    filter = [{"Name": "replication-type", "Values": ["cdc"]}]
+
+    def test_init(self):
+        op = DmsDescribeReplicationConfigsOperator(task_id="test_task")
+        assert op.filter is None
+
+    @pytest.mark.db_test
+    @mock.patch.object(DmsHook, "conn")
+    def test_template_fields_native(self, mock_conn, session):
+        execution_date = timezone.datetime(2020, 1, 1)
+        Variable.set("test_filter", self.filter, session=session)
+
+        dag = DAG(
+            "test_dms",
+            schedule=None,
+            start_date=execution_date,
+            render_template_as_native_obj=True,
+        )
+        op = DmsDescribeReplicationConfigsOperator(
+            task_id="test_task", filter="{{ var.value.test_filter }}", dag=dag
+        )
+
+        dag_run = DagRun(
+            dag_id=dag.dag_id,
+            execution_date=execution_date,
+            run_id="test",
+            run_type=DagRunType.MANUAL,
+        )
+        ti = TaskInstance(task=op)
+        ti.dag_run = dag_run
+        session.add(ti)
+        session.commit()
+        context = ti.get_template_context(session)
+        ti.render_templates(context)
+
+        assert op.filter == self.filter
+
+
+class TestDmsCreateReplicationConfigOperator:
+    TASK_DATA = {
+        "ReplicationConfigIdentifier": "test-config",
+        "SourceEndpointArn": "arn:aws:dms:us-east-1:123456789012:endpoint:RZZK4EZW5UANC7Y3P4E776WHBE",
+        "TargetEndpointArn": "arn:aws:dms:us-east-1:123456789012:endpoint:GVBUJQXJZASXWHTWCLN2WNT57E",
+        "ComputeConfig": {
+            "MaxCapacityUnits": 2,
+            "MinCapacityUnits": 4,
+        },
+        "ReplicationType": "full-load",
+        "TableMappings": json.dumps(
+            {
+                "TableMappings": [
+                    {
+                        "Type": "Selection",
+                        "RuleId": 123,
+                        "RuleName": "test-rule",
+                        "SourceSchema": "/",
+                        "SourceTable": "/",
+                    }
+                ]
+            }
+        ),
+        "ReplicationSettings": "string",
+        "SupplementalSettings": "string",
+        "ResourceIdentifier": "string",
+    }
+
+    MOCK_REPLICATION_CONFIG_RESP: dict[str, Any] = {
+        "ReplicationConfig": {
+            "ReplicationConfigIdentifier": "test-config",
+            "ReplicationConfigArn": "arn:aws:dms:us-east-1:123456789012:replication-config/test-config",
+            "SourceEndpointArn": "arn:aws:dms:us-east-1:123456789012:endpoint:RZZK4EZW5UANC7Y3P4E776WHBE",
+            "TargetEndpointArn": "arn:aws:dms:us-east-1:123456789012:endpoint:GVBUJQXJZASXWHTWCLN2WNT57E",
+            "ReplicationType": "full-load",
+        }
+    }
+
+    def test_init(self):
+        DmsCreateReplicationConfigOperator(
+            task_id="create_replication_config",
+            replication_config_id=self.TASK_DATA["ReplicationConfigIdentifier"],
+            source_endpoint_arn=self.TASK_DATA["SourceEndpointArn"],
+            target_endpoint_arn=self.TASK_DATA["TargetEndpointArn"],
+            replication_type=self.TASK_DATA["ReplicationType"],
+            table_mappings=self.TASK_DATA["TableMappings"],
+            compute_config=self.TASK_DATA["ComputeConfig"],
+        )
+
+    @mock.patch.object(DmsHook, "conn")
+    def test_operator(self, mock_hook):
+        mock_hook.create_replication_config.return_value = self.MOCK_REPLICATION_CONFIG_RESP
+        op = DmsCreateReplicationConfigOperator(
+            task_id="create_replication_config",
+            replication_config_id=self.TASK_DATA["ReplicationConfigIdentifier"],
+            source_endpoint_arn=self.TASK_DATA["SourceEndpointArn"],
+            target_endpoint_arn=self.TASK_DATA["TargetEndpointArn"],
+            replication_type=self.TASK_DATA["ReplicationType"],
+            table_mappings=self.TASK_DATA["TableMappings"],
+            compute_config=self.TASK_DATA["ComputeConfig"],
+        )
+        resp = op.execute(None)
+        assert resp == self.MOCK_REPLICATION_CONFIG_RESP["ReplicationConfig"]["ReplicationConfigArn"]
+
+
+class TestDmsDeleteReplicationConfigOperator:
+    TASK_DATA = {
+        "ReplicationConfigIdentifier": "test-config",
+        "ReplicationConfigArn": "arn:xxxxxx",
+        "SourceEndpointArn": "arn:aws:dms:us-east-1:123456789012:endpoint:RZZK4EZW5UANC7Y3P4E776WHBE",
+        "TargetEndpointArn": "arn:aws:dms:us-east-1:123456789012:endpoint:GVBUJQXJZASXWHTWCLN2WNT57E",
+        "ComputeConfig": {
+            "MaxCapacityUnits": 2,
+            "MinCapacityUnits": 4,
+        },
+        "ReplicationType": "full-load",
+        "TableMappings": json.dumps(
+            {
+                "TableMappings": [
+                    {
+                        "Type": "Selection",
+                        "RuleId": 123,
+                        "RuleName": "test-rule",
+                        "SourceSchema": "/",
+                        "SourceTable": "/",
+                    }
+                ]
+            }
+        ),
+        "ReplicationSettings": "string",
+        "SupplementalSettings": "string",
+        "ResourceIdentifier": "string",
+    }
+
+    def get_replication_status(self, status: str, deprovisioned: str = "deprovisioned"):
+        return [
+            {
+                "Status": status,
+                "ReplicationArn": "XXXXXXXXXXXXXXXXXXXXXXXXX",
+                "ReplicationIdentifier": "test-config",
+                "SourceEndpointArn": "XXXXXXXXXXXXXXXXXXXXXXXXX",
+                "TargetEndpointArn": "XXXXXXXXXXXXXXXXXXXXXXXXX",
+                "ProvisionData": {"ProvisionState": deprovisioned, "ProvisionedCapacityUnits": 2},
+            }
+        ]
+
+    @mock.patch.object(DmsHook, "conn")
+    @mock.patch.object(DmsHook, "describe_replications")
+    @mock.patch.object(DmsDeleteReplicationConfigOperator, "handle_delete_wait")
+    @mock.patch.object(DmsHook, "get_waiter")
+    def test_happy_path(self, mock_waiter, mock_handle, mock_describe_replications, mock_conn):
+        # testing all good statuses and no waiting
+        mock_describe_replications.return_value = self.get_replication_status(
+            status="stopped", deprovisioned="deprovisioned"
+        )
+        op = DmsDeleteReplicationConfigOperator(
+            task_id="delete_replication_config",
+            replication_config_arn=self.TASK_DATA["ReplicationConfigArn"],
+            deferrable=False,
+            wait_for_completion=False,
+        )
+        op.execute({})
+
+        mock_conn.delete_replication_config.assert_called_once()
+        mock_waiter.assert_not_called()
+        mock_handle.assert_called_once()
+
+    @mock.patch.object(DmsHook, "conn")
+    @mock.patch.object(DmsHook, "describe_replications")
+    def test_defer_not_ready(self, mock_describe, mock_conn):
+        mock_describe.return_value = self.get_replication_status("running")
+
+        op = DmsDeleteReplicationConfigOperator(
+            task_id="delete_replication_config",
+            replication_config_arn=self.TASK_DATA["ReplicationConfigArn"],
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as defer:
+            op.execute({})
+
+        assert isinstance(defer.value.trigger, DmsReplicationTerminalStatusTrigger)
+
+    @mock.patch.object(DmsHook, "conn")
+    @mock.patch.object(DmsHook, "describe_replications")
+    @mock.patch.object(DmsHook, "get_waiter")
+    def test_wait_for_completion(self, mock_waiter, mock_describe_replications, mock_conn):
+        mock_describe_replications.return_value = self.get_replication_status(
+            status="failed", deprovisioned="deprovisioned"
+        )
+
+        op = DmsDeleteReplicationConfigOperator(
+            task_id="delete_replication_config",
+            replication_config_arn=self.TASK_DATA["ReplicationConfigArn"],
+            deferrable=False,
+            wait_for_completion=True,
+        )
+        op.execute({})
+
+        mock_waiter.assert_called_with("replication_config_deleted")
+        mock_waiter.assert_called_once()
+
+    @mock.patch.object(DmsHook, "conn")
+    @mock.patch.object(DmsHook, "describe_replications")
+    @mock.patch.object(DmsHook, "get_waiter")
+    def test_wait_for_completion_not_ready(self, mock_waiter, mock_describe_replications, mock_conn):
+        mock_describe_replications.return_value = self.get_replication_status(
+            status="failed", deprovisioned="xxx"
+        )
+
+        op = DmsDeleteReplicationConfigOperator(
+            task_id="delete_replication_config",
+            replication_config_arn=self.TASK_DATA["ReplicationConfigArn"],
+            deferrable=False,
+            wait_for_completion=True,
+        )
+        op.execute({})
+
+        mock_waiter.assert_has_calls(
+            [
+                mock.call("replication_deprovisioned"),
+                mock.call().wait(
+                    Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
+                    WaiterConfig={"Delay": 5, "MaxAttempts": 60},
+                ),
+                mock.call("replication_config_deleted"),
+                mock.call().wait(
+                    Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
+                    WaiterConfig={"Delay": 5, "MaxAttempts": 60},
+                ),
+            ]
+        )
+
+    @mock.patch.object(DmsHook, "conn")
+    @mock.patch.object(DmsHook, "describe_replications")
+    @mock.patch.object(DmsDeleteReplicationConfigOperator, "handle_delete_wait")
+    @mock.patch.object(DmsHook, "get_waiter")
+    def test_not_ready_state(self, mock_waiter, mock_handle, mock_describe, mock_conn):
+        mock_describe.return_value = self.get_replication_status("running")
+
+        op = DmsDeleteReplicationConfigOperator(
+            task_id="delete_replication_config",
+            replication_config_arn=self.TASK_DATA["ReplicationConfigArn"],
+            deferrable=False,
+            wait_for_completion=False,
+        )
+        op.execute({})
+
+        mock_waiter.assert_has_calls(
+            [
+                mock.call("replication_terminal_status"),
+                mock.call().wait(
+                    Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
+                    WaiterConfig={"Delay": 5, "MaxAttempts": 60},
+                ),
+                mock.call("replication_deprovisioned"),
+                mock.call().wait(
+                    Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
+                    WaiterConfig={"Delay": 5, "MaxAttempts": 60},
+                ),
+            ]
+        )
+        mock_handle.assert_called_once()
+        mock_conn.delete_replication_config.assert_called_once()
+
+    @mock.patch.object(DmsHook, "conn")
+    @mock.patch.object(DmsHook, "describe_replications")
+    @mock.patch.object(DmsDeleteReplicationConfigOperator, "handle_delete_wait")
+    @mock.patch.object(DmsHook, "get_waiter")
+    def test_not_deprovisioned(self, mock_waiter, mock_handle, mock_describe, mock_conn):
+        mock_describe.return_value = self.get_replication_status("stopped", "deprovisioning")
+        op = DmsDeleteReplicationConfigOperator(
+            task_id="delete_replication_config",
+            replication_config_arn=self.TASK_DATA["ReplicationConfigArn"],
+            deferrable=False,
+            wait_for_completion=False,
+        )
+        op.execute({})
+
+        mock_waiter.assert_has_calls(
+            [
+                mock.call("replication_terminal_status"),
+                mock.call().wait(
+                    Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
+                    WaiterConfig={"Delay": 5, "MaxAttempts": 60},
+                ),
+                mock.call("replication_deprovisioned"),
+                mock.call().wait(
+                    Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
+                    WaiterConfig={"Delay": 5, "MaxAttempts": 60},
+                ),
+            ]
+        )
+        mock_handle.assert_called_once()
+
+    @mock.patch.object(DmsHook, "conn")
+    @mock.patch.object(DmsHook, "describe_replications")
+    @mock.patch.object(DmsHook, "get_waiter")
+    def test_config_not_found(self, mock_waiter, mock_describe, mock_conn):
+        mock_describe.return_value = []
+
+        op = DmsDeleteReplicationConfigOperator(
+            task_id="delete_replication_config",
+            replication_config_arn=self.TASK_DATA["ReplicationConfigArn"],
+            deferrable=False,
+            wait_for_completion=False,
+        )
+        op.execute({})
+        mock_waiter.assert_not_called()
+        mock_conn.delete_replication_config.assert_not_called()
+
+    @mock.patch.object(DmsHook, "conn")
+    @mock.patch.object(DmsHook, "describe_replications")
+    @mock.patch.object(DmsDeleteReplicationConfigOperator, "defer")
+    @mock.patch.object(DmsHook, "get_waiter")
+    def test_handle_delete(self, mock_waiter, mock_defer, mock_describe, mock_conn):
+        mock_describe.return_value = self.get_replication_status(
+            status="stopped", deprovisioned="deprovisioned"
+        )
+
+        op = DmsDeleteReplicationConfigOperator(
+            task_id="delete_replication_config",
+            replication_config_arn=self.TASK_DATA["ReplicationConfigArn"],
+            deferrable=False,
+            wait_for_completion=True,
+        )
+        op.execute({})
+        mock_waiter.assert_called_with("replication_config_deleted")
+
+        mock_waiter.reset_mock()
+
+        op = DmsDeleteReplicationConfigOperator(
+            task_id="delete_replication_config",
+            replication_config_arn=self.TASK_DATA["ReplicationConfigArn"],
+            deferrable=False,
+            wait_for_completion=False,
+        )
+
+        op.execute({})
+        mock_waiter.assert_not_called()
+        mock_defer.assert_not_called()
+
+    @mock.patch.object(DmsHook, "conn")
+    @mock.patch.object(DmsHook, "describe_replications")
+    @mock.patch.object(DmsHook, "get_waiter")
+    def test_defer_not_deprovisioned(self, mock_waiter, mock_describe, mock_conn):
+        # not deprovisioned
+        mock_describe.return_value = self.get_replication_status("stopped", "deprovisioning")
+        op = DmsDeleteReplicationConfigOperator(
+            task_id="delete_replication_config",
+            replication_config_arn=self.TASK_DATA["ReplicationConfigArn"],
+            deferrable=True,
+            wait_for_completion=False,
+        )
+
+        with pytest.raises(TaskDeferred) as defer:
+            op.execute({})
+
+        assert isinstance(defer.value.trigger, DmsReplicationDeprovisionedTrigger)
+
+        # not in terminal status
+        mock_describe.return_value = self.get_replication_status("running", "deprovisioning")
+        op = DmsDeleteReplicationConfigOperator(
+            task_id="delete_replication_config",
+            replication_config_arn=self.TASK_DATA["ReplicationConfigArn"],
+            deferrable=True,
+            wait_for_completion=False,
+        )
+
+        with pytest.raises(TaskDeferred) as defer:
+            op.execute({})
+
+        assert isinstance(defer.value.trigger, DmsReplicationTerminalStatusTrigger)
+
+
+class TestDmsDescribeReplicationsOperator:
+    FILTER = [{"Name": "replication-type", "Values": ["cdc"]}]
+
+    @mock.patch.object(DmsHook, "conn")
+    def test_filter(self, mock_conn):
+        mock_conn.describe_replications.return_value = []
+
+        op = DmsDescribeReplicationsOperator(
+            task_id="test_task",
+            filter=self.FILTER,
+        )
+
+        res = op.execute({})
+
+        mock_conn.describe_replications.assert_called_once_with(Filters=self.FILTER)
+        assert isinstance(res, list)
+
+    @mock.patch.object(DmsHook, "conn")
+    def test_filter_none(self, mock_conn):
+        mock_conn.describe_replications.return_value = []
+
+        op = DmsDescribeReplicationsOperator(
+            task_id="test_task",
+        )
+
+        res = op.execute({})
+
+        mock_conn.describe_replications.assert_called_once_with(Filters=[])
+        assert isinstance(res, list)
+
+
+class TestDmsStartReplicationOperator:
+    def mock_describe_replication_response(self, status: str):
+        return [
+            {
+                "ReplicationConfigIdentifier": "string",
+                "ReplicationConfigArn": "string",
+                "SourceEndpointArn": "string",
+                "TargetEndpointArn": "string",
+                "ReplicationType": "full-load",
+                "Status": status,
+            }
+        ]
+
+    def mock_replication_response(self, status: str):
+        return {
+            "Replication": {
+                "ReplicationConfigIdentifier": "xxxx",
+                "ReplicationConfigArn": "xxxx",
+                "Status": status,
+            }
+        }
+
+    def test_arg_validation(self):
+        with pytest.raises(AirflowException):
+            DmsStartReplicationOperator(
+                task_id="start_replication",
+                replication_config_arn="XXXXXXXXXXXXXXX",
+                replication_start_type="cdc",
+                cdc_start_pos=1,
+                cdc_start_time="2024-01-01 00:00:00",
+            )
+        DmsStartReplicationOperator(
+            task_id="start_replication",
+            replication_config_arn="XXXXXXXXXXXXXXX",
+            replication_start_type="cdc",
+            cdc_start_pos=1,
+        )
+
+        DmsStartReplicationOperator(
+            task_id="start_replication",
+            replication_config_arn="XXXXXXXXXXXXXXX",
+            replication_start_type="cdc",
+            cdc_start_time="2024-01-01 00:00:00",
+        )
+
+    @mock.patch.object(DmsHook, "describe_replications")
+    @mock.patch.object(DmsHook, "start_replication")
+    def test_already_running(self, mock_replication, mock_describe):
+        mock_describe.return_value = self.mock_describe_replication_response("test")
+
+        op = DmsStartReplicationOperator(
+            task_id="start_replication",
+            replication_config_arn="XXXXXXXXXXXXXXX",
+            replication_start_type="cdc",
+            cdc_start_pos=1,
+            wait_for_completion=False,
+            deferrable=False,
+        )
+
+        op.execute({})
+        assert mock_replication.call_count == 0
+
+        mock_describe.return_value = self.mock_describe_replication_response("failed")
+        op.execute({})
+        mock_replication.return_value = self.mock_replication_response("running")
+        assert mock_replication.call_count == 1
+
+    @mock.patch.object(DmsHook, "conn")
+    @mock.patch.object(DmsHook, "get_waiter")
+    @mock.patch.object(DmsHook, "describe_replications")
+    def test_wait_for_completion(self, mock_describe, mock_waiter, mock_conn):
+        mock_describe.return_value = self.mock_describe_replication_response("stopped")
+        op = DmsStartReplicationOperator(
+            task_id="start_replication",
+            replication_config_arn="XXXXXXXXXXXXXXX",
+            replication_start_type="cdc",
+            cdc_start_pos=1,
+            wait_for_completion=True,
+            deferrable=False,
+        )
+
+        op.execute({})
+        mock_waiter.assert_called_with("replication_complete")
+        mock_waiter.assert_called_once()
+
+    @mock.patch.object(DmsHook, "conn")
+    @mock.patch.object(DmsHook, "describe_replications")
+    def test_execute(self, mock_describe, mock_conn):
+        mock_describe.return_value = self.mock_describe_replication_response("stopped")
+
+        op = DmsStartReplicationOperator(
+            task_id="start_replication",
+            replication_config_arn="XXXXXXXXXXXXXXX",
+            replication_start_type="cdc",
+            cdc_start_pos=1,
+            wait_for_completion=False,
+            deferrable=False,
+        )
+        op.execute({})
+        assert mock_conn.start_replication.call_count == 1
+
+
+class TestDmsStopReplicationOperator:
+    def mock_describe_replication_response(self, status: str):
+        return [
+            {
+                "ReplicationConfigIdentifier": "string",
+                "ReplicationConfigArn": "string",
+                "SourceEndpointArn": "string",
+                "TargetEndpointArn": "string",
+                "ReplicationType": "full-load",
+                "Status": status,
+            }
+        ]
+
+    @mock.patch.object(DmsHook, "describe_replications")
+    @mock.patch.object(DmsHook, "conn")
+    def test_already_stopped(self, mock_conn, mock_describe_replications):
+        mock_describe_replications.return_value = self.mock_describe_replication_response("stopped")
+
+        op = DmsStopReplicationOperator(
+            task_id="stop_replication",
+            replication_config_arn="XXXXXXXXXXXXXXX",
+            wait_for_completion=False,
+            deferrable=False,
+        )
+        op.execute({})
+
+        assert mock_conn.stop_replication.call_count == 0
+
+    @mock.patch.object(DmsHook, "stop_replication")
+    @mock.patch.object(DmsHook, "describe_replications")
+    def test_execute(self, mock_describe_replications, mock_stop):
+        mock_describe_replications.return_value = self.mock_describe_replication_response("started")
+
+        op = DmsStopReplicationOperator(
+            task_id="stop_replication",
+            replication_config_arn="XXXXXXXXXXXXXXX",
+            wait_for_completion=False,
+            deferrable=False,
+        )
+        op.execute({})
+        assert mock_stop.call_count == 1
+
+    @mock.patch.object(DmsHook, "conn")
+    @mock.patch.object(DmsHook, "describe_replications")
+    @mock.patch.object(DmsHook, "get_waiter")
+    def test_wait_for_completion(self, mock_get_waiter, mock_describe_replications, mock_conn):
+        mock_describe_replications.return_value = self.mock_describe_replication_response("started")
+        op = DmsStopReplicationOperator(
+            task_id="stop_replication",
+            replication_config_arn="XXXXXXXXXXXXXXX",
+            wait_for_completion=True,
+            deferrable=False,
+        )
+
+        op.execute({})
+        mock_get_waiter.assert_called_with("replication_stopped")
+        mock_get_waiter.assert_called_once()
