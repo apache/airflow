@@ -4886,7 +4886,7 @@ export interface operations {
           "application/json": {
             content?: string;
           };
-          "plain/text": string;
+          "text/plain": string;
         };
       };
       401: components["responses"]["Unauthenticated"];
