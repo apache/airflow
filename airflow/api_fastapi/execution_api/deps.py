@@ -14,3 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from __future__ import annotations
+
+from typing import Annotated
+
+from fastapi import Depends
+
+from airflow.api_fastapi.execution_api import datamodels
+
+
+def get_task_token() -> datamodels.TIToken:
+    """TODO: Placeholder for task identity authentication. This should be replaced with actual JWT decoding and validation."""
+    return datamodels.TIToken(ti_key="test_key")
+
+
+TokenDep = Annotated[datamodels.TIToken, Depends(get_task_token)]

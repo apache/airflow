@@ -102,7 +102,8 @@ PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.8.0``
 ``apache-airflow-providers-common-sql``  ``>=1.14.1``
-``ydb``                                  ``>=3.12.1``
+``ydb``                                  ``>=3.18.8``
+``ydb-dbapi``                            ``>=0.1.0``
 =======================================  ==================
 
 Cross provider package dependencies

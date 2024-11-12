@@ -232,7 +232,6 @@ The following features are known missing and will be implemented in increments:
 - Edge Worker CLI
 
   - Use WebSockets instead of HTTP calls for communication
-  - Handle SIG-INT/CTRL+C and gracefully terminate and complete job (``airflow edge stop`` is working though)
   - Send logs also to TaskFileHandler if external logging services are used
   - Integration into telemetry to send metrics from remote site
   - Allow ``airflow edge stop`` to wait until completed to terminated
