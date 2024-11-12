@@ -123,6 +123,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     dag_model: Optional[DagModelPydantic]
     raw: Optional[bool]
     is_trigger_log_context: Optional[bool]
+    context_carrier: Optional[dict]
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
     @property

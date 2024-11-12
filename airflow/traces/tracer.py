@@ -181,6 +181,34 @@ class Tracer(Protocol):
         """Start a span from taskinstance."""
         raise NotImplementedError()
 
+    @classmethod
+    def start_root_span(cls, span_name=None, component=None, start_time=None, start_as_current=True):
+        """Start a root span."""
+        raise NotImplementedError()
+
+    @classmethod
+    def start_child_span(
+        cls,
+        span_name=None,
+        parent_context=None,
+        component=None,
+        links=None,
+        start_time=None,
+        start_as_current=True,
+    ):
+        """Start a child span."""
+        raise NotImplementedError()
+
+    @classmethod
+    def inject(cls) -> dict:
+        """Inject the current span context into a carrier and return it."""
+        raise NotImplementedError()
+
+    @classmethod
+    def extract(cls, carrier) -> EmptyContext:
+        """Extract the span context from a provided carrier."""
+        raise NotImplementedError()
+
 
 class EmptyTrace:
     """If no Tracer is configured, EmptyTracer is used as a fallback."""
@@ -241,6 +269,36 @@ class EmptyTrace:
     ) -> EmptySpan:
         """Start a span from taskinstance."""
         return EMPTY_SPAN
+
+    @classmethod
+    def start_root_span(
+        cls, span_name=None, component=None, start_time=None, start_as_current=True
+    ) -> EmptySpan:
+        """Start a root span."""
+        return EMPTY_SPAN
+
+    @classmethod
+    def start_child_span(
+        cls,
+        span_name=None,
+        parent_context=None,
+        component=None,
+        links=None,
+        start_time=None,
+        start_as_current=True,
+    ) -> EmptySpan:
+        """Start a child span."""
+        return EMPTY_SPAN
+
+    @classmethod
+    def inject(cls):
+        """Inject the current span context into a carrier and return it."""
+        return {}
+
+    @classmethod
+    def extract(cls, carrier) -> EmptyContext:
+        """Extract the span context from a provided carrier."""
+        raise EMPTY_CTX
 
 
 class _Trace(type):

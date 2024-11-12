@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import sys
 from collections import defaultdict, deque
@@ -32,10 +33,12 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
 from airflow.stats import Stats
 from airflow.traces import NO_TRACE_ID
+from airflow.traces.otel_tracer import CTX_PROP_SUFFIX
 from airflow.traces.tracer import Trace, add_span, gen_context
 from airflow.traces.utils import gen_span_id_from_ti_key, gen_trace_id
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
+from airflow.utils.thread_safe_dict import ThreadSafeDict
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
@@ -111,6 +114,8 @@ class BaseExecutor(LoggingMixin):
     :param parallelism: how many jobs should run at one time. Set to ``0`` for infinity.
     """
 
+    active_spans = ThreadSafeDict()
+
     supports_ad_hoc_ti_run: bool = False
     supports_sentry: bool = False
 
@@ -124,6 +129,8 @@ class BaseExecutor(LoggingMixin):
     job_id: None | int | str = None
     name: None | ExecutorName = None
     callback_sink: BaseCallbackSink | None = None
+
+    otel_use_context_propagation = conf.getboolean("traces", "otel_use_context_propagation")
 
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
@@ -329,6 +336,30 @@ class BaseExecutor(LoggingMixin):
 
         for _ in range(min((open_slots, len(self.queued_tasks)))):
             key, (command, _, queue, ti) = sorted_queue.pop(0)
+
+            if self.otel_use_context_propagation:
+                # If it's None, then the span for the current TaskInstanceKey hasn't been started.
+                if self.active_spans.get(key) is None:
+                    parent_context = Trace.extract(ti.dag_run.context_carrier)
+                    # Start a new span using the context from the parent.
+                    # Attributes will be set once the task has finished so that all
+                    # values will be available (end_time, duration, etc.).
+                    span = Trace.start_child_span(
+                        span_name=f"{ti.task_id}{CTX_PROP_SUFFIX}",
+                        parent_context=parent_context,
+                        component=f"task{CTX_PROP_SUFFIX}",
+                        start_as_current=False,
+                    )
+                    self.active_spans.set(key, span)
+                    # Inject the current context into the carrier.
+                    carrier = Trace.inject()
+                    # The carrier needs to be set on the ti, but it can't happen here because db calls are expensive.
+                    # By the time the db update has finished, another heartbeat will have started
+                    # and the tasks will have been triggered again.
+                    # So set the carrier as an argument to the command.
+                    # The command execution will set it on the ti, and it will be propagated to the task itself.
+                    command.append("--carrier")
+                    command.append(json.dumps(carrier))
 
             # If a task makes it here but is still understood by the executor
             # to be running, it generally means that the task has been killed

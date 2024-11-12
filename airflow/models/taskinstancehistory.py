@@ -84,6 +84,7 @@ class TaskInstanceHistory(Base):
     executor_config = Column(ExecutorConfigType(pickler=dill))
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
     rendered_map_index = Column(String(250))
+    context_carrier = Column(MutableDict.as_mutable(ExtendedJSON))
 
     external_executor_id = Column(StringID())
     trigger_id = Column(Integer)

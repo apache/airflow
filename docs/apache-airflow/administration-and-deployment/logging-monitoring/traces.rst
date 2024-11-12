@@ -42,6 +42,7 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
     otel_application = airflow
     otel_ssl_active = False
     otel_task_log_event = True
+    otel_use_context_propagation = True
 
 Enable Https
 -----------------

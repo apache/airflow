@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, Generator, Iterable, overload
 from packaging import version
 from sqlalchemy import TIMESTAMP, PickleType, event, nullsfirst, tuple_
 from sqlalchemy.dialects import mysql
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import JSON, Text, TypeDecorator
 
 from airflow.configuration import conf
@@ -110,7 +111,10 @@ class ExtendedJSON(TypeDecorator):
     cache_ok = True
 
     def load_dialect_impl(self, dialect) -> TypeEngine:
-        return dialect.type_descriptor(JSON)
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(JSONB)
+        else:
+            return dialect.type_descriptor(JSON)
 
     def process_bind_param(self, value, dialect):
         from airflow.serialization.serialized_objects import BaseSerialization

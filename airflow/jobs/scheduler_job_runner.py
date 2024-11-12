@@ -797,6 +797,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.pid,
             )
 
+            active_ti_span = executor.active_spans.get(ti.key)
+            if conf.getboolean("traces", "otel_use_context_propagation") and active_ti_span is not None:
+                cls._set_span_attrs__process_executor_events(span=active_ti_span, state=state, ti=ti)
+                # End the span and remove it from the active_spans dict.
+                active_ti_span.end()
+                executor.active_spans.delete(ti.key)
+
             with Trace.start_span_from_taskinstance(ti=ti) as span:
                 cls._set_span_attrs__process_executor_events(span, state, ti)
                 if conf.has_option("traces", "otel_task_log_event") and conf.getboolean(
@@ -884,32 +891,32 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @classmethod
     def _set_span_attrs__process_executor_events(cls, span, state, ti):
-        span.set_attribute("category", "scheduler")
-        span.set_attribute("task_id", ti.task_id)
-        span.set_attribute("dag_id", ti.dag_id)
-        span.set_attribute("state", ti.state)
+        span.set_attribute("airflow.category", "scheduler")
+        span.set_attribute("airflow.task.task_id", ti.task_id)
+        span.set_attribute("airflow.task.dag_id", ti.dag_id)
+        span.set_attribute("airflow.task.state", ti.state)
         if ti.state == TaskInstanceState.FAILED:
-            span.set_attribute("error", True)
-        span.set_attribute("start_date", str(ti.start_date))
-        span.set_attribute("end_date", str(ti.end_date))
-        span.set_attribute("duration", ti.duration)
-        span.set_attribute("executor_config", str(ti.executor_config))
-        span.set_attribute("execution_date", str(ti.execution_date))
-        span.set_attribute("hostname", ti.hostname)
-        span.set_attribute("log_url", ti.log_url)
-        span.set_attribute("operator", str(ti.operator))
-        span.set_attribute("try_number", ti.try_number)
-        span.set_attribute("executor_state", state)
-        span.set_attribute("pool", ti.pool)
-        span.set_attribute("queue", ti.queue)
-        span.set_attribute("priority_weight", ti.priority_weight)
-        span.set_attribute("queued_dttm", str(ti.queued_dttm))
-        span.set_attribute("queued_by_job_id", ti.queued_by_job_id)
-        span.set_attribute("pid", ti.pid)
+            span.set_attribute("airflow.task.error", True)
+        span.set_attribute("airflow.task.start_date", str(ti.start_date))
+        span.set_attribute("airflow.task.end_date", str(ti.end_date))
+        span.set_attribute("airflow.task.duration", ti.duration)
+        span.set_attribute("airflow.task.executor_config", str(ti.executor_config))
+        span.set_attribute("airflow.task.execution_date", str(ti.execution_date))
+        span.set_attribute("airflow.task.hostname", ti.hostname)
+        span.set_attribute("airflow.task.log_url", ti.log_url)
+        span.set_attribute("airflow.task.operator", str(ti.operator))
+        span.set_attribute("airflow.task.try_number", ti.try_number)
+        span.set_attribute("airflow.task.executor_state", state)
+        span.set_attribute("airflow.task.pool", ti.pool)
+        span.set_attribute("airflow.task.queue", ti.queue)
+        span.set_attribute("airflow.task.priority_weight", ti.priority_weight)
+        span.set_attribute("airflow.task.queued_dttm", str(ti.queued_dttm))
+        span.set_attribute("airflow.task.queued_by_job_id", ti.queued_by_job_id)
+        span.set_attribute("airflow.task.pid", ti.pid)
         if span.is_recording():
-            span.add_event(name="queued", timestamp=datetime_to_nano(ti.queued_dttm))
-            span.add_event(name="started", timestamp=datetime_to_nano(ti.start_date))
-            span.add_event(name="ended", timestamp=datetime_to_nano(ti.end_date))
+            span.add_event(name="airflow.task.queued", timestamp=datetime_to_nano(ti.queued_dttm))
+            span.add_event(name="airflow.task.started", timestamp=datetime_to_nano(ti.start_date))
+            span.add_event(name="airflow.task.ended", timestamp=datetime_to_nano(ti.end_date))
 
     def _execute(self) -> int | None:
         from airflow.dag_processing.manager import DagFileProcessorAgent
