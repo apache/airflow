@@ -54,6 +54,14 @@ export type AssetResponse = {
 };
 
 /**
+ * Backfill Collection serializer for responses.
+ */
+export type BackfillCollectionResponse = {
+  backfills: Array<BackfillResponse>;
+  total_entries: number;
+};
+
+/**
  * Object used for create backfill request.
  */
 export type BackfillPostBody = {
@@ -66,6 +74,25 @@ export type BackfillPostBody = {
   };
   reprocess_behavior?: ReprocessBehavior;
   max_active_runs?: number;
+};
+
+/**
+ * Base serializer for Backfill.
+ */
+export type BackfillResponse = {
+  id: number;
+  dag_id: string;
+  from_date: string;
+  to_date: string;
+  dag_run_conf: {
+    [key: string]: unknown;
+  };
+  is_paused: boolean;
+  reprocess_behavior: ReprocessBehavior;
+  max_active_runs: number;
+  created_at: string;
+  completed_at: string | null;
+  updated_at: string;
 };
 
 /**
@@ -932,37 +959,37 @@ export type ListBackfillsData = {
   orderBy?: string;
 };
 
-export type ListBackfillsResponse = unknown;
+export type ListBackfillsResponse = BackfillCollectionResponse;
 
 export type CreateBackfillData = {
   requestBody: BackfillPostBody;
 };
 
-export type CreateBackfillResponse = unknown;
+export type CreateBackfillResponse = BackfillResponse;
 
 export type GetBackfillData = {
   backfillId: string;
 };
 
-export type GetBackfillResponse = unknown;
+export type GetBackfillResponse = BackfillResponse;
 
 export type PauseBackfillData = {
   backfillId: unknown;
 };
 
-export type PauseBackfillResponse = unknown;
+export type PauseBackfillResponse = BackfillResponse;
 
 export type UnpauseBackfillData = {
   backfillId: unknown;
 };
 
-export type UnpauseBackfillResponse = unknown;
+export type UnpauseBackfillResponse = BackfillResponse;
 
 export type CancelBackfillData = {
   backfillId: unknown;
 };
 
-export type CancelBackfillResponse = unknown;
+export type CancelBackfillResponse = BackfillResponse;
 
 export type DeleteConnectionData = {
   connectionId: string;
@@ -1431,7 +1458,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: unknown;
+        200: BackfillCollectionResponse;
         /**
          * Unauthorized
          */
@@ -1452,7 +1479,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: unknown;
+        200: BackfillResponse;
         /**
          * Unauthorized
          */
@@ -1483,7 +1510,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: unknown;
+        200: BackfillResponse;
         /**
          * Unauthorized
          */
@@ -1510,7 +1537,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: unknown;
+        200: BackfillResponse;
         /**
          * Unauthorized
          */
@@ -1541,7 +1568,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: unknown;
+        200: BackfillResponse;
         /**
          * Unauthorized
          */
@@ -1572,7 +1599,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: unknown;
+        200: BackfillResponse;
         /**
          * Unauthorized
          */
