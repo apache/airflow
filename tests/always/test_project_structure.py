@@ -85,7 +85,6 @@ class TestProjectStructure:
             "providers/tests/celery/executors/test_celery_executor_utils.py",
             "providers/tests/celery/executors/test_default_celery.py",
             "providers/tests/cloudant/test_cloudant_fake.py",
-            "providers/tests/cncf/kubernetes/backcompat/test_backwards_compat_converters.py",
             "providers/tests/cncf/kubernetes/executors/test_kubernetes_executor_types.py",
             "providers/tests/cncf/kubernetes/executors/test_kubernetes_executor_utils.py",
             "providers/tests/cncf/kubernetes/operators/test_kubernetes_pod.py",
@@ -556,10 +555,6 @@ class TestElasticsearchProviderProjectStructure(ExampleCoverageTest):
 class TestCncfProviderProjectStructure(ExampleCoverageTest):
     PROVIDER = "cncf"
     CLASS_DIRS = ProjectStructureTest.CLASS_DIRS
-    DEPRECATED_CLASSES = {
-        "airflow.providers.cncf.kubernetes.operators.kubernetes_pod",
-        "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod",
-    }
     BASE_CLASSES = {"airflow.providers.cncf.kubernetes.operators.resource.KubernetesResourceBaseOperator"}
 
 

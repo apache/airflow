@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import contextlib
 import datetime
-import logging
 import operator
 import os
 import pathlib
@@ -64,7 +63,6 @@ from airflow.models.param import process_params
 from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import (
     TaskInstance,
     TaskInstance as TI,
@@ -78,10 +76,10 @@ from airflow.models.variable import Variable
 from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.notifications.basenotifier import BaseNotifier
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import BranchPythonOperator, PythonOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.sensors.base import BaseSensorOperator
-from airflow.sensors.python import PythonSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.settings import TIMEZONE, TracebackSessionForTests
 from airflow.stats import Stats
@@ -157,7 +155,6 @@ class TestTaskInstance:
         db.clear_db_dags()
         db.clear_db_pools()
         db.clear_db_runs()
-        db.clear_db_task_fail()
         db.clear_rendered_ti_fields()
         db.clear_db_task_reschedule()
         db.clear_db_assets()
@@ -231,7 +228,7 @@ class TestTaskInstance:
 
         # no dag assigned
         assert not op.has_dag()
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             getattr(op, "dag")
 
         # no improper assignment
@@ -241,7 +238,7 @@ class TestTaskInstance:
         op.dag = dag
 
         # no reassignment
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError):
             op.dag = dag2
 
         # but assigning the same dag is ok
@@ -263,7 +260,7 @@ class TestTaskInstance:
         assert [i.has_dag() for i in [op1, op2, op3, op4]] == [False, False, True, True]
 
         # can't combine operators with no dags
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError):
             op1.set_downstream(op2)
 
         # op2 should infer dag from op1
@@ -272,9 +269,9 @@ class TestTaskInstance:
         assert op2.dag is dag
 
         # can't assign across multiple DAGs
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             op1.set_downstream(op4)
-        with pytest.raises(AirflowException):
+        with pytest.raises(RuntimeError):
             op1.set_downstream([op3, op4])
 
     def test_bitshift_compose_operators(self, dag_maker):
@@ -1765,6 +1762,40 @@ class TestTaskInstance:
         # We *should* get a value using 'include_prior_dates'
         assert ti.xcom_pull(task_ids="test_xcom", key=key, include_prior_dates=True) == value
 
+    def test_xcom_pull_different_run_ids(self, create_task_instance):
+        """
+        tests xcom fetch behavior w/different run ids
+        """
+        key = "xcom_key"
+        task_id = "test_xcom"
+        diff_run_id = "diff_run_id"
+        same_run_id_value = "xcom_value_same_run_id"
+        diff_run_id_value = "xcom_value_different_run_id"
+
+        ti_same_run_id = create_task_instance(
+            dag_id="test_xcom",
+            task_id=task_id,
+        )
+        ti_same_run_id.run(mark_success=True)
+        ti_same_run_id.xcom_push(key=key, value=same_run_id_value)
+
+        ti_diff_run_id = create_task_instance(
+            dag_id="test_xcom",
+            task_id=task_id,
+            run_id=diff_run_id,
+        )
+        ti_diff_run_id.run(mark_success=True)
+        ti_diff_run_id.xcom_push(key=key, value=diff_run_id_value)
+
+        assert (
+            ti_same_run_id.xcom_pull(run_id=ti_same_run_id.dag_run.run_id, task_ids=task_id, key=key)
+            == same_run_id_value
+        )
+        assert (
+            ti_same_run_id.xcom_pull(run_id=ti_diff_run_id.dag_run.run_id, task_ids=task_id, key=key)
+            == diff_run_id_value
+        )
+
     def test_xcom_push_flag(self, dag_maker):
         """
         Tests the option for Operators to push XComs
@@ -2227,13 +2258,6 @@ class TestTaskInstance:
         assert title == f"Airflow alert: <TaskInstance: test_dag.{task_id} test map_index=0 [failed]>"
         assert body.startswith("Try 0")  # try number only incremented by the scheduler
         assert "test_email_alert" in body
-
-        tf = (
-            session.query(TaskFail)
-            .filter_by(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
-            .one_or_none()
-        )
-        assert tf, "TaskFail was recorded"
 
     def test_set_duration(self):
         task = EmptyOperator(task_id="op", email="test@test.test")
@@ -3837,7 +3861,7 @@ class TestTaskInstance:
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_get_current_context_works_in_template(self, dag_maker):
         def user_defined_macro():
-            from airflow.operators.python import get_current_context
+            from airflow.providers.standard.operators.python import get_current_context
 
             get_current_context()
 
@@ -4002,7 +4026,6 @@ class TestTaskInstance:
             "hostname": "some_unique_hostname",
             "id": str(uuid6.uuid7()),
             "unixname": "some_unique_unixname",
-            "job_id": 1234,
             "pool": "some_fake_pool_id",
             "pool_slots": 25,
             "queue": "some_queue_id",
@@ -4013,6 +4036,7 @@ class TestTaskInstance:
             "rendered_map_index": None,
             "queued_by_job_id": 321,
             "pid": 123,
+            "last_heartbeat_at": run_date + datetime.timedelta(hours=1, seconds=4),
             "executor": "some_executor",
             "executor_config": {"Some": {"extra": "information"}},
             "external_executor_id": "some_executor_id",
@@ -4022,6 +4046,7 @@ class TestTaskInstance:
             "next_method": None,
             "updated_at": None,
             "task_display_name": "Test Refresh from DB Task",
+            "dag_version_id": None,
         }
         # Make sure we aren't missing any new value in our expected_values list.
         expected_keys = {f"task_instance.{key}" for key in expected_values}
@@ -4074,13 +4099,13 @@ class TestTaskInstance:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_clear_db_references(self, session, create_task_instance):
-        tables = [TaskFail, RenderedTaskInstanceFields, XCom]
+        tables = [RenderedTaskInstanceFields, XCom]
         ti = create_task_instance()
         ti.note = "sample note"
 
         session.merge(ti)
         session.commit()
-        for table in [TaskFail, RenderedTaskInstanceFields]:
+        for table in [RenderedTaskInstanceFields]:
             session.add(table(ti))
         XCom.set(key="key", value="value", task_id=ti.task_id, dag_id=ti.dag_id, run_id=ti.run_id)
         session.commit()
@@ -5130,252 +5155,6 @@ def test_expand_non_templated_field(dag_maker, session):
     assert "get_extra_env" in echo_task.upstream_task_ids
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-def test_mapped_task_does_not_error_in_mini_scheduler_if_upstreams_are_not_done(dag_maker, caplog, session):
-    """
-    This tests that when scheduling child tasks of a task and there's a mapped downstream task,
-    if the mapped downstream task has upstreams that are not yet done, the mapped downstream task is
-    not marked as `upstream_failed'
-    """
-    with dag_maker() as dag:
-
-        @dag.task
-        def second_task():
-            return [0, 1, 2]
-
-        @dag.task
-        def first_task():
-            print(2)
-
-        @dag.task
-        def middle_task(id):
-            return id
-
-        middle = middle_task.expand(id=second_task())
-
-        @dag.task
-        def last_task():
-            print(3)
-
-        [first_task(), middle] >> last_task()
-
-    dag_run = dag_maker.create_dagrun()
-    first_ti = dag_run.get_task_instance(task_id="first_task")
-    second_ti = dag_run.get_task_instance(task_id="second_task")
-    first_ti.state = State.SUCCESS
-    second_ti.state = State.RUNNING
-    session.merge(first_ti)
-    session.merge(second_ti)
-    session.commit()
-    first_ti.schedule_downstream_tasks(session=session)
-    middle_ti = dag_run.get_task_instance(task_id="middle_task")
-    assert middle_ti.state != State.UPSTREAM_FAILED
-    assert "0 downstream tasks scheduled from follow-on schedule" in caplog.text
-
-
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-def test_empty_operator_is_not_considered_in_mini_scheduler(dag_maker, caplog, session):
-    """
-    This tests verify that operators with inherits_from_empty_operator are not considered by mini scheduler.
-    Such operators should not run on workers thus the mini scheduler optimization should skip them and not
-    submit them directly to worker.
-    """
-    with dag_maker() as dag:
-
-        @dag.task
-        def first_task():
-            print(2)
-
-        @dag.task
-        def second_task():
-            print(2)
-
-        third_task = EmptyOperator(task_id="third_task")
-        forth_task = EmptyOperator(task_id="forth_task", on_success_callback=lambda x: print("hi"))
-
-        first_task() >> [second_task(), third_task, forth_task]
-        dag_run = dag_maker.create_dagrun()
-        first_ti = dag_run.get_task_instance(task_id="first_task")
-        second_ti = dag_run.get_task_instance(task_id="second_task")
-        third_ti = dag_run.get_task_instance(task_id="third_task")
-        forth_ti = dag_run.get_task_instance(task_id="forth_task")
-        first_ti.state = State.SUCCESS
-        second_ti.state = State.NONE
-        third_ti.state = State.NONE
-        forth_ti.state = State.NONE
-        session.merge(first_ti)
-        session.merge(second_ti)
-        session.merge(third_ti)
-        session.merge(forth_ti)
-        session.commit()
-        first_ti.schedule_downstream_tasks(session=session)
-        second_task = dag_run.get_task_instance(task_id="second_task")
-        third_task = dag_run.get_task_instance(task_id="third_task")
-        forth_task = dag_run.get_task_instance(task_id="forth_task")
-        assert second_task.state == State.SCHEDULED
-        assert third_task.state == State.NONE
-        assert forth_task.state == State.SCHEDULED
-        assert "2 downstream tasks scheduled from follow-on schedule" in caplog.text
-
-
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-def test_mapped_task_expands_in_mini_scheduler_if_upstreams_are_done(dag_maker, caplog, session):
-    """Test that mini scheduler expands mapped task"""
-    with dag_maker() as dag:
-
-        @dag.task
-        def second_task():
-            return [0, 1, 2]
-
-        @dag.task
-        def first_task():
-            print(2)
-
-        @dag.task
-        def middle_task(id):
-            return id
-
-        middle = middle_task.expand(id=second_task())
-
-        @dag.task
-        def last_task():
-            print(3)
-
-        [first_task(), middle] >> last_task()
-
-    dr = dag_maker.create_dagrun()
-
-    first_ti = dr.get_task_instance(task_id="first_task")
-    first_ti.state = State.SUCCESS
-    session.merge(first_ti)
-    session.commit()
-    second_task = dag.get_task("second_task")
-    second_ti = dr.get_task_instance(task_id="second_task")
-    second_ti.refresh_from_task(second_task)
-    second_ti.run()
-    second_ti.schedule_downstream_tasks(session=session)
-    for i in range(3):
-        middle_ti = dr.get_task_instance(task_id="middle_task", map_index=i)
-        assert middle_ti.state == State.SCHEDULED
-    assert "3 downstream tasks scheduled from follow-on schedule" in caplog.text
-
-
-@pytest.mark.skip_if_database_isolation_mode
-def test_one_success_task_in_mini_scheduler_if_upstreams_are_done(dag_maker, caplog, session):
-    """Test that mini scheduler with one_success task"""
-    with dag_maker() as dag:
-        branch = BranchPythonOperator(task_id="branch", python_callable=lambda: "task_run")
-        task_run = BashOperator(task_id="task_run", bash_command="echo 0")
-        task_skip = BashOperator(task_id="task_skip", bash_command="echo 0")
-        task_1 = BashOperator(task_id="task_1", bash_command="echo 0")
-        task_one_success = BashOperator(
-            task_id="task_one_success", bash_command="echo 0", trigger_rule="one_success"
-        )
-        task_2 = BashOperator(task_id="task_2", bash_command="echo 0")
-
-        task_1 >> task_2
-        branch >> task_skip
-        branch >> task_run
-        task_run >> task_one_success
-        task_skip >> task_one_success
-        task_one_success >> task_2
-        task_skip >> task_2
-
-    dr = dag_maker.create_dagrun()
-
-    branch = dr.get_task_instance(task_id="branch")
-    task_1 = dr.get_task_instance(task_id="task_1")
-    task_skip = dr.get_task_instance(task_id="task_skip")
-    branch.state = State.SUCCESS
-    task_1.state = State.SUCCESS
-    task_skip.state = State.SKIPPED
-    session.merge(branch)
-    session.merge(task_1)
-    session.merge(task_skip)
-    session.commit()
-    task_1.refresh_from_task(dag.get_task("task_1"))
-    task_1.schedule_downstream_tasks(session=session)
-
-    branch = dr.get_task_instance(task_id="branch")
-    task_run = dr.get_task_instance(task_id="task_run")
-    task_skip = dr.get_task_instance(task_id="task_skip")
-    task_1 = dr.get_task_instance(task_id="task_1")
-    task_one_success = dr.get_task_instance(task_id="task_one_success")
-    task_2 = dr.get_task_instance(task_id="task_2")
-    assert branch.state == State.SUCCESS
-    assert task_run.state == State.NONE
-    assert task_skip.state == State.SKIPPED
-    assert task_1.state == State.SUCCESS
-    # task_one_success should not be scheduled
-    assert task_one_success.state == State.NONE
-    assert task_2.state == State.SKIPPED
-    assert "0 downstream tasks scheduled from follow-on schedule" in caplog.text
-
-    task_run = dr.get_task_instance(task_id="task_run")
-    task_run.state = State.SUCCESS
-    session.merge(task_run)
-    session.commit()
-    task_run.refresh_from_task(dag.get_task("task_run"))
-    task_run.schedule_downstream_tasks(session=session)
-
-    branch = dr.get_task_instance(task_id="branch")
-    task_run = dr.get_task_instance(task_id="task_run")
-    task_skip = dr.get_task_instance(task_id="task_skip")
-    task_1 = dr.get_task_instance(task_id="task_1")
-    task_one_success = dr.get_task_instance(task_id="task_one_success")
-    task_2 = dr.get_task_instance(task_id="task_2")
-    assert branch.state == State.SUCCESS
-    assert task_run.state == State.SUCCESS
-    assert task_skip.state == State.SKIPPED
-    assert task_1.state == State.SUCCESS
-    # task_one_success should not be scheduled
-    assert task_one_success.state == State.SCHEDULED
-    assert task_2.state == State.SKIPPED
-    assert "1 downstream tasks scheduled from follow-on schedule" in caplog.text
-
-
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-def test_mini_scheduler_not_skip_mapped_downstream_until_all_upstreams_finish(dag_maker, session):
-    with dag_maker(session=session):
-
-        @task
-        def generate() -> list[list[int]]:
-            return []
-
-        @task
-        def a_sum(numbers: list[int]) -> int:
-            return sum(numbers)
-
-        @task
-        def b_double(summed: int) -> int:
-            return summed * 2
-
-        @task
-        def c_gather(result) -> None:
-            pass
-
-        static = EmptyOperator(task_id="static")
-
-        summed = a_sum.expand(numbers=generate())
-        doubled = b_double.expand(summed=summed)
-        static >> c_gather(doubled)
-
-    dr: DagRun = dag_maker.create_dagrun()
-    tis = {(ti.task_id, ti.map_index): ti for ti in dr.task_instances}
-
-    static_ti = tis[("static", -1)]
-    static_ti.run(session=session)
-    static_ti.schedule_downstream_tasks(session=session)
-    # No tasks should be skipped yet!
-    assert not dr.get_task_instances([TaskInstanceState.SKIPPED], session=session)
-
-    generate_ti = tis[("generate", -1)]
-    generate_ti.run(session=session)
-    generate_ti.schedule_downstream_tasks(session=session)
-    # Now downstreams can be skipped.
-    assert dr.get_task_instances([TaskInstanceState.SKIPPED], session=session)
-
-
 def test_taskinstance_with_note(create_task_instance, session):
     ti: TaskInstance = create_task_instance(session=session)
     ti.note = "ti with note"
@@ -5408,18 +5187,3 @@ def test__refresh_from_db_should_not_increment_try_number(dag_maker, session):
     assert ti.try_number == 1  # stays 1
     ti.refresh_from_db()
     assert ti.try_number == 1  # stays 1
-
-
-@mock.patch("airflow.models.taskinstance.TaskInstance._schedule_downstream_tasks")
-def test_swallow_mini_scheduler_exceptions(_schedule_downstream_mock, create_task_instance, caplog):
-    _schedule_downstream_mock.side_effect = Exception("To be swallowed")
-    caplog.set_level(logging.ERROR)
-    ti = create_task_instance(
-        dag_id="dag_for_testing_swallowing_exception",
-        task_id="task_for_testing_swallowing_exception",
-        run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
-    )
-    ti.schedule_downstream_tasks()
-    assert "Error scheduling downstream tasks." in caplog.text
-    assert "To be swallowed" in caplog.text

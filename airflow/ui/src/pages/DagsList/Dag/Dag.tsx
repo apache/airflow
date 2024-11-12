@@ -16,23 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Box,
-  Button,
-  Progress,
-  Tab,
-  TabList,
-  TabPanel,
-  TabPanels,
-  Tabs,
-} from "@chakra-ui/react";
+import { Box, Button, Tabs } from "@chakra-ui/react";
 import { FiChevronsLeft } from "react-icons/fi";
-import { Link as RouterLink, useParams } from "react-router-dom";
+import {
+  Outlet,
+  Link as RouterLink,
+  useLocation,
+  useParams,
+} from "react-router-dom";
 
-import { useDagServiceGetDagDetails } from "openapi/queries";
+import {
+  useDagServiceGetDagDetails,
+  useDagsServiceRecentDagRuns,
+} from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
+import { ProgressBar } from "src/components/ui";
+import { capitalize } from "src/utils";
 
 import { Header } from "./Header";
+
+const tabs = ["runs", "tasks", "events", "code"];
 
 export const Dag = () => {
   const { dagId } = useParams();
@@ -45,43 +48,57 @@ export const Dag = () => {
     dagId: dagId ?? "",
   });
 
-  return (
-    <Box>
-      <Button
-        as={RouterLink}
-        color="blue.400"
-        leftIcon={<FiChevronsLeft />}
-        to="/dags"
-        variant="link"
-      >
-        Back to all dags
-      </Button>
-      <Header dag={dag} dagId={dagId} />
-      <ErrorAlert error={error} />
-      <Progress
-        isIndeterminate
-        size="xs"
-        visibility={isLoading ? "visible" : "hidden"}
-      />
-      <Tabs>
-        <TabList>
-          <Tab>Overview</Tab>
-          <Tab>Runs</Tab>
-          <Tab>Tasks</Tab>
-        </TabList>
+  // TODO: replace with with a list dag runs by dag id request
+  const {
+    data: runsData,
+    error: runsError,
+    isLoading: isLoadingRuns,
+  } = useDagsServiceRecentDagRuns({ dagIdPattern: dagId ?? "" }, undefined, {
+    enabled: Boolean(dagId),
+  });
 
-        <TabPanels>
-          <TabPanel>
-            <p>one!</p>
-          </TabPanel>
-          <TabPanel>
-            <p>two!</p>
-          </TabPanel>
-          <TabPanel>
-            <p>three!</p>
-          </TabPanel>
-        </TabPanels>
-      </Tabs>
-    </Box>
+  const { pathname } = useLocation();
+
+  const runs =
+    runsData?.dags.find((dagWithRuns) => dagWithRuns.dag_id === dagId)
+      ?.latest_dag_runs ?? [];
+
+  const activeTab =
+    tabs.find((tab) => pathname.endsWith(`/${tab}`)) ?? "overview";
+
+  return (
+    <>
+      <Box>
+        <Button asChild colorPalette="blue" variant="ghost">
+          <RouterLink to="/dags">
+            <FiChevronsLeft />
+            Back to all dags
+          </RouterLink>
+        </Button>
+        <Header dag={dag} dagId={dagId} latestRun={runs[0]} />
+        <ErrorAlert error={error ?? runsError} />
+        <ProgressBar
+          size="xs"
+          visibility={isLoading || isLoadingRuns ? "visible" : "hidden"}
+        />
+        <Tabs.Root value={activeTab}>
+          <Tabs.List>
+            <Tabs.Trigger asChild value="overview">
+              <RouterLink to={`/dags/${dagId}`}>Overview</RouterLink>
+            </Tabs.Trigger>
+            {tabs.map((tab) => (
+              <Tabs.Trigger asChild key={tab} value={tab}>
+                <RouterLink to={`/dags/${dagId}/${tab}`}>
+                  {capitalize(tab)}
+                </RouterLink>
+              </Tabs.Trigger>
+            ))}
+          </Tabs.List>
+        </Tabs.Root>
+      </Box>
+      <Box overflow="auto">
+        <Outlet />
+      </Box>
+    </>
   );
 };

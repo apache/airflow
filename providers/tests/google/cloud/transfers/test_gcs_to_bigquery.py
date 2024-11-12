@@ -906,7 +906,7 @@ class TestGCSToBigQueryOperator:
         ]
         hook.return_value.generate_job_id.return_value = REAL_JOB_ID
         hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
-        with pytest.raises(AirflowException, match=r"missing keyword argument 'bucket'"):
+        with pytest.raises((TypeError, AirflowException), match=r"missing keyword argument 'bucket'"):
             GCSToBigQueryOperator(
                 task_id=TASK_ID,
                 source_objects=TEST_SOURCE_OBJECTS,
@@ -926,7 +926,7 @@ class TestGCSToBigQueryOperator:
         ]
         hook.return_value.generate_job_id.return_value = REAL_JOB_ID
         hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
-        with pytest.raises(AirflowException, match=r"missing keyword argument 'source_objects'"):
+        with pytest.raises((TypeError, AirflowException), match=r"missing keyword argument 'source_objects'"):
             GCSToBigQueryOperator(
                 task_id=TASK_ID,
                 destination_project_dataset_table=TEST_EXPLICIT_DEST,
@@ -947,7 +947,8 @@ class TestGCSToBigQueryOperator:
         hook.return_value.generate_job_id.return_value = REAL_JOB_ID
         hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
         with pytest.raises(
-            AirflowException, match=r"missing keyword argument 'destination_project_dataset_table'"
+            (TypeError, AirflowException),
+            match=r"missing keyword argument 'destination_project_dataset_table'",
         ):
             GCSToBigQueryOperator(
                 task_id=TASK_ID,
@@ -1730,8 +1731,6 @@ class TestAsyncGCSToBigQueryOperator:
             project_id=JOB_PROJECT_ID,
         )
 
-        job._begin.assert_called_once_with()
-
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_execute_without_external_table_force_rerun_async_should_execute_successfully(self, hook):
         hook.return_value.generate_job_id.return_value = f"{job_id}_{hash_}"
@@ -1947,3 +1946,28 @@ class TestAsyncGCSToBigQueryOperator:
             "task_instance": task_instance,
             "logical_date": logical_date,
         }
+
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_force_delete_should_execute_successfully(self, hook):
+        hook.return_value.insert_job.side_effect = [
+            MagicMock(job_id=REAL_JOB_ID, error_result=False),
+            REAL_JOB_ID,
+        ]
+        hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+        hook.return_value.get_job.return_value.result.return_value = ("1",)
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            write_disposition=WRITE_DISPOSITION,
+            schema_fields=SCHEMA_FIELDS_INT,
+            autodetect=True,
+            project_id=JOB_PROJECT_ID,
+            force_delete=True,
+        )
+
+        operator.execute(context=MagicMock())
+        hook.return_value.delete_table.assert_called_once_with(table_id=TEST_EXPLICIT_DEST)

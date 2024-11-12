@@ -97,7 +97,15 @@ class TestMySql:
                 conn_id=MYSQL_DEFAULT,
             )
 
-            from MySQLdb import OperationalError
+            try:
+                from MySQLdb import OperationalError
+            except ImportError:
+                raise RuntimeError(
+                    "You do not have `mysqlclient` package installed. "
+                    "Please install it with `pip install mysqlclient` and make sure you have system "
+                    "mysql libraries installed, as well as well as `pkg-config` system package "
+                    "installed in case you see compilation error during installation."
+                )
 
             with pytest.raises(OperationalError, match="Unknown database 'foobar'"):
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

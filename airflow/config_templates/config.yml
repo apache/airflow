@@ -28,6 +28,14 @@ core:
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/dags"
+    dag_bundle_storage_path:
+      description: |
+        The folder where Airflow bundles can store files locally (if required).
+        By default, this is ``tempfile.gettempdir()/airflow``. This path must be absolute.
+      version_added: 3.0.0
+      type: string
+      example: "`tempfile.gettempdir()/dag_bundles"
+      default: ~
     hostname_callable:
       description: |
         Hostname by providing a path to a callable, which will resolve the hostname.
@@ -218,15 +226,6 @@ core:
       type: string
       example: ~
       default: "50"
-    task_runner:
-      description: |
-        The class to use for running task instances in a subprocess.
-        Choices include StandardTaskRunner, CgroupTaskRunner or the full import path to the class
-        when using a custom task runner.
-      version_added: ~
-      type: string
-      example: ~
-      default: "StandardTaskRunner"
     default_impersonation:
       description: |
         If set, tasks without a ``run_as_user`` argument will be run with this user
@@ -483,13 +482,6 @@ core:
       sensitive: true
       default: ~
       example: '{"some_param": "some_value"}'
-    strict_asset_uri_validation:
-      description: |
-        Asset URI validation should raise an exception if it is not compliant with AIP-60.
-      default: "True"
-      example: ~
-      version_added: 2.9.2
-      type: boolean
     database_access_isolation:
       description: (experimental) Whether components should use Airflow Internal API for DB connectivity.
       version_added: 2.6.0
@@ -2427,15 +2419,6 @@ scheduler:
       type: integer
       default: "20"
       see_also: ":ref:`scheduler:ha:tunables`"
-    schedule_after_task_execution:
-      description: |
-        Should the Task supervisor process perform a "mini scheduler" to attempt to schedule more tasks of the
-        same DAG. Leaving this on will mean tasks in the same DAG execute quicker, but might starve out other
-        dags in some circumstances
-      example: ~
-      version_added: 2.0.0
-      type: boolean
-      default: "True"
     parsing_pre_import_modules:
       description: |
         The scheduler reads dag files to extract the airflow modules that are going to be used,

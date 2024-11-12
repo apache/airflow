@@ -110,7 +110,7 @@ run the commands below.
     # run your first task instance
     airflow tasks test example_bash_operator runme_0 2015-01-01
     # run a backfill over 2 days
-    airflow dags backfill example_bash_operator \
+    airflow backfill create --dag-id example_bash_operator \
         --start-date 2015-01-01 \
         --end-date 2015-01-02
 

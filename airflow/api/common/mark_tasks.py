@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Collection, Iterable, Iterator, NamedTuple
 
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import lazyload
 
 from airflow.models.dagrun import DagRun
@@ -402,8 +402,13 @@ def set_dag_run_state_to_failed(
         select(TaskInstance).filter(
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.run_id == run_id,
-            TaskInstance.state.not_in(State.finished),
-            TaskInstance.state.not_in(running_states),
+            or_(
+                TaskInstance.state.is_(None),
+                and_(
+                    TaskInstance.state.not_in(State.finished),
+                    TaskInstance.state.not_in(running_states),
+                ),
+            ),
         )
     ).all()
 

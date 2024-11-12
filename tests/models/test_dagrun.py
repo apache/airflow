@@ -37,8 +37,8 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_ta
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.triggers.base import StartTriggerArgs
@@ -88,7 +88,7 @@ class TestDagRun:
         db.clear_db_variables()
         db.clear_db_assets()
         db.clear_db_xcom()
-        db.clear_db_task_fail()
+        db.clear_db_dags()
 
     def create_dag_run(
         self,
@@ -2013,7 +2013,7 @@ def test_ti_scheduling_mapped_zero_length(dag_maker, session):
 
 @pytest.mark.parametrize("trigger_rule", [TriggerRule.ALL_DONE, TriggerRule.ALL_SUCCESS])
 def test_mapped_task_upstream_failed(dag_maker, session, trigger_rule):
-    from airflow.operators.python import PythonOperator
+    from airflow.providers.standard.operators.python import PythonOperator
 
     with dag_maker(session=session) as dag:
 
@@ -2524,12 +2524,11 @@ def test_mapped_task_depends_on_past(dag_maker, session):
 def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     """
     Test that clearing a task and moving from non-mapped to mapped clears existing
-    references in XCom, TaskFail, TaskInstanceNote, TaskReschedule and
+    references in XCom, TaskInstanceNote, TaskReschedule and
     RenderedTaskInstanceFields. To be able to test this, RenderedTaskInstanceFields
     was not used in the test since it would require that the task is expanded first.
     """
 
-    from airflow.models.taskfail import TaskFail
     from airflow.models.xcom import XCom
 
     @task
@@ -2563,13 +2562,12 @@ def test_clearing_task_and_moving_from_non_mapped_to_mapped(dag_maker, session):
     # Purposely omitted RenderedTaskInstanceFields because the ti need
     # to be expanded but here we are mimicking and made it map_index -1
     session.add(tr)
-    session.add(TaskFail(ti))
     XCom.set(key="test", value="value", task_id=ti.task_id, dag_id=dag.dag_id, run_id=ti.run_id)
     session.commit()
-    for table in [TaskFail, TaskInstanceNote, TaskReschedule, XCom]:
+    for table in [TaskInstanceNote, TaskReschedule, XCom]:
         assert session.query(table).count() == 1
     dr1.task_instance_scheduling_decisions(session)
-    for table in [TaskFail, TaskInstanceNote, TaskReschedule, XCom]:
+    for table in [TaskInstanceNote, TaskReschedule, XCom]:
         assert session.query(table).count() == 0
 
 

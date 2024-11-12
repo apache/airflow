@@ -634,35 +634,6 @@ function common::import_trusted_gpg() {
 }
 EOF
 
-# The content below is automatically copied from scripts/docker/install_pipx_tools.sh
-COPY <<"EOF" /install_pipx_tools.sh
-#!/usr/bin/env bash
-. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
-
-function install_pipx_tools() {
-    echo
-    echo "${COLOR_BLUE}Installing pipx tools${COLOR_RESET}"
-    echo
-    # Make sure PIPX is installed in latest version
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "pipx>=1.2.1"
-    if [[ $(uname -m) != "aarch64" ]]; then
-        # Do not install mssql-cli for ARM
-        # Install all the tools we need available in command line but without impacting the current environment
-        pipx install mssql-cli
-
-        # Unfortunately mssql-cli installed by `pipx` does not work out of the box because it uses
-        # its own execution bash script which is not compliant with the auto-activation of
-        # pipx venvs - we need to manually patch Python executable in the script to fix it: ¯\_(ツ)_/¯
-        sed "s/python /\/root\/\.local\/pipx\/venvs\/mssql-cli\/bin\/python /" -i /root/.local/bin/mssql-cli
-    fi
-}
-
-common::get_colors
-common::get_packaging_tool
-
-install_pipx_tools
-EOF
-
 # The content below is automatically copied from scripts/docker/install_airflow.sh
 COPY <<"EOF" /install_airflow.sh
 #!/usr/bin/env bash
@@ -689,7 +660,7 @@ function install_airflow() {
 
         # Similarly we need _a_ file for task_sdk too
         mkdir -p ./task_sdk/src/airflow/sdk/
-        touch ./task_sdk/src/airflow/__init__.py
+        touch ./task_sdk/src/airflow/sdk/__init__.py
 
         trap 'rm -f ./providers/src/airflow/providers/__init__.py ./task_sdk/src/airflow/__init__.py 2>/dev/null' EXIT
 
@@ -1017,6 +988,13 @@ function determine_airflow_to_use() {
            --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         # Some packages might leave legacy typing module which causes test issues
         pip uninstall -y typing || true
+        if [[ ${LINK_PROVIDERS_TO_AIRFLOW_PACKAGE=} == "true" ]]; then
+            echo
+            echo "${COLOR_BLUE}Linking providers to airflow package as we are using them from mounted sources.${COLOR_RESET}"
+            echo
+            rm -rf /usr/local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/providers
+            ln -s "${AIRFLOW_SOURCES}/providers/src/airflow/providers" "/usr/local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/providers"
+        fi
     fi
 
     if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
@@ -1154,7 +1132,7 @@ function check_force_lowest_dependencies() {
         echo
     fi
     set -x
-    uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}"
+    uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}" --editable "./task_sdk"
     set +x
 }
 
@@ -1194,7 +1172,7 @@ ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 # NOTE! When you want to make sure dependencies are installed from scratch in your PR after removing
 # some dependencies, you also need to set "disable image cache" in your PR to make sure the image is
 # not built using the "main" version of those dependencies.
-ARG DEPENDENCIES_EPOCH_NUMBER="13"
+ARG DEPENDENCIES_EPOCH_NUMBER="14"
 
 # Make sure noninteractive debian install is used and language variables set
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
@@ -1366,7 +1344,7 @@ RUN bash /scripts/docker/install_packaging_tools.sh; \
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=24.3.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.4.27
+ARG AIRFLOW_UV_VERSION=0.5.1
 
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION}
@@ -1374,13 +1352,10 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
 # The PATH is needed for PIPX to find the tools installed
 ENV PATH="/root/.local/bin:${PATH}"
 
-COPY --from=scripts install_pipx_tools.sh /scripts/docker/
-
 # Install useful command line tools in their own virtualenv so that they do not clash with
 # dependencies installed in Airflow also reinstall PIP and UV to make sure they are installed
 # in the version specified above
-RUN bash /scripts/docker/install_packaging_tools.sh; \
-    bash /scripts/docker/install_pipx_tools.sh
+RUN bash /scripts/docker/install_packaging_tools.sh
 
 # Airflow sources change frequently but dependency configuration won't change that often
 # We copy pyproject.toml and other files needed to perform setup of dependencies

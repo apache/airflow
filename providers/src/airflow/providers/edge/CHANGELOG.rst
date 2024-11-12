@@ -27,6 +27,48 @@
 Changelog
 ---------
 
+0.5.4pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix SIGINT handling of child processes. Ensure graceful shutdown when SIGINT in received (not killing working tasks).``
+* ``Fix SIGTERM handling of child processes. Ensure all childs are terminated on SIGTERM.``
+
+
+0.5.3pre0
+.........
+
+Misc
+~~~~
+
+* ``Adding some links to host and job overview pages.``
+
+0.5.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Small beautification for host status in Edge Worker view.``
+
+0.5.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Remove warning about missing config in edge plugin loading.``
+
+0.5.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge worker triggers graceful shutdown, if worker version and main instance do not match.``
+
 0.4.0pre0
 .........
 

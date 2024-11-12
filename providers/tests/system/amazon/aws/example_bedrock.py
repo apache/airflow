@@ -63,7 +63,7 @@ SKIP_LONG_TASKS = environ.get("SKIP_LONG_SYSTEM_TEST_TASKS", default=True)
 SKIP_PROVISION_THROUGHPUT = environ.get("SKIP_RESTRICTED_SYSTEM_TEST_TASKS", default=True)
 
 
-LLAMA_SHORT_MODEL_ID = "meta.llama2-13b-chat-v1"
+LLAMA_SHORT_MODEL_ID = "meta.llama3-8b-instruct-v1:0"
 TITAN_MODEL_ID = "amazon.titan-text-express-v1:0:8k"
 TITAN_SHORT_MODEL_ID = TITAN_MODEL_ID.split(":")[0]
 

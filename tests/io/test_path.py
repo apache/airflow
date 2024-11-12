@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import sys
 import uuid
 from stat import S_ISDIR, S_ISREG
 from tempfile import NamedTemporaryFile
@@ -247,7 +246,6 @@ class TestFs:
 
         e.unlink()
 
-    @pytest.mark.skipif(sys.version_info < (3, 9), reason="`is_relative_to` new in version 3.9")
     def test_is_relative_to(self):
         uuid_dir = f"/tmp/{str(uuid.uuid4())}"
         o1 = ObjectStoragePath(f"file://{uuid_dir}/aaa")

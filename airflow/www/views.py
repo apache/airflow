@@ -105,6 +105,7 @@ from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import Connection, DagModel, DagTag, Log, Trigger, XCom
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel, DagScheduleAssetReference
 from airflow.models.dag import get_asset_triggered_next_run_info
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
@@ -2201,6 +2202,7 @@ class Airflow(AirflowBaseView):
                 )
 
         try:
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
             dag_run = dag.create_dagrun(
                 run_type=DagRunType.MANUAL,
                 execution_date=execution_date,
@@ -2208,7 +2210,7 @@ class Airflow(AirflowBaseView):
                 state=DagRunState.QUEUED,
                 conf=run_conf,
                 external_trigger=True,
-                dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
+                dag_version=dag_version,
                 run_id=run_id,
                 triggered_by=DagRunTriggeredByType.UI,
             )
@@ -3856,6 +3858,17 @@ class XComModelView(AirflowModelView):
     list_columns = ["key", "value", "timestamp", "dag_id", "task_id", "run_id", "map_index", "execution_date"]
     base_order = ("dag_run_id", "desc")
 
+    order_columns = [
+        "key",
+        "value",
+        "timestamp",
+        "dag_id",
+        "task_id",
+        "run_id",
+        "map_index",
+        # "execution_date", # execution_date sorting is not working and crashing the UI, disabled for now.
+    ]
+
     base_filters = [["dag_id", DagFilter, list]]
 
     formatters_columns = {
@@ -5121,7 +5134,6 @@ class TaskInstanceModelView(AirflowModelView):
         "end_date",
         "duration",
         "note",
-        "job_id",
         "hostname",
         "unixname",
         "priority_weight",
@@ -5146,7 +5158,6 @@ class TaskInstanceModelView(AirflowModelView):
         "end_date",
         "duration",
         # "note",  # TODO: Maybe figure out how to re-enable this.
-        "job_id",
         "hostname",
         "unixname",
         "priority_weight",
@@ -5192,7 +5203,7 @@ class TaskInstanceModelView(AirflowModelView):
 
     edit_form = TaskInstanceEditForm
 
-    base_order = ("job_id", "asc")
+    base_order = ("queued_dttm", "asc")
 
     base_filters = [["dag_id", DagFilter, list]]
 

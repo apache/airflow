@@ -154,6 +154,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.JAVASCRIPT_PRODUCTION_FILES: [
             r"^airflow/.*\.[jt]sx?",
             r"^airflow/.*\.lock",
+            r"^airflow/ui/.*\.yaml$",
         ],
         FileGroupForCi.API_TEST_FILES: [
             r"^airflow/api/",
@@ -161,6 +162,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.API_CODEGEN_FILES: [
             r"^airflow/api_connexion/openapi/v1\.yaml",
+            r"^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml",
             r"^clients/gen",
         ],
         FileGroupForCi.LEGACY_API_FILES: [
@@ -189,12 +191,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/values\.schema\.json",
             r"^chart/values\.json",
         ],
-        FileGroupForCi.UI_FILES: [
-            r"^airflow/ui/.*\.ts[x]?$",
-            r"^airflow/ui/.*\.js[x]?$",
-            r"^airflow/ui/[^/]+\.json$",
-            r"^airflow/ui/.*\.lock$",
-        ],
+        FileGroupForCi.UI_FILES: [r"^airflow/ui/"],
         FileGroupForCi.LEGACY_WWW_FILES: [
             r"^airflow/www/.*\.ts[x]?$",
             r"^airflow/www/.*\.js[x]?$",
@@ -276,8 +273,8 @@ CI_FILE_GROUP_EXCLUDES = HashableDict(
 )
 
 PYTHON_OPERATOR_FILES = [
-    r"^airflow/operators/python.py",
-    r"^tests/operators/test_python.py",
+    r"^providers/src/providers/standard/operators/python.py",
+    r"^providers/tests/standard/operators/test_python.py",
 ]
 
 TEST_TYPE_MATCHES = HashableDict(
@@ -801,12 +798,17 @@ class SelectiveChecks:
         test_always_files = self._matching_files(
             FileGroupForCi.ALWAYS_TESTS_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
         )
+        test_ui_files = self._matching_files(
+            FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        )
+
         remaining_files = (
             set(all_source_files)
             - set(matched_files)
             - set(kubernetes_files)
             - set(system_test_files)
             - set(test_always_files)
+            - set(test_ui_files)
         )
         get_console().print(f"[warning]Remaining non test/always files: {len(remaining_files)}[/]")
         count_remaining_files = len(remaining_files)
@@ -1106,7 +1108,12 @@ class SelectiveChecks:
             FileGroupForCi.LEGACY_WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
         ):
             pre_commits_to_skip.add("ts-compile-format-lint-www")
-        if not self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES):
+        if not (
+            self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
+            or self._matching_files(
+                FileGroupForCi.API_CODEGEN_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+        ):
             pre_commits_to_skip.add("ts-compile-format-lint-ui")
         if not self._matching_files(
             FileGroupForCi.ALL_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
@@ -1223,10 +1230,11 @@ class SelectiveChecks:
 
     @cached_property
     def runs_on_as_json_docs_build(self) -> str:
-        if self._is_canary_run():
-            return RUNS_ON_SELF_HOSTED_ASF_RUNNER
-        else:
-            return RUNS_ON_PUBLIC_RUNNER
+        # We used to run docs build on self-hosted runners because they had more space, but
+        # It turned out that public runners have a lot of space in /mnt folder that we can utilise
+        # but in the future we might want to switch back to self-hosted runners so we have this
+        # separate property to determine that and place to implement different logic if needed
+        return RUNS_ON_PUBLIC_RUNNER
 
     @cached_property
     def runs_on_as_json_public(self) -> str:
@@ -1338,12 +1346,32 @@ class SelectiveChecks:
         return json.dumps(sorted_providers_to_exclude)
 
     @cached_property
+    def only_new_ui_files(self) -> bool:
+        all_source_files = set(
+            self._matching_files(
+                FileGroupForCi.ALL_SOURCE_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+        )
+        new_ui_source_files = set(
+            self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
+        )
+        remaining_files = all_source_files - new_ui_source_files
+
+        if all_source_files and new_ui_source_files and not remaining_files:
+            return True
+        else:
+            return False
+
+    @cached_property
     def testable_integrations(self) -> list[str]:
-        return [
-            integration
-            for integration in TESTABLE_INTEGRATIONS
-            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
-        ]
+        if self.only_new_ui_files:
+            return []
+        else:
+            return [
+                integration
+                for integration in TESTABLE_INTEGRATIONS
+                if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+            ]
 
     @cached_property
     def is_committer_build(self):

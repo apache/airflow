@@ -22,10 +22,72 @@ export type AppBuilderViewResponse = {
 };
 
 /**
+ * Serializable version of the AssetAliasSchema ORM SqlAlchemyModel.
+ */
+export type AssetAliasSchema = {
+  id: number;
+  name: string;
+};
+
+/**
+ * Asset collection response.
+ */
+export type AssetCollectionResponse = {
+  assets: Array<AssetResponse>;
+  total_entries: number;
+};
+
+/**
+ * Asset serializer for responses.
+ */
+export type AssetResponse = {
+  id: number;
+  uri: string;
+  extra?: {
+    [key: string]: unknown;
+  } | null;
+  created_at: string;
+  updated_at: string;
+  consuming_dags: Array<DagScheduleAssetReference>;
+  producing_tasks: Array<TaskOutletAssetReference>;
+  aliases: Array<AssetAliasSchema>;
+};
+
+/**
+ * Object used for create backfill request.
+ */
+export type BackfillPostBody = {
+  dag_id: string;
+  from_date: string;
+  to_date: string;
+  run_backwards?: boolean;
+  dag_run_conf?: {
+    [key: string]: unknown;
+  };
+  reprocess_behavior?: ReprocessBehavior;
+  max_active_runs?: number;
+};
+
+/**
  * Base status field for metadatabase and scheduler.
  */
 export type BaseInfoSchema = {
   status: string | null;
+};
+
+/**
+ * Connection Serializer for requests body.
+ */
+export type ConnectionBody = {
+  connection_id: string;
+  conn_type: string;
+  description?: string | null;
+  host?: string | null;
+  login?: string | null;
+  schema?: string | null;
+  port?: number | null;
+  password?: string | null;
+  extra?: string | null;
 };
 
 /**
@@ -47,7 +109,16 @@ export type ConnectionResponse = {
   login: string | null;
   schema: string | null;
   port: number | null;
+  password: string | null;
   extra: string | null;
+};
+
+/**
+ * Connection Test serializer for responses.
+ */
+export type ConnectionTestResponse = {
+  status: boolean;
+  message: string;
 };
 
 /**
@@ -67,10 +138,7 @@ export type DAGDetailsResponse = {
   is_paused: boolean;
   is_active: boolean;
   last_parsed_time: string | null;
-  last_pickled: string | null;
   last_expired: string | null;
-  scheduler_lock: string | null;
-  pickle_id: string | null;
   default_view: string | null;
   fileloc: string;
   description: string | null;
@@ -96,7 +164,6 @@ export type DAGDetailsResponse = {
   start_date: string | null;
   end_date: string | null;
   is_paused_upon_creation: boolean | null;
-  orientation: string;
   params: {
     [key: string]: unknown;
   } | null;
@@ -130,10 +197,7 @@ export type DAGResponse = {
   is_paused: boolean;
   is_active: boolean;
   last_parsed_time: string | null;
-  last_pickled: string | null;
   last_expired: string | null;
-  scheduler_lock: string | null;
-  pickle_id: string | null;
   default_view: string | null;
   fileloc: string;
   description: string | null;
@@ -155,6 +219,19 @@ export type DAGResponse = {
    */
   readonly file_token: string;
 };
+
+/**
+ * DAG Run Serializer for PATCH requests.
+ */
+export type DAGRunPatchBody = {
+  state?: DAGRunPatchStates | null;
+  note?: string | null;
+};
+
+/**
+ * Enum for DAG Run states when updating a DAG Run.
+ */
+export type DAGRunPatchStates = "queued" | "success" | "failed";
 
 /**
  * DAG Run serializer for responses.
@@ -199,11 +276,36 @@ export type DAGRunTypes = {
 };
 
 /**
+ * DAG Source serializer for responses.
+ */
+export type DAGSourceResponse = {
+  content: string | null;
+};
+
+/**
  * DAG Tags Collection serializer for responses.
  */
 export type DAGTagCollectionResponse = {
   tags: Array<string>;
   total_entries: number;
+};
+
+/**
+ * DAG warning collection serializer for responses.
+ */
+export type DAGWarningCollectionResponse = {
+  dag_warnings: Array<DAGWarningResponse>;
+  total_entries: number;
+};
+
+/**
+ * DAG Warning serializer for responses.
+ */
+export type DAGWarningResponse = {
+  dag_id: string;
+  warning_type: DagWarningType;
+  message: string;
+  timestamp: string;
 };
 
 /**
@@ -223,10 +325,7 @@ export type DAGWithLatestDagRunsResponse = {
   is_paused: boolean;
   is_active: boolean;
   last_parsed_time: string | null;
-  last_pickled: string | null;
   last_expired: string | null;
-  scheduler_lock: string | null;
-  pickle_id: string | null;
   default_view: string | null;
   fileloc: string;
   description: string | null;
@@ -290,11 +389,77 @@ export type DagRunType =
   | "asset_triggered";
 
 /**
+ * Serializable version of the DagScheduleAssetReference ORM SqlAlchemyModel.
+ */
+export type DagScheduleAssetReference = {
+  dag_id: string;
+  created_at: string;
+  updated_at: string;
+};
+
+/**
+ * DAG Stats Collection serializer for responses.
+ */
+export type DagStatsCollectionResponse = {
+  dags: Array<DagStatsResponse>;
+  total_entries: number;
+};
+
+/**
+ * DAG Stats serializer for responses.
+ */
+export type DagStatsResponse = {
+  dag_id: string;
+  stats: Array<DagStatsStateResponse>;
+};
+
+/**
+ * DagStatsState serializer for responses.
+ */
+export type DagStatsStateResponse = {
+  state: DagRunState;
+  count: number;
+};
+
+/**
  * Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.
  */
 export type DagTagPydantic = {
   name: string;
   dag_id: string;
+};
+
+/**
+ * Enum for DAG warning types.
+ *
+ * This is the set of allowable values for the ``warning_type`` field
+ * in the DagWarning model.
+ */
+export type DagWarningType = "asset conflict" | "non-existent pool";
+
+/**
+ * Event Log Collection Response.
+ */
+export type EventLogCollectionResponse = {
+  event_logs: Array<EventLogResponse>;
+  total_entries: number;
+};
+
+/**
+ * Event Log Response.
+ */
+export type EventLogResponse = {
+  event_log_id: number;
+  when: string;
+  dag_id: string | null;
+  task_id: string | null;
+  run_id: string | null;
+  map_index: number | null;
+  try_number: number | null;
+  event: string;
+  logical_date: string | null;
+  owner: string | null;
+  extra: string | null;
 };
 
 /**
@@ -338,7 +503,41 @@ export type HealthInfoSchema = {
 export type HistoricalMetricDataResponse = {
   dag_run_types: DAGRunTypes;
   dag_run_states: DAGRunStates;
-  task_instance_states: TaskInstanceState;
+  task_instance_states: TaskInstanceStateCount;
+};
+
+/**
+ * Import Error Collection Response.
+ */
+export type ImportErrorCollectionResponse = {
+  import_errors: Array<ImportErrorResponse>;
+  total_entries: number;
+};
+
+/**
+ * Import Error Response.
+ */
+export type ImportErrorResponse = {
+  import_error_id: number;
+  timestamp: string;
+  filename: string;
+  stack_trace: string;
+};
+
+/**
+ * Job serializer for responses.
+ */
+export type JobResponse = {
+  id: number;
+  dag_id: string | null;
+  state: string | null;
+  job_type: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  latest_heartbeat: string | null;
+  executor_class: string | null;
+  hostname: string | null;
+  unixname: string | null;
 };
 
 /**
@@ -429,6 +628,13 @@ export type ProviderResponse = {
 };
 
 /**
+ * Internal enum for setting reprocess behavior in a backfill.
+ *
+ * :meta private:
+ */
+export type ReprocessBehavior = "failed" | "completed" | "none";
+
+/**
  * Schema for Scheduler info.
  */
 export type SchedulerInfoSchema = {
@@ -437,9 +643,88 @@ export type SchedulerInfoSchema = {
 };
 
 /**
+ * Task scheduling dependencies collection serializer for responses.
+ */
+export type TaskDependencyCollectionResponse = {
+  dependencies: Array<TaskDependencyResponse>;
+};
+
+/**
+ * Task Dependency serializer for responses.
+ */
+export type TaskDependencyResponse = {
+  name: string;
+  reason: string;
+};
+
+/**
+ * Task Instance Collection serializer for responses.
+ */
+export type TaskInstanceCollectionResponse = {
+  task_instances: Array<TaskInstanceResponse>;
+  total_entries: number;
+};
+
+/**
  * TaskInstance serializer for responses.
  */
-export type TaskInstanceState = {
+export type TaskInstanceResponse = {
+  id: string;
+  task_id: string;
+  dag_id: string;
+  dag_run_id: string;
+  map_index: number;
+  logical_date: string;
+  start_date: string | null;
+  end_date: string | null;
+  duration: number | null;
+  state: TaskInstanceState | null;
+  try_number: number;
+  max_tries: number;
+  task_display_name: string;
+  hostname: string | null;
+  unixname: string | null;
+  pool: string;
+  pool_slots: number;
+  queue: string | null;
+  priority_weight: number | null;
+  operator: string | null;
+  queued_when: string | null;
+  pid: number | null;
+  executor: string | null;
+  executor_config: string;
+  note: string | null;
+  rendered_map_index: string | null;
+  rendered_fields?: {
+    [key: string]: unknown;
+  };
+  trigger: TriggerResponse | null;
+  triggerer_job: JobResponse | null;
+};
+
+/**
+ * All possible states that a Task Instance can be in.
+ *
+ * Note that None is also allowed, so always use this in a type hint with Optional.
+ */
+export type TaskInstanceState =
+  | "removed"
+  | "scheduled"
+  | "queued"
+  | "running"
+  | "success"
+  | "restarting"
+  | "failed"
+  | "up_for_retry"
+  | "up_for_reschedule"
+  | "upstream_failed"
+  | "skipped"
+  | "deferred";
+
+/**
+ * TaskInstance serializer for responses.
+ */
+export type TaskInstanceStateCount = {
   no_status: number;
   removed: number;
   scheduled: number;
@@ -453,6 +738,27 @@ export type TaskInstanceState = {
   upstream_failed: number;
   skipped: number;
   deferred: number;
+};
+
+/**
+ * Serializable version of the TaskOutletAssetReference ORM SqlAlchemyModel.
+ */
+export type TaskOutletAssetReference = {
+  dag_id: string;
+  task_id: string;
+  created_at: string;
+  updated_at: string;
+};
+
+/**
+ * Trigger serializer for responses.
+ */
+export type TriggerResponse = {
+  id: number;
+  classpath: string;
+  kwargs: string;
+  created_date: string;
+  triggerer_id: number | null;
 };
 
 /**
@@ -474,8 +780,8 @@ export type ValidationError = {
  */
 export type VariableBody = {
   key: string;
-  description: string | null;
   value: string | null;
+  description?: string | null;
 };
 
 /**
@@ -491,8 +797,8 @@ export type VariableCollectionResponse = {
  */
 export type VariableResponse = {
   key: string;
-  description: string | null;
   value: string | null;
+  description: string | null;
 };
 
 /**
@@ -503,6 +809,32 @@ export type VersionInfo = {
   git_version: string | null;
 };
 
+/**
+ * XCom response serializer with native return type.
+ */
+export type XComResponseNative = {
+  key: string;
+  timestamp: string;
+  execution_date: string;
+  map_index: number;
+  task_id: string;
+  dag_id: string;
+  value: unknown;
+};
+
+/**
+ * XCom response serializer with string return type.
+ */
+export type XComResponseString = {
+  key: string;
+  timestamp: string;
+  execution_date: string;
+  map_index: number;
+  task_id: string;
+  dag_id: string;
+  value: string | null;
+};
+
 export type NextRunAssetsData = {
   dagId: string;
 };
@@ -510,6 +842,16 @@ export type NextRunAssetsData = {
 export type NextRunAssetsResponse = {
   [key: string]: unknown;
 };
+
+export type GetAssetsData = {
+  dagIds?: Array<string>;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  uriPattern?: string | null;
+};
+
+export type GetAssetsResponse = AssetCollectionResponse;
 
 export type HistoricalMetricsData = {
   endDate: string;
@@ -532,6 +874,45 @@ export type RecentDagRunsData = {
 };
 
 export type RecentDagRunsResponse = DAGWithLatestDagRunsCollectionResponse;
+
+export type ListBackfillsData = {
+  dagId: string;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+};
+
+export type ListBackfillsResponse = unknown;
+
+export type CreateBackfillData = {
+  requestBody: BackfillPostBody;
+};
+
+export type CreateBackfillResponse = unknown;
+
+export type GetBackfillData = {
+  backfillId: string;
+};
+
+export type GetBackfillResponse = unknown;
+
+export type PauseBackfillData = {
+  backfillId: unknown;
+};
+
+export type PauseBackfillResponse = unknown;
+
+export type UnpauseBackfillData = {
+  backfillId: unknown;
+};
+
+export type UnpauseBackfillResponse = unknown;
+
+export type CancelBackfillData = {
+  backfillId: unknown;
+};
+
+export type CancelBackfillResponse = unknown;
 
 export type GetDagsData = {
   dagDisplayNamePattern?: string | null;
@@ -610,6 +991,14 @@ export type GetConnectionData = {
 
 export type GetConnectionResponse = ConnectionResponse;
 
+export type PatchConnectionData = {
+  connectionId: string;
+  requestBody: ConnectionBody;
+  updateMask?: Array<string> | null;
+};
+
+export type PatchConnectionResponse = ConnectionResponse;
+
 export type GetConnectionsData = {
   limit?: number;
   offset?: number;
@@ -618,39 +1007,17 @@ export type GetConnectionsData = {
 
 export type GetConnectionsResponse = ConnectionCollectionResponse;
 
-export type DeleteVariableData = {
-  variableKey: string;
+export type PostConnectionData = {
+  requestBody: ConnectionBody;
 };
 
-export type DeleteVariableResponse = void;
+export type PostConnectionResponse = ConnectionResponse;
 
-export type GetVariableData = {
-  variableKey: string;
+export type TestConnectionData = {
+  requestBody: ConnectionBody;
 };
 
-export type GetVariableResponse = VariableResponse;
-
-export type PatchVariableData = {
-  requestBody: VariableBody;
-  updateMask?: Array<string> | null;
-  variableKey: string;
-};
-
-export type PatchVariableResponse = VariableResponse;
-
-export type GetVariablesData = {
-  limit?: number;
-  offset?: number;
-  orderBy?: string;
-};
-
-export type GetVariablesResponse = VariableCollectionResponse;
-
-export type PostVariableData = {
-  requestBody: VariableBody;
-};
-
-export type PostVariableResponse = VariableResponse;
+export type TestConnectionResponse = ConnectionTestResponse;
 
 export type GetDagRunData = {
   dagId: string;
@@ -666,7 +1033,79 @@ export type DeleteDagRunData = {
 
 export type DeleteDagRunResponse = void;
 
+export type PatchDagRunData = {
+  dagId: string;
+  dagRunId: string;
+  requestBody: DAGRunPatchBody;
+  updateMask?: Array<string> | null;
+};
+
+export type PatchDagRunResponse = DAGRunResponse;
+
+export type GetDagSourceData = {
+  accept?: string;
+  fileToken: string;
+};
+
+export type GetDagSourceResponse = DAGSourceResponse;
+
+export type GetEventLogData = {
+  eventLogId: number;
+};
+
+export type GetEventLogResponse = EventLogResponse;
+
+export type GetEventLogsData = {
+  after?: string | null;
+  before?: string | null;
+  dagId?: string | null;
+  event?: string | null;
+  excludedEvents?: Array<string> | null;
+  includedEvents?: Array<string> | null;
+  limit?: number;
+  mapIndex?: number | null;
+  offset?: number;
+  orderBy?: string;
+  owner?: string | null;
+  runId?: string | null;
+  taskId?: string | null;
+  tryNumber?: number | null;
+};
+
+export type GetEventLogsResponse = EventLogCollectionResponse;
+
+export type GetImportErrorData = {
+  importErrorId: number;
+};
+
+export type GetImportErrorResponse = ImportErrorResponse;
+
+export type GetImportErrorsData = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+};
+
+export type GetImportErrorsResponse = ImportErrorCollectionResponse;
+
 export type GetHealthResponse = HealthInfoSchema;
+
+export type ListDagWarningsData = {
+  dagId?: string | null;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  warningType?: DagWarningType | null;
+};
+
+export type ListDagWarningsResponse = DAGWarningCollectionResponse;
+
+export type GetPluginsData = {
+  limit?: number;
+  offset?: number;
+};
+
+export type GetPluginsResponse = PluginCollectionResponse;
 
 export type DeletePoolData = {
   poolName: string;
@@ -709,14 +1148,145 @@ export type GetProvidersData = {
 
 export type GetProvidersResponse = ProviderCollectionResponse;
 
-export type GetPluginsData = {
-  limit?: number;
-  offset?: number;
+export type GetTaskInstanceData = {
+  dagId: string;
+  dagRunId: string;
+  taskId: string;
 };
 
-export type GetPluginsResponse = PluginCollectionResponse;
+export type GetTaskInstanceResponse = TaskInstanceResponse;
+
+export type GetMappedTaskInstancesData = {
+  dagId: string;
+  dagRunId: string;
+  durationGte?: number | null;
+  durationLte?: number | null;
+  endDateGte?: string | null;
+  endDateLte?: string | null;
+  executor?: Array<string>;
+  limit?: number;
+  logicalDateGte?: string | null;
+  logicalDateLte?: string | null;
+  offset?: number;
+  orderBy?: string;
+  pool?: Array<string>;
+  queue?: Array<string>;
+  startDateGte?: string | null;
+  startDateLte?: string | null;
+  state?: Array<string>;
+  taskId: string;
+  updatedAtGte?: string | null;
+  updatedAtLte?: string | null;
+};
+
+export type GetMappedTaskInstancesResponse = TaskInstanceCollectionResponse;
+
+export type GetTaskInstanceDependenciesData = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  taskId: string;
+};
+
+export type GetTaskInstanceDependenciesResponse =
+  TaskDependencyCollectionResponse;
+
+export type GetTaskInstanceDependencies1Data = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  taskId: string;
+};
+
+export type GetTaskInstanceDependencies1Response =
+  TaskDependencyCollectionResponse;
+
+export type GetMappedTaskInstanceData = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  taskId: string;
+};
+
+export type GetMappedTaskInstanceResponse = TaskInstanceResponse;
+
+export type GetTaskInstancesData = {
+  dagId: string;
+  dagRunId: string;
+  durationGte?: number | null;
+  durationLte?: number | null;
+  endDateGte?: string | null;
+  endDateLte?: string | null;
+  executor?: Array<string>;
+  limit?: number;
+  logicalDateGte?: string | null;
+  logicalDateLte?: string | null;
+  offset?: number;
+  orderBy?: string;
+  pool?: Array<string>;
+  queue?: Array<string>;
+  startDateGte?: string | null;
+  startDateLte?: string | null;
+  state?: Array<string>;
+  updatedAtGte?: string | null;
+  updatedAtLte?: string | null;
+};
+
+export type GetTaskInstancesResponse = TaskInstanceCollectionResponse;
+
+export type DeleteVariableData = {
+  variableKey: string;
+};
+
+export type DeleteVariableResponse = void;
+
+export type GetVariableData = {
+  variableKey: string;
+};
+
+export type GetVariableResponse = VariableResponse;
+
+export type PatchVariableData = {
+  requestBody: VariableBody;
+  updateMask?: Array<string> | null;
+  variableKey: string;
+};
+
+export type PatchVariableResponse = VariableResponse;
+
+export type GetVariablesData = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+};
+
+export type GetVariablesResponse = VariableCollectionResponse;
+
+export type PostVariableData = {
+  requestBody: VariableBody;
+};
+
+export type PostVariableResponse = VariableResponse;
 
 export type GetVersionResponse = VersionInfo;
+
+export type GetDagStatsData = {
+  dagIds?: Array<string>;
+};
+
+export type GetDagStatsResponse = DagStatsCollectionResponse;
+
+export type GetXcomEntryData = {
+  dagId: string;
+  dagRunId: string;
+  deserialize?: boolean;
+  mapIndex?: number;
+  stringify?: boolean;
+  taskId: string;
+  xcomKey: string;
+};
+
+export type GetXcomEntryResponse = XComResponseNative | XComResponseString;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -729,6 +1299,33 @@ export type $OpenApiTs = {
         200: {
           [key: string]: unknown;
         };
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/assets/": {
+    get: {
+      req: GetAssetsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: AssetCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -763,6 +1360,178 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: DAGWithLatestDagRunsCollectionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/backfills/": {
+    get: {
+      req: ListBackfillsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    post: {
+      req: CreateBackfillData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/backfills/{backfill_id}": {
+    get: {
+      req: GetBackfillData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/backfills/{backfill_id}/pause": {
+    put: {
+      req: PauseBackfillData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/backfills/{backfill_id}/unpause": {
+    put: {
+      req: UnpauseBackfillData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/backfills/{backfill_id}/cancel": {
+    put: {
+      req: CancelBackfillData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -951,9 +1720,9 @@ export type $OpenApiTs = {
          */
         404: HTTPExceptionResponse;
         /**
-         * Unprocessable Entity
+         * Validation Error
          */
-        422: HTTPExceptionResponse;
+        422: HTTPValidationError;
       };
     };
   };
@@ -1008,6 +1777,35 @@ export type $OpenApiTs = {
         422: HTTPValidationError;
       };
     };
+    patch: {
+      req: PatchConnectionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ConnectionResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
   };
   "/public/connections/": {
     get: {
@@ -1035,117 +1833,40 @@ export type $OpenApiTs = {
         422: HTTPValidationError;
       };
     };
-  };
-  "/public/variables/{variable_key}": {
-    delete: {
-      req: DeleteVariableData;
-      res: {
-        /**
-         * Successful Response
-         */
-        204: void;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-    get: {
-      req: GetVariableData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: VariableResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-    patch: {
-      req: PatchVariableData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: VariableResponse;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/variables/": {
-    get: {
-      req: GetVariablesData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: VariableCollectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
     post: {
-      req: PostVariableData;
+      req: PostConnectionData;
       res: {
         /**
          * Successful Response
          */
-        201: VariableResponse;
+        201: ConnectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/connections/test": {
+    post: {
+      req: TestConnectionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ConnectionTestResponse;
         /**
          * Unauthorized
          */
@@ -1216,6 +1937,170 @@ export type $OpenApiTs = {
         422: HTTPValidationError;
       };
     };
+    patch: {
+      req: PatchDagRunData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGRunResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dagSources/{file_token}": {
+    get: {
+      req: GetDagSourceData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGSourceResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Not Acceptable
+         */
+        406: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/eventLogs/{event_log_id}": {
+    get: {
+      req: GetEventLogData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: EventLogResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/eventLogs/": {
+    get: {
+      req: GetEventLogsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: EventLogCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/importErrors/{import_error_id}": {
+    get: {
+      req: GetImportErrorData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ImportErrorResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/importErrors/": {
+    get: {
+      req: GetImportErrorsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ImportErrorCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
   };
   "/public/monitor/health": {
     get: {
@@ -1224,6 +2109,44 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: HealthInfoSchema;
+      };
+    };
+  };
+  "/public/dagWarnings": {
+    get: {
+      req: ListDagWarningsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGWarningCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/plugins/": {
+    get: {
+      req: GetPluginsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: PluginCollectionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
       };
     };
   };
@@ -1375,14 +2298,286 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/plugins/": {
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}": {
     get: {
-      req: GetPluginsData;
+      req: GetTaskInstanceData;
       res: {
         /**
          * Successful Response
          */
-        200: PluginCollectionResponse;
+        200: TaskInstanceResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped": {
+    get: {
+      req: GetMappedTaskInstancesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies": {
+    get: {
+      req: GetTaskInstanceDependenciesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskDependencyCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies": {
+    get: {
+      req: GetTaskInstanceDependencies1Data;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskDependencyCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}": {
+    get: {
+      req: GetMappedTaskInstanceData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/": {
+    get: {
+      req: GetTaskInstancesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/variables/{variable_key}": {
+    delete: {
+      req: DeleteVariableData;
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    get: {
+      req: GetVariableData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: VariableResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: PatchVariableData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: VariableResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/variables/": {
+    get: {
+      req: GetVariablesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: VariableCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    post: {
+      req: PostVariableData;
+      res: {
+        /**
+         * Successful Response
+         */
+        201: VariableResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -1397,6 +2592,68 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: VersionInfo;
+      };
+    };
+  };
+  "/public/dagStats/": {
+    get: {
+      req: GetDagStatsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DagStatsCollectionResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}": {
+    get: {
+      req: GetXcomEntryData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: XComResponseNative | XComResponseString;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
       };
     };
   };

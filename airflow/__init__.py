@@ -30,6 +30,7 @@ __version__ = "3.0.0.dev0"
 import os
 import sys
 import warnings
+from importlib.abc import MetaPathFinder
 from typing import TYPE_CHECKING
 
 if os.environ.get("_AIRFLOW_PATCH_GEVENT"):
@@ -100,15 +101,6 @@ def __getattr__(name: str):
     # PEP-562: Lazy loaded attributes on python modules
     module_path, attr_name, deprecated = __lazy_imports.get(name, ("", "", False))
     if not module_path:
-        if name.startswith("PY3") and (py_minor := name[3:]) in ("6", "7", "8", "9", "10", "11", "12"):
-            warnings.warn(
-                f"Python version constraint {name!r} is deprecated and will be removed in the future. "
-                f"Please get version info from the 'sys.version_info'.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            return sys.version_info >= (3, int(py_minor))
-
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     elif deprecated:
         warnings.warn(
@@ -142,3 +134,40 @@ if not settings.LAZY_LOAD_PLUGINS:
     from airflow import plugins_manager
 
     plugins_manager.ensure_plugins_loaded()
+
+
+class ModuleRedirectFinder(MetaPathFinder):
+    def __init__(self, redirects: dict[str, str]):
+        self.redirects: dict[str, str] = redirects
+
+    def find_spec(self, old_module: str, path, target=None):
+        import importlib
+
+        if old_module in self.redirects:
+            new_module_name = self.redirects[old_module]
+            warnings.warn(
+                f"Module '{old_module}' is deprecated, Please import it from '{new_module_name}'.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return importlib.util.find_spec(new_module_name)
+        return None
+
+
+module_redirects_references: dict[str, str] = {
+    "airflow.operators.python": "airflow.providers.standard.operators.python",
+    "airflow.operators.bash": "airflow.providers.standard.operators.bash",
+    "airflow.operators.datetime": "airflow.providers.standard.operators.datetime",
+    "airflow.operators.weekday": "airflow.providers.standard.operators.weekday",
+    "airflow.sensors.bash": "airflow.providers.standard.sensors.bash",
+    "airflow.sensors.date_time": "airflow.providers.standard.sensors.date_time",
+    "airflow.sensors.python": "airflow.providers.standard.sensors.python",
+    "airflow.sensors.time": "airflow.providers.standard.sensors.time",
+    "airflow.sensors.time_delta": "airflow.providers.standard.sensors.time_delta",
+    "airflow.sensors.weekday": "airflow.providers.standard.sensors.weekday",
+    "airflow.hooks.filesystem": "airflow.providers.standard.hooks.filesystem",
+    "airflow.hooks.package_index": "airflow.providers.standard.hooks.package_index",
+    "airflow.hooks.subprocess": "airflow.providers.standard.hooks.subprocess",
+    "airflow.utils.python_virtualenv": "airflow.providers.standard.utils.python_virtualenv",
+}
+sys.meta_path.append(ModuleRedirectFinder(module_redirects_references))

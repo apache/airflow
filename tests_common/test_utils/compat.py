@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import os
 from typing import TYPE_CHECKING, Any, cast
 
 from packaging.version import Version
@@ -39,10 +40,14 @@ except ImportError:
 from airflow import __version__ as airflow_version
 
 AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_2_8_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.8.0")
 AIRFLOW_V_2_9_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.9.0")
 AIRFLOW_V_2_10_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.10.0")
 AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+
+if AIRFLOW_V_3_0_PLUS:
+    os.environ["AIRFLOW_ENABLE_AIP_44"] = os.environ.get("AIRFLOW_ENABLE_AIP_44", "true")
+else:
+    os.environ["AIRFLOW_ENABLE_AIP_44"] = "false"
 
 try:
     from airflow.models.baseoperatorlink import BaseOperatorLink
@@ -53,14 +58,18 @@ except ImportError:
 try:
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.standard.operators.generic_transfer import GenericTransfer
+    from airflow.providers.standard.operators.python import PythonOperator
     from airflow.providers.standard.sensors.bash import BashSensor
     from airflow.providers.standard.sensors.date_time import DateTimeSensor
+    from airflow.providers.standard.utils.python_virtualenv import write_python_script
 except ImportError:
     # Compatibility for Airflow < 2.10.*
     from airflow.operators.bash import BashOperator  # type: ignore[no-redef,attr-defined]
     from airflow.operators.generic_transfer import GenericTransfer  # type: ignore[no-redef,attr-defined]
+    from airflow.operators.python import PythonOperator  # type: ignore[no-redef,attr-defined]
     from airflow.sensors.bash import BashSensor  # type: ignore[no-redef,attr-defined]
     from airflow.sensors.date_time import DateTimeSensor  # type: ignore[no-redef,attr-defined]
+    from airflow.utils.python_virtualenv import write_python_script  # type: ignore[no-redef,attr-defined]
 
 
 if TYPE_CHECKING:

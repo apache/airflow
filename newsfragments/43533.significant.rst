@@ -1,0 +1,8 @@
+Unused and redundant functions from ``airflow.utils.dates`` module have been removed.
+
+Following functions are removed:
+
+- ``parse_execution_date``
+- ``round_time``
+- ``scale_time_units``
+- ``infer_time_unit``

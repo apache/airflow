@@ -36,8 +36,8 @@ from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.time import TimeSensor
 from airflow.sensors.external_task import (
     ExternalTaskMarker,
@@ -124,6 +124,7 @@ class TestExternalTaskSensor:
         with self.dag as dag:
             with TaskGroup(group_id=TEST_TASK_GROUP_ID) as task_group:
                 _ = [EmptyOperator(task_id=f"task{i}") for i in range(len(target_states))]
+            dag.sync_to_db()
             SerializedDagModel.write_dag(dag)
 
         for idx, task in enumerate(task_group):
@@ -146,7 +147,7 @@ class TestExternalTaskSensor:
 
                 fake_task()
                 fake_mapped_task.expand(x=list(map_indexes))
-
+        dag.sync_to_db()
         SerializedDagModel.write_dag(dag)
 
         for task in task_group:

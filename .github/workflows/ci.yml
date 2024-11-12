@@ -127,6 +127,7 @@ jobs:
       latest-versions-only: ${{ steps.selective-checks.outputs.latest-versions-only }}
       chicken-egg-providers: ${{ steps.selective-checks.outputs.chicken-egg-providers }}
       has-migrations: ${{ steps.selective-checks.outputs.has-migrations }}
+      only-new-ui-files: ${{ steps.selective-checks.outputs.only-new-ui-files }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       in-workflow-build: ${{ steps.source-run-info.outputs.in-workflow-build }}
@@ -206,7 +207,7 @@ jobs:
       platform: "linux/amd64"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       branch: ${{ needs.build-info.outputs.default-branch }}
-      use-uv: ${{ needs.build-info.outputs.force-pip && 'false' || 'true' }}
+      use-uv: ${{ needs.build-info.outputs.force-pip == 'true' && 'false' || 'true' }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
@@ -272,14 +273,16 @@ jobs:
       latest-versions-only: ${{ needs.build-info.outputs.latest-versions-only }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      use-uv: ${{ needs.build-info.outputs.force-pip && 'false' || 'true' }}
+      use-uv: ${{ needs.build-info.outputs.force-pip == 'true' && 'false' || 'true' }}
 
 
   generate-constraints:
     name: "Generate constraints"
     needs: [build-info, wait-for-ci-images]
     uses: ./.github/workflows/generate-constraints.yml
-    if: needs.build-info.outputs.ci-image-build == 'true'
+    if: >
+      needs.build-info.outputs.ci-image-build == 'true' &&
+      needs.build-info.outputs.only-new-ui-files != 'true'
     with:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
@@ -314,6 +317,7 @@ jobs:
       ci-image-build: ${{ needs.build-info.outputs.ci-image-build }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      docs-build: ${{ needs.build-info.outputs.docs-build }}
 
   providers:
     name: "Provider checks"
@@ -380,7 +384,7 @@ jobs:
       run-migration-tests: "true"
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.only-new-ui-files != 'true'
 
   tests-mysql:
     name: "MySQL tests"
@@ -405,7 +409,7 @@ jobs:
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.only-new-ui-files != 'true'
 
   tests-sqlite:
     name: "Sqlite tests"
@@ -432,7 +436,7 @@ jobs:
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.only-new-ui-files != 'true'
 
   tests-non-db:
     name: "Non-DB tests"
@@ -458,7 +462,7 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.run-tests == 'true'
+    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.only-new-ui-files != 'true'
 
   tests-special:
     name: "Special tests"
@@ -558,7 +562,7 @@ jobs:
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       push-image: "true"
-      use-uv: ${{ needs.build-info.outputs.force-pip && 'false' || 'true' }}
+      use-uv: ${{ needs.build-info.outputs.force-pip == 'true' && 'false' || 'true' }}
       build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
@@ -641,6 +645,7 @@ jobs:
       kubernetes-versions-list-as-string: ${{ needs.build-info.outputs.kubernetes-versions-list-as-string }}
       kubernetes-combos-list-as-string: ${{ needs.build-info.outputs.kubernetes-combos-list-as-string }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      use-uv: ${{ needs.build-info.outputs.force-pip == 'true' && 'false' || 'true' }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
     if: >
       ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
@@ -662,7 +667,8 @@ jobs:
       run-task-sdk-tests: ${{ needs.build-info.outputs.run-task-sdk-tests }}
     if: >
       ( needs.build-info.outputs.run-task-sdk-tests == 'true' ||
-      needs.build-info.outputs.run-tests == 'true')
+      needs.build-info.outputs.run-tests == 'true' &&
+      needs.build-info.outputs.only-new-ui-files != 'true')
 
   finalize-tests:
     name: Finalize tests

@@ -32,10 +32,15 @@ try:
 except ImportError:
     get_console().print(
         "\n[error]Breeze doesn't support Python version <=3.8\n\n"
-        "[warning]Use Python 3.9 and force reinstall breeze with pipx\n\n"
-        "     pipx install --force -e ./dev/breeze\n"
+        "[warning]Use Python 3.9 and force reinstall breeze:"
+        ""
+        " either with uv: \n\n"
+        "     uv tool install --force --reinstall --editable ./dev/breeze\n\n"
+        ""
+        " or with pipx\n\n"
+        "     pipx install --force -e ./dev/breeze --python 3.9\n"
         "\nTo find out more, visit [info]https://github.com/apache/airflow/"
-        "blob/main/dev/breeze/doc/01_installation.rst#the-pipx-tool[/]\n"
+        "blob/main/dev/breeze/doc/01_installation.rst[/]\n"
     )
     sys.exit(1)
 from pathlib import Path
@@ -62,10 +67,14 @@ APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
-# Database Backends used when starting Breeze. The "none" value means that invalid configuration
-# Is set and no database started - access to a database will fail.
-ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "none"]
-ALLOWED_PROD_BACKENDS = ["mysql", "postgres"]
+# Database Backends used when starting Breeze. The "none" value means that the configuration is invalid.
+# No database will be started - access to a database will fail.
+SQLITE_BACKEND = "sqlite"
+MYSQL_BACKEND = "mysql"
+POSTGRES_BACKEND = "postgres"
+NONE_BACKEND = "none"
+ALLOWED_BACKENDS = [SQLITE_BACKEND, MYSQL_BACKEND, POSTGRES_BACKEND, NONE_BACKEND]
+ALLOWED_PROD_BACKENDS = [MYSQL_BACKEND, POSTGRES_BACKEND]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 CELERY_INTEGRATION = "celery"
 TESTABLE_INTEGRATIONS = [
@@ -85,7 +94,11 @@ TESTABLE_INTEGRATIONS = [
 DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
     "mssql",
 ]
-OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
+KEYCLOAK_INTEGRATION = "keycloak"
+STATSD_INTEGRATION = "statsd"
+OTEL_INTEGRATION = "otel"
+OPENLINEAGE_INTEGRATION = "openlineage"
+OTHER_INTEGRATIONS = [STATSD_INTEGRATION, OTEL_INTEGRATION, OPENLINEAGE_INTEGRATION, KEYCLOAK_INTEGRATION]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm"]
 ALL_INTEGRATIONS = sorted(
     [
@@ -171,6 +184,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "24.3.1"
+UV_VERSION = "0.5.1"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -244,13 +258,16 @@ ALLOWED_HELM_TEST_PACKAGES = [
 
 @cache
 def all_task_sdk_test_packages() -> list[str]:
-    return sorted(
-        [
-            candidate.name
-            for candidate in (AIRFLOW_SOURCES_ROOT / "task_sdk" / "tests").iterdir()
-            if candidate.is_dir() and candidate.name != "__pycache__"
-        ]
-    )
+    try:
+        return sorted(
+            [
+                candidate.name
+                for candidate in (AIRFLOW_SOURCES_ROOT / "task_sdk" / "tests").iterdir()
+                if candidate.is_dir() and candidate.name != "__pycache__"
+            ]
+        )
+    except FileNotFoundError:
+        return []
 
 
 ALLOWED_TASK_SDK_TEST_PACKAGES = [
@@ -362,6 +379,7 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.10.0": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "2.10.1": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "2.10.2": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.10.3": ["3.8", "3.9", "3.10", "3.11", "3.12"],
 }
 
 DB_RESET = False
@@ -400,6 +418,7 @@ COMMITTERS = [
     "feluelle",
     "feng-tao",
     "ferruzzi",
+    "gopidesupavan",
     "houqp",
     "hussein-awala",
     "jedcunningham",
@@ -431,6 +450,7 @@ COMMITTERS = [
     "saguziel",
     "sekikn",
     "shahar1",
+    "tirkarthi",
     "turbaszek",
     "uranusjr",
     "utkarsharma2",
@@ -545,7 +565,6 @@ DEFAULT_EXTRAS = [
     "ssh",
     "statsd",
     "uv",
-    "virtualenv",
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
@@ -556,18 +575,18 @@ BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.9",
         "airflow-version": "2.8.4",
-        "remove-providers": "cloudant fab edge standard",
+        "remove-providers": "cloudant fab edge",
         "run-tests": "true",
     },
     {
         "python-version": "3.9",
         "airflow-version": "2.9.3",
-        "remove-providers": "cloudant edge standard",
+        "remove-providers": "cloudant edge",
         "run-tests": "true",
     },
     {
         "python-version": "3.9",
-        "airflow-version": "2.10.1",
+        "airflow-version": "2.10.3",
         "remove-providers": "cloudant",
         "run-tests": "true",
     },

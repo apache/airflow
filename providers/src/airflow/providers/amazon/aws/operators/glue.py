@@ -74,6 +74,11 @@ class GlueJobOperator(BaseOperator):
     :param update_config: If True, Operator will update job configuration.  (default: False)
     :param replace_script_file: If True, the script file will be replaced in S3. (default: False)
     :param stop_job_run_on_kill: If True, Operator will stop the job run when task is killed.
+    :param sleep_before_return: time in seconds to wait before returning final status. This is meaningful in case
+        of limiting concurrency, Glue needs 5-10 seconds to clean up resources.
+        Thus if status is returned immediately it might end up in case of more than 1 concurrent run.
+        It is recommended to set this parameter to 10 when you are using concurrency=1.
+        For more information see: https://repost.aws/questions/QUaKgpLBMPSGWO0iq2Fob_bw/glue-run-concurrent-jobs#ANFpCL2fRnQRqgDFuIU_rpvA
     """
 
     template_fields: Sequence[str] = (
@@ -118,6 +123,7 @@ class GlueJobOperator(BaseOperator):
         update_config: bool = False,
         job_poll_interval: int | float = 6,
         stop_job_run_on_kill: bool = False,
+        sleep_before_return: int = 0,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -145,6 +151,7 @@ class GlueJobOperator(BaseOperator):
         self.job_poll_interval = job_poll_interval
         self.stop_job_run_on_kill = stop_job_run_on_kill
         self._job_run_id: str | None = None
+        self.sleep_before_return: int = sleep_before_return
 
     @cached_property
     def glue_job_hook(self) -> GlueJobHook:
@@ -220,7 +227,9 @@ class GlueJobOperator(BaseOperator):
                 method_name="execute_complete",
             )
         elif self.wait_for_completion:
-            glue_job_run = self.glue_job_hook.job_completion(self.job_name, self._job_run_id, self.verbose)
+            glue_job_run = self.glue_job_hook.job_completion(
+                self.job_name, self._job_run_id, self.verbose, self.sleep_before_return
+            )
             self.log.info(
                 "AWS Glue Job: %s status: %s. Run Id: %s",
                 self.job_name,
