@@ -128,7 +128,10 @@ class TestS3TaskHandler:
         ti.state = TaskInstanceState.SUCCESS
         log, metadata = self.s3_task_handler.read(ti)
         actual = log[0][0][-1]
-        expected = "*** Found logs in s3:\n***   * s3://bucket/remote/log/location/1.log\nLog line"
+        expected = " INFO - ::group::Log message source details\n"
+        expected += "*** Found logs in s3:\n***   * s3://bucket/remote/log/location/1.log\n"
+        expected += " INFO - ::endgroup::\n"
+        expected += "Log line"
         assert actual == expected
         assert metadata == [{"end_of_log": True, "log_pos": 8}]
 
@@ -140,7 +143,9 @@ class TestS3TaskHandler:
         assert 1 == len(log)
         assert len(log) == len(metadata)
         actual = log[0][0][-1]
-        expected = "*** No logs found on s3 for ti=<TaskInstance: dag_for_testing_s3_task_handler.task_for_testing_s3_log_handler test [success]>\n"
+        expected = " INFO - ::group::Log message source details\n"
+        expected += "*** No logs found on s3 for ti=<TaskInstance: dag_for_testing_s3_task_handler.task_for_testing_s3_log_handler test [success]>\n"
+        expected += " INFO - ::endgroup::\n"
         assert actual == expected
         assert {"end_of_log": True, "log_pos": 0} == metadata[0]
 
