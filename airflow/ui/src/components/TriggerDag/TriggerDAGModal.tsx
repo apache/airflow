@@ -79,8 +79,8 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
             </Heading>
             {isPaused ? (
               <Alert status="warning" title="Paused DAG">
-                Triggering will create a Dag run, but it will not start until
-                the Dag is unpaused.
+                Triggering will create a DAG run, but it will not start until
+                the DAG is unpaused.
               </Alert>
             ) : undefined}
           </VStack>
