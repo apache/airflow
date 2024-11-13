@@ -85,6 +85,8 @@ versions:
   - 1.0.0
 
 dependencies:
+  # Limit temporarily aiohttp to <3.11.0 because of https://github.com/aio-libs/aiohttp/issues/9866
+  - aiohttp>=3.7.0,<3.11.0
   - apache-airflow>=2.8.0
   - adlfs>=2023.10.0
   - azure-batch>=8.0.0

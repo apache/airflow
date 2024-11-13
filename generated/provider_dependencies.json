@@ -814,6 +814,7 @@
     "deps": [
       "adal>=1.2.7",
       "adlfs>=2023.10.0",
+      "aiohttp>=3.7.0,<3.11.0",
       "apache-airflow>=2.8.0",
       "azure-batch>=8.0.0",
       "azure-cosmos>=4.6.0",
