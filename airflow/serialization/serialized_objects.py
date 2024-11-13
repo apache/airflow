@@ -303,11 +303,10 @@ def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
 
 
 def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
-    raw_key = var.raw_key
+    key = var.key
     return {
         "extra": var.extra,
         "asset_alias_events": [attrs.asdict(cast(attrs.AttrsInstance, e)) for e in var.asset_alias_events],
-        "raw_key": BaseSerialization.serialize(raw_key),
     }
 
 
@@ -315,8 +314,8 @@ def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
     asset_alias_events = var.get("asset_alias_events", [])
 
     outlet_event_accessor = OutletEventAccessor(
+        key=BaseSerialization.deserialize(var["key"]),
         extra=var["extra"],
-        raw_key=BaseSerialization.deserialize(var["raw_key"]),
         asset_alias_events=[AssetAliasEvent(**e) for e in asset_alias_events],
     )
     return outlet_event_accessor
