@@ -799,31 +799,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             with Trace.start_span_from_taskinstance(ti=ti) as span:
                 cls._set_span_attrs__process_executor_events(span, state, ti)
-                if conf.has_option("traces", "otel_task_log_event") and conf.getboolean(
-                    "traces", "otel_task_log_event"
-                ):
-                    from airflow.utils.log.log_reader import TaskLogReader
-
-                    task_log_reader = TaskLogReader()
-                    if task_log_reader.supports_read:
-                        metadata: dict[str, Any] = {}
-                        logs, metadata = task_log_reader.read_log_chunks(ti, ti.try_number, metadata)
-                        if ti.hostname in dict(logs[0]):
-                            message = str(dict(logs[0])[ti.hostname]).replace("\\n", "\n")
-                            while metadata["end_of_log"] is False:
-                                logs, metadata = task_log_reader.read_log_chunks(
-                                    ti, ti.try_number - 1, metadata
-                                )
-                                if ti.hostname in dict(logs[0]):
-                                    message = message + str(dict(logs[0])[ti.hostname]).replace("\\n", "\n")
-                            if span.is_recording():
-                                span.add_event(
-                                    name="task_log",
-                                    attributes={
-                                        "message": message,
-                                        "metadata": str(metadata),
-                                    },
-                                )
 
             # There are two scenarios why the same TI with the same try_number is queued
             # after executor is finished with it:
@@ -2117,7 +2092,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             for ref in itertools.chain(offending.consuming_dags, offending.producing_tasks):
                 yield DagWarning(
                     dag_id=ref.dag_id,
-                    error_type=DagWarningType.ASSET_CONFLICT,
+                    warning_type=DagWarningType.ASSET_CONFLICT,
                     message=f"Cannot activate asset {offending}; {attr} is already associated to {value!r}",
                 )
 
@@ -2143,7 +2118,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session.execute(
             delete(DagWarning).where(
                 DagWarning.warning_type == DagWarningType.ASSET_CONFLICT,
-                DagWarning.dag_id.not_in(warnings_to_have),
+                DagWarning.dag_id.in_(warnings_to_have),
             )
         )
         existing_warned_dag_ids: set[str] = set(

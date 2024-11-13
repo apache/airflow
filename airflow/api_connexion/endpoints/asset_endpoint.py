@@ -47,6 +47,7 @@ from airflow.assets import Asset
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.utils import timezone
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.decorators import action_logging
@@ -77,6 +78,7 @@ def get_asset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
     return asset_schema.dump(asset)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("GET")
 @format_parameters({"limit": check_limit})
 @provide_session

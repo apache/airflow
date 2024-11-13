@@ -20,7 +20,6 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from unittest import mock
 
-import pendulum
 import pytest
 from google.cloud.storage.retry import DEFAULT_RETRY
 
@@ -35,7 +34,6 @@ from airflow.providers.google.cloud.sensors.gcs import (
     GCSObjectsWithPrefixExistenceSensor,
     GCSObjectUpdateSensor,
     GCSUploadSessionCompleteSensor,
-    ts_function,
 )
 from airflow.providers.google.cloud.triggers.gcs import (
     GCSBlobTrigger,
@@ -43,7 +41,6 @@ from airflow.providers.google.cloud.triggers.gcs import (
     GCSPrefixBlobTrigger,
     GCSUploadSessionTrigger,
 )
-from airflow.utils import timezone
 
 TEST_BUCKET = "TEST_BUCKET"
 
@@ -251,28 +248,6 @@ class TestGoogleCloudStorageObjectAsyncSensor:
         with mock.patch.object(task.log, "info") as mock_log_info:
             task.execute_complete(context=None, event={"status": "success", "message": "Job completed"})
         mock_log_info.assert_called_with("File %s was found in bucket %s.", TEST_OBJECT, TEST_BUCKET)
-
-
-class TestTsFunction:
-    def test_should_support_datetime(self):
-        context = {
-            "dag": DAG(
-                dag_id=TEST_DAG_ID, schedule=timedelta(days=5), start_date=datetime(2019, 2, 14, 0, 0)
-            ),
-            "execution_date": datetime(2019, 2, 14, 0, 0),
-        }
-        result = ts_function(context)
-        assert datetime(2019, 2, 19, 0, 0, tzinfo=timezone.utc) == result
-
-    def test_should_support_cron(self):
-        dag = DAG(dag_id=TEST_DAG_ID, start_date=datetime(2019, 2, 19, 0, 0), schedule="@weekly")
-
-        context = {
-            "dag": dag,
-            "execution_date": datetime(2019, 2, 19),
-        }
-        result = ts_function(context)
-        assert pendulum.instance(datetime(2019, 2, 24)).isoformat() == result.isoformat()
 
 
 class TestGoogleCloudStorageObjectUpdatedSensor:

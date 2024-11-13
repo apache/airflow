@@ -482,13 +482,6 @@ core:
       sensitive: true
       default: ~
       example: '{"some_param": "some_value"}'
-    strict_asset_uri_validation:
-      description: |
-        Asset URI validation should raise an exception if it is not compliant with AIP-60.
-      default: "True"
-      example: ~
-      version_added: 2.9.2
-      type: boolean
     database_access_isolation:
       description: (experimental) Whether components should use Airflow Internal API for DB connectivity.
       version_added: 2.6.0
@@ -1071,17 +1064,24 @@ metrics:
       example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
         or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
-    metrics_consistency_on:
+    # TODO: Remove 'timer_unit_consistency' in Airflow 3.0
+    timer_unit_consistency:
       description: |
-        Enables metrics consistency across all metrics loggers (ex: timer and timing metrics).
+        Controls the consistency of timer units across all metrics loggers
+        (e.g., Statsd, Datadog, OpenTelemetry)
+        for timing and duration-based metrics. When enabled, all timers will publish
+        metrics in milliseconds for consistency and alignment with Airflow's default
+        metrics behavior in version 3.0+.
 
         .. warning::
 
-          It is enabled by default from Airflow 3.
-      version_added: 2.10.0
+          It will be the default behavior from Airflow 3.0. If disabled, timers may publish
+          in seconds for backwards compatibility, though it is recommended to enable this
+          setting to ensure metric uniformity and forward-compat with Airflow 3.
+      version_added: 2.11.0
       type: string
       example: ~
-      default: "True"
+      default: "False"
     statsd_on:
       description: |
         Enables sending metrics to StatsD.
@@ -1286,14 +1286,6 @@ traces:
         To establish an HTTPS connection to the OpenTelemetry collector,
         you need to configure the SSL certificate and key within the OpenTelemetry collector's
         config.yml file.
-      version_added: 2.10.0
-      type: string
-      example: ~
-      default: "False"
-    otel_task_log_event:
-      description: |
-        If True, after the task is complete, the full task log messages will be added as the
-        span events, chunked by 64k size. defaults to False.
       version_added: 2.10.0
       type: string
       example: ~

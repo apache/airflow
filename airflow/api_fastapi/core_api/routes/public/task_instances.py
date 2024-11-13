@@ -17,10 +17,11 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.sql import select
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
 from airflow.api_fastapi.common.parameters import (
