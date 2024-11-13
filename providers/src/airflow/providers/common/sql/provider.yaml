@@ -64,7 +64,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.8.0
-  - sqlparse>=0.4.2
+  - sqlparse>=0.5.1
   - more-itertools>=9.0.0
 
 additional-extras:
