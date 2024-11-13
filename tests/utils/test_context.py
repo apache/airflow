@@ -27,7 +27,7 @@ from airflow.utils.context import AssetAliasEvent, OutletEventAccessor, OutletEv
 
 class TestOutletEventAccessor:
     @pytest.mark.parametrize(
-        "raw_key, asset_alias_events",
+        "key, asset_alias_events",
         (
             (
                 AssetAlias("test_alias"),
@@ -36,14 +36,14 @@ class TestOutletEventAccessor:
             (Asset("test_uri"), []),
         ),
     )
-    def test_add(self, raw_key, asset_alias_events):
-        outlet_event_accessor = OutletEventAccessor(raw_key=raw_key, extra={})
+    def test_add(self, key, asset_alias_events):
+        outlet_event_accessor = OutletEventAccessor(key=key, extra={})
         outlet_event_accessor.add(Asset("test_uri"))
         assert outlet_event_accessor.asset_alias_events == asset_alias_events
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
-        "raw_key, asset_alias_events",
+        "key, asset_alias_events",
         (
             (
                 AssetAlias("test_alias"),
@@ -56,13 +56,13 @@ class TestOutletEventAccessor:
             (Asset("test_uri"), []),
         ),
     )
-    def test_add_with_db(self, raw_key, asset_alias_events, session):
+    def test_add_with_db(self, key, asset_alias_events, session):
         asm = AssetModel(uri="test_uri")
         aam = AssetAliasModel(name="test_alias")
         session.add_all([asm, aam])
         session.flush()
 
-        outlet_event_accessor = OutletEventAccessor(raw_key=raw_key, extra={"not": ""})
+        outlet_event_accessor = OutletEventAccessor(key=key, extra={"not": ""})
         outlet_event_accessor.add("test_uri", extra={})
         assert outlet_event_accessor.asset_alias_events == asset_alias_events
 
@@ -74,5 +74,5 @@ class TestOutletEventAccessors:
         assert len(outlet_event_accessors) == 0
         outlet_event_accessor = outlet_event_accessors[key]
         assert len(outlet_event_accessors) == 1
-        assert outlet_event_accessor.raw_key == key
+        assert outlet_event_accessor.key == key
         assert outlet_event_accessor.extra == {}
