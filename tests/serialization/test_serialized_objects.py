@@ -163,7 +163,7 @@ def equal_exception(a: AirflowException, b: AirflowException) -> bool:
 
 
 def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) -> bool:
-    return a.raw_key == b.raw_key and a.extra == b.extra and a.asset_alias_events == b.asset_alias_events
+    return a.key == b.key and a.extra == b.extra and a.asset_alias_events == b.asset_alias_events
 
 
 class MockLazySelectSequence(LazySelectSequence):
@@ -258,7 +258,7 @@ class MockLazySelectSequence(LazySelectSequence):
         ),
         (
             OutletEventAccessor(
-                raw_key=Asset(uri="test://asset1", name="test", group="test-group"),
+                key=Asset(uri="test", name="test", group="test-group"),
                 extra={"key": "value"},
                 asset_alias_events=[],
             ),
@@ -267,7 +267,7 @@ class MockLazySelectSequence(LazySelectSequence):
         ),
         (
             OutletEventAccessor(
-                raw_key=AssetAlias(name="test_alias", group="test-alias-group"),
+                key=AssetAlias(name="test_alias", group="test-alias-group"),
                 extra={"key": "value"},
                 asset_alias_events=[
                     AssetAliasEvent(
@@ -277,11 +277,6 @@ class MockLazySelectSequence(LazySelectSequence):
                     )
                 ],
             ),
-            DAT.ASSET_EVENT_ACCESSOR,
-            equal_outlet_event_accessor,
-        ),
-        (
-            OutletEventAccessor(raw_key="test", extra={"key": "value"}, asset_alias_events=[]),
             DAT.ASSET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
         ),
