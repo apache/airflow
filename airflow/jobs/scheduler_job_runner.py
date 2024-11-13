@@ -2092,7 +2092,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             for ref in itertools.chain(offending.consuming_dags, offending.producing_tasks):
                 yield DagWarning(
                     dag_id=ref.dag_id,
-                    error_type=DagWarningType.ASSET_CONFLICT,
+                    warning_type=DagWarningType.ASSET_CONFLICT,
                     message=f"Cannot activate asset {offending}; {attr} is already associated to {value!r}",
                 )
 
