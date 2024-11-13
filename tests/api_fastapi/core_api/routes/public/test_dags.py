@@ -32,7 +32,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.db import clear_db_assets, clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
 
@@ -565,6 +565,13 @@ class TestDeleteDAG(TestDagEndpoint):
 
 class TestQueuedEventEndpoint:
     default_time = "2020-06-11T18:00:00+00:00"
+
+    @pytest.fixture(autouse=True)
+    def setup(self) -> None:
+        clear_db_assets()
+
+    def teardown_method(self) -> None:
+        clear_db_assets()
 
     @pytest.fixture
     def time_freezer(self) -> Generator:
