@@ -345,6 +345,16 @@ class TestTrinoHook:
 
         self.cur.execute.assert_called_once_with(statement, None)
 
+    def test_split_sql_string(self):
+        statement = "SELECT 1; SELECT 2"
+        result_sets = ["SELECT 1", "SELECT 2"]
+        self.cur.fetchall.return_value = result_sets
+
+        assert result_sets == self.db_hook.split_sql_string(
+            sql=statement,
+            strip_semicolon=self.db_hook.strip_semicolon,
+        )
+
     @patch("airflow.providers.trino.hooks.trino.TrinoHook.run")
     def test_run(self, mock_run):
         sql = "SELECT 1"
