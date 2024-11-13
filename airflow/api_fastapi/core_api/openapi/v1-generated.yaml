@@ -3577,7 +3577,7 @@ components:
       - asset_events
       - total_entries
       title: AssetEventCollectionResponse
-      description: Asset collection response.
+      description: Asset event collection response.
     AssetEventResponse:
       properties:
         id:
@@ -3586,9 +3586,9 @@ components:
         asset_id:
           type: integer
           title: Asset Id
-        asset_uri:
+        uri:
           type: string
-          title: Asset Uri
+          title: Uri
         extra:
           anyOf:
           - type: object
@@ -3625,7 +3625,7 @@ components:
       required:
       - id
       - asset_id
-      - asset_uri
+      - uri
       - source_map_index
       - created_dagruns
       - timestamp

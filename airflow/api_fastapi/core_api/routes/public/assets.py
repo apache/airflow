@@ -21,7 +21,7 @@ from typing import Annotated
 
 from fastapi import Depends
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, subqueryload
 
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
 from airflow.api_fastapi.common.parameters import (
@@ -85,7 +85,7 @@ def get_assets(
     "/events",
     responses=create_openapi_http_exception_doc([401, 403, 404]),
 )
-async def get_asset_events(
+def get_asset_events(
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -120,6 +120,7 @@ async def get_asset_events(
         session=session,
     )
 
+    assets_event_select = assets_event_select.options(subqueryload(AssetEvent.created_dagruns))
     assets_events = session.scalars(assets_event_select).all()
 
     return AssetEventCollectionResponse(

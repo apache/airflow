@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 
 class DagScheduleAssetReference(BaseModel):
@@ -84,7 +84,7 @@ class AssetEventResponse(BaseModel):
 
     id: int
     asset_id: int
-    asset_uri: str
+    uri: str
     extra: dict | None = None
     source_task_id: str | None = None
     source_dag_id: str | None = None
@@ -93,16 +93,9 @@ class AssetEventResponse(BaseModel):
     created_dagruns: list[DagRunAssetReference]
     timestamp: datetime
 
-    @model_validator(mode="before")
-    def rename_uri_to_asset_uri(cls, values):
-        """Rename 'uri' to 'asset_uri' during serialization to match legacy response."""
-        if hasattr(values, "uri") and values.uri:
-            values.asset_uri = values.uri
-        return values
-
 
 class AssetEventCollectionResponse(BaseModel):
-    """Asset collection response."""
+    """Asset event collection response."""
 
     asset_events: list[AssetEventResponse]
     total_entries: int

@@ -144,7 +144,7 @@ export const $AssetEventCollectionResponse = {
   type: "object",
   required: ["asset_events", "total_entries"],
   title: "AssetEventCollectionResponse",
-  description: "Asset collection response.",
+  description: "Asset event collection response.",
 } as const;
 
 export const $AssetEventResponse = {
@@ -157,9 +157,9 @@ export const $AssetEventResponse = {
       type: "integer",
       title: "Asset Id",
     },
-    asset_uri: {
+    uri: {
       type: "string",
-      title: "Asset Uri",
+      title: "Uri",
     },
     extra: {
       anyOf: [
@@ -226,7 +226,7 @@ export const $AssetEventResponse = {
   required: [
     "id",
     "asset_id",
-    "asset_uri",
+    "uri",
     "source_map_index",
     "created_dagruns",
     "timestamp",

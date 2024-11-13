@@ -38,7 +38,7 @@ export type AssetCollectionResponse = {
 };
 
 /**
- * Asset collection response.
+ * Asset event collection response.
  */
 export type AssetEventCollectionResponse = {
   asset_events: Array<AssetEventResponse>;
@@ -51,7 +51,7 @@ export type AssetEventCollectionResponse = {
 export type AssetEventResponse = {
   id: number;
   asset_id: number;
-  asset_uri: string;
+  uri: string;
   extra?: {
     [key: string]: unknown;
   } | null;
