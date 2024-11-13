@@ -17,17 +17,28 @@
  * under the License.
  */
 
-export * from "./Dialog";
-export * from "./Pagination";
-export * from "./Select";
-export * from "./Alert";
-export * from "./CloseButton";
-export * from "./InputGroup";
+export type DagParams = {
+  configJson: string;
+  dagId: string;
+  dataIntervalEnd: string;
+  dataIntervalStart: string;
+  runId: string;
+};
 
-export * from "./Switch";
-export * from "./Tag";
-export * from "./Tooltip";
+export const TriggerDag = (dagParams: DagParams) => {
+  // eslint-disable-next-line no-alert
+  alert(`
+    Triggering DAG with the following parameters:
 
-export * from "./ProgressBar";
-export * from "./Menu";
-export * from "./Accordion";
+    Config JSON: ${JSON.stringify(dagParams.configJson)}
+    Data Interval Start Date: ${dagParams.dataIntervalStart}
+    Data Interval End Date: ${dagParams.dataIntervalEnd}
+    Run ID: ${dagParams.runId}
+
+    TODO: This trigger button is under progress.
+    The values you have entered are shown above.
+  `);
+
+  // TODO triggering logic (would be placed here once the FAST API is available)
+  console.log("Triggering DAG with parameters:", dagParams);
+};
