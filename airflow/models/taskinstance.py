@@ -26,7 +26,6 @@ import math
 import operator
 import os
 import signal
-import warnings
 from collections import defaultdict
 from contextlib import nullcontext
 from datetime import timedelta
@@ -85,7 +84,6 @@ from airflow.exceptions import (
     AirflowSkipException,
     AirflowTaskTerminated,
     AirflowTaskTimeout,
-    RemovedInAirflow3Warning,
     TaskDeferralError,
     TaskDeferred,
     UnmappableXComLengthPushed,
@@ -175,14 +173,6 @@ if TYPE_CHECKING:
 
 
 PAST_DEPENDS_MET = "past_depends_met"
-
-timer_unit_consistency = conf.getboolean("metrics", "timer_unit_consistency")
-if not timer_unit_consistency:
-    warnings.warn(
-        "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable timer_unit_consistency to publish all the timer and timing metrics in milliseconds.",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
 
 
 class TaskReturnCode(Enum):
@@ -2827,10 +2817,7 @@ class TaskInstance(Base, LoggingMixin):
                     self.task_id,
                 )
                 return
-            if timer_unit_consistency:
-                timing = timezone.utcnow() - self.queued_dttm
-            else:
-                timing = (timezone.utcnow() - self.queued_dttm).total_seconds()
+            timing = timezone.utcnow() - self.queued_dttm
         elif new_state == TaskInstanceState.QUEUED:
             metric_name = "scheduled_duration"
             if self.start_date is None:
@@ -2843,10 +2830,7 @@ class TaskInstance(Base, LoggingMixin):
                     self.task_id,
                 )
                 return
-            if timer_unit_consistency:
-                timing = timezone.utcnow() - self.start_date
-            else:
-                timing = (timezone.utcnow() - self.start_date).total_seconds()
+            timing = timezone.utcnow() - self.start_date
         else:
             raise NotImplementedError("no metric emission setup for state %s", new_state)
 
