@@ -75,7 +75,7 @@ class ForbiddenWarningsPlugin:
             item.add_marker(pytest.mark.filterwarnings(f"error::{fw}"), append=False)
         item.add_marker(
             pytest.mark.filterwarnings(
-                "ignore:Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.:DeprecationWarning"
+                "ignore:Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable timer_unit_consistency to publish all the timer and timing metrics in milliseconds.:DeprecationWarning"
             )
         )
 

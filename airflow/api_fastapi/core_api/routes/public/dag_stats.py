@@ -17,9 +17,10 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, status
 from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import (
     get_session,
