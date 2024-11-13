@@ -292,7 +292,7 @@ export class BackfillService {
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
-   * @returns unknown Successful Response
+   * @returns BackfillCollectionResponse Successful Response
    * @throws ApiError
    */
   public static listBackfills(
@@ -319,7 +319,7 @@ export class BackfillService {
    * Create Backfill
    * @param data The data for the request.
    * @param data.requestBody
-   * @returns unknown Successful Response
+   * @returns BackfillResponse Successful Response
    * @throws ApiError
    */
   public static createBackfill(
@@ -344,7 +344,7 @@ export class BackfillService {
    * Get Backfill
    * @param data The data for the request.
    * @param data.backfillId
-   * @returns unknown Successful Response
+   * @returns BackfillResponse Successful Response
    * @throws ApiError
    */
   public static getBackfill(
@@ -369,7 +369,7 @@ export class BackfillService {
    * Pause Backfill
    * @param data The data for the request.
    * @param data.backfillId
-   * @returns unknown Successful Response
+   * @returns BackfillResponse Successful Response
    * @throws ApiError
    */
   public static pauseBackfill(
@@ -395,7 +395,7 @@ export class BackfillService {
    * Unpause Backfill
    * @param data The data for the request.
    * @param data.backfillId
-   * @returns unknown Successful Response
+   * @returns BackfillResponse Successful Response
    * @throws ApiError
    */
   public static unpauseBackfill(
@@ -421,7 +421,7 @@ export class BackfillService {
    * Cancel Backfill
    * @param data The data for the request.
    * @param data.backfillId
-   * @returns unknown Successful Response
+   * @returns BackfillResponse Successful Response
    * @throws ApiError
    */
   public static cancelBackfill(
