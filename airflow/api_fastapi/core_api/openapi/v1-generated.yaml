@@ -2969,6 +2969,29 @@ paths:
       description: Get all Event Logs.
       operationId: get_event_logs
       parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: id
+          title: Order By
       - name: dag_id
         in: query
         required: false
@@ -3063,29 +3086,6 @@ paths:
             format: date-time
           - type: 'null'
           title: After
-      - name: limit
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 100
-          title: Limit
-      - name: offset
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-          title: Offset
-      - name: order_by
-        in: query
-        required: false
-        schema:
-          type: string
-          default: id
-          title: Order By
       responses:
         '200':
           description: Successful Response
@@ -4959,6 +4959,8 @@ paths:
         in: path
         required: true
         schema:
+          enum:
+          - '~'
           const: '~'
           type: string
           title: Dag Id
@@ -4966,6 +4968,8 @@ paths:
         in: path
         required: true
         schema:
+          enum:
+          - '~'
           const: '~'
           type: string
           title: Dag Run Id
@@ -8989,7 +8993,7 @@ components:
       properties:
         __type:
           type: string
-          title: Type
+          title: '  Type'
           default: TimeDelta
         days:
           type: integer

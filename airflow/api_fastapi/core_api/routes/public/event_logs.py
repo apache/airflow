@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, status
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import (
@@ -27,9 +27,15 @@ from airflow.api_fastapi.common.db.common import (
     paginated_select,
 )
 from airflow.api_fastapi.common.parameters import (
+    FilterOptionEnum,
+    FilterParam,
     QueryLimit,
     QueryOffset,
     SortParam,
+    datetime_filter_param_factory,
+    int_filter_param_factory,
+    str_filter_param_factory,
+    str_list_filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.event_logs import (
@@ -83,43 +89,32 @@ def get_event_logs(
             ).dynamic_depends()
         ),
     ],
-    dag_id: str | None = None,
-    task_id: str | None = None,
-    run_id: str | None = None,
-    map_index: int | None = None,
-    try_number: int | None = None,
-    owner: str | None = None,
-    event: str | None = None,
-    excluded_events: list[str] | None = Query(None),
-    included_events: list[str] | None = Query(None),
-    before: datetime | None = None,
-    after: datetime | None = None,
+    dag_id: Annotated[FilterParam[str | None], Depends(str_filter_param_factory(Log.dag_id))],
+    task_id: Annotated[FilterParam[str | None], Depends(str_filter_param_factory(Log.task_id))],
+    run_id: Annotated[FilterParam[str | None], Depends(str_filter_param_factory(Log.run_id))],
+    map_index: Annotated[FilterParam[int | None], Depends(int_filter_param_factory(Log.map_index))],
+    try_number: Annotated[FilterParam[int | None], Depends(int_filter_param_factory(Log.try_number))],
+    owner: Annotated[FilterParam[str | None], Depends(str_filter_param_factory(Log.owner))],
+    event: Annotated[FilterParam[str | None], Depends(str_filter_param_factory(Log.event))],
+    excluded_events: Annotated[
+        FilterParam[list[str] | None],
+        Depends(str_list_filter_param_factory(Log.event, FilterOptionEnum.NOT_IN, "excluded_events")),
+    ],
+    included_events: Annotated[
+        FilterParam[list[str] | None],
+        Depends(str_list_filter_param_factory(Log.event, FilterOptionEnum.IN, "included_events")),
+    ],
+    before: Annotated[
+        FilterParam[datetime | None],
+        Depends(datetime_filter_param_factory(Log.dttm, FilterOptionEnum.LESS_THAN, "before")),
+    ],
+    after: Annotated[
+        FilterParam[datetime | None],
+        Depends(datetime_filter_param_factory(Log.dttm, FilterOptionEnum.GREATER_THAN, "after")),
+    ],
 ) -> EventLogCollectionResponse:
     """Get all Event Logs."""
     query = select(Log).group_by(Log.id)
-    # TODO: Refactor using the `FilterParam` class in commit `574b72e41cc5ed175a2bbf4356522589b836bb11`
-    if dag_id is not None:
-        query = query.where(Log.dag_id == dag_id)
-    if task_id is not None:
-        query = query.where(Log.task_id == task_id)
-    if run_id is not None:
-        query = query.where(Log.run_id == run_id)
-    if map_index is not None:
-        query = query.where(Log.map_index == map_index)
-    if try_number is not None:
-        query = query.where(Log.try_number == try_number)
-    if owner is not None:
-        query = query.where(Log.owner == owner)
-    if event is not None:
-        query = query.where(Log.event == event)
-    if excluded_events is not None:
-        query = query.where(Log.event.notin_(excluded_events))
-    if included_events is not None:
-        query = query.where(Log.event.in_(included_events))
-    if before is not None:
-        query = query.where(Log.dttm < before)
-    if after is not None:
-        query = query.where(Log.dttm > after)
     event_logs_select, total_entries = paginated_select(
         statement=query,
         order_by=order_by,

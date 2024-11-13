@@ -1149,6 +1149,9 @@ export const useEventLogServiceGetEventLogSuspense = <
  * Get Event Logs
  * Get all Event Logs.
  * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
  * @param data.dagId
  * @param data.taskId
  * @param data.runId
@@ -1160,9 +1163,6 @@ export const useEventLogServiceGetEventLogSuspense = <
  * @param data.includedEvents
  * @param data.before
  * @param data.after
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
  * @returns EventLogCollectionResponse Successful Response
  * @throws ApiError
  */
