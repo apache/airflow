@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class DagScheduleAssetReference(BaseModel):
@@ -84,9 +84,7 @@ class AssetEventResponse(BaseModel):
 
     id: int
     asset_id: int
-    # piggyback on the fix for https://github.com/apache/airflow/issues/43845 for asset_uri
-    # meanwhile, unblock by adding uri below
-    uri: str
+    asset_uri: str
     extra: dict | None = None
     source_task_id: str | None = None
     source_dag_id: str | None = None
@@ -94,6 +92,13 @@ class AssetEventResponse(BaseModel):
     source_map_index: int
     created_dagruns: list[DagRunAssetReference]
     timestamp: datetime
+
+    @model_validator(mode="before")
+    def rename_uri_to_asset_uri(cls, values):
+        """Rename 'uri' to 'asset_uri' during serialization to match legacy response."""
+        if hasattr(values, "uri") and values.uri:
+            values.asset_uri = values.uri
+        return values
 
 
 class AssetEventCollectionResponse(BaseModel):

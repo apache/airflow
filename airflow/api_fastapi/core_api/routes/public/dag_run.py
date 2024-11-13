@@ -177,10 +177,6 @@ def get_upstream_asset_events(
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
     events = dag_run.consumed_asset_events
-
-    print("events" * 10)
-    print(events)
-
     return AssetEventCollectionResponse(
         asset_events=[
             AssetEventResponse.model_validate(asset_event, from_attributes=True) for asset_event in events

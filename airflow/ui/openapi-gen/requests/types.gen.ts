@@ -51,7 +51,7 @@ export type AssetEventCollectionResponse = {
 export type AssetEventResponse = {
   id: number;
   asset_id: number;
-  uri: string;
+  asset_uri: string;
   extra?: {
     [key: string]: unknown;
   } | null;
