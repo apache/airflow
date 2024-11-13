@@ -22,6 +22,38 @@ export type AppBuilderViewResponse = {
 };
 
 /**
+ * Serializable version of the AssetAliasSchema ORM SqlAlchemyModel.
+ */
+export type AssetAliasSchema = {
+  id: number;
+  name: string;
+};
+
+/**
+ * Asset collection response.
+ */
+export type AssetCollectionResponse = {
+  assets: Array<AssetResponse>;
+  total_entries: number;
+};
+
+/**
+ * Asset serializer for responses.
+ */
+export type AssetResponse = {
+  id: number;
+  uri: string;
+  extra?: {
+    [key: string]: unknown;
+  } | null;
+  created_at: string;
+  updated_at: string;
+  consuming_dags: Array<DagScheduleAssetReference>;
+  producing_tasks: Array<TaskOutletAssetReference>;
+  aliases: Array<AssetAliasSchema>;
+};
+
+/**
  * Object used for create backfill request.
  */
 export type BackfillPostBody = {
@@ -79,6 +111,14 @@ export type ConnectionResponse = {
   port: number | null;
   password: string | null;
   extra: string | null;
+};
+
+/**
+ * Connection Test serializer for responses.
+ */
+export type ConnectionTestResponse = {
+  status: boolean;
+  message: string;
 };
 
 /**
@@ -347,6 +387,15 @@ export type DagRunType =
   | "scheduled"
   | "manual"
   | "asset_triggered";
+
+/**
+ * Serializable version of the DagScheduleAssetReference ORM SqlAlchemyModel.
+ */
+export type DagScheduleAssetReference = {
+  dag_id: string;
+  created_at: string;
+  updated_at: string;
+};
 
 /**
  * DAG Stats Collection serializer for responses.
@@ -692,6 +741,16 @@ export type TaskInstanceStateCount = {
 };
 
 /**
+ * Serializable version of the TaskOutletAssetReference ORM SqlAlchemyModel.
+ */
+export type TaskOutletAssetReference = {
+  dag_id: string;
+  task_id: string;
+  created_at: string;
+  updated_at: string;
+};
+
+/**
  * Trigger serializer for responses.
  */
 export type TriggerResponse = {
@@ -773,7 +832,7 @@ export type XComResponseString = {
   map_index: number;
   task_id: string;
   dag_id: string;
-  value: unknown;
+  value: string | null;
 };
 
 export type NextRunAssetsData = {
@@ -783,6 +842,16 @@ export type NextRunAssetsData = {
 export type NextRunAssetsResponse = {
   [key: string]: unknown;
 };
+
+export type GetAssetsData = {
+  dagIds?: Array<string>;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  uriPattern?: string | null;
+};
+
+export type GetAssetsResponse = AssetCollectionResponse;
 
 export type HistoricalMetricsData = {
   endDate: string;
@@ -943,6 +1012,12 @@ export type PostConnectionData = {
 };
 
 export type PostConnectionResponse = ConnectionResponse;
+
+export type TestConnectionData = {
+  requestBody: ConnectionBody;
+};
+
+export type TestConnectionResponse = ConnectionTestResponse;
 
 export type GetDagRunData = {
   dagId: string;
@@ -1224,6 +1299,33 @@ export type $OpenApiTs = {
         200: {
           [key: string]: unknown;
         };
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/assets/": {
+    get: {
+      req: GetAssetsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: AssetCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -1750,6 +1852,29 @@ export type $OpenApiTs = {
          * Conflict
          */
         409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/connections/test": {
+    post: {
+      req: TestConnectionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ConnectionTestResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */
