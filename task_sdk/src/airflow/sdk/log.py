@@ -97,11 +97,6 @@ def drop_positional_args(logger: Any, method_name: Any, event_dict: EventDict) -
     return event_dict
 
 
-def json_processor(logger: Any, method_name: Any, event_dict: EventDict) -> str:
-    """Encode event into JSON format."""
-    return msgspec.json.encode(event_dict).decode("ascii")
-
-
 class StdBinaryStreamHandler(logging.StreamHandler):
     """A logging.StreamHandler that sends logs as binary JSON over the given stream."""
 
@@ -145,21 +140,30 @@ def logging_processors(
         structlog.processors.StackInfoRenderer(),
     ]
 
+    # Imports to suppress showing code from these modules. We need the import to get the filepath for
+    # structlog to ignore.
+    import contextlib
+
+    import click
+    import httpcore
+    import httpx
+
+    suppress = (
+        click,
+        contextlib,
+        httpx,
+        httpcore,
+        httpx,
+    )
+
     if enable_pretty_log:
-        # Imports to suppress showing code from these modules
-        import asyncio
-        import contextlib
-
-        import click
-        import httpcore
-        import httpx
-        import typer
-
         rich_exc_formatter = structlog.dev.RichTracebackFormatter(
+            # These values are picked somewhat arbitrarily to produce useful-but-compact tracebacks. If
+            # we ever need to change these then they should be configurable.
             extra_lines=0,
             max_frames=30,
             indent_guides=False,
-            suppress=[asyncio, httpcore, httpx, contextlib, click, typer],
+            suppress=suppress,
         )
         my_styles = structlog.dev.ConsoleRenderer.get_default_level_styles()
         my_styles["debug"] = structlog.dev.CYAN
@@ -174,23 +178,17 @@ def logging_processors(
         }
     else:
         # Imports to suppress showing code from these modules
-        import asyncio
         import contextlib
 
         import click
         import httpcore
         import httpx
-        import typer
 
         dict_exc_formatter = structlog.tracebacks.ExceptionDictTransformer(
-            use_rich=False, show_locals=False, suppress=(click, typer)
+            use_rich=False, show_locals=False, suppress=suppress
         )
 
-        dict_tracebacks = structlog.processors.ExceptionRenderer(
-            structlog.tracebacks.ExceptionDictTransformer(
-                use_rich=False, show_locals=False, suppress=(click, typer)
-            )
-        )
+        dict_tracebacks = structlog.processors.ExceptionRenderer(dict_exc_formatter)
         if hasattr(__builtins__, "BaseExceptionGroup"):
             exc_group_processor = exception_group_tracebacks(dict_exc_formatter)
             processors.append(exc_group_processor)
@@ -203,9 +201,6 @@ def logging_processors(
             return encoder.encode(msg)
 
         def json_processor(logger: Any, method_name: Any, event_dict: EventDict) -> str:
-            # import web_pdb
-
-            # web_pdb.set_trace()
             return encoder.encode(event_dict).decode("ascii")
 
         json = structlog.processors.JSONRenderer(serializer=json_dumps)

@@ -28,7 +28,7 @@ import pytest
 import structlog
 import structlog.testing
 
-import airflow.sdk.api.client
+from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.datamodels.ti import TaskInstance
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.utils import timezone as tz
@@ -78,7 +78,7 @@ class TestWatchedSubprocess:
                 run_id="d",
                 try_number=1,
             ),
-            client=MagicMock(spec=airflow.sdk.api.client.Client),
+            client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
         )
 
@@ -141,7 +141,7 @@ class TestWatchedSubprocess:
                 run_id="d",
                 try_number=1,
             ),
-            client=MagicMock(spec=airflow.sdk.api.client.Client),
+            client=MagicMock(spec=sdk_client.Client),
             target=subprocess_main,
         )
 

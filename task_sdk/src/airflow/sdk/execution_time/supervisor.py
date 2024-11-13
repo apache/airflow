@@ -101,31 +101,24 @@ def _subprocess_main():
     main()
 
 
-def _fork_main(
-    child_stdin: socket,
-    child_stdout: socket,
-    child_stderr: socket,
-    log_fd: int,
-    target: Callable[[], None],
-) -> NoReturn:
-    # TODO: Make this process a session leader
-
+def _reset_signals():
     # Uninstall the rich etc. exception handler
     sys.excepthook = sys.__excepthook__
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     signal.signal(signal.SIGUSR2, signal.SIG_DFL)
 
-    if log_fd > 0:
-        # A channel that the task can send JSON-formated logs over.
-        #
-        # JSON logs sent this way will be handled nicely
-        from airflow.sdk.log import configure_logging
 
-        log_io = os.fdopen(log_fd, "wb", buffering=0)
-        configure_logging(enable_pretty_log=False, output=log_io)
+def _configure_logs_over_json_channel(log_fd: int):
+    # A channel that the task can send JSON-formated logs over.
+    #
+    # JSON logs sent this way will be handled nicely
+    from airflow.sdk.log import configure_logging
 
-    last_chance_stderr = sys.__stderr__ or sys.stderr
+    log_io = os.fdopen(log_fd, "wb", buffering=0)
+    configure_logging(enable_pretty_log=False, output=log_io)
 
+
+def _reopen_std_io_handles(child_stdin, child_stdout, child_stderr):
     if "PYTEST_CURRENT_TEST" in os.environ:
         # When we are running in pytest, it's output capturing messes us up. This works around it
         sys.stdout = sys.__stdout__
@@ -155,6 +148,40 @@ def _fork_main(
 
         setattr(sys, handle_name, os.fdopen(fd, mode))
 
+
+def _fork_main(
+    child_stdin: socket,
+    child_stdout: socket,
+    child_stderr: socket,
+    log_fd: int,
+    target: Callable[[], None],
+) -> NoReturn:
+    """
+    "Entrypoint" of the child process.
+
+    Ultimately this process will be running the user's code in the operators ``execute()`` function.
+
+    The responsibility of this function is to:
+
+    - Reset any signals handlers we inherited from the parent process (so they don't fire twice - once in
+      parent, and once in child)
+    - Set up the out/err handles to the streams created in the parent (to capture stdout and stderr for
+      logging)
+    - Configure the loggers in the child (both stdlib logging and Structlog) to send JSON logs back to the
+      supervisor for processing/output.
+    - Catch un-handled exceptions and attempt to show _something_ in case of error
+    - Finally, run the actual task runner code (``target`` argument, defaults to ``.task_runner:main`)
+    """
+    # TODO: Make this process a session leader
+
+    # Store original stderr for last-chance exception handling
+    last_chance_stderr = sys.__stderr__ or sys.stderr
+
+    _reset_signals()
+    if log_fd:
+        _configure_logs_over_json_channel(log_fd)
+    _reopen_std_io_handles(child_stdin, child_stdout, child_stderr)
+
     def exit(n: int) -> NoReturn:
         with suppress(ValueError, OSError):
             sys.stdout.flush()
@@ -165,13 +192,16 @@ def _fork_main(
         os._exit(n)
 
     if hasattr(atexit, "_clear"):
-        # Since we're in a fork we want to try and clear them
-        atexit._clear()
-        base_exit = exit
+        # Since we're in a fork we want to try and clear them. If we can't do it cleanly, then we won't try
+        # and run new atexit handlers.
+        with suppress(Exception):
+            atexit._clear()
+            base_exit = exit
 
-        def exit(n: int) -> NoReturn:
-            atexit._run_exitfuncs()
-            base_exit(n)
+            def exit(n: int) -> NoReturn:
+                # This will only run any atexit funcs registered after we've forked.
+                atexit._run_exitfuncs()
+                base_exit(n)
 
     try:
         target()
@@ -192,13 +222,15 @@ def _fork_main(
         try:
             last_chance_stderr.write("--- Last chance exception handler ---\n")
             traceback.print_exception(exc, value=v, tb=tb, file=last_chance_stderr)
-            exit(99)
+            # Exit code 126 and 125 don't have any "special" meaning, they are only meant to serve as an
+            # identifier that the task process died in a really odd way.
+            exit(126)
         except Exception as e:
             with suppress(Exception):
                 print(
                     f"--- Last chance exception handler failed --- {repr(str(e))}\n", file=last_chance_stderr
                 )
-            exit(98)
+            exit(125)
 
 
 @attrs.define()
@@ -274,9 +306,14 @@ class WatchedSubprocess:
         # TODO: Use logging providers to handle the chunked upload for us
         task_logger: FilteringBoundLogger = structlog.get_logger(logger_name="task").bind()
 
-        cb = make_buffered_socket_reader(forward_to_log(task_logger.bind(chan="stdout"), level=logging.INFO))
+        # proc.selector is a way of registering a handler/callback to be called when the given IO channel has
+        # activity to read on (https://www.man7.org/linux/man-pages/man2/select.2.html etc, but better
+        # alternatives are used automatically) -- this is a way of having "event-based" code, but without
+        # needing full async, to read and process output from each socket as it is received.
 
+        cb = make_buffered_socket_reader(forward_to_log(task_logger.bind(chan="stdout"), level=logging.INFO))
         proc.selector.register(read_stdout, selectors.EVENT_READ, cb)
+
         cb = make_buffered_socket_reader(forward_to_log(task_logger.bind(chan="stderr"), level=logging.ERROR))
         proc.selector.register(read_stderr, selectors.EVENT_READ, cb)
 
@@ -291,19 +328,19 @@ class WatchedSubprocess:
             make_buffered_socket_reader(proc.handle_requests(log=log)),
         )
 
-        # Tell the task process what it needs to do!
-        msg = StartupDetails(
-            ti=ti,
-            file=str(path),
-            requests_fd=child_comms.fileno(),
-        )
-
         # Close the remaining parent-end of the sockets we've passed to the child via fork. We still have the
         # other end of the pair open
         child_stdout.close()
         child_stdin.close()
         child_comms.close()
         child_logs.close()
+
+        # Tell the task process what it needs to do!
+        msg = StartupDetails(
+            ti=ti,
+            file=str(path),
+            requests_fd=child_comms.fileno(),
+        )
 
         # Send the message to tell the process what it needs to execute
         log.debug("Sending", msg=msg)
@@ -335,7 +372,7 @@ class WatchedSubprocess:
                 max_wait_time = max(
                     0,  # Make sure this value is never negative,
                     min(
-                        # Ensure we heartbeat _at most_ 75% through the time the zombie threshold time
+                        # Ensure we heartbeat _at most_ 75% through time the zombie threshold time
                         SLOWEST_HEARTBEAT_INTERVAL - last_heartbeat_ago * 0.75,
                         max_poll_interval,
                     ),
@@ -442,8 +479,8 @@ class WatchedSubprocess:
 # Sockets, even the `.makefile()` function don't correctly do line buffering on reading. If a chunk is read
 # and it doesn't contain a new line character, `.readline()` will just return the chunk as is.
 #
-# This returns a cb suitable for attaching to a `selector` that reads in to a buffer, and yields lines to a
-# (sync) generator
+# This returns a callback suitable for attaching to a `selector` that reads in to a buffer, and yields lines
+# to a (sync) generator
 def make_buffered_socket_reader(
     gen: Generator[None, bytes, None], buffer_size: int = 4096
 ) -> Callable[[socket], bool]:
