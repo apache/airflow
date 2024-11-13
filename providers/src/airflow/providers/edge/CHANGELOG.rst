@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.5.5pre0
+.........
+
+Misc
+~~~~
+
+* ``Fixed reading none UTF-8 signs in log file.``
+
 0.5.4pre0
 .........
 
@@ -35,7 +43,6 @@ Misc
 
 * ``Fix SIGINT handling of child processes. Ensure graceful shutdown when SIGINT in received (not killing working tasks).``
 * ``Fix SIGTERM handling of child processes. Ensure all childs are terminated on SIGTERM.``
-
 
 0.5.3pre0
 .........
