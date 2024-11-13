@@ -24,7 +24,6 @@ from airflow.triggers.base import TriggerEvent
 
 from providers.tests.microsoft.azure.base import Base
 from providers.tests.microsoft.conftest import load_json, mock_json_response
-
 from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
 
