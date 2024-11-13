@@ -400,7 +400,7 @@ class BaseExecutor(LoggingMixin):
                 span.set_attribute("queue", str(queue))
                 span.set_attribute("executor_config", str(executor_config))
                 del self.queued_tasks[key]
-                self.run(ti=task_instance, command=command, queue=queue, executor_config=executor_config)
+                self.execute(ti=task_instance, command=command, queue=queue, executor_config=executor_config)
                 self.running.add(key)
 
     def change_state(
@@ -506,7 +506,7 @@ class BaseExecutor(LoggingMixin):
 
         return cleared_events
 
-    def run(
+    def execute(
         self,
         ti: TaskInstance,
         command: CommandType,
@@ -514,7 +514,7 @@ class BaseExecutor(LoggingMixin):
         executor_config: Any | None = None,
     ) -> None:  # pragma: no cover
         """
-        Run task instance command.
+        Execute the command.
 
         :param ti: task instance to run
         :param command: Command to run
@@ -522,7 +522,7 @@ class BaseExecutor(LoggingMixin):
         :param executor_config: Configuration passed to the executor.
         """
         warnings.warn(
-            f"Old execute_async function is used. Please update your executor: {type(self).__name__} to use new run function with updated interface.",
+            f"Old execute_async function is used. Please update your executor: {type(self).__name__} to use new execute function with updated interface.",
             DeprecationWarning,
             stacklevel=2,
         )
