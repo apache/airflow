@@ -34,7 +34,7 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.assets import AssetCollectionResponse, AssetResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.asset import AssetModel
 
 assets_router = AirflowRouter(tags=["Asset"], prefix="/assets")
 
@@ -63,9 +63,11 @@ def get_assets(
         limit=limit,
         session=session,
     )
-    assets_select.options(subqueryload(AssetEvent.created_dagruns))
-
-    assets = session.scalars(assets_select).all()
+    assets = session.scalars(
+        assets_select.options(
+            subqueryload(AssetModel.consuming_dags), subqueryload(AssetModel.producing_tasks)
+        )
+    ).all()
     return AssetCollectionResponse(
         assets=[AssetResponse.model_validate(asset, from_attributes=True) for asset in assets],
         total_entries=total_entries,
