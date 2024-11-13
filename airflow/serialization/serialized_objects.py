@@ -44,7 +44,11 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
-from airflow.models.expandinput import EXPAND_INPUT_EMPTY, create_expand_input, get_map_type_key
+from airflow.models.expandinput import (
+    EXPAND_INPUT_EMPTY,
+    create_expand_input,
+    get_map_type_key,
+)
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import Param, ParamsDict
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
@@ -213,7 +217,9 @@ def _get_registered_timetable(importable_string: str) -> type[Timetable] | None:
         return None
 
 
-def _get_registered_priority_weight_strategy(importable_string: str) -> type[PriorityWeightStrategy] | None:
+def _get_registered_priority_weight_strategy(
+    importable_string: str,
+) -> type[PriorityWeightStrategy] | None:
     from airflow import plugins_manager
 
     if importable_string in airflow_priority_weight_strategies:
@@ -256,13 +262,25 @@ def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
     :meta private:
     """
     if isinstance(var, Asset):
-        return {"__type": DAT.ASSET, "name": var.name, "uri": var.uri, "group": var.group, "extra": var.extra}
+        return {
+            "__type": DAT.ASSET,
+            "name": var.name,
+            "uri": var.uri,
+            "group": var.group,
+            "extra": var.extra,
+        }
     if isinstance(var, AssetAlias):
         return {"__type": DAT.ASSET_ALIAS, "name": var.name}
     if isinstance(var, AssetAll):
-        return {"__type": DAT.ASSET_ALL, "objects": [encode_asset_condition(x) for x in var.objects]}
+        return {
+            "__type": DAT.ASSET_ALL,
+            "objects": [encode_asset_condition(x) for x in var.objects],
+        }
     if isinstance(var, AssetAny):
-        return {"__type": DAT.ASSET_ANY, "objects": [encode_asset_condition(x) for x in var.objects]}
+        return {
+            "__type": DAT.ASSET_ANY,
+            "objects": [encode_asset_condition(x) for x in var.objects],
+        }
     raise ValueError(f"serialization not implemented for {type(var).__name__!r}")
 
 
@@ -586,7 +604,9 @@ class BaseSerialization:
 
     @classmethod
     def serialize_to_json(
-        cls, object_to_serialize: BaseOperator | MappedOperator | DAG, decorated_fields: set
+        cls,
+        object_to_serialize: BaseOperator | MappedOperator | DAG,
+        decorated_fields: set,
     ) -> dict[str, Any]:
         """Serialize an object to JSON."""
         serialized_object: dict[str, Any] = {}
@@ -696,7 +716,11 @@ class BaseSerialization:
         elif isinstance(var, (KeyError, AttributeError)):
             return cls._encode(
                 cls.serialize(
-                    {"exc_cls_name": var.__class__.__name__, "args": [var.args], "kwargs": {}},
+                    {
+                        "exc_cls_name": var.__class__.__name__,
+                        "args": [var.args],
+                        "kwargs": {},
+                    },
                     use_pydantic_models=use_pydantic_models,
                     strict=strict,
                 ),
@@ -704,7 +728,11 @@ class BaseSerialization:
             )
         elif isinstance(var, BaseTrigger):
             return cls._encode(
-                cls.serialize(var.serialize(), use_pydantic_models=use_pydantic_models, strict=strict),
+                cls.serialize(
+                    var.serialize(),
+                    use_pydantic_models=use_pydantic_models,
+                    strict=strict,
+                ),
                 type_=DAT.BASE_TRIGGER,
             )
         elif callable(var):
@@ -1069,7 +1097,7 @@ class DependencyDetector:
                     )
                 )
             elif isinstance(obj, AssetAlias):
-                cond = AssetAliasCondition(obj.name)
+                cond = AssetAliasCondition(name=obj.name, group=obj.group)
 
                 deps.extend(cond.iter_dag_dependencies(source=task.dag_id, target=""))
         return deps
@@ -1298,7 +1326,11 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             # The case for "If OperatorLinks are defined in the operator that is being Serialized"
             # is handled in the deserialization loop where it matches k == "_operator_extra_links"
             if op_extra_links_from_plugin and "_operator_extra_links" not in encoded_op:
-                setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
+                setattr(
+                    op,
+                    "operator_extra_links",
+                    list(op_extra_links_from_plugin.values()),
+                )
 
         for k, v in encoded_op.items():
             # python_callable_name only serves to detect function name changes

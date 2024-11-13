@@ -350,7 +350,7 @@ class Asset(os.PathLike, BaseAsset):
 
         :meta private:
         """
-        return self.uri
+        return {"asset": {"uri": self.uri, "name": self.name, "group": self.group}}
 
     def iter_assets(self) -> Iterator[tuple[str, Asset]]:
         yield self.uri, self

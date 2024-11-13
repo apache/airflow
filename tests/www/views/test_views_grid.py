@@ -508,7 +508,12 @@ def test_next_run_assets(admin_client, dag_maker, session, app, monkeypatch):
 
     assert resp.status_code == 200, resp.json
     assert resp.json == {
-        "asset_expression": {"all": ["s3://bucket/key/1", "s3://bucket/key/2"]},
+        "asset_expression": {
+            "all": [
+                {"asset": {"uri": "s3://bucket/key/1", "name": "name_1", "group": "test-group"}},
+                {"asset": {"uri": "s3://bucket/key/2", "name": "name_2", "group": "test-group"}},
+            ]
+        },
         "events": [
             {"id": asset1_id, "uri": "s3://bucket/key/1", "lastUpdate": "2022-08-02T02:00:00+00:00"},
             {"id": asset2_id, "uri": "s3://bucket/key/2", "lastUpdate": None},
