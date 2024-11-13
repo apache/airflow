@@ -37,6 +37,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.mysql import LONGBLOB
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Query, reconstructor, relationship
 
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -130,7 +131,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
     @classmethod
     @internal_api_call
     @provide_session
-    def set(
+    async def set(
         cls,
         key: str,
         value: Any,
@@ -139,7 +140,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         task_id: str,
         run_id: str,
         map_index: int = -1,
-        session: Session = NEW_SESSION,
+        session: AsyncSession = NEW_SESSION,
     ) -> None:
         """
         Store an XCom value.
@@ -159,7 +160,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         if not run_id:
             raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
-        dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
+        dag_run_id = await session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
         if dag_run_id is None:
             raise ValueError(f"DAG run not found on DAG {dag_id!r} with ID {run_id!r}")
 
@@ -194,7 +195,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         )
 
         # Remove duplicate XComs and insert a new one.
-        session.execute(
+        await session.execute(
             delete(cls).where(
                 cls.key == key,
                 cls.run_id == run_id,
@@ -213,7 +214,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             map_index=map_index,
         )
         session.add(new)
-        session.flush()
+        await session.flush()
 
     @staticmethod
     @provide_session

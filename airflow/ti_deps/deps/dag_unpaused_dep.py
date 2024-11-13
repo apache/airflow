@@ -28,6 +28,6 @@ class DagUnpausedDep(BaseTIDep):
     IGNORABLE = True
 
     @provide_session
-    def _get_dep_statuses(self, ti, session, dep_context):
+    async def _get_dep_statuses(self, ti, session, dep_context):
         if ti.task.dag.get_is_paused(session):
             yield self._failing_status(reason=f"Task's DAG '{ti.dag_id}' is paused.")

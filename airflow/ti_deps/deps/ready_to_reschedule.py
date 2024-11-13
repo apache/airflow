@@ -34,7 +34,7 @@ class ReadyToRescheduleDep(BaseTIDep):
     RESCHEDULEABLE_STATES = {TaskInstanceState.UP_FOR_RESCHEDULE, None}
 
     @provide_session
-    def _get_dep_statuses(self, ti, session, dep_context):
+    async def _get_dep_statuses(self, ti, session, dep_context):
         """
         Determine whether a task is ready to be rescheduled.
 

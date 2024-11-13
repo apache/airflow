@@ -45,6 +45,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
 from sqlalchemy.sql.expression import case, false, select, true
 from sqlalchemy.sql.functions import coalesce
@@ -387,12 +388,12 @@ class DagRun(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def active_runs_of_dags(
+    def active_runs_of_dags_query(
         cls,
         *,
         dag_ids: Iterable[str],
         exclude_backfill,
-        session: Session = NEW_SESSION,
+        session: AsyncSession = NEW_SESSION,
     ) -> dict[str, int]:
         """
         Get the number of active dag runs for each dag.
@@ -407,11 +408,29 @@ class DagRun(Base, LoggingMixin):
         )
         if exclude_backfill:
             query = query.where(cls.run_type != DagRunType.BACKFILL_JOB)
-        return dict(iter(session.execute(query)))
+        return query
 
     @classmethod
-    @retry_db_transaction
-    def get_running_dag_runs_to_examine(cls, session: Session) -> Query:
+    @provide_session
+    async def active_runs_of_dags(
+        cls,
+        *,
+        dag_ids: Iterable[str],
+        exclude_backfill,
+        session: AsyncSession = NEW_SESSION,
+    ) -> dict[str, int]:
+        """
+        Get the number of active dag runs for each dag.
+
+        :meta private:
+        """
+        query = cls.active_runs_of_dags_query(
+            dag_ids=dag_ids, exclude_backfill=exclude_backfill, session=session
+        )
+        return dict(iter(await session.execute(query)))
+
+    @classmethod
+    async def get_running_dag_run_to_examine(cls, session: AsyncSession) -> Query:
         """
         Return the next DagRuns that the scheduler should attempt to schedule.
 
@@ -439,13 +458,9 @@ class DagRun(Base, LoggingMixin):
                 nulls_first(cls.last_scheduling_decision, session=session),
                 cls.execution_date,
             )
-            .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
+            .limit(1)
         )
-
-        if not settings.ALLOW_FUTURE_EXEC_DATES:
-            query = query.where(DagRun.execution_date <= func.now())
-
-        return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True))
+        return await session.scalar(with_row_locks(query, of=cls, session=session, skip_locked=True))
 
     @classmethod
     @retry_db_transaction
@@ -625,15 +640,13 @@ class DagRun(Base, LoggingMixin):
         # _Ensure_ run_type is a DagRunType, not just a string from user code
         return DagRunType(run_type).generate_run_id(execution_date)
 
-    @staticmethod
-    @internal_api_call
-    @provide_session
-    def fetch_task_instances(
+    @classmethod
+    def fetch_task_instances_query(
+        cls,
         dag_id: str | None = None,
         run_id: str | None = None,
         task_ids: list[str] | None = None,
         state: Iterable[TaskInstanceState | None] | None = None,
-        session: Session = NEW_SESSION,
     ) -> list[TI]:
         """Return the task instances for this dag run."""
         tis = (
@@ -661,7 +674,28 @@ class DagRun(Base, LoggingMixin):
 
         if task_ids is not None:
             tis = tis.where(TI.task_id.in_(task_ids))
-        return session.scalars(tis).all()
+        return tis
+
+    @classmethod
+    @internal_api_call
+    @provide_session
+    async def fetch_task_instances(
+        cls,
+        dag_id: str | None = None,
+        run_id: str | None = None,
+        task_ids: list[str] | None = None,
+        state: Iterable[TaskInstanceState | None] | None = None,
+        session: AsyncSession = NEW_SESSION,
+    ) -> list[TI]:
+        """Return the task instances for this dag run."""
+        query = cls.fetch_task_instances_query(
+            dag_id=dag_id,
+            run_id=run_id,
+            task_ids=task_ids,
+            state=state,
+        )
+        result = await session.scalars(query)
+        return result.all()
 
     @internal_api_call
     def _check_last_n_dagruns_failed(self, dag_id, max_consecutive_failed_dag_runs, session):
@@ -711,7 +745,7 @@ class DagRun(Base, LoggingMixin):
             )
 
     @provide_session
-    def get_task_instances(
+    async def get_task_instances(
         self,
         state: Iterable[TaskInstanceState | None] | None = None,
         session: Session = NEW_SESSION,
@@ -723,7 +757,7 @@ class DagRun(Base, LoggingMixin):
         Keep this method because it is widely used across the code.
         """
         task_ids = DagRun._get_partial_task_ids(self.dag)
-        return DagRun.fetch_task_instances(
+        return await DagRun.fetch_task_instances(
             dag_id=self.dag_id, run_id=self.run_id, task_ids=task_ids, state=state, session=session
         )
 
@@ -741,18 +775,29 @@ class DagRun(Base, LoggingMixin):
         :param task_id: the task id
         :param session: Sqlalchemy ORM Session
         """
-        return DagRun.fetch_task_instance(
+        query = DagRun.fetch_task_instance_query(
             dag_id=self.dag_id,
             dag_run_id=self.run_id,
             task_id=task_id,
-            session=session,
             map_index=map_index,
         )
+        return session.scalars(query).one_or_none()
 
-    @staticmethod
+    @classmethod
+    def fetch_task_instance_query(cls, dag_id, dag_run_id, task_id, map_index):
+        query = select(TI).filter_by(
+            dag_id=dag_id,
+            run_id=dag_run_id,
+            task_id=task_id,
+            map_index=map_index,
+        )
+        return query
+
+    @classmethod
     @internal_api_call
     @provide_session
-    def fetch_task_instance(
+    async def fetch_task_instance(
+        cls,
         dag_id: str,
         dag_run_id: str,
         task_id: str,
@@ -767,9 +812,13 @@ class DagRun(Base, LoggingMixin):
         :param task_id: the task id
         :param session: Sqlalchemy ORM Session
         """
-        return session.scalars(
-            select(TI).filter_by(dag_id=dag_id, run_id=dag_run_id, task_id=task_id, map_index=map_index)
-        ).one_or_none()
+        query = cls.fetch_task_instance_query(
+            dag_id=dag_id,
+            dag_run_id=dag_run_id,
+            task_id=task_id,
+            map_index=map_index,
+        )
+        return await session.scalars(query).one_or_none()
 
     def get_dag(self) -> DAG:
         """
@@ -854,8 +903,8 @@ class DagRun(Base, LoggingMixin):
         return leaf_tis
 
     @provide_session
-    def update_state(
-        self, session: Session = NEW_SESSION, execute_callbacks: bool = True
+    async def update_state(
+        self, session: AsyncSession = NEW_SESSION, execute_callbacks: bool = True
     ) -> tuple[list[TI], DagCallbackRequest | None]:
         """
         Determine the overall state of the DagRun based on the state of its TaskInstances.
@@ -895,7 +944,7 @@ class DagRun(Base, LoggingMixin):
             "dagrun.dependency-check", tags=self.stats_tags
         ):
             dag = self.get_dag()
-            info = self.task_instance_scheduling_decisions(session)
+            info = await self.task_instance_scheduling_decisions(session)
 
             tis = info.tis
             schedulable_tis = info.schedulable_tis
@@ -907,7 +956,7 @@ class DagRun(Base, LoggingMixin):
                 are_runnable_tasks = schedulable_tis or changed_tis
                 # small speed up
                 if not are_runnable_tasks:
-                    are_runnable_tasks, changed_by_upstream = self._are_premature_tis(
+                    are_runnable_tasks, changed_by_upstream = await self._are_premature_tis(
                         unfinished.tis, finished_tis, session
                     )
                     if changed_by_upstream:  # Something changed, we need to recalculate!
@@ -999,7 +1048,7 @@ class DagRun(Base, LoggingMixin):
                 "state=%s, external_trigger=%s, run_type=%s, "
                 "data_interval_start=%s, data_interval_end=%s, dag_version_name=%s"
             )
-            dagv = session.scalar(select(DagVersion).where(DagVersion.id == self.dag_version_id))
+            dagv = await session.scalar(select(DagVersion).where(DagVersion.id == self.dag_version_id))
             self.log.info(
                 msg,
                 self.dag_id,
@@ -1050,19 +1099,21 @@ class DagRun(Base, LoggingMixin):
                     span.add_event(name="ended", timestamp=datetime_to_nano(self.end_date))
                 span.set_attributes(attributes)
 
-            session.flush()
+            await session.flush()
 
         self._emit_true_scheduling_delay_stats_for_finished_state(finished_tis)
         self._emit_duration_stats_for_finished_state()
 
-        session.merge(self)
+        await session.merge(self)
         # We do not flush here for performance reasons(It increases queries count by +20)
 
         return schedulable_tis, callback
 
     @provide_session
-    def task_instance_scheduling_decisions(self, session: Session = NEW_SESSION) -> TISchedulingDecision:
-        tis = self.get_task_instances(session=session, state=State.task_states)
+    async def task_instance_scheduling_decisions(
+        self, session: AsyncSession = NEW_SESSION
+    ) -> TISchedulingDecision:
+        tis = await self.get_task_instances(session=session, state=State.task_states)
         self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
 
         def _filter_tis_and_exclude_removed(dag: DAG, tis: list[TI]) -> Iterable[TI]:
@@ -1085,7 +1136,7 @@ class DagRun(Base, LoggingMixin):
         if unfinished_tis:
             schedulable_tis = [ut for ut in unfinished_tis if ut.state in SCHEDULEABLE_STATES]
             self.log.debug("number of scheduleable tasks for %s: %s task(s)", self, len(schedulable_tis))
-            schedulable_tis, changed_tis, expansion_happened = self._get_ready_tis(
+            schedulable_tis, changed_tis, expansion_happened = await self._get_ready_tis(
                 schedulable_tis,
                 finished_tis,
                 session=session,
@@ -1121,11 +1172,11 @@ class DagRun(Base, LoggingMixin):
         # we can't get all the state changes on SchedulerJob,
         # or LocalTaskJob, so we don't want to "falsely advertise" we notify about that
 
-    def _get_ready_tis(
+    async def _get_ready_tis(
         self,
         schedulable_tis: list[TI],
         finished_tis: list[TI],
-        session: Session,
+        session: AsyncSession,
     ) -> tuple[list[TI], bool, bool]:
         old_states = {}
         ready_tis: list[TI] = []
@@ -1143,7 +1194,7 @@ class DagRun(Base, LoggingMixin):
             finished_tis=finished_tis,
         )
 
-        def _expand_mapped_task_if_needed(ti: TI) -> Iterable[TI] | None:
+        async def _expand_mapped_task_if_needed(ti: TI) -> Iterable[TI] | None:
             """
             Try to expand the ti, if needed.
 
@@ -1167,9 +1218,9 @@ class DagRun(Base, LoggingMixin):
                 # If we get here, it could be that we are moving from non-mapped to mapped
                 # after task instance clearing or this ti is not yet expanded. Safe to clear
                 # the db references.
-                ti.clear_db_references(session=session)
+                await ti.clear_db_references(session=session)
             try:
-                expanded_tis, _ = ti.task.expand_mapped_task(self.run_id, session=session)
+                expanded_tis, _ = await ti.task.expand_mapped_task(self.run_id, session=session)
             except NotMapped:  # Not a mapped task, nothing needed.
                 return None
             if expanded_tis:
@@ -1195,7 +1246,7 @@ class DagRun(Base, LoggingMixin):
             # docstring for additional information.
             new_tis = None
             if schedulable.map_index < 0:
-                new_tis = _expand_mapped_task_if_needed(schedulable)
+                new_tis = await _expand_mapped_task_if_needed(schedulable)
                 if new_tis is not None:
                     additional_tis.extend(new_tis)
                     expansion_happened = True
@@ -1203,7 +1254,8 @@ class DagRun(Base, LoggingMixin):
                 # It's enough to revise map index once per task id,
                 # checking the map index for each mapped task significantly slows down scheduling
                 if schedulable.task.task_id not in revised_map_index_task_ids:
-                    ready_tis.extend(self._revise_map_indexes_if_mapped(schedulable.task, session=session))
+                    async for ti in self._revise_map_indexes_if_mapped(schedulable.task, session=session):
+                        ready_tis.append(ti)
                     revised_map_index_task_ids.add(schedulable.task.task_id)
                 ready_tis.append(schedulable)
 
@@ -1215,7 +1267,7 @@ class DagRun(Base, LoggingMixin):
 
         return ready_tis, changed_tis, expansion_happened
 
-    def _are_premature_tis(
+    async def _are_premature_tis(
         self,
         unfinished_tis: Sequence[TI],
         finished_tis: list[TI],
@@ -1229,8 +1281,13 @@ class DagRun(Base, LoggingMixin):
         )
         # there might be runnable tasks that are up for retry and for some reason(retry delay, etc.) are
         # not ready yet, so we set the flags to count them in
+        has_dep_met = False
+        for ut in unfinished_tis:
+            if await ut.are_dependencies_met(dep_context=dep_context, session=session):
+                has_dep_met = True
+                break
         return (
-            any(ut.are_dependencies_met(dep_context=dep_context, session=session) for ut in unfinished_tis),
+            has_dep_met,
             dep_context.have_changed_ti_states,
         )
 
@@ -1306,7 +1363,7 @@ class DagRun(Base, LoggingMixin):
         Stats.timing(f"dagrun.duration.{self.state}", **timer_params)
 
     @provide_session
-    def verify_integrity(self, *, session: Session = NEW_SESSION) -> None:
+    async def verify_integrity(self, *, session: AsyncSession = NEW_SESSION) -> None:
         """
         Verify the DagRun by checking for removed tasks or tasks that are not in the database yet.
 
@@ -1322,7 +1379,7 @@ class DagRun(Base, LoggingMixin):
         hook_is_noop: Literal[True, False] = getattr(task_instance_mutation_hook, "is_noop", False)
 
         dag = self.get_dag()
-        task_ids = self._check_for_removed_or_restored_tasks(
+        task_ids = await self._check_for_removed_or_restored_tasks(
             dag, task_instance_mutation_hook, session=session
         )
 
@@ -1338,11 +1395,16 @@ class DagRun(Base, LoggingMixin):
 
         # Create the missing tasks, including mapped tasks
         tasks_to_create = (task for task in dag.task_dict.values() if task_filter(task))
-        tis_to_create = self._create_tasks(tasks_to_create, task_creator, session=session)
-        self._create_task_instances(self.dag_id, tis_to_create, created_counts, hook_is_noop, session=session)
 
-    def _check_for_removed_or_restored_tasks(
-        self, dag: DAG, ti_mutation_hook, *, session: Session
+        tis_to_create = []
+        async for thing in self._create_tasks(tasks_to_create, task_creator, session=session):
+            tis_to_create.append(thing)
+        await self._create_task_instances(
+            self.dag_id, tis_to_create, created_counts, hook_is_noop, session=session
+        )
+
+    async def _check_for_removed_or_restored_tasks(
+        self, dag: DAG, ti_mutation_hook, *, session: AsyncSession
     ) -> set[str]:
         """
         Check for removed tasks/restored/missing tasks.
@@ -1354,7 +1416,7 @@ class DagRun(Base, LoggingMixin):
         :return: Task IDs in the DAG run
 
         """
-        tis = self.get_task_instances(session=session)
+        tis = await self.get_task_instances(session=session)
 
         # check for removed or restored tasks
         task_ids = set()
@@ -1389,7 +1451,7 @@ class DagRun(Base, LoggingMixin):
             except NotFullyPopulated:
                 # What if it is _now_ dynamically mapped, but wasn't before?
                 try:
-                    total_length = task.get_mapped_ti_count(self.run_id, session=session)
+                    total_length = await task.get_mapped_ti_count(self.run_id, session=session)
                 except NotFullyPopulated:
                     # Not all upstreams finished, so we can't tell what should be here. Remove everything.
                     if ti.map_index >= 0:
@@ -1476,12 +1538,12 @@ class DagRun(Base, LoggingMixin):
             creator = create_ti
         return creator
 
-    def _create_tasks(
+    async def _create_tasks(
         self,
         tasks: Iterable[Operator],
         task_creator: Callable[[Operator, Iterable[int]], CreatedTasks],
         *,
-        session: Session,
+        session: AsyncSession,
     ) -> CreatedTasks:
         """
         Create missing tasks -- and expand any MappedOperator that _only_ have literals as input.
@@ -1492,7 +1554,7 @@ class DagRun(Base, LoggingMixin):
         map_indexes: Iterable[int]
         for task in tasks:
             try:
-                count = task.get_mapped_ti_count(self.run_id, session=session)
+                count = await task.get_mapped_ti_count(self.run_id, session=session)
             except (NotMapped, NotFullyPopulated):
                 map_indexes = (-1,)
             else:
@@ -1502,16 +1564,17 @@ class DagRun(Base, LoggingMixin):
                     # Make sure to always create at least one ti; this will be
                     # marked as REMOVED later at runtime.
                     map_indexes = (-1,)
-            yield from task_creator(task, map_indexes)
+            for thing in task_creator(task, map_indexes):
+                yield thing
 
-    def _create_task_instances(
+    async def _create_task_instances(
         self,
         dag_id: str,
         tasks: Iterator[dict[str, Any]] | Iterator[TI],
         created_counts: dict[str, int],
         hook_is_noop: bool,
         *,
-        session: Session,
+        session: AsyncSession,
     ) -> None:
         """
         Create the necessary task instances from the given tasks.
@@ -1529,15 +1592,15 @@ class DagRun(Base, LoggingMixin):
         run_id = self.run_id
         try:
             if hook_is_noop:
-                session.bulk_insert_mappings(TI, tasks)
+                await session.run_sync(lambda sync_s: sync_s.bulk_insert_mappings(TI, tasks))
             else:
-                session.bulk_save_objects(tasks)
+                session.add_all(tasks)
 
             for task_type, count in created_counts.items():
                 Stats.incr(f"task_instance_created_{task_type}", count, tags=self.stats_tags)
                 # Same metric with tagging
                 Stats.incr("task_instance_created", count, tags={**self.stats_tags, "task_type": task_type})
-            session.flush()
+            await session.flush()
         except IntegrityError:
             self.log.info(
                 "Hit IntegrityError while creating the TIs for %s- %s",
@@ -1547,9 +1610,9 @@ class DagRun(Base, LoggingMixin):
             )
             self.log.info("Doing session rollback.")
             # TODO[HA]: We probably need to savepoint this so we can keep the transaction alive.
-            session.rollback()
+            await session.rollback()
 
-    def _revise_map_indexes_if_mapped(self, task: Operator, *, session: Session) -> Iterator[TI]:
+    async def _revise_map_indexes_if_mapped(self, task: Operator, *, session: Session) -> Iterator[TI]:
         """
         Check if task increased or reduced in length and handle appropriately.
 
@@ -1561,13 +1624,13 @@ class DagRun(Base, LoggingMixin):
         from airflow.settings import task_instance_mutation_hook
 
         try:
-            total_length = task.get_mapped_ti_count(self.run_id, session=session)
+            total_length = await task.get_mapped_ti_count(self.run_id, session=session)
         except NotMapped:
             return  # Not a mapped task, don't need to do anything.
         except NotFullyPopulated:
             return  # Upstreams not ready, don't need to revise this yet.
 
-        query = session.scalars(
+        query = await session.scalars(
             select(TI.map_index).where(
                 TI.dag_id == self.dag_id,
                 TI.task_id == task.task_id,
@@ -1617,11 +1680,10 @@ class DagRun(Base, LoggingMixin):
             )
         ).all()
 
-    @provide_session
-    def schedule_tis(
+    async def schedule_tis(
         self,
         schedulable_tis: Iterable[TI],
-        session: Session = NEW_SESSION,
+        session: AsyncSession,
         max_tis_per_query: int | None = None,
     ) -> int:
         """
@@ -1654,13 +1716,13 @@ class DagRun(Base, LoggingMixin):
             # if not, we'll add this "ti" into "schedulable_ti_ids" and later execute it to run in the worker
             elif ti.task.start_trigger_args is not None:
                 context = ti.get_template_context()
-                start_from_trigger = ti.task.expand_start_from_trigger(context=context, session=session)
+                start_from_trigger = await ti.task.expand_start_from_trigger(context=context, session=session)
 
                 if start_from_trigger:
                     ti.start_date = timezone.utcnow()
                     if ti.state != TaskInstanceState.UP_FOR_RESCHEDULE:
                         ti.try_number += 1
-                    ti.defer_task(exception=None, session=session)
+                    await ti.defer_task(exception=None, session=session)
                 else:
                     schedulable_ti_ids.append((ti.task_id, ti.map_index))
             else:
@@ -1673,7 +1735,7 @@ class DagRun(Base, LoggingMixin):
                 schedulable_ti_ids, max_tis_per_query or len(schedulable_ti_ids)
             )
             for schedulable_ti_ids_chunk in schedulable_ti_ids_chunks:
-                count += session.execute(
+                result = await session.execute(
                     update(TI)
                     .where(
                         TI.dag_id == self.dag_id,
@@ -1691,13 +1753,14 @@ class DagRun(Base, LoggingMixin):
                         ),
                     )
                     .execution_options(synchronize_session=False)
-                ).rowcount
+                )
+                count += result.rowcount
 
         # Tasks using EmptyOperator should not be executed, mark them as success
         if dummy_ti_ids:
             dummy_ti_ids_chunks = chunks(dummy_ti_ids, max_tis_per_query or len(dummy_ti_ids))
             for dummy_ti_ids_chunk in dummy_ti_ids_chunks:
-                count += session.execute(
+                count += await session.execute(
                     update(TI)
                     .where(
                         TI.dag_id == self.dag_id,

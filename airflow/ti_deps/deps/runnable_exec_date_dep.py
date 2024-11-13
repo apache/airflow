@@ -29,7 +29,7 @@ class RunnableExecDateDep(BaseTIDep):
     IGNORABLE = True
 
     @provide_session
-    def _get_dep_statuses(self, ti, session, dep_context):
+    async def _get_dep_statuses(self, ti, session, dep_context):
         cur_date = timezone.utcnow()
 
         # don't consider runs that are executed in the future unless

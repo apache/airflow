@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Collection, Iterable, Iterator,
 
 import attr
 import methodtools
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from airflow.exceptions import UnmappableOperator
 from airflow.models.abstractoperator import (
@@ -670,7 +671,7 @@ class MappedOperator(AbstractOperator):
         """Implement DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    def _expand_mapped_kwargs(
+    async def _expand_mapped_kwargs(
         self, context: Context, session: Session, *, include_xcom: bool
     ) -> tuple[Mapping[str, Any], set[int]]:
         """
@@ -679,7 +680,7 @@ class MappedOperator(AbstractOperator):
         This exists because taskflow operators expand against op_kwargs, not the
         entire operator kwargs dict.
         """
-        return self._get_specified_expand_input().resolve(context, session, include_xcom=include_xcom)
+        return await self._get_specified_expand_input().resolve(context, session, include_xcom=include_xcom)
 
     def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> dict[str, Any]:
         """
@@ -713,7 +714,7 @@ class MappedOperator(AbstractOperator):
             "params": params,
         }
 
-    def expand_start_from_trigger(self, *, context: Context, session: Session) -> bool:
+    async def expand_start_from_trigger(self, *, context: Context, session: Session) -> bool:
         """
         Get the start_from_trigger value of the current abstract operator.
 
@@ -726,7 +727,7 @@ class MappedOperator(AbstractOperator):
         if not self.start_trigger_args:
             return False
 
-        mapped_kwargs, _ = self._expand_mapped_kwargs(context, session, include_xcom=False)
+        mapped_kwargs, _ = await self._expand_mapped_kwargs(context, session, include_xcom=False)
         if self._disallow_kwargs_override:
             prevent_duplicates(
                 self.partial_kwargs,
@@ -739,7 +740,7 @@ class MappedOperator(AbstractOperator):
             "start_from_trigger", self.partial_kwargs.get("start_from_trigger", self.start_from_trigger)
         )
 
-    def expand_start_trigger_args(self, *, context: Context, session: Session) -> StartTriggerArgs | None:
+    async def expand_start_trigger_args(self, *, context: Context, session: Session) -> StartTriggerArgs | None:
         """
         Get the kwargs to create the unmapped start_trigger_args.
 
@@ -748,7 +749,7 @@ class MappedOperator(AbstractOperator):
         if not self.start_trigger_args:
             return None
 
-        mapped_kwargs, _ = self._expand_mapped_kwargs(context, session, include_xcom=False)
+        mapped_kwargs, _ = await self._expand_mapped_kwargs(context, session, include_xcom=False)
         if self._disallow_kwargs_override:
             prevent_duplicates(
                 self.partial_kwargs,
@@ -852,15 +853,15 @@ class MappedOperator(AbstractOperator):
             return current_count
         return parent_count * current_count
 
-    def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
+    async def get_mapped_ti_count(self, run_id: str, *, session: AsyncSession) -> int:
         from airflow.serialization.serialized_objects import _ExpandInputRef
 
         exp_input = self._get_specified_expand_input()
         if isinstance(exp_input, _ExpandInputRef):
             exp_input = exp_input.deref(self.dag)
-        current_count = exp_input.get_total_map_length(run_id, session=session)
+        current_count = await exp_input.get_total_map_length(run_id, session=session)
         try:
-            parent_count = super().get_mapped_ti_count(run_id, session=session)
+            parent_count = await super().get_mapped_ti_count(run_id, session=session)
         except NotMapped:
             return current_count
         return parent_count * current_count

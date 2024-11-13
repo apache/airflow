@@ -195,7 +195,7 @@ class XComArg(ResolveMixin, DependencyMixin):
     def concat(self, *others: XComArg) -> ConcatXComArg:
         return ConcatXComArg([self, *others])
 
-    def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
+    async def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
         """
         Inspect length of pushed value for task-mapping.
 
@@ -233,7 +233,7 @@ class XComArg(ResolveMixin, DependencyMixin):
 
 @internal_api_call
 @provide_session
-def _get_task_map_length(
+async def _get_task_map_length(
     *,
     dag_id: str,
     task_id: str,
@@ -275,7 +275,7 @@ def _get_task_map_length(
             TaskMap.task_id == task_id,
             TaskMap.map_index < 0,
         )
-    return session.scalar(query)
+    return await session.scalar(query)
 
 
 class PlainXComArg(XComArg):
@@ -426,8 +426,8 @@ class PlainXComArg(XComArg):
             raise ValueError("cannot concatenate non-return XCom")
         return super().concat(*others)
 
-    def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
-        return _get_task_map_length(
+    async def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
+        return await _get_task_map_length(
             dag_id=self.operator.dag_id,
             task_id=self.operator.task_id,
             is_mapped=isinstance(self.operator, MappedOperator),
@@ -546,8 +546,8 @@ class MapXComArg(XComArg):
         # Flatten arg.map(f1).map(f2) into one MapXComArg.
         return MapXComArg(self.arg, [*self.callables, f])
 
-    def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
-        return self.arg.get_task_map_length(run_id, session=session)
+    async def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
+        return await self.arg.get_task_map_length(run_id, session=session)
 
     @provide_session
     def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
@@ -621,8 +621,8 @@ class ZipXComArg(XComArg):
         for arg in self.args:
             yield from arg.iter_references()
 
-    def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
-        all_lengths = (arg.get_task_map_length(run_id, session=session) for arg in self.args)
+    async def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
+        all_lengths = (await arg.get_task_map_length(run_id, session=session) for arg in self.args)
         ready_lengths = [length for length in all_lengths if length is not None]
         if len(ready_lengths) != len(self.args):
             return None  # If any of the referenced XComs is not ready, we are not ready either.
@@ -698,8 +698,8 @@ class ConcatXComArg(XComArg):
         # Flatten foo.concat(x).concat(y) into one call.
         return ConcatXComArg([*self.args, *others])
 
-    def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
-        all_lengths = (arg.get_task_map_length(run_id, session=session) for arg in self.args)
+    async def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
+        all_lengths = (await arg.get_task_map_length(run_id, session=session) for arg in self.args)
         ready_lengths = [length for length in all_lengths if length is not None]
         if len(ready_lengths) != len(self.args):
             return None  # If any of the referenced XComs is not ready, we are not ready either.

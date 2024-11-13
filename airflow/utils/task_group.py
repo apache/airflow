@@ -23,6 +23,8 @@ import functools
 import operator
 from typing import TYPE_CHECKING, Iterator
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
 import airflow.sdk.definitions.taskgroup
 
 if TYPE_CHECKING:
@@ -52,7 +54,7 @@ class MappedTaskGroup(airflow.sdk.definitions.taskgroup.MappedTaskGroup):
         for op, _ in XComArg.iter_xcom_references(self._expand_input):
             yield op
 
-    def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
+    async def get_mapped_ti_count(self, run_id: str, *, session: AsyncSession) -> int:
         """
         Return the number of instances a task in this group should be mapped to at run time.
 
@@ -72,7 +74,7 @@ class MappedTaskGroup(airflow.sdk.definitions.taskgroup.MappedTaskGroup):
         groups = self.iter_mapped_task_groups()
         return functools.reduce(
             operator.mul,
-            (g._expand_input.get_total_map_length(run_id, session=session) for g in groups),
+            (await g._expand_input.get_total_map_length(run_id, session=session) for g in groups),
         )
 
 

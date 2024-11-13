@@ -45,7 +45,7 @@ class MappedTaskUpstreamDep(BaseTIDep):
     IGNORABLE = True
     IS_TASK_DEP = True
 
-    def _get_dep_statuses(
+    async def _get_dep_statuses(
         self,
         ti: TaskInstance,
         session: Session,

@@ -66,7 +66,7 @@ class BaseTIDep:
         """
         return getattr(self, "NAME", self.__class__.__name__)
 
-    def _get_dep_statuses(
+    async def _get_dep_statuses(
         self,
         ti: TaskInstance,
         session: Session,
@@ -87,7 +87,7 @@ class BaseTIDep:
         raise NotImplementedError
 
     @provide_session
-    def get_dep_statuses(
+    async def get_dep_statuses(
         self,
         ti: TaskInstance,
         session: Session,
@@ -112,7 +112,8 @@ class BaseTIDep:
             yield self._passing_status(reason="Context specified all task dependencies should be ignored.")
             return
 
-        yield from self._get_dep_statuses(ti, session, cxt)
+        async for thing in self._get_dep_statuses(ti, session, cxt):
+            yield thing
 
     @provide_session
     def is_met(self, ti: TaskInstance, session: Session, dep_context: DepContext | None = None) -> bool:

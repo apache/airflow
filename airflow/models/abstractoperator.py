@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Sequence
 
 import methodtools
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -426,7 +427,7 @@ class AbstractOperator(Templater, TaskSDKAbstractOperator):
             raise NotMapped
         return group.get_parse_time_mapped_ti_count()
 
-    def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
+    async def get_mapped_ti_count(self, run_id: str, *, session: AsyncSession) -> int:
         """
         Return the number of mapped TaskInstances that can be created at run time.
 
@@ -443,9 +444,9 @@ class AbstractOperator(Templater, TaskSDKAbstractOperator):
         group = self.get_closest_mapped_task_group()
         if group is None:
             raise NotMapped
-        return group.get_mapped_ti_count(run_id, session=session)
+        return await group.get_mapped_ti_count(run_id, session=session)
 
-    def expand_mapped_task(self, run_id: str, *, session: Session) -> tuple[Sequence[TaskInstance], int]:
+    async def expand_mapped_task(self, run_id: str, *, session: AsyncSession) -> tuple[Sequence[TaskInstance], int]:
         """
         Create the mapped task instances for mapped task.
 
@@ -464,7 +465,7 @@ class AbstractOperator(Templater, TaskSDKAbstractOperator):
             raise RuntimeError(f"cannot expand unrecognized operator type {type(self).__name__}")
 
         try:
-            total_length: int | None = self.get_mapped_ti_count(run_id, session=session)
+            total_length: int | None = await self.get_mapped_ti_count(run_id, session=session)
         except NotFullyPopulated as e:
             # It's possible that the upstream tasks are not yet done, but we
             # don't have upstream of upstreams in partial DAGs (possible in the
@@ -479,15 +480,15 @@ class AbstractOperator(Templater, TaskSDKAbstractOperator):
             total_length = None
 
         state: TaskInstanceState | None = None
-        unmapped_ti: TaskInstance | None = session.scalars(
+        unmapped_ti: TaskInstance | None = await session.scalars(
             select(TaskInstance).where(
                 TaskInstance.dag_id == self.dag_id,
                 TaskInstance.task_id == self.task_id,
                 TaskInstance.run_id == run_id,
                 TaskInstance.map_index == -1,
                 or_(TaskInstance.state.in_(State.unfinished), TaskInstance.state.is_(None)),
-            )
-        ).one_or_none()
+            ).limit(1)
+        )
 
         all_expanded_tis: list[TaskInstance] = []
 
@@ -527,10 +528,10 @@ class AbstractOperator(Templater, TaskSDKAbstractOperator):
                     all_expanded_tis.append(unmapped_ti)
                     # execute hook for task instance map index 0
                     task_instance_mutation_hook(unmapped_ti)
-                    session.flush()
+                    await session.flush()
                 else:
                     self.log.debug("Deleting the original task instance: %s", unmapped_ti)
-                    session.delete(unmapped_ti)
+                    await session.delete(unmapped_ti)
                 state = unmapped_ti.state
 
         if total_length is None or total_length < 1:
@@ -538,7 +539,7 @@ class AbstractOperator(Templater, TaskSDKAbstractOperator):
             indexes_to_map: Iterable[int] = ()
         else:
             # Only create "missing" ones.
-            current_max_mapping = session.scalar(
+            current_max_mapping = await session.scalar(
                 select(func.max(TaskInstance.map_index)).where(
                     TaskInstance.dag_id == self.dag_id,
                     TaskInstance.task_id == self.task_id,
@@ -552,7 +553,7 @@ class AbstractOperator(Templater, TaskSDKAbstractOperator):
             ti = TaskInstance(self, run_id=run_id, map_index=index, state=state)
             self.log.debug("Expanding TIs upserted %s", ti)
             task_instance_mutation_hook(ti)
-            ti = session.merge(ti)
+            ti = await session.merge(ti)
             ti.refresh_from_task(self)  # session.merge() loses task information.
             all_expanded_tis.append(ti)
 
@@ -570,9 +571,9 @@ class AbstractOperator(Templater, TaskSDKAbstractOperator):
         )
         query = with_row_locks(query, of=TaskInstance, session=session, skip_locked=True)
         to_update = session.scalars(query)
-        for ti in to_update:
+        async for ti in to_update:
             ti.state = TaskInstanceState.REMOVED
-        session.flush()
+        await session.flush()
         return all_expanded_tis, total_expanded_ti_count - 1
 
     def render_template_fields(
