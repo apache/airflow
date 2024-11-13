@@ -89,6 +89,111 @@ export const $AppBuilderViewResponse = {
   description: "Serializer for AppBuilder View responses.",
 } as const;
 
+export const $AssetAliasSchema = {
+  properties: {
+    id: {
+      type: "integer",
+      title: "Id",
+    },
+    name: {
+      type: "string",
+      title: "Name",
+    },
+  },
+  type: "object",
+  required: ["id", "name"],
+  title: "AssetAliasSchema",
+  description:
+    "Serializable version of the AssetAliasSchema ORM SqlAlchemyModel.",
+} as const;
+
+export const $AssetCollectionResponse = {
+  properties: {
+    assets: {
+      items: {
+        $ref: "#/components/schemas/AssetResponse",
+      },
+      type: "array",
+      title: "Assets",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["assets", "total_entries"],
+  title: "AssetCollectionResponse",
+  description: "Asset collection response.",
+} as const;
+
+export const $AssetResponse = {
+  properties: {
+    id: {
+      type: "integer",
+      title: "Id",
+    },
+    uri: {
+      type: "string",
+      title: "Uri",
+    },
+    extra: {
+      anyOf: [
+        {
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Extra",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      title: "Created At",
+    },
+    updated_at: {
+      type: "string",
+      format: "date-time",
+      title: "Updated At",
+    },
+    consuming_dags: {
+      items: {
+        $ref: "#/components/schemas/DagScheduleAssetReference",
+      },
+      type: "array",
+      title: "Consuming Dags",
+    },
+    producing_tasks: {
+      items: {
+        $ref: "#/components/schemas/TaskOutletAssetReference",
+      },
+      type: "array",
+      title: "Producing Tasks",
+    },
+    aliases: {
+      items: {
+        $ref: "#/components/schemas/AssetAliasSchema",
+      },
+      type: "array",
+      title: "Aliases",
+    },
+  },
+  type: "object",
+  required: [
+    "id",
+    "uri",
+    "created_at",
+    "updated_at",
+    "consuming_dags",
+    "producing_tasks",
+    "aliases",
+  ],
+  title: "AssetResponse",
+  description: "Asset serializer for responses.",
+} as const;
+
 export const $BackfillPostBody = {
   properties: {
     dag_id: {
@@ -367,6 +472,23 @@ export const $ConnectionResponse = {
   ],
   title: "ConnectionResponse",
   description: "Connection serializer for responses.",
+} as const;
+
+export const $ConnectionTestResponse = {
+  properties: {
+    status: {
+      type: "boolean",
+      title: "Status",
+    },
+    message: {
+      type: "string",
+      title: "Message",
+    },
+  },
+  type: "object",
+  required: ["status", "message"],
+  title: "ConnectionTestResponse",
+  description: "Connection Test serializer for responses.",
 } as const;
 
 export const $DAGCollectionResponse = {
@@ -1596,6 +1718,30 @@ export const $DagRunType = {
   enum: ["backfill", "scheduled", "manual", "asset_triggered"],
   title: "DagRunType",
   description: "Class with DagRun types.",
+} as const;
+
+export const $DagScheduleAssetReference = {
+  properties: {
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      title: "Created At",
+    },
+    updated_at: {
+      type: "string",
+      format: "date-time",
+      title: "Updated At",
+    },
+  },
+  type: "object",
+  required: ["dag_id", "created_at", "updated_at"],
+  title: "DagScheduleAssetReference",
+  description:
+    "Serializable version of the DagScheduleAssetReference ORM SqlAlchemyModel.",
 } as const;
 
 export const $DagStatsCollectionResponse = {
@@ -2885,6 +3031,34 @@ export const $TaskInstanceStateCount = {
   description: "TaskInstance serializer for responses.",
 } as const;
 
+export const $TaskOutletAssetReference = {
+  properties: {
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    task_id: {
+      type: "string",
+      title: "Task Id",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      title: "Created At",
+    },
+    updated_at: {
+      type: "string",
+      format: "date-time",
+      title: "Updated At",
+    },
+  },
+  type: "object",
+  required: ["dag_id", "task_id", "created_at", "updated_at"],
+  title: "TaskOutletAssetReference",
+  description:
+    "Serializable version of the TaskOutletAssetReference ORM SqlAlchemyModel.",
+} as const;
+
 export const $TriggerResponse = {
   properties: {
     id: {
@@ -3095,4 +3269,104 @@ export const $VersionInfo = {
   required: ["version", "git_version"],
   title: "VersionInfo",
   description: "Version information serializer for responses.",
+} as const;
+
+export const $XComResponseNative = {
+  properties: {
+    key: {
+      type: "string",
+      title: "Key",
+    },
+    timestamp: {
+      type: "string",
+      format: "date-time",
+      title: "Timestamp",
+    },
+    execution_date: {
+      type: "string",
+      format: "date-time",
+      title: "Execution Date",
+    },
+    map_index: {
+      type: "integer",
+      title: "Map Index",
+    },
+    task_id: {
+      type: "string",
+      title: "Task Id",
+    },
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    value: {
+      title: "Value",
+    },
+  },
+  type: "object",
+  required: [
+    "key",
+    "timestamp",
+    "execution_date",
+    "map_index",
+    "task_id",
+    "dag_id",
+    "value",
+  ],
+  title: "XComResponseNative",
+  description: "XCom response serializer with native return type.",
+} as const;
+
+export const $XComResponseString = {
+  properties: {
+    key: {
+      type: "string",
+      title: "Key",
+    },
+    timestamp: {
+      type: "string",
+      format: "date-time",
+      title: "Timestamp",
+    },
+    execution_date: {
+      type: "string",
+      format: "date-time",
+      title: "Execution Date",
+    },
+    map_index: {
+      type: "integer",
+      title: "Map Index",
+    },
+    task_id: {
+      type: "string",
+      title: "Task Id",
+    },
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    value: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Value",
+    },
+  },
+  type: "object",
+  required: [
+    "key",
+    "timestamp",
+    "execution_date",
+    "map_index",
+    "task_id",
+    "dag_id",
+    "value",
+  ],
+  title: "XComResponseString",
+  description: "XCom response serializer with string return type.",
 } as const;

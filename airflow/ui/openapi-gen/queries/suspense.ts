@@ -21,6 +21,7 @@ import {
   TaskInstanceService,
   VariableService,
   VersionService,
+  XcomService,
 } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
@@ -48,6 +49,54 @@ export const useAssetServiceNextRunAssetsSuspense = <
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }, queryKey),
     queryFn: () => AssetService.nextRunAssets({ dagId }) as TData,
+    ...options,
+  });
+/**
+ * Get Assets
+ * Get assets.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.uriPattern
+ * @param data.dagIds
+ * @param data.orderBy
+ * @returns AssetCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceGetAssetsSuspense = <
+  TData = Common.AssetServiceGetAssetsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagIds,
+    limit,
+    offset,
+    orderBy,
+    uriPattern,
+  }: {
+    dagIds?: string[];
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    uriPattern?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseAssetServiceGetAssetsKeyFn(
+      { dagIds, limit, offset, orderBy, uriPattern },
+      queryKey,
+    ),
+    queryFn: () =>
+      AssetService.getAssets({
+        dagIds,
+        limit,
+        offset,
+        orderBy,
+        uriPattern,
+      }) as TData,
     ...options,
   });
 /**
@@ -1447,5 +1496,61 @@ export const useDagStatsServiceGetDagStatsSuspense = <
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }, queryKey),
     queryFn: () => DagStatsService.getDagStats({ dagIds }) as TData,
+    ...options,
+  });
+/**
+ * Get Xcom Entry
+ * Get an XCom entry.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.taskId
+ * @param data.dagRunId
+ * @param data.xcomKey
+ * @param data.mapIndex
+ * @param data.deserialize
+ * @param data.stringify
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useXcomServiceGetXcomEntrySuspense = <
+  TData = Common.XcomServiceGetXcomEntryDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    deserialize,
+    mapIndex,
+    stringify,
+    taskId,
+    xcomKey,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    deserialize?: boolean;
+    mapIndex?: number;
+    stringify?: boolean;
+    taskId: string;
+    xcomKey: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseXcomServiceGetXcomEntryKeyFn(
+      { dagId, dagRunId, deserialize, mapIndex, stringify, taskId, xcomKey },
+      queryKey,
+    ),
+    queryFn: () =>
+      XcomService.getXcomEntry({
+        dagId,
+        dagRunId,
+        deserialize,
+        mapIndex,
+        stringify,
+        taskId,
+        xcomKey,
+      }) as TData,
     ...options,
   });

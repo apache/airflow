@@ -26,6 +26,7 @@ import {
   TaskInstanceService,
   VariableService,
   VersionService,
+  XcomService,
 } from "../requests/services.gen";
 import {
   BackfillPostBody,
@@ -63,6 +64,54 @@ export const useAssetServiceNextRunAssets = <
   useQuery<TData, TError>({
     queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }, queryKey),
     queryFn: () => AssetService.nextRunAssets({ dagId }) as TData,
+    ...options,
+  });
+/**
+ * Get Assets
+ * Get assets.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.uriPattern
+ * @param data.dagIds
+ * @param data.orderBy
+ * @returns AssetCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceGetAssets = <
+  TData = Common.AssetServiceGetAssetsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagIds,
+    limit,
+    offset,
+    orderBy,
+    uriPattern,
+  }: {
+    dagIds?: string[];
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    uriPattern?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseAssetServiceGetAssetsKeyFn(
+      { dagIds, limit, offset, orderBy, uriPattern },
+      queryKey,
+    ),
+    queryFn: () =>
+      AssetService.getAssets({
+        dagIds,
+        limit,
+        offset,
+        orderBy,
+        uriPattern,
+      }) as TData,
     ...options,
   });
 /**
@@ -1465,6 +1514,62 @@ export const useDagStatsServiceGetDagStats = <
     ...options,
   });
 /**
+ * Get Xcom Entry
+ * Get an XCom entry.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.taskId
+ * @param data.dagRunId
+ * @param data.xcomKey
+ * @param data.mapIndex
+ * @param data.deserialize
+ * @param data.stringify
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useXcomServiceGetXcomEntry = <
+  TData = Common.XcomServiceGetXcomEntryDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    deserialize,
+    mapIndex,
+    stringify,
+    taskId,
+    xcomKey,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    deserialize?: boolean;
+    mapIndex?: number;
+    stringify?: boolean;
+    taskId: string;
+    xcomKey: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseXcomServiceGetXcomEntryKeyFn(
+      { dagId, dagRunId, deserialize, mapIndex, stringify, taskId, xcomKey },
+      queryKey,
+    ),
+    queryFn: () =>
+      XcomService.getXcomEntry({
+        dagId,
+        dagRunId,
+        deserialize,
+        mapIndex,
+        stringify,
+        taskId,
+        xcomKey,
+      }) as TData,
+    ...options,
+  });
+/**
  * Create Backfill
  * @param data The data for the request.
  * @param data.requestBody
@@ -1537,6 +1642,49 @@ export const useConnectionServicePostConnection = <
   >({
     mutationFn: ({ requestBody }) =>
       ConnectionService.postConnection({
+        requestBody,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Test Connection
+ * Test an API connection.
+ *
+ * This method first creates an in-memory transient conn_id & exports that to an env var,
+ * as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
+ * It also deletes the conn id env variable after the test.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns ConnectionTestResponse Successful Response
+ * @throws ApiError
+ */
+export const useConnectionServiceTestConnection = <
+  TData = Common.ConnectionServiceTestConnectionMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: ConnectionBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: ConnectionBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      ConnectionService.testConnection({
         requestBody,
       }) as unknown as Promise<TData>,
     ...options,
