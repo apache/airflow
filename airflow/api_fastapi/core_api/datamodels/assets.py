@@ -67,7 +67,7 @@ class AssetCollectionResponse(BaseModel):
 
 
 class DagRunAssetReference(BaseModel):
-    """Serializable version of the DagRunAssetReference ORM SqlAlchemyModel."""
+    """DAGRun serializer for asset responses."""
 
     run_id: str
     dag_id: str

@@ -411,7 +411,7 @@ export type DagProcessorInfoSchema = {
 };
 
 /**
- * Serializable version of the DagRunAssetReference ORM SqlAlchemyModel.
+ * DAGRun serializer for asset responses.
  */
 export type DagRunAssetReference = {
   run_id: string;

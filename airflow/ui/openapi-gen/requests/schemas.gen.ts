@@ -1942,8 +1942,7 @@ export const $DagRunAssetReference = {
     "data_interval_end",
   ],
   title: "DagRunAssetReference",
-  description:
-    "Serializable version of the DagRunAssetReference ORM SqlAlchemyModel.",
+  description: "DAGRun serializer for asset responses.",
 } as const;
 
 export const $DagRunState = {

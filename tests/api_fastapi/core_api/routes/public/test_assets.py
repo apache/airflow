@@ -321,7 +321,7 @@ class TestGetAssetEvents(TestAssets):
                 {
                     "id": 1,
                     "asset_id": 1,
-                    "asset_uri": "s3://bucket/key/1",
+                    "uri": "s3://bucket/key/1",
                     "extra": {"foo": "bar"},
                     "source_task_id": "source_task_id",
                     "source_dag_id": "source_dag_id",
@@ -344,7 +344,7 @@ class TestGetAssetEvents(TestAssets):
                 {
                     "id": 2,
                     "asset_id": 2,
-                    "asset_uri": "s3://bucket/key/2",
+                    "uri": "s3://bucket/key/2",
                     "extra": {"foo": "bar"},
                     "source_task_id": "source_task_id",
                     "source_dag_id": "source_dag_id",
@@ -369,22 +369,22 @@ class TestGetAssetEvents(TestAssets):
         }
 
     @pytest.mark.parametrize(
-        "filter_type, filter_value, total_entries",
+        "params, total_entries",
         [
-            ("asset_id", "2", 1),
-            ("source_dag_id", "source_dag_id", 2),
-            ("source_task_id", "source_task_id", 2),
-            ("source_run_id", "source_run_id_1", 1),
-            ("source_map_index", "-1", 2),
+            ({"asset_id": "2"}, 1),
+            ({"source_dag_id": "source_dag_id"}, 2),
+            ({"source_task_id": "source_task_id"}, 2),
+            ({"source_run_id": "source_run_id_1"}, 1),
+            ({"source_map_index": "-1"}, 2),
         ],
     )
     @provide_session
-    def test_filtering(self, test_client, filter_type, filter_value, total_entries, session):
+    def test_filtering(self, test_client, params, total_entries, session):
         self.create_assets()
         self.create_assets_events()
         self.create_dag_run()
         self.create_asset_dag_run()
-        response = test_client.get(f"/public/assets/events?{filter_type}={filter_value}")
+        response = test_client.get("/public/assets/events", params=params)
         assert response.status_code == 200
         assert response.json()["total_entries"] == total_entries
 
@@ -394,3 +394,26 @@ class TestGetAssetEvents(TestAssets):
         assert response.status_code == 400
         msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
         assert response.json()["detail"] == msg
+
+    @pytest.mark.parametrize(
+        "params, expected_asset_uris",
+        [
+            # Limit test data
+            ({"limit": "1"}, ["s3://bucket/key/1"]),
+            ({"limit": "100"}, [f"s3://bucket/key/{i}" for i in range(1, 101)]),
+            # Offset test data
+            ({"offset": "1"}, [f"s3://bucket/key/{i}" for i in range(2, 102)]),
+            ({"offset": "3"}, [f"s3://bucket/key/{i}" for i in range(4, 104)]),
+        ],
+    )
+    def test_limit_and_offset(self, test_client, params, expected_asset_uris):
+        self.create_assets(num=110)
+        self.create_assets_events(num=110)
+        self.create_dag_run(num=110)
+        self.create_asset_dag_run(num=110)
+
+        response = test_client.get("/public/assets/events", params=params)
+
+        assert response.status_code == 200
+        asset_uris = [asset["uri"] for asset in response.json()["asset_events"]]
+        assert asset_uris == expected_asset_uris
