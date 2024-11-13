@@ -79,7 +79,8 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
             </Heading>
             {isPaused ? (
               <Alert status="warning" title="Paused DAG">
-                You can not trigger a paused DAG, Unpause DAG to trigger
+                Triggering will create a Dag run but it will not start until the
+                Dag is unpaused.
               </Alert>
             ) : undefined}
           </VStack>
@@ -90,7 +91,6 @@ const TriggerDAGModal: React.FC<TriggerDAGModalProps> = ({
         <Dialog.Body>
           <TriggerDAGForm
             dagParams={dagParams}
-            isPaused={isPaused}
             onClose={onClose}
             onTrigger={handleTrigger}
             setDagParams={setDagParams}

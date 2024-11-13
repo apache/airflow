@@ -31,7 +31,6 @@ import type { DagParams } from "./TriggerDag";
 
 type TriggerDAGFormProps = {
   dagParams: DagParams;
-  isPaused: boolean;
   onClose: () => void;
   onTrigger: (updatedDagParams: DagParams) => void;
   setDagParams: React.Dispatch<React.SetStateAction<DagParams>>;
@@ -39,7 +38,6 @@ type TriggerDAGFormProps = {
 
 const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
   dagParams,
-  isPaused,
   onTrigger,
   setDagParams,
 }) => {
@@ -221,7 +219,7 @@ const TriggerDAGForm: React.FC<TriggerDAGFormProps> = ({
           <Spacer />
           <Button
             colorPalette="blue"
-            disabled={Boolean(jsonError) || isPaused}
+            disabled={Boolean(jsonError)}
             onClick={() => void handleSubmit(onSubmit)()}
           >
             <FiPlay /> Trigger
