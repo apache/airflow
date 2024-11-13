@@ -84,9 +84,6 @@ class DmsReplicationConfigDeletedTrigger(AwsBaseWaiterTrigger):
     ) -> None:
         super().__init__(
             serialized_fields={"replication_config_arn": replication_config_arn},
-            # serialized_fields={
-            #    "Filters": [{"Name": "replication-config-arn", "Values": [replication_config_arn]}]
-            # },
             waiter_name="replication_config_deleted",
             waiter_delay=waiter_delay,
             waiter_args={"Filters": [{"Name": "replication-config-arn", "Values": [replication_config_arn]}]},
@@ -126,7 +123,6 @@ class DmsReplicationCompleteTrigger(AwsBaseWaiterTrigger):
     ) -> None:
         super().__init__(
             serialized_fields={"replication_config_arn": replication_config_arn},
-            # "Filters": [{"Name": "replication-config-arn", "Values": [replication_config_arn]}]},
             waiter_name="replication_complete",
             waiter_delay=waiter_delay,
             waiter_args={"Filters": [{"Name": "replication-config-arn", "Values": [replication_config_arn]}]},
@@ -188,7 +184,7 @@ class DmsReplicationStoppedTrigger(AwsBaseWaiterTrigger):
 
 class DmsReplicationDeprovisionedTrigger(AwsBaseWaiterTrigger):
     """
-    Trigger when an AWS DMS Serverless replication is deprovisioned.
+    Trigger when an AWS DMS Serverless replication is de-provisioned.
 
     :param replication_config_arn: The ARN of the replication config.
     :param waiter_delay: The amount of time in seconds to wait between attempts.
