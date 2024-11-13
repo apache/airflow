@@ -1256,7 +1256,7 @@ class TestKubernetesExecutor:
         executor.kube_scheduler = mock.MagicMock()
         ti.refresh_from_db()
         tis = [ti]
-        list(executor.cleanup_stuck_queued_tasks(tis))
+        list(executor.cleanup_tasks_stuck_in_queued(tis=tis))
         executor.kube_scheduler.delete_pod.assert_called_once()
         assert executor.running == set()
 
