@@ -78,6 +78,7 @@ def get_asset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
     return asset_schema.dump(asset)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("GET")
 @format_parameters({"limit": check_limit})
 @provide_session

@@ -1016,12 +1016,6 @@ export interface components {
        */
       last_expired?: string | null;
       /**
-       * @description Foreign key to the latest pickle_id
-       *
-       * *New in version 2.3.0*
-       */
-      pickle_id?: string | null;
-      /**
        * @description Default view of the DAG inside the webserver
        *
        * *New in version 2.3.0*
