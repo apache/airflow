@@ -29,7 +29,7 @@ type Props = {
 export const LatestRun = ({ latestRun }: Props) =>
   latestRun ? (
     <HStack fontSize="sm">
-      <Time datetime={latestRun.logical_date} />
+      <Time datetime={latestRun.start_date} />
       <Box
         bg={stateColor[latestRun.state]}
         borderRadius="50%"

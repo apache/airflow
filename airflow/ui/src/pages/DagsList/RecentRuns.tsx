@@ -58,7 +58,7 @@ export const RecentRuns = ({
             <Box>
               <Text>State: {run.state}</Text>
               <Text>
-                Logical Date: <Time datetime={run.logical_date} />
+                Start Date: <Time datetime={run.start_date} />
               </Text>
               <Text>Duration: {run.duration.toFixed(2)}s</Text>
             </Box>

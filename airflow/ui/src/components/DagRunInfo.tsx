@@ -26,7 +26,6 @@ type Props = {
   readonly dataIntervalEnd?: string | null;
   readonly dataIntervalStart?: string | null;
   readonly endDate?: string | null;
-  readonly logicalDate?: string | null;
   readonly nextDagrunCreateAfter?: string | null;
   readonly startDate?: string | null;
 };
@@ -35,7 +34,6 @@ const DagRunInfo = ({
   dataIntervalEnd,
   dataIntervalStart,
   endDate,
-  logicalDate,
   nextDagrunCreateAfter,
   startDate,
 }: Props) =>
@@ -53,9 +51,6 @@ const DagRunInfo = ({
             <Text>
               Run After: <Time datetime={nextDagrunCreateAfter} />
             </Text>
-          ) : undefined}
-          {Boolean(logicalDate) ? (
-            <Text>Logical Date: {logicalDate}</Text>
           ) : undefined}
           {Boolean(startDate) ? (
             <Text>Start Date: {startDate}</Text>
