@@ -1963,6 +1963,14 @@ export type $OpenApiTs = {
          */
         200: DAGCollectionResponse;
         /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
          * Validation Error
          */
         422: HTTPValidationError;
@@ -2248,6 +2256,14 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: HealthInfoSchema;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
       };
     };
   };
@@ -2259,6 +2275,14 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: PluginCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -2407,6 +2431,14 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: ProviderCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -2739,6 +2771,14 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: VersionInfo;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
       };
     };
   };

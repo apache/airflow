@@ -46,8 +46,6 @@ pools_router = AirflowRouter(tags=["Pool"], prefix="/pools")
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
         ]
     ),

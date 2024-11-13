@@ -17,7 +17,10 @@
 
 from __future__ import annotations
 
+from fastapi import status
+
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.routes.public.assets import assets_router
 from airflow.api_fastapi.core_api.routes.public.backfills import backfills_router
 from airflow.api_fastapi.core_api.routes.public.connections import connections_router
@@ -38,7 +41,10 @@ from airflow.api_fastapi.core_api.routes.public.variables import variables_route
 from airflow.api_fastapi.core_api.routes.public.version import version_router
 from airflow.api_fastapi.core_api.routes.public.xcom import xcom_router
 
-public_router = AirflowRouter(prefix="/public")
+public_router = AirflowRouter(
+    prefix="/public",
+    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
+)
 
 
 public_router.include_router(assets_router)

@@ -802,6 +802,8 @@ export class DagService {
         order_by: data.orderBy,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });
@@ -1143,6 +1145,10 @@ export class MonitorService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/monitor/health",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+      },
     });
   }
 }
@@ -1167,6 +1173,8 @@ export class PluginService {
         offset: data.offset,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });
@@ -1335,6 +1343,8 @@ export class ProviderService {
         offset: data.offset,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });
@@ -1785,6 +1795,10 @@ export class VersionService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/version/",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+      },
     });
   }
 }
