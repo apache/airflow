@@ -255,7 +255,7 @@ class TestCeleryExecutor:
             executor.job_id = 1
             executor.running = {ti.key}
             executor.tasks = {ti.key: AsyncResult("231")}
-            list(executor.cleanup_stuck_queued_tasks(tis))
+            list(executor.cleanup_tasks_stuck_in_queued(tis=tis))
             executor.sync()
         assert executor.tasks == {}
         app.control.revoke.assert_called_once_with("231")
