@@ -254,6 +254,8 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     ],
     "devel-tests": [
         "aiofiles>=23.2.0",
+        # Limit temporarily aiohttp to 3.10 and below because of https://github.com/aio-libs/aiohttp/issues/9866
+        "aiohttp<3.11.0",
         "aioresponses>=0.7.6",
         "beautifulsoup4>=4.7.1",
         # Coverage 7.4.0 added experimental support for Python 3.12 PEP669 which we use in Airflow
