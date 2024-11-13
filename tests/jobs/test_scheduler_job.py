@@ -2189,6 +2189,16 @@ class TestSchedulerJob:
         mock_executors[1].try_adopt_task_instances.assert_called_once_with([ti3])
 
     def test_handle_stuck_queued_tasks_backcompat(self, dag_maker, session, mock_executors):
+        """
+        Verify backward compatibility of the executor interface w.r.t. stuck queued.
+
+        Prior to #43520, scheduler called method `cleanup_stuck_queued_tasks`, which failed tis.
+
+        After #43520, scheduler calls `cleanup_tasks_stuck_in_queued`, which requeues tis.
+
+        At Airflow 3.0, we should remove backcompat support for this old function. But for now
+        we verify that we call it as a fallback.
+        """
         # todo: remove in airflow 3.0
         with dag_maker("test_fail_stuck_queued_tasks_multiple_executors"):
             op1 = EmptyOperator(task_id="op1")
