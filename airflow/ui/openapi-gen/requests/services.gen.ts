@@ -5,6 +5,8 @@ import { request as __request } from "./core/request";
 import type {
   NextRunAssetsData,
   NextRunAssetsResponse,
+  GetAssetsData,
+  GetAssetsResponse,
   HistoricalMetricsData,
   HistoricalMetricsResponse,
   RecentDagRunsData,
@@ -45,6 +47,8 @@ import type {
   GetConnectionsResponse,
   PostConnectionData,
   PostConnectionResponse,
+  TestConnectionData,
+  TestConnectionResponse,
   GetDagRunData,
   GetDagRunResponse,
   DeleteDagRunData,
@@ -125,6 +129,40 @@ export class AssetService {
         dag_id: data.dagId,
       },
       errors: {
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Assets
+   * Get assets.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.uriPattern
+   * @param data.dagIds
+   * @param data.orderBy
+   * @returns AssetCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getAssets(
+    data: GetAssetsData = {},
+  ): CancelablePromise<GetAssetsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/assets/",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        uri_pattern: data.uriPattern,
+        dag_ids: data.dagIds,
+        order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
         422: "Validation Error",
       },
     });
@@ -732,6 +770,34 @@ export class ConnectionService {
         401: "Unauthorized",
         403: "Forbidden",
         409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Test Connection
+   * Test an API connection.
+   *
+   * This method first creates an in-memory transient conn_id & exports that to an env var,
+   * as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
+   * It also deletes the conn id env variable after the test.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns ConnectionTestResponse Successful Response
+   * @throws ApiError
+   */
+  public static testConnection(
+    data: TestConnectionData,
+  ): CancelablePromise<TestConnectionResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/connections/test",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });
