@@ -23,7 +23,15 @@ import contextlib
 import copy
 import functools
 import warnings
-from collections.abc import Container, ItemsView, Iterator, KeysView, Mapping, MutableMapping, ValuesView
+from collections.abc import (
+    Container,
+    ItemsView,
+    Iterator,
+    KeysView,
+    Mapping,
+    MutableMapping,
+    ValuesView,
+)
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -35,12 +43,18 @@ import lazy_object_proxy
 from sqlalchemy import select
 
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel, _fetch_active_assets_by_name
+from airflow.models.asset import (
+    AssetAliasModel,
+    AssetEvent,
+    AssetModel,
+    _fetch_active_assets_by_name,
+)
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
     AssetAliasEvent,
     AssetRef,
+    BaseAsset,
 )
 from airflow.sdk.definitions.asset.metadata import extract_event_key
 from airflow.utils.db import LazySelectSequence
@@ -153,33 +167,30 @@ class OutletEventAccessor:
     :meta private:
     """
 
-    raw_key: str | Asset | AssetAlias
+    key: BaseAsset
     extra: dict[str, Any] = attrs.Factory(dict)
     asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
 
-    def add(self, asset: Asset | str, extra: dict[str, Any] | None = None) -> None:
+    def add(self, asset: Asset, extra: dict[str, Any] | None = None) -> None:
         """Add an AssetEvent to an existing Asset."""
-        if isinstance(asset, str):
-            asset_uri = asset
-        elif isinstance(asset, Asset):
-            asset_uri = asset.uri
+        if not isinstance(asset, Asset):
+            return
+
+        if isinstance(self.key, AssetAlias):
+            asset_alias_name = self.key.name
         else:
             return
 
-        if isinstance(self.raw_key, str):
-            asset_alias_name = self.raw_key
-        elif isinstance(self.raw_key, AssetAlias):
-            asset_alias_name = self.raw_key.name
-        else:
-            return
-
+        # TODO: handle asset.name
         event = AssetAliasEvent(
-            source_alias_name=asset_alias_name, dest_asset_uri=asset_uri, extra=extra or {}
+            source_alias_name=asset_alias_name,
+            dest_asset_uri=asset.uri,
+            extra=extra or {},
         )
         self.asset_alias_events.append(event)
 
 
-class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
+class OutletEventAccessors(Mapping[BaseAsset, OutletEventAccessor]):
     """
     Lazy mapping of outlet asset event accessors.
 
@@ -187,22 +198,21 @@ class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
     """
 
     def __init__(self) -> None:
-        self._dict: dict[str, OutletEventAccessor] = {}
+        self._dict: dict[BaseAsset, OutletEventAccessor] = {}
 
     def __str__(self) -> str:
         return f"OutletEventAccessors(_dict={self._dict})"
 
-    def __iter__(self) -> Iterator[str]:
+    def __iter__(self) -> Iterator[BaseAsset]:
         return iter(self._dict)
 
     def __len__(self) -> int:
         return len(self._dict)
 
-    def __getitem__(self, key: str | Asset | AssetAlias) -> OutletEventAccessor:
-        event_key = extract_event_key(key)
-        if event_key not in self._dict:
-            self._dict[event_key] = OutletEventAccessor(extra={}, raw_key=key)
-        return self._dict[event_key]
+    def __getitem__(self, key: BaseAsset) -> OutletEventAccessor:
+        if key not in self._dict:
+            self._dict[key] = OutletEventAccessor(extra={}, key=key)
+        return self._dict[key]
 
 
 class LazyAssetEventSelectSequence(LazySelectSequence[AssetEvent]):
@@ -222,7 +232,7 @@ class LazyAssetEventSelectSequence(LazySelectSequence[AssetEvent]):
 
 
 @attrs.define(init=False)
-class InletEventsAccessors(Mapping[str, LazyAssetEventSelectSequence]):
+class InletEventsAccessors(Mapping[BaseAsset, LazyAssetEventSelectSequence]):
     """
     Lazy mapping for inlet asset events accessors.
 
@@ -253,13 +263,13 @@ class InletEventsAccessors(Mapping[str, LazyAssetEventSelectSequence]):
             for asset_name, asset in _fetch_active_assets_by_name(_asset_ref_names, self._session).items():
                 self._assets[asset_name] = asset
 
-    def __iter__(self) -> Iterator[str]:
+    def __iter__(self) -> Iterator[BaseAsset]:
         return iter(self._inlets)
 
     def __len__(self) -> int:
         return len(self._inlets)
 
-    def __getitem__(self, key: int | str | Asset | AssetAlias) -> LazyAssetEventSelectSequence:
+    def __getitem__(self, key: int | BaseAsset) -> LazyAssetEventSelectSequence:
         if isinstance(key, int):  # Support index access; it's easier for trivial cases.
             obj = self._inlets[key]
             if not isinstance(obj, (Asset, AssetAlias, AssetRef)):
