@@ -222,18 +222,18 @@ class TestDogStats:
         )
 
     @pytest.mark.parametrize(
-        "metrics_consistency_on",
+        "timer_unit_consistency",
         [True, False],
     )
     @mock.patch.object(time, "perf_counter", side_effect=[0.0, 100.0])
-    def test_timer(self, time_mock, metrics_consistency_on):
-        protocols.metrics_consistency_on = metrics_consistency_on
+    def test_timer(self, time_mock, timer_unit_consistency):
+        protocols.timer_unit_consistency = timer_unit_consistency
 
         with self.dogstatsd.timer("empty_timer") as timer:
             pass
         self.dogstatsd_client.timed.assert_called_once_with("empty_timer", tags=[])
         expected_duration = 100.0
-        if metrics_consistency_on:
+        if timer_unit_consistency:
             expected_duration = 1000.0 * 100.0
         assert expected_duration == timer.duration
         assert time_mock.call_count == 2
@@ -244,20 +244,20 @@ class TestDogStats:
         self.dogstatsd_client.timed.assert_not_called()
 
     @pytest.mark.parametrize(
-        "metrics_consistency_on",
+        "timer_unit_consistency",
         [True, False],
     )
-    def test_timing(self, metrics_consistency_on):
+    def test_timing(self, timer_unit_consistency):
         import datetime
 
-        datadog_logger.metrics_consistency_on = metrics_consistency_on
+        datadog_logger.timer_unit_consistency = timer_unit_consistency
 
         self.dogstatsd.timing("empty_timer", 123)
         self.dogstatsd_client.timing.assert_called_once_with(metric="empty_timer", value=123, tags=[])
 
         self.dogstatsd.timing("empty_timer", datetime.timedelta(seconds=123))
         self.dogstatsd_client.timing.assert_called_with(
-            metric="empty_timer", value=123000.0 if metrics_consistency_on else 123.0, tags=[]
+            metric="empty_timer", value=123000.0 if timer_unit_consistency else 123.0, tags=[]
         )
 
     def test_gauge(self):

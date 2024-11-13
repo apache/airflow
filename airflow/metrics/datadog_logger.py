@@ -23,7 +23,7 @@ import warnings
 from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.metrics.protocols import Timer
 from airflow.metrics.validators import (
     PatternAllowListValidator,
@@ -42,11 +42,11 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-metrics_consistency_on = conf.getboolean("metrics", "metrics_consistency_on", fallback=True)
-if not metrics_consistency_on:
+timer_unit_consistency = conf.getboolean("metrics", "timer_unit_consistency")
+if not timer_unit_consistency:
     warnings.warn(
-        "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
-        AirflowProviderDeprecationWarning,
+        "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable timer_unit_consistency to publish all the timer and timing metrics in milliseconds.",
+        RemovedInAirflow3Warning,
         stacklevel=2,
     )
 
@@ -144,7 +144,7 @@ class SafeDogStatsdLogger:
             tags_list = []
         if self.metrics_validator.test(stat):
             if isinstance(dt, datetime.timedelta):
-                if metrics_consistency_on:
+                if timer_unit_consistency:
                     dt = dt.total_seconds() * 1000.0
                 else:
                     dt = dt.total_seconds()
