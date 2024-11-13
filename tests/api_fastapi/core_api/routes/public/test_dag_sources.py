@@ -124,7 +124,6 @@ class TestGetDAGSource:
             assert response.json() == {
                 "content": dag_content2,
                 "dag_id": TEST_DAG_ID,
-                "version_name": None,
                 "version_number": 2,
             }
 
