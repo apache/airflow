@@ -108,6 +108,7 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
           dataIntervalStart={original.latest_dag_runs[0].data_interval_start}
           endDate={original.latest_dag_runs[0].end_date}
           startDate={original.latest_dag_runs[0].start_date}
+          state={original.latest_dag_runs[0].state}
         />
       ) : undefined,
     enableSorting: false,
