@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Box, Flex, Heading, HStack } from "@chakra-ui/react";
-import { FiClipboard } from "react-icons/fi";
+import { MdOutlineHealthAndSafety } from "react-icons/md";
 
 import { useMonitorServiceGetHealth } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
@@ -30,7 +30,7 @@ export const Health = () => {
   return (
     <Box>
       <Flex color="gray.500" mb={2}>
-        <FiClipboard />
+        <MdOutlineHealthAndSafety />
         <Heading ml={1} size="xs">
           Health
         </Heading>
