@@ -29,7 +29,11 @@ from sqlalchemy.inspection import inspect
 
 from airflow.api_connexion.endpoints.task_instance_endpoint import _convert_ti_states
 from airflow.models import Base, Connection
-from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
+from airflow.models.asset import (
+    AssetModel,
+    DagScheduleAssetReference,
+    TaskOutletAssetReference,
+)
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType

@@ -333,7 +333,6 @@ def delete_dag(
 def get_dag_asset_queued_events(
     dag_id: str,
     session: Annotated[Session, Depends(get_session)],
-    # move it to DateTimeQuery
     before: str = Query(None),
 ) -> QueuedEventCollectionResponse:
     """Get queued asset events for a DAG."""
@@ -349,7 +348,7 @@ def get_dag_asset_queued_events(
     result = session.execute(query).all()
     total_entries = len(result)
     if not result:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Queue event with dag_id: `{dag_id}` was not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with dag_id: `{dag_id}` was not found")
     queued_events = [
         QueuedEventResponse(created_at=adrq.created_at, dag_id=adrq.target_dag_id, uri=uri)
         for adrq, uri in result
