@@ -35,7 +35,6 @@ from providers.tests.microsoft.conftest import (
     mock_json_response,
     mock_response,
 )
-
 from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
 if TYPE_CHECKING:
