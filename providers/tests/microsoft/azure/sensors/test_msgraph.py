@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 
 import pytest
+
 from airflow.providers.microsoft.azure.sensors.msgraph import MSGraphSensor
 from airflow.triggers.base import TriggerEvent
 
