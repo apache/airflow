@@ -388,4 +388,6 @@ def delete_dag_asset_queued_events(
     result = session.execute(delete_statement)
 
     if result.rowcount == 0:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with dag_id: `{dag_id}` was not found")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, detail=f"Queue event with dag_id: `{dag_id}` was not found"
+        )

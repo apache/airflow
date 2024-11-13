@@ -627,3 +627,28 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
 
         assert response.status_code == 404
         assert response.json()["detail"] == "Queue event with dag_id: `not_exists` was not found"
+
+
+class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
+    @pytest.mark.usefixtures("time_freezer")
+    def test_should_respond_200(self, test_client, session, create_dummy_dag):
+        dag, _ = create_dummy_dag()
+        dag_id = dag.dag_id
+        asset_id = self._create_asset(session).id
+        self._create_asset_dag_run_queues(dag_id, asset_id, session)
+
+        response = test_client.delete(
+            f"/public/dags/{dag_id}/assets/queuedEvent",
+        )
+
+        assert response.status_code == 204
+
+    def test_should_respond_404(self, test_client):
+        dag_id = "not_exists"
+
+        response = test_client.delete(
+            f"/public/dags/{dag_id}/assets/queuedEvent",
+        )
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Queue event with dag_id: `not_exists` was not found"
