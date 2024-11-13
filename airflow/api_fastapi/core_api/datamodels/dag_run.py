@@ -47,6 +47,7 @@ class DAGRunResponse(BaseModel):
     dag_run_id: str | None = Field(alias="run_id")
     dag_id: str
     logical_date: datetime | None
+    queued_at: datetime | None
     start_date: datetime | None
     end_date: datetime | None
     data_interval_start: datetime | None
