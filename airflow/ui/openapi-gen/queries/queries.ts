@@ -234,7 +234,7 @@ export const useDagsServiceRecentDagRuns = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @returns unknown Successful Response
+ * @returns BackfillCollectionResponse Successful Response
  * @throws ApiError
  */
 export const useBackfillServiceListBackfills = <
@@ -269,7 +269,7 @@ export const useBackfillServiceListBackfills = <
  * Get Backfill
  * @param data The data for the request.
  * @param data.backfillId
- * @returns unknown Successful Response
+ * @returns BackfillResponse Successful Response
  * @throws ApiError
  */
 export const useBackfillServiceGetBackfill = <
@@ -1603,7 +1603,7 @@ export const useXcomServiceGetXcomEntry = <
  * Create Backfill
  * @param data The data for the request.
  * @param data.requestBody
- * @returns unknown Successful Response
+ * @returns BackfillResponse Successful Response
  * @throws ApiError
  */
 export const useBackfillServiceCreateBackfill = <
@@ -1799,7 +1799,7 @@ export const useVariableServicePostVariable = <
  * Pause Backfill
  * @param data The data for the request.
  * @param data.backfillId
- * @returns unknown Successful Response
+ * @returns BackfillResponse Successful Response
  * @throws ApiError
  */
 export const useBackfillServicePauseBackfill = <
@@ -1837,7 +1837,7 @@ export const useBackfillServicePauseBackfill = <
  * Unpause Backfill
  * @param data The data for the request.
  * @param data.backfillId
- * @returns unknown Successful Response
+ * @returns BackfillResponse Successful Response
  * @throws ApiError
  */
 export const useBackfillServiceUnpauseBackfill = <
@@ -1875,7 +1875,7 @@ export const useBackfillServiceUnpauseBackfill = <
  * Cancel Backfill
  * @param data The data for the request.
  * @param data.backfillId
- * @returns unknown Successful Response
+ * @returns BackfillResponse Successful Response
  * @throws ApiError
  */
 export const useBackfillServiceCancelBackfill = <
