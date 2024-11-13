@@ -99,3 +99,15 @@ class AssetEventCollectionResponse(BaseModel):
 
     asset_events: list[AssetEventResponse]
     total_entries: int
+
+
+class CreateAssetEventsBody(BaseModel):
+    """Create asset events request."""
+
+    asset_uri: str
+    extra: dict
+
+    class Config:
+        """Pydantic config."""
+
+        extra = "forbid"

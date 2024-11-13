@@ -32,6 +32,7 @@ import {
 import {
   BackfillPostBody,
   ConnectionBody,
+  CreateAssetEventsBody,
   DAGPatchBody,
   DAGRunPatchBody,
   DagRunState,
@@ -1666,6 +1667,45 @@ export const useXcomServiceGetXcomEntry = <
         taskId,
         xcomKey,
       }) as TData,
+    ...options,
+  });
+/**
+ * Create Asset Events
+ * Create asset events.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns AssetEventResponse Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceCreateAssetEvents = <
+  TData = Common.AssetServiceCreateAssetEventsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: CreateAssetEventsBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: CreateAssetEventsBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      AssetService.createAssetEvents({
+        requestBody,
+      }) as unknown as Promise<TData>,
     ...options,
   });
 /**

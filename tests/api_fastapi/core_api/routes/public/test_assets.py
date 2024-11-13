@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
 from airflow.models import DagModel
@@ -417,3 +419,32 @@ class TestGetAssetEvents(TestAssets):
         assert response.status_code == 200
         asset_uris = [asset["uri"] for asset in response.json()["asset_events"]]
         assert asset_uris == expected_asset_uris
+
+
+class TestPostAssetEvents(TestAssets):
+    def test_should_respond_200(self, test_client, session):
+        self.create_assets()
+        event_payload = {"asset_uri": "s3://bucket/key/1", "extra": {"foo": "bar"}}
+        response = test_client.post("/public/assets/events", json=event_payload)
+
+        assert response.status_code == 200
+
+        assert response.json() == {
+            "id": mock.ANY,
+            "asset_id": mock.ANY,
+            "uri": "s3://bucket/key/1",
+            "extra": {"foo": "bar", "from_rest_api": True},
+            "source_task_id": mock.ANY,
+            "source_dag_id": mock.ANY,
+            "source_run_id": mock.ANY,
+            "source_map_index": -1,
+            "created_dagruns": [],
+            "timestamp": mock.ANY,
+        }
+
+    def test_invalid_attr_not_allowed(self, test_client, session):
+        self.create_assets()
+        event_invalid_payload = {"asset_uri": "s3://bucket/key/1", "extra": {"foo": "bar"}, "fake": {}}
+        response = test_client.post("/public/assets/events", json=event_invalid_payload)
+
+        assert response.status_code == 422

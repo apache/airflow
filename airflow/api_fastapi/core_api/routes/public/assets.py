@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session, subqueryload
 
@@ -42,9 +42,13 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
     AssetEventCollectionResponse,
     AssetEventResponse,
     AssetResponse,
+    CreateAssetEventsBody,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.assets import Asset
+from airflow.assets.manager import asset_manager
 from airflow.models.asset import AssetEvent, AssetModel
+from airflow.utils import timezone
 
 assets_router = AirflowRouter(tags=["Asset"], prefix="/assets")
 
@@ -129,3 +133,33 @@ def get_asset_events(
         ],
         total_entries=total_entries,
     )
+
+
+@assets_router.post(
+    "/events",
+    responses=create_openapi_http_exception_doc([401, 403, 404]),
+)
+def create_asset_events(
+    create_asset_request: CreateAssetEventsBody,
+    session: Annotated[Session, Depends(get_session)],
+) -> AssetEventResponse:
+    """Create asset events."""
+    asset = session.scalar(
+        select(AssetModel).where(AssetModel.uri == create_asset_request.asset_uri).limit(1)
+    )
+    if not asset:
+        raise HTTPException(404, f"Asset with uri: `{create_asset_request.asset_uri}` was not found")
+    timestamp = timezone.utcnow()
+
+    create_asset_request.extra["from_rest_api"] = True
+
+    assets_event = asset_manager.register_asset_change(
+        asset=Asset(uri=create_asset_request.asset_uri),
+        timestamp=timestamp,
+        extra=create_asset_request.extra,
+        session=session,
+    )
+
+    if not assets_event:
+        raise HTTPException(404, f"Asset with uri: `{create_asset_request.asset_uri}` was not found")
+    return AssetEventResponse.model_validate(assets_event, from_attributes=True)

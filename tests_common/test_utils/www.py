@@ -88,6 +88,7 @@ def _check_last_log(session, dag_id, event, execution_date, expected_extra=None)
     )
     assert len(logs) >= 1
     assert logs[0].extra
+    print(f"actual extra is {logs[0].extra}")
     if expected_extra:
         assert json.loads(logs[0].extra) == expected_extra
     session.query(Log).delete()

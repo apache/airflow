@@ -1029,6 +1029,9 @@ export const UseXcomServiceGetXcomEntryKeyFn = (
     { dagId, dagRunId, deserialize, mapIndex, stringify, taskId, xcomKey },
   ]),
 ];
+export type AssetServiceCreateAssetEventsMutationResult = Awaited<
+  ReturnType<typeof AssetService.createAssetEvents>
+>;
 export type BackfillServiceCreateBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.createBackfill>
 >;
