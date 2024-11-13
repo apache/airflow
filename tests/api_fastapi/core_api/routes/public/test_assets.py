@@ -25,6 +25,7 @@ from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutl
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_assets
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
@@ -248,9 +249,10 @@ class TestGetAssetEndpoint(TestAssets):
         self.create_assets(num=1)
         assert session.query(AssetModel).count() == 1
         tz_datetime_format = self.default_time.replace("+00:00", "Z")
-        response = test_client.get(
-            f"/public/assets/{url}",
-        )
+        with assert_queries_count(6):
+            response = test_client.get(
+                f"/public/assets/{url}",
+            )
         assert response.status_code == 200
         assert response.json() == {
             "id": 1,
