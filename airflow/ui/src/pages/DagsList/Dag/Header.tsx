@@ -81,6 +81,7 @@ export const Header = ({
               dataIntervalStart={latestRun.data_interval_start}
               endDate={latestRun.end_date}
               startDate={latestRun.start_date}
+              state={latestRun.state}
             />
           ) : undefined}
         </VStack>
