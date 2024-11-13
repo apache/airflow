@@ -39,6 +39,8 @@ import type {
   GetDagDetailsResponse,
   GetDagAssetQueuedEventsData,
   GetDagAssetQueuedEventsResponse,
+  DeleteDagAssetQueuedEventsData,
+  DeleteDagAssetQueuedEventsResponse,
   DeleteConnectionData,
   DeleteConnectionResponse,
   GetConnectionData,
@@ -656,6 +658,36 @@ export class DagService {
         before: data.before,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Delete Dag Asset Queued Events
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.before
+   * @returns void Successful Response
+   * @throws ApiError
+   */
+  public static deleteDagAssetQueuedEvents(
+    data: DeleteDagAssetQueuedEventsData,
+  ): CancelablePromise<DeleteDagAssetQueuedEventsResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/public/dags/{dag_id}/assets/queuedEvent",
+      path: {
+        dag_id: data.dagId,
+      },
+      query: {
+        before: data.before,
+      },
+      errors: {
+        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",

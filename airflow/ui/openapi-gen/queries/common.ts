@@ -1033,6 +1033,9 @@ export type VariableServicePatchVariableMutationResult = Awaited<
 export type DagServiceDeleteDagMutationResult = Awaited<
   ReturnType<typeof DagService.deleteDag>
 >;
+export type DagServiceDeleteDagAssetQueuedEventsMutationResult = Awaited<
+  ReturnType<typeof DagService.deleteDagAssetQueuedEvents>
+>;
 export type ConnectionServiceDeleteConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.deleteConnection>
 >;
