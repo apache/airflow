@@ -22,7 +22,6 @@ import {
   Skeleton,
   VStack,
   Link,
-  createListCollection,
   type SelectValueChangeDetails,
   Box,
 } from "@chakra-ui/react";
@@ -49,6 +48,7 @@ import {
   SearchParamsKeys,
   type SearchParamsKeysType,
 } from "src/constants/searchParams";
+import { DagSortOptions as sortOptions } from "src/constants/sortParams";
 import { useDags } from "src/queries/useDags";
 import { pluralize } from "src/utils";
 
@@ -148,13 +148,6 @@ const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
 
 const DAGS_LIST_DISPLAY = "dags_list_display";
 
-const sortOptions = createListCollection({
-  items: [
-    { label: "Sort by Dag ID (A-Z)", value: "dag_id" },
-    { label: "Sort by Dag ID (Z-A)", value: "-dag_id" },
-  ],
-});
-
 export const DagsList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [display, setDisplay] = useLocalStorage<"card" | "table">(
@@ -237,7 +230,7 @@ export const DagsList = () => {
               data-testid="sort-by-select"
               onValueChange={handleSortChange}
               value={orderBy === undefined ? undefined : [orderBy]}
-              width="200px"
+              width="310px"
             >
               <Select.Trigger>
                 <Select.ValueText placeholder="Sort by" />
