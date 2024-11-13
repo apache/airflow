@@ -67,6 +67,13 @@ class ConnectionCollectionResponse(BaseModel):
     total_entries: int
 
 
+class ConnectionTestResponse(BaseModel):
+    """Connection Test serializer for responses."""
+
+    status: bool
+    message: str
+
+
 # Request Models
 class ConnectionBody(BaseModel):
     """Connection Serializer for requests body."""

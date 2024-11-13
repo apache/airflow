@@ -16,12 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.execution_api.routes import connections, health, task_instances, variables, xcoms
+import pytest
 
-execution_api_router = AirflowRouter()
-execution_api_router.include_router(connections.router, prefix="/connections", tags=["Connections"])
-execution_api_router.include_router(health.router, tags=["Health"])
-execution_api_router.include_router(task_instances.router, prefix="/task-instances", tags=["Task Instances"])
-execution_api_router.include_router(variables.router, prefix="/variables", tags=["Variables"])
-execution_api_router.include_router(xcoms.router, prefix="/xcoms", tags=["XComs"])
+from airflow.providers.databricks.exceptions import DatabricksSqlExecutionError, DatabricksSqlExecutionTimeout
+
+
+def test_databricks_sql_execution_error():
+    """Test if AirflowTaskExecutionError can be raised correctly."""
+    with pytest.raises(DatabricksSqlExecutionError, match="Task execution failed"):
+        raise DatabricksSqlExecutionError("Task execution failed")
+
+
+def test_databricks_sql_execution_timeout():
+    """Test if AirflowTaskExecutionTimeout can be raised correctly."""
+    with pytest.raises(DatabricksSqlExecutionTimeout, match="Task execution timed out"):
+        raise DatabricksSqlExecutionTimeout("Task execution timed out")

@@ -114,6 +114,14 @@ export type ConnectionResponse = {
 };
 
 /**
+ * Connection Test serializer for responses.
+ */
+export type ConnectionTestResponse = {
+  status: boolean;
+  message: string;
+};
+
+/**
  * DAG Collection serializer for responses.
  */
 export type DAGCollectionResponse = {
@@ -824,7 +832,7 @@ export type XComResponseString = {
   map_index: number;
   task_id: string;
   dag_id: string;
-  value: unknown;
+  value: string | null;
 };
 
 export type NextRunAssetsData = {
@@ -1010,6 +1018,12 @@ export type PostConnectionData = {
 };
 
 export type PostConnectionResponse = ConnectionResponse;
+
+export type TestConnectionData = {
+  requestBody: ConnectionBody;
+};
+
+export type TestConnectionResponse = ConnectionTestResponse;
 
 export type GetDagRunData = {
   dagId: string;
@@ -1871,6 +1885,29 @@ export type $OpenApiTs = {
          * Conflict
          */
         409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/connections/test": {
+    post: {
+      req: TestConnectionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ConnectionTestResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */
