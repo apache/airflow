@@ -245,7 +245,7 @@ export const useDagsServiceRecentDagRunsSuspense = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @returns unknown Successful Response
+ * @returns BackfillCollectionResponse Successful Response
  * @throws ApiError
  */
 export const useBackfillServiceListBackfillsSuspense = <
@@ -280,7 +280,7 @@ export const useBackfillServiceListBackfillsSuspense = <
  * Get Backfill
  * @param data The data for the request.
  * @param data.backfillId
- * @returns unknown Successful Response
+ * @returns BackfillResponse Successful Response
  * @throws ApiError
  */
 export const useBackfillServiceGetBackfillSuspense = <
