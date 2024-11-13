@@ -491,9 +491,7 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
         connect_args["check_same_thread"] = False
 
     engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args, future=True)
-    async_engine = create_async_engine(
-        SQL_ALCHEMY_CONN_ASYNC, connect_args=connect_args, **engine_args, future=True
-    )
+    async_engine = create_async_engine(SQL_ALCHEMY_CONN_ASYNC, future=True)
     create_async_session = sessionmaker(
         bind=async_engine,
         autocommit=False,
