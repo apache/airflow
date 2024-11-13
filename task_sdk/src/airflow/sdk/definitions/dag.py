@@ -979,7 +979,6 @@ class DAG:
                 "user_defined_macros",
                 "partial",
                 "params",
-                "_pickle_id",
                 "_log",
                 "task_dict",
                 "template_searchpath",
