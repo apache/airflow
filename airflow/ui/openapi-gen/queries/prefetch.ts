@@ -19,6 +19,7 @@ import {
   PoolService,
   ProviderService,
   TaskInstanceService,
+  TaskService,
   VariableService,
   VersionService,
   XcomService,
@@ -234,6 +235,169 @@ export const prefetchUseBackfillServiceGetBackfill = (
     queryFn: () => BackfillService.getBackfill({ backfillId }),
   });
 /**
+ * Get Connection
+ * Get a connection entry.
+ * @param data The data for the request.
+ * @param data.connectionId
+ * @returns ConnectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseConnectionServiceGetConnection = (
+  queryClient: QueryClient,
+  {
+    connectionId,
+  }: {
+    connectionId: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }),
+    queryFn: () => ConnectionService.getConnection({ connectionId }),
+  });
+/**
+ * Get Connections
+ * Get all connection entries.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns ConnectionCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseConnectionServiceGetConnections = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({
+      limit,
+      offset,
+      orderBy,
+    }),
+    queryFn: () => ConnectionService.getConnections({ limit, offset, orderBy }),
+  });
+/**
+ * Get Dag Run
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @returns DAGRunResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagRunServiceGetDagRun = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
+    queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }),
+  });
+/**
+ * Get Dag Source
+ * Get source code using file token.
+ * @param data The data for the request.
+ * @param data.fileToken
+ * @param data.accept
+ * @returns DAGSourceResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagSourceServiceGetDagSource = (
+  queryClient: QueryClient,
+  {
+    accept,
+    fileToken,
+  }: {
+    accept?: string;
+    fileToken: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagSourceServiceGetDagSourceKeyFn({
+      accept,
+      fileToken,
+    }),
+    queryFn: () => DagSourceService.getDagSource({ accept, fileToken }),
+  });
+/**
+ * Get Dag Stats
+ * Get Dag statistics.
+ * @param data The data for the request.
+ * @param data.dagIds
+ * @returns DagStatsCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagStatsServiceGetDagStats = (
+  queryClient: QueryClient,
+  {
+    dagIds,
+  }: {
+    dagIds?: string[];
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }),
+    queryFn: () => DagStatsService.getDagStats({ dagIds }),
+  });
+/**
+ * List Dag Warnings
+ * Get a list of DAG warnings.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.warningType
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns DAGWarningCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagWarningServiceListDagWarnings = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    limit,
+    offset,
+    orderBy,
+    warningType,
+  }: {
+    dagId?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    warningType?: DagWarningType;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn({
+      dagId,
+      limit,
+      offset,
+      orderBy,
+      warningType,
+    }),
+    queryFn: () =>
+      DagWarningService.listDagWarnings({
+        dagId,
+        limit,
+        offset,
+        orderBy,
+        warningType,
+      }),
+  });
+/**
  * Get Dags
  * Get all DAGs.
  * @param data The data for the request.
@@ -377,104 +541,6 @@ export const prefetchUseDagServiceGetDagDetails = (
   queryClient.prefetchQuery({
     queryKey: Common.UseDagServiceGetDagDetailsKeyFn({ dagId }),
     queryFn: () => DagService.getDagDetails({ dagId }),
-  });
-/**
- * Get Connection
- * Get a connection entry.
- * @param data The data for the request.
- * @param data.connectionId
- * @returns ConnectionResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseConnectionServiceGetConnection = (
-  queryClient: QueryClient,
-  {
-    connectionId,
-  }: {
-    connectionId: string;
-  },
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }),
-    queryFn: () => ConnectionService.getConnection({ connectionId }),
-  });
-/**
- * Get Connections
- * Get all connection entries.
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @returns ConnectionCollectionResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseConnectionServiceGetConnections = (
-  queryClient: QueryClient,
-  {
-    limit,
-    offset,
-    orderBy,
-  }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  } = {},
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn({
-      limit,
-      offset,
-      orderBy,
-    }),
-    queryFn: () => ConnectionService.getConnections({ limit, offset, orderBy }),
-  });
-/**
- * Get Dag Run
- * @param data The data for the request.
- * @param data.dagId
- * @param data.dagRunId
- * @returns DAGRunResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseDagRunServiceGetDagRun = (
-  queryClient: QueryClient,
-  {
-    dagId,
-    dagRunId,
-  }: {
-    dagId: string;
-    dagRunId: string;
-  },
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
-    queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }),
-  });
-/**
- * Get Dag Source
- * Get source code using file token.
- * @param data The data for the request.
- * @param data.fileToken
- * @param data.accept
- * @returns DAGSourceResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseDagSourceServiceGetDagSource = (
-  queryClient: QueryClient,
-  {
-    accept,
-    fileToken,
-  }: {
-    accept?: string;
-    fileToken: string;
-  },
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseDagSourceServiceGetDagSourceKeyFn({
-      accept,
-      fileToken,
-    }),
-    queryFn: () => DagSourceService.getDagSource({ accept, fileToken }),
   });
 /**
  * Get Event Log
@@ -647,51 +713,6 @@ export const prefetchUseMonitorServiceGetHealth = (queryClient: QueryClient) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseMonitorServiceGetHealthKeyFn(),
     queryFn: () => MonitorService.getHealth(),
-  });
-/**
- * List Dag Warnings
- * Get a list of DAG warnings.
- * @param data The data for the request.
- * @param data.dagId
- * @param data.warningType
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @returns DAGWarningCollectionResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseDagWarningServiceListDagWarnings = (
-  queryClient: QueryClient,
-  {
-    dagId,
-    limit,
-    offset,
-    orderBy,
-    warningType,
-  }: {
-    dagId?: string;
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-    warningType?: DagWarningType;
-  } = {},
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseDagWarningServiceListDagWarningsKeyFn({
-      dagId,
-      limit,
-      offset,
-      orderBy,
-      warningType,
-    }),
-    queryFn: () =>
-      DagWarningService.listDagWarnings({
-        dagId,
-        limit,
-        offset,
-        orderBy,
-        warningType,
-      }),
   });
 /**
  * Get Plugins
@@ -1174,6 +1195,29 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
       }),
   });
 /**
+ * Get Task
+ * Get simplified representation of a task.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.taskId
+ * @returns TaskResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseTaskServiceGetTask = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    taskId,
+  }: {
+    dagId: string;
+    taskId: unknown;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseTaskServiceGetTaskKeyFn({ dagId, taskId }),
+    queryFn: () => TaskService.getTask({ dagId, taskId }),
+  });
+/**
  * Get Variable
  * Get a variable entry.
  * @param data The data for the request.
@@ -1233,26 +1277,6 @@ export const prefetchUseVersionServiceGetVersion = (queryClient: QueryClient) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseVersionServiceGetVersionKeyFn(),
     queryFn: () => VersionService.getVersion(),
-  });
-/**
- * Get Dag Stats
- * Get Dag statistics.
- * @param data The data for the request.
- * @param data.dagIds
- * @returns DagStatsCollectionResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseDagStatsServiceGetDagStats = (
-  queryClient: QueryClient,
-  {
-    dagIds,
-  }: {
-    dagIds?: string[];
-  } = {},
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }),
-    queryFn: () => DagStatsService.getDagStats({ dagIds }),
   });
 /**
  * Get Xcom Entry

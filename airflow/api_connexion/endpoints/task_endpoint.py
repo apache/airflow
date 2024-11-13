@@ -25,12 +25,14 @@ from airflow.api_connexion.schemas.task_schema import TaskCollection, task_colle
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.exceptions import TaskNotFound
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.api_migration import mark_fastapi_migration_done
 
 if TYPE_CHECKING:
     from airflow import DAG
     from airflow.api_connexion.types import APIResponse
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.TASK)
 def get_task(*, dag_id: str, task_id: str) -> APIResponse:
     """Get simplified representation of a task."""
