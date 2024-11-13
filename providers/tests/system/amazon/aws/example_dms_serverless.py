@@ -346,6 +346,7 @@ with DAG(
         table_definition=table_definition,
     )
 
+    # [START howto_operator_dms_create_replication_config]
     create_replication_config = DmsCreateReplicationConfigOperator(
         task_id="create_replication_config",
         replication_config_id=replication_id,
@@ -361,17 +362,23 @@ with DAG(
         table_mappings=json.dumps(table_mappings),
         trigger_rule=TriggerRule.ALL_SUCCESS,
     )
+    # [END howto_operator_dms_create_replication_config]
 
+    # [START howto_operator_dms_describe_replication_config]
     describe_replication_configs = DmsDescribeReplicationConfigsOperator(
         task_id="describe_replication_configs",
         trigger_rule=TriggerRule.ALL_SUCCESS,
     )
+    # [END howto_operator_dms_describe_replication_config]
 
+    # [START howto_operator_dms_serverless_describe_replication]
     describe_replications = DmsDescribeReplicationsOperator(
         task_id="describe_replications",
         trigger_rule=TriggerRule.ALL_SUCCESS,
     )
+    # [END howto_operator_dms_serverless_describe_replication]
 
+    # [START howto_operator_dms_serverless_start_replication]
     replicate = DmsStartReplicationOperator(
         task_id="replicate",
         replication_config_arn="{{ task_instance.xcom_pull(task_ids='create_replication_config', key='return_value') }}",
@@ -382,7 +389,9 @@ with DAG(
         trigger_rule=TriggerRule.ALL_SUCCESS,
         deferrable=False,
     )
+    # [END howto_operator_dms_serverless_start_replication]
 
+    # [START howto_operator_dms_serverless_delete_replication_config]
     delete_replication_config = DmsDeleteReplicationConfigOperator(
         task_id="delete_replication_config",
         wait_for_completion=True,
@@ -392,6 +401,7 @@ with DAG(
         replication_config_arn="{{ task_instance.xcom_pull(task_ids='create_replication_config', key='return_value') }}",
         trigger_rule=TriggerRule.ALL_DONE,
     )
+    # [END howto_operator_dms_serverless_delete_replication_config]
 
     delete_assets = delete_dms_assets(
         source_endpoint_arn=create_assets["source_endpoint_arn"],
