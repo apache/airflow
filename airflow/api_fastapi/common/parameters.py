@@ -20,6 +20,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from datetime import datetime
+from enum import Enum
 from typing import (
     TYPE_CHECKING,
     Annotated,
@@ -280,6 +281,146 @@ class SortParam(BaseParam[str]):
             return self.set_value(self.get_primary_key_string() if order_by == "" else order_by)
 
         return inner
+
+
+class FilterOptionEnum(Enum):
+    """Filter options for FilterParam."""
+
+    EQUAL = "eq"
+    NOT_EQUAL = "ne"
+    LESS_THAN = "lt"
+    LESS_THAN_EQUAL = "le"
+    GREATER_THAN = "gt"
+    GREATER_THAN_EQUAL = "ge"
+    IN = "in"
+    NOT_IN = "not_in"
+
+
+class FilterParam(BaseParam[T]):
+    """Filter on attribute."""
+
+    def __init__(
+        self,
+        attribute: ColumnElement,
+        value: T | None = None,
+        filter_option: FilterOptionEnum = FilterOptionEnum.EQUAL,
+        skip_none: bool = True,
+    ) -> None:
+        super().__init__(value, skip_none)
+        self.attribute: ColumnElement = attribute
+        self.value: T | None = value
+        self.filter_option: FilterOptionEnum = filter_option
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        if isinstance(self.value, list):
+            if self.filter_option == FilterOptionEnum.IN:
+                return select.where(self.attribute.in_(self.value))
+            if self.filter_option == FilterOptionEnum.NOT_IN:
+                return select.where(self.attribute.notin_(self.value))
+            raise HTTPException(
+                400, f"Invalid filter option {self.filter_option} for list value {self.value}"
+            )
+
+        if self.filter_option == FilterOptionEnum.EQUAL:
+            return select.where(self.attribute == self.value)
+        if self.filter_option == FilterOptionEnum.NOT_EQUAL:
+            return select.where(self.attribute != self.value)
+        if self.filter_option == FilterOptionEnum.LESS_THAN:
+            return select.where(self.attribute < self.value)
+        if self.filter_option == FilterOptionEnum.LESS_THAN_EQUAL:
+            return select.where(self.attribute <= self.value)
+        if self.filter_option == FilterOptionEnum.GREATER_THAN:
+            return select.where(self.attribute > self.value)
+        if self.filter_option == FilterOptionEnum.GREATER_THAN_EQUAL:
+            return select.where(self.attribute >= self.value)
+        raise ValueError(f"Invalid filter option {self.filter_option} for value {self.value}")
+
+    def depends(self, *args: Any, **kwargs: Any) -> Self:
+        raise NotImplementedError("Use filter_param_factory instead , depends is not implemented.")
+
+
+def int_filter_param_factory(
+    attribute: ColumnElement,
+    filter_option: FilterOptionEnum = FilterOptionEnum.EQUAL,
+    filter_name: str | None = None,
+    skip_none: bool = True,
+) -> Callable[[int | None], FilterParam[int | None]]:
+    # if filter_name is not provided, use the attribute name as the default
+    filter_name = filter_name or attribute.name
+
+    def depends_filter(value: int | None = Query(alias=filter_name, default=None)) -> FilterParam[int | None]:
+        return FilterParam(attribute, value, filter_option, skip_none)
+
+    return depends_filter
+
+
+def str_filter_param_factory(
+    attribute: ColumnElement,
+    filter_option: FilterOptionEnum = FilterOptionEnum.EQUAL,
+    filter_name: str | None = None,
+    skip_none: bool = True,
+) -> Callable[[str | None], FilterParam[str | None]]:
+    # if filter_name is not provided, use the attribute name as the default
+    filter_name = filter_name or attribute.name
+
+    def depends_filter(value: str | None = Query(alias=filter_name, default=None)) -> FilterParam[str | None]:
+        return FilterParam(attribute, value, filter_option, skip_none)
+
+    return depends_filter
+
+
+def datetime_filter_param_factory(
+    attribute: ColumnElement,
+    filter_option: FilterOptionEnum = FilterOptionEnum.EQUAL,
+    filter_name: str | None = None,
+    skip_none: bool = True,
+) -> Callable[[datetime | None], FilterParam[datetime | None]]:
+    # if filter_name is not provided, use the attribute name as the default
+    filter_name = filter_name or attribute.name
+
+    def depends_filter(
+        value: datetime | None = Query(alias=filter_name, default=None),
+    ) -> FilterParam[datetime | None]:
+        return FilterParam(attribute, value, filter_option, skip_none)
+
+    return depends_filter
+
+
+def int_list_filter_param_factory(
+    attribute: ColumnElement,
+    filter_option: FilterOptionEnum = FilterOptionEnum.IN,
+    filter_name: str | None = None,
+    skip_none: bool = True,
+) -> Callable[[list[int] | None], FilterParam[list[int] | None]]:
+    # if filter_name is not provided, use the attribute name as the default
+    filter_name = filter_name or attribute.name
+
+    def depends_filter(
+        value: list[int] | None = Query(alias=filter_name, default=None),
+    ) -> FilterParam[list[int] | None]:
+        return FilterParam(attribute, value, filter_option, skip_none)
+
+    return depends_filter
+
+
+def str_list_filter_param_factory(
+    attribute: ColumnElement,
+    filter_option: FilterOptionEnum = FilterOptionEnum.IN,
+    filter_name: str | None = None,
+    skip_none: bool = True,
+) -> Callable[[list[str] | None], FilterParam[list[str] | None]]:
+    # if filter_name is not provided, use the attribute name as the default
+    filter_name = filter_name or attribute.name
+
+    def depends_filter(
+        value: list[str] | None = Query(alias=filter_name, default=None),
+    ) -> FilterParam[list[str] | None]:
+        return FilterParam(attribute, value, filter_option, skip_none)
+
+    return depends_filter
 
 
 class _TagsFilter(BaseParam[list[str]]):
