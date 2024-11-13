@@ -1213,6 +1213,53 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/connections/test:
+    post:
+      tags:
+      - Connection
+      summary: Test Connection
+      description: 'Test an API connection.
+
+
+        This method first creates an in-memory transient conn_id & exports that to
+        an env var,
+
+        as some hook classes tries to find out the `conn` from their __init__ method
+        & errors out if not found.
+
+        It also deletes the conn id env variable after the test.'
+      operationId: test_connection
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionBody'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionTestResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/{dag_id}/dagRuns/{dag_run_id}:
     get:
       tags:
@@ -3193,6 +3240,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: -1
           default: -1
           title: Map Index
       - name: deserialize
@@ -3688,6 +3736,20 @@ components:
       - extra
       title: ConnectionResponse
       description: Connection serializer for responses.
+    ConnectionTestResponse:
+      properties:
+        status:
+          type: boolean
+          title: Status
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+      - status
+      - message
+      title: ConnectionTestResponse
+      description: Connection Test serializer for responses.
     DAGCollectionResponse:
       properties:
         dags:
@@ -5647,6 +5709,9 @@ components:
           type: string
           title: Dag Id
         value:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Value
       type: object
       required:

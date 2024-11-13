@@ -42,8 +42,8 @@ class XComResponseNative(XComResponse):
 class XComResponseString(XComResponse):
     """XCom response serializer with string return type."""
 
-    value: Any
+    value: str | None
 
-    @field_validator("value")
+    @field_validator("value", mode="before")
     def value_to_string(cls, v):
         return str(v) if v is not None else None

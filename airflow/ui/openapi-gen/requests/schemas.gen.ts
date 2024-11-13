@@ -582,6 +582,23 @@ export const $ConnectionResponse = {
   description: "Connection serializer for responses.",
 } as const;
 
+export const $ConnectionTestResponse = {
+  properties: {
+    status: {
+      type: "boolean",
+      title: "Status",
+    },
+    message: {
+      type: "string",
+      title: "Message",
+    },
+  },
+  type: "object",
+  required: ["status", "message"],
+  title: "ConnectionTestResponse",
+  description: "Connection Test serializer for responses.",
+} as const;
+
 export const $DAGCollectionResponse = {
   properties: {
     dags: {
@@ -3499,6 +3516,14 @@ export const $XComResponseString = {
       title: "Dag Id",
     },
     value: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Value",
     },
   },
