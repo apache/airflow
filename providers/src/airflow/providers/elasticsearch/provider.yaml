@@ -70,7 +70,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.8.0
-  - apache-airflow-providers-common-sql>=1.17.0
+  - apache-airflow-providers-common-sql>=1.20.0
   - elasticsearch>=8.10,<9
 
 integrations:

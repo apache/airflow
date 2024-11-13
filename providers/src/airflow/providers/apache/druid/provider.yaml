@@ -60,7 +60,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.8.0
-  - apache-airflow-providers-common-sql>=1.14.1
+  - apache-airflow-providers-common-sql>=1.20.0
   - pydruid>=0.4.1
 
 integrations:

@@ -61,7 +61,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.8.0
-  - apache-airflow-providers-common-sql>=1.14.1
+  - apache-airflow-providers-common-sql>=1.20.0
   - pyexasol>=0.5.1
   # In pandas 2.2 minimal version of the sqlalchemy is 2.0
   # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
