@@ -26,7 +26,6 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.api_connexion_utils import assert_401
 from tests_common.test_utils.db import clear_db_assets, clear_db_runs
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
@@ -369,6 +368,16 @@ class TestGetAssetEvents(TestAssets):
             "total_entries": 2,
         }
 
+    @pytest.mark.parametrize(
+        "filter_type, filter_value, total_entries",
+        [
+            ("asset_id", "2", 1),
+            ("source_dag_id", "source_dag_id", 2),
+            ("source_task_id", "source_task_id", 2),
+            ("source_run_id", "source_run_id_1", 1),
+            ("source_map_index", "-1", 2),
+        ],
+    )
     @provide_session
     def test_filtering(self, test_client, filter_type, filter_value, total_entries, session):
         self.create_assets()
@@ -385,17 +394,3 @@ class TestGetAssetEvents(TestAssets):
         assert response.status_code == 400
         msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
         assert response.json()["detail"] == msg
-
-    @pytest.mark.parametrize(
-        "filter_type, filter_value, total_entries",
-        [
-            ("asset_id", "2", 1),
-            ("source_dag_id", "source_dag_id", 2),
-            ("source_task_id", "source_task_id", 2),
-            ("source_run_id", "source_run_id_1", 1),
-            ("source_map_index", "-1", 2),
-        ],
-    )
-    def test_should_raises_401_unauthenticated(self, test_client, session):
-        response = test_client.get("/public/assets/events")
-        assert_401(response)
