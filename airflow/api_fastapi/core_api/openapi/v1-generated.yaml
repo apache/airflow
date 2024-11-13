@@ -1213,6 +1213,53 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/connections/test:
+    post:
+      tags:
+      - Connection
+      summary: Test Connection
+      description: 'Test an API connection.
+
+
+        This method first creates an in-memory transient conn_id & exports that to
+        an env var,
+
+        as some hook classes tries to find out the `conn` from their __init__ method
+        & errors out if not found.
+
+        It also deletes the conn id env variable after the test.'
+      operationId: test_connection
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionBody'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionTestResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/{dag_id}/dagRuns/{dag_run_id}:
     get:
       tags:
@@ -3141,6 +3188,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: -1
           default: -1
           title: Map Index
       - name: deserialize
@@ -3173,6 +3221,82 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/assets/:
+    get:
+      tags:
+      - Asset
+      summary: Get Assets
+      description: Get assets.
+      operationId: get_assets
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      - name: uri_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uri Pattern
+      - name: dag_ids
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Dag Ids
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: id
+          title: Order By
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetCollectionResponse'
         '401':
           content:
             application/json:
@@ -3246,6 +3370,83 @@ components:
       type: object
       title: AppBuilderViewResponse
       description: Serializer for AppBuilder View responses.
+    AssetAliasSchema:
+      properties:
+        id:
+          type: integer
+          title: Id
+        name:
+          type: string
+          title: Name
+      type: object
+      required:
+      - id
+      - name
+      title: AssetAliasSchema
+      description: Serializable version of the AssetAliasSchema ORM SqlAlchemyModel.
+    AssetCollectionResponse:
+      properties:
+        assets:
+          items:
+            $ref: '#/components/schemas/AssetResponse'
+          type: array
+          title: Assets
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - assets
+      - total_entries
+      title: AssetCollectionResponse
+      description: Asset collection response.
+    AssetResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        uri:
+          type: string
+          title: Uri
+        extra:
+          anyOf:
+          - type: object
+          - type: 'null'
+          title: Extra
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+        consuming_dags:
+          items:
+            $ref: '#/components/schemas/DagScheduleAssetReference'
+          type: array
+          title: Consuming Dags
+        producing_tasks:
+          items:
+            $ref: '#/components/schemas/TaskOutletAssetReference'
+          type: array
+          title: Producing Tasks
+        aliases:
+          items:
+            $ref: '#/components/schemas/AssetAliasSchema'
+          type: array
+          title: Aliases
+      type: object
+      required:
+      - id
+      - uri
+      - created_at
+      - updated_at
+      - consuming_dags
+      - producing_tasks
+      - aliases
+      title: AssetResponse
+      description: Asset serializer for responses.
     BackfillPostBody:
       properties:
         dag_id:
@@ -3414,6 +3615,20 @@ components:
       - extra
       title: ConnectionResponse
       description: Connection serializer for responses.
+    ConnectionTestResponse:
+      properties:
+        status:
+          type: boolean
+          title: Status
+        message:
+          type: string
+          title: Message
+      type: object
+      required:
+      - status
+      - message
+      title: ConnectionTestResponse
+      description: Connection Test serializer for responses.
     DAGCollectionResponse:
       properties:
         dags:
@@ -4208,6 +4423,26 @@ components:
       - asset_triggered
       title: DagRunType
       description: Class with DagRun types.
+    DagScheduleAssetReference:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - dag_id
+      - created_at
+      - updated_at
+      title: DagScheduleAssetReference
+      description: Serializable version of the DagScheduleAssetReference ORM SqlAlchemyModel.
     DagStatsCollectionResponse:
       properties:
         dags:
@@ -5084,6 +5319,30 @@ components:
       - deferred
       title: TaskInstanceStateCount
       description: TaskInstance serializer for responses.
+    TaskOutletAssetReference:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        task_id:
+          type: string
+          title: Task Id
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - dag_id
+      - task_id
+      - created_at
+      - updated_at
+      title: TaskOutletAssetReference
+      description: Serializable version of the TaskOutletAssetReference ORM SqlAlchemyModel.
     TriggerResponse:
       properties:
         id:
@@ -5285,6 +5544,9 @@ components:
           type: string
           title: Dag Id
         value:
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Value
       type: object
       required:
