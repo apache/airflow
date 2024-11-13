@@ -751,6 +751,56 @@ export type TaskOutletAssetReference = {
 };
 
 /**
+ * Task serializer for responses.
+ */
+export type TaskResponse = {
+  task_id: string | null;
+  task_display_name: string | null;
+  owner: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  trigger_rule: string | null;
+  depends_on_past: boolean;
+  wait_for_downstream: boolean;
+  retries: number | null;
+  queue: string | null;
+  pool: string | null;
+  pool_slots: number | null;
+  execution_timeout: TimeDelta | null;
+  retry_delay: TimeDelta | null;
+  retry_exponential_backoff: boolean;
+  priority_weight: number | null;
+  weight_rule: string | null;
+  ui_color: string | null;
+  ui_fgcolor: string | null;
+  template_fields: Array<string> | null;
+  downstream_task_ids: Array<string> | null;
+  doc_md: string | null;
+  operator_name: string | null;
+  params: {
+    [key: string]: unknown;
+  } | null;
+  class_ref: {
+    [key: string]: unknown;
+  } | null;
+  is_mapped: boolean | null;
+  /**
+   * Extract and return extra_links.
+   */
+  readonly extra_links: Array<string>;
+};
+
+/**
+ * TimeDelta can be used to interact with datetime.timedelta objects.
+ */
+export type TimeDelta = {
+  __type?: string;
+  days: number;
+  seconds: number;
+  microseconds: number;
+};
+
+/**
  * Trigger serializer for responses.
  */
 export type TriggerResponse = {
@@ -1287,6 +1337,13 @@ export type GetXcomEntryData = {
 };
 
 export type GetXcomEntryResponse = XComResponseNative | XComResponseString;
+
+export type GetTaskData = {
+  dagId: string;
+  taskId: unknown;
+};
+
+export type GetTaskResponse = TaskResponse;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -2634,6 +2691,37 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: XComResponseNative | XComResponseString;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/tasks/{task_id}": {
+    get: {
+      req: GetTaskData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskResponse;
         /**
          * Bad Request
          */
