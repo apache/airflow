@@ -19,6 +19,7 @@ import {
   PoolService,
   ProviderService,
   TaskInstanceService,
+  TaskService,
   VariableService,
   VersionService,
   XcomService,
@@ -966,6 +967,24 @@ export const UseXcomServiceGetXcomEntryKeyFn = (
     { dagId, dagRunId, deserialize, mapIndex, stringify, taskId, xcomKey },
   ]),
 ];
+export type TaskServiceGetTaskDefaultResponse = Awaited<
+  ReturnType<typeof TaskService.getTask>
+>;
+export type TaskServiceGetTaskQueryResult<
+  TData = TaskServiceGetTaskDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useTaskServiceGetTaskKey = "TaskServiceGetTask";
+export const UseTaskServiceGetTaskKeyFn = (
+  {
+    dagId,
+    taskId,
+  }: {
+    dagId: string;
+    taskId: unknown;
+  },
+  queryKey?: Array<unknown>,
+) => [useTaskServiceGetTaskKey, ...(queryKey ?? [{ dagId, taskId }])];
 export type BackfillServiceCreateBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.createBackfill>
 >;
