@@ -93,7 +93,6 @@ async def get_asset_events(
         Depends(
             SortParam(
                 [
-                    "asset_id",
                     "source_task_id",
                     "source_dag_id",
                     "source_run_id",
