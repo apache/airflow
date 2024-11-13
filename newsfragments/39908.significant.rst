@@ -1,1 +1,11 @@
-Publishing timer and timing metrics in seconds has been deprecated. In Airflow 3, ``metrics_consistency_on`` from ``metrics`` is enabled by default. You can disable this for backward compatibility. To publish all timer and timing metrics in milliseconds, ensure metrics consistency is enabled
+Publishing timer and timing metrics in seconds is now deprecated.
+
+In Airflow 3.0, the ``timer_unit_consistency`` setting in the ``metrics`` section will be
+enabled by default and setting itself will be removed. This will standardize all timer and timing metrics to
+milliseconds across all metric loggers.
+
+**Users Integrating with Datadog, OpenTelemetry, or other metric backends** should enable this setting. For users, using
+``statsd``, this change will not affect you.
+
+If you need backward compatibility, you can leave this setting disabled temporarily, but enabling
+``timer_unit_consistency`` is encouraged to future-proof your metrics setup.
