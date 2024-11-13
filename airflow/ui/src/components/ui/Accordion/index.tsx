@@ -16,18 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Accordion as ChakraAccordion } from "@chakra-ui/react";
 
-export * from "./Dialog";
-export * from "./Pagination";
-export * from "./Select";
-export * from "./Alert";
-export * from "./CloseButton";
-export * from "./InputGroup";
+import { ItemContent } from "./ItemContent";
+import { ItemTrigger } from "./ItemTrigger";
 
-export * from "./Switch";
-export * from "./Tag";
-export * from "./Tooltip";
-
-export * from "./ProgressBar";
-export * from "./Menu";
-export * from "./Accordion";
+export const Accordion = {
+  ...ChakraAccordion,
+  ItemContent,
+  ItemTrigger,
+};
