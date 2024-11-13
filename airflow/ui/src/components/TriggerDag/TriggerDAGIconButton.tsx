@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button } from "@chakra-ui/react";
+import { Box, IconButton } from "@chakra-ui/react";
 import { useDisclosure } from "@chakra-ui/react";
 import { FiPlay } from "react-icons/fi";
 
@@ -33,9 +33,15 @@ const TriggerDAGIconButton: React.FC<Props> = ({ dag }) => {
 
   return (
     <Box>
-      <Button onClick={onOpen} variant="ghost">
+      <IconButton
+        aria-label={`Trigger ${dag.dag_display_name}`}
+        colorPalette="blue"
+        onClick={onOpen}
+        size="sm"
+        variant="ghost"
+      >
         <FiPlay />
-      </Button>
+      </IconButton>
 
       <TriggerDAGModal
         dagDisplayName={dag.dag_display_name}

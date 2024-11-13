@@ -18,14 +18,15 @@
  */
 import {
   Box,
+  Button,
   createListCollection,
   Field,
   HStack,
   type SelectValueChangeDetails,
 } from "@chakra-ui/react";
-import { Select as ReactSelect } from "chakra-react-select";
-import type { MultiValue } from "chakra-react-select";
+import { Select as ReactSelect, type MultiValue } from "chakra-react-select";
 import { useCallback } from "react";
+import { LuX } from "react-icons/lu";
 import { useSearchParams } from "react-router-dom";
 
 import { useDagServiceGetDagTags } from "openapi/queries";
@@ -119,6 +120,14 @@ export const DagsFilters = () => {
     [searchParams, setSearchParams],
   );
 
+  const onClearFilters = () => {
+    searchParams.delete(PAUSED_PARAM);
+    searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
+    searchParams.delete(TAGS_PARAM);
+
+    setSearchParams(searchParams);
+  };
+
   return (
     <HStack justifyContent="space-between">
       <HStack gap={4}>
@@ -157,7 +166,7 @@ export const DagsFilters = () => {
           onValueChange={handlePausedChange}
           value={showPaused === null ? ["All"] : [showPaused]}
         >
-          <Select.Trigger>
+          <Select.Trigger colorPalette="blue" isActive={Boolean(showPaused)}>
             <Select.ValueText width={20} />
           </Select.Trigger>
           <Select.Content>
@@ -168,15 +177,34 @@ export const DagsFilters = () => {
             ))}
           </Select.Content>
         </Select.Root>
-      </HStack>
-      <Box>
         <Field.Root>
           <ReactSelect
             aria-label="Filter Dags by tag"
             chakraStyles={{
+              clearIndicator: (provided) => ({
+                ...provided,
+                color:
+                  selectedTags.length > 0 ? "colorPalette.contrast" : undefined,
+              }),
               container: (provided) => ({
                 ...provided,
                 minWidth: 64,
+              }),
+              control: (provided) => ({
+                ...provided,
+                bg: selectedTags.length > 0 ? "colorPalette.solid" : undefined,
+                borderColor:
+                  selectedTags.length > 0
+                    ? "colorPalette.solid"
+                    : "colorPalette.muted",
+                color:
+                  selectedTags.length > 0 ? "colorPalette.contrast" : undefined,
+                colorPalette: "blue",
+              }),
+              downChevron: (provided) => ({
+                ...provided,
+                color:
+                  selectedTags.length > 0 ? "colorPalette.contrast" : undefined,
               }),
               menu: (provided) => ({
                 ...provided,
@@ -187,10 +215,12 @@ export const DagsFilters = () => {
             isMulti
             noOptionsMessage={() => "No tags found"}
             onChange={handleSelectTagsChange}
-            options={data?.tags.map((tag) => ({
-              label: tag,
-              value: tag,
-            }))}
+            options={
+              data?.tags.map((tag) => ({
+                label: tag,
+                value: tag,
+              })) ?? []
+            }
             placeholder="Filter by tag"
             value={selectedTags.map((tag) => ({
               label: tag,
@@ -198,6 +228,13 @@ export const DagsFilters = () => {
             }))}
           />
         </Field.Root>
+      </HStack>
+      <Box>
+        {(state !== null || showPaused !== null || selectedTags.length > 0) && (
+          <Button onClick={onClearFilters} size="sm" variant="outline">
+            <LuX /> Clear filters
+          </Button>
+        )}
       </Box>
     </HStack>
   );
