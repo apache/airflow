@@ -36,6 +36,7 @@ from airflow.cli.simple_table import AirflowConsole
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
+from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import get_dag, process_subdir, suppress_logs_and_warning
@@ -537,7 +538,11 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
 @provide_session
 def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
     """Serialize a DAG instance."""
-    session.execute(delete(SerializedDagModel).execution_options(synchronize_session=False))
+    if not (
+        args.yes or input("This will clean out all DAG versioning history. Proceed? (y/n)").upper() == "Y"
+    ):
+        raise SystemExit("Cancelled")
+    session.execute(delete(DagVersion).execution_options(synchronize_session=False))
 
     if not args.clear_only:
         dagbag = DagBag(process_subdir(args.subdir))

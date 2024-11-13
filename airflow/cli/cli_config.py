@@ -1254,6 +1254,7 @@ DAGS_COMMANDS = (
             ARG_CLEAR_ONLY,
             ARG_SUBDIR,
             ARG_VERBOSE,
+            ARG_YES,
         ),
     ),
 )

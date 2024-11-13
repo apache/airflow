@@ -79,34 +79,30 @@ class TestCliDags:
     def setup_method(self):
         clear_db_runs()  # clean-up all dag run before start each test
 
-    def test_reserialize(self):
+    def test_reserialize(self, session):
         # Assert that there are serialized Dags
-        with create_session() as session:
-            serialized_dags_before_command = session.query(SerializedDagModel).all()
+        serialized_dags_before_command = session.query(SerializedDagModel).all()
         assert len(serialized_dags_before_command)  # There are serialized DAGs to delete
 
         # Run clear of serialized dags
-        dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize", "--clear-only"]))
+        dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize", "--clear-only", "--yes"]))
         # Assert no serialized Dags
-        with create_session() as session:
-            serialized_dags_after_clear = session.query(SerializedDagModel).all()
+        serialized_dags_after_clear = session.query(SerializedDagModel).all()
         assert not len(serialized_dags_after_clear)
 
         # Serialize manually
-        dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize"]))
+        dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize", "--yes"]))
 
         # Check serialized DAGs are back
-        with create_session() as session:
-            serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
+        serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
         assert len(serialized_dags_after_reserialize) >= 40  # Serialized DAGs back
 
-    def test_reserialize_should_support_subdir_argument(self):
+    def test_reserialize_should_support_subdir_argument(self, session):
         # Run clear of serialized dags
-        dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize", "--clear-only"]))
+        dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize", "--clear-only", "--yes"]))
 
         # Assert no serialized Dags
-        with create_session() as session:
-            serialized_dags_after_clear = session.query(SerializedDagModel).all()
+        serialized_dags_after_clear = session.query(SerializedDagModel).all()
         assert len(serialized_dags_after_clear) == 0
 
         # Serialize manually
@@ -117,11 +113,12 @@ class TestCliDags:
         with mock.patch(
             "airflow.cli.commands.dag_command.DagBag.__init__.__defaults__", tuple(dagbag_default)
         ):
-            dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize", "--subdir", dag_path]))
+            dag_command.dag_reserialize(
+                self.parser.parse_args(["dags", "reserialize", "--subdir", dag_path, "--yes"])
+            )
 
         # Check serialized DAG are back
-        with create_session() as session:
-            serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
+        serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
         assert len(serialized_dags_after_reserialize) == 1  # Serialized DAG back
 
     def test_show_dag_dependencies_print(self):
