@@ -253,7 +253,8 @@ class _EdgeWorkerCli:
                     logfile.seek(job.logsize, os.SEEK_SET)
                     read_data = logfile.read()
                     job.logsize += len(read_data)
-                    log_data = read_data.decode("utf-8", "backslashreplace")
+                    # backslashreplace to keep not decoded characters and not raising exception
+                    log_data = read_data.decode(errors="backslashreplace")
                     while True:
                         chunk_data = log_data[:push_log_chunk_size]
                         log_data = log_data[push_log_chunk_size:]
