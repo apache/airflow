@@ -31,14 +31,7 @@ export const Trigger = forwardRef<HTMLButtonElement, Props>((props, ref) => {
 
   return (
     <ChakraSelect.Control {...rest}>
-      <ChakraSelect.Trigger
-        bg={isActive ? "colorPalette.solid" : undefined}
-        borderColor={isActive ? "colorPalette.solid" : "colorPalette.muted"}
-        color={isActive ? "colorPalette.contrast" : undefined}
-        ref={ref}
-      >
-        {children}
-      </ChakraSelect.Trigger>
+      <ChakraSelect.Trigger ref={ref}>{children}</ChakraSelect.Trigger>
       <ChakraSelect.IndicatorGroup>
         {clearable ? (
           <ChakraSelect.ClearTrigger asChild>
@@ -51,9 +44,7 @@ export const Trigger = forwardRef<HTMLButtonElement, Props>((props, ref) => {
             />
           </ChakraSelect.ClearTrigger>
         ) : undefined}
-        <ChakraSelect.Indicator
-          color={isActive ? "colorPalette.contrast" : undefined}
-        />
+        <ChakraSelect.Indicator />
       </ChakraSelect.IndicatorGroup>
     </ChakraSelect.Control>
   );

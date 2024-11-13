@@ -32,11 +32,13 @@ import { useSearchParams } from "react-router-dom";
 import { useDagServiceGetDagTags } from "openapi/queries";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { QuickFilterButton } from "src/components/QuickFilterButton";
+import { StateCircle } from "src/components/StateCircle";
 import { Select } from "src/components/ui";
 import {
   SearchParamsKeys,
   type SearchParamsKeysType,
 } from "src/constants/searchParams";
+import { pluralize } from "src/utils";
 
 const {
   LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
@@ -128,36 +130,51 @@ export const DagsFilters = () => {
     setSearchParams(searchParams);
   };
 
+  let filterCount = 0;
+
+  if (state !== null) {
+    filterCount += 1;
+  }
+  if (showPaused !== null) {
+    filterCount += 1;
+  }
+  if (selectedTags.length > 0) {
+    filterCount += 1;
+  }
+
   return (
     <HStack justifyContent="space-between">
       <HStack gap={4}>
         <HStack>
           <QuickFilterButton
-            active={isAll}
+            isActive={isAll}
             onClick={handleStateChange}
             value="all"
           >
             All
           </QuickFilterButton>
           <QuickFilterButton
-            active={isFailed}
+            isActive={isFailed}
             onClick={handleStateChange}
             value="failed"
           >
+            <StateCircle state="failed" />
             Failed
           </QuickFilterButton>
           <QuickFilterButton
-            active={isRunning}
+            isActive={isRunning}
             onClick={handleStateChange}
             value="running"
           >
+            <StateCircle state="running" />
             Running
           </QuickFilterButton>
           <QuickFilterButton
-            active={isSuccess}
+            isActive={isSuccess}
             onClick={handleStateChange}
             value="success"
           >
+            <StateCircle state="success" />
             Success
           </QuickFilterButton>
         </HStack>
@@ -183,8 +200,7 @@ export const DagsFilters = () => {
             chakraStyles={{
               clearIndicator: (provided) => ({
                 ...provided,
-                color:
-                  selectedTags.length > 0 ? "colorPalette.contrast" : undefined,
+                color: "gray.fg",
               }),
               container: (provided) => ({
                 ...provided,
@@ -192,19 +208,7 @@ export const DagsFilters = () => {
               }),
               control: (provided) => ({
                 ...provided,
-                bg: selectedTags.length > 0 ? "colorPalette.solid" : undefined,
-                borderColor:
-                  selectedTags.length > 0
-                    ? "colorPalette.solid"
-                    : "colorPalette.muted",
-                color:
-                  selectedTags.length > 0 ? "colorPalette.contrast" : undefined,
                 colorPalette: "blue",
-              }),
-              downChevron: (provided) => ({
-                ...provided,
-                color:
-                  selectedTags.length > 0 ? "colorPalette.contrast" : undefined,
               }),
               menu: (provided) => ({
                 ...provided,
@@ -230,9 +234,9 @@ export const DagsFilters = () => {
         </Field.Root>
       </HStack>
       <Box>
-        {(state !== null || showPaused !== null || selectedTags.length > 0) && (
+        {filterCount > 0 && (
           <Button onClick={onClearFilters} size="sm" variant="outline">
-            <LuX /> Clear filters
+            <LuX /> Reset {pluralize("filter", filterCount)}
           </Button>
         )}
       </Box>

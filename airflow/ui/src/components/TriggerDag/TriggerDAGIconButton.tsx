@@ -37,7 +37,7 @@ const TriggerDAGIconButton: React.FC<Props> = ({ dag }) => {
         aria-label={`Trigger ${dag.dag_display_name}`}
         colorPalette="blue"
         onClick={onOpen}
-        size="sm"
+        size="xs"
         variant="ghost"
       >
         <FiPlay />
