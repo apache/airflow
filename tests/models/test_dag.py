@@ -857,15 +857,24 @@ class TestDag:
         """
         dag_id1 = "test_asset_dag1"
         dag_id2 = "test_asset_dag2"
+
         task_id = "test_asset_task"
+
         uri1 = "s3://asset/1"
-        a1 = Asset(uri1, extra={"not": "used"})
-        a2 = Asset("s3://asset/2")
-        a3 = Asset("s3://asset/3")
+        a1 = Asset(uri=uri1, name="test_asset_1", extra={"not": "used"}, group="test-group")
+        a2 = Asset(uri="s3://asset/2", name="test_asset_2", group="test-group")
+        a3 = Asset(uri="s3://asset/3", name="test_asset-3", group="test-group")
+
         dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=[a1])
         EmptyOperator(task_id=task_id, dag=dag1, outlets=[a2, a3])
+
         dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE, schedule=None)
-        EmptyOperator(task_id=task_id, dag=dag2, outlets=[Asset(uri1, extra={"should": "be used"})])
+        EmptyOperator(
+            task_id=task_id,
+            dag=dag2,
+            outlets=[Asset(uri=uri1, name="test_asset_1", extra={"should": "be used"}, group="test-group")],
+        )
+
         session = settings.Session()
         dag1.clear()
         DAG.bulk_write_to_db([dag1, dag2], session=session)
@@ -934,10 +943,10 @@ class TestDag:
         """
         # Create four assets - two that have references and two that are unreferenced and marked as
         # orphans
-        asset1 = Asset(uri="ds1")
-        asset2 = Asset(uri="ds2")
-        asset3 = Asset(uri="ds3")
-        asset4 = Asset(uri="ds4")
+        asset1 = Asset(uri="test://asset1", name="asset1", group="test-group")
+        asset2 = Asset(uri="test://asset2", name="asset2", group="test-group")
+        asset3 = Asset(uri="test://asset3", name="asset3", group="test-group")
+        asset4 = Asset(uri="test://asset4", name="asset4", group="test-group")
 
         dag1 = DAG(dag_id="assets-1", start_date=DEFAULT_DATE, schedule=[asset1])
         BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[asset3])
@@ -1407,8 +1416,11 @@ class TestDag:
         assert dag.timetable.description == interval_description
 
     def test_timetable_and_description_from_asset(self):
-        dag = DAG("test_schedule_interval_arg", schedule=[Asset(uri="hello")], start_date=TEST_DATE)
-        assert dag.timetable == AssetTriggeredTimetable(Asset(uri="hello"))
+        uri = "test://asset"
+        dag = DAG(
+            "test_schedule_interval_arg", schedule=[Asset(uri=uri, group="test-group")], start_date=TEST_DATE
+        )
+        assert dag.timetable == AssetTriggeredTimetable(Asset(uri=uri, group="test-group"))
         assert dag.timetable.description == "Triggered by assets"
 
     @pytest.mark.parametrize(
@@ -2173,7 +2185,7 @@ class TestDagModel:
         session.close()
 
     def test_dags_needing_dagruns_assets(self, dag_maker, session):
-        asset = Asset(uri="hello")
+        asset = Asset(uri="test://asset", group="test-group")
         with dag_maker(
             session=session,
             dag_id="my_dag",
@@ -2405,8 +2417,8 @@ class TestDagModel:
 
     @pytest.mark.need_serialized_dag
     def test_dags_needing_dagruns_asset_triggered_dag_info_queued_times(self, session, dag_maker):
-        asset1 = Asset(uri="ds1")
-        asset2 = Asset(uri="ds2")
+        asset1 = Asset(uri="test://asset1", group="test-group")
+        asset2 = Asset(uri="test://asset2", name="test_asset_2", group="test-group")
 
         for dag_id, asset in [("assets-1", asset1), ("assets-2", asset2)]:
             with dag_maker(dag_id=dag_id, start_date=timezone.utcnow(), session=session):
@@ -2455,10 +2467,15 @@ class TestDagModel:
         dag = DAG(
             dag_id="test_dag_asset_expression",
             schedule=AssetAny(
-                Asset("s3://dag1/output_1.txt", extra={"hi": "bye"}),
+                Asset(uri="s3://dag1/output_1.txt", extra={"hi": "bye"}, group="test-group"),
                 AssetAll(
-                    Asset("s3://dag2/output_1.txt", extra={"hi": "bye"}),
-                    Asset("s3://dag3/output_3.txt", extra={"hi": "bye"}),
+                    Asset(
+                        uri="s3://dag2/output_1.txt",
+                        name="test_asset_2",
+                        extra={"hi": "bye"},
+                        group="test-group",
+                    ),
+                    Asset("s3://dag3/output_3.txt", extra={"hi": "bye"}, group="test-group"),
                 ),
                 AssetAlias(name="test_name"),
             ),
@@ -2469,9 +2486,32 @@ class TestDagModel:
         expression = session.scalars(select(DagModel.asset_expression).filter_by(dag_id=dag.dag_id)).one()
         assert expression == {
             "any": [
-                "s3://dag1/output_1.txt",
-                {"all": ["s3://dag2/output_1.txt", "s3://dag3/output_3.txt"]},
-                {"alias": "test_name"},
+                {
+                    "asset": {
+                        "uri": "s3://dag1/output_1.txt",
+                        "name": "s3://dag1/output_1.txt",
+                        "group": "test-group",
+                    }
+                },
+                {
+                    "all": [
+                        {
+                            "asset": {
+                                "uri": "s3://dag2/output_1.txt",
+                                "name": "test_asset_2",
+                                "group": "test-group",
+                            }
+                        },
+                        {
+                            "asset": {
+                                "uri": "s3://dag3/output_3.txt",
+                                "name": "s3://dag3/output_3.txt",
+                                "group": "test-group",
+                            }
+                        },
+                    ]
+                },
+                {"alias": {"name": "test_name", "group": ""}},
             ]
         }
 
@@ -3026,9 +3066,9 @@ def test__time_restriction(dag_maker, dag_date, tasks_date, restrict):
 
 @pytest.mark.need_serialized_dag
 def test_get_asset_triggered_next_run_info(dag_maker, clear_assets):
-    asset1 = Asset(uri="ds1")
-    asset2 = Asset(uri="ds2")
-    asset3 = Asset(uri="ds3")
+    asset1 = Asset(uri="test://asset1", name="test_asset1", group="test-group")
+    asset2 = Asset(uri="test://asset2", group="test-group")
+    asset3 = Asset(uri="test://asset3", group="test-group")
     with dag_maker(dag_id="assets-1", schedule=[asset2]):
         pass
     dag1 = dag_maker.dag
