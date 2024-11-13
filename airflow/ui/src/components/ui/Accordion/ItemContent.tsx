@@ -16,18 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Accordion } from "@chakra-ui/react";
+import { forwardRef } from "react";
 
-export * from "./Dialog";
-export * from "./Pagination";
-export * from "./Select";
-export * from "./Alert";
-export * from "./CloseButton";
-export * from "./InputGroup";
+type AccordionItemContentProps = {} & Accordion.ItemContentProps;
 
-export * from "./Switch";
-export * from "./Tag";
-export * from "./Tooltip";
-
-export * from "./ProgressBar";
-export * from "./Menu";
-export * from "./Accordion";
+export const ItemContent = forwardRef<
+  HTMLDivElement,
+  AccordionItemContentProps
+>((props, ref) => (
+  <Accordion.ItemContent>
+    <Accordion.ItemBody {...props} ref={ref} />
+  </Accordion.ItemContent>
+));

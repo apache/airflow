@@ -16,18 +16,36 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Box, Button } from "@chakra-ui/react";
+import { useDisclosure } from "@chakra-ui/react";
+import { FiPlay } from "react-icons/fi";
 
-export * from "./Dialog";
-export * from "./Pagination";
-export * from "./Select";
-export * from "./Alert";
-export * from "./CloseButton";
-export * from "./InputGroup";
+import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 
-export * from "./Switch";
-export * from "./Tag";
-export * from "./Tooltip";
+import TriggerDAGModal from "./TriggerDAGModal";
 
-export * from "./ProgressBar";
-export * from "./Menu";
-export * from "./Accordion";
+type Props = {
+  readonly dag: DAGWithLatestDagRunsResponse;
+};
+
+const TriggerDAGIconButton: React.FC<Props> = ({ dag }) => {
+  const { onClose, onOpen, open } = useDisclosure();
+
+  return (
+    <Box>
+      <Button onClick={onOpen} variant="ghost">
+        <FiPlay />
+      </Button>
+
+      <TriggerDAGModal
+        dagDisplayName={dag.dag_display_name}
+        dagId={dag.dag_id}
+        isPaused={dag.is_paused}
+        onClose={onClose}
+        open={open}
+      />
+    </Box>
+  );
+};
+
+export default TriggerDAGIconButton;
