@@ -24,6 +24,7 @@ import {
   PoolService,
   ProviderService,
   TaskInstanceService,
+  TaskService,
   VariableService,
   VersionService,
   XcomService,
@@ -1636,6 +1637,35 @@ export const useXcomServiceGetXcomEntry = <
         taskId,
         xcomKey,
       }) as TData,
+    ...options,
+  });
+/**
+ * Get Task
+ * Get simplified representation of a task.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.taskId
+ * @returns TaskResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskServiceGetTask = <
+  TData = Common.TaskServiceGetTaskDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    taskId,
+  }: {
+    dagId: string;
+    taskId: unknown;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseTaskServiceGetTaskKeyFn({ dagId, taskId }, queryKey),
+    queryFn: () => TaskService.getTask({ dagId, taskId }) as TData,
     ...options,
   });
 /**

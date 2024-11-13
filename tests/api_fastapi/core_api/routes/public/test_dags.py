@@ -274,8 +274,8 @@ class TestDagDetails(TestDagEndpoint):
     @pytest.mark.parametrize(
         "query_params, dag_id, expected_status_code, dag_display_name, start_date",
         [
-            ({}, "fake_dag_id", 404, "fake_dag", datetime(2023, 12, 31, tzinfo=timezone.utc)),
-            ({}, DAG2_ID, 200, DAG2_ID, DAG2_START_DATE),
+            ({}, "fake_dag_id", 404, "fake_dag", "2023-12-31T00:00:00Z"),
+            ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z"),
         ],
     )
     def test_dag_details(
@@ -330,7 +330,7 @@ class TestDagDetails(TestDagEndpoint):
             },
             "render_template_as_native_obj": False,
             "timetable_summary": None,
-            "start_date": start_date.replace(tzinfo=None).isoformat() + "Z",  # pydantic datetime format
+            "start_date": start_date,
             "tags": [],
             "template_search_path": None,
             "timetable_description": "Never, external triggers only",

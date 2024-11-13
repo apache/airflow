@@ -111,6 +111,8 @@ import type {
   GetDagStatsResponse,
   GetXcomEntryData,
   GetXcomEntryResponse,
+  GetTaskData,
+  GetTaskResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -1831,6 +1833,35 @@ export class XcomService {
         map_index: data.mapIndex,
         deserialize: data.deserialize,
         stringify: data.stringify,
+      },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class TaskService {
+  /**
+   * Get Task
+   * Get simplified representation of a task.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.taskId
+   * @returns TaskResponse Successful Response
+   * @throws ApiError
+   */
+  public static getTask(data: GetTaskData): CancelablePromise<GetTaskResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/tasks/{task_id}",
+      path: {
+        dag_id: data.dagId,
+        task_id: data.taskId,
       },
       errors: {
         400: "Bad Request",
