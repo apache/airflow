@@ -22,7 +22,6 @@ import {
   Skeleton,
   VStack,
   Link,
-  createListCollection,
   type SelectValueChangeDetails,
   Box,
 } from "@chakra-ui/react";
@@ -49,6 +48,7 @@ import {
   SearchParamsKeys,
   type SearchParamsKeysType,
 } from "src/constants/searchParams";
+import { DagSortOptions as sortOptions } from "src/constants/sortParams";
 import { useDags } from "src/queries/useDags";
 import { pluralize } from "src/utils";
 
@@ -148,25 +148,6 @@ const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
 
 const DAGS_LIST_DISPLAY = "dags_list_display";
 
-const sortOptions = createListCollection({
-  items: [
-    { label: "Sort by Display Name (A-Z)", value: "dag_display_name" },
-    { label: "Sort by Display Name (Z-A)", value: "-dag_display_name" },
-    { label: "Sort by Next DAG Run (Earliest-Latest)", value: "next_dagrun" },
-    { label: "Sort by Next DAG Run (Latest-Earliest)", value: "-next_dagrun" },
-    { label: "Sort by Last Run State (A-Z)", value: "last_run_state" },
-    { label: "Sort by Last Run State (Z-A)", value: "-last_run_state" },
-    {
-      label: "Sort by Last Run Start Date (Earliest-Latest)",
-      value: "last_run_start_date",
-    },
-    {
-      label: "Sort by Last Run Start Date (Latest-Earliest)",
-      value: "-last_run_start_date",
-    },
-  ],
-});
-
 export const DagsList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [display, setDisplay] = useLocalStorage<"card" | "table">(
@@ -249,7 +230,7 @@ export const DagsList = () => {
               data-testid="sort-by-select"
               onValueChange={handleSortChange}
               value={orderBy === undefined ? undefined : [orderBy]}
-              width="200px"
+              width="310px"
             >
               <Select.Trigger>
                 <Select.ValueText placeholder="Sort by" />
