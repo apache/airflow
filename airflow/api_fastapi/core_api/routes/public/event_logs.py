@@ -45,9 +45,7 @@ event_logs_router = AirflowRouter(tags=["Event Log"], prefix="/eventLogs")
 
 @event_logs_router.get(
     "/{event_log_id}",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_event_log(
     event_log_id: int,
