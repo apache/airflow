@@ -3423,6 +3423,62 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/tasks/{task_id}:
+    get:
+      tags:
+      - Task
+      summary: Get Task
+      description: Get simplified representation of a task.
+      operationId: get_task
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          title: Task Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     AppBuilderMenuItemResponse:
@@ -5480,6 +5536,196 @@ components:
       - updated_at
       title: TaskOutletAssetReference
       description: Serializable version of the TaskOutletAssetReference ORM SqlAlchemyModel.
+    TaskResponse:
+      properties:
+        task_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Id
+        task_display_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Task Display Name
+        owner:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Owner
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        trigger_rule:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Trigger Rule
+        depends_on_past:
+          type: boolean
+          title: Depends On Past
+        wait_for_downstream:
+          type: boolean
+          title: Wait For Downstream
+        retries:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Retries
+        queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue
+        pool:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pool
+        pool_slots:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Pool Slots
+        execution_timeout:
+          anyOf:
+          - $ref: '#/components/schemas/TimeDelta'
+          - type: 'null'
+        retry_delay:
+          anyOf:
+          - $ref: '#/components/schemas/TimeDelta'
+          - type: 'null'
+        retry_exponential_backoff:
+          type: boolean
+          title: Retry Exponential Backoff
+        priority_weight:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Priority Weight
+        weight_rule:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Weight Rule
+        ui_color:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ui Color
+        ui_fgcolor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ui Fgcolor
+        template_fields:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Template Fields
+        downstream_task_ids:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Downstream Task Ids
+        doc_md:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Doc Md
+        operator_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Operator Name
+        params:
+          anyOf:
+          - type: object
+          - type: 'null'
+          title: Params
+        class_ref:
+          anyOf:
+          - type: object
+          - type: 'null'
+          title: Class Ref
+        is_mapped:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Mapped
+        extra_links:
+          items:
+            type: string
+          type: array
+          title: Extra Links
+          description: Extract and return extra_links.
+          readOnly: true
+      type: object
+      required:
+      - task_id
+      - task_display_name
+      - owner
+      - start_date
+      - end_date
+      - trigger_rule
+      - depends_on_past
+      - wait_for_downstream
+      - retries
+      - queue
+      - pool
+      - pool_slots
+      - execution_timeout
+      - retry_delay
+      - retry_exponential_backoff
+      - priority_weight
+      - weight_rule
+      - ui_color
+      - ui_fgcolor
+      - template_fields
+      - downstream_task_ids
+      - doc_md
+      - operator_name
+      - params
+      - class_ref
+      - is_mapped
+      - extra_links
+      title: TaskResponse
+      description: Task serializer for responses.
+    TimeDelta:
+      properties:
+        __type:
+          type: string
+          title: '  Type'
+          default: TimeDelta
+        days:
+          type: integer
+          title: Days
+        seconds:
+          type: integer
+          title: Seconds
+        microseconds:
+          type: integer
+          title: Microseconds
+      type: object
+      required:
+      - days
+      - seconds
+      - microseconds
+      title: TimeDelta
+      description: TimeDelta can be used to interact with datetime.timedelta objects.
     TriggerResponse:
       properties:
         id:
