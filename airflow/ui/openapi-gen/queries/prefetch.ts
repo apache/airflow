@@ -19,6 +19,7 @@ import {
   PoolService,
   ProviderService,
   TaskInstanceService,
+  TaskService,
   VariableService,
   VersionService,
   XcomService,
@@ -1308,4 +1309,27 @@ export const prefetchUseXcomServiceGetXcomEntry = (
         taskId,
         xcomKey,
       }),
+  });
+/**
+ * Get Task
+ * Get simplified representation of a task.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.taskId
+ * @returns TaskResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseTaskServiceGetTask = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    taskId,
+  }: {
+    dagId: string;
+    taskId: unknown;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseTaskServiceGetTaskKeyFn({ dagId, taskId }),
+    queryFn: () => TaskService.getTask({ dagId, taskId }),
   });
