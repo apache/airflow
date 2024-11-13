@@ -92,7 +92,14 @@ async def get_asset_events(
         SortParam,
         Depends(
             SortParam(
-                ["timestamp", "source_dag_id", "source_task_id", "source_run_id", "source_map_index"],
+                [
+                    "asset_id",
+                    "source_task_id",
+                    "source_dag_id",
+                    "source_run_id",
+                    "source_map_index",
+                    "timestamp",
+                ],
                 AssetEvent,
             ).dynamic_depends("timestamp")
         ),
@@ -104,7 +111,7 @@ async def get_asset_events(
     source_map_index: QuerySourceMapIndexFilter,
     session: Annotated[Session, Depends(get_session)],
 ) -> AssetEventCollectionResponse:
-    """Get assets events."""
+    """Get asset events."""
     assets_event_select, total_entries = paginated_select(
         select(AssetEvent),
         filters=[asset_id, source_dag_id, source_task_id, source_run_id, source_map_index],

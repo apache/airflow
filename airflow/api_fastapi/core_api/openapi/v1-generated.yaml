@@ -3232,7 +3232,7 @@ paths:
       tags:
       - Asset
       summary: Get Asset Events
-      description: Get assets events.
+      description: Get asset events.
       operationId: get_asset_events
       parameters:
       - name: limit

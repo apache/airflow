@@ -172,7 +172,7 @@ export class AssetService {
 
   /**
    * Get Asset Events
-   * Get assets events.
+   * Get asset events.
    * @param data The data for the request.
    * @param data.limit
    * @param data.offset

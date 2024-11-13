@@ -26,6 +26,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.api_connexion_utils import assert_401
 from tests_common.test_utils.db import clear_db_assets, clear_db_runs
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
@@ -305,7 +306,7 @@ class TestGetAssetsEndpointPagination(TestAssets):
         assert len(response.json()["assets"]) == 100
 
 
-class TestGetAssetsEvents(TestAssets):
+class TestGetAssetEvents(TestAssets):
     def test_should_respond_200(self, test_client, session):
         self.create_assets()
         self.create_assets_events()
@@ -368,6 +369,16 @@ class TestGetAssetsEvents(TestAssets):
             "total_entries": 2,
         }
 
+    @provide_session
+    def test_filtering(self, test_client, filter_type, filter_value, total_entries, session):
+        self.create_assets()
+        self.create_assets_events()
+        self.create_dag_run()
+        self.create_asset_dag_run()
+        response = test_client.get(f"/public/assets/events?{filter_type}={filter_value}")
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == total_entries
+
     def test_order_by_raises_400_for_invalid_attr(self, test_client, session):
         response = test_client.get("/public/assets/events?order_by=fake")
 
@@ -385,12 +396,6 @@ class TestGetAssetsEvents(TestAssets):
             ("source_map_index", "-1", 2),
         ],
     )
-    @provide_session
-    def test_filter_events_by_asset_id(self, test_client, filter_type, filter_value, total_entries, session):
-        self.create_assets()
-        self.create_assets_events()
-        self.create_dag_run()
-        self.create_asset_dag_run()
-        response = test_client.get(f"/public/assets/events?{filter_type}={filter_value}")
-        assert response.status_code == 200
-        assert response.json()["total_entries"] == total_entries
+    def test_should_raises_401_unauthenticated(self, test_client, session):
+        response = test_client.get("/public/assets/events")
+        assert_401(response)

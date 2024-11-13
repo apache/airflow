@@ -95,7 +95,7 @@ class AssetEventResponse(BaseModel):
 
     @model_validator(mode="before")
     def rename_uri_to_asset_uri(cls, values):
-        """Rename 'uri' to 'asset_uri' during serialization."""
+        """Rename 'uri' to 'asset_uri' during serialization to match legacy response."""
         if hasattr(values, "uri") and values.uri:
             values.asset_uri = values.uri
         return values
