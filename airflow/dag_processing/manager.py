@@ -225,8 +225,12 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         # to iterate the child processes
         set_new_process_group()
         span = Trace.get_current_span()
-        span.set_attribute("dag_directory", str(dag_directory))
-        span.set_attribute("dag_ids", str(dag_ids))
+        span.set_attributes(
+            {
+                "dag_directory": str(dag_directory),
+                "dag_ids": str(dag_ids),
+            }
+        )
         setproctitle("airflow scheduler -- DagFileProcessorManager")
         reload_configuration_for_dag_processing()
         processor_manager = DagFileProcessorManager(
@@ -1119,15 +1123,27 @@ class DagFileProcessorManager(LoggingMixin):
         span = Trace.get_tracer("DagFileProcessorManager").start_span(
             "dag_processing", start_time=datetime_to_nano(processor.start_time)
         )
-        span.set_attribute("file_path", processor.file_path)
-        span.set_attribute("run_count", self.get_run_count(processor.file_path) + 1)
+        span.set_attributes(
+            {
+                "file_path": processor.file_path,
+                "run_count": self.get_run_count(processor.file_path) + 1,
+            }
+        )
 
         if processor.result is None:
-            span.set_attribute("error", True)
-            span.set_attribute("processor.exit_code", processor.exit_code)
+            span.set_attributes(
+                {
+                    "error": True,
+                    "processor.exit_code": processor.exit_code,
+                }
+            )
         else:
-            span.set_attribute("num_dags", num_dags)
-            span.set_attribute("import_errors", count_import_errors)
+            span.set_attributes(
+                {
+                    "num_dags": num_dags,
+                    "import_errors": count_import_errors,
+                }
+            )
             if count_import_errors > 0:
                 span.set_attribute("error", True)
                 import_errors = session.scalars(
@@ -1413,9 +1429,13 @@ class DagFileProcessorManager(LoggingMixin):
             Stats.gauge(
                 "dag_processing.import_errors", sum(stat.import_errors for stat in self._file_stats.values())
             )
-            span.set_attribute("total_parse_time", parse_time)
-            span.set_attribute("dag_bag_size", sum(stat.num_dags for stat in self._file_stats.values()))
-            span.set_attribute("import_errors", sum(stat.import_errors for stat in self._file_stats.values()))
+            span.set_attributes(
+                {
+                    "total_parse_time": parse_time,
+                    "dag_bag_size": sum(stat.num_dags for stat in self._file_stats.values()),
+                    "import_errors": sum(stat.import_errors for stat in self._file_stats.values()),
+                }
+            )
 
     @property
     def file_paths(self):

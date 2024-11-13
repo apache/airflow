@@ -859,28 +859,32 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @classmethod
     def _set_span_attrs__process_executor_events(cls, span, state, ti):
-        span.set_attribute("category", "scheduler")
-        span.set_attribute("task_id", ti.task_id)
-        span.set_attribute("dag_id", ti.dag_id)
-        span.set_attribute("state", ti.state)
-        if ti.state == TaskInstanceState.FAILED:
-            span.set_attribute("error", True)
-        span.set_attribute("start_date", str(ti.start_date))
-        span.set_attribute("end_date", str(ti.end_date))
-        span.set_attribute("duration", ti.duration)
-        span.set_attribute("executor_config", str(ti.executor_config))
-        span.set_attribute("execution_date", str(ti.execution_date))
-        span.set_attribute("hostname", ti.hostname)
-        span.set_attribute("log_url", ti.log_url)
-        span.set_attribute("operator", str(ti.operator))
-        span.set_attribute("try_number", ti.try_number)
-        span.set_attribute("executor_state", state)
-        span.set_attribute("pool", ti.pool)
-        span.set_attribute("queue", ti.queue)
-        span.set_attribute("priority_weight", ti.priority_weight)
-        span.set_attribute("queued_dttm", str(ti.queued_dttm))
-        span.set_attribute("queued_by_job_id", ti.queued_by_job_id)
-        span.set_attribute("pid", ti.pid)
+        # Use span.set_attributes
+        span.set_attributes(
+            {
+                "category": "scheduler",
+                "task_id": ti.task_id,
+                "dag_id": ti.dag_id,
+                "state": ti.state,
+                "error": True if state == TaskInstanceState.FAILED else False,
+                "start_date": str(ti.start_date),
+                "end_date": str(ti.end_date),
+                "duration": ti.duration,
+                "executor_config": str(ti.executor_config),
+                "execution_date": str(ti.execution_date),
+                "hostname": ti.hostname,
+                "log_url": ti.log_url,
+                "operator": str(ti.operator),
+                "try_number": ti.try_number,
+                "executor_state": state,
+                "pool": ti.pool,
+                "queue": ti.queue,
+                "priority_weight": ti.priority_weight,
+                "queued_dttm": str(ti.queued_dttm),
+                "queued_by_job_id": ti.queued_by_job_id,
+                "pid": ti.pid,
+            }
+        )
         if span.is_recording():
             span.add_event(name="queued", timestamp=datetime_to_nano(ti.queued_dttm))
             span.add_event(name="started", timestamp=datetime_to_nano(ti.start_date))
@@ -1060,8 +1064,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             with Trace.start_span(
                 span_name="scheduler_job_loop", component="SchedulerJobRunner"
             ) as span, Stats.timer("scheduler.scheduler_loop_duration") as timer:
-                span.set_attribute("category", "scheduler")
-                span.set_attribute("loop_count", loop_count)
+                span.set_attributes(
+                    {
+                        "category": "scheduler",
+                        "loop_count": loop_count,
+                    }
+                )
 
                 if self.using_sqlite and self.processor_agent:
                     self.processor_agent.run_single_parsing_loop()
@@ -1518,10 +1526,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         @add_span
         def _update_state(dag: DAG, dag_run: DagRun):
             span = Trace.get_current_span()
-            span.set_attribute("state", str(DagRunState.RUNNING))
-            span.set_attribute("run_id", dag_run.run_id)
-            span.set_attribute("type", dag_run.run_type)
-            span.set_attribute("dag_id", dag_run.dag_id)
+            span.set_attributes(
+                {
+                    "state": str(DagRunState.RUNNING),
+                    "run_id": dag_run.run_id,
+                    "type": dag_run.run_type,
+                    "dag_id": dag_run.dag_id,
+                }
+            )
 
             dag_run.state = DagRunState.RUNNING
             dag_run.start_date = timezone.utcnow()
@@ -1631,9 +1643,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         with Trace.start_span(
             span_name="_schedule_dag_run", component="SchedulerJobRunner", links=links
         ) as span:
-            span.set_attribute("dag_id", dag_run.dag_id)
-            span.set_attribute("run_id", dag_run.run_id)
-            span.set_attribute("run_type", dag_run.run_type)
+            span.set_attributes(
+                {
+                    "dag_id": dag_run.dag_id,
+                    "run_id": dag_run.run_id,
+                    "run_type": dag_run.run_type,
+                }
+            )
             callback: DagCallbackRequest | None = None
 
             dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
@@ -1814,12 +1830,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags={"pool_name": pool_name})
                 Stats.gauge("pool.scheduled_slots", slot_stats["scheduled"], tags={"pool_name": pool_name})
 
-                span.set_attribute("category", "scheduler")
-                span.set_attribute(f"pool.open_slots.{pool_name}", slot_stats["open"])
-                span.set_attribute(f"pool.queued_slots.{pool_name}", slot_stats["queued"])
-                span.set_attribute(f"pool.running_slots.{pool_name}", slot_stats["running"])
-                span.set_attribute(f"pool.deferred_slots.{pool_name}", slot_stats["deferred"])
-                span.set_attribute(f"pool.scheduled_slots.{pool_name}", slot_stats["scheduled"])
+                span.set_attributes(
+                    {
+                        "category": "scheduler",
+                        f"pool.open_slots.{pool_name}": slot_stats["open"],
+                        f"pool.queued_slots.{pool_name}": slot_stats["queued"],
+                        f"pool.running_slots.{pool_name}": slot_stats["running"],
+                        f"pool.deferred_slots.{pool_name}": slot_stats["deferred"],
+                        f"pool.scheduled_slots.{pool_name}": slot_stats["scheduled"],
+                    }
+                )
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
