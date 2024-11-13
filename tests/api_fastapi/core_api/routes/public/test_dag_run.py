@@ -294,9 +294,7 @@ class TestGetDagRunAssetTriggerEvents:
                 {
                     "timestamp": event.timestamp.isoformat().replace("+00:00", "Z"),
                     "asset_id": asset1_id,
-                    # piggyback on the fix for https://github.com/apache/airflow/issues/43845 for asset_uri
-                    # meanwhile, unblock by adding uri below
-                    "uri": asset1.uri,
+                    "asset_uri": asset1.uri,
                     "extra": {},
                     "id": event.id,
                     "source_dag_id": ti.dag_id,
