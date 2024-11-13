@@ -75,7 +75,6 @@ class TestProjectStructure:
             "providers/tests/amazon/aws/utils/test_rds.py",
             "providers/tests/amazon/aws/utils/test_sagemaker.py",
             "providers/tests/amazon/aws/waiters/test_base_waiter.py",
-            "providers/tests/apache/cassandra/hooks/test_cassandra.py",
             "providers/tests/apache/drill/operators/test_drill.py",
             "providers/tests/apache/druid/operators/test_druid_check.py",
             "providers/tests/apache/hdfs/hooks/test_hdfs.py",
