@@ -785,16 +785,6 @@ export const prefetchUseImportErrorServiceGetImportErrors = (
       ImportErrorService.getImportErrors({ limit, offset, orderBy }),
   });
 /**
- * Get Health
- * @returns HealthInfoSchema Successful Response
- * @throws ApiError
- */
-export const prefetchUseMonitorServiceGetHealth = (queryClient: QueryClient) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseMonitorServiceGetHealthKeyFn(),
-    queryFn: () => MonitorService.getHealth(),
-  });
-/**
  * Get Plugins
  * @param data The data for the request.
  * @param data.limit
@@ -1348,17 +1338,6 @@ export const prefetchUseVariableServiceGetVariables = (
     queryFn: () => VariableService.getVariables({ limit, offset, orderBy }),
   });
 /**
- * Get Version
- * Get version information.
- * @returns VersionInfo Successful Response
- * @throws ApiError
- */
-export const prefetchUseVersionServiceGetVersion = (queryClient: QueryClient) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseVersionServiceGetVersionKeyFn(),
-    queryFn: () => VersionService.getVersion(),
-  });
-/**
  * Get Xcom Entry
  * Get an XCom entry.
  * @param data The data for the request.
@@ -1412,4 +1391,25 @@ export const prefetchUseXcomServiceGetXcomEntry = (
         taskId,
         xcomKey,
       }),
+  });
+/**
+ * Get Health
+ * @returns HealthInfoSchema Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseMonitorServiceGetHealth = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseMonitorServiceGetHealthKeyFn(),
+    queryFn: () => MonitorService.getHealth(),
+  });
+/**
+ * Get Version
+ * Get version information.
+ * @returns VersionInfo Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseVersionServiceGetVersion = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseVersionServiceGetVersionKeyFn(),
+    queryFn: () => VersionService.getVersion(),
   });

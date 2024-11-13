@@ -960,24 +960,6 @@ export const useImportErrorServiceGetImportErrors = <
     ...options,
   });
 /**
- * Get Health
- * @returns HealthInfoSchema Successful Response
- * @throws ApiError
- */
-export const useMonitorServiceGetHealth = <
-  TData = Common.MonitorServiceGetHealthDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseMonitorServiceGetHealthKeyFn(queryKey),
-    queryFn: () => MonitorService.getHealth() as TData,
-    ...options,
-  });
-/**
  * Get Plugins
  * @param data The data for the request.
  * @param data.limit
@@ -1620,25 +1602,6 @@ export const useVariableServiceGetVariables = <
     ...options,
   });
 /**
- * Get Version
- * Get version information.
- * @returns VersionInfo Successful Response
- * @throws ApiError
- */
-export const useVersionServiceGetVersion = <
-  TData = Common.VersionServiceGetVersionDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseVersionServiceGetVersionKeyFn(queryKey),
-    queryFn: () => VersionService.getVersion() as TData,
-    ...options,
-  });
-/**
  * Get Xcom Entry
  * Get an XCom entry.
  * @param data The data for the request.
@@ -1692,6 +1655,43 @@ export const useXcomServiceGetXcomEntry = <
         taskId,
         xcomKey,
       }) as TData,
+    ...options,
+  });
+/**
+ * Get Health
+ * @returns HealthInfoSchema Successful Response
+ * @throws ApiError
+ */
+export const useMonitorServiceGetHealth = <
+  TData = Common.MonitorServiceGetHealthDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseMonitorServiceGetHealthKeyFn(queryKey),
+    queryFn: () => MonitorService.getHealth() as TData,
+    ...options,
+  });
+/**
+ * Get Version
+ * Get version information.
+ * @returns VersionInfo Successful Response
+ * @throws ApiError
+ */
+export const useVersionServiceGetVersion = <
+  TData = Common.VersionServiceGetVersionDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseVersionServiceGetVersionKeyFn(queryKey),
+    queryFn: () => VersionService.getVersion() as TData,
     ...options,
   });
 /**
