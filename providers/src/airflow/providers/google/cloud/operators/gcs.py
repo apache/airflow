@@ -799,10 +799,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
             orig_start = context["data_interval_start"]
             orig_end = context["data_interval_end"]
         except KeyError:
-            if AIRFLOW_V_3_0_PLUS:
-                orig_start = pendulum.instance(context["logical_date"])
-            else:
-                orig_start = pendulum.instance(context["execution_date"])  # type: ignore[typeddict-item]
+            orig_start = pendulum.instance(context["logical_date"])
             next_dagrun = context["dag"].next_dagrun_info(last_automated_dagrun=None, restricted=False)
             if next_dagrun and next_dagrun.data_interval and next_dagrun.data_interval.end:
                 orig_end = next_dagrun.data_interval.end

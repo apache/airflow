@@ -2087,7 +2087,7 @@ export interface components {
       task_id?: string;
       /**
        * Format: datetime
-       * @description The execution date. Either set this or dag_run_id but not both.
+       * @description The logical date. Either set this or dag_run_id but not both.
        */
       logical_date?: string;
       /**

@@ -108,13 +108,10 @@ class Context(TypedDict, total=False):
     logical_date: DateTime
     macros: Any
     map_index_template: str
-    next_logical_date: DateTime | None
     outlets: list
     params: ParamsDict
     prev_data_interval_start_success: DateTime | None
     prev_data_interval_end_success: DateTime | None
-    prev_logical_date: DateTime | None
-    prev_logical_date_success: DateTime | None
     prev_start_date_success: DateTime | None
     prev_end_date_success: DateTime | None
     reason: str | None

@@ -371,11 +371,8 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "data_interval_end",
         "data_interval_start",
         "logical_date",
-        "next_logical_date" if AIRFLOW_V_3_0_PLUS else "next_execution_date",
         "prev_data_interval_end_success",
         "prev_data_interval_start_success",
-        "prev_logical_date" if AIRFLOW_V_3_0_PLUS else "prev_execution_date",
-        "prev_logical_date_success" if AIRFLOW_V_3_0_PLUS else "prev_execution_date_success",
         "prev_start_date_success",
         "prev_end_date_success",
     }

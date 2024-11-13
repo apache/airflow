@@ -261,11 +261,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if self.json_format:
             data_interval_start = self._clean_date(data_interval[0])
             data_interval_end = self._clean_date(data_interval[1])
-            logical_date = (
-                self._clean_date(dag_run.logical_date)
-                if AIRFLOW_V_3_0_PLUS
-                else self._clean_date(dag_run.execution_date)
-            )
+            logical_date = self._clean_date(dag_run.logical_date)
         else:
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()
@@ -279,28 +275,16 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 dag_run.logical_date.isoformat() if AIRFLOW_V_3_0_PLUS else dag_run.execution_date.isoformat()
             )
 
-        return (
-            log_id_template.format(
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                run_id=getattr(ti, "run_id", ""),
-                data_interval_start=data_interval_start,
-                data_interval_end=data_interval_end,
-                logical_date=logical_date,
-                try_number=try_number,
-                map_index=getattr(ti, "map_index", ""),
-            )
-            if AIRFLOW_V_3_0_PLUS
-            else log_id_template.format(
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                run_id=getattr(ti, "run_id", ""),
-                data_interval_start=data_interval_start,
-                data_interval_end=data_interval_end,
-                execution_date=logical_date,
-                try_number=try_number,
-                map_index=getattr(ti, "map_index", ""),
-            )
+        return log_id_template.format(
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=getattr(ti, "run_id", ""),
+            data_interval_start=data_interval_start,
+            data_interval_end=data_interval_end,
+            logical_date=logical_date,
+            execution_date=logical_date,
+            try_number=try_number,
+            map_index=getattr(ti, "map_index", ""),
         )
 
     @staticmethod

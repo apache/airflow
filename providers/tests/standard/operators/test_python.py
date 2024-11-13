@@ -950,6 +950,9 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
                 "tomorrow_ds_nodash",
                 "yesterday_ds",
                 "yesterday_ds_nodash",
+                "next_execution_date",
+                "prev_execution_date",
+                "prev_execution_date_success",
             }
             declared_keys.update(additional_keys)
         assert set(context) == declared_keys
@@ -1470,9 +1473,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             ts_nodash_with_tz,
             # pendulum-specific
             logical_date,
-            next_logical_date,
-            prev_logical_date,
-            prev_logical_date_success,
             prev_start_date_success,
             prev_end_date_success,
             # airflow-specific

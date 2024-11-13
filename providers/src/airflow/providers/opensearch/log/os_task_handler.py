@@ -303,11 +303,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         if self.json_format:
             data_interval_start = self._clean_date(data_interval[0])
             data_interval_end = self._clean_date(data_interval[1])
-            logical_date = (
-                self._clean_date(dag_run.logical_date)
-                if AIRFLOW_V_3_0_PLUS
-                else self._clean_date(dag_run.execution_date)
-            )
+            logical_date = self._clean_date(dag_run.logical_date)
         else:
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()

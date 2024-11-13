@@ -4722,7 +4722,7 @@ components:
           type: string
 
         logical_date:
-          description: The execution date. Either set this or dag_run_id but not both.
+          description: The logical date. Either set this or dag_run_id but not both.
           type: string
           format: datetime
 

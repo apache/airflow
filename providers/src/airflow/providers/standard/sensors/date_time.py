@@ -69,7 +69,7 @@ class DateTimeSensor(BaseSensorOperator):
 
             DateTimeSensor(
                 task_id="wait_for_0100",
-                target_time="{{ next_logical_date.tomorrow().replace(hour=1) }}",
+                target_time="{{ data_interval_end.tomorrow().replace(hour=1) }}",
             )
 
     :param target_time: datetime after which the job succeeds. (templated)

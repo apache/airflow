@@ -1008,37 +1008,6 @@ def _get_template_context(
             return None
         return timezone.coerce_datetime(dagrun.end_date)
 
-    @cache
-    def get_next_logical_date() -> pendulum.DateTime | None:
-        # For manually triggered dagruns that aren't run on a schedule,
-        # the "next" logical date doesn't make sense, and should be set
-        # to logical date for consistency with how logical_date is set
-        # for manually triggered tasks, i.e. triggered_date == logical_date.
-        if dag_run.external_trigger:
-            return logical_date
-        if dag is None:
-            return None
-        next_info = dag.next_dagrun_info(data_interval, restricted=False)
-        if next_info is None:
-            return None
-        return timezone.coerce_datetime(next_info.logical_date)
-
-    @cache
-    def get_prev_logical_date():
-        # For manually triggered dagruns that aren't run on a schedule,
-        # the "previous" logical date doesn't make sense, and should be set
-        # to logical date for consistency with how logical_date is set
-        # for manually triggered tasks, i.e. triggered_date == logical_date.
-        if dag_run.external_trigger:
-            return logical_date
-
-        # Workaround code copy until deprecated context fields are removed in Airflow 3
-        from airflow.timetables.interval import _DataIntervalTimetable
-
-        if not isinstance(dag.timetable, _DataIntervalTimetable):
-            return None
-        return dag.timetable._get_prev(timezone.coerce_datetime(logical_date))
-
     def get_triggering_events() -> dict[str, list[AssetEvent | AssetEventPydantic]]:
         if TYPE_CHECKING:
             assert session is not None
@@ -1081,16 +1050,10 @@ def _get_template_context(
         "inlet_events": InletEventsAccessors(task.inlets, session=session),
         "macros": macros,
         "map_index_template": task.map_index_template,
-        "next_logical_date": get_next_logical_date(),
         "outlets": task.outlets,
         "params": validated_params,
         "prev_data_interval_start_success": get_prev_data_interval_start_success(),
         "prev_data_interval_end_success": get_prev_data_interval_end_success(),
-        "prev_logical_date": get_prev_logical_date(),
-        "prev_logical_date_success": task_instance.get_previous_logical_date(
-            state=DagRunState.SUCCESS,
-            session=session,
-        ),
         "prev_start_date_success": get_prev_start_date_success(),
         "prev_end_date_success": get_prev_end_date_success(),
         "run_id": task_instance.run_id,

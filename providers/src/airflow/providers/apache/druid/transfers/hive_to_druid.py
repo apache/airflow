@@ -94,7 +94,7 @@ class HiveToDruidOperator(BaseOperator):
         self.sql = sql
         self.druid_datasource = druid_datasource
         self.ts_dim = ts_dim
-        self.intervals = intervals or ["{{ ds }}"]
+        self.intervals = intervals or ["{{ ds }}/{{ logical_date.add_days(1) | ds }}"]
         self.num_shards = num_shards
         self.target_partition_size = target_partition_size
         self.query_granularity = query_granularity

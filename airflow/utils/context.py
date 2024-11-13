@@ -19,7 +19,10 @@
 
 from __future__ import annotations
 
+import contextlib
 import copy
+import functools
+import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -34,6 +37,7 @@ from typing import (
 )
 
 import attrs
+import lazy_object_proxy
 from sqlalchemy import select
 
 from airflow.assets import (
@@ -74,14 +78,11 @@ KNOWN_CONTEXT_KEYS: set[str] = {
     "logical_date",
     "macros",
     "map_index_template",
-    "next_logical_date",
     "outlets",
     "outlet_events",
     "params",
     "prev_data_interval_start_success",
     "prev_data_interval_end_success",
-    "prev_logical_date",
-    "prev_logical_date_success",
     "prev_start_date_success",
     "prev_end_date_success",
     "reason",
@@ -317,10 +318,13 @@ class Context(MutableMapping[str, Any]):
     (and only when) deprecated context keys are accessed.
     """
 
+    _DEPRECATION_REPLACEMENTS: dict[str, list[str]] = {}
+
     def __init__(self, context: MutableMapping[str, Any] | None = None, **kwargs: Any) -> None:
         self._context: MutableMapping[str, Any] = context or {}
         if kwargs:
             self._context.update(kwargs)
+        self._deprecation_replacements = self._DEPRECATION_REPLACEMENTS.copy()
 
     def __repr__(self) -> str:
         return repr(self._context)
@@ -336,15 +340,26 @@ class Context(MutableMapping[str, Any]):
         return dict, (items,)
 
     def __copy__(self) -> Context:
-        return type(self)(copy.copy(self._context))
+        new = type(self)(copy.copy(self._context))
+        new._deprecation_replacements = self._deprecation_replacements.copy()
+        return new
 
     def __getitem__(self, key: str) -> Any:
-        return self._context[key]
+        with contextlib.suppress(KeyError):
+            warnings.warn(
+                _create_deprecation_warning(key, self._deprecation_replacements[key]),
+                stacklevel=2,
+            )
+        with contextlib.suppress(KeyError):
+            return self._context[key]
+        raise KeyError(key)
 
     def __setitem__(self, key: str, value: Any) -> None:
+        self._deprecation_replacements.pop(key, None)
         self._context[key] = value
 
     def __delitem__(self, key: str) -> None:
+        self._deprecation_replacements.pop(key, None)
         del self._context[key]
 
     def __contains__(self, key: object) -> bool:
@@ -446,8 +461,18 @@ def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
         # break anything for users.
         return source
 
-    # Simply return the context's items without any special handling.
-    return dict(source._context)
+    def _deprecated_proxy_factory(k: str, v: Any) -> Any:
+        replacements = source._deprecation_replacements[k]
+        warnings.warn(_create_deprecation_warning(k, replacements), stacklevel=2)
+        return v
+
+    def _create_value(k: str, v: Any) -> Any:
+        if k not in source._deprecation_replacements:
+            return v
+        factory = functools.partial(_deprecated_proxy_factory, k, v)
+        return lazy_object_proxy.Proxy(factory)
+
+    return {k: _create_value(k, v) for k, v in source._context.items()}
 
 
 def context_get_outlet_events(context: Context) -> OutletEventAccessors:
