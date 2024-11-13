@@ -21,6 +21,7 @@ import {
   TaskInstanceService,
   VariableService,
   VersionService,
+  XcomService,
 } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 
@@ -40,6 +41,33 @@ export const UseAssetServiceNextRunAssetsKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useAssetServiceNextRunAssetsKey, ...(queryKey ?? [{ dagId }])];
+export type AssetServiceGetAssetsDefaultResponse = Awaited<
+  ReturnType<typeof AssetService.getAssets>
+>;
+export type AssetServiceGetAssetsQueryResult<
+  TData = AssetServiceGetAssetsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useAssetServiceGetAssetsKey = "AssetServiceGetAssets";
+export const UseAssetServiceGetAssetsKeyFn = (
+  {
+    dagIds,
+    limit,
+    offset,
+    orderBy,
+    uriPattern,
+  }: {
+    dagIds?: string[];
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    uriPattern?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useAssetServiceGetAssetsKey,
+  ...(queryKey ?? [{ dagIds, limit, offset, orderBy, uriPattern }]),
+];
 export type DashboardServiceHistoricalMetricsDefaultResponse = Awaited<
   ReturnType<typeof DashboardService.historicalMetrics>
 >;
@@ -905,11 +933,47 @@ export const UseDagStatsServiceGetDagStatsKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [useDagStatsServiceGetDagStatsKey, ...(queryKey ?? [{ dagIds }])];
+export type XcomServiceGetXcomEntryDefaultResponse = Awaited<
+  ReturnType<typeof XcomService.getXcomEntry>
+>;
+export type XcomServiceGetXcomEntryQueryResult<
+  TData = XcomServiceGetXcomEntryDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useXcomServiceGetXcomEntryKey = "XcomServiceGetXcomEntry";
+export const UseXcomServiceGetXcomEntryKeyFn = (
+  {
+    dagId,
+    dagRunId,
+    deserialize,
+    mapIndex,
+    stringify,
+    taskId,
+    xcomKey,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    deserialize?: boolean;
+    mapIndex?: number;
+    stringify?: boolean;
+    taskId: string;
+    xcomKey: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useXcomServiceGetXcomEntryKey,
+  ...(queryKey ?? [
+    { dagId, dagRunId, deserialize, mapIndex, stringify, taskId, xcomKey },
+  ]),
+];
 export type BackfillServiceCreateBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.createBackfill>
 >;
 export type ConnectionServicePostConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.postConnection>
+>;
+export type ConnectionServiceTestConnectionMutationResult = Awaited<
+  ReturnType<typeof ConnectionService.testConnection>
 >;
 export type PoolServicePostPoolMutationResult = Awaited<
   ReturnType<typeof PoolService.postPool>

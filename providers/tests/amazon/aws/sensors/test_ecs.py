@@ -48,7 +48,7 @@ pytestmark = pytest.mark.db_test
 
 class EcsBaseTestCase:
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self, monkeypatch, request, create_task_instance_of_operator, session):
+    def _setup_test_cases(self, monkeypatch, request, create_task_instance_of_operator, session):
         self.dag_id = f"dag-{slugify(request.cls.__name__)}"
         self.task_id = f"task-{slugify(request.node.name, max_length=40)}"
         self.fake_client = boto3.client("ecs", region_name="eu-west-3")

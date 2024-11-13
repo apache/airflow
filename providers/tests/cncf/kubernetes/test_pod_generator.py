@@ -26,10 +26,10 @@ from dateutil import parser
 from kubernetes.client import ApiClient, models as k8s
 
 from airflow import __version__
-from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowConfigException
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import PodReconciliationError
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import add_unique_suffix
 from airflow.providers.cncf.kubernetes.pod_generator import (
-    PodDefaultsDeprecated,
     PodGenerator,
     datetime_to_label_safe_datestring,
     extend_object_field,
@@ -160,41 +160,6 @@ class TestPodGenerator:
             ),
         )
 
-    @mock.patch("airflow.providers.cncf.kubernetes.kubernetes_helper_functions.rand_str")
-    def test_gen_pod_extract_xcom(self, mock_rand_str, data_file):
-        """
-        Method gen_pod is used nowhere in codebase and is deprecated.
-        This test is only retained for backcompat.
-        """
-        mock_rand_str.return_value = self.rand_str
-        template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
-
-        pod_generator = PodGenerator(pod_template_file=template_file, extract_xcom=True)
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            result = pod_generator.gen_pod()
-        container_two = {
-            "name": "airflow-xcom-sidecar",
-            "image": "alpine",
-            "command": ["sh", "-c", PodDefaultsDeprecated.XCOM_CMD],
-            "volumeMounts": [{"name": "xcom", "mountPath": "/airflow/xcom"}],
-            "resources": {"requests": {"cpu": "1m"}},
-        }
-        self.expected.spec.containers.append(container_two)
-        base_container: k8s.V1Container = self.expected.spec.containers[0]
-        base_container.volume_mounts = base_container.volume_mounts or []
-        base_container.volume_mounts.append(k8s.V1VolumeMount(name="xcom", mount_path="/airflow/xcom"))
-        self.expected.spec.containers[0] = base_container
-        self.expected.spec.volumes = self.expected.spec.volumes or []
-        self.expected.spec.volumes.append(
-            k8s.V1Volume(
-                name="xcom",
-                empty_dir={},
-            )
-        )
-        result_dict = self.k8s_client.sanitize_for_serialization(result)
-        expected_dict = self.k8s_client.sanitize_for_serialization(self.expected)
-        assert result_dict == expected_dict
-
     def test_from_obj_pod_override_object(self):
         obj = {
             "pod_override": k8s.V1Pod(
@@ -236,54 +201,6 @@ class TestPodGenerator:
                         "volumeMounts": [{"mountPath": "/foo/", "name": "example-kubernetes-test-volume"}],
                     }
                 ],
-                "volumes": [{"hostPath": {"path": "/tmp/"}, "name": "example-kubernetes-test-volume"}],
-            },
-        }
-
-    def test_from_obj_legacy(self):
-        obj = {
-            "KubernetesExecutor": {
-                "annotations": {"test": "annotation"},
-                "volumes": [
-                    {
-                        "name": "example-kubernetes-test-volume",
-                        "hostPath": {"path": "/tmp/"},
-                    },
-                ],
-                "volume_mounts": [
-                    {
-                        "mountPath": "/foo/",
-                        "name": "example-kubernetes-test-volume",
-                    },
-                ],
-            }
-        }
-        with pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match="Using a dictionary for the executor_config is deprecated and will soon be removed",
-        ):
-            result = PodGenerator.from_obj(obj)
-
-        assert self.k8s_client.sanitize_for_serialization(result) == {
-            "apiVersion": "v1",
-            "kind": "Pod",
-            "metadata": {
-                "annotations": {"test": "annotation"},
-            },
-            "spec": {
-                "containers": [
-                    {
-                        "args": [],
-                        "command": [],
-                        "env": [],
-                        "envFrom": [],
-                        "name": "base",
-                        "ports": [],
-                        "volumeMounts": [{"mountPath": "/foo/", "name": "example-kubernetes-test-volume"}],
-                    }
-                ],
-                "hostNetwork": False,
-                "imagePullSecrets": [],
                 "volumes": [{"hostPath": {"path": "/tmp/"}, "name": "example-kubernetes-test-volume"}],
             },
         }
@@ -725,16 +642,13 @@ class TestPodGenerator:
         ),
     )
     def test_pod_name_confirm_to_max_length(self, input):
-        with pytest.warns(
-            AirflowProviderDeprecationWarning, match="Use `add_pod_suffix` in `kubernetes_helper_functions`"
-        ):
-            actual = PodGenerator.make_unique_pod_id(input)
-        assert len(actual) <= 100
+        actual = add_unique_suffix(name=input)
+        assert len(actual) <= 63
         actual_base, actual_suffix = actual.rsplit("-", maxsplit=1)
         # we limit pod id length to 100
         # random suffix is 8 chars plus the '-' separator
-        # so actual pod id base should first 91 chars of requested pod id
-        assert actual_base == input[:91]
+        # so actual pod id base should first 55 chars of requested pod id
+        assert actual_base == input[:54]
         # suffix should always be 8, the random alphanum
         assert re.match(r"^[a-z0-9]{8}$", actual_suffix)
 
@@ -743,7 +657,7 @@ class TestPodGenerator:
         (
             (
                 "somewhat-long-pod-name-maybe-longer-than-previously-supported-with-hyphen-",
-                "somewhat-long-pod-name-maybe-longer-than-previously-supported-with-hyphen",
+                "somewhat-long-pod-name-maybe-longer-than-previously-su",
             ),
             ("pod-name-with-hyphen-", "pod-name-with-hyphen"),
             ("pod-name-with-double-hyphen--", "pod-name-with-double-hyphen"),
@@ -759,10 +673,7 @@ class TestPodGenerator:
         `make_unique_pod_id` doesn't actually guarantee that the regex passes for any input.
         But I guess this test verifies that an otherwise valid pod_id doesn't get _screwed up_.
         """
-        with pytest.warns(
-            AirflowProviderDeprecationWarning, match="Use `add_pod_suffix` in `kubernetes_helper_functions`"
-        ):
-            actual = PodGenerator.make_unique_pod_id(pod_id)
+        actual = add_unique_suffix(name=pod_id)
         assert len(actual) <= 253
         assert actual == actual.lower(), "not lowercase"
         # verify using official k8s regex

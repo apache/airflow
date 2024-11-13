@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,17 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use :mod:`airflow.providers.cncf.kubernetes.triggers.pod` instead."""
 
 from __future__ import annotations
 
-import warnings
+from typing import Annotated
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.cncf.kubernetes.triggers.pod import *  # noqa: F403
+from fastapi import Depends
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.cncf.kubernetes.triggers.pod` instead.",
-    AirflowProviderDeprecationWarning,
-    stacklevel=2,
-)
+from airflow.api_fastapi.execution_api import datamodels
+
+
+def get_task_token() -> datamodels.TIToken:
+    """TODO: Placeholder for task identity authentication. This should be replaced with actual JWT decoding and validation."""
+    return datamodels.TIToken(ti_key="test_key")
+
+
+TokenDep = Annotated[datamodels.TIToken, Depends(get_task_token)]

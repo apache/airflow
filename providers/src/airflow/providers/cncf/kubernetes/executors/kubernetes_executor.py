@@ -794,8 +794,13 @@ class KubernetesExecutor(BaseExecutor):
             self.result_queue.join()
         except ConnectionResetError:
             self.log.exception("Connection Reset error while flushing task_queue and result_queue.")
+        except Exception:
+            self.log.exception("Unknown error while flushing task queue and result queue.")
         if self.kube_scheduler:
-            self.kube_scheduler.terminate()
+            try:
+                self.kube_scheduler.terminate()
+            except Exception:
+                self.log.exception("Unknown error while flushing task queue and result queue.")
         self._manager.shutdown()
 
     def terminate(self):

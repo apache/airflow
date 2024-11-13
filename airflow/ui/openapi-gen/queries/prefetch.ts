@@ -21,6 +21,7 @@ import {
   TaskInstanceService,
   VariableService,
   VersionService,
+  XcomService,
 } from "../requests/services.gen";
 import { DagRunState, DagWarningType } from "../requests/types.gen";
 import * as Common from "./common";
@@ -43,6 +44,45 @@ export const prefetchUseAssetServiceNextRunAssets = (
   queryClient.prefetchQuery({
     queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }),
     queryFn: () => AssetService.nextRunAssets({ dagId }),
+  });
+/**
+ * Get Assets
+ * Get assets.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.uriPattern
+ * @param data.dagIds
+ * @param data.orderBy
+ * @returns AssetCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseAssetServiceGetAssets = (
+  queryClient: QueryClient,
+  {
+    dagIds,
+    limit,
+    offset,
+    orderBy,
+    uriPattern,
+  }: {
+    dagIds?: string[];
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    uriPattern?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseAssetServiceGetAssetsKeyFn({
+      dagIds,
+      limit,
+      offset,
+      orderBy,
+      uriPattern,
+    }),
+    queryFn: () =>
+      AssetService.getAssets({ dagIds, limit, offset, orderBy, uriPattern }),
   });
 /**
  * Historical Metrics
@@ -1213,4 +1253,59 @@ export const prefetchUseDagStatsServiceGetDagStats = (
   queryClient.prefetchQuery({
     queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }),
     queryFn: () => DagStatsService.getDagStats({ dagIds }),
+  });
+/**
+ * Get Xcom Entry
+ * Get an XCom entry.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.taskId
+ * @param data.dagRunId
+ * @param data.xcomKey
+ * @param data.mapIndex
+ * @param data.deserialize
+ * @param data.stringify
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseXcomServiceGetXcomEntry = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+    deserialize,
+    mapIndex,
+    stringify,
+    taskId,
+    xcomKey,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    deserialize?: boolean;
+    mapIndex?: number;
+    stringify?: boolean;
+    taskId: string;
+    xcomKey: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseXcomServiceGetXcomEntryKeyFn({
+      dagId,
+      dagRunId,
+      deserialize,
+      mapIndex,
+      stringify,
+      taskId,
+      xcomKey,
+    }),
+    queryFn: () =>
+      XcomService.getXcomEntry({
+        dagId,
+        dagRunId,
+        deserialize,
+        mapIndex,
+        stringify,
+        taskId,
+        xcomKey,
+      }),
   });

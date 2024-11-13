@@ -19,39 +19,31 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import Depends, HTTPException, status
-from typing_extensions import Annotated
+from fastapi import HTTPException, status
 
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.execution_api import datamodels
+from airflow.api_fastapi.execution_api import datamodels, deps
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models.connection import Connection
 
 # TODO: Add dependency on JWT token
-connection_router = AirflowRouter(
-    prefix="/connection",
-    tags=["Connection"],
+router = AirflowRouter(
     responses={status.HTTP_404_NOT_FOUND: {"description": "Connection not found"}},
 )
 
 log = logging.getLogger(__name__)
 
 
-def get_task_token() -> datamodels.TIToken:
-    """TODO: Placeholder for task identity authentication. This should be replaced with actual JWT decoding and validation."""
-    return datamodels.TIToken(ti_key="test_key")
-
-
-@connection_router.get(
+@router.get(
     "/{connection_id}",
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the connection"},
     },
 )
-async def get_connection(
+def get_connection(
     connection_id: str,
-    token: Annotated[datamodels.TIToken, Depends(get_task_token)],
+    token: deps.TokenDep,
 ) -> datamodels.ConnectionResponse:
     """Get an Airflow connection."""
     if not has_connection_access(connection_id, token):

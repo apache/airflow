@@ -214,7 +214,7 @@ pip configuration as described in `pip config <https://pip.pypa.io/en/stable/top
 If you want to use additional task specific private python repositories to setup the virtual environment, you can pass the ``index_urls`` parameter which will adjust the
 pip install configurations. Passed index urls replace the standard system configured index url settings.
 To prevent adding secrets to the private repository in your DAG code you can use the Airflow
-:doc:`../../authoring-and-scheduling/connections`. For this purpose the connection type ``Package Index (Python)`` can be used.
+:doc:`apache-airflow:authoring-and-scheduling/connections`. For this purpose the connection type ``Package Index (Python)`` can be used.
 
 In the special case you want to prevent remote calls for setup of a virtual environment, pass the ``index_urls`` as empty list as ``index_urls=[]`` which
 forced pip installer to use the ``--no-index`` option.
@@ -253,7 +253,7 @@ With some limitations, you can also use ``Context`` in virtual environments.
 
     You can also use ``get_current_context()`` in the same way as before, but with some limitations.
 
-    * Requires ``pydantic>=2``.
+    * Requires ``apache-airflow>=3.0.0``.
 
     * Set ``use_airflow_context`` to ``True`` to call ``get_current_context()`` in the virtual environment.
 
@@ -564,35 +564,3 @@ Passing in arguments and Templating
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Argument passing and templating options are the same as with :ref:`howto/operator:PythonOperator`.
-
-.. _howto/operator:PythonSensor:
-
-PythonSensor
-============
-
-The :class:`~airflow.providers.standard.sensors.python.PythonSensor` executes an arbitrary callable and waits for its return
-value to be True.
-
-.. tip::
-    The ``@task.sensor`` decorator is recommended over the classic ``PythonSensor``
-    to execute Python callables to check for True condition.
-
-.. tab-set::
-
-    .. tab-item:: @task.sensor
-        :sync: taskflow
-
-        .. exampleinclude:: /../../airflow/example_dags/example_sensor_decorator.py
-            :language: python
-            :dedent: 4
-            :start-after: [START wait_function]
-            :end-before: [END wait_function]
-
-    .. tab-item:: PythonSensor
-        :sync: operator
-
-        .. exampleinclude:: /../../airflow/example_dags/example_sensors.py
-            :language: python
-            :dedent: 4
-            :start-after: [START example_python_sensors]
-            :end-before: [END example_python_sensors]

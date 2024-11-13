@@ -27,6 +27,24 @@
 Changelog
 ---------
 
+0.5.4pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix SIGINT handling of child processes. Ensure graceful shutdown when SIGINT in received (not killing working tasks).``
+* ``Fix SIGTERM handling of child processes. Ensure all childs are terminated on SIGTERM.``
+
+
+0.5.3pre0
+.........
+
+Misc
+~~~~
+
+* ``Adding some links to host and job overview pages.``
+
 0.5.2pre0
 .........
 

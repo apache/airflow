@@ -55,7 +55,7 @@ ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=24.3.1
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.5.0
+ARG AIRFLOW_UV_VERSION=0.5.1
 ARG AIRFLOW_USE_UV="false"
 ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
@@ -890,7 +890,7 @@ function install_airflow() {
 
         # Similarly we need _a_ file for task_sdk too
         mkdir -p ./task_sdk/src/airflow/sdk/
-        touch ./task_sdk/src/airflow/__init__.py
+        touch ./task_sdk/src/airflow/sdk/__init__.py
 
         trap 'rm -f ./providers/src/airflow/providers/__init__.py ./task_sdk/src/airflow/__init__.py 2>/dev/null' EXIT
 

@@ -28,7 +28,7 @@ from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
     CELERY_KUBERNETES_EXECUTOR,
@@ -52,12 +52,12 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils impor
     get_base_pod_from_template,
 )
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    add_unique_suffix,
     annotations_for_logging_task_metadata,
     annotations_to_key,
     create_unique_id,
     get_logs_task_metadata,
 )
-from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 
@@ -106,8 +106,7 @@ class TestAirflowKubernetesScheduler:
 
     def test_create_pod_id(self):
         for dag_id, task_id in self._cases():
-            with pytest.warns(AirflowProviderDeprecationWarning, match=r"deprecated\. Use `add_pod_suffix`"):
-                pod_name = PodGenerator.make_unique_pod_id(create_unique_id(dag_id, task_id))
+            pod_name = add_unique_suffix(name=create_unique_id(dag_id, task_id))
             assert self._is_valid_pod_id(pod_name), f"dag_id={dag_id!r}, task_id={task_id!r}"
 
     @mock.patch("airflow.providers.cncf.kubernetes.pod_generator.PodGenerator")
