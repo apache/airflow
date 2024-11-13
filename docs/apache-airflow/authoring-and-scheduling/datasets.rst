@@ -445,7 +445,7 @@ The following example creates an asset event against the S3 URI ``f"s3://bucket/
 
     @task(outlets=[AssetAlias("my-task-outputs")])
     def my_task_with_outlet_events(*, outlet_events):
-        outlet_events["my-task-outputs"].add(Asset("s3://bucket/my-task"), extra={"k": "v"})
+        outlet_events[AssetAlias("my-task-outputs")].add(Asset("s3://bucket/my-task"), extra={"k": "v"})
 
 
 **Emit an asset event during task execution through yielding Metadata**
@@ -475,11 +475,11 @@ Only one asset event is emitted for an added asset, even if it is added to the a
         ]
     )
     def my_task_with_outlet_events(*, outlet_events):
-        outlet_events["my-task-outputs-1"].add(Asset("s3://bucket/my-task"), extra={"k": "v"})
+        outlet_events[AssetAlias("my-task-outputs-1")].add(Asset("s3://bucket/my-task"), extra={"k": "v"})
         # This line won't emit an additional asset event as the asset and extra are the same as the previous line.
-        outlet_events["my-task-outputs-2"].add(Asset("s3://bucket/my-task"), extra={"k": "v"})
+        outlet_events[AssetAlias("my-task-outputs-2")].add(Asset("s3://bucket/my-task"), extra={"k": "v"})
         # This line will emit an additional asset event as the extra is different.
-        outlet_events["my-task-outputs-3"].add(Asset("s3://bucket/my-task"), extra={"k2": "v2"})
+        outlet_events[AssetAlias("my-task-outputs-3")].add(Asset("s3://bucket/my-task"), extra={"k2": "v2"})
 
 Scheduling based on asset aliases
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -500,7 +500,7 @@ The asset alias is resolved to the assets during DAG parsing. Thus, if the "min_
 
         @task(outlets=[AssetAlias("example-alias")])
         def produce_asset_events(*, outlet_events):
-            outlet_events["example-alias"].add(Asset("s3://bucket/my-task"))
+            outlet_events[AssetAlias("example-alias")].add(Asset("s3://bucket/my-task"))
 
 
     with DAG(dag_id="asset-consumer", schedule=Asset("s3://bucket/my-task")):
@@ -524,7 +524,7 @@ As mentioned in :ref:`Fetching information from previously emitted asset events<
 
         @task(outlets=[AssetAlias("example-alias")])
         def produce_asset_events(*, outlet_events):
-            outlet_events["example-alias"].add(Asset("s3://bucket/my-task"), extra={"row_count": 1})
+            outlet_events[AssetAlias("example-alias")].add(Asset("s3://bucket/my-task"), extra={"row_count": 1})
 
 
     with DAG(dag_id="asset-alias-consumer", schedule=None):

@@ -67,7 +67,7 @@ with DAG(
     def produce_asset_events_through_asset_alias(*, outlet_events=None):
         bucket_name = "bucket"
         object_path = "my-task"
-        outlet_events["example-alias"].add(Asset(f"s3://{bucket_name}/{object_path}"))
+        outlet_events[AssetAlias("example-alias")].add(Asset(f"s3://{bucket_name}/{object_path}"))
 
     produce_asset_events_through_asset_alias()
 
