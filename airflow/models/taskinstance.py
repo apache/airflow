@@ -1257,7 +1257,6 @@ def _handle_failure(
                 # ---- error info ----
                 "error": "true",
                 "error_msg": str(error),
-                "context": context,
                 "force_fail": force_fail,
                 # ---- common info ----
                 "category": "DAG runs",
