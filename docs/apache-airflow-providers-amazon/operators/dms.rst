@@ -114,6 +114,69 @@ To delete a replication task you can use
     :start-after: [START howto_operator_dms_delete_task]
     :end-before: [END howto_operator_dms_delete_task]
 
+
+Create a serverless replication config
+======================================
+
+To create a serverless replication config use
+:class:`~airflow.providers.amazon.aws.operators.dms.DmsCreateReplicationConfigOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_dms_serverless.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dms_create_replication_config]
+    :end-before: [END howto_operator_dms_create_replication_config]
+
+Describe a serverless replication config
+========================================
+
+To describe a serverless replication config use
+:class:`~airflow.providers.amazon.aws.operators.dms.DmsDescribeReplicationConfigsOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_dms_serverless.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dms_describe_replication_config]
+    :end-before: [END howto_operator_dms_describe_replication_config]
+
+Start a serverless replication
+==============================
+
+To start a serverless replication use
+:class:`~airflow.providers.amazon.aws.operators.dms.DmsStartReplicationOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_dms_serverless.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dms_serverless_start_replication]
+    :end-before: [END howto_operator_dms_serverless_start_replication]
+
+Get the status of a serverless replication
+==========================================
+
+To get the status of a serverless replication use
+:class:`~airflow.providers.amazon.aws.operators.dms.DmsDescribeReplicationsOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_dms_serverless.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dms_serverless_describe_replication]
+    :end-before: [END howto_operator_dms_serverless_describe_replication]
+
+Delete a serverless replication configuration
+=============================================
+
+To delete a serverless replication config use
+:class:`~airflow.providers.amazon.aws.operators.dms.DmsDescribeReplicationsOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_dms_serverless.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dms_serverless_delete_replication_config]
+    :end-before: [END howto_operator_dms_serverless_delete_replication_config]
+
+
+
 Sensors
 -------
 
