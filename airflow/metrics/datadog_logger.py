@@ -55,28 +55,26 @@ if not metrics_consistency_on:
     )
 
 
-def prepare_stat_with_tags(fn: T) -> T:
+def prepare_metric_name_with_tags(fn: T) -> T:
     """Prepare tags and stat."""
 
     @wraps(fn)
-    def wrapper(self, stat: str | None = None, *args, tags: dict[str, str] | None = None, **kwargs):
-        stat = stat or ""
-
+    def wrapper(self, metric_name: str | None = None, *args, tags: dict[str, str] | None = None, **kwargs):
         if tags and self.metrics_tags:
             valid_tags: dict[str, str] = {}
             for k, v in tags.items():
                 if self.metric_tags_validator.test(k):
-                    if all(c not in [",", "="] for c in f"{v}{k}"):
+                    if ":" not in f"{v}{k}":
                         valid_tags[k] = v
                     else:
-                        log.error("Dropping invalid tag: %s=%s.", k, v)
+                        log.error("Dropping invalid tag: %s:%s.", k, v)
             tags_list = [f"{key}:{value}" for key, value in valid_tags.items()]
         else:
             tags_list = []
 
         kwargs["tags"] = tags_list
 
-        return fn(self, stat, *args, **kwargs)
+        return fn(self, metric_name, *args, **kwargs)
 
     return cast(T, wrapper)
 
@@ -96,7 +94,7 @@ class SafeDogStatsdLogger(StatsLogger):
         self.metrics_tags = metrics_tags
         self.metric_tags_validator = metric_tags_validator
 
-    @prepare_stat_with_tags
+    @prepare_metric_name_with_tags
     @validate_stat
     def incr(
         self,
@@ -112,7 +110,7 @@ class SafeDogStatsdLogger(StatsLogger):
             return self.dogstatsd.increment(metric=full_metric_name, value=count, tags=tags, sample_rate=rate)
         return None
 
-    @prepare_stat_with_tags
+    @prepare_metric_name_with_tags
     @validate_stat
     def decr(
         self,
@@ -128,7 +126,7 @@ class SafeDogStatsdLogger(StatsLogger):
             return self.dogstatsd.decrement(metric=full_metric_name, value=count, tags=tags, sample_rate=rate)
         return None
 
-    @prepare_stat_with_tags
+    @prepare_metric_name_with_tags
     @validate_stat
     def gauge(
         self,
@@ -145,7 +143,7 @@ class SafeDogStatsdLogger(StatsLogger):
             return self.dogstatsd.gauge(metric=full_metric_name, value=value, tags=tags, sample_rate=rate)
         return None
 
-    @prepare_stat_with_tags
+    @prepare_metric_name_with_tags
     @validate_stat
     def timing(
         self,
@@ -166,7 +164,7 @@ class SafeDogStatsdLogger(StatsLogger):
             return self.dogstatsd.timing(metric=full_metric_name, value=dt, tags=tags)
         return None
 
-    @prepare_stat_with_tags
+    @prepare_metric_name_with_tags
     @validate_stat
     def timer(
         self,

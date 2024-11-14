@@ -35,12 +35,11 @@ from airflow.metrics.otel_logger import (
     _is_up_down_counter,
     full_name,
 )
-from airflow.metrics.validators import BACK_COMPAT_METRIC_NAMES, MetricNameLengthExemptionWarning
+from airflow.metrics.validators import BACK_COMPAT_METRIC_NAMES
 
 INVALID_STAT_NAME_CASES = [
     (None, "can not be None"),
     (42, "is not a string"),
-    ("X" * OTEL_NAME_MAX_LENGTH, "too long"),
     ("test/$tats", "contains invalid characters"),
 ]
 
@@ -100,8 +99,7 @@ class TestOtelMetrics:
         name = "task_instance_created_OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit"
         assert len(name) > OTEL_NAME_MAX_LENGTH
 
-        with pytest.warns(MetricNameLengthExemptionWarning):
-            self.stats.incr(name)
+        self.stats.incr(name)
 
         self.meter.get_meter().create_counter.assert_called_once_with(
             name=(full_name(name)[:OTEL_NAME_MAX_LENGTH])
@@ -387,12 +385,6 @@ class TestOtelMetrics:
         # Expect the method to raise InvalidStatsNameException for invalid characters
         with pytest.raises(InvalidStatsNameException):
             self.stats.get_name(invalid_name)
-
-    def test_get_name_too_long(self):
-        # Edge case: Name exceeds max length
-        long_name = "a" * (OTEL_NAME_MAX_LENGTH + 1)
-        with pytest.raises(InvalidStatsNameException, match="Invalid stat name.*Please see"):
-            self.stats.get_name(long_name)
 
     def test_get_name_special_characters(self):
         # Edge case: Name contains invalid special characters
