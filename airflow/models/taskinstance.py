@@ -1252,25 +1252,29 @@ def _handle_failure(
         TaskInstance.save_to_db(failure_context["ti"], session)
 
     with Trace.start_span_from_taskinstance(ti=task_instance) as span:
-        # ---- error info ----
-        span.set_attribute("error", "true")
-        span.set_attribute("error_msg", str(error))
-        span.set_attribute("context", context)
-        span.set_attribute("force_fail", force_fail)
-        # ---- common info ----
-        span.set_attribute("category", "DAG runs")
-        span.set_attribute("task_id", task_instance.task_id)
-        span.set_attribute("dag_id", task_instance.dag_id)
-        span.set_attribute("state", task_instance.state)
-        span.set_attribute("start_date", str(task_instance.start_date))
-        span.set_attribute("end_date", str(task_instance.end_date))
-        span.set_attribute("duration", task_instance.duration)
-        span.set_attribute("executor_config", str(task_instance.executor_config))
-        span.set_attribute("execution_date", str(task_instance.execution_date))
-        span.set_attribute("hostname", task_instance.hostname)
+        span.set_attributes(
+            {
+                # ---- error info ----
+                "error": "true",
+                "error_msg": str(error),
+                "force_fail": force_fail,
+                # ---- common info ----
+                "category": "DAG runs",
+                "task_id": task_instance.task_id,
+                "dag_id": task_instance.dag_id,
+                "state": task_instance.state,
+                "start_date": str(task_instance.start_date),
+                "end_date": str(task_instance.end_date),
+                "duration": task_instance.duration,
+                "executor_config": str(task_instance.executor_config),
+                "execution_date": str(task_instance.execution_date),
+                "hostname": task_instance.hostname,
+                "operator": str(task_instance.operator),
+            }
+        )
+
         if isinstance(task_instance, TaskInstance):
             span.set_attribute("log_url", task_instance.log_url)
-        span.set_attribute("operator", str(task_instance.operator))
 
 
 def _refresh_from_task(

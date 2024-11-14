@@ -1388,6 +1388,18 @@ export const $DAGRunResponse = {
       ],
       title: "Logical Date",
     },
+    queued_at: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Queued At",
+    },
     start_date: {
       anyOf: [
         {
@@ -1482,6 +1494,7 @@ export const $DAGRunResponse = {
     "run_id",
     "dag_id",
     "logical_date",
+    "queued_at",
     "start_date",
     "end_date",
     "data_interval_start",

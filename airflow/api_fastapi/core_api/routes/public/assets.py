@@ -19,9 +19,9 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session, subqueryload
+from sqlalchemy.orm import Session, joinedload, subqueryload
 
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
 from airflow.api_fastapi.common.parameters import (
@@ -77,8 +77,11 @@ def get_assets(
         limit=limit,
         session=session,
     )
-
-    assets = session.scalars(assets_select).all()
+    assets = session.scalars(
+        assets_select.options(
+            subqueryload(AssetModel.consuming_dags), subqueryload(AssetModel.producing_tasks)
+        )
+    ).all()
     return AssetCollectionResponse(
         assets=[AssetResponse.model_validate(asset, from_attributes=True) for asset in assets],
         total_entries=total_entries,
@@ -163,3 +166,24 @@ def create_asset_events(
     if not assets_event:
         raise HTTPException(404, f"Asset with uri: `{create_asset_request.asset_uri}` was not found")
     return AssetEventResponse.model_validate(assets_event, from_attributes=True)
+
+
+@assets_router.get(
+    "/{uri:path}",
+    responses=create_openapi_http_exception_doc([401, 403, 404]),
+)
+def get_asset(
+    uri: str,
+    session: Annotated[Session, Depends(get_session)],
+) -> AssetResponse:
+    """Get an asset."""
+    asset = session.scalar(
+        select(AssetModel)
+        .where(AssetModel.uri == uri)
+        .options(joinedload(AssetModel.consuming_dags), joinedload(AssetModel.producing_tasks))
+    )
+
+    if asset is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with uri: `{uri}` was not found")
+
+    return AssetResponse.model_validate(asset, from_attributes=True)
