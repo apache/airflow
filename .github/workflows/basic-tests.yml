@@ -205,7 +205,7 @@ jobs:
               --skip-tag-check \
               --version-suffix-for-pypi dev0
             pip install . dist/apache_airflow_providers_fab-*.whl \
-            dist/apache_airflow_providers_standard-*.whl dist/apache_airflow_providers_common_sql-*.whl
+            dist/apache_airflow_providers_standard-*.whl dist/apache_airflow_providers_common_sql-*.whl dist/apache_airflow_providers_sqlite-*.whl
             breeze release-management prepare-task-sdk-package --package-format wheel
             pip install ./dist/apache_airflow_task_sdk-*.whl
       - name: "Install Python client"
