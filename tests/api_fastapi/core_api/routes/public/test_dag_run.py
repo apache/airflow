@@ -20,10 +20,12 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import pytest
+from sqlalchemy import select
 
+from airflow.models import DagRun
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
@@ -65,14 +67,19 @@ def setup(dag_maker, session=None):
         schedule="@daily",
         start_date=START_DATE,
     ):
-        EmptyOperator(task_id="task_1")
+        task1 = EmptyOperator(task_id="task_1")
     dag_run1 = dag_maker.create_dagrun(
         run_id=DAG1_RUN1_ID,
         state=DAG1_RUN1_STATE,
         run_type=DAG1_RUN1_RUN_TYPE,
         triggered_by=DAG1_RUN1_TRIGGERED_BY,
     )
+
     dag_run1.note = (DAG1_RUN1_NOTE, 1)
+
+    ti1 = dag_run1.get_task_instance(task_id="task_1")
+    ti1.task = task1
+    ti1.state = State.SUCCESS
 
     dag_maker.create_dagrun(
         run_id=DAG1_RUN2_ID,
@@ -106,6 +113,7 @@ def setup(dag_maker, session=None):
     dag_maker.dagbag.sync_to_db()
     dag_maker.dag_model
     dag_maker.dag_model.has_task_concurrency_limits = True
+    session.merge(ti1)
     session.merge(dag_maker.dag_model)
     session.commit()
 
@@ -271,13 +279,16 @@ class TestClearDagRun:
         "body",
         [{"dry_run": True}, {}],
     )
-    def test_clear_dag_run_dry_run(self, test_client, body):
+    def test_clear_dag_run_dry_run(self, test_client, session, body):
         response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear", json=body)
         assert response.status_code == 200
         body = response.json()
+        # breakpoint()
         assert body["total_entries"] == 1
         for each in body["task_instances"]:
-            assert each["state"] is None
+            assert each["state"] == "success"
+        dag_run = session.scalar(select(DagRun).filter_by(dag_id=DAG1_ID, run_id=DAG1_RUN1_ID))
+        assert dag_run.state == DagRunState.SUCCESS
 
     def test_clear_dag_run_not_found(self, test_client):
         response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns/invalid/clear", json={"dry_run": False})
