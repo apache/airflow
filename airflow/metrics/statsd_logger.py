@@ -53,8 +53,6 @@ def prepare_metric_name_with_tags(fn: T) -> T:
     def wrapper(
         self, metric_name: str | None = None, tags: dict[str, str] | None = None
     ) -> Callable[[str], str]:
-        metric_name = metric_name or ""
-
         if self.influxdb_tags_enabled and tags:
             valid_tags: dict[str, str] = {}
 
