@@ -25,7 +25,10 @@ __all__ = [
     "Label",
     "TaskGroup",
     "dag",
+    "__version__",
 ]
+
+__version__ = "1.0.0.dev1"
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.baseoperator import BaseOperator

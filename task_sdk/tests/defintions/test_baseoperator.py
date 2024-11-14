@@ -29,6 +29,25 @@ from airflow.task.priority_strategy import _DownstreamPriorityWeightStrategy, _U
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 
 
+@pytest.fixture(autouse=True, scope="module")
+def _disable_ol_plugin():
+    # The OpenLineage plugin imports setproctitle, and that now causes (C) level thread calls, which on Py
+    # 3.12+ issues a warning when os.fork happens. So for this plugin we disable it
+
+    # And we load plugins when setting the priorty_weight field
+    import airflow.plugins_manager
+
+    old = airflow.plugins_manager.plugins
+
+    assert old is None, "Plugins already loaded, too late to stop them being loaded!"
+
+    airflow.plugins_manager.plugins = []
+
+    yield
+
+    airflow.plugins_manager.plugins = None
+
+
 # Essentially similar to airflow.models.baseoperator.BaseOperator
 class FakeOperator(metaclass=BaseOperatorMeta):
     def __init__(self, test_param, params=None, default_args=None):
