@@ -149,8 +149,6 @@ def patch_dag_run(
     "/{dag_run_id}/upstreamAssetEvents",
     responses=create_openapi_http_exception_doc(
         [
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
         ]
     ),
