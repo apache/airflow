@@ -86,6 +86,26 @@ export const prefetchUseAssetServiceGetAssets = (
       AssetService.getAssets({ dagIds, limit, offset, orderBy, uriPattern }),
   });
 /**
+ * Get Asset
+ * Get an asset.
+ * @param data The data for the request.
+ * @param data.uri
+ * @returns AssetResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseAssetServiceGetAsset = (
+  queryClient: QueryClient,
+  {
+    uri,
+  }: {
+    uri: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseAssetServiceGetAssetKeyFn({ uri }),
+    queryFn: () => AssetService.getAsset({ uri }),
+  });
+/**
  * Historical Metrics
  * Return cluster activity historical metrics.
  * @param data The data for the request.

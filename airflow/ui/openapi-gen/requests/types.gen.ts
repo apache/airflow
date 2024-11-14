@@ -931,6 +931,12 @@ export type GetAssetsData = {
 
 export type GetAssetsResponse = AssetCollectionResponse;
 
+export type GetAssetData = {
+  uri: string;
+};
+
+export type GetAssetResponse = AssetResponse;
+
 export type HistoricalMetricsData = {
   endDate: string;
   startDate: string;
@@ -1399,6 +1405,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: AssetCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/assets/{uri}": {
+    get: {
+      req: GetAssetData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: AssetResponse;
         /**
          * Unauthorized
          */
