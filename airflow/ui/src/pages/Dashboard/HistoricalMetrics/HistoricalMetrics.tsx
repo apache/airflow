@@ -16,24 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  Box,
-  HStack,
-  VStack,
-  Text,
-  createListCollection,
-  type SelectValueChangeDetails,
-} from "@chakra-ui/react";
+import { Box, VStack, createListCollection } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useState } from "react";
-import { FiCalendar } from "react-icons/fi";
 
 import { useDashboardServiceHistoricalMetrics } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import Time from "src/components/Time";
-import { Select } from "src/components/ui";
+import TimeSelector from "src/components/TimeSelector";
 
 import { DagRunMetrics } from "./DagRunMetrics";
+import { MetricSectionSkeleton } from "./MetricSectionSkeleton";
 import { TaskInstanceMetrics } from "./TaskInstanceMetrics";
 
 const timeOptions = createListCollection({
@@ -72,43 +64,19 @@ export const HistoricalMetrics = () => {
       )
     : 0;
 
-  const handleTimeChange = ({
-    value,
-  }: SelectValueChangeDetails<Array<string>>) => {
-    const cnow = dayjs();
-
-    setStartDate(cnow.subtract(Number(value[0]), "hour").toISOString());
-    setEndDate(cnow.toISOString());
-  };
-
   return (
     <Box width="100%">
       <ErrorAlert error={error} />
       <VStack alignItems="left" gap={2}>
-        <HStack>
-          <FiCalendar />
-          <Select.Root
-            collection={timeOptions}
-            data-testid="sort-by-time"
-            defaultValue={[defaultHour]}
-            onValueChange={handleTimeChange}
-            width="200px"
-          >
-            <Select.Trigger>
-              <Select.ValueText placeholder="Duration" />
-            </Select.Trigger>
-            <Select.Content>
-              {timeOptions.items.map((option) => (
-                <Select.Item item={option} key={option.value}>
-                  {option.label}
-                </Select.Item>
-              ))}
-            </Select.Content>
-          </Select.Root>
-          <Text>
-            <Time datetime={startDate} /> - <Time datetime={endDate} />
-          </Text>
-        </HStack>
+        <TimeSelector
+          defaultValue={defaultHour}
+          endDate={endDate}
+          setEndDate={setEndDate}
+          setStartDate={setStartDate}
+          startDate={startDate}
+          timeOptions={timeOptions}
+        />
+        {isLoading ? <MetricSectionSkeleton /> : undefined}
         {!isLoading && data !== undefined && (
           <Box>
             <DagRunMetrics
