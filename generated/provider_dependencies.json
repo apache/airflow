@@ -527,9 +527,9 @@
   },
   "edge": {
     "deps": [
+      "aiosqlite>=0.5.0",
       "apache-airflow>=2.10.0",
-      "pydantic>=2.6.4",
-      "aiosqlite>=0.5.0"
+      "pydantic>=2.6.4"
     ],
     "devel-deps": [],
     "plugins": [
