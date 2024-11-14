@@ -144,7 +144,7 @@ export const $AssetEventCollectionResponse = {
   type: "object",
   required: ["asset_events", "total_entries"],
   title: "AssetEventCollectionResponse",
-  description: "Asset Event collection response.",
+  description: "Asset event collection response.",
 } as const;
 
 export const $AssetEventResponse = {
@@ -1924,15 +1924,8 @@ export const $DagRunAssetReference = {
       title: "Start Date",
     },
     end_date: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "string",
+      format: "date-time",
       title: "End Date",
     },
     state: {
@@ -1956,12 +1949,13 @@ export const $DagRunAssetReference = {
     "dag_id",
     "logical_date",
     "start_date",
+    "end_date",
     "state",
     "data_interval_start",
     "data_interval_end",
   ],
   title: "DagRunAssetReference",
-  description: "Dag Run Asset Reference serializer for responses.",
+  description: "DAGRun serializer for asset responses.",
 } as const;
 
 export const $DagRunState = {

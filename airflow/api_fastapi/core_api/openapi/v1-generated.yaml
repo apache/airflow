@@ -246,6 +246,106 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/assets/events:
+    get:
+      tags:
+      - Asset
+      summary: Get Asset Events
+      description: Get asset events.
+      operationId: get_asset_events
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: timestamp
+          title: Order By
+      - name: asset_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Asset Id
+      - name: source_dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Dag Id
+      - name: source_task_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Task Id
+      - name: source_run_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Run Id
+      - name: source_map_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Source Map Index
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetEventCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/assets/{uri}:
     get:
       tags:
@@ -3634,7 +3734,7 @@ components:
       - asset_events
       - total_entries
       title: AssetEventCollectionResponse
-      description: Asset Event collection response.
+      description: Asset event collection response.
     AssetEventResponse:
       properties:
         id:
@@ -4769,10 +4869,8 @@ components:
           format: date-time
           title: Start Date
         end_date:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
+          type: string
+          format: date-time
           title: End Date
         state:
           type: string
@@ -4791,11 +4889,12 @@ components:
       - dag_id
       - logical_date
       - start_date
+      - end_date
       - state
       - data_interval_start
       - data_interval_end
       title: DagRunAssetReference
-      description: Dag Run Asset Reference serializer for responses.
+      description: DAGRun serializer for asset responses.
     DagRunState:
       type: string
       enum:

@@ -67,13 +67,13 @@ class AssetCollectionResponse(BaseModel):
 
 
 class DagRunAssetReference(BaseModel):
-    """Dag Run Asset Reference serializer for responses."""
+    """DAGRun serializer for asset responses."""
 
     run_id: str
     dag_id: str
     execution_date: datetime = Field(alias="logical_date")
     start_date: datetime
-    end_date: datetime | None = None
+    end_date: datetime
     state: str
     data_interval_start: datetime
     data_interval_end: datetime
@@ -95,7 +95,7 @@ class AssetEventResponse(BaseModel):
 
 
 class AssetEventCollectionResponse(BaseModel):
-    """Asset Event collection response."""
+    """Asset event collection response."""
 
     asset_events: list[AssetEventResponse]
     total_entries: int

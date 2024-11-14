@@ -38,7 +38,7 @@ export type AssetCollectionResponse = {
 };
 
 /**
- * Asset Event collection response.
+ * Asset event collection response.
  */
 export type AssetEventCollectionResponse = {
   asset_events: Array<AssetEventResponse>;
@@ -412,14 +412,14 @@ export type DagProcessorInfoSchema = {
 };
 
 /**
- * Dag Run Asset Reference serializer for responses.
+ * DAGRun serializer for asset responses.
  */
 export type DagRunAssetReference = {
   run_id: string;
   dag_id: string;
   logical_date: string;
   start_date: string;
-  end_date?: string | null;
+  end_date: string;
   state: string;
   data_interval_start: string;
   data_interval_end: string;
@@ -971,6 +971,19 @@ export type GetAssetsData = {
 
 export type GetAssetsResponse = AssetCollectionResponse;
 
+export type GetAssetEventsData = {
+  assetId?: number | null;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  sourceDagId?: string | null;
+  sourceMapIndex?: number | null;
+  sourceRunId?: string | null;
+  sourceTaskId?: string | null;
+};
+
+export type GetAssetEventsResponse = AssetEventCollectionResponse;
+
 export type GetAssetData = {
   uri: string;
 };
@@ -1452,6 +1465,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: AssetCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/assets/events": {
+    get: {
+      req: GetAssetEventsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: AssetEventCollectionResponse;
         /**
          * Unauthorized
          */
