@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.14.0
 ......
 
-Latest change: 2024-11-13
+Latest change: 2024-11-14
 
 =================================================================================================  ===========  ================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================================
+`f60886cf36 <https://github.com/apache/airflow/commit/f60886cf368b943120af20889b83704ccdbb8c91>`_  2024-11-14   ``add ProcessingEngineRunFacet to OL DAG Start event (#43213)``
 `e7194dff6a <https://github.com/apache/airflow/commit/e7194dff6a816bf3a721cbf579ceac19c11cd111>`_  2024-11-13   ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
 `c7c6547481 <https://github.com/apache/airflow/commit/c7c65474810a1d4a22320b9064fa1374e38129c9>`_  2024-11-06   ``OpenLineage: accept whole config when instantiating OpenLineageClient. (#43740)``
 `80727d42ab <https://github.com/apache/airflow/commit/80727d42ab2f2cfcc8f4a85d8a6b4f27ac4b3341>`_  2024-11-06   ``Temporarily limit openlineage to <1.24.0 (#43732)``

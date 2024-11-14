@@ -33,6 +33,7 @@ Features
 ~~~~~~~~
 
 * ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+* ``Add ProcessingEngineRunFacet to OL DAG Start event (#43213)``
 
 Bug Fixes
 ~~~~~~~~~
