@@ -43,7 +43,13 @@ import structlog
 
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import TaskInstanceState
-from airflow.sdk.execution_time.comms import ConnectionResponse, GetConnection, StartupDetails, ToSupervisor
+from airflow.sdk.execution_time.comms import (
+    ConnectionResponse,
+    GetConnection,
+    StartupDetails,
+    ToSupervisorRequest,
+    ToTaskRequest,
+)
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
@@ -336,15 +342,18 @@ class WatchedSubprocess:
         child_logs.close()
 
         # Tell the task process what it needs to do!
-        msg = StartupDetails(
-            ti=ti,
-            file=str(path),
-            requests_fd=child_comms.fileno(),
+
+        msg = ToTaskRequest(
+            request=StartupDetails(
+                ti=ti,
+                file=str(path),
+                requests_fd=child_comms.fileno(),
+            )
         )
 
         # Send the message to tell the process what it needs to execute
         log.debug("Sending", msg=msg)
-        feed_stdin.write(msgspec.json.encode(msg))
+        feed_stdin.write(msg.model_dump_json().encode())
         feed_stdin.write(b"\n")
 
         return proc
@@ -440,15 +449,15 @@ class WatchedSubprocess:
         return rep + " >"
 
     def handle_requests(self, log: FilteringBoundLogger) -> Generator[None, bytes, None]:
-        decoder: msgspec.json.Decoder[ToSupervisor] = msgspec.json.Decoder(type=ToSupervisor)
-        encoder = msgspec.json.Encoder()
+        encoder = ConnectionResponse.model_dump_json
         # Use a buffer to avoid small allocations
         buffer = bytearray(64)
+
         while True:
             line = yield
 
             try:
-                msg = decoder.decode(line)
+                msg = ToSupervisorRequest.model_validate_json(line).request
             except Exception:
                 log.exception("Unable to decode message", line=line)
                 continue
@@ -462,7 +471,8 @@ class WatchedSubprocess:
             if isinstance(msg, GetConnection):
                 conn = self.client.connections.get(msg.id)
                 resp = ConnectionResponse(conn=conn)
-                encoder.encode_into(resp, buffer)
+                encoded_resp = encoder(resp)
+                buffer.extend(encoded_resp.encode())
             else:
                 log.error("Unhandled request", msg=msg)
                 continue

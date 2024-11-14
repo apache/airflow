@@ -36,9 +36,9 @@ class TestCommsDecoder:
         _, w2 = socketpair()
 
         w.makefile("wb").write(
-            b'{"type":"StartupDetails", "ti": {'
+            b'{"request": {"type":"StartupDetails", "ti": {'
             b'"id": "4d828a62-a417-4936-a7a6-2b3fabacecab", "task_id": "a", "try_number": 1, "run_id": "b", "dag_id": "c" }, '
-            b'"file": "/dev/null", "requests_fd": ' + str(w2.fileno()).encode("ascii") + b"}\n"
+            b'"file": "/dev/null", "requests_fd": ' + str(w2.fileno()).encode("ascii") + b"}}\n"
         )
 
         decoder = CommsDecoder(input=r.makefile("r"))
@@ -51,7 +51,6 @@ class TestCommsDecoder:
         assert msg.file == "/dev/null"
 
         # Since this was a StartupDetails message, the decoder should open the other socket
+        assert decoder.request_socket is not None
         assert decoder.request_socket.writable()
         assert decoder.request_socket.fileno() == w2.fileno()
-
-        ...

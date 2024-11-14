@@ -19,12 +19,12 @@ from __future__ import annotations
 
 import os
 
-import msgspec
+from pydantic import BaseModel
 
 from airflow.sdk.api.datamodels.ti import TaskInstance
 
 
-class ExecuteTaskActivity(msgspec.Struct, tag="ExecuteTask", tag_field="kind"):
+class ExecuteTaskActivity(BaseModel):
     ti: TaskInstance
     path: os.PathLike[str]
     token: str

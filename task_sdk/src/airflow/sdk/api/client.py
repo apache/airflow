@@ -23,8 +23,8 @@ from typing import TYPE_CHECKING, Any
 
 import httpx
 import methodtools
-import msgspec
 import structlog
+from pydantic import BaseModel
 from uuid6 import uuid7
 
 from airflow.sdk import __version__
@@ -115,12 +115,11 @@ class ConnectionOperations:
 
     def __init__(self, client: Client):
         self.client = client
-        self.decoder: msgspec.json.Decoder[ConnectionResponse] = msgspec.json.Decoder(type=ConnectionResponse)
 
     def get(self, id: str) -> ConnectionResponse:
         """Get a connection from the API server."""
         resp = self.client.get(f"connection/{id}")
-        return self.decoder.decode(resp.read())
+        return ConnectionResponse.model_validate_json(resp.read())
 
 
 class BearerAuth(httpx.Auth):
@@ -141,14 +140,11 @@ def noop_handler(request: httpx.Request) -> httpx.Response:
 
 
 class Client(httpx.Client):
-    encoder: msgspec.json.Encoder
-
     def __init__(self, *, base_url: str | None, dry_run: bool = False, token: str, **kwargs: Any):
         if (not base_url) ^ dry_run:
             raise ValueError(f"Can only specify one of {base_url=} or {dry_run=}")
         auth = BearerAuth(token)
 
-        self.encoder = msgspec.json.Encoder()
         if dry_run:
             # If dry run is requested, install a no op handler so that simple tasks can "heartbeat" using a
             # real client, but just don't make any HTTP requests
@@ -181,7 +177,7 @@ class Client(httpx.Client):
         return ConnectionOperations(self)
 
 
-class ErrorBody(msgspec.Struct):
+class ErrorBody(BaseModel):
     detail: list[RemoteValidationError] | dict[str, Any]
 
     def __repr__(self):
@@ -206,13 +202,13 @@ class ServerResponseError(httpx.HTTPStatusError):
             return None
 
         try:
-            err = msgspec.json.decode(response.read(), type=ErrorBody)
+            err = ErrorBody.model_validate_json(response.read())
             if isinstance(err.detail, list):
                 msg = "Remote server returned validation error"
             else:
                 msg = err.detail.get("message", "") or "Un-parseable error"
         except Exception:
-            err = msgspec.json.decode(response.content)
+            err = ErrorBody.model_validate_json(response.content)
             msg = "Server returned error"
 
         self = cls(msg, request=response.request, response=response)

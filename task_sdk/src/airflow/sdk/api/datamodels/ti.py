@@ -18,16 +18,15 @@
 from __future__ import annotations
 
 import uuid
-from typing import Optional
 
-import msgspec
+from pydantic import BaseModel
 
 
-class TaskInstance(msgspec.Struct, omit_defaults=True):
+class TaskInstance(BaseModel):
     id: uuid.UUID
 
     task_id: str
     dag_id: str
     run_id: str
     try_number: int
-    map_index: Optional[int] = None  # noqa: UP007 msgspec doesn't support pipe-op
+    map_index: int | None = None

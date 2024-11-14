@@ -25,17 +25,19 @@ from io import FileIO
 from typing import TYPE_CHECKING, TextIO
 
 import attrs
-import msgspec
 import structlog
+from pydantic import ConfigDict
 
 from airflow.sdk import BaseOperator
-from airflow.sdk.execution_time.comms import StartupDetails, TaskInstance, ToSupervisor, ToTask
+from airflow.sdk.execution_time.comms import StartupDetails, TaskInstance, ToSupervisor, ToTask, ToTaskRequest
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
 
 
-class RuntimeTaskInstance(TaskInstance, kw_only=True):
+class RuntimeTaskInstance(TaskInstance):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     task: BaseOperator
 
 
@@ -62,7 +64,7 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
     task = dag.task_dict[what.ti.task_id]
     if not isinstance(task, BaseOperator):
         raise TypeError(f"task is of the wrong type, got {type(task)}, wanted {BaseOperator}")
-    return RuntimeTaskInstance(**msgspec.structs.asdict(what.ti), task=task)
+    return RuntimeTaskInstance(**what.ti.model_dump(exclude_unset=True), task=task)
 
 
 @attrs.define()
@@ -70,9 +72,6 @@ class CommsDecoder:
     """Handle communication between the task in this process and the supervisor parent process."""
 
     input: TextIO = sys.stdin
-
-    decoder: msgspec.json.Decoder[ToTask] = attrs.field(factory=lambda: msgspec.json.Decoder(type=ToTask))
-    encoder: msgspec.json.Encoder = attrs.field(factory=msgspec.json.Encoder)
 
     request_socket: FileIO = attrs.field(init=False, default=None)
 
@@ -87,7 +86,7 @@ class CommsDecoder:
         """
         line = self.input.readline()
         try:
-            msg = self.decoder.decode(line)
+            msg = ToTaskRequest.model_validate_json(line).request
         except Exception:
             structlog.get_logger(logger_name="CommsDecoder").exception("Unable to decode message", line=line)
             raise
@@ -99,12 +98,10 @@ class CommsDecoder:
         return msg
 
     def send_request(self, log: Logger, msg: ToSupervisor):
-        buffer = self.buffer
-        self.encoder.encode_into(msg, buffer)
-        buffer += b"\n"
+        encoded_msg = msg.model_dump_json().encode() + b"\n"
 
-        log.debug("Sending request", json=buffer)
-        self.request_socket.write(buffer)
+        log.debug("Sending request", json=encoded_msg)
+        self.request_socket.write(encoded_msg)
 
 
 # This global variable will be used by Connection/Variable classes etc to send requests to

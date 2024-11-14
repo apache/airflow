@@ -72,7 +72,7 @@ class TestWatchedSubprocess:
         proc = WatchedSubprocess.start(
             path=os.devnull,
             ti=TaskInstance(
-                id="a",
+                id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
                 run_id="d",
@@ -135,7 +135,7 @@ class TestWatchedSubprocess:
         proc = WatchedSubprocess.start(
             path=os.devnull,
             ti=TaskInstance(
-                id="a",
+                id="4d828a62-a417-4936-a7a6-2b3fabacecab",
                 task_id="b",
                 dag_id="c",
                 run_id="d",

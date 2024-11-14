@@ -43,15 +43,17 @@ Execution API server is because:
 
 from __future__ import annotations
 
-from typing import Any, Union
+from typing import Annotated, Any, Literal, Union
 
-import msgspec
+from pydantic import BaseModel, ConfigDict, Field
 
 from airflow.sdk.api.datamodels._generated import TaskInstanceState  # noqa: TCH001
 from airflow.sdk.api.datamodels.ti import TaskInstance  # noqa: TCH001
 
 
-class StartupDetails(msgspec.Struct, omit_defaults=True, tag=True):
+class StartupDetails(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     ti: TaskInstance
     file: str
     requests_fd: int
@@ -60,23 +62,35 @@ class StartupDetails(msgspec.Struct, omit_defaults=True, tag=True):
 
     Responses will come back on stdin
     """
+    type: Literal["StartupDetails"] = "StartupDetails"
 
 
-class XComResponse(msgspec.Struct, omit_defaults=True, tag=True):
+class XComResponse(BaseModel):
     """Response to ReadXCom request."""
 
     key: str
     value: Any
 
+    type: Literal["XComResponse"] = "XComResponse"
 
-class ConnectionResponse(msgspec.Struct, omit_defaults=True, tag="connection"):
+
+class ConnectionResponse(BaseModel):
     conn: Any
 
+    type: Literal["ConnectionResponse"] = "ConnectionResponse"
 
-ToTask = Union[StartupDetails, XComResponse, ConnectionResponse]
+
+ToTask = Annotated[
+    Union[StartupDetails, XComResponse, ConnectionResponse],
+    Field(discriminator="type"),
+]
 
 
-class TaskState(msgspec.Struct, omit_defaults=True, tag=True):
+class ToTaskRequest(BaseModel):
+    request: ToTask
+
+
+class TaskState(BaseModel):
     """
     Update a task's state.
 
@@ -86,18 +100,29 @@ class TaskState(msgspec.Struct, omit_defaults=True, tag=True):
     """
 
     state: TaskInstanceState
+    type: Literal["TaskState"] = "TaskState"
 
 
-class ReadXCom(msgspec.Struct, tag=True):
+class ReadXCom(BaseModel):
     key: str
+    type: Literal["ReadXCom"] = "ReadXCom"
 
 
-class GetConnection(msgspec.Struct, tag=True):
+class GetConnection(BaseModel):
     id: str
+    type: Literal["GetConnection"] = "GetConnection"
 
 
-class GetVariable(msgspec.Struct, tag=True):
+class GetVariable(BaseModel):
     id: str
+    type: Literal["GetVariable"] = "GetVariable"
 
 
-ToSupervisor = Union[TaskState, ReadXCom, GetConnection, GetVariable]
+ToSupervisor = Annotated[
+    Union[TaskState, ReadXCom, GetConnection, GetVariable],
+    Field(discriminator="type"),
+]
+
+
+class ToSupervisorRequest(BaseModel):
+    request: ToSupervisor

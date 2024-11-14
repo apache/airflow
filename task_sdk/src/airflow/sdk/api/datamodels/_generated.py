@@ -23,45 +23,45 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Literal
+from typing import Annotated, Any, Literal
 
-from msgspec import Struct, field
+from pydantic import BaseModel, Field
 
 
-class ConnectionResponse(Struct):
+class ConnectionResponse(BaseModel):
     """
     Connection schema for responses with fields that are needed for Runtime.
     """
 
-    conn_id: str
-    conn_type: str
-    host: str | None = None
-    schema_: str | None = field(name="schema", default=None)
-    login: str | None = None
-    password: str | None = None
-    port: int | None = None
-    extra: str | None = None
+    conn_id: Annotated[str, Field(title="Conn Id")]
+    conn_type: Annotated[str, Field(title="Conn Type")]
+    host: Annotated[str | None, Field(title="Host")] = None
+    schema_: Annotated[str | None, Field(alias="schema", title="Schema")] = None
+    login: Annotated[str | None, Field(title="Login")] = None
+    password: Annotated[str | None, Field(title="Password")] = None
+    port: Annotated[int | None, Field(title="Port")] = None
+    extra: Annotated[str | None, Field(title="Extra")] = None
 
 
-class TIEnterRunningPayload(Struct):
+class TIEnterRunningPayload(BaseModel):
     """
     Schema for updating TaskInstance to 'RUNNING' state with minimal required fields.
     """
 
-    hostname: str
-    unixname: str
-    pid: int
-    start_date: datetime
-    state: Literal["running"] | None = "running"
+    state: Annotated[Literal["running"] | None, Field(title="State")] = "running"
+    hostname: Annotated[str, Field(title="Hostname")]
+    unixname: Annotated[str, Field(title="Unixname")]
+    pid: Annotated[int, Field(title="Pid")]
+    start_date: Annotated[datetime, Field(title="Start Date")]
 
 
-class TIHeartbeatInfo(Struct):
+class TIHeartbeatInfo(BaseModel):
     """
     Schema for TaskInstance heartbeat endpoint.
     """
 
-    hostname: str
-    pid: int
+    hostname: Annotated[str, Field(title="Hostname")]
+    pid: Annotated[int, Field(title="Pid")]
 
 
 class State(Enum):
@@ -76,7 +76,7 @@ class State(Enum):
     DEFERRED = "deferred"
 
 
-class TITargetStatePayload(Struct):
+class TITargetStatePayload(BaseModel):
     """
     Schema for updating TaskInstance to a target state, excluding terminal and running states.
     """
@@ -90,13 +90,13 @@ class State1(Enum):
     SKIPPED = "skipped"
 
 
-class TITerminalStatePayload(Struct):
+class TITerminalStatePayload(BaseModel):
     """
     Schema for updating TaskInstance to a terminal state (e.g., SUCCESS or FAILED).
     """
 
-    state: State1
-    end_date: datetime
+    state: Annotated[State1, Field(title="TerminalState")]
+    end_date: Annotated[datetime, Field(title="End Date")]
 
 
 class TaskInstanceState(str, Enum):
@@ -120,11 +120,29 @@ class TaskInstanceState(str, Enum):
     DEFERRED = "deferred"
 
 
-class ValidationError(Struct):
-    loc: list[str | int]
-    msg: str
-    type: str
+class ValidationError(BaseModel):
+    loc: Annotated[list[str | int], Field(title="Location")]
+    msg: Annotated[str, Field(title="Message")]
+    type: Annotated[str, Field(title="Error Type")]
 
 
-class HTTPValidationError(Struct):
-    detail: list[ValidationError] | None = None
+class VariableResponse(BaseModel):
+    """
+    Variable schema for responses with fields that are needed for Runtime.
+    """
+
+    key: Annotated[str, Field(title="Key")]
+    value: Annotated[str | None, Field(title="Value")] = None
+
+
+class XComResponse(BaseModel):
+    """
+    XCom schema for responses with fields that are needed for Runtime.
+    """
+
+    key: Annotated[str, Field(title="Key")]
+    value: Annotated[Any, Field(title="Value")]
+
+
+class HTTPValidationError(BaseModel):
+    detail: Annotated[list[ValidationError] | None, Field(title="Detail")] = None
