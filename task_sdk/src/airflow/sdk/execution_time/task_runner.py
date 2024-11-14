@@ -26,10 +26,10 @@ from typing import TYPE_CHECKING, TextIO
 
 import attrs
 import structlog
-from pydantic import ConfigDict
+from pydantic import ConfigDict, TypeAdapter
 
 from airflow.sdk import BaseOperator
-from airflow.sdk.execution_time.comms import StartupDetails, TaskInstance, ToSupervisor, ToTask, ToTaskRequest
+from airflow.sdk.execution_time.comms import StartupDetails, TaskInstance, ToSupervisor, ToTask
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
@@ -75,8 +75,7 @@ class CommsDecoder:
 
     request_socket: FileIO = attrs.field(init=False, default=None)
 
-    # Allocate a buffer for en/decoding. We use a small non-empty buffer to avoid reallocating for small messages.
-    buffer: bytearray = attrs.field(factory=lambda: bytearray(64))
+    decoder: TypeAdapter[ToTask] = attrs.field(init=False, factory=lambda: TypeAdapter(ToTask))
 
     def get_message(self) -> ToTask:
         """
@@ -86,7 +85,7 @@ class CommsDecoder:
         """
         line = self.input.readline()
         try:
-            msg = ToTaskRequest.model_validate_json(line).request
+            msg = self.decoder.validate_json(line)
         except Exception:
             structlog.get_logger(logger_name="CommsDecoder").exception("Unable to decode message", line=line)
             raise

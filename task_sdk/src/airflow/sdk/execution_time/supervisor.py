@@ -40,6 +40,7 @@ import httpx
 import msgspec
 import psutil
 import structlog
+from pydantic import TypeAdapter
 
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import TaskInstanceState
@@ -47,8 +48,7 @@ from airflow.sdk.execution_time.comms import (
     ConnectionResponse,
     GetConnection,
     StartupDetails,
-    ToSupervisorRequest,
-    ToTaskRequest,
+    ToSupervisor,
 )
 
 if TYPE_CHECKING:
@@ -343,12 +343,10 @@ class WatchedSubprocess:
 
         # Tell the task process what it needs to do!
 
-        msg = ToTaskRequest(
-            request=StartupDetails(
-                ti=ti,
-                file=str(path),
-                requests_fd=child_comms.fileno(),
-            )
+        msg = StartupDetails(
+            ti=ti,
+            file=str(path),
+            requests_fd=child_comms.fileno(),
         )
 
         # Send the message to tell the process what it needs to execute
@@ -453,11 +451,13 @@ class WatchedSubprocess:
         # Use a buffer to avoid small allocations
         buffer = bytearray(64)
 
+        decoder = TypeAdapter[ToSupervisor](ToSupervisor)
+
         while True:
             line = yield
 
             try:
-                msg = ToSupervisorRequest.model_validate_json(line).request
+                msg = decoder.validate_json(line)
             except Exception:
                 log.exception("Unable to decode message", line=line)
                 continue

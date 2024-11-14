@@ -86,10 +86,6 @@ ToTask = Annotated[
 ]
 
 
-class ToTaskRequest(BaseModel):
-    request: ToTask
-
-
 class TaskState(BaseModel):
     """
     Update a task's state.
@@ -122,7 +118,3 @@ ToSupervisor = Annotated[
     Union[TaskState, ReadXCom, GetConnection, GetVariable],
     Field(discriminator="type"),
 ]
-
-
-class ToSupervisorRequest(BaseModel):
-    request: ToSupervisor
