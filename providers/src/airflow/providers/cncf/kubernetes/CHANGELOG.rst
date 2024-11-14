@@ -74,6 +74,7 @@ Bug Fixes
 
 * ``Add random_name_suffix to SparkKubernetesOperator (#43847)``
 * ``terminate kubernetes watch in case of unknown error (#43645)``
+* ``Update 'namespace' priority for 'find_pod' function (#43762)``
 
 Misc
 ~~~~

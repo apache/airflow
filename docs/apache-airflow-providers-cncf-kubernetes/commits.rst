@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 10.0.0
 ......
 
-Latest change: 2024-11-12
+Latest change: 2024-11-14
 
 =================================================================================================  ===========  ================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================
+`66d86f5166 <https://github.com/apache/airflow/commit/66d86f51663718300917a5194eabd20ee67efdb5>`_  2024-11-14   ``Update 'namespace' priority for 'find_pod' function (#43762)``
 `ac4dec163c <https://github.com/apache/airflow/commit/ac4dec163c59fab4f4edffd880720cea70c81b4b>`_  2024-11-12   ``terminate kubernetes watch in case of unknown error (#43645)``
 `6d85a0466d <https://github.com/apache/airflow/commit/6d85a0466d91d501af87c8904b902ea92cee466d>`_  2024-11-09   ``Remove deprecations cncf.kubernetes (#43689)``
 `63b2bbd167 <https://github.com/apache/airflow/commit/63b2bbd167af1105f1fdd340c24fbf0f1bb6ec90>`_  2024-11-09   ``Add random_name_suffix to SparkKubernetesOperator (#43800) (#43847)``

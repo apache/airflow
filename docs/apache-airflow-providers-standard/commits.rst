@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 0.0.1
 .....
 
-Latest change: 2024-11-13
+Latest change: 2024-11-14
 
 =================================================================================================  ===========  ================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================================================================
+`2ef8438eec <https://github.com/apache/airflow/commit/2ef8438eecb35027601982bd00865acca737a5b3>`_  2024-11-14   ``move version imports to inside utils (#44018)``
 `e7194dff6a <https://github.com/apache/airflow/commit/e7194dff6a816bf3a721cbf579ceac19c11cd111>`_  2024-11-13   ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
 `f757b87581 <https://github.com/apache/airflow/commit/f757b87581d1ef7a298aabc77b0cfcc8b777cc11>`_  2024-11-11   ``update how to guide section with doc references (#43889)``
 `084e29e9e2 <https://github.com/apache/airflow/commit/084e29e9e2840fc29392bd9f1185da9486ffe86f>`_  2024-11-11   ``Add documentation to standard provider operators (#43716)``
