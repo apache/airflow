@@ -53,11 +53,13 @@ export const SearchBar = ({
   return (
     <InputGroup
       {...groupProps}
+      colorPalette="blue"
       endElement={
         <>
           {Boolean(value) ? (
             <CloseButton
               aria-label="Clear search"
+              colorPalette="gray"
               data-testid="clear-search"
               onClick={() => {
                 setValue("");
@@ -67,7 +69,6 @@ export const SearchBar = ({
             />
           ) : undefined}
           <Button
-            colorPalette="blue"
             fontWeight="normal"
             height="1.75rem"
             variant="ghost"

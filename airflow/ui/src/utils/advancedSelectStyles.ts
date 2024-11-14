@@ -16,30 +16,3 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, type ButtonProps } from "@chakra-ui/react";
-
-type QuickFilterButtonProps = {
-  readonly isActive: boolean;
-} & ButtonProps;
-
-export const QuickFilterButton = ({
-  children,
-  isActive,
-  ...rest
-}: QuickFilterButtonProps) => (
-  <Button
-    _hover={{ bg: "colorPalette.subtle" }}
-    bg={isActive ? "colorPalette.muted" : undefined}
-    borderColor="colorPalette.fg"
-    borderRadius={20}
-    borderWidth={1}
-    color="colorPalette.fg"
-    colorPalette="blue"
-    fontWeight="normal"
-    size="sm"
-    variant={isActive ? "solid" : "outline"}
-    {...rest}
-  >
-    {children}
-  </Button>
-);
