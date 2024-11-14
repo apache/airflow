@@ -29,7 +29,6 @@ import statsd
 
 import airflow
 from airflow.exceptions import AirflowConfigException, InvalidStatsNameException
-from airflow.metrics import datadog_logger, protocols
 from airflow.metrics.datadog_logger import SafeDogStatsdLogger
 from airflow.metrics.statsd_logger import SafeStatsdLogger
 from airflow.metrics.validators import (
@@ -221,20 +220,12 @@ class TestDogStats:
             metric="empty_key", sample_rate=1, tags=[], value=1
         )
 
-    @pytest.mark.parametrize(
-        "timer_unit_consistency",
-        [True, False],
-    )
     @mock.patch.object(time, "perf_counter", side_effect=[0.0, 100.0])
-    def test_timer(self, time_mock, timer_unit_consistency):
-        protocols.timer_unit_consistency = timer_unit_consistency
-
+    def test_timer(self, time_mock):
         with self.dogstatsd.timer("empty_timer") as timer:
             pass
         self.dogstatsd_client.timed.assert_called_once_with("empty_timer", tags=[])
-        expected_duration = 100.0
-        if timer_unit_consistency:
-            expected_duration = 1000.0 * 100.0
+        expected_duration = 1000.0 * 100.0
         assert expected_duration == timer.duration
         assert time_mock.call_count == 2
 
@@ -243,22 +234,14 @@ class TestDogStats:
             pass
         self.dogstatsd_client.timed.assert_not_called()
 
-    @pytest.mark.parametrize(
-        "timer_unit_consistency",
-        [True, False],
-    )
-    def test_timing(self, timer_unit_consistency):
+    def test_timing(self):
         import datetime
-
-        datadog_logger.timer_unit_consistency = timer_unit_consistency
 
         self.dogstatsd.timing("empty_timer", 123)
         self.dogstatsd_client.timing.assert_called_once_with(metric="empty_timer", value=123, tags=[])
 
         self.dogstatsd.timing("empty_timer", datetime.timedelta(seconds=123))
-        self.dogstatsd_client.timing.assert_called_with(
-            metric="empty_timer", value=123000.0 if timer_unit_consistency else 123.0, tags=[]
-        )
+        self.dogstatsd_client.timing.assert_called_with(metric="empty_timer", value=123000.0, tags=[])
 
     def test_gauge(self):
         self.dogstatsd.gauge("empty", 123)
