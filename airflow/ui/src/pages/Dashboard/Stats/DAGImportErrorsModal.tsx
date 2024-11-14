@@ -16,60 +16,87 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { VStack, Heading, Badge, Text } from "@chakra-ui/react";
+import {
+  VStack,
+  Heading,
+  Text,
+  Box,
+  Button,
+  HStack,
+} from "@chakra-ui/react";
+import { useEffect, useState } from "react";
 
+import type { ImportErrorResponse } from "openapi/requests/types.gen";
 import { Accordion, Dialog } from "src/components/ui";
 import { useImportErrors } from "src/queries/useDagsImportErrors";
 
 type ImportDAGErrorModalProps = {
   onClose: () => void;
+  onErrorCountChange: (count: number) => void;
   open: boolean;
 };
 
+const PAGE_LIMIT = 5;
+
 export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({
   onClose,
+  onErrorCountChange,
   open,
 }) => {
-  const { data, error } = useImportErrors();
-  const importErrors = data.errors;
-  const importErrorsCount = data.total_entries || 0;
+  const [currentPage, setCurrentPage] = useState(0);
+
+  const { data, error } = useImportErrors({
+    limit: PAGE_LIMIT,
+    offset: currentPage * PAGE_LIMIT,
+    orderBy: "import_error_id",
+  });
+
+  const importErrors: Array<ImportErrorResponse> = data.import_errors;
+  const importErrorsCount: number = data.total_entries || 0;
+  const totalPages = Math.ceil(importErrorsCount / PAGE_LIMIT);
+
+  useEffect(() => {
+    onErrorCountChange(importErrorsCount);
+  }, [importErrorsCount, onErrorCountChange]);
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages - 1) {
+      setCurrentPage((prev) => prev + 1);
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 0) {
+      setCurrentPage((prev) => prev - 1);
+    }
+  };
 
   return (
     <Dialog.Root onOpenChange={onClose} open={open} size="xl">
       <Dialog.Content backdrop>
         <Dialog.Header>
-          <VStack align="start" gap={4}>
-            <Heading size="xl">
-              DAG Import Errors
-              <Badge
-                background="red"
-                borderRadius="full"
-                color="white"
-                ml={2}
-                px={2}
-              >
-                {importErrorsCount}
-              </Badge>
-            </Heading>
+          <VStack align="start" gap={4} position="sticky" top={0} zIndex={1}>
+            <Heading size="xl">DAG Import Errors</Heading>
+            <Text color="gray.500">{`Page ${currentPage + 1} of ${totalPages}`}</Text>
           </VStack>
         </Dialog.Header>
 
         <Dialog.CloseTrigger />
 
-        <Dialog.Body>
-          <Accordion.Root collapsible size="md" variant="enclosed">
-            {importErrors.map((importError, index) => (
+        <Dialog.Body maxH="500px" overflowY="auto">
+          <Accordion.Root collapsible multiple size="md" variant="enclosed">
+            {importErrors.map((importError: ImportErrorResponse) => (
               <Accordion.Item
                 key={importError.import_error_id}
                 value={importError.filename}
               >
                 <Accordion.ItemTrigger cursor="pointer">
-                  {index + 1}
+                  {importError.import_error_id}
                   {". "}
                   {importError.filename}
                 </Accordion.ItemTrigger>
                 <Accordion.ItemContent>
-                  <Text color="gray.600" fontSize="sm" whiteSpace="pre-wrap">
+                  <Text color="red.600" fontSize="sm" whiteSpace="pre-wrap">
                     <code>{importError.stack_trace}</code>
                   </Text>
                 </Accordion.ItemContent>
@@ -77,6 +104,25 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({
             ))}
           </Accordion.Root>
         </Dialog.Body>
+
+        <Box p={6}>
+          <HStack justify="space-between">
+            <Button
+              colorPalette="blue"
+              disabled={currentPage === 0}
+              onClick={handlePreviousPage}
+            >
+              Previous
+            </Button>
+            <Button
+              colorPalette="blue"
+              disabled={currentPage === totalPages - 1}
+              onClick={handleNextPage}
+            >
+              Next
+            </Button>
+          </HStack>
+        </Box>
       </Dialog.Content>
     </Dialog.Root>
   );

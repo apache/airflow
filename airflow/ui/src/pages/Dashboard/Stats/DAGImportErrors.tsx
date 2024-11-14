@@ -17,42 +17,44 @@
  * under the License.
  */
 import { Box, Badge, Text, Button, useDisclosure } from "@chakra-ui/react";
+import { useState } from "react";
 import { FiChevronRight } from "react-icons/fi";
-
-import { useImportErrors } from "src/queries/useDagsImportErrors";
 
 import { DAGImportErrorsModal } from "./DAGImportErrorsModal";
 
-const PAGE_LIMIT = 10;
-
 export const DAGImportErrors = () => {
   const { onClose, onOpen, open } = useDisclosure();
-  const { data, error } = useImportErrors({
-    limit: PAGE_LIMIT,
-    offset: 0,
-    orderBy: "",
-  });
-  const importErrorsCount = data.total_entries || 0;
+  const [importErrorsCount, setImportErrorsCount] = useState<number>(0);
+
+  const handleImportErrorsCount = (count: number) => {
+    setImportErrorsCount(count);
+  };
 
   return (
-    <Box alignItems="center" display="flex" gap={2}>
-      <Button
-        alignItems="center"
-        borderRadius="md"
-        display="flex"
-        gap={2}
-        onClick={onOpen}
-        variant="outline"
-      >
-        <Badge background="red" borderRadius="full" color="white" px={2}>
-          {importErrorsCount}
-        </Badge>
-        <Box alignItems="center" display="flex" gap={1}>
-          <Text fontWeight="bold">DAG Import Errors</Text>
-          <FiChevronRight />
-        </Box>
-      </Button>
-      <DAGImportErrorsModal onClose={onClose} open={open} />
-    </Box>
+    importErrorsCount > 0 && (
+      <Box alignItems="center" display="flex" gap={2}>
+        <Button
+          alignItems="center"
+          borderRadius="md"
+          display="flex"
+          gap={2}
+          onClick={onOpen}
+          variant="outline"
+        >
+          <Badge background="red" borderRadius="full" color="white" px={2}>
+            {importErrorsCount}
+          </Badge>
+          <Box alignItems="center" display="flex" gap={1}>
+            <Text fontWeight="bold">DAG Import Errors</Text>
+            <FiChevronRight />
+          </Box>
+        </Button>
+        <DAGImportErrorsModal
+          onClose={onClose}
+          onErrorCountChange={handleImportErrorsCount}
+          open={open}
+        />
+      </Box>
+    )
   );
 };

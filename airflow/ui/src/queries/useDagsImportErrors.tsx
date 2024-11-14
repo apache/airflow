@@ -43,7 +43,7 @@ export const useImportErrors = (
 
   return {
     data: {
-      errors: errorsData?.import_errors ?? [],
+      import_errors: errorsData?.import_errors ?? [],
       total_entries: errorsData?.total_entries ?? 0,
     },
     error: errorsError,
