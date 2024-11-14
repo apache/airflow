@@ -20,7 +20,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from airflow.sdk.api.client import Client, ErrorBody, RemoteValidationError, ServerResponseError
+from airflow.sdk.api.client import Client, RemoteValidationError, ServerResponseError
 
 
 class TestClient:
@@ -40,8 +40,8 @@ class TestClient:
             client.get("http://error")
 
         assert isinstance(err.value, ServerResponseError)
-        assert isinstance(err.value.detail, ErrorBody)
-        assert err.value.detail.detail == [
+        assert isinstance(err.value.detail, list)
+        assert err.value.detail == [
             RemoteValidationError(loc=["#0"], msg="err", type="required"),
         ]
 
@@ -60,3 +60,17 @@ class TestClient:
         with pytest.raises(httpx.HTTPStatusError) as err:
             client.get("http://error")
         assert not isinstance(err.value, ServerResponseError)
+
+    def test_error_parsing_other_json(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            # Some other json than an error body.
+            return httpx.Response(404, json={"detail": "Not found"})
+
+        client = Client(
+            base_url=None, dry_run=True, token="", mounts={"'http://": httpx.MockTransport(handle_request)}
+        )
+
+        with pytest.raises(ServerResponseError) as err:
+            client.get("http://error")
+        assert err.value.args == ("Not found",)
+        assert err.value.detail is None
