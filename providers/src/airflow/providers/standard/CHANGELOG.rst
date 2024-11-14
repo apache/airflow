@@ -35,8 +35,11 @@
 Changelog
 ---------
 
-1.0.0
+0.0.1
 .....
+
+.. note::
+   This provider created by migrating operators/sensors/hooks from Airflow 2 core.
 
 Breaking changes
 ~~~~~~~~~~~~~~~~

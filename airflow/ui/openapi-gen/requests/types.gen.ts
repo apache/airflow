@@ -22,7 +22,7 @@ export type AppBuilderViewResponse = {
 };
 
 /**
- * Serializable version of the AssetAliasSchema ORM SqlAlchemyModel.
+ * Asset alias serializer for assets.
  */
 export type AssetAliasSchema = {
   id: number;
@@ -467,7 +467,7 @@ export type DagRunType =
   | "asset_triggered";
 
 /**
- * Serializable version of the DagScheduleAssetReference ORM SqlAlchemyModel.
+ * DAG schedule reference serializer for assets.
  */
 export type DagScheduleAssetReference = {
   dag_id: string;
@@ -819,7 +819,7 @@ export type TaskInstanceStateCount = {
 };
 
 /**
- * Serializable version of the TaskOutletAssetReference ORM SqlAlchemyModel.
+ * Task outlet reference serializer for assets.
  */
 export type TaskOutletAssetReference = {
   dag_id: string;
@@ -1257,8 +1257,6 @@ export type GetImportErrorsData = {
 
 export type GetImportErrorsResponse = ImportErrorCollectionResponse;
 
-export type GetHealthResponse = HealthInfoSchema;
-
 export type GetPluginsData = {
   limit?: number;
   offset?: number;
@@ -1434,8 +1432,6 @@ export type PostVariableData = {
 
 export type PostVariableResponse = VariableResponse;
 
-export type GetVersionResponse = VersionInfo;
-
 export type GetXcomEntryData = {
   dagId: string;
   dagRunId: string;
@@ -1447,6 +1443,10 @@ export type GetXcomEntryData = {
 };
 
 export type GetXcomEntryResponse = XComResponseNative | XComResponseString;
+
+export type GetHealthResponse = HealthInfoSchema;
+
+export type GetVersionResponse = VersionInfo;
 
 export type $OpenApiTs = {
   "/ui/next_run_assets/{dag_id}": {
@@ -2403,24 +2403,6 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/monitor/health": {
-    get: {
-      res: {
-        /**
-         * Successful Response
-         */
-        200: HealthInfoSchema;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-      };
-    };
-  };
   "/public/plugins/": {
     get: {
       req: GetPluginsData;
@@ -2918,24 +2900,6 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/version/": {
-    get: {
-      res: {
-        /**
-         * Successful Response
-         */
-        200: VersionInfo;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-      };
-    };
-  };
   "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}": {
     get: {
       req: GetXcomEntryData;
@@ -2964,6 +2928,26 @@ export type $OpenApiTs = {
          * Validation Error
          */
         422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/monitor/health": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: HealthInfoSchema;
+      };
+    };
+  };
+  "/public/version/": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: VersionInfo;
       };
     };
   };

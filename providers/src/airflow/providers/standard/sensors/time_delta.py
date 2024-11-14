@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, NoReturn
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowSkipException
-from airflow.providers.standard import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.utils.version_references import AIRFLOW_V_3_0_PLUS
 from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.utils import timezone
