@@ -170,6 +170,127 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/assets/:
+    get:
+      tags:
+      - Asset
+      summary: Get Assets
+      description: Get assets.
+      operationId: get_assets
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      - name: uri_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Uri Pattern
+      - name: dag_ids
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Dag Ids
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: id
+          title: Order By
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/assets/{uri}:
+    get:
+      tags:
+      - Asset
+      summary: Get Asset
+      description: Get an asset.
+      operationId: get_asset
+      parameters:
+      - name: uri
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Uri
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/backfills/:
     get:
       tags:
@@ -209,7 +330,8 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/BackfillCollectionResponse'
         '401':
           content:
             application/json:
@@ -244,7 +366,8 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/BackfillResponse'
         '401':
           content:
             application/json:
@@ -293,7 +416,8 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/BackfillResponse'
         '401':
           content:
             application/json:
@@ -335,7 +459,8 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/BackfillResponse'
         '401':
           content:
             application/json:
@@ -383,7 +508,8 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/BackfillResponse'
         '401':
           content:
             application/json:
@@ -431,7 +557,8 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/BackfillResponse'
         '401':
           content:
             application/json:
@@ -456,554 +583,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Conflict
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/:
-    get:
-      tags:
-      - DAG
-      summary: Get Dags
-      description: Get all DAGs.
-      operationId: get_dags
-      parameters:
-      - name: limit
-        in: query
-        required: false
-        schema:
-          type: integer
-          default: 100
-          title: Limit
-      - name: offset
-        in: query
-        required: false
-        schema:
-          type: integer
-          default: 0
-          title: Offset
-      - name: tags
-        in: query
-        required: false
-        schema:
-          type: array
-          items:
-            type: string
-          title: Tags
-      - name: owners
-        in: query
-        required: false
-        schema:
-          type: array
-          items:
-            type: string
-          title: Owners
-      - name: dag_id_pattern
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id Pattern
-      - name: dag_display_name_pattern
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Display Name Pattern
-      - name: only_active
-        in: query
-        required: false
-        schema:
-          type: boolean
-          default: true
-          title: Only Active
-      - name: paused
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: boolean
-          - type: 'null'
-          title: Paused
-      - name: last_dag_run_state
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - $ref: '#/components/schemas/DagRunState'
-          - type: 'null'
-          title: Last Dag Run State
-      - name: order_by
-        in: query
-        required: false
-        schema:
-          type: string
-          default: dag_id
-          title: Order By
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DAGCollectionResponse'
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-    patch:
-      tags:
-      - DAG
-      summary: Patch Dags
-      description: Patch multiple DAGs.
-      operationId: patch_dags
-      parameters:
-      - name: update_mask
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: array
-            items:
-              type: string
-          - type: 'null'
-          title: Update Mask
-      - name: limit
-        in: query
-        required: false
-        schema:
-          type: integer
-          default: 100
-          title: Limit
-      - name: offset
-        in: query
-        required: false
-        schema:
-          type: integer
-          default: 0
-          title: Offset
-      - name: tags
-        in: query
-        required: false
-        schema:
-          type: array
-          items:
-            type: string
-          title: Tags
-      - name: owners
-        in: query
-        required: false
-        schema:
-          type: array
-          items:
-            type: string
-          title: Owners
-      - name: dag_id_pattern
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id Pattern
-      - name: only_active
-        in: query
-        required: false
-        schema:
-          type: boolean
-          default: true
-          title: Only Active
-      - name: paused
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: boolean
-          - type: 'null'
-          title: Paused
-      - name: last_dag_run_state
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - $ref: '#/components/schemas/DagRunState'
-          - type: 'null'
-          title: Last Dag Run State
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DAGPatchBody'
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DAGCollectionResponse'
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/tags:
-    get:
-      tags:
-      - DAG
-      summary: Get Dag Tags
-      description: Get all DAG tags.
-      operationId: get_dag_tags
-      parameters:
-      - name: limit
-        in: query
-        required: false
-        schema:
-          type: integer
-          default: 100
-          title: Limit
-      - name: offset
-        in: query
-        required: false
-        schema:
-          type: integer
-          default: 0
-          title: Offset
-      - name: order_by
-        in: query
-        required: false
-        schema:
-          type: string
-          default: name
-          title: Order By
-      - name: tag_name_pattern
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Tag Name Pattern
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DAGTagCollectionResponse'
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}:
-    get:
-      tags:
-      - DAG
-      summary: Get Dag
-      description: Get basic information about a DAG.
-      operationId: get_dag
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DAGResponse'
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unprocessable Entity
-    patch:
-      tags:
-      - DAG
-      summary: Patch Dag
-      description: Patch the specific DAG.
-      operationId: patch_dag
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      - name: update_mask
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: array
-            items:
-              type: string
-          - type: 'null'
-          title: Update Mask
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DAGPatchBody'
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DAGResponse'
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-    delete:
-      tags:
-      - DAG
-      summary: Delete Dag
-      description: Delete the specific DAG.
-      operationId: delete_dag
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema: {}
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unprocessable Entity
-  /public/dags/{dag_id}/details:
-    get:
-      tags:
-      - DAG
-      summary: Get Dag Details
-      description: Get details of DAG.
-      operationId: get_dag_details
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DAGDetailsResponse'
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/assets/queuedEvent:
-    get:
-      tags:
-      - DAG
-      summary: Get Dag Asset Queued Events
-      description: Get queued asset events for a DAG.
-      operationId: get_dag_asset_queued_events
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      - name: before
-        in: query
-        required: false
-        schema:
-          type: string
-          title: Before
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/QueuedEventCollectionResponse'
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -1131,12 +710,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ConnectionResponse'
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '401':
           content:
             application/json:
@@ -1149,6 +722,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -1383,12 +962,6 @@ paths:
       responses:
         '204':
           description: Successful Response
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '401':
           content:
             application/json:
@@ -1401,6 +974,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -1455,12 +1034,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DAGRunResponse'
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '401':
           content:
             application/json:
@@ -1473,6 +1046,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -1517,12 +1096,701 @@ paths:
               schema:
                 type: string
                 example: dag code
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
         '400':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Acceptable
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dagStats/:
+    get:
+      tags:
+      - DagStats
+      summary: Get Dag Stats
+      description: Get Dag statistics.
+      operationId: get_dag_stats
+      parameters:
+      - name: dag_ids
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Dag Ids
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagStatsCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dagWarnings:
+    get:
+      tags:
+      - DagWarning
+      summary: List Dag Warnings
+      description: Get a list of DAG warnings.
+      operationId: list_dag_warnings
+      parameters:
+      - name: dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id
+      - name: warning_type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/DagWarningType'
+          - type: 'null'
+          title: Warning Type
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: dag_id
+          title: Order By
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGWarningCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/:
+    get:
+      tags:
+      - DAG
+      summary: Get Dags
+      description: Get all DAGs.
+      operationId: get_dags
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      - name: tags
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Tags
+      - name: owners
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Owners
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id Pattern
+      - name: dag_display_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Display Name Pattern
+      - name: only_active
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          title: Only Active
+      - name: paused
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Paused
+      - name: last_dag_run_state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/DagRunState'
+          - type: 'null'
+          title: Last Dag Run State
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: dag_id
+          title: Order By
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - DAG
+      summary: Patch Dags
+      description: Patch multiple DAGs.
+      operationId: patch_dags
+      parameters:
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      - name: tags
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Tags
+      - name: owners
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Owners
+      - name: dag_id_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Id Pattern
+      - name: only_active
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: true
+          title: Only Active
+      - name: paused
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Paused
+      - name: last_dag_run_state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/DagRunState'
+          - type: 'null'
+          title: Last Dag Run State
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGPatchBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/tags:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag Tags
+      description: Get all DAG tags.
+      operationId: get_dag_tags
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Offset
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: name
+          title: Order By
+      - name: tag_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tag Name Pattern
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGTagCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag
+      description: Get basic information about a DAG.
+      operationId: get_dag
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unprocessable Entity
+    patch:
+      tags:
+      - DAG
+      summary: Patch Dag
+      description: Patch the specific DAG.
+      operationId: patch_dag
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGPatchBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - DAG
+      summary: Delete Dag
+      description: Delete the specific DAG.
+      operationId: delete_dag
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unprocessable Entity
+  /public/dags/{dag_id}/details:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag Details
+      description: Get details of DAG.
+      operationId: get_dag_details
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGDetailsResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/assets/queuedEvent:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag Asset Queued Events
+      description: Get queued asset events for a DAG.
+      operationId: get_dag_asset_queued_events
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: before
+        in: query
+        required: false
+        schema:
+          type: string
+          title: Before
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueuedEventCollectionResponse'
         '401':
           content:
             application/json:
@@ -1541,12 +1809,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
-        '406':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Acceptable
         '422':
           description: Validation Error
           content:
@@ -1857,76 +2119,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthInfoSchema'
-  /public/dagWarnings:
-    get:
-      tags:
-      - DagWarning
-      summary: List Dag Warnings
-      description: Get a list of DAG warnings.
-      operationId: list_dag_warnings
-      parameters:
-      - name: dag_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Id
-      - name: warning_type
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - $ref: '#/components/schemas/DagWarningType'
-          - type: 'null'
-          title: Warning Type
-      - name: limit
-        in: query
-        required: false
-        schema:
-          type: integer
-          default: 100
-          title: Limit
-      - name: offset
-        in: query
-        required: false
-        schema:
-          type: integer
-          default: 0
-          title: Offset
-      - name: order_by
-        in: query
-        required: false
-        schema:
-          type: string
-          default: dag_id
-          title: Order By
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DAGWarningCollectionResponse'
         '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unauthorized
-        '403':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
           description: Forbidden
-        '422':
-          description: Validation Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
+                $ref: '#/components/schemas/HTTPExceptionResponse'
   /public/plugins/:
     get:
       tags:
@@ -1955,6 +2159,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PluginCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
         '422':
           description: Validation Error
           content:
@@ -1978,12 +2194,6 @@ paths:
       responses:
         '204':
           description: Successful Response
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '401':
           content:
             application/json:
@@ -1996,6 +2206,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -2088,12 +2304,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PoolResponse'
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '401':
           content:
             application/json:
@@ -2106,6 +2316,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -2244,6 +2460,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProviderCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
         '422':
           description: Validation Error
           content:
@@ -2893,6 +3121,62 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/tasks/{task_id}:
+    get:
+      tags:
+      - Task
+      summary: Get Task
+      description: Get simplified representation of a task.
+      operationId: get_task
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          title: Task Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/variables/{variable_key}:
     delete:
       tags:
@@ -3014,12 +3298,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VariableResponse'
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '401':
           content:
             application/json:
@@ -3032,6 +3310,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
         '404':
           content:
             application/json:
@@ -3149,59 +3433,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/VersionInfo'
-  /public/dagStats/:
-    get:
-      tags:
-      - DagStats
-      summary: Get Dag Stats
-      description: Get Dag statistics.
-      operationId: get_dag_stats
-      parameters:
-      - name: dag_ids
-        in: query
-        required: false
-        schema:
-          type: array
-          items:
-            type: string
-          title: Dag Ids
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DagStatsCollectionResponse'
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
         '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '404':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}:
     get:
       tags:
@@ -3266,156 +3509,24 @@ paths:
                 - $ref: '#/components/schemas/XComResponseNative'
                 - $ref: '#/components/schemas/XComResponseString'
                 title: Response Get Xcom Entry
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
         '400':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Bad Request
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /public/assets/:
-    get:
-      tags:
-      - Asset
-      summary: Get Assets
-      description: Get assets.
-      operationId: get_assets
-      parameters:
-      - name: limit
-        in: query
-        required: false
-        schema:
-          type: integer
-          default: 100
-          title: Limit
-      - name: offset
-        in: query
-        required: false
-        schema:
-          type: integer
-          default: 0
-          title: Offset
-      - name: uri_pattern
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Uri Pattern
-      - name: dag_ids
-        in: query
-        required: false
-        schema:
-          type: array
-          items:
-            type: string
-          title: Dag Ids
-      - name: order_by
-        in: query
-        required: false
-        schema:
-          type: string
-          default: id
-          title: Order By
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AssetCollectionResponse'
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/tasks/{task_id}:
-    get:
-      tags:
-      - Task
-      summary: Get Task
-      description: Get simplified representation of a task.
-      operationId: get_task
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      - name: task_id
-        in: path
-        required: true
-        schema:
-          title: Task Id
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TaskResponse'
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
         '404':
           content:
             application/json:
@@ -3554,6 +3665,22 @@ components:
       - aliases
       title: AssetResponse
       description: Asset serializer for responses.
+    BackfillCollectionResponse:
+      properties:
+        backfills:
+          items:
+            $ref: '#/components/schemas/BackfillResponse'
+          type: array
+          title: Backfills
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - backfills
+      - total_entries
+      title: BackfillCollectionResponse
+      description: Backfill Collection serializer for responses.
     BackfillPostBody:
       properties:
         dag_id:
@@ -3589,6 +3716,62 @@ components:
       - to_date
       title: BackfillPostBody
       description: Object used for create backfill request.
+    BackfillResponse:
+      properties:
+        id:
+          type: integer
+          title: Id
+        dag_id:
+          type: string
+          title: Dag Id
+        from_date:
+          type: string
+          format: date-time
+          title: From Date
+        to_date:
+          type: string
+          format: date-time
+          title: To Date
+        dag_run_conf:
+          type: object
+          title: Dag Run Conf
+        is_paused:
+          type: boolean
+          title: Is Paused
+        reprocess_behavior:
+          $ref: '#/components/schemas/ReprocessBehavior'
+        max_active_runs:
+          type: integer
+          title: Max Active Runs
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        completed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+      type: object
+      required:
+      - id
+      - dag_id
+      - from_date
+      - to_date
+      - dag_run_conf
+      - is_paused
+      - reprocess_behavior
+      - max_active_runs
+      - created_at
+      - completed_at
+      - updated_at
+      title: BackfillResponse
+      description: Base serializer for Backfill.
     BaseInfoSchema:
       properties:
         status:
@@ -4145,6 +4328,12 @@ components:
             format: date-time
           - type: 'null'
           title: Logical Date
+        queued_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Queued At
         start_date:
           anyOf:
           - type: string
@@ -4197,6 +4386,7 @@ components:
       - run_id
       - dag_id
       - logical_date
+      - queued_at
       - start_date
       - end_date
       - data_interval_start

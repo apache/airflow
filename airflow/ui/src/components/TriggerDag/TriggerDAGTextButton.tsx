@@ -16,26 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Text } from "@chakra-ui/react";
+import { Box, Button } from "@chakra-ui/react";
+import { useDisclosure } from "@chakra-ui/react";
+import { FiPlay } from "react-icons/fi";
 
-import type { DAGRunResponse } from "openapi/requests/types.gen";
-import Time from "src/components/Time";
-import { stateColor } from "src/utils/stateColor";
+import type { DAGResponse } from "openapi/requests/types.gen";
+
+import TriggerDAGModal from "./TriggerDAGModal";
 
 type Props = {
-  readonly latestRun?: DAGRunResponse;
+  readonly dag: DAGResponse;
 };
 
-export const LatestRun = ({ latestRun }: Props) =>
-  latestRun ? (
-    <HStack fontSize="sm">
-      <Time datetime={latestRun.logical_date} />
-      <Box
-        bg={stateColor[latestRun.state]}
-        borderRadius="50%"
-        height={2}
-        width={2}
+const TriggerDAGIconButton: React.FC<Props> = ({ dag }) => {
+  const { onClose, onOpen, open } = useDisclosure();
+
+  return (
+    <Box>
+      <Button colorPalette="blue" onClick={onOpen}>
+        <FiPlay />
+        Trigger
+      </Button>
+
+      <TriggerDAGModal
+        dagDisplayName={dag.dag_display_name}
+        dagId={dag.dag_id}
+        isPaused={dag.is_paused}
+        onClose={onClose}
+        open={open}
       />
-      <Text color={stateColor[latestRun.state]}>{latestRun.state}</Text>
-    </HStack>
-  ) : undefined;
+    </Box>
+  );
+};
+
+export default TriggerDAGIconButton;

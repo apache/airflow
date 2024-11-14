@@ -18,7 +18,6 @@
  */
 import {
   Box,
-  Button,
   Flex,
   Heading,
   HStack,
@@ -26,12 +25,13 @@ import {
   Text,
   VStack,
 } from "@chakra-ui/react";
-import { FiCalendar, FiPlay } from "react-icons/fi";
+import { FiCalendar } from "react-icons/fi";
 
 import type { DAGResponse, DAGRunResponse } from "openapi/requests/types.gen";
 import { DagIcon } from "src/assets/DagIcon";
 import DagRunInfo from "src/components/DagRunInfo";
 import { TogglePause } from "src/components/TogglePause";
+import TriggerDAGTextButton from "src/components/TriggerDag/TriggerDAGTextButton";
 import { Tooltip } from "src/components/ui";
 
 import { DagTags } from "../DagTags";
@@ -55,12 +55,7 @@ export const Header = ({
             <TogglePause dagId={dag.dag_id} isPaused={dag.is_paused} />
           )}
         </HStack>
-        <Flex>
-          <Button colorPalette="blue" disabled>
-            <FiPlay />
-            Trigger
-          </Button>
-        </Flex>
+        <Flex>{dag ? <TriggerDAGTextButton dag={dag} /> : undefined}</Flex>
       </Flex>
       <SimpleGrid columns={4} gap={4} my={2}>
         <VStack align="flex-start" gap={1}>
@@ -85,8 +80,8 @@ export const Header = ({
               dataIntervalEnd={latestRun.data_interval_end}
               dataIntervalStart={latestRun.data_interval_start}
               endDate={latestRun.end_date}
-              logicalDate={latestRun.logical_date}
               startDate={latestRun.start_date}
+              state={latestRun.state}
             />
           ) : undefined}
         </VStack>

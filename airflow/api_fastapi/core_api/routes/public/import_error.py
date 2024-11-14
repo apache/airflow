@@ -44,9 +44,7 @@ import_error_router = AirflowRouter(tags=["Import Error"], prefix="/importErrors
 
 @import_error_router.get(
     "/{import_error_id}",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_import_error(
     import_error_id: int,
@@ -65,7 +63,6 @@ def get_import_error(
 
 @import_error_router.get(
     "/",
-    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
 def get_import_errors(
     limit: QueryLimit,
