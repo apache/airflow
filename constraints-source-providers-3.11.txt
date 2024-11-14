@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-14T02:09:38.046982
+# This constraints file was automatically generated on 2024-11-14T13:44:25.972536
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -243,7 +243,7 @@ google-cloud-redis==2.16.0
 google-cloud-resource-manager==1.13.0
 google-cloud-run==0.10.10
 google-cloud-secret-manager==2.21.0
-google-cloud-spanner==3.50.0
+google-cloud-spanner==3.50.1
 google-cloud-speech==2.28.0
 google-cloud-storage-transfer==1.13.0
 google-cloud-storage==2.18.2
@@ -563,7 +563,7 @@ spython==0.3.14
 sqlalchemy-bigquery==1.12.0
 sqlalchemy-spanner==1.7.0
 sqlalchemy_drill==1.1.5
-sqlparse==0.5.1
+sqlparse==0.5.2
 sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
