@@ -25,8 +25,9 @@ from airflow.api_connexion import security
 from airflow.api_connexion.schemas.dag_stats_schema import (
     dag_stats_collection_schema,
 )
+from airflow.auth.managers.base_auth_manager import ResourceSetAccess
 from airflow.auth.managers.models.resource_details import DagAccessEntity
-from airflow.models.dag import DagRun
+from airflow.models.dag import DagModel, DagRun
 from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
@@ -49,12 +50,18 @@ def get_dag_stats(
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get Dag statistics."""
-    allowed_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"], user=g.user)
+    allowed_dag_ids = get_auth_manager().get_accessible_dag_ids(method="GET", user=g.user)
     if dag_ids:
         dags_list = set(dag_ids.split(","))
-        filter_dag_ids = dags_list.intersection(allowed_dag_ids)
-    else:
+        if allowed_dag_ids != ResourceSetAccess.ALL:
+            filter_dag_ids = dags_list.intersection(allowed_dag_ids)
+        else:
+            filter_dag_ids = dags_list
+    elif allowed_dag_ids != ResourceSetAccess.ALL:
         filter_dag_ids = allowed_dag_ids
+    else:
+        filter_dag_ids = {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
+
     query_dag_ids = sorted(list(filter_dag_ids))
     if offset is not None:
         query_dag_ids = query_dag_ids[offset:]

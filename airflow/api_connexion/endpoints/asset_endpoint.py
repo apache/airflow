@@ -45,6 +45,7 @@ from airflow.api_connexion.schemas.asset_schema import (
 )
 from airflow.assets import Asset
 from airflow.assets.manager import asset_manager
+from airflow.auth.managers.base_auth_manager import ResourceSetAccess
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.utils import timezone
 from airflow.utils.api_migration import mark_fastapi_migration_done
@@ -160,7 +161,7 @@ def _generate_queued_event_where_clause(
     dag_id: str | None = None,
     uri: str | None = None,
     before: str | None = None,
-    permitted_dag_ids: set[str] | None = None,
+    permitted_dag_ids: set[str] | ResourceSetAccess | None = None,
 ) -> list:
     """Get AssetDagRunQueue where clause."""
     where_clause = []
@@ -174,7 +175,7 @@ def _generate_queued_event_where_clause(
         )
     if before is not None:
         where_clause.append(AssetDagRunQueue.created_at < format_datetime(before))
-    if permitted_dag_ids is not None:
+    if permitted_dag_ids is not None and permitted_dag_ids != ResourceSetAccess.ALL:
         where_clause.append(AssetDagRunQueue.target_dag_id.in_(permitted_dag_ids))
     return where_clause
 
@@ -274,7 +275,7 @@ def get_asset_queued_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Get queued asset events for an asset."""
-    permitted_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"])
+    permitted_dag_ids = get_auth_manager().get_accessible_dag_ids(method="GET")
     where_clause = _generate_queued_event_where_clause(
         uri=uri, before=before, permitted_dag_ids=permitted_dag_ids
     )
@@ -306,7 +307,7 @@ def delete_asset_queued_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Delete queued asset events for an asset."""
-    permitted_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"])
+    permitted_dag_ids = get_auth_manager().get_accessible_dag_ids(method="GET")
     where_clause = _generate_queued_event_where_clause(
         uri=uri, before=before, permitted_dag_ids=permitted_dag_ids
     )

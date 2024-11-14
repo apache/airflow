@@ -19,7 +19,7 @@ from __future__ import annotations
 from functools import wraps
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
-from flask import Response, g
+from flask import Response
 
 from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
 from airflow.auth.managers.models.resource_details import (
@@ -114,31 +114,11 @@ def requires_access_dag(
 ) -> Callable[[T], T]:
     def _is_authorized_callback(dag_id: str):
         def callback() -> bool | DagAccessEntity:
-            if dag_id:
-                # a DAG id is provided; is the user authorized to access this DAG?
-                return get_auth_manager().is_authorized_dag(
-                    method=method,
-                    access_entity=access_entity,
-                    details=DagDetails(id=dag_id),
-                )
-            else:
-                # here we know dag_id is not provided.
-                # check is the user authorized to access all DAGs?
-                if get_auth_manager().is_authorized_dag(
-                    method=method,
-                    access_entity=access_entity,
-                ):
-                    return True
-                elif access_entity:
-                    # no dag_id provided, and user does not have access to all dags
-                    return False
-
-            # dag_id is not provided, and the user is not authorized to access *all* DAGs
-            # so we check that the user can access at least *one* dag
-            # but we leave it to the endpoint function to properly restrict access beyond that
-            if method not in ("GET", "PUT"):
-                return False
-            return any(get_auth_manager().get_permitted_dag_ids(methods=[method]))
+            return get_auth_manager().is_authorized_dag(
+                method=method,
+                access_entity=access_entity,
+                details=DagDetails(id=dag_id),
+            )
 
         return callback
 
@@ -250,7 +230,3 @@ def requires_access_custom_view(
         return cast(T, decorated)
 
     return requires_access_decorator
-
-
-def get_readable_dags() -> set[str]:
-    return get_auth_manager().get_permitted_dag_ids(user=g.user)
