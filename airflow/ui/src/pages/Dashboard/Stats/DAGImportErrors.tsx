@@ -24,15 +24,15 @@ import { DAGImportErrorsModal } from "./DAGImportErrorsModal";
 
 export const DAGImportErrors = () => {
   const { onClose, onOpen, open } = useDisclosure();
-  const [importErrorsCount, setImportErrorsCount] = useState<number>(0);
+  const [importErrorsCount, setImportErrorsCount] = useState<number>(-1);
 
   const handleImportErrorsCount = (count: number) => {
     setImportErrorsCount(count);
   };
 
   return (
-    importErrorsCount > 0 && (
-      <Box alignItems="center" display="flex" gap={2}>
+    <Box alignItems="center" display="flex" gap={2}>
+      {importErrorsCount > 0 && (
         <Button
           alignItems="center"
           borderRadius="md"
@@ -49,12 +49,12 @@ export const DAGImportErrors = () => {
             <FiChevronRight />
           </Box>
         </Button>
-        <DAGImportErrorsModal
-          onClose={onClose}
-          onErrorCountChange={handleImportErrorsCount}
-          open={open}
-        />
-      </Box>
-    )
+      )}
+      <DAGImportErrorsModal
+        onClose={onClose}
+        onErrorCountChange={handleImportErrorsCount}
+        open={open}
+      />
+    </Box>
   );
 };

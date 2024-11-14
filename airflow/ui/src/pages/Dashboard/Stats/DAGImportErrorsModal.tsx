@@ -16,14 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import {
-  VStack,
-  Heading,
-  Text,
-  Box,
-  Button,
-  HStack,
-} from "@chakra-ui/react";
+import { VStack, Heading, Text, Box, Button, HStack } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 
 import type { ImportErrorResponse } from "openapi/requests/types.gen";
@@ -58,6 +51,12 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({
   useEffect(() => {
     onErrorCountChange(importErrorsCount);
   }, [importErrorsCount, onErrorCountChange]);
+
+  useEffect(() => {
+    if (!open) {
+      setCurrentPage(0);
+    }
+  }, [open]);
 
   const handleNextPage = () => {
     if (currentPage < totalPages - 1) {
