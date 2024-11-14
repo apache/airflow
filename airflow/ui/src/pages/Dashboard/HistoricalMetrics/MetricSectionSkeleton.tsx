@@ -16,19 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading } from "@chakra-ui/react";
+import { VStack, Skeleton } from "@chakra-ui/react";
 
-import { Health } from "./Health";
-import { HistoricalMetrics } from "./HistoricalMetrics";
-
-export const Dashboard = () => (
-  <Box>
-    <Heading mb={4}>Welcome</Heading>
-    <Box>
-      <Health />
-    </Box>
-    <Box mt={5}>
-      <HistoricalMetrics />
-    </Box>
-  </Box>
+export const MetricSectionSkeleton = () => (
+  <VStack>
+    <Skeleton height={200} width="full" />
+    <Skeleton height={200} width="full" />
+  </VStack>
 );
