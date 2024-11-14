@@ -103,8 +103,7 @@ export const $AssetAliasSchema = {
   type: "object",
   required: ["id", "name"],
   title: "AssetAliasSchema",
-  description:
-    "Serializable version of the AssetAliasSchema ORM SqlAlchemyModel.",
+  description: "Asset alias serializer for assets.",
 } as const;
 
 export const $AssetCollectionResponse = {
@@ -2012,8 +2011,7 @@ export const $DagScheduleAssetReference = {
   type: "object",
   required: ["dag_id", "created_at", "updated_at"],
   title: "DagScheduleAssetReference",
-  description:
-    "Serializable version of the DagScheduleAssetReference ORM SqlAlchemyModel.",
+  description: "DAG schedule reference serializer for assets.",
 } as const;
 
 export const $DagStatsCollectionResponse = {
@@ -3327,8 +3325,7 @@ export const $TaskOutletAssetReference = {
   type: "object",
   required: ["dag_id", "task_id", "created_at", "updated_at"],
   title: "TaskOutletAssetReference",
-  description:
-    "Serializable version of the TaskOutletAssetReference ORM SqlAlchemyModel.",
+  description: "Task outlet reference serializer for assets.",
 } as const;
 
 export const $TaskResponse = {
