@@ -21,7 +21,7 @@ import datetime
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, NoReturn, Sequence
 
-from airflow.providers.standard import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.utils.version_references import AIRFLOW_V_3_0_PLUS
 from airflow.sensors.base import BaseSensorOperator
 
 try:
