@@ -73,7 +73,6 @@ import type {
   GetImportErrorResponse,
   GetImportErrorsData,
   GetImportErrorsResponse,
-  GetHealthResponse,
   GetPluginsData,
   GetPluginsResponse,
   DeletePoolData,
@@ -112,9 +111,10 @@ import type {
   GetVariablesResponse,
   PostVariableData,
   PostVariableResponse,
-  GetVersionResponse,
   GetXcomEntryData,
   GetXcomEntryResponse,
+  GetHealthResponse,
+  GetVersionResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -1205,24 +1205,6 @@ export class ImportErrorService {
   }
 }
 
-export class MonitorService {
-  /**
-   * Get Health
-   * @returns HealthInfoSchema Successful Response
-   * @throws ApiError
-   */
-  public static getHealth(): CancelablePromise<GetHealthResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/monitor/health",
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-      },
-    });
-  }
-}
-
 export class PluginService {
   /**
    * Get Plugins
@@ -1854,25 +1836,6 @@ export class VariableService {
   }
 }
 
-export class VersionService {
-  /**
-   * Get Version
-   * Get version information.
-   * @returns VersionInfo Successful Response
-   * @throws ApiError
-   */
-  public static getVersion(): CancelablePromise<GetVersionResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/version/",
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-      },
-    });
-  }
-}
-
 export class XcomService {
   /**
    * Get Xcom Entry
@@ -1912,6 +1875,35 @@ export class XcomService {
         404: "Not Found",
         422: "Validation Error",
       },
+    });
+  }
+}
+
+export class MonitorService {
+  /**
+   * Get Health
+   * @returns HealthInfoSchema Successful Response
+   * @throws ApiError
+   */
+  public static getHealth(): CancelablePromise<GetHealthResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/monitor/health",
+    });
+  }
+}
+
+export class VersionService {
+  /**
+   * Get Version
+   * Get version information.
+   * @returns VersionInfo Successful Response
+   * @throws ApiError
+   */
+  public static getVersion(): CancelablePromise<GetVersionResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/version/",
     });
   }
 }
