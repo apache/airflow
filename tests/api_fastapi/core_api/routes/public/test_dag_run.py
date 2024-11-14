@@ -283,7 +283,6 @@ class TestClearDagRun:
         response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear", json=body)
         assert response.status_code == 200
         body = response.json()
-        # breakpoint()
         assert body["total_entries"] == 1
         for each in body["task_instances"]:
             assert each["state"] == "success"
