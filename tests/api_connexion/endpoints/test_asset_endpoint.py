@@ -618,7 +618,6 @@ class TestPostAssetEvents(TestAssetEndpoint):
 
         assert response.status_code == 200
         expected_extra = {**event_payload, "extra": {"password": "***"}}
-        print(f"expected extra is {expected_extra}")
         _check_last_log(
             session,
             dag_id=None,
