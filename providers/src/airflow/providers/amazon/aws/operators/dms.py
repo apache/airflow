@@ -331,7 +331,6 @@ class DmsDescribeReplicationConfigsOperator(AwsBaseOperator[DmsHook]):
 
 class DmsCreateReplicationConfigOperator(AwsBaseOperator[DmsHook]):
     """
-
     Creates an AWS DMS Serverless replication configuration.
 
     .. seealso::
