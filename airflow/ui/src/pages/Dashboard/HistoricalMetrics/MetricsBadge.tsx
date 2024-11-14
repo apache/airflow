@@ -16,19 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading } from "@chakra-ui/react";
+import { Badge, type BadgeProps } from "@chakra-ui/react";
 
-import { Health } from "./Health";
-import { HistoricalMetrics } from "./HistoricalMetrics";
+type MetricBadgeProps = {
+  readonly backgroundColor: string;
+  readonly color?: string;
+  readonly runs: number;
+} & BadgeProps;
 
-export const Dashboard = () => (
-  <Box>
-    <Heading mb={4}>Welcome</Heading>
-    <Box>
-      <Health />
-    </Box>
-    <Box mt={5}>
-      <HistoricalMetrics />
-    </Box>
-  </Box>
+export const MetricsBadge = ({
+  backgroundColor,
+  color = "fg.inverted",
+  runs,
+}: MetricBadgeProps) => (
+  <Badge
+    bg={backgroundColor}
+    borderRadius={15}
+    color={color}
+    minWidth={10}
+    px={4}
+    py={1}
+    size="md"
+  >
+    {runs}
+  </Badge>
 );
