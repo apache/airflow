@@ -1750,7 +1750,6 @@ class ListCustomTrainingJobOperator(GoogleCloudBaseOperator):
         "region",
         "project_id",
         "impersonation_chain",
-        "display_name",
     ]
     operator_extra_links = [
         VertexAITrainingPipelinesLink(),

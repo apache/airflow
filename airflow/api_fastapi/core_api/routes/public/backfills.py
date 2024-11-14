@@ -48,7 +48,6 @@ backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
 
 @backfills_router.get(
     path="/",
-    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
 def list_backfills(
     dag_id: str,
@@ -78,9 +77,7 @@ def list_backfills(
 
 @backfills_router.get(
     path="/{backfill_id}",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_backfill(
     backfill_id: str,
@@ -96,8 +93,6 @@ def get_backfill(
     path="/{backfill_id}/pause",
     responses=create_openapi_http_exception_doc(
         [
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,
         ]
@@ -119,8 +114,6 @@ def pause_backfill(backfill_id, session: Annotated[Session, Depends(get_session)
     path="/{backfill_id}/unpause",
     responses=create_openapi_http_exception_doc(
         [
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,
         ]
@@ -141,8 +134,6 @@ def unpause_backfill(backfill_id, session: Annotated[Session, Depends(get_sessio
     path="/{backfill_id}/cancel",
     responses=create_openapi_http_exception_doc(
         [
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,
         ]
@@ -188,8 +179,6 @@ def cancel_backfill(backfill_id, session: Annotated[Session, Depends(get_session
     path="/",
     responses=create_openapi_http_exception_doc(
         [
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,
         ]

@@ -93,8 +93,8 @@ export const DagCard = ({ dag }: Props) => {
               dataIntervalEnd={latestRun.data_interval_end}
               dataIntervalStart={latestRun.data_interval_start}
               endDate={latestRun.end_date}
-              logicalDate={latestRun.logical_date}
               startDate={latestRun.start_date}
+              state={latestRun.state}
             />
           ) : undefined}
         </VStack>
