@@ -82,8 +82,7 @@ BACK_COMPAT_METRIC_NAME_PATTERNS: set[str] = {
 }
 BACK_COMPAT_METRIC_NAMES: set[Pattern[str]] = {re2.compile(name) for name in BACK_COMPAT_METRIC_NAME_PATTERNS}
 
-# According to otel spec, max length should be 255. Change if the spec gets revised.
-OTEL_NAME_MAX_LENGTH = 255
+OTEL_NAME_MAX_LENGTH = 63
 DEFAULT_VALIDATOR_TYPE = "allow"
 
 
