@@ -600,18 +600,6 @@ export const UseImportErrorServiceGetImportErrorsKeyFn = (
   useImportErrorServiceGetImportErrorsKey,
   ...(queryKey ?? [{ limit, offset, orderBy }]),
 ];
-export type MonitorServiceGetHealthDefaultResponse = Awaited<
-  ReturnType<typeof MonitorService.getHealth>
->;
-export type MonitorServiceGetHealthQueryResult<
-  TData = MonitorServiceGetHealthDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useMonitorServiceGetHealthKey = "MonitorServiceGetHealth";
-export const UseMonitorServiceGetHealthKeyFn = (queryKey?: Array<unknown>) => [
-  useMonitorServiceGetHealthKey,
-  ...(queryKey ?? []),
-];
 export type PluginServiceGetPluginsDefaultResponse = Awaited<
   ReturnType<typeof PluginService.getPlugins>
 >;
@@ -1000,18 +988,6 @@ export const UseVariableServiceGetVariablesKeyFn = (
   useVariableServiceGetVariablesKey,
   ...(queryKey ?? [{ limit, offset, orderBy }]),
 ];
-export type VersionServiceGetVersionDefaultResponse = Awaited<
-  ReturnType<typeof VersionService.getVersion>
->;
-export type VersionServiceGetVersionQueryResult<
-  TData = VersionServiceGetVersionDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useVersionServiceGetVersionKey = "VersionServiceGetVersion";
-export const UseVersionServiceGetVersionKeyFn = (queryKey?: Array<unknown>) => [
-  useVersionServiceGetVersionKey,
-  ...(queryKey ?? []),
-];
 export type XcomServiceGetXcomEntryDefaultResponse = Awaited<
   ReturnType<typeof XcomService.getXcomEntry>
 >;
@@ -1044,6 +1020,30 @@ export const UseXcomServiceGetXcomEntryKeyFn = (
   ...(queryKey ?? [
     { dagId, dagRunId, deserialize, mapIndex, stringify, taskId, xcomKey },
   ]),
+];
+export type MonitorServiceGetHealthDefaultResponse = Awaited<
+  ReturnType<typeof MonitorService.getHealth>
+>;
+export type MonitorServiceGetHealthQueryResult<
+  TData = MonitorServiceGetHealthDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useMonitorServiceGetHealthKey = "MonitorServiceGetHealth";
+export const UseMonitorServiceGetHealthKeyFn = (queryKey?: Array<unknown>) => [
+  useMonitorServiceGetHealthKey,
+  ...(queryKey ?? []),
+];
+export type VersionServiceGetVersionDefaultResponse = Awaited<
+  ReturnType<typeof VersionService.getVersion>
+>;
+export type VersionServiceGetVersionQueryResult<
+  TData = VersionServiceGetVersionDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useVersionServiceGetVersionKey = "VersionServiceGetVersion";
+export const UseVersionServiceGetVersionKeyFn = (queryKey?: Array<unknown>) => [
+  useVersionServiceGetVersionKey,
+  ...(queryKey ?? []),
 ];
 export type BackfillServiceCreateBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.createBackfill>
