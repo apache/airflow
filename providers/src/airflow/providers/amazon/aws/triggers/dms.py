@@ -127,7 +127,7 @@ class DmsReplicationCompleteTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_args={"Filters": [{"Name": "replication-config-arn", "Values": [replication_config_arn]}]},
             waiter_max_attempts=waiter_max_attempts,
-            failure_message="Replication failed to reach terminal status.",
+            failure_message="Replication failed to complete.",
             status_message="Status replication is",
             status_queries=["Replications[0].Status"],
             return_key="replication_config_arn",
