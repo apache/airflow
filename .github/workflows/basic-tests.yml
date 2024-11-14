@@ -196,10 +196,19 @@ jobs:
         working-directory: ./clients/python
       - name: "Install source version of required packages"
         run: |
-            breeze release-management prepare-provider-packages fab standard common.sql --package-format  \
-            wheel --skip-tag-check --version-suffix-for-pypi dev0
-            pip install . dist/apache_airflow_providers_fab-*.whl \
-            dist/apache_airflow_providers_standard-*.whl dist/apache_airflow_providers_common_sql-*.whl
+            breeze release-management prepare-provider-packages \
+              fab \
+              standard \
+              common.sql \
+              sqlite \
+              --package-format wheel \
+              --skip-tag-check \
+              --version-suffix-for-pypi dev0
+            pip install . \
+              dist/apache_airflow_providers_fab-*.whl \
+              dist/apache_airflow_providers_standard-*.whl \
+              dist/apache_airflow_providers_common_sql-*.whl \
+              dist/apache_airflow_providers_sqlite-*.whl
             breeze release-management prepare-task-sdk-package --package-format wheel
             pip install ./dist/apache_airflow_task_sdk-*.whl
       - name: "Install Python client"
