@@ -53,6 +53,21 @@
         { "type": "integer" }
       ]
     },
+    "asset_definition": {
+      "type": "object",
+      "properties": {
+        "uri": { "type": "string" },
+        "name": { "type": "string" },
+        "group": { "type": "string" },
+        "extra": {
+            "anyOf": [
+                {"type": "null"},
+                { "$ref": "#/definitions/dict" }
+            ]
+        }
+      },
+      "required": [ "uri", "extra" ]
+    },
     "asset": {
       "type": "object",
       "properties": {
@@ -153,7 +168,7 @@
         "_processor_dags_folder": {
             "anyOf": [
                 { "type": "null" },
-                {"type": "string"}
+                { "type": "string" }
             ]
         },
         "dag_display_name": { "type" : "string"},
