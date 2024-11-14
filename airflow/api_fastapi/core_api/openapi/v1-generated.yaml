@@ -1815,6 +1815,63 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/assets/queuedEvent/{uri}:
+    get:
+      tags:
+      - DAG
+      summary: Get Dag Asset Queued Event
+      description: Get a queued asset event for a DAG.
+      operationId: get_dag_asset_queued_event
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: uri
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Uri
+      - name: before
+        in: query
+        required: false
+        schema:
+          type: string
+          title: Before
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueuedEventResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/eventLogs/{event_log_id}:
     get:
       tags:

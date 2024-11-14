@@ -456,6 +456,30 @@ export const UseDagServiceGetDagAssetQueuedEventsKeyFn = (
   useDagServiceGetDagAssetQueuedEventsKey,
   ...(queryKey ?? [{ before, dagId }]),
 ];
+export type DagServiceGetDagAssetQueuedEventDefaultResponse = Awaited<
+  ReturnType<typeof DagService.getDagAssetQueuedEvent>
+>;
+export type DagServiceGetDagAssetQueuedEventQueryResult<
+  TData = DagServiceGetDagAssetQueuedEventDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagServiceGetDagAssetQueuedEventKey =
+  "DagServiceGetDagAssetQueuedEvent";
+export const UseDagServiceGetDagAssetQueuedEventKeyFn = (
+  {
+    before,
+    dagId,
+    uri,
+  }: {
+    before?: string;
+    dagId: string;
+    uri: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useDagServiceGetDagAssetQueuedEventKey,
+  ...(queryKey ?? [{ before, dagId, uri }]),
+];
 export type EventLogServiceGetEventLogDefaultResponse = Awaited<
   ReturnType<typeof EventLogService.getEventLog>
 >;

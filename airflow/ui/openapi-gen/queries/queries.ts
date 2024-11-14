@@ -731,6 +731,42 @@ export const useDagServiceGetDagAssetQueuedEvents = <
     ...options,
   });
 /**
+ * Get Dag Asset Queued Event
+ * Get a queued asset event for a DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.uri
+ * @param data.before
+ * @returns QueuedEventResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceGetDagAssetQueuedEvent = <
+  TData = Common.DagServiceGetDagAssetQueuedEventDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    before,
+    dagId,
+    uri,
+  }: {
+    before?: string;
+    dagId: string;
+    uri: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagServiceGetDagAssetQueuedEventKeyFn(
+      { before, dagId, uri },
+      queryKey,
+    ),
+    queryFn: () =>
+      DagService.getDagAssetQueuedEvent({ before, dagId, uri }) as TData,
+    ...options,
+  });
+/**
  * Get Event Log
  * @param data The data for the request.
  * @param data.eventLogId

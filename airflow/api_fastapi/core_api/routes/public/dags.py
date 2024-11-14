@@ -349,3 +349,48 @@ def get_dag_asset_queued_events(
         ],
         total_entries=total_entries,
     )
+
+
+@dags_router.get(
+    "/{dag_id}/assets/queuedEvent/{uri:path}",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
+def get_dag_asset_queued_event(
+    dag_id: str,
+    uri: str,
+    session: Annotated[Session, Depends(get_session)],
+    before: str = Query(None),
+) -> QueuedEventResponse:
+    """Get a queued asset event for a DAG."""
+    where_clause = [AssetDagRunQueue.target_dag_id == dag_id]
+    if uri:
+        where_clause.append(
+            AssetDagRunQueue.asset_id.in_(
+                select(AssetModel.id).where(AssetModel.uri == uri),
+            ),
+        )
+    if before:
+        before_parsed = timezone.parse(before)
+        where_clause.append(AssetDagRunQueue.created_at < before_parsed)
+
+    adrq = session.scalar(
+        select(AssetDagRunQueue)
+        .join(AssetModel, AssetDagRunQueue.asset_id == AssetModel.id)
+        .where(*where_clause)
+    )
+
+    if not adrq:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"Queue event with dag_id: `{dag_id}` and asset uri: `{uri}` was not found",
+        )
+
+    queued_event = {"created_at": adrq.created_at, "dag_id": dag_id, "uri": uri}
+
+    return QueuedEventResponse.model_validate(queued_event, from_attributes=True)

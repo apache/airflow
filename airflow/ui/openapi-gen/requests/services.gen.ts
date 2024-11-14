@@ -65,6 +65,8 @@ import type {
   GetDagDetailsResponse,
   GetDagAssetQueuedEventsData,
   GetDagAssetQueuedEventsResponse,
+  GetDagAssetQueuedEventData,
+  GetDagAssetQueuedEventResponse,
   GetEventLogData,
   GetEventLogResponse,
   GetEventLogsData,
@@ -1046,6 +1048,38 @@ export class DagService {
       url: "/public/dags/{dag_id}/assets/queuedEvent",
       path: {
         dag_id: data.dagId,
+      },
+      query: {
+        before: data.before,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Dag Asset Queued Event
+   * Get a queued asset event for a DAG.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.uri
+   * @param data.before
+   * @returns QueuedEventResponse Successful Response
+   * @throws ApiError
+   */
+  public static getDagAssetQueuedEvent(
+    data: GetDagAssetQueuedEventData,
+  ): CancelablePromise<GetDagAssetQueuedEventResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/assets/queuedEvent/{uri}",
+      path: {
+        dag_id: data.dagId,
+        uri: data.uri,
       },
       query: {
         before: data.before,
