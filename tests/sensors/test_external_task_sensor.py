@@ -28,7 +28,7 @@ from unittest import mock
 
 import pytest
 
-from airflow import __version__ as exceptions, settings
+from airflow import settings
 from airflow.decorators import task as task_deco
 from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException, TaskDeferred
 from airflow.models import DagBag, DagRun, TaskInstance
@@ -661,7 +661,7 @@ exit 0
             poke_interval=1,
             dag=self.dag,
         )
-        with pytest.raises(exceptions.AirflowSensorTimeout):
+        with pytest.raises(AirflowSensorTimeout):
             op2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode

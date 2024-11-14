@@ -313,32 +313,17 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
                 data_interval_end = data_interval[1].isoformat()
             else:
                 data_interval_end = ""
-            logical_date = (
-                dag_run.logical_date.isoformat() if AIRFLOW_V_3_0_PLUS else dag_run.execution_date.isoformat()
-            )
-
-        return (
-            log_id_template.format(
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                run_id=getattr(ti, "run_id", ""),
-                data_interval_start=data_interval_start,
-                data_interval_end=data_interval_end,
-                logical_date=logical_date,
-                try_number=try_number,
-                map_index=getattr(ti, "map_index", ""),
-            )
-            if AIRFLOW_V_3_0_PLUS
-            else log_id_template.format(
-                dag_id=ti.dag_id,
-                task_id=ti.task_id,
-                run_id=getattr(ti, "run_id", ""),
-                data_interval_start=data_interval_start,
-                data_interval_end=data_interval_end,
-                execution_date=logical_date,
-                try_number=try_number,
-                map_index=getattr(ti, "map_index", ""),
-            )
+            logical_date = dag_run.logical_date.isoformat()
+        return log_id_template.format(
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=getattr(ti, "run_id", ""),
+            data_interval_start=data_interval_start,
+            data_interval_end=data_interval_end,
+            logical_date=logical_date,
+            execution_date=logical_date,
+            try_number=try_number,
+            map_index=getattr(ti, "map_index", ""),
         )
 
     def _read(

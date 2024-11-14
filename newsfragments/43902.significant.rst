@@ -3,3 +3,4 @@ Renamed ``execution_date`` to ``logical_date`` across the codebase to align with
 The shift towards ``logical_date`` helps move away from the limitations of ``execution_date``, particularly with dynamic DAG runs and cases where multiple runs occur at the same time. This change impacts database models, templates, and functions:
 
 - Renamed columns and function references to ``logical_date``.
+- Removed ``execution_date``, ``next_ds``, ``next_ds_nodash``, ``next_execution_date``, ``prev_ds``, ``prev_ds_nodash``, ``prev_execution_date``, ``prev_execution_date_success``, ``tomorrow_ds``, ``yesterday_ds`` and ``yesterday_ds_nodash`` from Airflow ``context``.

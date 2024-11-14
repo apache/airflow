@@ -642,7 +642,7 @@ class TestS3DeleteObjectsOperator:
         for k in keys:
             conn.upload_fileobj(Bucket=bucket, Key=k, Fileobj=BytesIO(b"input"))
 
-        execution_date = utcnow()
+        logical_date = utcnow()
         dag = DAG("test_dag", start_date=datetime(2020, 1, 1), schedule=timedelta(days=1))
         # use macros.ds_add since it returns a string, not a date
         op = S3DeleteObjectsOperator(
@@ -654,11 +654,11 @@ class TestS3DeleteObjectsOperator:
         )
         if hasattr(DagRun, "execution_date"):  # Airflow 2.x.
             dag_run = DagRun(
-                dag_id=dag.dag_id, execution_date=execution_date, run_id="test", run_type=DagRunType.MANUAL
+                dag_id=dag.dag_id, execution_date=logical_date, run_id="test", run_type=DagRunType.MANUAL
             )
         else:
             dag_run = DagRun(
-                dag_id=dag.dag_id, logical_date=execution_date, run_id="test", run_type=DagRunType.MANUAL
+                dag_id=dag.dag_id, logical_date=logical_date, run_id="test", run_type=DagRunType.MANUAL
             )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run

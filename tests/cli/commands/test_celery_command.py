@@ -197,7 +197,7 @@ class TestWorkerStart:
                 "--hostname",
                 celery_hostname,
                 "--loglevel",
-                "INFO",
+                conf.get("logging", "CELERY_LOGGING_LEVEL"),
                 "--autoscale",
                 autoscale,
                 "--without-mingle",

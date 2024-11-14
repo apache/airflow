@@ -25,9 +25,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from google.cloud.storage.retry import DEFAULT_RETRY
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -44,8 +42,6 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
 
     from airflow.utils.context import Context
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 
 class GCSObjectExistenceSensor(BaseSensorOperator):

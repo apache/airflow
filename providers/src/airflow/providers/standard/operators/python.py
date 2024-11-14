@@ -309,7 +309,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
             self.skip(
                 dag_run=dag_run,
                 tasks=to_skip,
-                execution_date=cast("DateTime", dag_run.execution_date),  # type: ignore[call-arg, union-attr]
+                execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg, union-attr]
                 map_index=context["ti"].map_index,
             )
 
@@ -359,20 +359,32 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "ds_nodash",
         "expanded_ti_count",
         "inlets",
+        "next_ds",  # should be removed when Airflow 2 support is dropped.
+        "next_ds_nodash",  # should be removed when Airflow 2 support is dropped.
         "outlets",
+        "prev_ds",  # should be removed when Airflow 2 support is dropped.
+        "prev_ds_nodash",  # should be removed when Airflow 2 support is dropped.
         "run_id",
         "task_instance_key_str",
         "test_mode",
+        "tomorrow_ds",  # should be removed when Airflow 2 support is dropped.
+        "tomorrow_ds_nodash",  # should be removed when Airflow 2 support is dropped.
         "ts",
         "ts_nodash",
         "ts_nodash_with_tz",
+        "yesterday_ds",  # should be removed when Airflow 2 support is dropped.
+        "yesterday_ds_nodash",  # should be removed when Airflow 2 support is dropped.
     }
     PENDULUM_SERIALIZABLE_CONTEXT_KEYS = {
         "data_interval_end",
         "data_interval_start",
+        "execution_date",  # should be removed when Airflow 2 support is dropped.
         "logical_date",
+        "next_execution_date",  # should be removed when Airflow 2 support is dropped.
         "prev_data_interval_end_success",
         "prev_data_interval_start_success",
+        "prev_execution_date",  # should be removed when Airflow 2 support is dropped.
+        "prev_execution_date_success",  # should be removed when Airflow 2 support is dropped.
         "prev_start_date_success",
         "prev_end_date_success",
     }

@@ -464,6 +464,20 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         [
             pytest.param(
                 [
+                    {"logical_date": DEFAULT_DATETIME_1},
+                    {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
+                    {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
+                ],
+                False,
+                (
+                    "/api/v1/dags/example_python_operator/dagRuns/~/"
+                    f"taskInstances?execution_date_lte={QUOTED_DEFAULT_DATETIME_STR_1}"
+                ),
+                1,
+                id="test logical date filter",
+            ),
+            pytest.param(
+                [
                     {"start_date": DEFAULT_DATETIME_1},
                     {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
                     {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
@@ -1741,6 +1755,19 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             ]
         }
 
+        mock_set_task_instance_state.assert_called_once_with(
+            commit=False,
+            downstream=True,
+            run_id=None,
+            logical_date=DEFAULT_DATETIME_1,
+            future=True,
+            past=True,
+            state="failed",
+            task_id="print_the_context",
+            upstream=True,
+            session=session,
+        )
+
     @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
     def test_should_assert_call_mocked_api_when_run_id(self, mock_set_task_instance_state, session):
         self.create_task_instances(session)
@@ -1776,6 +1803,19 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
                 }
             ]
         }
+
+        mock_set_task_instance_state.assert_called_once_with(
+            commit=False,
+            downstream=True,
+            run_id=run_id,
+            logical_date=None,
+            future=True,
+            past=True,
+            state="failed",
+            task_id="print_the_context",
+            upstream=True,
+            session=session,
+        )
 
     @pytest.mark.parametrize(
         "error, code, payload",
@@ -2460,6 +2500,56 @@ class TestGetTaskDependencies(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 200, response.text
         assert response.json == {"dependencies": []}
+
+    @pytest.mark.parametrize(
+        "state, dependencies",
+        [
+            (
+                State.SCHEDULED,
+                {
+                    "dependencies": [
+                        {
+                            "name": "Logical Date",
+                            "reason": "The logical date is 2020-01-01T00:00:00+00:00 but this is "
+                            "before the task's start date 2021-01-01T00:00:00+00:00.",
+                        },
+                        {
+                            "name": "Logical Date",
+                            "reason": "The logical date is 2020-01-01T00:00:00+00:00 but this is "
+                            "before the task's DAG's start date 2021-01-01T00:00:00+00:00.",
+                        },
+                    ],
+                },
+            ),
+            (
+                State.NONE,
+                {
+                    "dependencies": [
+                        {
+                            "name": "Logical Date",
+                            "reason": "The logical date is 2020-01-01T00:00:00+00:00 but this is before the task's start date 2021-01-01T00:00:00+00:00.",
+                        },
+                        {
+                            "name": "Logical Date",
+                            "reason": "The logical date is 2020-01-01T00:00:00+00:00 but this is before the task's DAG's start date 2021-01-01T00:00:00+00:00.",
+                        },
+                        {"name": "Task Instance State", "reason": "Task is in the 'None' state."},
+                    ]
+                },
+            ),
+        ],
+    )
+    @provide_session
+    def test_should_respond_dependencies(self, session, state, dependencies):
+        self.create_task_instances(session, task_instances=[{"state": state}], update_extras=True)
+
+        response = self.client.get(
+            "api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/"
+            "print_the_context/dependencies",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json == dependencies
 
     def test_should_respond_dependencies_mapped(self, session):
         tis = self.create_task_instances(

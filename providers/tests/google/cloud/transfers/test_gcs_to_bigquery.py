@@ -43,6 +43,7 @@ from airflow.providers.common.compat.openlineage.facet import (
 )
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.utils.state import TaskInstanceState
+from airflow.utils.timezone import datetime
 
 TASK_ID = "test-gcs-to-bq-operator"
 TEST_EXPLICIT_DEST = "test-project.dataset.table"
@@ -1702,6 +1703,14 @@ class TestAsyncGCSToBigQueryOperator:
 
         ti.run(session=session)
         assert ti.state == TaskInstanceState.DEFERRED
+        hook.return_value.generate_job_id.assert_called_once_with(
+            job_id=None,
+            dag_id="adhoc_airflow",
+            task_id=TASK_ID,
+            logical_date=datetime(2022, 1, 1, 0, 0),
+            configuration={},
+            force_rerun=True,
+        )
 
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
     def test_execute_without_external_table_reattach_async_should_execute_successfully(

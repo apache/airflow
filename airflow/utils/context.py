@@ -437,6 +437,7 @@ def context_copy_partial(source: Context, keys: Container[str]) -> Context:
     :meta private:
     """
     new = Context({k: v for k, v in source._context.items() if k in keys})
+    new._deprecation_replacements = source._deprecation_replacements.copy()
     return new
 
 

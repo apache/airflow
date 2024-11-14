@@ -340,6 +340,19 @@ class TestEksCreateClusterOperator:
             missing_fargate_pod_execution_role_arn.execute({})
 
     @mock.patch.object(EksHook, "create_cluster")
+    def test_eks_create_cluster_short_circuit_early(self, mock_create_cluster, caplog):
+        mock_create_cluster.return_value = None
+        eks_create_cluster_operator = EksCreateClusterOperator(
+            task_id=TASK_ID,
+            **self.create_cluster_params,
+            compute=None,
+            wait_for_completion=False,
+            deferrable=False,
+        )
+        eks_create_cluster_operator.execute({})
+        assert len(caplog.records) == 0
+
+    @mock.patch.object(EksHook, "create_cluster")
     def test_eks_create_cluster_with_deferrable(self, mock_create_cluster, caplog):
         mock_create_cluster.return_value = None
 

@@ -250,7 +250,7 @@ class TestGetDagRun(TestDagRunEndpoint):
         "fields",
         [
             ["dag_run_id", "logical_date"],
-            ["dag_run_id", "state", "conf"],
+            ["dag_run_id", "state", "conf", "logical_date"],
         ],
     )
     def test_should_return_specified_fields(self, session, fields):
@@ -442,7 +442,7 @@ class TestGetDagRuns(TestDagRunEndpoint):
         "fields",
         [
             ["dag_run_id", "logical_date"],
-            ["dag_run_id", "state", "conf"],
+            ["dag_run_id", "state", "conf", "logical_date"],
         ],
     )
     def test_should_return_specified_fields(self, session, fields):

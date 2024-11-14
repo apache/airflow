@@ -271,9 +271,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 data_interval_end = data_interval[1].isoformat()
             else:
                 data_interval_end = ""
-            logical_date = (
-                dag_run.logical_date.isoformat() if AIRFLOW_V_3_0_PLUS else dag_run.execution_date.isoformat()
-            )
+            logical_date = dag_run.logical_date.isoformat()
 
         return log_id_template.format(
             dag_id=ti.dag_id,

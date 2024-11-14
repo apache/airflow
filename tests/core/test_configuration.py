@@ -170,7 +170,6 @@ class TestConf:
 
     def test_conf_as_dict_source(self):
         # test display_source
-
         cfg_dict = conf.as_dict(display_source=True)
         assert cfg_dict["core"]["load_examples"][1] == "airflow.cfg"
         assert cfg_dict["testsection"]["testkey"] == ("testvalue", "env var")

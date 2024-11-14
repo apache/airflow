@@ -55,7 +55,7 @@ def generate_trino_client_info() -> str:
     task_info = {
         "dag_id": context_var["dag_id"],
         "task_id": context_var["task_id"],
-        date_key: context_var["logical_date"] if AIRFLOW_V_3_0_PLUS else context_var["execution_date"],
+        date_key: context_var["logical_date"],
         "try_number": context_var["try_number"],
         "dag_run_id": context_var["dag_run_id"],
         "dag_owner": context_var["dag_owner"],

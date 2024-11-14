@@ -86,9 +86,10 @@ class TestBashOperator:
             "AWESOME_PYTHONPATH\n"
             "bash_op_test\n"
             "echo_env_vars\n"
+            f"{utc_now.isoformat()}\n"
             f"manual__{utc_now.isoformat()}\n"
         )
-
+        date_env_name = "$AIRFLOW_CTX_LOGICAL_DATE" if AIRFLOW_V_3_0_PLUS else "$AIRFLOW_CTX_EXECUTION_DATE"
         with dag_maker(
             "bash_op_test",
             default_args={"owner": "airflow", "retries": 100, "start_date": DEFAULT_DATE},
@@ -103,6 +104,7 @@ class TestBashOperator:
                 f"echo $PYTHONPATH>> {tmp_file};"
                 f"echo $AIRFLOW_CTX_DAG_ID >> {tmp_file};"
                 f"echo $AIRFLOW_CTX_TASK_ID>> {tmp_file};"
+                f"echo {date_env_name}>> {tmp_file};"
                 f"echo $AIRFLOW_CTX_DAG_RUN_ID>> {tmp_file};",
                 append_env=append_env,
                 env=user_defined_env,
