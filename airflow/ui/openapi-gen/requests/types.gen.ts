@@ -22,7 +22,7 @@ export type AppBuilderViewResponse = {
 };
 
 /**
- * Serializable version of the AssetAliasSchema ORM SqlAlchemyModel.
+ * Asset alias serializer for assets.
  */
 export type AssetAliasSchema = {
   id: number;
@@ -417,7 +417,7 @@ export type DagRunType =
   | "asset_triggered";
 
 /**
- * Serializable version of the DagScheduleAssetReference ORM SqlAlchemyModel.
+ * DAG schedule reference serializer for assets.
  */
 export type DagScheduleAssetReference = {
   dag_id: string;
@@ -769,7 +769,7 @@ export type TaskInstanceStateCount = {
 };
 
 /**
- * Serializable version of the TaskOutletAssetReference ORM SqlAlchemyModel.
+ * Task outlet reference serializer for assets.
  */
 export type TaskOutletAssetReference = {
   dag_id: string;

@@ -23,7 +23,7 @@ from pydantic import BaseModel
 
 
 class DagScheduleAssetReference(BaseModel):
-    """Serializable version of the DagScheduleAssetReference ORM SqlAlchemyModel."""
+    """DAG schedule reference serializer for assets."""
 
     dag_id: str
     created_at: datetime
@@ -31,7 +31,7 @@ class DagScheduleAssetReference(BaseModel):
 
 
 class TaskOutletAssetReference(BaseModel):
-    """Serializable version of the TaskOutletAssetReference ORM SqlAlchemyModel."""
+    """Task outlet reference serializer for assets."""
 
     dag_id: str
     task_id: str
@@ -40,7 +40,7 @@ class TaskOutletAssetReference(BaseModel):
 
 
 class AssetAliasSchema(BaseModel):
-    """Serializable version of the AssetAliasSchema ORM SqlAlchemyModel."""
+    """Asset alias serializer for assets."""
 
     id: int
     name: str
