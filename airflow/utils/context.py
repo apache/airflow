@@ -177,6 +177,14 @@ class OutletEventAccessor:
     def add(self, dataset: Dataset | str, extra: dict[str, Any] | None = None) -> None:
         """Add a DatasetEvent to an existing Dataset."""
         if isinstance(dataset, str):
+            warnings.warn(
+                (
+                    "Emitting dataset events using string is deprecated and will be removed in Airflow 3. "
+                    "Please use the Dataset object (renamed as Asset in Airflow 3) directly"
+                ),
+                DeprecationWarning,
+                stacklevel=2,
+            )
             dataset_uri = dataset
         elif isinstance(dataset, Dataset):
             dataset_uri = dataset.uri
@@ -216,6 +224,16 @@ class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
         return len(self._dict)
 
     def __getitem__(self, key: str | Dataset | DatasetAlias) -> OutletEventAccessor:
+        if isinstance(key, str):
+            warnings.warn(
+                (
+                    "Accessing outlet_events using string is deprecated and will be removed in Airflow 3. "
+                    "Please use the Dataset or DatasetAlias object (renamed as Asset and AssetAlias in Airflow 3) directly"
+                ),
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         event_key = extract_event_key(key)
         if event_key not in self._dict:
             self._dict[event_key] = OutletEventAccessor(extra={}, raw_key=key)
@@ -282,6 +300,15 @@ class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
             join_clause = DatasetEvent.source_aliases
             where_clause = DatasetAliasModel.name == dataset_alias.name
         elif isinstance(obj, (Dataset, str)):
+            if isinstance(obj, str):
+                warnings.warn(
+                    (
+                        "Accessing inlet_events using string is deprecated and will be removed in Airflow 3. "
+                        "Please use the Dataset object (renamed as Asset in Airflow 3) directly"
+                    ),
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
             dataset = self._datasets[extract_event_key(obj)]
             join_clause = DatasetEvent.dataset
             where_clause = DatasetModel.uri == dataset.uri
