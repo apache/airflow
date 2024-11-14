@@ -38,7 +38,7 @@ class DagWarning(Base):
     A table to store DAG warnings.
 
     DAG warnings are problems that don't rise to the level of failing the DAG parse
-    but which users should nonetheless be warned about.  These warnings are recorded
+    but which users should nonetheless be warned about. These warnings are recorded
     when parsing DAG and displayed on the Webserver in a flash message.
     """
 
