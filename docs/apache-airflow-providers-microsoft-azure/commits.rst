@@ -35,14 +35,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+11.1.0
+......
+
+Latest change: 2024-11-09
+
+=================================================================================================  ===========  ============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================
+`b9513cc9b9 <https://github.com/apache/airflow/commit/b9513cc9b94a70e721a439088ddd9e93f8c6c429>`_  2024-11-09   ``Fix Power BI trigger testcase (#43494)``
+`59ea748f74 <https://github.com/apache/airflow/commit/59ea748f740a89ec17ece00ca874e5ac56b7e28f>`_  2024-11-02   ``Add min version to ipykernel,scrapbook, pywinrm (#43603)``
+`1f7a58a517 <https://github.com/apache/airflow/commit/1f7a58a5172bfd6dacf09d446f48e2cd5edca3d5>`_  2024-11-01   ``Add copy_object functionality for wasbhook (#43037)``
+=================================================================================================  ===========  ============================================================
+
 11.0.0
 ......
 
-Latest change: 2024-10-26
+Latest change: 2024-10-27
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`78ff0a9970 <https://github.com/apache/airflow/commit/78ff0a99700125121b7f0647023503750f14a11b>`_  2024-10-27   ``Prepare docs for Oct 2nd wave of providers (#43409)``
 `93ad181684 <https://github.com/apache/airflow/commit/93ad181684c8314e199f2521f487cd4292e06b5c>`_  2024-10-26   ``Add context to Azure Service Bus Message callback (#43370)``
 `64336c29b1 <https://github.com/apache/airflow/commit/64336c29b1c758772ad9819e4586d0b689725a6b>`_  2024-10-24   ``Add documentation for the PowerBIDatasetRefresh Operator. (#42754)``
 `7b151d32c8 <https://github.com/apache/airflow/commit/7b151d32c809805a6406999b83401663baf7eb41>`_  2024-10-15   ``Add upperbound to microsoft-kiota-abstractions (#43021)``
@@ -203,6 +217,7 @@ Commit                                                                          
 =================================================================================================  ===========  =====================================================================================================
 `83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
 `87a249a02f <https://github.com/apache/airflow/commit/87a249a02f3665746d05b7a309c288bfda2d4cc2>`_  2024-03-01   ``fix: Pass proxies config when using ClientSecretCredential in AzureDataLakeStorageV2Hook (#37103)``
+`51f68fd805 <https://github.com/apache/airflow/commit/51f68fd805efbce4f6f3cf5286a66748ae549d48>`_  2024-02-17   ``Fix WASB remote logger configuration example (#37509)``
 `5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
 `9d91bb435d <https://github.com/apache/airflow/commit/9d91bb435d7d67f77162dc694a8329f090c4f95f>`_  2024-02-12   ``D401 Support in Microsoft providers (#37327)``
 =================================================================================================  ===========  =====================================================================================================
@@ -227,6 +242,7 @@ Commit                                                                          
 `c439ab87c4 <https://github.com/apache/airflow/commit/c439ab87c421aaa6bd5d8074780e4f63606a1ef1>`_  2024-01-10   ``Standardize airflow build process and switch to Hatchling build backend (#36537)``
 `6bd450da1e <https://github.com/apache/airflow/commit/6bd450da1eb6cacc2ccfd4544d520ae059b75c3b>`_  2024-01-10   ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``
 `19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``
+`876b3fa372 <https://github.com/apache/airflow/commit/876b3fa372e4b8f6f10e3e736e6648195144a628>`_  2023-12-31   ``docs: 'Add AzureSynapseRunPipelineOperator' (#36495)``
 `6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
 =================================================================================================  ===========  ====================================================================================================================
 
@@ -305,6 +321,8 @@ Commit                                                                          
 `22d583403b <https://github.com/apache/airflow/commit/22d583403b79356d7ff604e8f3a3bad924764029>`_  2023-11-08   ``Fix AzureContainerInstanceOperator remove_on_error (#35212)``
 `1addff5511 <https://github.com/apache/airflow/commit/1addff55112107f42612a4ac0c1a4e9f37429412>`_  2023-11-06   ``Remove empty TYPE_CHECKING block into the Azure provider (#35477)``
 `2980eb137d <https://github.com/apache/airflow/commit/2980eb137d518d071aaec4f849a6dbbe5e1724cb>`_  2023-11-05   ``fix(providers/microsoft): setting use_async=True for get_async_default_azure_credential (#35432)``
+`706878ec35 <https://github.com/apache/airflow/commit/706878ec354cf867440c367a95c85753c19e54de>`_  2023-11-04   ``Remove empty lines in generated changelog (#35436)``
+`052e26ad47 <https://github.com/apache/airflow/commit/052e26ad473a9d50f0b96456ed094f2087ee4434>`_  2023-11-04   ``Change security.rst to use includes in providers (#35435)``
 `13865ab05a <https://github.com/apache/airflow/commit/13865ab05a26bc4923f00a734889d03aa3b8d2b2>`_  2023-11-03   ``add managed identity support to AsyncDefaultAzureCredential (#35394)``
 `b27047430f <https://github.com/apache/airflow/commit/b27047430fa49538a737138e3c2e57368c4d33b0>`_  2023-11-02   ``Refactor azure managed identity (#35367)``
 `f84c45827e <https://github.com/apache/airflow/commit/f84c45827e6d743d58fd01b0511bcd1b3be85f5a>`_  2023-11-01   ``feat(provider/azure): add managed identity support to container_registry hook (#35320)``
@@ -369,12 +387,22 @@ Commit                                                                          
 
 Latest change: 2023-09-08
 
-=================================================================================================  ===========  ======================================================================================================
+=================================================================================================  ===========  ===========================================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ======================================================================================================
+=================================================================================================  ===========  ===========================================================================================================================
 `21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
+`a3da008250 <https://github.com/apache/airflow/commit/a3da0082500f05b396ef069a5f401433f5539992>`_  2023-09-05   ``Improve documentation for AzureDataExplorerHook DefaultAzureCredential support (#34095)``
+`9817be3e10 <https://github.com/apache/airflow/commit/9817be3e10659793ed8941cacc60307bcec36109>`_  2023-09-05   ``Improve documentation for Azure Service Bus hooks DefaultAzureCredential support (#34096)``
+`cd8f75a7d1 <https://github.com/apache/airflow/commit/cd8f75a7d11c7736fc3b1b53d864df17cfb6468b>`_  2023-09-05   ``Improve documentation for AzureFileShareHook DefaultAzureCredential support (#34101)``
+`e62a0ba8c7 <https://github.com/apache/airflow/commit/e62a0ba8c732bef3d332b8ea2f0f85d425ec2feb>`_  2023-09-05   ``Improve documentation for AzureContainerVolumeHook DefaultAzureCredential support (#34104)``
+`6b923299a1 <https://github.com/apache/airflow/commit/6b923299a12a925889cb93f31af23db261690127>`_  2023-09-05   ``Improve documentation for AzureBaseHook DefaultAzureCredential support (#34097)``
+`4ee02947ea <https://github.com/apache/airflow/commit/4ee02947ea0a9f79e59d413be0fbc35da58488ae>`_  2023-09-05   ``Improve documentation for WasbHook DefaultAzureCredential support (#34103)``
 `a7310f9c91 <https://github.com/apache/airflow/commit/a7310f9c9127cf87a71e0bfa141c066d6a0bc82b>`_  2023-09-05   ``Refactor regex in providers (#33898)``
+`bb5e18621a <https://github.com/apache/airflow/commit/bb5e18621a078f4eff8564737b993596aa711698>`_  2023-09-05   ``Iimprove documentation for AzureDataLakeStorageV2Hook DefaultAzureCredential support (#34094)``
+`4254cfc8ec <https://github.com/apache/airflow/commit/4254cfc8ec44490d3633f2c0180b577b3c10abf9>`_  2023-09-05   ``docs(providers/microsoft): improve documentation for AzureCosmosDBHook DefaultAzureCredential support (#34102)``
 `18ef30221e <https://github.com/apache/airflow/commit/18ef30221ec4b09c295d9e3ab7a21562197548f2>`_  2023-09-05   ``Improve docs on AzureBatchHook DefaultAzureCredential support (#34098)``
+`c16338da1b <https://github.com/apache/airflow/commit/c16338da1b11cf957b5f62fb6676235662bc9794>`_  2023-09-04   `` docs(providers/microsoft): improve documentation for AzureDataLakeHook DefaultAzureCredential support (#34074)``
+`f9028e1866 <https://github.com/apache/airflow/commit/f9028e1866fea6890d08598b0400144dcb1207d2>`_  2023-09-04   ``docs(providers/microsoft): improve documentation for AzureContainerRegistryHook-DefaultAzureCredential support (#34073)``
 `e294608c6a <https://github.com/apache/airflow/commit/e294608c6a8de6e5ee2b655fa1d461c0150c91b2>`_  2023-09-04   ``feat(providers/microsoft): add AzureContainerInstancesOperator.volume as template field (#34070)``
 `6f1f624f04 <https://github.com/apache/airflow/commit/6f1f624f04347a3c5f7aaa8093526b0d98ef01bb>`_  2023-09-03   ``Remove  azure-storage-common from microsoft azure providers (#34038)``
 `47bd5dd0e1 <https://github.com/apache/airflow/commit/47bd5dd0e1e13af45206b94dd5518ada278a9552>`_  2023-09-03   ``Remove useless string join from providers (#33968)``
@@ -384,7 +412,7 @@ Commit                                                                          
 `875387afa5 <https://github.com/apache/airflow/commit/875387afa53c207364fa20b515d154100b5d0a8d>`_  2023-09-01   ``Refactor unneeded  jumps in providers (#33833)``
 `539797fdfb <https://github.com/apache/airflow/commit/539797fdfb2e0b2aca82376095e74edaad775439>`_  2023-08-30   ``Add DefaultAzureCredential support to AzureContainerRegistryHook (#33825)``
 `23b15e6428 <https://github.com/apache/airflow/commit/23b15e64284261211cfbcb9eaaf76c0c6a0be547>`_  2023-08-30   ``feat(providers/microsoft): add DefaultAzureCredential support to AzureContainerVolumeHook (#33822)``
-=================================================================================================  ===========  ======================================================================================================
+=================================================================================================  ===========  ===========================================================================================================================
 
 6.3.0
 .....
@@ -403,6 +431,7 @@ Commit                                                                          
 `4bae275edd <https://github.com/apache/airflow/commit/4bae275edd819eaf56c3382af7b152652b0ce0c0>`_  2023-08-26   ``Remove duplicated message commit in Azure MessageHook (#33776)``
 `3d575fed54 <https://github.com/apache/airflow/commit/3d575fed540e7521976303cd763a20e090e65d9e>`_  2023-08-26   ``Allow passing fully_qualified_namespace and credential to initialize Azure Service Bus Client (#33493)``
 `353b1482d3 <https://github.com/apache/airflow/commit/353b1482d3720c7e962022f25c7e5d3e105ed4f0>`_  2023-08-26   ``remove unnecessary and rewrite it using list in providers (#33763)``
+`bcb97d05ad <https://github.com/apache/airflow/commit/bcb97d05add522220d99759352bc5a0de9b69ae8>`_  2023-08-26   ``Fix partial doc reference error due to missing space (#33770)``
 `03529d524f <https://github.com/apache/airflow/commit/03529d524fbebb4ff2c886a085966230314022f3>`_  2023-08-26   ``Add DefaultAzureCredential support to cosmos (#33436)``
 `faf32539d6 <https://github.com/apache/airflow/commit/faf32539d6a1be2bfba1b97e72e4508fb6896af6>`_  2023-08-26   ``Optimise Airflow DB backend usage in Azure Provider (#33750)``
 `c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
@@ -440,14 +469,15 @@ Commit                                                                          
 
 Latest change: 2023-08-05
 
-=================================================================================================  ===========  ==============================================================================
+=================================================================================================  ===========  ===================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ==============================================================================
+=================================================================================================  ===========  ===================================================================================
 `60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
 `a069965df8 <https://github.com/apache/airflow/commit/a069965df84273c65e23d1fda9ffa47a58ed6732>`_  2023-08-03   ``Add issue link for TODO wrt Azure integration pinned dependencies (#33064)``
 `fea8c9024f <https://github.com/apache/airflow/commit/fea8c9024f3930aeba6bcf95d346fefd3ca8a016>`_  2023-08-02   ``Delete azure cosmos DB sensor example_dag (#32906)``
 `df74553ec4 <https://github.com/apache/airflow/commit/df74553ec484ad729fcd75ccbc1f5f18e7f34dc8>`_  2023-08-02   ``Refactor account_url use in WasbHook (#32980)``
-=================================================================================================  ===========  ==============================================================================
+`1bc680fb66 <https://github.com/apache/airflow/commit/1bc680fb66dcb5f578e2404b632ea5c0a28eb7c8>`_  2023-07-30   ``Change latest redirection to stable one for microsoft azure -> google. (#32945)``
+=================================================================================================  ===========  ===================================================================================
 
 6.2.2
 .....
@@ -459,6 +489,7 @@ Commit                                                                          
 =================================================================================================  ===========  ================================================================================
 `d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
 `42b4b43c4c <https://github.com/apache/airflow/commit/42b4b43c4c2ccf0b6e7eaa105c982df495768d01>`_  2023-07-23   ``Add Redis task handler (#31855)``
+`73b90c48b1 <https://github.com/apache/airflow/commit/73b90c48b1933b49086d34176527947bd727ec85>`_  2023-07-21   ``Allow configuration to be contributed by providers (#32604)``
 `e01323635a <https://github.com/apache/airflow/commit/e01323635a88ecf313a415ea41d32d6d28fa0794>`_  2023-07-13   ``Add deprecation info to the providers modules and classes docstring (#32536)``
 =================================================================================================  ===========  ================================================================================
 
@@ -546,6 +577,7 @@ Commit                                                                          
 `45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
 `abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
 `f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`7ebda3898d <https://github.com/apache/airflow/commit/7ebda3898db2eee72d043a9565a674dea72cd8fa>`_  2023-05-17   ``Fix missing line in index.rst for provider documentation (#31343)``
 `d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
 `ec2f0f12db <https://github.com/apache/airflow/commit/ec2f0f12db1a5e1d595203f9a0ec0cac6862250c>`_  2023-05-11   ``Optimize deferred execution for AzureDataFactoryRunPipelineOperator (#31214)``
 `ac46902154 <https://github.com/apache/airflow/commit/ac46902154c060246dec942f921f7670015e6031>`_  2023-05-04   ``Move TaskInstanceKey to a separate file (#31033)``
@@ -656,6 +688,7 @@ Latest change: 2023-01-02
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================
 `5246c009c5 <https://github.com/apache/airflow/commit/5246c009c557b4f6bdf1cd62bf9b89a2da63f630>`_  2023-01-02   ``Prepare docs for Jan 2023 wave of Providers (#28651)``
+`81323e389e <https://github.com/apache/airflow/commit/81323e389e1540d25321cddcc9645502b0c34e5a>`_  2022-12-24   ``Change titles in Azure Operators documentation (#28559)``
 `6e3cee1f6e <https://github.com/apache/airflow/commit/6e3cee1f6e407d5f505410863c3f73fe1bfcc7cf>`_  2022-12-19   ``Re-enable azure service bus on ARM as it now builds cleanly (#28442)``
 =================================================================================================  ===========  ========================================================================
 
@@ -664,12 +697,13 @@ Commit                                                                          
 
 Latest change: 2022-12-13
 
-=================================================================================================  ===========  ==============================================================
+=================================================================================================  ===========  =====================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ==============================================================
+=================================================================================================  ===========  =====================================================================
 `443df3b9c8 <https://github.com/apache/airflow/commit/443df3b9c8ef698e0204490c535f78c6c70276f3>`_  2022-12-13   ``Prepare ad hoc providers release (#28327)``
 `7e776db254 <https://github.com/apache/airflow/commit/7e776db254953076e932ed2183e1ed49a5ca20a6>`_  2022-12-09   ``Make arguments 'offset' and 'length' not required (#28234)``
-=================================================================================================  ===========  ==============================================================
+`c8e348dcb0 <https://github.com/apache/airflow/commit/c8e348dcb0bae27e98d68545b59388c9f91fc382>`_  2022-12-05   ``Add automated version replacement in example dag indexes (#28090)``
+=================================================================================================  ===========  =====================================================================
 
 5.0.0
 .....
@@ -743,12 +777,14 @@ Commit                                                                          
 `d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
 `bfd506cbfc <https://github.com/apache/airflow/commit/bfd506cbfcf4561c2df87e5240d27787793813ce>`_  2022-07-13   ``Add 'test_connection' method to AzureCosmosDBHook (#25018)``
 `aa8bf2cf85 <https://github.com/apache/airflow/commit/aa8bf2cf85d6a9df40de267672936f20fbac970d>`_  2022-07-12   ``Implement Azure service bus subscription Operators (#24625)``
+`bf7d646395 <https://github.com/apache/airflow/commit/bf7d6463955bc1873afea3f81feaecee91bca681>`_  2022-07-08   ``add more descriptive REMOTE_BASE_LOG_FOLDER (#24935)``
 `b27fc0367c <https://github.com/apache/airflow/commit/b27fc0367cd1125f4d312497ba5337115476315e>`_  2022-07-06   ``Add test_connection method to AzureFileShareHook (#24843)``
 `f18c609d12 <https://github.com/apache/airflow/commit/f18c609d127f54fbbf4dae6b290c6cdcfc7f98d0>`_  2022-07-01   ``Add test_connection method to Azure WasbHook (#24771)``
 `0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
 `510a6bab45 <https://github.com/apache/airflow/commit/510a6bab4595cce8bd5b1447db957309d70f35d9>`_  2022-06-28   ``Remove 'hook-class-names' from provider.yaml (#24702)``
 `09f38ad3f6 <https://github.com/apache/airflow/commit/09f38ad3f6872bae5059a1de226362eb358c4a7a>`_  2022-06-23   ``Implement Azure Service Bus Queue Operators (#24038)``
 `9c59831ee7 <https://github.com/apache/airflow/commit/9c59831ee78f14de96421c74986933c494407afa>`_  2022-06-21   ``Update providers to use functools compat for ''cached_property'' (#24582)``
+`08b675cf66 <https://github.com/apache/airflow/commit/08b675cf6642171cb1c5ddfb09607b541db70b29>`_  2022-06-13   ``Fix links to sources for examples (#24386)``
 =================================================================================================  ===========  =============================================================================
 
 4.0.0
@@ -782,6 +818,7 @@ Commit                                                                          
 `8f181c1034 <https://github.com/apache/airflow/commit/8f181c10344bd319ac5f6aeb102ee3c06e1f1637>`_  2022-05-08   ``wasb hook: user defaultAzureCredentials instead of managedIdentity (#23394)``
 `2d109401b3 <https://github.com/apache/airflow/commit/2d109401b3566aef613501691d18cf7e4c776cd2>`_  2022-05-04   ``Bump pre-commit hook versions (#22887)``
 `8b6b0848a3 <https://github.com/apache/airflow/commit/8b6b0848a3cacf9999477d6af4d2a87463f03026>`_  2022-04-23   ``Use new Breese for building, pulling and verifying the images. (#23104)``
+`831e84d9c3 <https://github.com/apache/airflow/commit/831e84d9c30e50a11f0419a807c0e4b6dac63213>`_  2022-04-19   ``Correct default conn ID in WASB connection doc (#23057)``
 `49e336ae03 <https://github.com/apache/airflow/commit/49e336ae0302b386a2f47269a6d13988382d975f>`_  2022-04-13   ``Replace usage of 'DummyOperator' with 'EmptyOperator' (#22974)``
 `6933022e94 <https://github.com/apache/airflow/commit/6933022e94acf139b2dea9a589bb8b25c62a5d20>`_  2022-04-10   ``Fix new MyPy errors in main (#22884)``
 =================================================================================================  ===========  ===============================================================================
@@ -796,6 +833,7 @@ Commit                                                                          
 =================================================================================================  ===========  ==================================================================================
 `56ab82ed7a <https://github.com/apache/airflow/commit/56ab82ed7a5c179d024722ccc697b740b2b93b6a>`_  2022-04-07   ``Prepare mid-April provider documentation. (#22819)``
 `d3976d9b20 <https://github.com/apache/airflow/commit/d3976d9b20163550dbfe8cf9b326260516fd9bb8>`_  2022-04-04   ``Docs: Fix example usage for 'AzureCosmosDocumentSensor' (#22735)``
+`77d4e725c6 <https://github.com/apache/airflow/commit/77d4e725c639efa68748e0ae51ddf1e11b2fd163>`_  2022-03-29   ``Switch azure provider to azure-keyvault-secrets (#22557)``
 `7ab45d41d6 <https://github.com/apache/airflow/commit/7ab45d41d6c4de322dc8afe8a74b712d0bae4ee7>`_  2022-03-24   ``Update secrets backends to use get_conn_value instead of get_conn_uri (#22348)``
 =================================================================================================  ===========  ==================================================================================
 
@@ -877,6 +915,7 @@ Commit                                                                          
 `2fb5e1d0ec <https://github.com/apache/airflow/commit/2fb5e1d0ec306839a3ff21d0bddbde1d022ee8c7>`_  2021-12-15   ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
 `42f133c5f6 <https://github.com/apache/airflow/commit/42f133c5f63011399eb46ee6f046c401103cf546>`_  2021-12-06   ``Removes InputRequired validation with azure extra (#20084)``
 `374574b8d0 <https://github.com/apache/airflow/commit/374574b8d0ef795855f8d2bb212ba6d653e62727>`_  2021-12-06   ``Fix mypy errors in Microsoft Azure provider (#19923)``
+`43de625d42 <https://github.com/apache/airflow/commit/43de625d4246af7014f64941f8effb09997731cb>`_  2021-12-01   ``Correctly capitalize names and abbreviations in docs (#19908)``
 =================================================================================================  ===========  ==========================================================================
 
 3.4.0
@@ -892,6 +931,7 @@ Commit                                                                          
 `11e73d2db1 <https://github.com/apache/airflow/commit/11e73d2db192e8abb551a728ca5c2d5dcf69d5d8>`_  2021-11-16   ``Remove unnecessary connection form customizations in Azure (#19595)``
 `4212c49324 <https://github.com/apache/airflow/commit/4212c4932433a50bda09f3e771a02f5ded4553a7>`_  2021-11-14   ``Update Azure modules to comply with AIP-21 (#19431)``
 `0f516458be <https://github.com/apache/airflow/commit/0f516458be079fd3d55204718978711acf06d3e6>`_  2021-11-08   ``Remove 'host' from hidden fields in 'WasbHook' (#19475)``
+`32253320e9 <https://github.com/apache/airflow/commit/32253320e9de67e5ef11c255f8ce8e6be29c15c3>`_  2021-11-08   ``Fix mismatch between docs and Azure Data Factory Hook (#19442)``
 `ca679c014c <https://github.com/apache/airflow/commit/ca679c014cad86976c1b2e248b099d9dc9fc99eb>`_  2021-11-07   ``use DefaultAzureCredential if login not provided for Data Factory (#19079)``
 `490a382ed6 <https://github.com/apache/airflow/commit/490a382ed6ce088bee650751b6409c510e19845a>`_  2021-11-04   ``Ensure ''catchup=False'' is used in example dags (#19396)``
 =================================================================================================  ===========  ==============================================================================
@@ -909,11 +949,13 @@ Commit                                                                          
 `ceb2b53a10 <https://github.com/apache/airflow/commit/ceb2b53a109b8fdd617f725a72c6fdb9c119550b>`_  2021-10-20   ``Static start_date and default arg cleanup for Microsoft providers example DAGs (#19062)``
 `86a2a19ad2 <https://github.com/apache/airflow/commit/86a2a19ad2bdc87a9ad14bb7fde9313b2d7489bb>`_  2021-10-17   ``More f-strings (#18855)``
 `1571f80546 <https://github.com/apache/airflow/commit/1571f80546853688778c2a3ec5194e5c8be0edbd>`_  2021-10-14   ``Add pre-commit hook for common misspelling check in files (#18964)``
+`2a6cadbd58 <https://github.com/apache/airflow/commit/2a6cadbd587bc20ebb36625f43b692671b9cd385>`_  2021-10-06   ``Small improvements for Airflow UI (#18715)``
 `1b75f9181f <https://github.com/apache/airflow/commit/1b75f9181f80062a2c25d2fdd627d4f4d2735811>`_  2021-10-05   ``Fix changelog for Azure Provider (#18736)``
 `181ac36db3 <https://github.com/apache/airflow/commit/181ac36db3749050a60fc1f08ceace005c5cb58b>`_  2021-10-05   ``update azure cosmos to latest version (#18695)``
 `6d504b43ea <https://github.com/apache/airflow/commit/6d504b43ea8d6c80be831c7830f4893727689404>`_  2021-10-04   ``Expanding docs on client auth for AzureKeyVaultBackend (#18659)``
 `c8485a83bc <https://github.com/apache/airflow/commit/c8485a83bc58ad76fd112c8a53ee0c9c8e8f6663>`_  2021-10-03   ``Revert "update azure cosmos version (#18663)" (#18694)``
 `10421c6931 <https://github.com/apache/airflow/commit/10421c693199eeea2c1ea54844319080fd6f7153>`_  2021-10-01   ``update azure cosmos version (#18663)``
+`af4a5e006e <https://github.com/apache/airflow/commit/af4a5e006e4f5c9f203afeac039b22c6adee317f>`_  2021-10-01   ``Remove cargo-culted local in-page ToCs (#18668)``
 =================================================================================================  ===========  ===========================================================================================
 
 3.2.0
@@ -925,14 +967,19 @@ Latest change: 2021-09-30
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
 `840ea3efb9 <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
+`33bdd3ddfa <https://github.com/apache/airflow/commit/33bdd3ddfa097f5388bbdb2fe49c3316c8f8c4f2>`_  2021-09-30   ``Updating ADX conn docs to reflect new custom fields (#18132)``
 `a458fcc573 <https://github.com/apache/airflow/commit/a458fcc573845ff65244a2dafd204ed70129f3e8>`_  2021-09-27   ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
 `46484466c4 <https://github.com/apache/airflow/commit/46484466c43bd0a9c8b25f11f24d3d36a0b2d956>`_  2021-09-25   ``Removing redundant relabeling of password conn field (#18386)``
 `97d6892318 <https://github.com/apache/airflow/commit/97d6892318ce2866f09f2c21247ed3b1b9975695>`_  2021-09-25   ``Rename AzureDataLakeStorage to ADLS (#18493)``
 `1d2924c94e <https://github.com/apache/airflow/commit/1d2924c94e38ade7cd21af429c9f451c14eba183>`_  2021-09-24   ``Proper handling of Account URL custom conn field in AzureBatchHook (#18456)``
 `11e34535e8 <https://github.com/apache/airflow/commit/11e34535e8cda2f22b26eb3f951a952e3acfe333>`_  2021-09-19   ``Creating ADF pipeline run operator, sensor + ADF custom conn fields (#17885)``
 `410e6d7967 <https://github.com/apache/airflow/commit/410e6d7967c6db0a968f26eb903d072e356f1348>`_  2021-09-18   ``Initial commit (#18203)``
+`4308a8c364 <https://github.com/apache/airflow/commit/4308a8c364d410ea8c32d2af7cc8ca3261054696>`_  2021-09-17   ``Refactor installation pages (#18282)``
 `2dac083ae2 <https://github.com/apache/airflow/commit/2dac083ae241b96241deda20db7725e2fcf3a93e>`_  2021-09-16   ``Fixed wasb hook attempting to create container when getting a blob client (#18287)``
 `d119ae8f3f <https://github.com/apache/airflow/commit/d119ae8f3fec587f12ee90f4a698186ebe54458e>`_  2021-09-12   ``Rename LocalToAzureDataLakeStorageOperator to LocalFilesystemToADLSOperator (#18168)``
+`1cb456cba1 <https://github.com/apache/airflow/commit/1cb456cba1099198bbdba50c2d1ad79664be8ce6>`_  2021-09-12   ``Add official download page for providers (#18187)``
+`046f02e5a7 <https://github.com/apache/airflow/commit/046f02e5a7097a6e6c928c28196b38b37e776916>`_  2021-09-09   ``fix misspelling (#18121)``
+`cee48c3427 <https://github.com/apache/airflow/commit/cee48c3427e585b5c33ffe7d3d9b93406bb7d9cc>`_  2021-09-09   ``Update wasb.rst (#18117)``
 `28de326d61 <https://github.com/apache/airflow/commit/28de326d6192bcb4871d5c2ea85857b022aaabd5>`_  2021-09-09   ``Rename FileToWasbOperator to LocalFilesystemToWasbOperator (#18109)``
 =================================================================================================  ===========  ========================================================================================
 
@@ -945,6 +992,7 @@ Latest change: 2021-08-30
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================
 `0a68588479 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
+`bcc7665684 <https://github.com/apache/airflow/commit/bcc76656844be47f923527c0a6cd1de546655cb4>`_  2021-08-23   ``Improve discoverability of Provider packages' functionality``
 `be75dcd39c <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
 `76ed2a49c6 <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
 `29aab6434f <https://github.com/apache/airflow/commit/29aab6434ffe0fb8c83b6fd6c9e44310966d496a>`_  2021-08-17   ``Adds secrets backend/logging/auth information to provider yaml (#17625)``
@@ -982,6 +1030,7 @@ Commit                                                                          
 `0c80a7d411 <https://github.com/apache/airflow/commit/0c80a7d41100bf8d18b661c8286d6056e6d5d2f1>`_  2021-06-11   ``Fixes AzureFileShare connection extras (#16388)``
 `29b7f795d6 <https://github.com/apache/airflow/commit/29b7f795d6fb9fb8cab14158905c1b141044236d>`_  2021-06-07   ``fix wasb remote logging when blob already exists (#16280)``
 `9c94b72d44 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
+`1e647029e4 <https://github.com/apache/airflow/commit/1e647029e469c1bb17e9ad051d0184f3357644c3>`_  2021-06-01   ``Rename the main branch of the Airflow repo to be 'main' (#16149)``
 `476d0f6e3d <https://github.com/apache/airflow/commit/476d0f6e3d2059f56532cda36cdc51aa86bafb37>`_  2021-05-22   ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
 `c844ff742e <https://github.com/apache/airflow/commit/c844ff742e786973273c56348a09d073a4928878>`_  2021-05-18   ``Fix colon spacing in ''AzureDataExplorerHook'' docstring (#15841)``
 `37681bca00 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``
@@ -1009,12 +1058,14 @@ Commit                                                                          
 1.3.0
 .....
 
-Latest change: 2021-04-06
+Latest change: 2021-04-07
 
 =================================================================================================  ===========  =============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================
+`4e018a870c <https://github.com/apache/airflow/commit/4e018a870ccdece6b0985db0c8ae68d10ae1d055>`_  2021-04-07   ``Refreshed provider's upcoming release with k8s retries (#15239)``
 `042be2e4e0 <https://github.com/apache/airflow/commit/042be2e4e06b988f5ba2dc146f53774dabc8b76b>`_  2021-04-06   ``Updated documentation for provider packages before April release (#15236)``
+`64b00896d9 <https://github.com/apache/airflow/commit/64b00896d905abcf1fbae195a29b81f393319c5f>`_  2021-04-04   ``Replace new url for Stable Airflow Docs (#15169)``
 `9b76b94c94 <https://github.com/apache/airflow/commit/9b76b94c940d472290861930a1d5860b43b3b2b2>`_  2021-04-02   ``A bunch of template_fields_renderers additions (#15130)``
 `a7ca1b3b0b <https://github.com/apache/airflow/commit/a7ca1b3b0bdf0b7677e53be1b11e833714dfbbb4>`_  2021-03-26   ``Fix Sphinx Issues with Docstrings (#14968)``
 `68e4c4dcb0 <https://github.com/apache/airflow/commit/68e4c4dcb0416eb51a7011a3bb040f1e23d7bba8>`_  2021-03-20   ``Remove Backport Providers (#14886)``
@@ -1057,6 +1108,7 @@ Commit                                                                          
 `a1e9195076 <https://github.com/apache/airflow/commit/a1e91950766d12022a89bd667cc1ef1a4dec387c>`_  2020-12-26   ``add system test for azure local to adls operator (#13190)``
 `5185d81ff9 <https://github.com/apache/airflow/commit/5185d81ff99523fe363bd5024cef9660c94214ff>`_  2020-12-24   ``add AzureDatalakeStorageDeleteOperator (#13206)``
 `6cf76d7ac0 <https://github.com/apache/airflow/commit/6cf76d7ac01270930de7f105fb26428763ee1d4e>`_  2020-12-18   ``Fix typo in pip upgrade command :( (#13148)``
+`f6448b4e48 <https://github.com/apache/airflow/commit/f6448b4e482fd96339ae65c26d08e6a2bdb51aaf>`_  2020-12-15   ``Add link to PyPI Repository to provider docs (#13064)``
 `5090fb0c89 <https://github.com/apache/airflow/commit/5090fb0c8967d2d8719c6f4a468f2151395b5444>`_  2020-12-15   ``Add script to generate integrations.json (#13073)``
 =================================================================================================  ===========  =============================================================
 
@@ -1071,10 +1123,14 @@ Commit                                                                          
 `32971a1a2d <https://github.com/apache/airflow/commit/32971a1a2de1db0b4f7442ed26facdf8d3b7a36f>`_  2020-12-09   ``Updates providers versions to 1.0.0 (#12955)``
 `b40dffa085 <https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364>`_  2020-12-08   ``Rename remaing modules to match AIP-21 (#12917)``
 `9b39f24780 <https://github.com/apache/airflow/commit/9b39f24780e85f859236672e9060b2fbeee81b36>`_  2020-12-08   ``Add support for dynamic connection form fields per provider (#12558)``
+`23e743ec09 <https://github.com/apache/airflow/commit/23e743ec09bffe30a9a2b17cc873af5ef9d3cd9f>`_  2020-12-07   ``Move task handlers guides to provider docs (#12826)``
+`70b1cc2cfc <https://github.com/apache/airflow/commit/70b1cc2cfc9a130a9a8677df3503b13be926eb2b>`_  2020-12-04   ``Move secret backends guides to provider docs (#12798)``
 `bd90136aaf <https://github.com/apache/airflow/commit/bd90136aaf5035e3234fe545b79a3e4aad21efe2>`_  2020-11-30   ``Move operator guides to provider documentation packages (#12681)``
 `2037303eef <https://github.com/apache/airflow/commit/2037303eef93fd36ab13746b045d1c1fee6aa143>`_  2020-11-29   ``Adds support for Connection/Hook discovery from providers (#12466)``
+`de3b1e687b <https://github.com/apache/airflow/commit/de3b1e687b26c524c6909b7b4dfbb60d25019751>`_  2020-11-28   ``Move connection guides to provider documentation packages (#12653)``
 `543d88b3a1 <https://github.com/apache/airflow/commit/543d88b3a1ec7f0a41af390273868d9aed4edb7b>`_  2020-11-28   ``Add example dag and system tests for azure wasb and fileshare (#12673)``
 `6b3c6add9e <https://github.com/apache/airflow/commit/6b3c6add9ea245b43ee367491bf9193d59bd248c>`_  2020-11-27   ``Update setup.py to get non-conflicting set of dependencies (#12636)``
+`f2569de7d1 <https://github.com/apache/airflow/commit/f2569de7d1a7b100774f397a641e977c307cbb91>`_  2020-11-22   ``Add example DAGs to provider docs (#12528)``
 `c34ef853c8 <https://github.com/apache/airflow/commit/c34ef853c890e08f5468183c03dc8f3f3ce84af2>`_  2020-11-20   ``Separate out documentation building per provider  (#12444)``
 `0080354502 <https://github.com/apache/airflow/commit/00803545023b096b8db4fbd6eb473843096d7ce4>`_  2020-11-18   ``Update provider READMEs for 1.0.0b2 batch release (#12449)``
 `7ca0b6f121 <https://github.com/apache/airflow/commit/7ca0b6f121c9cec6e25de130f86a56d7c7fbe38c>`_  2020-11-18   ``Enable Markdownlint rule MD003/heading-style/header-style (#12427) (#12438)``

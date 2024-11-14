@@ -35,6 +35,18 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.5.3
+.....
+
+Latest change: 2024-11-13
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`e7194dff6a <https://github.com/apache/airflow/commit/e7194dff6a816bf3a721cbf579ceac19c11cd111>`_  2024-11-13   ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ========================================================================================
+
 5.5.2
 .....
 
@@ -43,6 +55,7 @@ Latest change: 2024-10-09
 =================================================================================================  ===========  ==================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
 `c2486b7c09 <https://github.com/apache/airflow/commit/c2486b7c090b1175d3f5c276214bee4a791b8837>`_  2024-10-09   ``Fix spelling; 'Airlfow' -> 'Airflow' (#42855)``
 `1cb9294c64 <https://github.com/apache/airflow/commit/1cb9294c6442f4e6792c1ea2b1948b1d38284326>`_  2024-10-06   ``Removed conditional check for task context logging in airflow version 2.8.0 and above (#42764)``
 =================================================================================================  ===========  ==================================================================================================
@@ -58,6 +71,7 @@ Commit                                                                          
 `7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
 `2e813eb87d <https://github.com/apache/airflow/commit/2e813eb87d7793d7bb2a2fbb4e485c896c1dc2c4>`_  2024-09-04   ``Generalize caching of connection in DbApiHook to improve performance (#40751)``
 `b1e4f37505 <https://github.com/apache/airflow/commit/b1e4f375058102b6dc16a4bac7f166dbf4b7713b>`_  2024-09-01   ``Fix ElasticSearch SQLClient deprecation warning (#41871)``
+`1008ea198a <https://github.com/apache/airflow/commit/1008ea198ab6ad323f49c235acab44b47b161191>`_  2024-08-26   ``Update elasticsearch.rst (#41764)``
 `79f6383c38 <https://github.com/apache/airflow/commit/79f6383c38d1ed7409684b9475a903bcc77b2e4b>`_  2024-08-21   ``filename template arg in providers file task handlers backward compitability support (#41633)``
 `716c4300a6 <https://github.com/apache/airflow/commit/716c4300a6507609ae64148b9726272fd5071492>`_  2024-08-20   ``Remove deprecated log handler argument filename_template (#41552)``
 =================================================================================================  ===========  =================================================================================================
@@ -217,6 +231,8 @@ Commit                                                                          
 =================================================================================================  ===========  =================================================================================
 `1b059c57d6 <https://github.com/apache/airflow/commit/1b059c57d6d57d198463e5388138bee8a08591b1>`_  2023-11-08   ``Prepare docs 1st wave of Providers November 2023 (#35537)``
 `b3be18b36f <https://github.com/apache/airflow/commit/b3be18b36f6dd96dd57717d6fa0484fc8f02805e>`_  2023-11-08   ``Use None instead of empty data structures when no ElasticSearch logs (#34793)``
+`706878ec35 <https://github.com/apache/airflow/commit/706878ec354cf867440c367a95c85753c19e54de>`_  2023-11-04   ``Remove empty lines in generated changelog (#35436)``
+`052e26ad47 <https://github.com/apache/airflow/commit/052e26ad473a9d50f0b96456ed094f2087ee4434>`_  2023-11-04   ``Change security.rst to use includes in providers (#35435)``
 `d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
 `3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
 `dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
@@ -262,16 +278,17 @@ Commit                                                                          
 
 Latest change: 2023-08-26
 
-=================================================================================================  ===========  =============================================================
+=================================================================================================  ===========  ===============================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  =============================================================
+=================================================================================================  ===========  ===============================================================
 `c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
 `94f70d8184 <https://github.com/apache/airflow/commit/94f70d818482de7defa03c0aff3c213ca6b83e9e>`_  2023-08-23   ``Replace strftime with f-strings where nicer (#33455)``
 `7e79997594 <https://github.com/apache/airflow/commit/7e799975948573ca2a1c4b2051d3eadc32bb8ba7>`_  2023-08-11   ``D205 Support - Providers - Final Pass (#33303)``
 `dd73a0bffa <https://github.com/apache/airflow/commit/dd73a0bffa6c4de93a2dd8dc4460b64aedc51255>`_  2023-08-10   ``Fix urlparse schemaless-behaviour on Python 3.9+ (#33289)``
 `3c61ca40d7 <https://github.com/apache/airflow/commit/3c61ca40d7dfea4bb51d17704f9da88d7edd08c4>`_  2023-08-10   ``Add backward compatibility for elasticsearch<8 (#33281)``
 `ad9d8d46b6 <https://github.com/apache/airflow/commit/ad9d8d46b6ee3a7d8e6665d2a6f5c6660063f281>`_  2023-08-08   ``Upgrade Elasticsearch to 8 (#33135)``
-=================================================================================================  ===========  =============================================================
+`73b90c48b1 <https://github.com/apache/airflow/commit/73b90c48b1933b49086d34176527947bd727ec85>`_  2023-07-21   ``Allow configuration to be contributed by providers (#32604)``
+=================================================================================================  ===========  ===============================================================
 
 5.0.0
 .....
@@ -319,6 +336,7 @@ Commit                                                                          
 `45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
 `abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
 `f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`7ebda3898d <https://github.com/apache/airflow/commit/7ebda3898db2eee72d043a9565a674dea72cd8fa>`_  2023-05-17   ``Fix missing line in index.rst for provider documentation (#31343)``
 `d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
 `761c0da723 <https://github.com/apache/airflow/commit/761c0da723799c3c37d9eb2cadaa9c4fa256d13a>`_  2023-05-12   ``Upper-bind elasticearch integration (#31255)``
 `0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
@@ -351,6 +369,7 @@ Commit                                                                          
 =================================================================================================  ===========  ==================================================================
 `911b708ffd <https://github.com/apache/airflow/commit/911b708ffddd4e7cb6aaeac84048291891eb0f1f>`_  2023-01-14   ``Prepare docs for Jan 2023 mid-month wave of Providers (#28929)``
 `ca8249f4a5 <https://github.com/apache/airflow/commit/ca8249f4a5cb22b091738128e0fcee87ab31638b>`_  2023-01-12   ``Allow nested attr in elasticsearch host_field (#28878)``
+`2b92c3c74d <https://github.com/apache/airflow/commit/2b92c3c74d3259ebac714f157c525836f0af50f0>`_  2023-01-05   ``Fix providers documentation formatting (#28754)``
 =================================================================================================  ===========  ==================================================================
 
 4.3.2
@@ -363,6 +382,7 @@ Commit                                                                          
 =================================================================================================  ===========  ===========================================================================
 `5246c009c5 <https://github.com/apache/airflow/commit/5246c009c557b4f6bdf1cd62bf9b89a2da63f630>`_  2023-01-02   ``Prepare docs for Jan 2023 wave of Providers (#28651)``
 `99bbcd3780 <https://github.com/apache/airflow/commit/99bbcd3780dd08a0794ba99eb69006c106dcf5d2>`_  2022-12-07   ``Support restricted index patterns in Elasticsearch log handler (#23888)``
+`c8e348dcb0 <https://github.com/apache/airflow/commit/c8e348dcb0bae27e98d68545b59388c9f91fc382>`_  2022-12-05   ``Add automated version replacement in example dag indexes (#28090)``
 =================================================================================================  ===========  ===========================================================================
 
 4.3.1
@@ -432,6 +452,8 @@ Commit                                                                          
 `97948ecae7 <https://github.com/apache/airflow/commit/97948ecae7fcbb7dfdfb169cfe653bd20a108def>`_  2022-07-01   ``Move fallible ti.task.dag assignment back inside try/except block (#24533) (#24592)``
 `0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
 `510a6bab45 <https://github.com/apache/airflow/commit/510a6bab4595cce8bd5b1447db957309d70f35d9>`_  2022-06-28   ``Remove 'hook-class-names' from provider.yaml (#24702)``
+`c8fa9e96e2 <https://github.com/apache/airflow/commit/c8fa9e96e29f9f8b4ff9c7db416097fb70a87c2d>`_  2022-06-14   ``Docs: Fix default 2.2.5 log_id_template (#24455)``
+`08b675cf66 <https://github.com/apache/airflow/commit/08b675cf6642171cb1c5ddfb09607b541db70b29>`_  2022-06-13   ``Fix links to sources for examples (#24386)``
 =================================================================================================  ===========  =======================================================================================
 
 4.0.0
@@ -448,8 +470,10 @@ Commit                                                                          
 `c23826915d <https://github.com/apache/airflow/commit/c23826915dcdca4f22b52b74633336cb2f4a1eca>`_  2022-06-07   ``Apply per-run log templates to log handlers (#24153)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
 `cba3c17254 <https://github.com/apache/airflow/commit/cba3c17254a1a864ea30d009e7939203f32bf9dd>`_  2022-06-04   ``removed old files (#24172)``
+`6f738d9339 <https://github.com/apache/airflow/commit/6f738d93397a7b1429efb934c0ec2775c69f0738>`_  2022-05-20   ``Document fix for broken elasticsearch logs with 2.3.0+ upgrade (#23821)``
 `75c60923e0 <https://github.com/apache/airflow/commit/75c60923e01375ffc5f71c4f2f7968f489e2ca2f>`_  2022-05-12   ``Prepare provider documentation 2022.05.11 (#23631)``
 `8b6b0848a3 <https://github.com/apache/airflow/commit/8b6b0848a3cacf9999477d6af4d2a87463f03026>`_  2022-04-23   ``Use new Breese for building, pulling and verifying the images. (#23104)``
+`a801ea3927 <https://github.com/apache/airflow/commit/a801ea3927b8bf3ca154fea3774ebf2d90e74e50>`_  2022-04-13   ``es new system tests (#22811)``
 `6933022e94 <https://github.com/apache/airflow/commit/6933022e94acf139b2dea9a589bb8b25c62a5d20>`_  2022-04-10   ``Fix new MyPy errors in main (#22884)``
 =================================================================================================  ===========  ==================================================================================
 
@@ -521,6 +545,7 @@ Commit                                                                          
 `f77417eb0d <https://github.com/apache/airflow/commit/f77417eb0d3f12e4849d80645325c02a48829278>`_  2021-12-31   ``Fix K8S changelog to be PyPI-compatible (#20614)``
 `97496ba2b4 <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
 `6e51608f28 <https://github.com/apache/airflow/commit/6e51608f28f4c769c019624ea0caaa0c6e671f80>`_  2021-12-16   ``Fix mypy for providers: elasticsearch, oracle, yandex (#20344)``
+`43de625d42 <https://github.com/apache/airflow/commit/43de625d4246af7014f64941f8effb09997731cb>`_  2021-12-01   ``Correctly capitalize names and abbreviations in docs (#19908)``
 `853576d901 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
 `fe682ec3d3 <https://github.com/apache/airflow/commit/fe682ec3d376f0983410d64beb4f3529fb7b0f99>`_  2021-11-24   ``Fix duplicate changelog entries (#19759)``
 =================================================================================================  ===========  ============================================================================
@@ -537,6 +562,8 @@ Commit                                                                          
 `840ea3efb9 <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
 `de9b02f797 <https://github.com/apache/airflow/commit/de9b02f797931efbd081996b4f81ba14ca76a17d>`_  2021-09-28   ``Updating the Elasticsearch example DAG to use the TaskFlow API (#18565)``
 `060345c0d9 <https://github.com/apache/airflow/commit/060345c0d982765e39da5fa8b2e2c6a01e89e394>`_  2021-09-21   ``Add docs for AIP 39: Timetables (#17552)``
+`1cb456cba1 <https://github.com/apache/airflow/commit/1cb456cba1099198bbdba50c2d1ad79664be8ce6>`_  2021-09-12   ``Add official download page for providers (#18187)``
+`046f02e5a7 <https://github.com/apache/airflow/commit/046f02e5a7097a6e6c928c28196b38b37e776916>`_  2021-09-09   ``fix misspelling (#18121)``
 `a0a05ffedd <https://github.com/apache/airflow/commit/a0a05ffeddab54199e43b76016703c7ccaed3cd1>`_  2021-09-04   ``Adds example showing the ES_hook (#17944)``
 =================================================================================================  ===========  ===========================================================================
 
@@ -549,6 +576,7 @@ Latest change: 2021-08-30
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================
 `0a68588479 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
+`bcc7665684 <https://github.com/apache/airflow/commit/bcc76656844be47f923527c0a6cd1de546655cb4>`_  2021-08-23   ``Improve discoverability of Provider packages' functionality``
 `be75dcd39c <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
 `76ed2a49c6 <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
 `29aab6434f <https://github.com/apache/airflow/commit/29aab6434ffe0fb8c83b6fd6c9e44310966d496a>`_  2021-08-17   ``Adds secrets backend/logging/auth information to provider yaml (#17625)``
@@ -576,6 +604,7 @@ Latest change: 2021-06-18
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================
 `bbc627a3da <https://github.com/apache/airflow/commit/bbc627a3dab17ba4cf920dd1a26dbed6f5cebfd1>`_  2021-06-18   ``Prepares documentation for rc2 release of Providers (#16501)``
+`d326149be8 <https://github.com/apache/airflow/commit/d326149be856ca0f84b24a3ca50b9b9cea382eb1>`_  2021-06-16   ``Fix typo in elasticearch frontend docs (#16490)``
 `3cf67be387 <https://github.com/apache/airflow/commit/3cf67be3875fa0b91408ed0433779970e4f6acf5>`_  2021-06-16   ``Support non-https elasticsearch external links (#16489)``
 `247ba31872 <https://github.com/apache/airflow/commit/247ba31872aa5a8a9e92f781a6beba75945ece1b>`_  2021-06-16   ``Fix Elasticsearch external log link with ''json_format'' (#16467)``
 `5e12b3de31 <https://github.com/apache/airflow/commit/5e12b3de31dd1cf3d6e5088edbf497f91dcae4d8>`_  2021-06-16   ``Remove support jinja templated log_id in elasticsearch (#16465)``
@@ -643,6 +672,7 @@ Commit                                                                          
 `295d66f914 <https://github.com/apache/airflow/commit/295d66f91446a69610576d040ba687b38f1c5d0a>`_  2020-12-30   ``Fix Grammar in PIP warning (#13380)``
 `b6bf253062 <https://github.com/apache/airflow/commit/b6bf25306243e78bf12528f9a080ea100a575641>`_  2020-12-25   ``Respect LogFormat when using ES logging with Json Format (#13310)``
 `6cf76d7ac0 <https://github.com/apache/airflow/commit/6cf76d7ac01270930de7f105fb26428763ee1d4e>`_  2020-12-18   ``Fix typo in pip upgrade command :( (#13148)``
+`f6448b4e48 <https://github.com/apache/airflow/commit/f6448b4e482fd96339ae65c26d08e6a2bdb51aaf>`_  2020-12-15   ``Add link to PyPI Repository to provider docs (#13064)``
 =================================================================================================  ===========  =====================================================================
 
 1.0.0
@@ -656,6 +686,7 @@ Commit                                                                          
 `32971a1a2d <https://github.com/apache/airflow/commit/32971a1a2de1db0b4f7442ed26facdf8d3b7a36f>`_  2020-12-09   ``Updates providers versions to 1.0.0 (#12955)``
 `b40dffa085 <https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364>`_  2020-12-08   ``Rename remaing modules to match AIP-21 (#12917)``
 `9b39f24780 <https://github.com/apache/airflow/commit/9b39f24780e85f859236672e9060b2fbeee81b36>`_  2020-12-08   ``Add support for dynamic connection form fields per provider (#12558)``
+`23e743ec09 <https://github.com/apache/airflow/commit/23e743ec09bffe30a9a2b17cc873af5ef9d3cd9f>`_  2020-12-07   ``Move task handlers guides to provider docs (#12826)``
 `2037303eef <https://github.com/apache/airflow/commit/2037303eef93fd36ab13746b045d1c1fee6aa143>`_  2020-11-29   ``Adds support for Connection/Hook discovery from providers (#12466)``
 `c34ef853c8 <https://github.com/apache/airflow/commit/c34ef853c890e08f5468183c03dc8f3f3ce84af2>`_  2020-11-20   ``Separate out documentation building per provider  (#12444)``
 `0080354502 <https://github.com/apache/airflow/commit/00803545023b096b8db4fbd6eb473843096d7ce4>`_  2020-11-18   ``Update provider READMEs for 1.0.0b2 batch release (#12449)``

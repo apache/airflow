@@ -26,6 +26,20 @@
 Changelog
 ---------
 
+5.7.4
+.....
+
+Misc
+~~~~
+
+* ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+* ``Explain how to use uv with airflow virtualenv and make it works (#43604)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Start porting DAG definition code to the Task SDK (#43076)``
+
 5.7.3
 .....
 

@@ -29,6 +29,18 @@
 Changelog
 ---------
 
+4.11.3
+......
+
+Misc
+~~~~
+
+* ``Move python operator to Standard provider (#42081)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.11.2
 ......
 

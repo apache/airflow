@@ -111,7 +111,7 @@ PIP package                                 Version required
 ==========================================  ======================
 ``apache-airflow``                          ``>=2.8.0``
 ``apache-airflow-providers-common-compat``  ``>=1.2.1``
-``apache-airflow-providers-common-sql``     ``>=1.3.1``
+``apache-airflow-providers-common-sql``     ``>=1.20.0``
 ``apache-airflow-providers-http``
 ``boto3``                                   ``>=1.34.90``
 ``botocore``                                ``>=1.34.90``

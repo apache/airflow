@@ -20,6 +20,19 @@
 Changelog
 ---------
 
+1.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fab_auth_manager: allow get_user method to return the user authenticated via Kerberos (#43662)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Expand and improve the kerberos api authentication documentation (#43682)``
+
 1.5.0
 .....
 

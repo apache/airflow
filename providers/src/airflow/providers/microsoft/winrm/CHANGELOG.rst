@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+3.6.1
+.....
+
+Misc
+~~~~
+
+* ``Move responsibility to run a command from WinRMOperator to WinRMHook (#43646)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 3.6.0
 .....
 

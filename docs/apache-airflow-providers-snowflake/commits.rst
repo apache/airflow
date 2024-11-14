@@ -35,14 +35,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.8.1
+.....
+
+Latest change: 2024-11-13
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`e7194dff6a <https://github.com/apache/airflow/commit/e7194dff6a816bf3a721cbf579ceac19c11cd111>`_  2024-11-13   ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+`06088a3abc <https://github.com/apache/airflow/commit/06088a3abcbb46533e74de360746db766d50cf66>`_  2024-10-31   ``Standard provider python operator (#42081)``
+`d8c7d28411 <https://github.com/apache/airflow/commit/d8c7d28411bea04ae5771fc1e2973d92eb0a144e>`_  2024-10-30   ``Start porting DAG definition code to the Task SDK (#43076)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ========================================================================================
+
 5.8.0
 .....
 
-Latest change: 2024-10-03
+Latest change: 2024-10-09
 
 =================================================================================================  ===========  =====================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
 `4d8d6a3ae4 <https://github.com/apache/airflow/commit/4d8d6a3ae428d01b77033b8741401c7358d72a91>`_  2024-10-03   ``- Snowflake does not currently support variable binding in multi-statement SQL requests. (#42719)``
 `976064dc6c <https://github.com/apache/airflow/commit/976064dc6ce95d3b5cead1a7d2fcad4971c61b9a>`_  2024-10-02   ``Add Snowpark operator and decorator (#42457)``
 `8a5eb22df1 <https://github.com/apache/airflow/commit/8a5eb22df1ac94a3792f8eaf0760b4c0f8f316f2>`_  2024-10-02   ``Make 'private_key_content' a sensitive field  in Snowflake connection (#42649)``
@@ -112,6 +127,7 @@ Commit                                                                          
 `f0b51cdacc <https://github.com/apache/airflow/commit/f0b51cdacc6155e4e4495a88109a01decab9e201>`_  2024-06-12   ``openlineage: add some debug logging around sql parser call sites (#40200)``
 `c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
 `b805a9dba0 <https://github.com/apache/airflow/commit/b805a9dba09c222ebbd9d7293d75d318c7af21b0>`_  2024-05-28   ``Bump Snowflake client driver versions per support policy (#39886)``
+`0fe1041cc6 <https://github.com/apache/airflow/commit/0fe1041cc631404571c431f8013979955d7f862d>`_  2024-05-27   ``remove deprecations snowflake (#39729)``
 =================================================================================================  ===========  ==================================================================================
 
 5.5.1
@@ -244,6 +260,8 @@ Commit                                                                          
 =================================================================================================  ===========  ====================================================================
 `1b059c57d6 <https://github.com/apache/airflow/commit/1b059c57d6d57d198463e5388138bee8a08591b1>`_  2023-11-08   ``Prepare docs 1st wave of Providers November 2023 (#35537)``
 `a6a7173854 <https://github.com/apache/airflow/commit/a6a717385416a3468b09577dfe1d7e0702b5a0df>`_  2023-11-04   ``Bump min 'snowflake-connector-python' version (#35440)``
+`706878ec35 <https://github.com/apache/airflow/commit/706878ec354cf867440c367a95c85753c19e54de>`_  2023-11-04   ``Remove empty lines in generated changelog (#35436)``
+`052e26ad47 <https://github.com/apache/airflow/commit/052e26ad473a9d50f0b96456ed094f2087ee4434>`_  2023-11-04   ``Change security.rst to use includes in providers (#35435)``
 `6858ea46eb <https://github.com/apache/airflow/commit/6858ea46eb5282034b0695720d797dcb7ef91100>`_  2023-11-04   ``Make schema filter uppercase in 'create_filter_clauses' (#35428)``
 `63cc915cd3 <https://github.com/apache/airflow/commit/63cc915cd38a5034df6bf9c618e12f8690eeade0>`_  2023-10-31   ``Switch from Black to Ruff formatter (#35287)``
 `d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
@@ -327,6 +345,7 @@ Latest change: 2023-07-29
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================
 `d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
+`73b90c48b1 <https://github.com/apache/airflow/commit/73b90c48b1933b49086d34176527947bd727ec85>`_  2023-07-21   ``Allow configuration to be contributed by providers (#32604)``
 `5b082c38a6 <https://github.com/apache/airflow/commit/5b082c38a66b1a0b6b496e0d3b15a6684339e1d1>`_  2023-07-21   ``openlineage, snowflake: add OpenLineage support for Snowflake (#31696)``
 `60c49ab2df <https://github.com/apache/airflow/commit/60c49ab2dfabaf450b80a5c7569743dd383500a6>`_  2023-07-19   ``Add more accurate typing for DbApiHook.run method (#31846)``
 `e01323635a <https://github.com/apache/airflow/commit/e01323635a88ecf313a415ea41d32d6d28fa0794>`_  2023-07-13   ``Add deprecation info to the providers modules and classes docstring (#32536)``
@@ -390,6 +409,7 @@ Commit                                                                          
 `45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
 `abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
 `f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`7ebda3898d <https://github.com/apache/airflow/commit/7ebda3898db2eee72d043a9565a674dea72cd8fa>`_  2023-05-17   ``Fix missing line in index.rst for provider documentation (#31343)``
 `d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
 `0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
 `eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
@@ -426,13 +446,15 @@ Commit                                                                          
 
 Latest change: 2023-02-08
 
-=================================================================================================  ===========  ====================================================================
+=================================================================================================  ===========  =====================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ====================================================================
+=================================================================================================  ===========  =====================================================================
 `ce6ae2457e <https://github.com/apache/airflow/commit/ce6ae2457ef3d9f44f0086b58026909170bbf22a>`_  2023-02-08   ``Prepare docs for Feb 2023 wave of Providers (#29379)``
 `9b073119d4 <https://github.com/apache/airflow/commit/9b073119d401594b3575c6f7dc4a14520d8ed1d3>`_  2023-01-29   ``provide missing connection to the parent class operator (#29211)``
 `eff677c418 <https://github.com/apache/airflow/commit/eff677c418f09690f7e89302368dbff54e7fce75>`_  2023-01-28   ``Snowflake Provider - hide host from UI (#29208)``
-=================================================================================================  ===========  ====================================================================
+`2b92c3c74d <https://github.com/apache/airflow/commit/2b92c3c74d3259ebac714f157c525836f0af50f0>`_  2023-01-05   ``Fix providers documentation formatting (#28754)``
+`c8e348dcb0 <https://github.com/apache/airflow/commit/c8e348dcb0bae27e98d68545b59388c9f91fc382>`_  2022-12-05   ``Add automated version replacement in example dag indexes (#28090)``
+=================================================================================================  ===========  =====================================================================
 
 4.0.2
 .....
@@ -474,6 +496,7 @@ Commit                                                                          
 `3ae98b824d <https://github.com/apache/airflow/commit/3ae98b824db437b2db928a73ac8b50c0a2f80124>`_  2022-11-14   ``Use unused SQLCheckOperator.parameters in SQLCheckOperator.execute. (#27599)``
 `78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``
 `2a34dc9e84 <https://github.com/apache/airflow/commit/2a34dc9e8470285b0ed2db71109ef4265e29688b>`_  2022-10-23   ``Enable string normalization in python formatting - providers (#27205)``
+`dd40e60b86 <https://github.com/apache/airflow/commit/dd40e60b86bb9271dd1282f18a11841e23732731>`_  2022-10-23   ``Fix system tests for SnowflakeOperator (#27204)``
 `82e9ed7aca <https://github.com/apache/airflow/commit/82e9ed7aca371247f9f7fe882d7ad157cb4859d8>`_  2022-10-22   ``Update snowflake hook to not use extra prefix (#26764)``
 `ecd4d6654f <https://github.com/apache/airflow/commit/ecd4d6654ff8e0da4a7b8f29fd23c37c9c219076>`_  2022-10-18   ``Add SQLExecuteQueryOperator (#25717)``
 =================================================================================================  ===========  ================================================================================
@@ -519,8 +542,10 @@ Commit                                                                          
 `0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
 `13908c2c91 <https://github.com/apache/airflow/commit/13908c2c914cf08f9d962a4d3b6ae54fbdf1d223>`_  2022-06-29   ``Adding generic 'SqlToSlackOperator' (#24663)``
 `510a6bab45 <https://github.com/apache/airflow/commit/510a6bab4595cce8bd5b1447db957309d70f35d9>`_  2022-06-28   ``Remove 'hook-class-names' from provider.yaml (#24702)``
+`2fb93f88b1 <https://github.com/apache/airflow/commit/2fb93f88b120777330b6ed13b24fa07df279c41e>`_  2022-06-27   ``Updated Snowflake provider connection documentation (#24573)``
 `8a34d25049 <https://github.com/apache/airflow/commit/8a34d25049a060a035d4db4a49cd4a0d0b07fb0b>`_  2022-06-26   ``S3ToSnowflakeOperator: escape single quote in s3_keys (#24607)``
 `66e84001df <https://github.com/apache/airflow/commit/66e84001df069c76ba8bfefe15956c4018844b92>`_  2022-06-22   ``Pattern parameter in S3ToSnowflakeOperator (#24571)``
+`08b675cf66 <https://github.com/apache/airflow/commit/08b675cf6642171cb1c5ddfb09607b541db70b29>`_  2022-06-13   ``Fix links to sources for examples (#24386)``
 =================================================================================================  ===========  ==================================================================
 
 3.0.0
@@ -597,6 +622,8 @@ Commit                                                                          
 `d94fa37830 <https://github.com/apache/airflow/commit/d94fa378305957358b910cfb1fe7cb14bc793804>`_  2022-02-08   ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
 `6c3a67d4fc <https://github.com/apache/airflow/commit/6c3a67d4fccafe4ab6cd9ec8c7bacf2677f17038>`_  2022-02-05   ``Add documentation for January 2021 providers release (#21257)``
 `39e395f981 <https://github.com/apache/airflow/commit/39e395f9816c04ef2f033eb0b4f635fc3018d803>`_  2022-02-04   ``Add more SQL template fields renderers (#21237)``
+`dc3c47dacd <https://github.com/apache/airflow/commit/dc3c47dacd2a7058358cc5874b0064a064d4c51e>`_  2022-02-03   ``Remove TODO from Snowflake docs (#21280)``
+`34a27e8d2a <https://github.com/apache/airflow/commit/34a27e8d2ad07d4e2c871e94216e01616406025d>`_  2022-02-01   ``Fix insecure_mode parameter formatting in Snowflake conn doc (#21256)``
 `534e9ae117 <https://github.com/apache/airflow/commit/534e9ae117641b4147542f2deec2a077f0a42e2f>`_  2022-01-28   ``Fix #21096: Support boolean in extra__snowflake__insecure_mode (#21155)``
 `cb73053211 <https://github.com/apache/airflow/commit/cb73053211367e2c2dd76d5279cdc7dc7b190124>`_  2022-01-27   ``Add optional features in providers. (#21074)``
 `602abe8394 <https://github.com/apache/airflow/commit/602abe8394fafe7de54df7e73af56de848cdf617>`_  2022-01-20   ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
@@ -620,6 +647,7 @@ Commit                                                                          
 `fcc3b92fb6 <https://github.com/apache/airflow/commit/fcc3b92fb6770597c4058c547a49f391de4dba44>`_  2021-12-13   ``Fix MyPy Errors for Snowflake provider. (#20212)``
 `89a66ae023 <https://github.com/apache/airflow/commit/89a66ae02319a20d6170187527d4535a26078378>`_  2021-12-13   ``Support insecure mode in SnowflakeHook (#20106)``
 `7fb301b0b4 <https://github.com/apache/airflow/commit/7fb301b0b466f470c737ded99b670b3f0605f1a4>`_  2021-12-08   ``Remove unused code in SnowflakeHook (#20107)``
+`43de625d42 <https://github.com/apache/airflow/commit/43de625d4246af7014f64941f8effb09997731cb>`_  2021-12-01   ``Correctly capitalize names and abbreviations in docs (#19908)``
 =================================================================================================  ===========  =========================================================================
 
 2.3.1
@@ -658,7 +686,9 @@ Commit                                                                          
 =================================================================================================  ===========  ======================================================================================
 `840ea3efb9 <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
 `ef037e7021 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+`1cb456cba1 <https://github.com/apache/airflow/commit/1cb456cba1099198bbdba50c2d1ad79664be8ce6>`_  2021-09-12   ``Add official download page for providers (#18187)``
 `a8970764d9 <https://github.com/apache/airflow/commit/a8970764d98f33a54be0e880df27f86b311038ac>`_  2021-09-10   ``Add Snowflake operators based on SQL Checks  (#17741)``
+`046f02e5a7 <https://github.com/apache/airflow/commit/046f02e5a7097a6e6c928c28196b38b37e776916>`_  2021-09-09   ``fix misspelling (#18121)``
 =================================================================================================  ===========  ======================================================================================
 
 2.1.1
@@ -706,6 +736,7 @@ Commit                                                                          
 `1fba5402bb <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
 `643e46ca7a <https://github.com/apache/airflow/commit/643e46ca7ad0b86ddcdae37ffe5b77d31c46b52f>`_  2021-06-15   ``Added ability for Snowflake to attribute usage to Airflow by adding an application parameter (#16420)``
 `9c94b72d44 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
+`1e647029e4 <https://github.com/apache/airflow/commit/1e647029e469c1bb17e9ad051d0184f3357644c3>`_  2021-06-01   ``Rename the main branch of the Airflow repo to be 'main' (#16149)``
 `aeb93f8e5b <https://github.com/apache/airflow/commit/aeb93f8e5bb4a9175e8834d476a6b679beff4a7e>`_  2021-05-27   ``fix: restore parameters support when sql passed to SnowflakeHook as str (#16102)``
 `20f3639403 <https://github.com/apache/airflow/commit/20f363940316126e706923ee9caf7172dd4caeb6>`_  2021-05-19   ``Add 'template_fields' to 'S3ToSnowflake' operator (#15926)``
 `6f956dc99b <https://github.com/apache/airflow/commit/6f956dc99b6c6393f7b50e9da9f778b5cf0bef88>`_  2021-05-13   ``Allow S3ToSnowflakeOperator to omit schema (#15817)``
@@ -729,11 +760,12 @@ Commit                                                                          
 1.2.0
 .....
 
-Latest change: 2021-04-06
+Latest change: 2021-04-07
 
 =================================================================================================  ===========  =============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================
+`4e018a870c <https://github.com/apache/airflow/commit/4e018a870ccdece6b0985db0c8ae68d10ae1d055>`_  2021-04-07   ``Refreshed provider's upcoming release with k8s retries (#15239)``
 `042be2e4e0 <https://github.com/apache/airflow/commit/042be2e4e06b988f5ba2dc146f53774dabc8b76b>`_  2021-04-06   ``Updated documentation for provider packages before April release (#15236)``
 `9b76b94c94 <https://github.com/apache/airflow/commit/9b76b94c940d472290861930a1d5860b43b3b2b2>`_  2021-04-02   ``A bunch of template_fields_renderers additions (#15130)``
 `68e4c4dcb0 <https://github.com/apache/airflow/commit/68e4c4dcb0416eb51a7011a3bb040f1e23d7bba8>`_  2021-03-20   ``Remove Backport Providers (#14886)``
@@ -769,6 +801,7 @@ Commit                                                                          
 `dbf751112f <https://github.com/apache/airflow/commit/dbf751112f3f978b1e21ffb91d696035c5e0109c>`_  2021-01-16   ``Add connection arguments in S3ToSnowflakeOperator (#12564)``
 `295d66f914 <https://github.com/apache/airflow/commit/295d66f91446a69610576d040ba687b38f1c5d0a>`_  2020-12-30   ``Fix Grammar in PIP warning (#13380)``
 `6cf76d7ac0 <https://github.com/apache/airflow/commit/6cf76d7ac01270930de7f105fb26428763ee1d4e>`_  2020-12-18   ``Fix typo in pip upgrade command :( (#13148)``
+`f6448b4e48 <https://github.com/apache/airflow/commit/f6448b4e482fd96339ae65c26d08e6a2bdb51aaf>`_  2020-12-15   ``Add link to PyPI Repository to provider docs (#13064)``
 =================================================================================================  ===========  ============================================================================================
 
 1.0.0
@@ -785,6 +818,7 @@ Commit                                                                          
 `bd90136aaf <https://github.com/apache/airflow/commit/bd90136aaf5035e3234fe545b79a3e4aad21efe2>`_  2020-11-30   ``Move operator guides to provider documentation packages (#12681)``
 `2037303eef <https://github.com/apache/airflow/commit/2037303eef93fd36ab13746b045d1c1fee6aa143>`_  2020-11-29   ``Adds support for Connection/Hook discovery from providers (#12466)``
 `ef4af21351 <https://github.com/apache/airflow/commit/ef4af2135171c6e451f1407ea1a280ea875f2175>`_  2020-11-22   ``Move providers docs to separate package + Spell-check in a common job with docs-build (#12527)``
+`f2569de7d1 <https://github.com/apache/airflow/commit/f2569de7d1a7b100774f397a641e977c307cbb91>`_  2020-11-22   ``Add example DAGs to provider docs (#12528)``
 `234d689387 <https://github.com/apache/airflow/commit/234d689387ef89222bfdee481987c37d1e79b5af>`_  2020-11-21   ``Fix S3ToSnowflakeOperator docstring (#12504)``
 `c34ef853c8 <https://github.com/apache/airflow/commit/c34ef853c890e08f5468183c03dc8f3f3ce84af2>`_  2020-11-20   ``Separate out documentation building per provider  (#12444)``
 `0080354502 <https://github.com/apache/airflow/commit/00803545023b096b8db4fbd6eb473843096d7ce4>`_  2020-11-18   ``Update provider READMEs for 1.0.0b2 batch release (#12449)``

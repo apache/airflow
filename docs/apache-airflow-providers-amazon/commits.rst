@@ -38,11 +38,24 @@ For high-level changelog, see :doc:`package information including changelog <ind
 9.1.0
 .....
 
-Latest change: 2024-10-31
+Latest change: 2024-11-13
 
-=================================================================================================  ===========  ========================================================================================
+=================================================================================================  ===========  ==============================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ========================================================================================
+=================================================================================================  ===========  ==============================================================================================================
+`e7194dff6a <https://github.com/apache/airflow/commit/e7194dff6a816bf3a721cbf579ceac19c11cd111>`_  2024-11-13   ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+`6d85a0466d <https://github.com/apache/airflow/commit/6d85a0466d91d501af87c8904b902ea92cee466d>`_  2024-11-09   ``Remove deprecations cncf.kubernetes (#43689)``
+`9a5f6d6155 <https://github.com/apache/airflow/commit/9a5f6d615590dbc3d40dcf5a2e584cf6d4f79938>`_  2024-11-09   ``fix: replace \s with space (#43849)``
+`23dfe54bc3 <https://github.com/apache/airflow/commit/23dfe54bc30796676c5f9abbe051756354354ef7>`_  2024-11-08   ``Fix 'HttpToS3Operator' throws exception if s3_bucket parameter is not passed (#43828)``
+`9a9497bde4 <https://github.com/apache/airflow/commit/9a9497bde495df135be05cadb83358b3e3dbef1f>`_  2024-11-06   ``Check if awslogs_stream_prefix already ends with container_name (#43724)``
+`469dd75ebe <https://github.com/apache/airflow/commit/469dd75ebe9a9bbd73c023a1360e1d33fdd2c897>`_  2024-11-06   ``bugfix description should be optional for openlineage integration with 'AthenaOperator' (#43576)``
+`995cd8fba8 <https://github.com/apache/airflow/commit/995cd8fba8de4ab3d041c7e141a0b92d786a8277>`_  2024-11-06   ``(bugfix): 'EcsRunTaskOperator' decouple 'volume_configurations' from 'capacity_provider_strategy' (#43047)``
+`426dba01c0 <https://github.com/apache/airflow/commit/426dba01c089c9a662301d091133cdcde5f8d729>`_  2024-11-05   ``Add 'container_name' and update 'awslogs_stream_prefix' pattern (#43138)``
+`74fc28020a <https://github.com/apache/airflow/commit/74fc28020a7e50acb011129bbb84ce457cf80abd>`_  2024-11-05   ``GlueJobOperator: add option to wait for cleanup before returning job status (#43688)``
+`f2dd350288 <https://github.com/apache/airflow/commit/f2dd3502887e9f085e52de0e38692c1c173b3557>`_  2024-11-05   ``Resolve 'GlueJobTrigger' serialization bug causing verbose to always be True (#43622)``
+`d8f71a2d9f <https://github.com/apache/airflow/commit/d8f71a2d9fbc281ed1de281a00ddee6fbebaf0f7>`_  2024-11-05   ``Remove returns in final clause of S3ToDynamoDBOperator (#43456)``
+`0664782c19 <https://github.com/apache/airflow/commit/0664782c19dc40a311170c19b831dbd3bf1052a0>`_  2024-11-03   ``Fix docstring for AthenaTrigger (#43616)``
+`45b0b2f15c <https://github.com/apache/airflow/commit/45b0b2f15c57dae4f2331a66a9a921cb17385220>`_  2024-11-03   ``Prepare docs for Oct 2nd wave of providers rc3 (#43613)``
 `06088a3abc <https://github.com/apache/airflow/commit/06088a3abcbb46533e74de360746db766d50cf66>`_  2024-10-31   ``Standard provider python operator (#42081)``
 `5886016243 <https://github.com/apache/airflow/commit/5886016243d73cc34e2a212de8fc2f4042e123ca>`_  2024-10-31   ``Prepare docs for Oct 2nd wave of providers RC2 (#43540)``
 `d8c7d28411 <https://github.com/apache/airflow/commit/d8c7d28411bea04ae5771fc1e2973d92eb0a144e>`_  2024-10-30   ``Start porting DAG definition code to the Task SDK (#43076)``
@@ -58,7 +71,7 @@ Commit                                                                          
 `fe0cc6e830 <https://github.com/apache/airflow/commit/fe0cc6e83024b525c4247ff75683d79b78e220ea>`_  2024-10-15   ``Make 'RedshiftDataOperator'  handle multiple queries (#42900)``
 `7d8ea68bda <https://github.com/apache/airflow/commit/7d8ea68bdaae3258bd391b8f6ae0277258a7c437>`_  2024-10-12   ``Restrict looker-sdk version 24.18.0 and microsoft-kiota-http 1.3.4 (#42954)``
 `857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
-=================================================================================================  ===========  ========================================================================================
+=================================================================================================  ===========  ==============================================================================================================
 
 9.0.0
 .....
