@@ -1103,12 +1103,15 @@ def update_changelog(
 
 
 def _generate_init_py_file_for_provider(
+    provider_id: str,
     context: dict[str, Any],
     target_path: Path,
 ):
     init_py_content = black_format(
         render_template(
-            template_name="PROVIDER__INIT__PY",
+            template_name="PROVIDER__STANDARD__INIT__PY"
+            if provider_id == "standard"
+            else "PROVIDER__INIT__PY",
             context=context,
             extension=".py",
             keep_trailing_newline=True,
@@ -1152,6 +1155,7 @@ def update_min_airflow_version(
         maybe_with_new_features=maybe_with_new_features,
     )
     _generate_init_py_file_for_provider(
+        provider_id=provider_package_id,
         context=jinja_context,
         target_path=provider_details.source_provider_package_path,
     )
