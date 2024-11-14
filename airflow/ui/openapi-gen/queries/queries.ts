@@ -116,6 +116,75 @@ export const useAssetServiceGetAssets = <
     ...options,
   });
 /**
+ * Get Asset Events
+ * Get asset events.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @param data.assetId
+ * @param data.sourceDagId
+ * @param data.sourceTaskId
+ * @param data.sourceRunId
+ * @param data.sourceMapIndex
+ * @returns AssetEventCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceGetAssetEvents = <
+  TData = Common.AssetServiceGetAssetEventsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    assetId,
+    limit,
+    offset,
+    orderBy,
+    sourceDagId,
+    sourceMapIndex,
+    sourceRunId,
+    sourceTaskId,
+  }: {
+    assetId?: number;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    sourceDagId?: string;
+    sourceMapIndex?: number;
+    sourceRunId?: string;
+    sourceTaskId?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseAssetServiceGetAssetEventsKeyFn(
+      {
+        assetId,
+        limit,
+        offset,
+        orderBy,
+        sourceDagId,
+        sourceMapIndex,
+        sourceRunId,
+        sourceTaskId,
+      },
+      queryKey,
+    ),
+    queryFn: () =>
+      AssetService.getAssetEvents({
+        assetId,
+        limit,
+        offset,
+        orderBy,
+        sourceDagId,
+        sourceMapIndex,
+        sourceRunId,
+        sourceTaskId,
+      }) as TData,
+    ...options,
+  });
+/**
  * Get Asset
  * Get an asset.
  * @param data The data for the request.
@@ -891,24 +960,6 @@ export const useImportErrorServiceGetImportErrors = <
     ...options,
   });
 /**
- * Get Health
- * @returns HealthInfoSchema Successful Response
- * @throws ApiError
- */
-export const useMonitorServiceGetHealth = <
-  TData = Common.MonitorServiceGetHealthDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseMonitorServiceGetHealthKeyFn(queryKey),
-    queryFn: () => MonitorService.getHealth() as TData,
-    ...options,
-  });
-/**
  * Get Plugins
  * @param data The data for the request.
  * @param data.limit
@@ -1551,25 +1602,6 @@ export const useVariableServiceGetVariables = <
     ...options,
   });
 /**
- * Get Version
- * Get version information.
- * @returns VersionInfo Successful Response
- * @throws ApiError
- */
-export const useVersionServiceGetVersion = <
-  TData = Common.VersionServiceGetVersionDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseVersionServiceGetVersionKeyFn(queryKey),
-    queryFn: () => VersionService.getVersion() as TData,
-    ...options,
-  });
-/**
  * Get Xcom Entry
  * Get an XCom entry.
  * @param data The data for the request.
@@ -1623,6 +1655,43 @@ export const useXcomServiceGetXcomEntry = <
         taskId,
         xcomKey,
       }) as TData,
+    ...options,
+  });
+/**
+ * Get Health
+ * @returns HealthInfoSchema Successful Response
+ * @throws ApiError
+ */
+export const useMonitorServiceGetHealth = <
+  TData = Common.MonitorServiceGetHealthDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseMonitorServiceGetHealthKeyFn(queryKey),
+    queryFn: () => MonitorService.getHealth() as TData,
+    ...options,
+  });
+/**
+ * Get Version
+ * Get version information.
+ * @returns VersionInfo Successful Response
+ * @throws ApiError
+ */
+export const useVersionServiceGetVersion = <
+  TData = Common.VersionServiceGetVersionDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseVersionServiceGetVersionKeyFn(queryKey),
+    queryFn: () => VersionService.getVersion() as TData,
     ...options,
   });
 /**

@@ -7,6 +7,8 @@ import type {
   NextRunAssetsResponse,
   GetAssetsData,
   GetAssetsResponse,
+  GetAssetEventsData,
+  GetAssetEventsResponse,
   GetAssetData,
   GetAssetResponse,
   HistoricalMetricsData,
@@ -71,7 +73,6 @@ import type {
   GetImportErrorResponse,
   GetImportErrorsData,
   GetImportErrorsResponse,
-  GetHealthResponse,
   GetPluginsData,
   GetPluginsResponse,
   DeletePoolData,
@@ -110,9 +111,10 @@ import type {
   GetVariablesResponse,
   PostVariableData,
   PostVariableResponse,
-  GetVersionResponse,
   GetXcomEntryData,
   GetXcomEntryResponse,
+  GetHealthResponse,
+  GetVersionResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -162,6 +164,46 @@ export class AssetService {
         uri_pattern: data.uriPattern,
         dag_ids: data.dagIds,
         order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Asset Events
+   * Get asset events.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @param data.assetId
+   * @param data.sourceDagId
+   * @param data.sourceTaskId
+   * @param data.sourceRunId
+   * @param data.sourceMapIndex
+   * @returns AssetEventCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getAssetEvents(
+    data: GetAssetEventsData = {},
+  ): CancelablePromise<GetAssetEventsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/assets/events",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+        asset_id: data.assetId,
+        source_dag_id: data.sourceDagId,
+        source_task_id: data.sourceTaskId,
+        source_run_id: data.sourceRunId,
+        source_map_index: data.sourceMapIndex,
       },
       errors: {
         401: "Unauthorized",
@@ -1163,24 +1205,6 @@ export class ImportErrorService {
   }
 }
 
-export class MonitorService {
-  /**
-   * Get Health
-   * @returns HealthInfoSchema Successful Response
-   * @throws ApiError
-   */
-  public static getHealth(): CancelablePromise<GetHealthResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/monitor/health",
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-      },
-    });
-  }
-}
-
 export class PluginService {
   /**
    * Get Plugins
@@ -1812,25 +1836,6 @@ export class VariableService {
   }
 }
 
-export class VersionService {
-  /**
-   * Get Version
-   * Get version information.
-   * @returns VersionInfo Successful Response
-   * @throws ApiError
-   */
-  public static getVersion(): CancelablePromise<GetVersionResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/version/",
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-      },
-    });
-  }
-}
-
 export class XcomService {
   /**
    * Get Xcom Entry
@@ -1870,6 +1875,35 @@ export class XcomService {
         404: "Not Found",
         422: "Validation Error",
       },
+    });
+  }
+}
+
+export class MonitorService {
+  /**
+   * Get Health
+   * @returns HealthInfoSchema Successful Response
+   * @throws ApiError
+   */
+  public static getHealth(): CancelablePromise<GetHealthResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/monitor/health",
+    });
+  }
+}
+
+export class VersionService {
+  /**
+   * Get Version
+   * Get version information.
+   * @returns VersionInfo Successful Response
+   * @throws ApiError
+   */
+  public static getVersion(): CancelablePromise<GetVersionResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/version/",
     });
   }
 }

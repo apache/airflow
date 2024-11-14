@@ -26,15 +26,25 @@ from sqlalchemy.orm import Session, joinedload, subqueryload
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
 from airflow.api_fastapi.common.parameters import (
     QueryAssetDagIdPatternSearch,
+    QueryAssetIdFilter,
     QueryLimit,
     QueryOffset,
+    QuerySourceDagIdFilter,
+    QuerySourceMapIndexFilter,
+    QuerySourceRunIdFilter,
+    QuerySourceTaskIdFilter,
     QueryUriPatternSearch,
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.assets import AssetCollectionResponse, AssetResponse
+from airflow.api_fastapi.core_api.datamodels.assets import (
+    AssetCollectionResponse,
+    AssetEventCollectionResponse,
+    AssetEventResponse,
+    AssetResponse,
+)
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.models.asset import AssetModel
+from airflow.models.asset import AssetEvent, AssetModel
 
 assets_router = AirflowRouter(tags=["Asset"], prefix="/assets")
 
@@ -70,6 +80,56 @@ def get_assets(
     ).all()
     return AssetCollectionResponse(
         assets=[AssetResponse.model_validate(asset, from_attributes=True) for asset in assets],
+        total_entries=total_entries,
+    )
+
+
+@assets_router.get(
+    "/events",
+    responses=create_openapi_http_exception_doc([404]),
+)
+def get_asset_events(
+    limit: QueryLimit,
+    offset: QueryOffset,
+    order_by: Annotated[
+        SortParam,
+        Depends(
+            SortParam(
+                [
+                    "source_task_id",
+                    "source_dag_id",
+                    "source_run_id",
+                    "source_map_index",
+                    "timestamp",
+                ],
+                AssetEvent,
+            ).dynamic_depends("timestamp")
+        ),
+    ],
+    asset_id: QueryAssetIdFilter,
+    source_dag_id: QuerySourceDagIdFilter,
+    source_task_id: QuerySourceTaskIdFilter,
+    source_run_id: QuerySourceRunIdFilter,
+    source_map_index: QuerySourceMapIndexFilter,
+    session: Annotated[Session, Depends(get_session)],
+) -> AssetEventCollectionResponse:
+    """Get asset events."""
+    assets_event_select, total_entries = paginated_select(
+        select(AssetEvent),
+        filters=[asset_id, source_dag_id, source_task_id, source_run_id, source_map_index],
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
+    )
+
+    assets_event_select = assets_event_select.options(subqueryload(AssetEvent.created_dagruns))
+    assets_events = session.scalars(assets_event_select).all()
+
+    return AssetEventCollectionResponse(
+        asset_events=[
+            AssetEventResponse.model_validate(asset, from_attributes=True) for asset in assets_events
+        ],
         total_entries=total_entries,
     )
 
