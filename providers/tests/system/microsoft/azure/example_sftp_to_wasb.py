@@ -21,11 +21,11 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.decorators import task
 from airflow.providers.microsoft.azure.operators.wasb_delete_blob import WasbDeleteBlobOperator
 from airflow.providers.microsoft.azure.transfers.sftp_to_wasb import SFTPToWasbOperator
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.operators.sftp import SFTPOperator
+from airflow.providers.standard.decorators import task
 
 AZURE_CONTAINER_NAME = os.environ.get("AZURE_CONTAINER_NAME", "airflow")
 BLOB_PREFIX = os.environ.get("AZURE_BLOB_PREFIX", "airflow")

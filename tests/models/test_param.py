@@ -20,9 +20,9 @@ from contextlib import nullcontext
 
 import pytest
 
-from airflow.decorators import task
 from airflow.exceptions import ParamValidationError
 from airflow.models.param import Param, ParamsDict
+from airflow.providers.standard.decorators import task
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType

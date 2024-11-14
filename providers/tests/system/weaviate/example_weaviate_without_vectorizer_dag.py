@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.decorators import dag, setup, task, teardown
 from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator
+from airflow.providers.standard.decorators import dag, setup, task, teardown
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
 
 COLLECTION_NAME = "Weaviate_example_without_vectorizer_collection"

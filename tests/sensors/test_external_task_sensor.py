@@ -28,14 +28,14 @@ from unittest import mock
 
 import pytest
 
-from airflow import settings
-from airflow.decorators import task as task_deco
+from airflow import exceptions, settings
 from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException, TaskDeferred
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.decorators import task as task_deco
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.time import TimeSensor

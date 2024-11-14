@@ -26,7 +26,7 @@ if typing.TYPE_CHECKING:
     from pyspark import SparkContext
     from pyspark.sql import SparkSession
 
-from airflow.decorators import dag, task
+from airflow.providers.standard.decorators import dag, task
 
 
 @dag(

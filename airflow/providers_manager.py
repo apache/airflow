@@ -88,8 +88,8 @@ if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
     from airflow.assets import Asset
-    from airflow.decorators.base import TaskDecorator
     from airflow.hooks.base import BaseHook
+    from airflow.providers.standard.decorators.base import TaskDecorator
     from airflow.typing_compat import Literal
 
 

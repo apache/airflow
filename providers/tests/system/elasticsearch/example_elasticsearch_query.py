@@ -24,8 +24,8 @@ import os
 from datetime import datetime
 
 from airflow import models
-from airflow.decorators import task
 from airflow.providers.elasticsearch.hooks.elasticsearch import ElasticsearchPythonHook, ElasticsearchSQLHook
+from airflow.providers.standard.decorators import task
 from airflow.providers.standard.operators.python import PythonOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")

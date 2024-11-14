@@ -20,10 +20,14 @@ from __future__ import annotations
 import inspect
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
-from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.hooks.base import BaseHook
 from airflow.providers.apache.spark.hooks.spark_connect import SparkConnectHook
 from airflow.providers.common.compat.standard.operators import PythonOperator
+from airflow.providers.standard.decorators.base import (
+    DecoratedOperator,
+    TaskDecorator,
+    task_decorator_factory,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

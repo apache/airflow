@@ -26,7 +26,6 @@ from __future__ import annotations
 import datetime
 import os
 
-from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
 from airflow.providers.google.cloud.operators.dataproc import (
@@ -41,6 +40,7 @@ from airflow.providers.google.cloud.operators.dataproc_metastore import (
 from airflow.providers.google.cloud.operators.gcs import GCSDeleteBucketOperator
 from airflow.providers.google.cloud.sensors.dataproc_metastore import MetastoreHivePartitionSensor
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
+from airflow.providers.standard.decorators import task
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID

@@ -44,8 +44,6 @@ from kubernetes.client import models as k8s
 
 import airflow
 from airflow.assets import Asset
-from airflow.decorators import teardown
-from airflow.decorators.base import DecoratedOperator
 from airflow.exceptions import (
     AirflowException,
     ParamValidationError,
@@ -63,6 +61,8 @@ from airflow.models.param import Param, ParamsDict
 from airflow.models.xcom import XCom
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+from airflow.providers.standard.decorators import teardown
+from airflow.providers.standard.decorators.base import DecoratedOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.sensors.bash import BashSensor
 from airflow.security import permissions
@@ -2572,8 +2572,8 @@ def test_task_resources_serde():
 
 
 def test_taskflow_expand_serde():
-    from airflow.decorators import task
     from airflow.models.xcom_arg import XComArg
+    from airflow.providers.standard.decorators import task
     from airflow.serialization.serialized_objects import _ExpandInputRef, _XComRef
 
     with DAG("test-dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
@@ -2593,7 +2593,7 @@ def test_taskflow_expand_serde():
         "_is_empty": False,
         "_is_mapped": True,
         "_needs_expansion": True,
-        "_task_module": "airflow.decorators.python",
+        "_task_module": "airflow.providers.standard.decorators.python",
         "task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
         "downstream_task_ids": [],
@@ -2675,8 +2675,8 @@ def test_taskflow_expand_serde():
 
 @pytest.mark.parametrize("strict", [True, False])
 def test_taskflow_expand_kwargs_serde(strict):
-    from airflow.decorators import task
     from airflow.models.xcom_arg import XComArg
+    from airflow.providers.standard.decorators import task
     from airflow.serialization.serialized_objects import _ExpandInputRef, _XComRef
 
     with DAG("test-dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
@@ -2695,7 +2695,7 @@ def test_taskflow_expand_kwargs_serde(strict):
         "_is_empty": False,
         "_is_mapped": True,
         "_needs_expansion": True,
-        "_task_module": "airflow.decorators.python",
+        "_task_module": "airflow.providers.standard.decorators.python",
         "task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
         "start_trigger_args": None,
@@ -2774,8 +2774,8 @@ def test_taskflow_expand_kwargs_serde(strict):
 
 
 def test_mapped_task_group_serde():
-    from airflow.decorators.task_group import task_group
     from airflow.models.expandinput import DictOfListsExpandInput
+    from airflow.providers.standard.decorators.task_group import task_group
     from airflow.utils.task_group import MappedTaskGroup
 
     with DAG("test-dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:

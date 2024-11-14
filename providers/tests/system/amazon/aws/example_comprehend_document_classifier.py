@@ -20,7 +20,6 @@ import os
 from datetime import datetime
 
 from airflow import DAG, settings
-from airflow.decorators import task, task_group
 from airflow.models import Connection
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.hooks.comprehend import ComprehendHook
@@ -36,6 +35,7 @@ from airflow.providers.amazon.aws.sensors.comprehend import (
     ComprehendCreateDocumentClassifierCompletedSensor,
 )
 from airflow.providers.amazon.aws.transfers.http_to_s3 import HttpToS3Operator
+from airflow.providers.standard.decorators import task, task_group
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.amazon.aws.utils import SystemTestContextBuilder

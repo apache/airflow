@@ -43,6 +43,7 @@ import attrs
 import jinja2
 import re2
 from dateutil.relativedelta import relativedelta
+from providers.src.airflow.providers.standard.utils.decorators import fixup_decorator_warning_stack
 
 from airflow import settings
 from airflow.assets import Asset, AssetAlias, BaseAsset
@@ -65,7 +66,6 @@ from airflow.timetables.simple import (
 )
 from airflow.utils.context import Context
 from airflow.utils.dag_cycle_tester import check_cycle
-from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import EdgeInfoType
 
@@ -73,8 +73,8 @@ if TYPE_CHECKING:
     # TODO: Task-SDK: Remove pendulum core dep
     from pendulum.tz.timezone import FixedTimezone, Timezone
 
-    from airflow.decorators import TaskDecoratorCollection
     from airflow.models.operator import Operator
+    from airflow.providers.standard.decorators import TaskDecoratorCollection
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.typing_compat import Self
 
@@ -889,7 +889,7 @@ class DAG:
 
     @property
     def task(self) -> TaskDecoratorCollection:
-        from airflow.decorators import task
+        from airflow.providers.standard.decorators import task
 
         return cast("TaskDecoratorCollection", functools.partial(task, dag=self))
 

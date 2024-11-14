@@ -183,7 +183,7 @@ Below is an example of how you can reuse a decorated task in multiple DAGs:
 
 .. code-block:: python
 
-    from airflow.decorators import task, dag
+    from airflow.providers.standard.decorators import task, dag
     from datetime import datetime
 
 
@@ -216,7 +216,7 @@ Suppose the ``add_task`` code lives in a file called ``common.py``. You can do t
 .. code-block:: python
 
     from common import add_task
-    from airflow.decorators import dag
+    from airflow.providers.standard.decorators import dag
     from datetime import datetime
 
 

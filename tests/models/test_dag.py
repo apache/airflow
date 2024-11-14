@@ -38,7 +38,6 @@ from sqlalchemy import inspect, select
 from airflow import settings
 from airflow.assets import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.configuration import conf
-from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.exceptions import (
     AirflowException,
     ParamValidationError,
@@ -68,6 +67,7 @@ from airflow.models.param import DagParam, Param
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.decorators import setup, task as task_decorator, teardown
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import TaskGroup

@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.decorators import dag, task
 from airflow.providers.openai.hooks.openai import OpenAIHook
 from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator
+from airflow.providers.standard.decorators import dag, task
 
 
 def input_text_callable(

@@ -30,7 +30,7 @@ from google.protobuf.json_format import MessageToDict
 from yandexcloud.operations import OperationError
 
 from airflow import DAG
-from airflow.decorators import task
+from airflow.providers.standard.decorators import task
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
 
 from tests_common.test_utils.system_tests import get_test_env_id

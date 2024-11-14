@@ -25,7 +25,7 @@ import os
 from datetime import datetime
 
 from airflow import models
-from airflow.decorators import task
+from airflow.providers.standard.decorators import task
 
 # [END import_module]
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")

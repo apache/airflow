@@ -40,7 +40,7 @@ from sqlalchemy import select
 
 from airflow import settings
 from airflow.assets import AssetAlias
-from airflow.decorators import task, task_group
+from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -75,6 +75,7 @@ from airflow.models.variable import Variable
 from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.notifications.basenotifier import BaseNotifier
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.decorators import task, task_group
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
@@ -1525,7 +1526,7 @@ class TestTaskInstance:
         expect_state: State,
         expect_completed: bool,
     ):
-        from airflow.decorators import task
+        from airflow.providers.standard.decorators import task
 
         @task
         def do_something(i):
@@ -2387,7 +2388,7 @@ class TestTaskInstance:
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_mapped_current_state(self, dag_maker):
         with dag_maker(dag_id="test_mapped_current_state") as _:
-            from airflow.decorators import task
+            from airflow.providers.standard.decorators import task
 
             @task()
             def raise_an_exception(placeholder: int):

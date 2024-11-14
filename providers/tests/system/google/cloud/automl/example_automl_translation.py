@@ -27,7 +27,6 @@ from typing import cast
 # The storage module cannot be imported yet https://github.com/googleapis/python-storage/issues/393
 from google.cloud import storage  # type: ignore[attr-defined]
 
-from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.automl import (
@@ -41,6 +40,7 @@ from airflow.providers.google.cloud.operators.automl import (
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
+from airflow.providers.standard.decorators import task
 from airflow.utils.trigger_rule import TriggerRule
 
 DAG_ID = "automl_translate"

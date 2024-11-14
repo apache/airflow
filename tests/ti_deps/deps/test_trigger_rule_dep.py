@@ -24,10 +24,10 @@ from unittest.mock import Mock
 
 import pytest
 
-from airflow.decorators import task, task_group
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.decorators import task, task_group
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -97,7 +97,7 @@ def get_task_instance(monkeypatch, session, dag_maker):
 @pytest.fixture
 def get_mapped_task_dagrun(session, dag_maker):
     def _get_dagrun(trigger_rule=TriggerRule.ALL_SUCCESS, state=SUCCESS, add_setup_tasks: bool = False):
-        from airflow.decorators import task
+        from airflow.providers.standard.decorators import task
 
         @task
         def setup_1(i):
@@ -1173,7 +1173,7 @@ class TestTriggerRuleDep:
 
 
 def test_upstream_in_mapped_group_triggers_only_relevant(dag_maker, session):
-    from airflow.decorators import task, task_group
+    from airflow.providers.standard.decorators import task, task_group
 
     with dag_maker(session=session):
 
@@ -1240,7 +1240,7 @@ def test_upstream_in_mapped_group_triggers_only_relevant(dag_maker, session):
 
 
 def test_upstream_in_mapped_group_when_mapped_tasks_list_is_empty(dag_maker, session):
-    from airflow.decorators import task, task_group
+    from airflow.providers.standard.decorators import task, task_group
 
     with dag_maker(session=session):
 

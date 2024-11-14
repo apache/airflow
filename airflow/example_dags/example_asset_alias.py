@@ -39,7 +39,7 @@ import pendulum
 
 from airflow import DAG
 from airflow.assets import Asset, AssetAlias
-from airflow.decorators import task
+from airflow.providers.standard.decorators import task
 
 with DAG(
     dag_id="asset_s3_bucket_producer",

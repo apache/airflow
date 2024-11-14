@@ -24,7 +24,7 @@ from __future__ import annotations
 # [START import_module]
 import pendulum
 
-from airflow.decorators import dag, task
+from airflow.providers.standard.decorators import dag, task
 from airflow.sensors.base import PokeReturnValue
 
 # [END import_module]

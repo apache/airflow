@@ -27,7 +27,7 @@ import sys
 
 import pendulum
 
-from airflow.decorators import dag, task
+from airflow.providers.standard.decorators import dag, task
 
 SOME_EXTERNAL_PYTHON = sys.executable
 

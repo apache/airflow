@@ -23,9 +23,9 @@ from datetime import datetime
 from requests import Request
 
 from airflow import DAG
-from airflow.decorators import task
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.providers.jenkins.operators.jenkins_job_trigger import JenkinsJobTriggerOperator
+from airflow.providers.standard.decorators import task
 
 JENKINS_CONNECTION_ID = "your_jenkins_connection"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")

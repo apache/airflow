@@ -30,9 +30,9 @@ from sqlalchemy import select
 
 from airflow import settings
 from airflow.configuration import conf
-from airflow.decorators import task as task_decorator
 from airflow.models import DagRun, Variable
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
+from airflow.providers.standard.decorators import task as task_decorator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.task_instance_session import set_current_task_instance_session

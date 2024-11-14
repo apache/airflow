@@ -22,7 +22,6 @@ import pathlib
 from unittest.mock import MagicMock, patch
 
 from airflow import DAG
-from airflow.decorators import task
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagrun import DagRun
 from airflow.models.mappedoperator import MappedOperator
@@ -39,6 +38,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_operator_class,
     get_user_provided_run_facets,
 )
+from airflow.providers.standard.decorators import task
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
@@ -273,7 +273,7 @@ def test_get_tasks_details():
             "emits_ol_events": True,
             "is_setup": False,
             "is_teardown": False,
-            "operator": "airflow.decorators.python._PythonDecoratedOperator",
+            "operator": "airflow.providers.standard.decorators.python._PythonDecoratedOperator",
             "task_group": None,
             "ui_color": "#ffefeb",
             "ui_fgcolor": "#000",
@@ -286,7 +286,7 @@ def test_get_tasks_details():
             "emits_ol_events": True,
             "is_setup": False,
             "is_teardown": False,
-            "operator": "airflow.decorators.python._PythonDecoratedOperator",
+            "operator": "airflow.providers.standard.decorators.python._PythonDecoratedOperator",
             "task_group": None,
             "ui_color": "#ffefeb",
             "ui_fgcolor": "#000",
@@ -299,7 +299,7 @@ def test_get_tasks_details():
             "emits_ol_events": True,
             "is_setup": False,
             "is_teardown": False,
-            "operator": "airflow.decorators.python._PythonDecoratedOperator",
+            "operator": "airflow.providers.standard.decorators.python._PythonDecoratedOperator",
             "task_group": None,
             "ui_color": "#ffefeb",
             "ui_fgcolor": "#000",

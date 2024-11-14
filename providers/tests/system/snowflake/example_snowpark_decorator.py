@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from snowflake.snowpark import Session
 
 from airflow import DAG
-from airflow.decorators import task
+from airflow.providers.standard.decorators import task
 
 SNOWFLAKE_CONN_ID = "my_snowflake_conn"
 DAG_ID = "example_snowpark_decorator"

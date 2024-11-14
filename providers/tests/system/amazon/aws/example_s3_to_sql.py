@@ -19,7 +19,6 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import settings
-from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
@@ -38,6 +37,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
 from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
 from airflow.providers.amazon.aws.transfers.s3_to_sql import S3ToSqlOperator
 from airflow.providers.common.sql.operators.sql import SQLTableCheckOperator
+from airflow.providers.standard.decorators import task
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder

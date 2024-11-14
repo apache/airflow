@@ -31,7 +31,6 @@ import os
 from datetime import datetime
 
 from airflow import models
-from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.baseoperator import chain
 from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook
@@ -45,6 +44,7 @@ from airflow.providers.google.cloud.operators.dataprep import (
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.sensors.dataprep import DataprepJobGroupIsFinishedSensor
+from airflow.providers.standard.decorators import task
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 

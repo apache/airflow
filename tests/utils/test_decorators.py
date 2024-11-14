@@ -20,10 +20,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from airflow.decorators import task
+from airflow.providers.standard.decorators import task
 
 if TYPE_CHECKING:
-    from airflow.decorators.base import Task, TaskDecorator
+    from airflow.providers.standard.decorators.base import Task, TaskDecorator
 
 _CONDITION_DECORATORS = frozenset({"skip_if", "run_if"})
 _NO_SOURCE_DECORATORS = frozenset({"sensor"})

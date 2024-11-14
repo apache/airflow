@@ -20,7 +20,7 @@ import pendulum
 from weaviate.classes.config import DataType, Property
 from weaviate.collections.classes.config import Configure
 
-from airflow.decorators import dag, task, teardown
+from airflow.providers.standard.decorators import dag, task, teardown
 
 COLLECTION_NAME = "QuestionWithOpenAIVectorizerUsingHook"
 

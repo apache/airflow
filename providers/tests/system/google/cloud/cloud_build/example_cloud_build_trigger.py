@@ -28,7 +28,6 @@ from typing import Any, cast
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
-from airflow.decorators import task
 from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
@@ -40,6 +39,7 @@ from airflow.providers.google.cloud.operators.cloud_build import (
     CloudBuildRunBuildTriggerOperator,
     CloudBuildUpdateBuildTriggerOperator,
 )
+from airflow.providers.standard.decorators import task
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID

@@ -21,8 +21,8 @@ from pathlib import Path
 
 import pendulum
 
-from airflow.decorators import dag, setup, task, teardown
 from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator
+from airflow.providers.standard.decorators import dag, setup, task, teardown
 from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
 

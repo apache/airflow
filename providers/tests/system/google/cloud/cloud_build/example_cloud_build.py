@@ -28,7 +28,6 @@ from typing import Any, cast
 
 import yaml
 
-from airflow.decorators import task_group
 from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.cloud.operators.cloud_build import (
@@ -38,6 +37,7 @@ from airflow.providers.google.cloud.operators.cloud_build import (
     CloudBuildListBuildsOperator,
     CloudBuildRetryBuildOperator,
 )
+from airflow.providers.standard.decorators import task_group
 from airflow.providers.standard.operators.bash import BashOperator
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID

@@ -20,7 +20,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from airflow.decorators import dag, task
+from airflow.providers.standard.decorators import dag, task
 
 log = logging.getLogger(__name__)
 

@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.utils.decorators import remove_task_decorator
+from providers.src.airflow.providers.standard.utils.decorators import remove_task_decorator
 
 
 class TestExternalPythonDecorator:

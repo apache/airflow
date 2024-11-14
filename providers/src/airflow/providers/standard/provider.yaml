@@ -66,6 +66,32 @@ hooks:
       - airflow.providers.standard.hooks.package_index
       - airflow.providers.standard.hooks.subprocess
 
+task-decorators:
+  - class-name: airflow.decorators.base
+    name: base
+  - class-name: airflow.decorators.bash
+    name: bash
+  - class-name: airflow.decorators.branch_external_python
+    name: branch_external_python
+  - class-name: airflow.decorators.branch_python
+    name: branch_python
+  - class-name: airflow.decorators.branch_virtualenv
+    name: branch_virtualenv
+  - class-name: airflow.decorators.condition
+    name: condition
+  - class-name: airflow.decorators.external_python
+    name: external_python
+  - class-name: airflow.decorators.python
+    name: python
+  - class-name: airflow.decorators.python_virtualenv
+    name: python_virtualenv
+  - class-name: airflow.decorators.setup_teardown
+    name: setup_teardown
+  - class-name: airflow.decorators.short_circuit
+    name: short_circuit
+  - class-name: airflow.decorators.task_group
+    name: task_group
+
 config:
   standard:
     description: Options for the standard provider operators.

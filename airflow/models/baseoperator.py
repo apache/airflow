@@ -357,7 +357,7 @@ class ExecutorSafeguard:
     def decorator(cls, func):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
-            from airflow.decorators.base import DecoratedOperator
+            from airflow.providers.standard.decorators.base import DecoratedOperator
 
             sentinel_key = f"{self.__class__.__name__}__sentinel"
             sentinel = kwargs.pop(sentinel_key, None)

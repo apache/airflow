@@ -20,7 +20,7 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.decorators import task
+from airflow.providers.standard.decorators import task
 from airflow.providers.zendesk.hooks.zendesk import ZendeskHook
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")

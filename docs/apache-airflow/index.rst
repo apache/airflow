@@ -40,7 +40,7 @@ Take a look at the following snippet of code:
     from datetime import datetime
 
     from airflow import DAG
-    from airflow.decorators import task
+    from airflow.providers.standard.decorators import task
     from airflow.providers.standard.operators.bash import BashOperator
 
     # A DAG represents a workflow, a collection of tasks

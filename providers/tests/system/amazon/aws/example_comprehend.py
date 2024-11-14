@@ -20,7 +20,6 @@ import json
 from datetime import datetime
 
 from airflow import DAG
-from airflow.decorators import task_group
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.comprehend import ComprehendStartPiiEntitiesDetectionJobOperator
 from airflow.providers.amazon.aws.operators.s3 import (
@@ -31,6 +30,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
 from airflow.providers.amazon.aws.sensors.comprehend import (
     ComprehendStartPiiEntitiesDetectionJobCompletedSensor,
 )
+from airflow.providers.standard.decorators import task_group
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.amazon.aws.utils import SystemTestContextBuilder

@@ -34,6 +34,7 @@
     :maxdepth: 1
     :caption: Guides
 
+    Decorators <decorators/index>
     Operators <operators/index>
     Sensors <sensors/index>
     Configuration <configurations-ref>

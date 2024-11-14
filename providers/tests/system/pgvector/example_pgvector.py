@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.decorators import dag, task
 from airflow.providers.pgvector.hooks.pgvector import PgVectorHook
 from airflow.providers.pgvector.operators.pgvector import PgVectorIngestOperator
+from airflow.providers.standard.decorators import dag, task
 
 TABLE_NAME = "my_table"
 POSTGRES_CONN_ID = "postgres_default"

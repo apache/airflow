@@ -22,8 +22,6 @@ import datetime
 import pytest
 from dateutil import relativedelta
 
-from airflow.decorators import task
-from airflow.decorators.python import _PythonDecoratedOperator
 from airflow.jobs.job import Job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.models import MappedOperator
@@ -34,6 +32,8 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.dag import DAG, DagModel
+from airflow.providers.standard.decorators import task
+from airflow.providers.standard.decorators.python import _PythonDecoratedOperator
 from airflow.serialization.pydantic.asset import AssetEventPydantic
 from airflow.serialization.pydantic.dag import DagModelPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic

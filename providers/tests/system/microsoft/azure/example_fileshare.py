@@ -19,9 +19,9 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow.decorators import task
 from airflow.models import DAG
 from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
+from airflow.providers.standard.decorators import task
 
 NAME = "myfileshare"
 DIRECTORY = "mydirectory"

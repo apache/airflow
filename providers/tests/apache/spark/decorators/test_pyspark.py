@@ -21,8 +21,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.decorators import task
 from airflow.models import Connection
+from airflow.providers.standard.decorators import task
 from airflow.utils import db, timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)

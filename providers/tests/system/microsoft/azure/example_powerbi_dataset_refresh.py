@@ -20,10 +20,10 @@ import os
 from datetime import datetime
 
 from airflow import DAG, settings
-from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.baseoperator import chain
 from airflow.providers.microsoft.azure.operators.powerbi import PowerBIDatasetRefreshOperator
+from airflow.providers.standard.decorators import task
 
 DAG_ID = "example_refresh_powerbi_dataset"
 CONN_ID = "powerbi_default"

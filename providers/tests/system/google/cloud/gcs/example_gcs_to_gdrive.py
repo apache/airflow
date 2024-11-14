@@ -30,13 +30,13 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 from airflow.providers.google.suite.transfers.gcs_to_gdrive import GCSToGoogleDriveOperator
+from airflow.providers.standard.decorators import task
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 

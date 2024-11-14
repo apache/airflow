@@ -44,7 +44,6 @@ from datetime import datetime
 from google.analytics import admin_v1beta as google_analytics
 from google.cloud.exceptions import NotFound
 
-from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.secret_manager import GoogleCloudSecretManagerHook
@@ -57,6 +56,7 @@ from airflow.providers.google.marketing_platform.operators.analytics_admin impor
     GoogleAnalyticsAdminListAccountsOperator,
     GoogleAnalyticsAdminListGoogleAdsLinksOperator,
 )
+from airflow.providers.standard.decorators import task
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 

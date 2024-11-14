@@ -25,7 +25,6 @@ from datetime import datetime
 
 from google.cloud import storage  # type: ignore[attr-defined]
 
-from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.automl import (
     AutoMLCreateDatasetOperator,
@@ -38,6 +37,7 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSDeleteBucketOperator,
 )
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
+from airflow.providers.standard.decorators import task
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")

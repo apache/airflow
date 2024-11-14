@@ -21,10 +21,10 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow.decorators import task
 from airflow.models import DAG
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 from airflow.providers.ssh.operators.ssh import SSHOperator
+from airflow.providers.standard.decorators import task
 
 SFTP_DIRECTORY = os.environ.get("SFTP_DIRECTORY", "example-empty-directory").rstrip("/") + "/"
 FULL_FILE_PATH = f"{SFTP_DIRECTORY}example_test_sftp_sensor_decory_file.txt"

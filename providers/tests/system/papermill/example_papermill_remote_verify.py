@@ -29,8 +29,8 @@ from datetime import datetime, timedelta
 import scrapbook as sb
 
 from airflow import DAG
-from airflow.decorators import task
 from airflow.providers.papermill.operators.papermill import PapermillOperator
+from airflow.providers.standard.decorators import task
 
 START_DATE = datetime(2021, 1, 1)
 SCHEDULE_INTERVAL = "@once"

@@ -49,7 +49,6 @@ from datetime import datetime
 
 from google.cloud.bigtable import enums
 
-from airflow.decorators import task_group
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.bigtable import (
     BigtableCreateInstanceOperator,
@@ -60,6 +59,7 @@ from airflow.providers.google.cloud.operators.bigtable import (
     BigtableUpdateInstanceOperator,
 )
 from airflow.providers.google.cloud.sensors.bigtable import BigtableTableReplicationCompletedSensor
+from airflow.providers.standard.decorators import task_group
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
