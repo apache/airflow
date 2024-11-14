@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal, Union
+from typing import Annotated, Any, Literal, Union
 
 from pydantic import (
     BaseModel,
@@ -132,6 +132,23 @@ class ConnectionResponse(BaseModel):
     password: str | None
     port: int | None
     extra: str | None
+
+
+class VariableResponse(BaseModel):
+    """Variable schema for responses with fields that are needed for Runtime."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    key: str
+    val: str | None = Field(alias="value")
+
+
+class XComResponse(BaseModel):
+    """XCom schema for responses with fields that are needed for Runtime."""
+
+    key: str
+    value: Any
+    """The returned XCom value in a JSON-compatible format."""
 
 
 # TODO: This is a placeholder for Task Identity Token schema.

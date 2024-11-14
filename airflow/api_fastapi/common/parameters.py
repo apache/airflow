@@ -19,22 +19,23 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Generic, List, Optional, TypeVar
+from typing import TYPE_CHECKING, Annotated, Any, Callable, Generic, List, Optional, TypeVar
 
 from fastapi import Depends, HTTPException, Query
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel
 from sqlalchemy import Column, case, or_
 from sqlalchemy.inspection import inspect
-from typing_extensions import Annotated, Self
 
 from airflow.api_connexion.endpoints.task_instance_endpoint import _convert_ti_states
 from airflow.models import Base, Connection
+from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.errors import ParseImportError
 from airflow.models.taskinstance import TaskInstance
+from airflow.typing_compat import Self
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 
@@ -177,13 +178,12 @@ class SortParam(BaseParam[str]):
     }
 
     def __init__(
-        self,
-        allowed_attrs: list[str],
-        model: Base,
+        self, allowed_attrs: list[str], model: Base, to_replace: dict[str, str] | None = None
     ) -> None:
         super().__init__()
         self.allowed_attrs = allowed_attrs
         self.model = model
+        self.to_replace = to_replace
 
     def to_orm(self, select: Select) -> Select:
         if self.skip_none is False:
@@ -193,6 +193,9 @@ class SortParam(BaseParam[str]):
             return select
 
         lstriped_orderby = self.value.lstrip("-")
+        if self.to_replace:
+            lstriped_orderby = self.to_replace.get(lstriped_orderby, lstriped_orderby)
+
         if self.allowed_attrs and lstriped_orderby not in self.allowed_attrs:
             raise HTTPException(
                 400,
@@ -406,6 +409,37 @@ class _DagIdFilter(BaseParam[str]):
         return self.set_value(dag_id)
 
 
+class _UriPatternSearch(_SearchParam):
+    """Search on uri."""
+
+    def __init__(self, skip_none: bool = True) -> None:
+        super().__init__(AssetModel.uri, skip_none)
+
+    def depends(self, uri_pattern: str | None = None) -> _UriPatternSearch:
+        return self.set_value(uri_pattern)
+
+
+class _DagIdAssetReferenceFilter(BaseParam[list[str]]):
+    """Search on dag_id."""
+
+    def __init__(self, skip_none: bool = True) -> None:
+        super().__init__(AssetModel.consuming_dags, skip_none)
+
+    def depends(self, dag_ids: list[str] = Query(None)) -> _DagIdAssetReferenceFilter:
+        # needed to handle cases where dag_ids=a1,b1
+        if dag_ids and len(dag_ids) == 1 and "," in dag_ids[0]:
+            dag_ids = dag_ids[0].split(",")
+        return self.set_value(dag_ids)
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(
+            (AssetModel.consuming_dags.any(DagScheduleAssetReference.dag_id.in_(self.value)))
+            | (AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id.in_(self.value)))
+        )
+
+
 class Range(BaseModel, Generic[T]):
     """Range with a lower and upper bound."""
 
@@ -491,8 +525,15 @@ QueryWarningTypeFilter = Annotated[_WarningTypeFilter, Depends(_WarningTypeFilte
 
 # DAGTags
 QueryDagTagPatternSearch = Annotated[_DagTagNamePatternSearch, Depends(_DagTagNamePatternSearch().depends)]
+
 # TI
 QueryTIStateFilter = Annotated[_TIStateFilter, Depends(_TIStateFilter().depends)]
 QueryTIPoolFilter = Annotated[_TIPoolFilter, Depends(_TIPoolFilter().depends)]
 QueryTIQueueFilter = Annotated[_TIQueueFilter, Depends(_TIQueueFilter().depends)]
 QueryTIExecutorFilter = Annotated[_TIExecutorFilter, Depends(_TIExecutorFilter().depends)]
+
+# Assets
+QueryUriPatternSearch = Annotated[_UriPatternSearch, Depends(_UriPatternSearch().depends)]
+QueryAssetDagIdPatternSearch = Annotated[
+    _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter().depends)
+]
