@@ -35,3 +35,56 @@ def get_latest_airflow_version():
     response.raise_for_status()
     latest_released_version = response.json()["info"]["version"]
     return latest_released_version
+
+def create_package_version(version_suffix_for_pypi: str, version_suffix_for_local: str) -> str:
+    """
+    Creates a package version by combining the version suffix for PyPI and the version suffix for local. If
+    either one is an empty string, it is ignored. If the local suffix does not have a leading plus sign,
+    the leading plus sign will be added.
+
+    Args:
+        version_suffix_for_pypi (str): The version suffix for PyPI.
+        version_suffix_for_local (str): The version suffix for local.
+
+    Returns:
+        str: The combined package version.
+
+    """
+    # if there is no local version suffix, return the PyPi version suffix
+    if not version_suffix_for_local:
+        return version_suffix_for_pypi
+
+    # ensure the local version suffix starts with a plus sign
+    if version_suffix_for_local[0] != "+":
+        version_suffix_for_local = '+' + version_suffix_for_local
+
+    # if there is a PyPi version suffix, return the combined version. Otherwise just return the local version.
+    if version_suffix_for_pypi:
+        return version_suffix_for_pypi + version_suffix_for_local
+    else:
+        return version_suffix_for_local
+
+
+def remove_local_version_suffix(version_suffix: str) -> str:
+    if '+' in version_suffix:
+        return version_suffix.split('+')[0]
+    else:
+        return version_suffix
+
+
+def is_local_package_version(version_suffix: str) -> bool:
+    """
+    Check if the given version suffix is a local version suffix. A local version suffix will contain a
+    plus sign ('+'). This function does not guarantee that the version suffix is a valid local version suffix.
+
+    Args:
+        version_suffix (str): The version suffix to check.
+
+    Returns:
+        bool: True if the version suffix contais a '+', False otherwise. Please note this does not
+        guarantee that the version suffix is a valid local version suffix.
+    """
+    if version_suffix and ('+' in version_suffix):
+        return True
+    else:
+        return False

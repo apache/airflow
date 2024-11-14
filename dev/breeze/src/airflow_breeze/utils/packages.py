@@ -50,6 +50,8 @@ from airflow_breeze.utils.publish_docs_helpers import (
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.versions import get_version_tag, strip_leading_zeros_from_version
 
+from airflow_breeze.utils.version_utils import remove_local_version_suffix
+
 MIN_AIRFLOW_VERSION = "2.8.0"
 HTTPS_REMOTE = "apache-https-for-providers"
 
@@ -420,11 +422,11 @@ def get_dist_package_name_prefix(provider_id: str) -> str:
 
 
 def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
-    if (
-        install_clause.startswith("apache-airflow")
+    # Need to resolve a version suffix based on PyPi versions, but can ignore local version suffix.
+    pypi_version_suffix = remove_local_version_suffix(version_suffix)
+    if (pypi_version_suffix
+        and install_clause.startswith("apache-airflow")
         and ">=" in install_clause
-        and version_suffix
-        and not is_local_version_suffix(version_suffix)
     ):
         # Applies version suffix to the apache-airflow and provider package dependencies to make
         # sure that pre-release versions have correct limits - this address the issue with how
@@ -444,29 +446,11 @@ def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
 
         base_version = Version(version).base_version
         # always use `pre-release`+ `0` as the version suffix
-        version_suffix = version_suffix.rstrip("0123456789") + "0"
+        pypi_version_suffix = pypi_version_suffix.rstrip("0123456789") + "0"
 
-        target_version = Version(str(base_version) + "." + version_suffix)
+        target_version = Version(str(base_version) + "." + pypi_version_suffix)
         return prefix + ">=" + str(target_version)
     return install_clause
-
-
-def is_local_version_suffix(version_suffix: str) -> bool:
-    """
-    Check if the given version suffix is a local version suffix. A local version suffix must start with a
-    plus sign ('+') and be followed only by ascii letters, digits, and periods. They must start and end
-    with an ascii letter or digit.
-
-    Args:
-        version_suffix (str): The version suffix to check.
-
-    Returns:
-        bool: True if the version suffix starts with '+', False otherwise. Please note this does not
-        guarantee that the version suffix is a valid local version suffix.
-    """
-    if version_suffix:
-        return version_suffix.startswith("+")
-    return False
 
 
 def get_install_requirements(provider_id: str, version_suffix: str) -> str:
@@ -628,7 +612,7 @@ def format_version_suffix(version_suffix: str) -> str:
 
     """
     if version_suffix:
-        if is_local_version_suffix(version_suffix):
+        if '.' == version_suffix[0] or '+' == version_suffix[0]:
             return version_suffix
         else:
             return f".{version_suffix}"
