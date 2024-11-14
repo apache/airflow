@@ -158,7 +158,7 @@ def patch_dag_run(
 def clear_dag_run(
     dag_id: str,
     dag_run_id: str,
-    patch_body: DAGRunClearBody,
+    body: DAGRunClearBody,
     request: Request,
     session: Annotated[Session, Depends(get_session)],
 ) -> TaskInstanceCollectionResponse | DAGRunResponse:
