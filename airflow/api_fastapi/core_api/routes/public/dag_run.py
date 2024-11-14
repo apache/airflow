@@ -177,10 +177,9 @@ def clear_dag_run(
 
         return TaskInstanceCollectionResponse(
             task_instances=[
-                TaskInstanceResponse.model_validate(ti, from_attributes=True)
-                for ti in task_instances  # type: ignore[union-attr]
+                TaskInstanceResponse.model_validate(ti, from_attributes=True) for ti in task_instances
             ],
-            total_entries=len(task_instances),  # type: ignore[arg-type]
+            total_entries=len(task_instances),
         )
     else:
         dag.clear(
