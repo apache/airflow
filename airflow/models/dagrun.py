@@ -1020,35 +1020,7 @@ class DagRun(Base, LoggingMixin):
                 dagv.version if dagv else None,
             )
 
-            with Trace.start_span_from_dagrun(dagrun=self) as span:
-                if self._state is DagRunState.FAILED:
-                    span.set_attribute("error", True)
-                attributes = {
-                    "category": "DAG runs",
-                    "dag_id": str(self.dag_id),
-                    "execution_date": str(self.execution_date),
-                    "run_id": str(self.run_id),
-                    "queued_at": str(self.queued_at),
-                    "run_start_date": str(self.start_date),
-                    "run_end_date": str(self.end_date),
-                    "run_duration": str(
-                        (self.end_date - self.start_date).total_seconds()
-                        if self.start_date and self.end_date
-                        else 0
-                    ),
-                    "state": str(self._state),
-                    "external_trigger": str(self.external_trigger),
-                    "run_type": str(self.run_type),
-                    "data_interval_start": str(self.data_interval_start),
-                    "data_interval_end": str(self.data_interval_end),
-                    "dag_version": str(dagv.version if dagv else None),
-                    "conf": str(self.conf),
-                }
-                if span.is_recording():
-                    span.add_event(name="queued", timestamp=datetime_to_nano(self.queued_at))
-                    span.add_event(name="started", timestamp=datetime_to_nano(self.start_date))
-                    span.add_event(name="ended", timestamp=datetime_to_nano(self.end_date))
-                span.set_attributes(attributes)
+            self._trace_dagrun(dagv)
 
             session.flush()
 
@@ -1059,6 +1031,35 @@ class DagRun(Base, LoggingMixin):
         # We do not flush here for performance reasons(It increases queries count by +20)
 
         return schedulable_tis, callback
+
+    def _trace_dagrun(self, dagv) -> None:
+        with Trace.start_span_from_dagrun(dagrun=self) as span:
+            if self._state == DagRunState.FAILED:
+                span.set_attribute("error", True)
+            attributes = {
+                "category": "DAG runs",
+                "dag_id": self.dag_id,
+                "execution_date": str(self.execution_date),
+                "run_id": self.run_id,
+                "queued_at": str(self.queued_at),
+                "run_start_date": str(self.start_date),
+                "run_end_date": str(self.end_date),
+                "run_duration": (self.end_date - self.start_date).total_seconds()
+                if self.start_date and self.end_date
+                else 0,
+                "state": str(self._state),
+                "external_trigger": self.external_trigger,
+                "run_type": str(self.run_type),
+                "data_interval_start": str(self.data_interval_start),
+                "data_interval_end": str(self.data_interval_end),
+                "dag_version": str(dagv.version if dagv else None),
+                "conf": str(self.conf),
+            }
+            if span.is_recording():
+                span.add_event(name="queued", timestamp=datetime_to_nano(self.queued_at))
+                span.add_event(name="started", timestamp=datetime_to_nano(self.start_date))
+                span.add_event(name="ended", timestamp=datetime_to_nano(self.end_date))
+            span.set_attributes(attributes)
 
     @provide_session
     def task_instance_scheduling_decisions(self, session: Session = NEW_SESSION) -> TISchedulingDecision:

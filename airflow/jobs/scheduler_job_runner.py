@@ -859,7 +859,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @classmethod
     def _set_span_attrs__process_executor_events(cls, span, state, ti):
-        # Use span.set_attributes
         span.set_attributes(
             {
                 "category": "scheduler",
