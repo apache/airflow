@@ -149,7 +149,9 @@ def patch_dag_run(
     return DAGRunResponse.model_validate(dag_run, from_attributes=True)
 
 
-@dag_run_router.post("/{dag_run_id}/clear", responses=create_openapi_http_exception_doc([401, 403, 404]))
+@dag_run_router.post(
+    "/{dag_run_id}/clear", responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND])
+)
 def clear_dag_run(
     dag_id: str,
     dag_run_id: str,
@@ -191,5 +193,5 @@ def clear_dag_run(
             only_failed=False,
             session=session,
         )
-        dag_run_cleared = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
+        dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
         return DAGRunResponse.model_validate(dag_run_cleared, from_attributes=True)
