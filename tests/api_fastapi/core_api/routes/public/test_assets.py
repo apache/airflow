@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import urllib
+
 import pytest
 
 from airflow.models import DagModel
@@ -26,6 +28,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_assets, clear_db_runs
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
@@ -417,3 +420,42 @@ class TestGetAssetEvents(TestAssets):
         assert response.status_code == 200
         asset_uris = [asset["uri"] for asset in response.json()["asset_events"]]
         assert asset_uris == expected_asset_uris
+
+
+class TestGetAssetEndpoint(TestAssets):
+    @pytest.mark.parametrize(
+        "url",
+        [
+            urllib.parse.quote(
+                "s3://bucket/key/1", safe=""
+            ),  # api should cover raw as well as unquoted case like legacy
+            "s3://bucket/key/1",
+        ],
+    )
+    @provide_session
+    def test_should_respond_200(self, test_client, url, session):
+        self.create_assets(num=1)
+        assert session.query(AssetModel).count() == 1
+        tz_datetime_format = self.default_time.replace("+00:00", "Z")
+        with assert_queries_count(6):
+            response = test_client.get(
+                f"/public/assets/{url}",
+            )
+        assert response.status_code == 200
+        assert response.json() == {
+            "id": 1,
+            "uri": "s3://bucket/key/1",
+            "extra": {"foo": "bar"},
+            "created_at": tz_datetime_format,
+            "updated_at": tz_datetime_format,
+            "consuming_dags": [],
+            "producing_tasks": [],
+            "aliases": [],
+        }
+
+    def test_should_respond_404(self, test_client):
+        response = test_client.get(
+            f"/public/assets/{urllib.parse.quote('s3://bucket/key', safe='')}",
+        )
+        assert response.status_code == 404
+        assert response.json()["detail"] == "The Asset with uri: `s3://bucket/key` was not found"

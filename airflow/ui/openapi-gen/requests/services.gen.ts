@@ -9,6 +9,8 @@ import type {
   GetAssetsResponse,
   GetAssetEventsData,
   GetAssetEventsResponse,
+  GetAssetData,
+  GetAssetResponse,
   HistoricalMetricsData,
   HistoricalMetricsResponse,
   RecentDagRunsData,
@@ -202,6 +204,32 @@ export class AssetService {
         source_task_id: data.sourceTaskId,
         source_run_id: data.sourceRunId,
         source_map_index: data.sourceMapIndex,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Asset
+   * Get an asset.
+   * @param data The data for the request.
+   * @param data.uri
+   * @returns AssetResponse Successful Response
+   * @throws ApiError
+   */
+  public static getAsset(
+    data: GetAssetData,
+  ): CancelablePromise<GetAssetResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/assets/{uri}",
+      path: {
+        uri: data.uri,
       },
       errors: {
         401: "Unauthorized",
@@ -844,6 +872,8 @@ export class DagService {
         order_by: data.orderBy,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });
@@ -1185,6 +1215,10 @@ export class MonitorService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/monitor/health",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+      },
     });
   }
 }
@@ -1209,6 +1243,8 @@ export class PluginService {
         offset: data.offset,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });
@@ -1377,6 +1413,8 @@ export class ProviderService {
         offset: data.offset,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
         422: "Validation Error",
       },
     });
@@ -1827,6 +1865,10 @@ export class VersionService {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/version/",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+      },
     });
   }
 }

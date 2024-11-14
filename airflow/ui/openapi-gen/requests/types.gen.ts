@@ -293,6 +293,7 @@ export type DAGRunResponse = {
   run_id: string | null;
   dag_id: string;
   logical_date: string | null;
+  queued_at: string | null;
   start_date: string | null;
   end_date: string | null;
   data_interval_start: string | null;
@@ -983,6 +984,12 @@ export type GetAssetEventsData = {
 
 export type GetAssetEventsResponse = AssetEventCollectionResponse;
 
+export type GetAssetData = {
+  uri: string;
+};
+
+export type GetAssetResponse = AssetResponse;
+
 export type HistoricalMetricsData = {
   endDate: string;
   startDate: string;
@@ -1478,6 +1485,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: AssetEventCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/assets/{uri}": {
+    get: {
+      req: GetAssetData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: AssetResponse;
         /**
          * Unauthorized
          */
@@ -2042,6 +2076,14 @@ export type $OpenApiTs = {
          */
         200: DAGCollectionResponse;
         /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
          * Validation Error
          */
         422: HTTPValidationError;
@@ -2327,6 +2369,14 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: HealthInfoSchema;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
       };
     };
   };
@@ -2338,6 +2388,14 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: PluginCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -2486,6 +2544,14 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: ProviderCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -2818,6 +2884,14 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: VersionInfo;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
       };
     };
   };
