@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 import shutil
 import tempfile
+from datetime import timedelta
 
 import pytest
 
@@ -36,13 +37,14 @@ TEST_DAG_ID = "unit_tests_file_sensor"
 DEFAULT_DATE = datetime(2015, 1, 1)
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 class TestFileSensor:
     def setup_method(self):
-        from airflow.hooks.filesystem import FSHook
+        from airflow.providers.standard.hooks.filesystem import FSHook
 
         hook = FSHook()
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG(TEST_DAG_ID + "test_schedule_dag_once", default_args=args)
+        dag = DAG(TEST_DAG_ID + "test_schedule_dag_once", schedule=timedelta(days=1), default_args=args)
         self.hook = hook
         self.dag = dag
 

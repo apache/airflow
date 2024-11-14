@@ -17,9 +17,14 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Iterable, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Iterable, Optional
 
-from typing_extensions import Annotated
+from pydantic import (
+    BaseModel as BaseModelPydantic,
+    ConfigDict,
+    PlainSerializer,
+    PlainValidator,
+)
 
 from airflow.exceptions import AirflowRescheduleException, TaskDeferred
 from airflow.models import Operator
@@ -34,24 +39,18 @@ from airflow.models.taskinstance import (
 )
 from airflow.serialization.pydantic.dag import DagModelPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
+from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
-from airflow.utils.pydantic import (
-    BaseModel as BaseModelPydantic,
-    ConfigDict,
-    PlainSerializer,
-    PlainValidator,
-    is_pydantic_2_installed,
-)
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     import pendulum
+    from pydantic import ValidationInfo
     from sqlalchemy.orm import Session
 
     from airflow.models.dagrun import DagRun
     from airflow.utils.context import Context
-    from airflow.utils.pydantic import ValidationInfo
     from airflow.utils.state import DagRunState
 
 
@@ -84,6 +83,7 @@ PydanticOperator = Annotated[
 class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     """Serializable representation of the TaskInstance ORM SqlAlchemyModel used by internal API."""
 
+    id: str
     task_id: str
     dag_id: str
     run_id: str
@@ -97,7 +97,6 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     max_tries: int
     hostname: str
     unixname: str
-    job_id: Optional[int]
     pool: str
     pool_slots: int
     queue: str
@@ -106,6 +105,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     custom_operator_name: Optional[str]
     queued_dttm: Optional[datetime]
     queued_by_job_id: Optional[int]
+    last_heartbeat_at: Optional[datetime] = None
     pid: Optional[int]
     executor: Optional[str]
     executor_config: Any
@@ -139,7 +139,6 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         self,
         mark_success: bool = False,
         test_mode: bool = False,
-        job_id: str | None = None,
         pool: str | None = None,
         raise_on_defer: bool = False,
         session: Session | None = None,
@@ -148,7 +147,6 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
             ti=self,
             mark_success=mark_success,
             test_mode=test_mode,
-            job_id=job_id,
             pool=pool,
             raise_on_defer=raise_on_defer,
             session=session,
@@ -204,7 +202,6 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         self,
         key: str,
         value: Any,
-        execution_date: datetime | None = None,
         session: Session | None = None,
     ) -> None:
         """
@@ -212,13 +209,11 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         :param key: the key to identify the XCom value
         :param value: the value of the XCom
-        :param execution_date: the execution date to push the XCom for
         """
         return TaskInstance.xcom_push(
             self=self,  # type: ignore[arg-type]
             key=key,
             value=value,
-            execution_date=execution_date,
             session=session,
         )
 
@@ -256,6 +251,12 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         _refresh_from_db(task_instance=self, session=session, lock_for_update=lock_for_update)
 
+    def update_heartbeat(self):
+        """Update the recorded heartbeat for this task to "now"."""
+        from airflow.models.taskinstance import _update_ti_heartbeat
+
+        return _update_ti_heartbeat(self.id, timezone.utcnow())
+
     def set_duration(self) -> None:
         """Set task instance duration."""
         from airflow.models.taskinstance import _set_duration
@@ -288,8 +289,12 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         """
         from airflow.models.taskinstance import _get_template_context
 
+        if TYPE_CHECKING:
+            assert self.task
+            assert self.task.dag
         return _get_template_context(
             task_instance=self,
+            dag=self.task.dag,
             session=session,
             ignore_param_exceptions=ignore_param_exceptions,
         )
@@ -377,6 +382,21 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         return _get_previous_execution_date(task_instance=self, state=state, session=session)
 
+    def get_previous_start_date(
+        self,
+        state: DagRunState | None = None,
+        session: Session | None = None,
+    ) -> pendulum.DateTime | None:
+        """
+        Return the execution date from property previous_ti_success.
+
+        :param state: If passed, it only take into account instances of a specific state.
+        :param session: SQLAlchemy ORM Session
+        """
+        from airflow.models.taskinstance import _get_previous_start_date
+
+        return _get_previous_start_date(task_instance=self, state=state, session=session)
+
     def email_alert(self, exception, task: BaseOperator) -> None:
         """
         Send alert email with exception information.
@@ -426,7 +446,6 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         ignore_ti_state: bool = False,
         mark_success: bool = False,
         test_mode: bool = False,
-        job_id: str | None = None,
         pool: str | None = None,
         external_executor_id: str | None = None,
         session: Session | None = None,
@@ -442,20 +461,9 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
             mark_success=mark_success,
             test_mode=test_mode,
             hostname=get_hostname(),
-            job_id=job_id,
             pool=pool,
             external_executor_id=external_executor_id,
             session=session,
-        )
-
-    def schedule_downstream_tasks(self, session: Session | None = None, max_tis_per_query: int | None = None):
-        """
-        Schedule downstream tasks of this task instance.
-
-        :meta: private
-        """
-        return TaskInstance._schedule_downstream_tasks(
-            ti=self, session=session, max_tis_per_query=max_tis_per_query
         )
 
     def command_as_list(
@@ -467,9 +475,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         wait_for_past_depends_before_skipping: bool = False,
         ignore_ti_state: bool = False,
         local: bool = False,
-        pickle_id: int | None = None,
         raw: bool = False,
-        job_id: str | None = None,
         pool: str | None = None,
         cfg_path: str | None = None,
     ) -> list[str]:
@@ -487,15 +493,13 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
             wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
             ignore_ti_state=ignore_ti_state,
             local=local,
-            pickle_id=pickle_id,
             raw=raw,
-            job_id=job_id,
             pool=pool,
             cfg_path=cfg_path,
         )
 
-    def _register_dataset_changes(self, *, events, session: Session | None = None) -> None:
-        TaskInstance._register_dataset_changes(self=self, events=events, session=session)  # type: ignore[arg-type]
+    def _register_asset_changes(self, *, events, session: Session | None = None) -> None:
+        TaskInstance._register_asset_changes(self=self, events=events, session=session)  # type: ignore[arg-type]
 
     def defer_task(self, exception: TaskDeferred, session: Session | None = None):
         """Defer task."""
@@ -518,6 +522,19 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         )
         _set_ti_attrs(self, updated_ti)  # _handle_reschedule is a remote call that mutates the TI
 
+    def get_relevant_upstream_map_indexes(
+        self,
+        upstream: Operator,
+        ti_count: int | None,
+        *,
+        session: Session | None = None,
+    ) -> int | range | None:
+        return TaskInstance.get_relevant_upstream_map_indexes(
+            self=self,  # type: ignore[arg-type]
+            upstream=upstream,
+            ti_count=ti_count,
+            session=session,
+        )
 
-if is_pydantic_2_installed():
-    TaskInstancePydantic.model_rebuild()
+
+TaskInstancePydantic.model_rebuild()

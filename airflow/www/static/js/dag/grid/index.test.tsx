@@ -153,10 +153,10 @@ const mockGridData = {
       note: "myCoolDagRun",
       externalTrigger: false,
       conf: null,
-      confIsJson: false,
     },
   ],
   ordering: ["dataIntervalStart"],
+  errors: [],
 } as useGridDataModule.GridData;
 
 const EXPAND = "Expand all task groups";

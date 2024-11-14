@@ -19,9 +19,11 @@
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
+from shutil import rmtree
 from typing import NamedTuple
 
 from in_container_utils import click, console, run_command
@@ -402,7 +404,7 @@ ALLOWED_MOUNT_SOURCES = ["remove", "tests", "providers-and-tests"]
 )
 @click.option(
     "--python-version",
-    default="3.8",
+    default="3.9",
     envvar="PYTHON_MAJOR_MINOR_VERSION",
     show_default=True,
     help="Python version to use",
@@ -479,10 +481,11 @@ def install_airflow_and_providers(
     )
     if installation_spec.airflow_package and install_airflow_with_constraints:
         base_install_airflow_cmd = [
+            "/usr/local/bin/uv",
             "pip",
             "install",
-            "--root-user-action",
-            "ignore",
+            "--python",
+            "/usr/local/bin/python",
             installation_spec.airflow_package,
         ]
         install_airflow_cmd = base_install_airflow_cmd.copy()
@@ -499,7 +502,13 @@ def install_airflow_and_providers(
             )
             run_command(base_install_airflow_cmd, github_actions=github_actions, check=True)
     if installation_spec.provider_packages or not install_airflow_with_constraints:
-        base_install_providers_cmd = ["pip", "install", "--root-user-action", "ignore"]
+        base_install_providers_cmd = [
+            "/usr/local/bin/uv",
+            "pip",
+            "install",
+            "--python",
+            "/usr/local/bin/python",
+        ]
         if not install_airflow_with_constraints and installation_spec.airflow_package:
             base_install_providers_cmd.append(installation_spec.airflow_package)
         console.print("\n[bright_blue]Installing provider packages:")
@@ -540,6 +549,15 @@ def install_airflow_and_providers(
             shell=True,
             check=False,
         )
+        import importlib.util
+
+        spec = importlib.util.find_spec("airflow")
+        if spec is None or spec.origin is None:
+            console.print("[red]Airflow not found - cannot mount sources")
+            sys.exit(1)
+        airflow_path = Path(spec.origin).parent
+        rmtree(airflow_path / "providers", ignore_errors=True)
+        os.symlink("/opt/airflow/airflow/providers", (airflow_path / "providers").as_posix())
     console.print("\n[green]Done!")
 
 

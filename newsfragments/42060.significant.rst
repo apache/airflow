@@ -1,0 +1,1 @@
+Removed deprecated configuration ``stalled_task_timeout`` from ``celery``, ``task_adoption_timeout`` from ``celery`` and ``worker_pods_pending_timeout`` from ``worker_pods_pending_timeout``. Please use ``task_queued_timeout`` from ``scheduler`` instead.

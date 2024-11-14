@@ -17,26 +17,28 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import TYPE_CHECKING
 
 import pendulum
 import pytest
 from dateutil.tz import UTC
 
-from airflow.datasets import Dataset
+from airflow.assets import Asset
 from airflow.decorators import task_group
 from airflow.lineage.entities import File
 from airflow.models import DagBag
-from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 from airflow.www.views import dag_to_grid
-from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.db import clear_db_datasets, clear_db_runs
-from tests.test_utils.mock_operators import MockOperator
+
+from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.db import clear_db_assets, clear_db_runs
+from tests_common.test_utils.mock_operators import MockOperator
 
 pytestmark = pytest.mark.db_test
 
@@ -53,12 +55,12 @@ def examples_dag_bag():
 
 
 @pytest.fixture(autouse=True)
-def clean():
+def _clean():
     clear_db_runs()
-    clear_db_datasets()
+    clear_db_assets()
     yield
     clear_db_runs()
-    clear_db_datasets()
+    clear_db_assets()
 
 
 @pytest.fixture
@@ -93,7 +95,7 @@ def dag_with_runs(dag_without_runs):
     run_2 = dag_without_runs.create_dagrun(
         run_id="run_2",
         run_type=DagRunType.SCHEDULED,
-        execution_date=dag_without_runs.dag.next_dagrun_info(date).logical_date,
+        execution_date=date + timedelta(days=1),
     )
 
     return run_1, run_2
@@ -108,7 +110,7 @@ def test_no_runs(admin_client, dag_without_runs):
             "children": [
                 {
                     "extra_links": [],
-                    "has_outlet_datasets": False,
+                    "has_outlet_assets": False,
                     "id": "task1",
                     "instances": [],
                     "is_mapped": False,
@@ -120,7 +122,7 @@ def test_no_runs(admin_client, dag_without_runs):
                     "children": [
                         {
                             "extra_links": [],
-                            "has_outlet_datasets": False,
+                            "has_outlet_assets": False,
                             "id": "mapped_task_group.subtask2",
                             "instances": [],
                             "is_mapped": True,
@@ -139,7 +141,7 @@ def test_no_runs(admin_client, dag_without_runs):
                     "children": [
                         {
                             "extra_links": [],
-                            "has_outlet_datasets": False,
+                            "has_outlet_assets": False,
                             "id": "group.mapped",
                             "instances": [],
                             "is_mapped": True,
@@ -159,6 +161,7 @@ def test_no_runs(admin_client, dag_without_runs):
             "label": None,
         },
         "ordering": ["data_interval_end", "execution_date"],
+        "errors": [],
     }
 
 
@@ -185,11 +188,11 @@ def test_grid_data_filtered_on_run_type_and_run_state(admin_client, dag_with_run
 
 # Create this as a fixture so that it is applied before the `dag_with_runs` fixture is!
 @pytest.fixture
-def freeze_time_for_dagruns(time_machine):
+def _freeze_time_for_dagruns(time_machine):
     time_machine.move_to("2022-01-02T00:00:00+00:00", tick=False)
 
 
-@pytest.mark.usefixtures("freeze_time_for_dagruns")
+@pytest.mark.usefixtures("_freeze_time_for_dagruns")
 def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
     """
     Test a DAG with complex interaction of states:
@@ -237,6 +240,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                 "run_type": "scheduled",
                 "start_date": "2016-01-01T00:00:00+00:00",
                 "state": "success",
+                "triggered_by": "test",
             },
             {
                 "conf": None,
@@ -253,13 +257,14 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                 "run_type": "scheduled",
                 "start_date": "2016-01-01T00:00:00+00:00",
                 "state": "running",
+                "triggered_by": "test",
             },
         ],
         "groups": {
             "children": [
                 {
                     "extra_links": [],
-                    "has_outlet_datasets": False,
+                    "has_outlet_assets": False,
                     "id": "task1",
                     "instances": [
                         {
@@ -292,7 +297,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                     "children": [
                         {
                             "extra_links": [],
-                            "has_outlet_datasets": False,
+                            "has_outlet_assets": False,
                             "id": "mapped_task_group.subtask2",
                             "instances": [
                                 {
@@ -349,7 +354,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                     "children": [
                         {
                             "extra_links": [],
-                            "has_outlet_datasets": False,
+                            "has_outlet_assets": False,
                             "id": "group.mapped",
                             "instances": [
                                 {
@@ -405,6 +410,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
             "label": None,
         },
         "ordering": ["data_interval_end", "execution_date"],
+        "errors": [],
     }
 
 
@@ -414,7 +420,7 @@ def test_query_count(dag_with_runs, session):
         dag_to_grid(run1.dag, (run1, run2), session)
 
 
-def test_has_outlet_dataset_flag(admin_client, dag_maker, session, app, monkeypatch):
+def test_has_outlet_asset_flag(admin_client, dag_maker, session, app, monkeypatch):
     with monkeypatch.context() as m:
         # Remove global operator links for this test
         m.setattr("airflow.plugins_manager.global_operator_extra_links", [])
@@ -425,16 +431,16 @@ def test_has_outlet_dataset_flag(admin_client, dag_maker, session, app, monkeypa
             lineagefile = File("/tmp/does_not_exist")
             EmptyOperator(task_id="task1")
             EmptyOperator(task_id="task2", outlets=[lineagefile])
-            EmptyOperator(task_id="task3", outlets=[Dataset("foo"), lineagefile])
-            EmptyOperator(task_id="task4", outlets=[Dataset("foo")])
+            EmptyOperator(task_id="task3", outlets=[Asset("foo"), lineagefile])
+            EmptyOperator(task_id="task4", outlets=[Asset("foo")])
 
         m.setattr(app, "dag_bag", dag_maker.dagbag)
         resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}", follow_redirects=True)
 
-    def _expected_task_details(task_id, has_outlet_datasets):
+    def _expected_task_details(task_id, has_outlet_assets):
         return {
             "extra_links": [],
-            "has_outlet_datasets": has_outlet_datasets,
+            "has_outlet_assets": has_outlet_assets,
             "id": task_id,
             "instances": [],
             "is_mapped": False,
@@ -458,58 +464,59 @@ def test_has_outlet_dataset_flag(admin_client, dag_maker, session, app, monkeypa
             "label": None,
         },
         "ordering": ["data_interval_end", "execution_date"],
+        "errors": [],
     }
 
 
 @pytest.mark.need_serialized_dag
-def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
+def test_next_run_assets(admin_client, dag_maker, session, app, monkeypatch):
     with monkeypatch.context() as m:
-        datasets = [Dataset(uri=f"s3://bucket/key/{i}") for i in [1, 2]]
+        assets = [Asset(uri=f"s3://bucket/key/{i}") for i in [1, 2]]
 
-        with dag_maker(dag_id=DAG_ID, schedule=datasets, serialized=True, session=session):
+        with dag_maker(dag_id=DAG_ID, schedule=assets, serialized=True, session=session):
             EmptyOperator(task_id="task1")
 
         m.setattr(app, "dag_bag", dag_maker.dagbag)
 
-        ds1_id = session.query(DatasetModel.id).filter_by(uri=datasets[0].uri).scalar()
-        ds2_id = session.query(DatasetModel.id).filter_by(uri=datasets[1].uri).scalar()
-        ddrq = DatasetDagRunQueue(
-            target_dag_id=DAG_ID, dataset_id=ds1_id, created_at=pendulum.DateTime(2022, 8, 2, tzinfo=UTC)
+        asset1_id = session.query(AssetModel.id).filter_by(uri=assets[0].uri).scalar()
+        asset2_id = session.query(AssetModel.id).filter_by(uri=assets[1].uri).scalar()
+        adrq = AssetDagRunQueue(
+            target_dag_id=DAG_ID, asset_id=asset1_id, created_at=pendulum.DateTime(2022, 8, 2, tzinfo=UTC)
         )
-        session.add(ddrq)
-        dataset_events = [
-            DatasetEvent(
-                dataset_id=ds1_id,
+        session.add(adrq)
+        asset_events = [
+            AssetEvent(
+                asset_id=asset1_id,
                 extra={},
                 timestamp=pendulum.DateTime(2022, 8, 1, 1, tzinfo=UTC),
             ),
-            DatasetEvent(
-                dataset_id=ds1_id,
+            AssetEvent(
+                asset_id=asset1_id,
                 extra={},
                 timestamp=pendulum.DateTime(2022, 8, 2, 1, tzinfo=UTC),
             ),
-            DatasetEvent(
-                dataset_id=ds1_id,
+            AssetEvent(
+                asset_id=asset1_id,
                 extra={},
                 timestamp=pendulum.DateTime(2022, 8, 2, 2, tzinfo=UTC),
             ),
         ]
-        session.add_all(dataset_events)
+        session.add_all(asset_events)
         session.commit()
 
-        resp = admin_client.get(f"/object/next_run_datasets/{DAG_ID}", follow_redirects=True)
+        resp = admin_client.get(f"/object/next_run_assets/{DAG_ID}", follow_redirects=True)
 
     assert resp.status_code == 200, resp.json
     assert resp.json == {
-        "dataset_expression": {"all": ["s3://bucket/key/1", "s3://bucket/key/2"]},
+        "asset_expression": {"all": ["s3://bucket/key/1", "s3://bucket/key/2"]},
         "events": [
-            {"id": ds1_id, "uri": "s3://bucket/key/1", "lastUpdate": "2022-08-02T02:00:00+00:00"},
-            {"id": ds2_id, "uri": "s3://bucket/key/2", "lastUpdate": None},
+            {"id": asset1_id, "uri": "s3://bucket/key/1", "lastUpdate": "2022-08-02T02:00:00+00:00"},
+            {"id": asset2_id, "uri": "s3://bucket/key/2", "lastUpdate": None},
         ],
     }
 
 
-def test_next_run_datasets_404(admin_client):
-    resp = admin_client.get("/object/next_run_datasets/missingdag", follow_redirects=True)
+def test_next_run_assets_404(admin_client):
+    resp = admin_client.get("/object/next_run_assets/missingdag", follow_redirects=True)
     assert resp.status_code == 404, resp.json
     assert resp.json == {"error": "can't find dag missingdag"}

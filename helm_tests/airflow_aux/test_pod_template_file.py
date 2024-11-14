@@ -24,6 +24,7 @@ import jmespath
 import pytest
 
 from helm_tests.airflow_aux.test_container_lifecycle import CONTAINER_LIFECYCLE_PARAMETERS
+
 from tests.charts.helm_template_generator import render_chart
 
 
@@ -85,6 +86,7 @@ class TestPodTemplateFile:
                         "sshKeySecret": None,
                         "credentialsSecret": None,
                         "knownHosts": None,
+                        "envFrom": "- secretRef:\n    name: 'proxy-config'\n",
                     }
                 },
             },
@@ -98,6 +100,7 @@ class TestPodTemplateFile:
             "securityContext": {"runAsUser": 65533},
             "image": "test-registry/test-repo:test-tag",
             "imagePullPolicy": "Always",
+            "envFrom": [{"secretRef": {"name": "proxy-config"}}],
             "env": [
                 {"name": "GIT_SYNC_REV", "value": "HEAD"},
                 {"name": "GITSYNC_REF", "value": "test-branch"},
@@ -660,6 +663,27 @@ class TestPodTemplateFile:
             "cluster-autoscaler.kubernetes.io/safe-to-evict": "true" if safe_to_evict else "false"
         }
 
+    def test_safe_to_evict_annotation_other_services(self):
+        """Workers' safeToEvict value should not overwrite safeToEvict value of other services."""
+        docs = render_chart(
+            values={
+                "workers": {"safeToEvict": False},
+                "scheduler": {"safeToEvict": True},
+                "triggerer": {"safeToEvict": True},
+                "executor": "KubernetesExecutor",
+                "dagProcessor": {"enabled": True, "safeToEvict": True},
+            },
+            show_only=[
+                "templates/dag-processor/dag-processor-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+            ],
+            chart_dir=self.temp_chart_dir,
+        )
+        for doc in docs:
+            annotations = jmespath.search("spec.template.metadata.annotations", doc)
+            assert annotations.get("cluster-autoscaler.kubernetes.io/safe-to-evict") == "true"
+
     def test_workers_pod_annotations(self):
         docs = render_chart(
             values={"workers": {"podAnnotations": {"my_annotation": "annotated!"}}},
@@ -767,7 +791,21 @@ class TestPodTemplateFile:
 
     def test_should_add_extraEnvs(self):
         docs = render_chart(
-            values={"workers": {"env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]}},
+            values={
+                "workers": {
+                    "env": [
+                        {"name": "TEST_ENV_1", "value": "test_env_1"},
+                        {
+                            "name": "TEST_ENV_2",
+                            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+                        },
+                        {
+                            "name": "TEST_ENV_3",
+                            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+                        },
+                    ]
+                }
+            },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
@@ -775,6 +813,14 @@ class TestPodTemplateFile:
         assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.containers[0].env", docs[0]
         )
+        assert {
+            "name": "TEST_ENV_2",
+            "valueFrom": {"secretKeyRef": {"name": "my-secret", "key": "my-key"}},
+        } in jmespath.search("spec.containers[0].env", docs[0])
+        assert {
+            "name": "TEST_ENV_3",
+            "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
+        } in jmespath.search("spec.containers[0].env", docs[0])
 
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
@@ -981,3 +1027,42 @@ class TestPodTemplateFile:
         )
 
         assert None is jmespath.search("spec.containers[0].command", docs[0])
+
+    @pytest.mark.parametrize(
+        "workers_values, kerberos_init_container",
+        [
+            ({"kerberosSidecar": {"enabled": True}}, False),
+            ({"kerberosInitContainer": {"enabled": True}}, True),
+        ],
+    )
+    def test_webserver_config_for_kerberos(self, workers_values, kerberos_init_container):
+        docs = render_chart(
+            values={"workers": workers_values, "webserver": {"webserverConfigConfigMapName": "config"}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        kerberos_container = "spec.containers[1].volumeMounts[*].name"
+        if kerberos_init_container:
+            kerberos_container = "spec.initContainers[0].volumeMounts[*].name"
+
+        volume_mounts_names = jmespath.search(kerberos_container, docs[0])
+        print(volume_mounts_names)
+        assert "webserver-config" in volume_mounts_names
+        assert "webserver-config" in jmespath.search("spec.volumes[*].name", docs[0])
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [{"kerberosSidecar": {"enabled": True}}, {"kerberosInitContainer": {"enabled": True}}],
+    )
+    def test_base_contains_kerberos_env(self, workers_values):
+        docs = render_chart(
+            values={
+                "workers": workers_values,
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        scheduler_env = jmespath.search("spec.containers[0].env[*].name", docs[0])
+        assert set(["KRB5_CONFIG", "KRB5CCNAME"]).issubset(scheduler_env)

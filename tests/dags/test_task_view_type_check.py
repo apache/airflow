@@ -26,7 +26,7 @@ import logging
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 
 logger = logging.getLogger(__name__)
 DEFAULT_DATE = datetime(2016, 1, 1)
@@ -51,7 +51,7 @@ class_instance = CallableClass()
 
 logger.info("class_instance type: %s", type(class_instance))
 
-dag = DAG(dag_id="test_task_view_type_check", default_args=default_args)
+dag = DAG(dag_id="test_task_view_type_check", schedule=None, default_args=default_args)
 
 dag_task1 = PythonOperator(
     task_id="test_dagrun_functool_partial",

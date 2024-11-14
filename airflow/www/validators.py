@@ -27,7 +27,8 @@ from airflow.utils import helpers
 
 
 class GreaterEqualThan(EqualTo):
-    """Compares the values of two fields.
+    """
+    Compares the values of two fields.
 
     :param fieldname:
         The name of the other field to compare to.
@@ -63,7 +64,8 @@ class GreaterEqualThan(EqualTo):
 
 
 class ValidJson:
-    """Validates data is valid JSON.
+    """
+    Validates data is valid JSON.
 
     :param message:
         Error message to raise in case of a validation error.
@@ -101,7 +103,8 @@ class ValidKey:
 
 
 class ReadOnly:
-    """Adds readonly flag to a field.
+    """
+    Adds readonly flag to a field.
 
     When using this you normally will need to override the form's populate_obj method,
     so field.populate_obj is not called for read-only fields.

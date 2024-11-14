@@ -1,0 +1,11 @@
+Removed legacy scheduling arguments on DAG
+
+The ``schedule_interval`` and ``timetable`` arguments are removed from ``DAG``.
+
+The ``schedule_interval`` _attribute_ has also been removed. In the API, a new
+``timetable_summary`` field has been added to replace ``schedule_interval`` for
+presentation purposes.
+
+Since the DAG object no longer has the ``schedule_interval`` attribute,
+OpenLineage facets that contain the ``dag`` key produced on Airflow 3.0 or
+later will also no longer contain the field.

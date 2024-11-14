@@ -18,42 +18,10 @@
 from __future__ import annotations
 
 import sys
-import warnings
 from collections import deque
-from functools import wraps
-from typing import Callable, TypeVar, cast
-
-from airflow.exceptions import RemovedInAirflow3Warning
+from typing import Callable, TypeVar
 
 T = TypeVar("T", bound=Callable)
-
-
-def apply_defaults(func: T) -> T:
-    """
-    Use apply_default decorator for the `default_args` feature to work properly; deprecated.
-
-    In previous versions, all subclasses of BaseOperator must use apply_default decorator for the"
-    `default_args` feature to work properly.
-
-    In current version, it is optional. The decorator is applied automatically using the metaclass.
-    """
-    warnings.warn(
-        "This decorator is deprecated. \n"
-        "\n"
-        "In previous versions, all subclasses of BaseOperator must use apply_default decorator for the "
-        "`default_args` feature to work properly.\n"
-        "\n"
-        "In current version, it is optional. The decorator is applied automatically using the metaclass.\n",
-        RemovedInAirflow3Warning,
-        stacklevel=3,
-    )
-
-    # Make it still be a wrapper to keep the previous behaviour of an extra stack frame
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        return func(*args, **kwargs)
-
-    return cast(T, wrapper)
 
 
 def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
@@ -81,7 +49,7 @@ def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
             after_decorator = after_decorator[1:]
         return before_decorator + after_decorator
 
-    decorators = ["@setup", "@teardown", task_decorator_name]
+    decorators = ["@setup", "@teardown", "@task.skip_if", "@task.run_if", task_decorator_name]
     for decorator in decorators:
         python_source = _remove_task_decorator(python_source, decorator)
     return python_source
@@ -101,8 +69,9 @@ def _balance_parens(after_decorator):
 
 
 class _autostacklevel_warn:
-    def __init__(self):
+    def __init__(self, delta):
         self.warnings = __import__("warnings")
+        self.delta = delta
 
     def __getattr__(self, name):
         return getattr(self.warnings, name)
@@ -111,11 +80,11 @@ class _autostacklevel_warn:
         return dir(self.warnings)
 
     def warn(self, message, category=None, stacklevel=1, source=None):
-        self.warnings.warn(message, category, stacklevel + 2, source)
+        self.warnings.warn(message, category, stacklevel + self.delta, source)
 
 
-def fixup_decorator_warning_stack(func):
+def fixup_decorator_warning_stack(func, delta: int = 2):
     if func.__globals__.get("warnings") is sys.modules["warnings"]:
         # Yes, this is more than slightly hacky, but it _automatically_ sets the right stacklevel parameter to
         # `warnings.warn` to ignore the decorator.
-        func.__globals__["warnings"] = _autostacklevel_warn()
+        func.__globals__["warnings"] = _autostacklevel_warn(delta)

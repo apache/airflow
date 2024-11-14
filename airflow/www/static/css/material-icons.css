@@ -70,7 +70,8 @@
   font-size: 48px;
 }
 
-.dropdown-menu > li > a > .material-icons {
+.dropdown-menu > li > a > .material-icons,
+.dropdown-menu > li > form > button > .material-icons {
   margin-right: 6px;
 }
 

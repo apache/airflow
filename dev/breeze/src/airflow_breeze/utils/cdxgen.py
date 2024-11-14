@@ -24,10 +24,11 @@ import signal
 import sys
 import time
 from abc import abstractmethod
+from collections.abc import Generator
 from dataclasses import dataclass
 from multiprocessing.pool import Pool
 from pathlib import Path
-from typing import Generator
+from typing import TYPE_CHECKING, Any
 
 import yaml
 
@@ -41,8 +42,12 @@ from airflow_breeze.utils.github import (
     download_file_from_github,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, FILES_SBOM_DIR
+from airflow_breeze.utils.projects_google_spreadsheet import MetadataFromSpreadsheet, get_project_metadata
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
+
+if TYPE_CHECKING:
+    from rich.console import Console
 
 
 def start_cdxgen_server(application_root_path: Path, run_in_parallel: bool, parallelism: int) -> None:
@@ -320,16 +325,16 @@ constraints-{airflow_version}/constraints-{python_version}.txt
 
 @dataclass
 class SbomApplicationJob:
-    python_version: str
+    python_version: str | None
     target_path: Path
 
     @abstractmethod
     def produce(self, output: Output | None, port: int) -> tuple[int, str]:
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def get_job_name(self) -> str:
-        pass
+        raise NotImplementedError
 
 
 @dataclass
@@ -337,35 +342,67 @@ class SbomCoreJob(SbomApplicationJob):
     airflow_version: str
     application_root_path: Path
     include_provider_dependencies: bool
+    include_python: bool
+    include_npm: bool
 
     def get_job_name(self) -> str:
-        return f"{self.airflow_version}:python{self.python_version}"
+        name = f"{self.airflow_version}"
+        if self.python_version:
+            name += f":python{self.python_version}"
+        if self.include_python and not self.include_npm:
+            name += ":python-only"
+        if self.include_npm and not self.include_python:
+            name += ":npm-only"
+        if self.include_provider_dependencies:
+            name += ":full"
+        return name
+
+    def get_files_directory(self, root_path: Path):
+        source_dir = root_path / self.airflow_version
+        if self.include_python:
+            source_dir = source_dir / "python"
+        if self.include_npm:
+            source_dir = source_dir / "npm"
+        if self.include_provider_dependencies:
+            source_dir = source_dir / "full"
+        if self.python_version:
+            source_dir = source_dir / f"python{self.python_version}"
+        return source_dir
 
     def download_dependency_files(self, output: Output | None) -> bool:
-        source_dir = self.application_root_path / self.airflow_version / f"python{self.python_version}"
+        source_dir = self.get_files_directory(self.application_root_path)
         source_dir.mkdir(parents=True, exist_ok=True)
         lock_file_relative_path = "airflow/www/yarn.lock"
-        download_file_from_github(
-            tag=self.airflow_version, path=lock_file_relative_path, output_file=source_dir / "yarn.lock"
-        )
-        if not download_constraints_file(
-            airflow_version=self.airflow_version,
-            python_version=self.python_version,
-            include_provider_dependencies=self.include_provider_dependencies,
-            output_file=source_dir / "requirements.txt",
-        ):
-            get_console(output=output).print(
-                f"[warning]Failed to download constraints file for "
-                f"{self.airflow_version} and {self.python_version}. Skipping"
+        if self.include_npm:
+            download_file_from_github(
+                tag=self.airflow_version, path=lock_file_relative_path, output_file=source_dir / "yarn.lock"
             )
-            return False
+        else:
+            (source_dir / "yarn.lock").unlink(missing_ok=True)
+        if self.include_python:
+            if not download_constraints_file(
+                airflow_version=self.airflow_version,
+                python_version=self.python_version,
+                include_provider_dependencies=self.include_provider_dependencies,
+                output_file=source_dir / "requirements.txt",
+            ):
+                get_console(output=output).print(
+                    f"[warning]Failed to download constraints file for "
+                    f"{self.airflow_version} and {self.python_version}. Skipping"
+                )
+                (source_dir / "requirements.txt").unlink(missing_ok=True)
+                return False
+        else:
+            (source_dir / "requirements.txt").unlink(missing_ok=True)
         return True
 
     def produce(self, output: Output | None, port: int) -> tuple[int, str]:
         import requests
 
         get_console(output=output).print(
-            f"[info]Updating sbom for Airflow {self.airflow_version} and python {self.python_version}"
+            f"[info]Updating sbom for Airflow {self.airflow_version} and python {self.python_version}:"
+            f"include_provider_dependencies={self.include_provider_dependencies}, "
+            f"python={self.include_python}, npm={self.include_npm}"
         )
         if not self.download_dependency_files(output):
             return 0, f"SBOM Generate {self.airflow_version}:{self.python_version}"
@@ -373,9 +410,18 @@ class SbomCoreJob(SbomApplicationJob):
         get_console(output=output).print(
             f"[info]Generating sbom for Airflow {self.airflow_version} and python {self.python_version} with cdxgen"
         )
+
+        file_url = (
+            self.get_files_directory(self.application_root_path)
+            .relative_to(self.application_root_path)
+            .as_posix()
+        )
         url = (
-            f"http://127.0.0.1:{port}/sbom?path=/app/{self.airflow_version}/python{self.python_version}&"
-            f"project-name=apache-airflow&project-version={self.airflow_version}&multiProject=true"
+            f"http://127.0.0.1:{port}/sbom?path=/app/{file_url}&"
+            f"projectName=apache-airflow&installDeps=false&"
+            f"lifecycle=pre-build&"
+            f"projectVersion={self.airflow_version}&"
+            f"multiProject=true"
         )
 
         get_console(output=output).print(
@@ -393,9 +439,17 @@ class SbomCoreJob(SbomApplicationJob):
                     f"SBOM Generate {self.airflow_version}:python{self.python_version}",
                 )
             self.target_path.write_bytes(response.content)
-            get_console(output=output).print(
-                f"[success]Generated SBOM for {self.airflow_version}:python{self.python_version}"
-            )
+            suffix = ""
+            if self.python_version:
+                suffix += f":python{self.python_version}"
+            if not self.include_npm or not self.include_python:
+                if self.include_npm:
+                    suffix += ":npm-only"
+                else:
+                    suffix += ":python-only"
+            if self.include_provider_dependencies:
+                suffix += ":full"
+            get_console(output=output).print(f"[success]Generated SBOM for {self.airflow_version}:{suffix}")
 
         return 0, f"SBOM Generate {self.airflow_version}:python{self.python_version}"
 
@@ -465,3 +519,156 @@ def produce_sbom_for_application_via_cdxgen_server(
         port = port_map[multiprocessing.current_process().name]
         get_console(output=output).print(f"[info]Using port {port}")
     return job.produce(output, port)
+
+
+def convert_licenses(licenses: list[dict[str, Any]]) -> str:
+    license_strings = []
+    for license in licenses:
+        if "license" in license:
+            if "id" in license["license"]:
+                license_strings.append(license["license"]["id"])
+            elif "name" in license["license"]:
+                license_strings.append(license["license"]["name"])
+            else:
+                raise ValueError(f"Unknown license format: {license}")
+        elif "expression" in license:
+            license_strings.append(license["expression"])
+        else:
+            raise ValueError(f"Unknown license format: {license}")
+    return ", ".join(license_strings)
+
+
+def get_vcs(dependency: dict[str, Any]) -> str:
+    if "externalReferences" in dependency:
+        for reference in dependency["externalReferences"]:
+            if reference["type"] == "vcs":
+                return reference["url"].replace("http://", "https://")
+    return ""
+
+
+def get_pypi_link(dependency: dict[str, Any]) -> str:
+    if "purl" in dependency and "pkg:pypi" in dependency["purl"]:
+        package, version = dependency["purl"][len("pkg:pypi/") :].split("@")
+        return f"https://pypi.org/project/{package}/{version}/"
+    return ""
+
+
+OPEN_PSF_CHECKS = [
+    "Code-Review",
+    "Maintained",
+    "CII-Best-Practices",
+    "License",
+    "Binary-Artifacts",
+    "Dangerous-Workflow",
+    "Token-Permissions",
+    "Pinned-Dependencies",
+    "Branch-Protection",
+    "Signed-Releases",
+    "Security-Policy",
+    "Dependency-Update-Tool",
+    "Contributors",
+    "CI-Tests",
+    "Fuzzing",
+    "Packaging",
+    "Vulnerabilities",
+    "SAST",
+]
+
+CHECK_DOCS: dict[str, str] = {}
+
+
+def get_github_stats(
+    vcs: str, project_name: str, github_token: str | None, console: Console
+) -> dict[str, Any]:
+    import requests
+
+    result = {}
+    if vcs and vcs.startswith("https://github.com/"):
+        importance = "Low"
+        api_url = vcs.replace("https://github.com/", "https://api.github.com/repos/")
+        if api_url.endswith("/"):
+            api_url = api_url[:-1]
+        headers = {"Authorization": f"token {github_token}"} if github_token else {}
+        console.print(f"[bright_blue]Retrieving GitHub Stats from {api_url}")
+        response = requests.get(api_url, headers=headers)
+        if response.status_code == 404:
+            console.print(f"[yellow]Github API returned 404 for {api_url}")
+            return {}
+        response.raise_for_status()
+        github_data = response.json()
+        stargazer_count = github_data.get("stargazers_count")
+        forks_count = github_data.get("forks_count")
+        if project_name in get_project_metadata(MetadataFromSpreadsheet.KNOWN_LOW_IMPORTANCE_PROJECTS):
+            importance = "Low"
+        elif project_name in get_project_metadata(MetadataFromSpreadsheet.KNOWN_MEDIUM_IMPORTANCE_PROJECTS):
+            importance = "Medium"
+        elif project_name in get_project_metadata(MetadataFromSpreadsheet.KNOWN_HIGH_IMPORTANCE_PROJECTS):
+            importance = "High"
+        elif forks_count > 1000 or stargazer_count > 1000:
+            importance = "High"
+        elif stargazer_count > 100 or forks_count > 100:
+            importance = "Medium"
+        result["Industry importance"] = importance
+        console.print("[green]Successfully retrieved GitHub Stats.")
+    else:
+        console.print(f"[yellow]Not retrieving Github Stats for {vcs}")
+    return result
+
+
+def get_open_psf_scorecard(vcs: str, project_name: str, console: Console) -> dict[str, Any]:
+    import requests
+
+    console.print(f"[info]Retrieving Open PSF Scorecard for {project_name}")
+    repo_url = vcs.split("://")[1]
+    open_psf_url = f"https://api.securityscorecards.dev/projects/{repo_url}"
+    scorecard_response = requests.get(open_psf_url)
+    if scorecard_response.status_code == 404:
+        return {}
+    scorecard_response.raise_for_status()
+    open_psf_scorecard = scorecard_response.json()
+    results = {}
+    results["OPSF-Score"] = open_psf_scorecard["score"]
+    if "checks" in open_psf_scorecard:
+        for check in open_psf_scorecard["checks"]:
+            check_name = check["name"]
+            score = check["score"]
+            results["OPSF-" + check_name] = check["score"]
+            reason = check.get("reason") or ""
+            if check.get("details"):
+                reason += "\n".join(check["details"])
+            results["OPSF-Details-" + check_name] = reason
+            CHECK_DOCS[check_name] = check["documentation"]["short"] + "\n" + check["documentation"]["url"]
+            if check_name == "Maintained":
+                if project_name in get_project_metadata(MetadataFromSpreadsheet.KNOWN_STABLE_PROJECTS):
+                    lifecycle_status = "Stable"
+                else:
+                    if score == 0:
+                        lifecycle_status = "Abandoned"
+                    elif score < 6:
+                        lifecycle_status = "Somewhat maintained"
+                    else:
+                        lifecycle_status = "Actively maintained"
+                results["Lifecycle status"] = lifecycle_status
+            if check_name == "Vulnerabilities":
+                results["Unpatched Vulns"] = "Yes" if score != 10 else ""
+    console.print(f"[success]Retrieved Open PSF Scorecard for {project_name}")
+    return results
+
+
+def get_governance(vcs: str | None):
+    if not vcs or not vcs.startswith("https://github.com/"):
+        return ""
+    organization = vcs.split("/")[3]
+    if organization.lower() in get_project_metadata(MetadataFromSpreadsheet.KNOWN_REPUTABLE_FOUNDATIONS):
+        return "Reputable Foundation"
+    if organization.lower() in get_project_metadata(MetadataFromSpreadsheet.KNOWN_STRONG_COMMUNITIES):
+        return "Strong Community"
+    if organization.lower() in get_project_metadata(MetadataFromSpreadsheet.KNOWN_COMPANIES):
+        return "Company"
+    return "Loose community/ Single Person"
+
+
+def normalize_package_name(name):
+    import re
+
+    return re.sub(r"[-_.]+", "-", name).lower()

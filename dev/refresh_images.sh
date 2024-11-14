@@ -22,16 +22,17 @@ rm -rf docker-context-files/*.tar.gz
 export ANSWER="yes"
 export CI="true"
 export GITHUB_TOKEN=""
+export PLATFORM=${PLATFORM:="linux/amd64,linux/arm64"}
 
 breeze setup self-upgrade --use-current-airflow-sources
 
-for PYTHON in 3.8 3.9 3.10 3.11 3.12
+for PYTHON in 3.9 3.10 3.11 3.12
 do
     breeze ci-image build \
          --builder airflow_cache \
          --run-in-parallel \
          --prepare-buildx-cache \
-         --platform linux/amd64,linux/arm64 \
+         --platform "${PLATFORM}" \
          --python ${PYTHON} \
          --verbose
 done
@@ -47,14 +48,14 @@ breeze release-management prepare-airflow-package --package-format wheel --versi
 
 mv -v ./dist/*.whl ./docker-context-files && chmod a+r ./docker-context-files/*
 
-for PYTHON in 3.8 3.9 3.10 3.11 3.12
+for PYTHON in 3.9 3.10 3.11 3.12
 do
     breeze prod-image build \
          --builder airflow_cache \
          --run-in-parallel \
          --install-packages-from-context \
          --prepare-buildx-cache \
-         --platform linux/amd64,linux/arm64 \
+         --platform "${PLATFORM}" \
          --python ${PYTHON} \
          --verbose
 done

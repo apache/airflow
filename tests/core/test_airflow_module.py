@@ -16,35 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-import sys
-
 import pytest
 
 import airflow
 from airflow.exceptions import AirflowException
-
-TEST_CASES = {
-    "PY36": sys.version_info >= (3, 6),
-    "PY37": sys.version_info >= (3, 7),
-    "PY38": sys.version_info >= (3, 8),
-    "PY39": sys.version_info >= (3, 9),
-    "PY310": sys.version_info >= (3, 10),
-    "PY311": sys.version_info >= (3, 11),
-    "PY312": sys.version_info >= (3, 12),
-}
-
-
-@pytest.mark.parametrize("py_attr, expected", TEST_CASES.items())
-def test_lazy_load_py_versions(py_attr, expected):
-    with pytest.warns(DeprecationWarning, match=f"Python version constraint '{py_attr}' is deprecated"):
-        # If there is no warning, then most possible it imported somewhere else.
-        assert getattr(airflow, py_attr) is expected
-
-
-@pytest.mark.parametrize("py_attr", ["PY35", "PY313"])
-def test_wrong_py_version(py_attr):
-    with pytest.raises(AttributeError, match=f"'airflow' has no attribute '{py_attr}'"):
-        getattr(airflow, py_attr)
 
 
 def test_deprecated_exception():

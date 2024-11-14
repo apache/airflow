@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Originally, impersonation tests were incomplete missing the use case when
 # DAGs access custom packages usually made available through the PYTHONPATH environment
@@ -29,13 +29,13 @@ from datetime import datetime
 from fake_datetime import FakeDatetime
 
 from airflow.models.dag import DAG
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 
 args = {"owner": "airflow", "start_date": DEFAULT_DATE, "run_as_user": "airflow_test_user"}
 
-dag = DAG(dag_id="impersonation_with_custom_pkg", default_args=args)
+dag = DAG(dag_id="impersonation_with_custom_pkg", schedule=timedelta(days=1), default_args=args)
 
 
 def print_today():

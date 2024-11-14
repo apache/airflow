@@ -90,6 +90,19 @@ def hooks_list(args):
 
 @suppress_logs_and_warning
 @providers_configuration_loaded
+def dialects_list(args):
+    AirflowConsole().print_as(
+        data=list(ProvidersManager().dialects.values()),
+        output=args.output,
+        mapper=lambda x: {
+            "dialect_name": x.name,
+            "class": x.dialect_class_name,
+        },
+    )
+
+
+@suppress_logs_and_warning
+@providers_configuration_loaded
 def triggers_list(args):
     AirflowConsole().print_as(
         data=ProvidersManager().trigger,
@@ -236,7 +249,8 @@ def config_list(args):
 
 @suppress_logs_and_warning
 def lazy_loaded(args):
-    """Informs if providers manager has been initialized too early.
+    """
+    Informs if providers manager has been initialized too early.
 
     If provider is initialized, shows the stack trace and exit with error code 1.
     """

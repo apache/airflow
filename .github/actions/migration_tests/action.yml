@@ -26,7 +26,7 @@ runs:
       run: >
         breeze shell "airflow db reset --skip-init -y &&
         airflow db migrate --to-revision heads &&
-        airflow db downgrade -r e959f08ac86c -y &&
+        airflow db downgrade -r 937cbd173ca1 -y &&
         airflow db migrate"
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
@@ -40,7 +40,7 @@ runs:
       run: >
         breeze shell "airflow db reset -y &&
         airflow db migrate &&
-        airflow db downgrade -r e959f08ac86c -y &&
+        airflow db downgrade -r 22ed7efa9da2 -y &&
         airflow db migrate"
         COMPOSE_PROJECT_NAME: "docker-compose"
       env:

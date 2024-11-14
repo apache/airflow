@@ -18,17 +18,18 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, Callable, Collection, Mapping, Sequence
+from typing import Any, Callable, ClassVar, Collection, Mapping, Sequence
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
-from airflow.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.context import Context, context_merge
 from airflow.utils.operator_helpers import determine_kwargs
 from airflow.utils.types import NOTSET
 
 
 class _BashDecoratedOperator(DecoratedOperator, BashOperator):
-    """Wraps a Python callable and uses the callable return value as the Bash command to be executed.
+    """
+    Wraps a Python callable and uses the callable return value as the Bash command to be executed.
 
     :param python_callable: A reference to an object that is callable.
     :param op_kwargs: A dictionary of keyword arguments that will get unpacked
@@ -38,7 +39,7 @@ class _BashDecoratedOperator(DecoratedOperator, BashOperator):
     """
 
     template_fields: Sequence[str] = (*DecoratedOperator.template_fields, *BashOperator.template_fields)
-    template_fields_renderers: dict[str, str] = {
+    template_fields_renderers: ClassVar[dict[str, str]] = {
         **DecoratedOperator.template_fields_renderers,
         **BashOperator.template_fields_renderers,
     }
@@ -85,7 +86,8 @@ def bash_task(
     python_callable: Callable | None = None,
     **kwargs,
 ) -> TaskDecorator:
-    """Wrap a function into a BashOperator.
+    """
+    Wrap a function into a BashOperator.
 
     Accepts kwargs for operator kwargs. Can be reused in a single DAG. This function is only used only used
     during type checking or auto-completion.

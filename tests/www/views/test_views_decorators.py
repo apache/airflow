@@ -23,8 +23,17 @@ from airflow.models import DagBag, Variable
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
-from tests.test_utils.db import clear_db_runs, clear_db_variables
-from tests.test_utils.www import _check_last_log, _check_last_log_masked_variable, check_content_in_response
+
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.db import clear_db_runs, clear_db_variables
+from tests_common.test_utils.www import (
+    _check_last_log,
+    _check_last_log_masked_variable,
+    check_content_in_response,
+)
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -43,31 +52,20 @@ def bash_dag(dagbag):
 
 
 @pytest.fixture(scope="module")
-def sub_dag(dagbag):
-    return dagbag.get_dag("example_subdag_operator")
-
-
-@pytest.fixture(scope="module")
 def xcom_dag(dagbag):
     return dagbag.get_dag("example_xcom")
 
 
 @pytest.fixture(autouse=True)
-def dagruns(bash_dag, sub_dag, xcom_dag):
+def dagruns(bash_dag, xcom_dag):
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     bash_dagrun = bash_dag.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
         data_interval=(EXAMPLE_DAG_DEFAULT_DATE, EXAMPLE_DAG_DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
-    )
-
-    sub_dagrun = sub_dag.create_dagrun(
-        run_type=DagRunType.SCHEDULED,
-        execution_date=EXAMPLE_DAG_DEFAULT_DATE,
-        data_interval=(EXAMPLE_DAG_DEFAULT_DATE, EXAMPLE_DAG_DEFAULT_DATE),
-        start_date=timezone.utcnow(),
-        state=State.RUNNING,
+        **triggered_by_kwargs,
     )
 
     xcom_dagrun = xcom_dag.create_dagrun(
@@ -76,15 +74,16 @@ def dagruns(bash_dag, sub_dag, xcom_dag):
         data_interval=(EXAMPLE_DAG_DEFAULT_DATE, EXAMPLE_DAG_DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
+        **triggered_by_kwargs,
     )
 
-    yield bash_dagrun, sub_dagrun, xcom_dagrun
+    yield bash_dagrun, xcom_dagrun
 
     clear_db_runs()
 
 
 @pytest.fixture(autouse=True)
-def clean_db():
+def _clean_db():
     clear_db_variables()
     yield
     clear_db_variables()
@@ -116,7 +115,7 @@ def test_action_logging_post(session, admin_client):
         only_failed="false",
     )
     resp = admin_client.post("clear", data=form)
-    check_content_in_response(["example_bash_operator", "Wait a minute"], resp)
+    check_content_in_response(["example_bash_operator", "Please confirm"], resp)
     # In mysql backend, this commit() is needed to write down the logs
     session.commit()
     _check_last_log(

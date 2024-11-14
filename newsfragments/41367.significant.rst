@@ -1,0 +1,4 @@
+Deprecated ``ImportError`` removed from ``airflow.models``
+
+The deprecated ``ImportError`` class can no longer be imported from ``airflow.models``.
+It has been moved to ``airflow.models.errors.ParseImportError``.

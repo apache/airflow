@@ -31,7 +31,9 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import internal_api_command
 from airflow.cli.commands.internal_api_command import GunicornMonitor
 from airflow.settings import _ENABLE_AIP_44
-from tests.cli.commands._common_cli_classes import _ComonCLIGunicornTestClass
+
+from tests.cli.commands._common_cli_classes import _CommonCLIGunicornTestClass
+from tests_common.test_utils.config import conf_vars
 
 console = Console(width=400, color_system="standard")
 
@@ -84,7 +86,7 @@ class TestCLIGetNumReadyWorkersRunning:
 
 @pytest.mark.db_test
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
-class TestCliInternalAPI(_ComonCLIGunicornTestClass):
+class TestCliInternalAPI(_CommonCLIGunicornTestClass):
     main_process_regexp = r"airflow internal-api"
 
     @pytest.mark.execution_timeout(210)
@@ -99,6 +101,8 @@ class TestCliInternalAPI(_ComonCLIGunicornTestClass):
         try:
             # Run internal-api as daemon in background. Note that the wait method is not called.
             console.print("[magenta]Starting airflow internal-api --daemon")
+            env = os.environ.copy()
+            env["AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION"] = "true"
             proc = subprocess.Popen(
                 [
                     "airflow",
@@ -112,7 +116,8 @@ class TestCliInternalAPI(_ComonCLIGunicornTestClass):
                     os.fspath(stderr),
                     "--log-file",
                     os.fspath(logfile),
-                ]
+                ],
+                env=env,
             )
             assert proc.poll() is None
 
@@ -137,9 +142,7 @@ class TestCliInternalAPI(_ComonCLIGunicornTestClass):
                 "[magenta]Terminating monitor process and expect "
                 "internal-api and gunicorn processes to terminate as well"
             )
-            proc = psutil.Process(pid_monitor)
-            proc.terminate()
-            assert proc.wait(120) in (0, None)
+            self._terminate_multiple_process([pid_internal_api, pid_monitor])
             self._check_processes(ignore_running=False)
             console.print("[magenta]All internal-api and gunicorn processes are terminated.")
         except Exception:
@@ -150,6 +153,7 @@ class TestCliInternalAPI(_ComonCLIGunicornTestClass):
                 console.print(file.read_text())
             raise
 
+    @conf_vars({("core", "database_access_isolation"): "true"})
     def test_cli_internal_api_debug(self, app):
         with mock.patch(
             "airflow.cli.commands.internal_api_command.create_app", return_value=app
@@ -169,6 +173,7 @@ class TestCliInternalAPI(_ComonCLIGunicornTestClass):
                 host="0.0.0.0",
             )
 
+    @conf_vars({("core", "database_access_isolation"): "true"})
     def test_cli_internal_api_args(self):
         with mock.patch("subprocess.Popen") as Popen, mock.patch.object(
             internal_api_command, "GunicornMonitor"

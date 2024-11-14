@@ -50,14 +50,8 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - Operators
      - Guides
 
-   * - :mod:`airflow.operators.bash`
-     - :doc:`How to use <howto/operator/bash>`
-
    * - :mod:`airflow.operators.branch`
      -
-
-   * - :mod:`airflow.operators.datetime`
-     - :doc:`How to use <howto/operator/datetime>`
 
    * - :mod:`airflow.operators.empty`
      -
@@ -71,12 +65,6 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - :mod:`airflow.operators.latest_only`
      -
 
-   * - :mod:`airflow.operators.python`
-     - :doc:`How to use <howto/operator/python>`
-
-   * - :mod:`airflow.operators.subdag`
-     -
-
    * - :mod:`airflow.operators.trigger_dagrun`
      -
 
@@ -88,29 +76,11 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - Sensors
      - Guides
 
-   * - :mod:`airflow.sensors.bash`
-     - :ref:`How to use <howto/operator:BashSensor>`
-
-   * - :mod:`airflow.sensors.date_time`
-     - :doc:`How to use <howto/operator/datetime>`
-
    * - :mod:`airflow.sensors.external_task`
      - :doc:`How to use <howto/operator/external_task_sensor>`
 
    * - :mod:`airflow.sensors.filesystem`
      - :ref:`How to use <howto/operator:FileSensor>`
-
-   * - :mod:`airflow.sensors.python`
-     - :ref:`How to use <howto/operator:PythonSensor>`
-
-   * - :mod:`airflow.sensors.time_delta`
-     - :ref:`How to use <howto/operator:TimeDeltaSensor>`
-
-   * - :mod:`airflow.sensors.time_sensor`
-     - :ref:`How to use <howto/operator:TimeSensor>`
-
-   * - :mod:`airflow.sensors.weekday`
-     - :ref:`How to use <howto/operator:BashSensor>`
 
 
 **Hooks:**
@@ -121,8 +91,8 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - Hooks
      - Guides
 
-   * - :mod:`airflow.hooks.filesystem`
+   * - :mod:`airflow.providers.standard.hooks.filesystem`
      -
 
-   * - :mod:`airflow.hooks.subprocess`
+   * - :mod:`airflow.providers.standard.hooks.subprocess`
      -

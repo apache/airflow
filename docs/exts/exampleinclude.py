@@ -188,7 +188,18 @@ def create_node(env, relative_path, show_button):
     :param show_button: whether to show "view code" button
     :return paragraph with the node
     """
-    pagename = "_modules/" + relative_path[:-3]
+
+    # Strip "providers" out of the example title that we include/link to. The full path needs to include
+    # it so we can pull in the code, but we don't want it to show up in the rendered docs
+    if relative_path.startswith("providers/src/"):
+        relative_path = relative_path.replace("providers/src/", "", 1)
+    elif relative_path.startswith("providers/"):
+        relative_path = relative_path.replace("providers/", "", 1)
+
+    if relative_path.endswith(".py"):
+        pagename = "_modules/" + relative_path[:-3]
+    else:
+        pagename = "_modules/" + relative_path
 
     header_classes = ["example-header"]
     if show_button:

@@ -50,7 +50,7 @@ Use the ``keys`` parameter to poke until the provided record is found. The exist
 Example use of these sensors
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. exampleinclude:: /../../tests/system/providers/apache/cassandra/example_cassandra_dag.py
+.. exampleinclude:: /../../providers/tests/system/apache/cassandra/example_cassandra_dag.py
     :language: python
     :start-after: [START howto_operator_cassandra_sensors]
     :end-before: [END howto_operator_cassandra_sensors]

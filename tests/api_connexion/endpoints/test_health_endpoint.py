@@ -30,7 +30,7 @@ from airflow.utils.state import State
 HEALTHY = "healthy"
 UNHEALTHY = "unhealthy"
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestHealthTestBase:

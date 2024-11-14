@@ -71,7 +71,7 @@ DAGs and configs across your nodes, e.g., checkout DAGs from git repo every 5 mi
 
 
 Logging
-=======
+========
 
 If you are using disposable nodes in your cluster, configure the log storage to be a distributed file system
 (DFS) such as ``S3`` and ``GCS``, or external services such as Stackdriver Logging, Elasticsearch or

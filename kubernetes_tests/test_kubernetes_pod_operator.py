@@ -50,7 +50,7 @@ POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodMana
 
 
 def create_context(task) -> Context:
-    dag = DAG(dag_id="dag")
+    dag = DAG(dag_id="dag", schedule=None)
     execution_date = timezone.datetime(
         2016, 1, 1, 1, 0, 0, tzinfo=timezone.parse_timezone("Europe/Amsterdam")
     )
@@ -1201,24 +1201,6 @@ class TestKubernetesPodOperatorSystem:
         self.expected_pod["spec"]["containers"][0]["name"] = "apple-sauce"
         assert self.expected_pod["spec"] == actual_pod["spec"]
 
-    def test_progess_call(self, mock_get_connection):
-        progress_callback = MagicMock()
-        k = KubernetesPodOperator(
-            namespace="default",
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["echo 10"],
-            labels=self.labels,
-            task_id=str(uuid4()),
-            in_cluster=False,
-            do_xcom_push=False,
-            get_logs=True,
-            progress_callback=progress_callback,
-        )
-        context = create_context(k)
-        k.execute(context)
-        progress_callback.assert_called()
-
     def test_changing_base_container_name_no_logs(self, mock_get_connection):
         """
         This test checks BOTH a modified base container name AND the get_logs=False flow,
@@ -1346,7 +1328,7 @@ def test_hide_sensitive_field_in_templated_fields_on_error(caplog, monkeypatch):
     task = KubernetesPodOperator(
         task_id="dry_run_demo",
         name="hello-dry-run",
-        image="python:3.8-slim-buster",
+        image="python:3.9-slim-buster",
         cmds=["printenv"],
         env_vars=[
             V1EnvVar(name="password", value="{{ password }}"),

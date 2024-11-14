@@ -170,18 +170,17 @@ and ``area:providers``. This is especially important since these are now
 being released and versioned independently.
 
 There are more detailed areas of the Core Airflow project such as Scheduler, Webserver,
-API, UI, Logging, and Kubernetes, which are all conceptually under the
+API, UI, Logging, and Metrics, which are all conceptually under the
 "Airflow Core" area of the project.
 
 Similarly within Airflow Providers, the larger providers such as Apache, AWS, Azure,
 and Google who have many hooks and operators within them, have labels directly
-associated with them such as ``provider:Apache``, ``provider:AWS``,
-``provider:Azure``, and ``provider:Google``.
+associated with them such as ``provider:amazon-aws``, ``provider:microsoft-azure``, and ``provider:google``.
 
 These make it easier for developers working on a single provider to
 track issues for that provider.
 
-Some provider labels may couple several providers for example: ``provider:Protocols``
+Note: each provider has it's own unique label. It is possible for issue to be tagged with more than 1 provider label.
 
 Most issues need a combination of "kind" and "area" labels to be actionable.
 For example:
@@ -259,6 +258,23 @@ Removing the ``needs-triage`` label means that the issue has been accepted and a
 as long as the ``needs-triage`` label remains the triage team will keep an eye on the issue and check periodically
 if it needs to be accepted or closed/converted to Github Discussion.
 ``needs-triage`` label may also be applied manually by committers if they think a further action from the triage team is required.
+
+**area Label**
+
+``area:providers`` must be present for any provider issue. The ``provider:x`` is specifying the exact provider.
+We have ``provider:x`` for any provider that we own.
+``area:helm-chart`` must be for any helm chart issue.
+``area:core`` must be for any core issue. Additional labels like ``area:scheduler``, ``area:UI`` is specifying the exact
+core area relevant.
+
+This method allow us to quickly filter issues by the 3 major components of our code base: core, providers and helm-chart.
+
+**affected version Label**
+
+The ``affected_version:x`` will never be present with ``kind:feature`` as feature requests are not related to specific Airflow version.
+For bugs, The ``affected_version:x`` is expected to be used with core issues thus normally it appears with ``area:core`` label.
+When issue is reproducible on multiple Airflow versions we apply only the latest version with the label.
+This policy is best effort, we should try to have as little exceptions as possible.
 
 **Good First Issue**
 

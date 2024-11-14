@@ -34,7 +34,7 @@ Released packages
 The sources and packages released are the "official" sources of installation that you can use if
 you want to verify the origin of the packages and want to verify checksums and signatures of the packages.
 The packages are available via the
-`Official Apache Software Foundations Downloads <http://ws.apache.org/mirrors.cgi>`_
+`Official Apache Software Foundations Downloads <https://dlcdn.apache.org/>`_
 
 The downloads are available at:
 

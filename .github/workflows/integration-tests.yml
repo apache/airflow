@@ -59,6 +59,7 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   tests-integration:
     timeout-minutes: 130
+    if: inputs.testable-integrations != '[]'
     name: "Integration Tests: ${{ matrix.integration }}"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
     strategy:
@@ -94,6 +95,9 @@ jobs:
         run: ./scripts/ci/testing/run_integration_tests_with_retry.sh ${{ matrix.integration }}
       - name: "Post Tests success: Integration Tests ${{ matrix.integration }}"
         uses: ./.github/actions/post_tests_success
+        with:
+          codecov-token: ${{ secrets.CODECOV_TOKEN }}
+          python-version: ${{ inputs.default-python-version }}
       - name: "Post Tests failure: Integration Tests ${{ matrix.integration }}"
         uses: ./.github/actions/post_tests_failure
         if: failure()

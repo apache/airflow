@@ -1,0 +1,6 @@
+Default DAG schedule changed to *None*
+
+When a *schedule* parameter is not passed to the ``DAG`` constructor, Airflow
+now defaults to never automatically schedule the DAG at all. The created DAG
+can still be manually triggered, either by the user directly, or from another
+DAG with ``TriggerDagRunOperator``.

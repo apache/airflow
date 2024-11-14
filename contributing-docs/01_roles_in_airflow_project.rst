@@ -30,7 +30,7 @@ PMC Member
 The PMC (Project Management Committee) is a group of maintainers that drives changes in the way that
 Airflow is managed as a project.
 
-Considering Apache, the role of the PMC is primarily to ensure that Airflow conforms to Apache's processes
+Considering Apache, the role of the PMC member is primarily to ensure that Airflow conforms to Apache's processes
 and guidelines.
 
 Committers/Maintainers

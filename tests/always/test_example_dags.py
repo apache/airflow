@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 from glob import glob
 from importlib import metadata as importlib_metadata
@@ -28,43 +29,41 @@ from packaging.version import Version
 
 from airflow.models import DagBag
 from airflow.utils import yaml
-from tests.test_utils.asserts import assert_queries_count
+
+from tests_common.test_utils.asserts import assert_queries_count
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).resolve().parents[2]
 AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
-NO_DB_QUERY_EXCEPTION = ("/airflow/example_dags/example_subdag_operator.py",)
-PROVIDERS_PREFIXES = ("airflow/providers/", "tests/system/providers/")
+PROVIDERS_PREFIXES = ("providers/src/airflow/providers/", "providers/tests/system/")
 OPTIONAL_PROVIDERS_DEPENDENCIES: dict[str, dict[str, str | None]] = {
     # Some examples or system tests may depend on additional packages
     # that are not included in certain CI checks.
     # The format of the dictionary is as follows:
-    # key: the prefix of the file to be excluded,
+    # key: the regexp matching the file to be excluded,
     # value: a dictionary containing package distributions with an optional version specifier, e.g., >=2.3.4
+    ".*example_bedrock_retrieve_and_generate.py": {"opensearch-py": None},
+    ".*example_opensearch.py": {"opensearch-py": None},
+    r".*example_yandexcloud.*\.py": {"yandexcloud": None},
 }
 IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     # Certain examples or system tests may trigger AirflowProviderDeprecationWarnings.
     # Generally, these should be resolved as soon as a parameter or operator is deprecated.
     # If the deprecation is postponed, the item should be added to this tuple,
     # and a corresponding Issue should be created on GitHub.
-    "tests/system/providers/google/cloud/bigquery/example_bigquery_operations.py",
-    "tests/system/providers/google/cloud/dataproc/example_dataproc_gke.py",
-    "tests/system/providers/google/cloud/gcs/example_gcs_sensor.py",
-    "tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine.py",
-    "tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_async.py",
-    "tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_job.py",
-    "tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_kueue.py",
-    "tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_resource.py",
-    "tests/system/providers/google/cloud/life_sciences/example_life_sciences.py",
-    "tests/system/providers/google/marketing_platform/example_analytics.py",
+    "providers/tests/system/google/cloud/bigquery/example_bigquery_operations.py",
+    "providers/tests/system/google/cloud/dataflow/example_dataflow_sql.py",
+    "providers/tests/system/google/cloud/dataproc/example_dataproc_gke.py",
+    "providers/tests/system/google/cloud/datapipelines/example_datapipeline.py",
+    "providers/tests/system/google/cloud/gcs/example_gcs_sensor.py",
+    "providers/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine.py",
+    "providers/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_async.py",
+    "providers/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_job.py",
+    "providers/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_kueue.py",
+    "providers/tests/system/google/cloud/kubernetes_engine/example_kubernetes_engine_resource.py",
+    "providers/tests/system/google/cloud/life_sciences/example_life_sciences.py",
     # Deprecated Operators/Hooks, which replaced by common.sql Operators/Hooks
 )
-
-
-if os.environ.get("PYDANTIC", "v2") != "v2":
-    pytest.skip(
-        "The test is skipped because we are running in limited Pydantic environment", allow_module_level=True
-    )
 
 
 def match_optional_dependencies(distribution_name: str, specifier: str | None) -> tuple[bool, str]:
@@ -91,7 +90,7 @@ def get_suspended_providers_folders() -> list[str]:
             suspended_providers.append(
                 provider_path.parent.relative_to(AIRFLOW_SOURCES_ROOT)
                 .as_posix()
-                .replace("airflow/providers/", "")
+                .replace("providers/src/airflow/providers/", "")
             )
     return suspended_providers
 
@@ -109,13 +108,21 @@ def get_python_excluded_providers_folders() -> list[str]:
             excluded_providers.append(
                 provider_path.parent.relative_to(AIRFLOW_SOURCES_ROOT)
                 .as_posix()
-                .replace("airflow/providers/", "")
+                .replace("providers/src/airflow/providers/", "")
             )
     return excluded_providers
 
 
 def example_not_excluded_dags(xfail_db_exception: bool = False):
-    example_dirs = ["airflow/**/example_dags/example_*.py", "tests/system/**/example_*.py"]
+    example_dirs = [
+        "airflow/**/example_dags/example_*.py",
+        "tests/system/**/example_*.py",
+        "providers/**/example_*.py",
+    ]
+
+    default_branch = os.environ.get("DEFAULT_BRANCH", "main")
+    include_providers = default_branch == "main"
+
     suspended_providers_folders = get_suspended_providers_folders()
     current_python_excluded_providers_folders = get_python_excluded_providers_folders()
     suspended_providers_folders = [
@@ -129,7 +136,6 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
         for provider in current_python_excluded_providers_folders
     ]
     providers_folders = tuple([AIRFLOW_SOURCES_ROOT.joinpath(pp).as_posix() for pp in PROVIDERS_PREFIXES])
-
     for example_dir in example_dirs:
         candidates = glob(f"{AIRFLOW_SOURCES_ROOT.as_posix()}/{example_dir}", recursive=True)
         for candidate in sorted(candidates):
@@ -144,17 +150,18 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
                 )
 
             for optional, dependencies in OPTIONAL_PROVIDERS_DEPENDENCIES.items():
-                if candidate.endswith(optional):
+                if re.match(optional, candidate):
                     for distribution_name, specifier in dependencies.items():
                         result, reason = match_optional_dependencies(distribution_name, specifier)
                         if not result:
                             param_marks.append(pytest.mark.skip(reason=reason))
 
-            if xfail_db_exception and candidate.endswith(NO_DB_QUERY_EXCEPTION):
-                # Use strict XFAIL for excluded tests. So if it is not failed, we should remove from the list.
-                param_marks.append(pytest.mark.xfail(reason="Expected DB call", strict=True))
-
             if candidate.startswith(providers_folders):
+                if not include_providers:
+                    print(
+                        f"Skipping {candidate} because providers are not included for {default_branch} branch."
+                    )
+                    continue
                 # Do not raise an error for airflow.exceptions.RemovedInAirflow3Warning.
                 # We should not rush to enforce new syntax updates in providers
                 # because a version of Airflow that deprecates certain features may not yet be released.
@@ -188,10 +195,11 @@ def test_should_be_importable(example: str):
     assert len(dagbag.dag_ids) >= 1
 
 
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 @pytest.mark.parametrize("example", example_not_excluded_dags(xfail_db_exception=True))
 def test_should_not_do_database_queries(example: str):
-    with assert_queries_count(0, stacklevel_from_module=example.rsplit(os.sep, 1)[-1]):
+    with assert_queries_count(1, stacklevel_from_module=example.rsplit(os.sep, 1)[-1]):
         DagBag(
             dag_folder=example,
             include_examples=False,

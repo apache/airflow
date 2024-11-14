@@ -58,6 +58,8 @@ cd airflow
 # Checkout the right branch
 git checkout v2-8-test
 export AIRFLOW_REPO_ROOT=$(pwd -P)
+export TEST_BRANCH=v2-8-test
+export STABLE_BRANCH=v2-8-stable
 cd ..
 ```
 
@@ -98,8 +100,19 @@ git log 2.8.0..HEAD --pretty=oneline -- airflow/api_connexion/openapi/v1.yaml
 - Create PR where you add the changelog in `main` branch and cherry-pick it to the `v2-test` branch - same
   as in case of Airflow changelog.
 
-- Merge it to the `v2-*-stable` branch. You will release API client from the latest `v2-*-stable` branch
-  of Airflow repository - same branch that is used to release Airflow.
+- Merge it to the `v2-*-stable` branch with the command below. You will release API client from the latest `v2-*-stable` branch
+  of Airflow repository - same branch that is used to release Airflow:
+
+  ```shell script
+  git checkout ${STABLE_BRANCH}
+  # make sure you are up to date
+  git fetch origin ${STABLE_BRANCH}
+  git reset --hard origin/${STABLE_BRANCH}
+  # merge the changes from the test branch
+  git merge --ff-only ${TEST_BRANCH}
+  # push the changes to the stable branch
+  git push origin ${STABLE_BRANCH}
+  ```
 
 - Build the sdist and wheel packages to be added to SVN and copy generated client sources to the
   Python Client repository.
@@ -294,7 +307,7 @@ The following files should be present (6 files):
 * .tar.gz + .asc + .sha512
 * -py3-none-any.whl + .asc + .sha512
 
-As a PMC you should be able to clone the SVN repository
+As a PMC member, you should be able to clone the SVN repository
 
 ```shell script
 svn co https://dist.apache.org/repos/dist/dev/airflow/clients/python
@@ -312,11 +325,11 @@ Airflow Python client supports reproducible builds, which means that the package
 sources should produce binary identical packages in reproducible way. You should check if the packages can be
 binary-reproduced when built from the sources.
 
-Checkout airflow sources and build packages in dist folder (replace X.Y.Z with the version
+Checkout airflow sources and build packages in dist folder (replace X.Y.Zrc1 with the version + rc candidate)
 you are checking):
 
 ```shell script
-VERSION=X.Y.Z
+VERSION=X.Y.Zrc1
 git checkout python-client-${VERSION}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
@@ -344,7 +357,7 @@ cd ..
 svn update --set-depth=infinity asf-dist/dev/airflow/clients/python
 
 # Then compare the packages
-cd asf-dist/dev/airflow/clients/python/X.Y.Zrc1
+cd asf-dist/dev/airflow/clients/python/${VERSION}
 for i in ${AIRFLOW_REPO_ROOT}/dist/*
 do
   echo "Checking if $(basename $i) is the same as $i"
@@ -464,7 +477,7 @@ and allows you to test the client in a real environment.
    variable in `files/airflow-breeze-config/init.sh`:
 
 ```shell
-export AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth
+export AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
 export AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
 ```
 
@@ -531,6 +544,9 @@ Cheers,
 ## Publish release to SVN
 
 ```shell script
+# Go to Airflow sources first
+cd <YOUR_AIRFLOW_REPO_ROOT>
+export AIRFLOW_REPO_ROOT="$(pwd)"
 # Go to Airflow python client sources first
 cd <YOUR_AIRFLOW_CLIENT_REPO_ROOT>
 export CLIENT_REPO_ROOT="$(pwd)"
@@ -561,10 +577,10 @@ done
 # Remove old release
 cd ..
 svn rm ${PREVIOUS_VERSION}
-svn commit -m "Release Apache Airflow Python Client ${VERSION} from ${RC}"
+svn commit -m "Release Apache Airflow Python Client ${VERSION} from ${VERSION}${VERSION_SUFFIX}"
 ```
 
-Verify that the packages appear in [airflow](https://downloads.apache.org/airflow/clients/python/)
+Verify that the packages appear in [airflow](https://dist.apache.org/repos/dist/release/airflow/clients/python)
 
 ## Prepare PyPI "release" packages
 

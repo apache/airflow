@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global localStorage, document */
+/* global localStorage, document, autoRefreshInterval */
 
 import React, {
   useMemo,
@@ -37,9 +37,19 @@ const isRefreshDisabled = JSON.parse(
   localStorage.getItem(autoRefreshKey) || "false"
 );
 
-const AutoRefreshContext = React.createContext({
+type RefreshContext = {
+  isRefreshOn: boolean;
+  isPaused: boolean;
+  refetchInterval: number | false;
+  toggleRefresh: () => void;
+  stopRefresh: () => void;
+  startRefresh: () => void;
+};
+
+const AutoRefreshContext = React.createContext<RefreshContext>({
   isRefreshOn: false,
   isPaused: true,
+  refetchInterval: false,
   toggleRefresh: () => {},
   stopRefresh: () => {},
   startRefresh: () => {},
@@ -59,6 +69,8 @@ export const AutoRefreshProvider = ({ children }: PropsWithChildren) => {
     () => isRefreshAllowed && setRefresh(true),
     [isRefreshAllowed, setRefresh]
   );
+
+  const refetchInterval = isRefreshOn && (autoRefreshInterval || 1) * 1000;
 
   const toggleRefresh = useCallback(
     (updateStorage = false) => {
@@ -99,12 +111,13 @@ export const AutoRefreshProvider = ({ children }: PropsWithChildren) => {
   const value = useMemo(
     () => ({
       isRefreshOn,
+      refetchInterval,
       toggleRefresh,
       stopRefresh,
       startRefresh,
       isPaused,
     }),
-    [isPaused, isRefreshOn, startRefresh, toggleRefresh]
+    [isPaused, isRefreshOn, startRefresh, toggleRefresh, refetchInterval]
   );
 
   return (

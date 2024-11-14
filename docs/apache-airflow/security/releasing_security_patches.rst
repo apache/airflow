@@ -18,7 +18,7 @@
 Releasing security patches
 ==========================
 
-Apache Airflow™ uses a consistent and predictable approach for releasing security patches - both for
+Apache Airflow® uses a consistent and predictable approach for releasing security patches - both for
 the Apache Airflow package and Apache Airflow providers (security patches in providers are treated
 separately from security patches in Airflow core package).
 

@@ -16,7 +16,7 @@
     under the License.
 
 Secrets
-=======
+========
 
 During Airflow operation, variables or configurations are used that contain particularly sensitive information.
 This guide provides ways to protect this data.

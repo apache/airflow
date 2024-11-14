@@ -86,7 +86,7 @@ DAG run fails.
 Catchup
 -------
 
-An Airflow DAG defined with a ``start_date``, possibly an ``end_date``, and a non-dataset schedule, defines a series of intervals which the scheduler turns into individual DAG runs and executes.
+An Airflow DAG defined with a ``start_date``, possibly an ``end_date``, and a non-asset schedule, defines a series of intervals which the scheduler turns into individual DAG runs and executes.
 The scheduler, by default, will
 kick off a DAG Run for any data interval that has not been run since the last data interval (or has been cleared). This concept is called Catchup.
 
@@ -100,8 +100,9 @@ in the configuration file. When turned off, the scheduler creates a DAG run only
     Code that goes along with the Airflow tutorial located at:
     https://github.com/apache/airflow/blob/main/airflow/example_dags/tutorial.py
     """
+
     from airflow.models.dag import DAG
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.operators.bash import BashOperator
 
     import datetime
     import pendulum
@@ -137,34 +138,35 @@ as that interval hasn't completed) and the scheduler will execute them sequentia
 
 Catchup is also triggered when you turn off a DAG for a specified period and then re-enable it.
 
-This behavior is great for atomic datasets that can easily be split into periods. Turning catchup off is great
+This behavior is great for atomic assets that can easily be split into periods. Turning catchup off is great
 if your DAG performs catchup internally.
 
 
 Backfill
 ---------
-There can be the case when you may want to run the DAG for a specified historical period e.g.,
-A data filling DAG is created with ``start_date`` **2019-11-21**, but another user requires the output data from a month ago i.e., **2019-10-21**.
+You may want to run the DAG for a specified historical period. For example,
+a DAG is created with ``start_date`` **2024-11-21**, but another user requires
+the output data from a month prior, i.e. **2024-10-21**.
 This process is known as Backfill.
 
-You may want to backfill the data even in the cases when catchup is disabled. This can be done through CLI.
-Run the below command
+This can be done through API or CLI. For CLI usage, run the command below:
 
 .. code-block:: bash
 
-    airflow dags backfill \
+    airflow backfill create --dag-id DAG_ID \
         --start-date START_DATE \
         --end-date END_DATE \
-        dag_id
 
-The `backfill command <../cli-and-env-variables-ref.html#backfill>`_ will re-run all the instances of the dag_id for all the intervals within the start date and end date.
+The `backfill command <../cli-and-env-variables-ref.html#backfill>`_ will
+re-run all the instances of the dag_id for all the intervals within the start
+date and end date.
 
 Re-run Tasks
 ------------
 Some of the tasks can fail during the scheduled run. Once you have fixed
 the errors after going through the logs, you can re-run the tasks by clearing them for the
-scheduled date. Clearing a task instance doesn't delete the task instance record.
-Instead, it updates ``max_tries`` to ``0`` and sets the current task instance state to ``None``, which causes the task to re-run.
+scheduled date. Clearing a task instance creates a record of the task instance.
+The ``try_number`` of the current task instance is incremented, the ``max_tries`` set to ``0`` and the state set to ``None``, which causes the task to re-run.
 
 Click on the failed task in the Tree or Graph views and then click on **Clear**.
 The executor will re-run it.
@@ -193,6 +195,23 @@ For more options, you can check the help of the `clear command <../cli-and-env-v
 .. code-block:: bash
 
     airflow tasks clear --help
+
+Task Instance History
+---------------------
+When a task instance retries or is cleared, the task instance history is preserved. You can see this history by clicking on the task instance in the Grid view.
+
+.. image:: ../img/task_instance_history.png
+
+.. note::
+    The try selector shown above is only available for tasks that have been retried or cleared.
+
+The history shows the value of the task instance attributes at the end of the particular run. On the log page, you can also see the logs for each of the task instance tries.
+This can be useful for debugging.
+
+.. image:: ../img/task_instance_history_log.png
+
+.. note::
+    Related task instance objects like the XComs, rendered template fields, etc., are not preserved in the history. Only the task instance attributes, including the logs, are preserved.
 
 External Triggers
 '''''''''''''''''
@@ -224,7 +243,7 @@ Example of a parameterized DAG:
     import pendulum
 
     from airflow import DAG
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.operators.bash import BashOperator
 
     dag = DAG(
         "example_parameterized_dag",

@@ -44,11 +44,25 @@ Create an Amazon Comprehend Start PII Entities Detection Job
 To create an Amazon Comprehend Start PII Entities Detection Job, you can use
 :class:`~airflow.providers.amazon.aws.operators.comprehend.ComprehendStartPiiEntitiesDetectionJobOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_comprehend.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_comprehend.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_start_pii_entities_detection_job]
     :end-before: [END howto_operator_start_pii_entities_detection_job]
+
+.. _howto/operator:ComprehendCreateDocumentClassifierOperator:
+
+Create an Amazon Comprehend Document Classifier
+===============================================
+
+To create an Amazon Comprehend Document Classifier, you can use
+:class:`~airflow.providers.amazon.aws.operators.comprehend.ComprehendCreateDocumentClassifierOperator`.
+
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_comprehend_document_classifier.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_create_document_classifier]
+    :end-before: [END howto_operator_create_document_classifier]
 
 Sensors
 -------
@@ -62,11 +76,26 @@ To wait on the state of an Amazon Comprehend Start PII Entities Detection Job un
 state you can use
 :class:`~airflow.providers.amazon.aws.sensors.comprehend.ComprehendStartPiiEntitiesDetectionJobCompletedSensor`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_comprehend.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_comprehend.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_start_pii_entities_detection_job]
     :end-before: [END howto_sensor_start_pii_entities_detection_job]
+
+.. _howto/sensor:ComprehendCreateDocumentClassifierCompletedSensor:
+
+Wait for an Amazon Comprehend Document Classifier
+==================================================
+
+To wait on the state of an Amazon Comprehend Document Classifier until it reaches a terminal
+state you can use
+:class:`~airflow.providers.amazon.aws.sensors.comprehend.ComprehendCreateDocumentClassifierCompletedSensor`.
+
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_comprehend_document_classifier.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_create_document_classifier]
+    :end-before: [END howto_sensor_create_document_classifier]
 
 Reference
 ---------

@@ -21,21 +21,28 @@ import datetime
 import random
 
 import pytest
+from sqlalchemy import select
 
 from airflow import settings
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstance as TI, clear_task_instances
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.operators.empty import EmptyOperator
-from airflow.sensors.python import PythonSensor
+from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
-from tests.models import DEFAULT_DATE
-from tests.test_utils import db
 
-pytestmark = pytest.mark.db_test
+from tests.models import DEFAULT_DATE
+from tests_common.test_utils import db
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
+
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestClearTasks:
@@ -174,8 +181,11 @@ class TestClearTasks:
         # but it works for our case because we specifically constructed test DAGS
         # in the way that those two sort methods are equivalent
         qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+        assert session.query(TaskInstanceHistory).count() == 0
         clear_task_instances(qry, session, dag_run_state=state, dag=dag)
         session.flush()
+        # 2 TIs were cleared so 2 history records should be created
+        assert session.query(TaskInstanceHistory).count() == 2
 
         session.refresh(dr)
 
@@ -528,6 +538,49 @@ class TestClearTasks:
             assert count_task_reschedule(ti0.task_id) == 0
             assert count_task_reschedule(ti1.task_id) == 1
 
+    @pytest.mark.parametrize(
+        ["state", "state_recorded"],
+        [
+            (TaskInstanceState.SUCCESS, TaskInstanceState.SUCCESS),
+            (TaskInstanceState.FAILED, TaskInstanceState.FAILED),
+            (TaskInstanceState.SKIPPED, TaskInstanceState.SKIPPED),
+            (TaskInstanceState.UP_FOR_RETRY, TaskInstanceState.FAILED),
+            (TaskInstanceState.UP_FOR_RESCHEDULE, TaskInstanceState.FAILED),
+            (TaskInstanceState.RUNNING, TaskInstanceState.FAILED),
+            (TaskInstanceState.QUEUED, TaskInstanceState.FAILED),
+            (TaskInstanceState.SCHEDULED, TaskInstanceState.FAILED),
+            (None, TaskInstanceState.FAILED),
+            (TaskInstanceState.RESTARTING, TaskInstanceState.FAILED),
+        ],
+    )
+    def test_task_instance_history_record(self, state, state_recorded, dag_maker):
+        """Test that task instance history record is created with approapriate state"""
+
+        with dag_maker(
+            "test_clear_task_instances",
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=10),
+        ) as dag:
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1", retries=2)
+        dr = dag_maker.create_dagrun(
+            state=DagRunState.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        ti0.state = state
+        ti1.state = state
+        session = dag_maker.session
+        session.flush()
+        qry = session.query(TI).filter(TI.dag_id == dag.dag_id).order_by(TI.task_id).all()
+        clear_task_instances(qry, session, dag=dag)
+        session.flush()
+
+        session.refresh(dr)
+        ti_history = session.scalars(select(TaskInstanceHistory.state)).all()
+
+        assert [ti_history[0], ti_history[1]] == [str(state_recorded), str(state_recorded)]
+
     def test_dag_clear(self, dag_maker):
         with dag_maker(
             "test_dag_clear", start_date=DEFAULT_DATE, end_date=DEFAULT_DATE + datetime.timedelta(days=10)
@@ -544,7 +597,7 @@ class TestClearTasks:
         ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
         ti0.refresh_from_task(task0)
         ti1.refresh_from_task(task1)
-        session.get(TaskInstance, ti0.key.primary).try_number += 1
+        session.get(TaskInstance, ti0.id).try_number += 1
         session.commit()
         # Next try to run will be try 1
         assert ti0.try_number == 1
@@ -558,7 +611,7 @@ class TestClearTasks:
         assert ti0.max_tries == 1
 
         assert ti1.max_tries == 2
-        session.get(TaskInstance, ti1.key.primary).try_number += 1
+        session.get(TaskInstance, ti1.id).try_number += 1
         session.commit()
         ti1.run()
 
@@ -583,16 +636,20 @@ class TestClearTasks:
         for i in range(num_of_dags):
             dag = DAG(
                 f"test_dag_clear_{i}",
+                schedule=datetime.timedelta(days=1),
                 start_date=DEFAULT_DATE,
                 end_date=DEFAULT_DATE + datetime.timedelta(days=10),
             )
             task = EmptyOperator(task_id=f"test_task_clear_{i}", owner="test", dag=dag)
 
+            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dr = dag.create_dagrun(
                 execution_date=DEFAULT_DATE,
                 state=State.RUNNING,
                 run_type=DagRunType.SCHEDULED,
                 session=session,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                **triggered_by_kwargs,
             )
             ti = dr.task_instances[0]
             ti.task = task
@@ -601,7 +658,7 @@ class TestClearTasks:
 
         # test clear all dags
         for i in range(num_of_dags):
-            session.get(TaskInstance, tis[i].key.primary).try_number += 1
+            session.get(TaskInstance, tis[i].id).try_number += 1
             session.commit()
             tis[i].run()
             assert tis[i].state == State.SUCCESS
@@ -618,7 +675,7 @@ class TestClearTasks:
 
         # test dry_run
         for i in range(num_of_dags):
-            session.get(TaskInstance, tis[i].key.primary).try_number += 1
+            session.get(TaskInstance, tis[i].id).try_number += 1
             session.commit()
             tis[i].run()
             assert tis[i].state == State.SUCCESS
@@ -671,7 +728,7 @@ class TestClearTasks:
         ti1.task = op1
         ti2.task = op2
 
-        session.get(TaskInstance, ti2.key.primary).try_number += 1
+        session.get(TaskInstance, ti2.id).try_number += 1
         session.commit()
         ti2.run()
         # Dependency not met
@@ -680,14 +737,14 @@ class TestClearTasks:
 
         op2.clear(upstream=True)
         # max tries will be set to retries + curr try number == 1 + 1 == 2
-        assert session.get(TaskInstance, ti2.key.primary).max_tries == 2
+        assert session.get(TaskInstance, ti2.id).max_tries == 2
 
-        session.get(TaskInstance, ti1.key.primary).try_number += 1
+        session.get(TaskInstance, ti1.id).try_number += 1
         session.commit()
         ti1.run()
         assert ti1.try_number == 1
 
-        session.get(TaskInstance, ti2.key.primary).try_number += 1
+        session.get(TaskInstance, ti2.id).try_number += 1
         session.commit()
         ti2.run(ignore_ti_state=True)
         # max_tries is 0 because there is no task instance in db for ti1

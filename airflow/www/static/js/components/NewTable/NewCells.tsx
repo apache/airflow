@@ -19,15 +19,18 @@
 
 import React from "react";
 import { Code } from "@chakra-ui/react";
+import type { CellContext } from "@tanstack/react-table";
 
 import Time from "src/components/Time";
 
-export const TimeCell = ({ getValue }: any) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const TimeCell = ({ getValue }: CellContext<any, any>) => {
   const value = getValue();
   return <Time dateTime={value} />;
 };
 
-export const CodeCell = ({ getValue }: any) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const CodeCell = ({ getValue }: CellContext<any, any>) => {
   const value = getValue();
   return value ? <Code>{value}</Code> : null;
 };

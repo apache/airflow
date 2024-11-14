@@ -93,6 +93,16 @@ Exposing customized functionality to the Airflow's core:
   ``airflow/config_templates/config.yml.schema.json`` with configuration contributed by the providers
   See :doc:`apache-airflow:howto/set-config` for details about setting configuration.
 
+* ``filesystems`` - this field should contain the list of all the filesystem module names.
+  See :doc:`apache-airflow:core-concepts/objectstorage` for description of the filesystems.
+
+..
+  TODO: Change this from Dataset to Asset in Airflow 3.0
+
+* ``dataset-uris`` - this field should contain the list of the URI schemes together with
+  class names implementing normalization functions.
+  See :doc:`apache-airflow:authoring-and-scheduling/datasets` for description of the dataset URIs.
+
 .. note:: Deprecated values
 
   * ``hook-class-names`` (deprecated) - this field should contain the list of all hook class names that provide

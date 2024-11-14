@@ -52,11 +52,7 @@ function get_runtime_apt_deps() {
     echo
     echo "DEBIAN CODENAME: ${debian_version}"
     echo
-    if [[ "${debian_version}" == "bullseye" ]]; then
-        debian_version_apt_deps="libffi7 libldap-2.4-2 libssl1.1 netcat"
-    else
-        debian_version_apt_deps="libffi8 libldap-2.5-0 libssl3 netcat-openbsd"
-    fi
+    debian_version_apt_deps="libffi8 libldap-2.5-0 libssl3 netcat-openbsd"
     echo
     echo "APPLIED INSTALLATION CONFIGURATION FOR DEBIAN VERSION: ${debian_version}"
     echo
@@ -105,19 +101,6 @@ function install_debian_dev_dependencies() {
     echo
     echo "DEBIAN CODENAME: ${debian_version}"
     echo
-    if [[ "${debian_version}" == "bullseye" ]]; then
-        echo
-        echo "Bullseye detected - replacing dependencies in additional dev apt deps"
-        echo
-        # Replace dependencies in additional dev apt deps to be compatible with Bullseye
-        ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS//libgcc-11-dev/libgcc-10-dev}
-        ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS//netcat-openbsd/netcat}
-        echo
-        echo "Replaced bullseye dev apt dependencies"
-        echo "${ADDITIONAL_DEV_APT_COMMAND}"
-        echo
-    fi
-
     # shellcheck disable=SC2086
     apt-get install -y --no-install-recommends ${DEV_APT_DEPS} ${ADDITIONAL_DEV_APT_DEPS}
 }

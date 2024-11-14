@@ -42,7 +42,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.listeners.listener import get_listener_manager
-from airflow.models import DagPickle, TaskInstance
+from airflow.models import TaskInstance
 from airflow.models.dag import DAG, _run_inline_trigger
 from airflow.models.dagrun import DagRun
 from airflow.models.param import ParamsDict
@@ -52,16 +52,14 @@ from airflow.settings import IS_EXECUTOR_CONTAINER, IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.typing_compat import Literal
-from airflow.utils import cli as cli_utils
+from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.cli import (
     get_dag,
     get_dag_by_file_location,
-    get_dag_by_pickle,
     get_dags,
     should_ignore_depends_on_past,
     suppress_logs_and_warning,
 )
-from airflow.utils.dates import timezone
 from airflow.utils.log.file_task_handler import _set_task_deferred_context_var
 from airflow.utils.log.logging_mixin import StreamLogWriter
 from airflow.utils.log.secrets_masker import RedactedIO
@@ -70,6 +68,7 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.task_instance_session import set_current_task_instance_session
+from airflow.utils.types import DagRunTriggeredByType
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -83,7 +82,8 @@ CreateIfNecessary = Union[Literal[False], Literal["db"], Literal["memory"]]
 
 
 def _generate_temporary_run_id() -> str:
-    """Generate a ``run_id`` for a DAG run that will be created temporarily.
+    """
+    Generate a ``run_id`` for a DAG run that will be created temporarily.
 
     This is used mostly by ``airflow task test`` to create a DAG run that will
     be deleted after the task is run.
@@ -98,7 +98,8 @@ def _get_dag_run(
     exec_date_or_run_id: str | None = None,
     session: Session | None = None,
 ) -> tuple[DagRun | DagRunPydantic, bool]:
-    """Try to retrieve a DAG run from a string representing either a run ID or logical date.
+    """
+    Try to retrieve a DAG run from a string representing either a run ID or logical date.
 
     This checks DAG runs like this:
 
@@ -141,6 +142,7 @@ def _get_dag_run(
             run_id=exec_date_or_run_id,
             execution_date=dag_run_execution_date,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_execution_date),
+            triggered_by=DagRunTriggeredByType.CLI,
         )
         return dag_run, True
     elif create_if_necessary == "db":
@@ -150,6 +152,7 @@ def _get_dag_run(
             run_id=_generate_temporary_run_id(),
             data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_execution_date),
             session=session,
+            triggered_by=DagRunTriggeredByType.CLI,
         )
         return dag_run, True
     raise ValueError(f"unknown create_if_necessary value: {create_if_necessary!r}")
@@ -262,28 +265,16 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
 
     This can result in the task being started by another host if the executor implementation does.
     """
-    pickle_id = None
-    if args.ship_dag:
-        try:
-            # Running remotely, so pickling the DAG
-            with create_session() as session:
-                pickle = DagPickle(dag)
-                session.add(pickle)
-            pickle_id = pickle.id
-            # TODO: This should be written to a log
-            print(f"Pickled dag {dag} as pickle_id: {pickle_id}")
-        except Exception as e:
-            print("Could not pickle the DAG")
-            print(e)
-            raise e
-    executor = ExecutorLoader.get_default_executor()
+    if ti.executor:
+        executor = ExecutorLoader.load_executor(ti.executor)
+    else:
+        executor = ExecutorLoader.get_default_executor()
     executor.job_id = None
     executor.start()
     print("Sending to executor.")
     executor.queue_task_instance(
         ti,
         mark_success=args.mark_success,
-        pickle_id=pickle_id,
         ignore_all_deps=args.ignore_all_dependencies,
         ignore_depends_on_past=should_ignore_depends_on_past(args),
         wait_for_past_depends_before_skipping=(args.depends_on_past == "wait"),
@@ -304,7 +295,6 @@ def _run_task_by_local_task_job(args, ti: TaskInstance | TaskInstancePydantic) -
         job=Job(dag_id=ti.dag_id),
         task_instance=ti,
         mark_success=args.mark_success,
-        pickle_id=args.pickle,
         ignore_all_deps=args.ignore_all_dependencies,
         ignore_depends_on_past=should_ignore_depends_on_past(args),
         wait_for_past_depends_before_skipping=(args.depends_on_past == "wait"),
@@ -325,7 +315,6 @@ def _run_task_by_local_task_job(args, ti: TaskInstance | TaskInstancePydantic) -
 
 RAW_TASK_UNSUPPORTED_OPTION = [
     "ignore_all_dependencies",
-    "ignore_depends_on_past",
     "ignore_dependencies",
     "force",
 ]
@@ -335,7 +324,6 @@ def _run_raw_task(args, ti: TaskInstance) -> None | TaskReturnCode:
     """Run the main task handling code."""
     return ti._run_raw_task(
         mark_success=args.mark_success,
-        job_id=args.job_id,
         pool=args.pool,
     )
 
@@ -430,8 +418,7 @@ def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
                 f"You provided the option {unsupported_flags}. "
                 "Delete it to execute the command."
             )
-    if dag and args.pickle:
-        raise AirflowException("You cannot use the --pickle option when using DAG.cli() method.")
+
     if args.cfg_path:
         with open(args.cfg_path) as conf_file:
             conf_dict = json.load(conf_file)
@@ -446,10 +433,7 @@ def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
 
     get_listener_manager().hook.on_starting(component=TaskCommandMarker())
 
-    if args.pickle:
-        print(f"Loading pickle id: {args.pickle}")
-        _dag = get_dag_by_pickle(args.pickle)
-    elif not dag:
+    if not dag:
         _dag = get_dag(args.subdir, args.dag_id, args.read_from_db)
     else:
         _dag = dag
@@ -461,13 +445,14 @@ def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
 
     log.info("Running %s on host %s", ti, hostname)
 
-    # IMPORTANT, have to re-configure ORM with the NullPool, otherwise, each "run" command may leave
-    # behind multiple open sleeping connections while heartbeating, which could
-    # easily exceed the database connection limit when
-    # processing hundreds of simultaneous tasks.
-    # this should be last thing before running, to reduce likelihood of an open session
-    # which can cause trouble if running process in a fork.
-    settings.reconfigure_orm(disable_connection_pool=True)
+    if not InternalApiConfig.get_use_internal_api():
+        # IMPORTANT, have to re-configure ORM with the NullPool, otherwise, each "run" command may leave
+        # behind multiple open sleeping connections while heartbeating, which could
+        # easily exceed the database connection limit when
+        # processing hundreds of simultaneous tasks.
+        # this should be last thing before running, to reduce likelihood of an open session
+        # which can cause trouble if running process in a fork.
+        settings.reconfigure_orm(disable_connection_pool=True)
     task_return_code = None
     try:
         if args.interactive:
@@ -542,11 +527,8 @@ def task_state(args) -> None:
 def task_list(args, dag: DAG | None = None) -> None:
     """List the tasks within a DAG at the command line."""
     dag = dag or get_dag(args.subdir, args.dag_id)
-    if args.tree:
-        dag.tree_view()
-    else:
-        tasks = sorted(t.task_id for t in dag.tasks)
-        print("\n".join(tasks))
+    tasks = sorted(t.task_id for t in dag.tasks)
+    print("\n".join(tasks))
 
 
 class _SupportedDebugger(Protocol):
@@ -758,8 +740,6 @@ def task_clear(args) -> None:
         only_failed=args.only_failed,
         only_running=args.only_running,
         confirm_prompt=not args.yes,
-        include_subdags=not args.exclude_subdags,
-        include_parentdag=not args.exclude_parentdag,
     )
 
 

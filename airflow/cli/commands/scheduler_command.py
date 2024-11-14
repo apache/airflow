@@ -24,7 +24,6 @@ from contextlib import contextmanager
 from multiprocessing import Process
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.configuration import conf
 from airflow.executors.executor_loader import ExecutorLoader
@@ -40,11 +39,8 @@ log = logging.getLogger(__name__)
 
 
 def _run_scheduler_job(args) -> None:
-    job_runner = SchedulerJobRunner(
-        job=Job(), subdir=process_subdir(args.subdir), num_runs=args.num_runs, do_pickle=args.do_pickle
-    )
-    ExecutorLoader.validate_database_executor_compatibility(job_runner.job.executor)
-    InternalApiConfig.force_database_direct_access()
+    job_runner = SchedulerJobRunner(job=Job(), subdir=process_subdir(args.subdir), num_runs=args.num_runs)
+    ExecutorLoader.validate_database_executor_compatibility(job_runner.job.executor.__class__)
     enable_health_check = conf.getboolean("scheduler", "ENABLE_HEALTH_CHECK")
     with _serve_logs(args.skip_serve_logs), _serve_health_check(enable_health_check):
         run_job(job=job_runner.job, execute_callable=job_runner._execute)

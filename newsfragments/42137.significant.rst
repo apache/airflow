@@ -1,0 +1,1 @@
+Optional ``[saml]`` extra has been removed from Airflow core - instead Amazon Provider gets saml as required dependency.

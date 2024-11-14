@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Collection, Sequence
 
+from airflow.assets import AssetAlias, _AssetAliasCondition
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 from airflow.utils import timezone
 
@@ -25,7 +26,8 @@ if TYPE_CHECKING:
     from pendulum import DateTime
     from sqlalchemy import Session
 
-    from airflow.models.dataset import DatasetEvent
+    from airflow.assets import BaseAsset
+    from airflow.models.asset import AssetEvent
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 
@@ -41,7 +43,8 @@ class _TrivialTimetable(Timetable):
         return cls()
 
     def __eq__(self, other: Any) -> bool:
-        """As long as *other* is of the same type.
+        """
+        As long as *other* is of the same type.
 
         This is only for testing purposes and should not be relied on otherwise.
         """
@@ -57,7 +60,8 @@ class _TrivialTimetable(Timetable):
 
 
 class NullTimetable(_TrivialTimetable):
-    """Timetable that never schedules anything.
+    """
+    Timetable that never schedules anything.
 
     This corresponds to ``schedule=None``.
     """
@@ -79,7 +83,8 @@ class NullTimetable(_TrivialTimetable):
 
 
 class OnceTimetable(_TrivialTimetable):
-    """Timetable that schedules the execution once as soon as possible.
+    """
+    Timetable that schedules the execution once as soon as possible.
 
     This corresponds to ``schedule="@once"``.
     """
@@ -110,7 +115,8 @@ class OnceTimetable(_TrivialTimetable):
 
 
 class ContinuousTimetable(_TrivialTimetable):
-    """Timetable that schedules continually, while still respecting start_date and end_date.
+    """
+    Timetable that schedules continually, while still respecting start_date and end_date.
 
     This corresponds to ``schedule="@continuous"``.
     """
@@ -146,19 +152,44 @@ class ContinuousTimetable(_TrivialTimetable):
         return DagRunInfo.interval(start, end)
 
 
-class DatasetTriggeredTimetable(_TrivialTimetable):
-    """Timetable that never schedules anything.
+class AssetTriggeredTimetable(_TrivialTimetable):
+    """
+    Timetable that never schedules anything.
 
-    This should not be directly used anywhere, but only set if a DAG is triggered by datasets.
+    This should not be directly used anywhere, but only set if a DAG is triggered by assets.
 
     :meta private:
     """
 
-    description: str = "Triggered by datasets"
+    UNRESOLVED_ALIAS_SUMMARY = "Unresolved AssetAlias"
+
+    description: str = "Triggered by assets"
+
+    def __init__(self, assets: BaseAsset) -> None:
+        super().__init__()
+        self.asset_condition = assets
+        if isinstance(self.asset_condition, AssetAlias):
+            self.asset_condition = _AssetAliasCondition(self.asset_condition.name)
+
+        if not next(self.asset_condition.iter_assets(), False):
+            self._summary = AssetTriggeredTimetable.UNRESOLVED_ALIAS_SUMMARY
+        else:
+            self._summary = "Asset"
+
+    @classmethod
+    def deserialize(cls, data: dict[str, Any]) -> Timetable:
+        from airflow.serialization.serialized_objects import decode_asset_condition
+
+        return cls(decode_asset_condition(data["asset_condition"]))
 
     @property
     def summary(self) -> str:
-        return "Dataset"
+        return self._summary
+
+    def serialize(self) -> dict[str, Any]:
+        from airflow.serialization.serialized_objects import encode_asset_condition
+
+        return {"asset_condition": encode_asset_condition(self.asset_condition)}
 
     def generate_run_id(
         self,
@@ -167,7 +198,7 @@ class DatasetTriggeredTimetable(_TrivialTimetable):
         logical_date: DateTime,
         data_interval: DataInterval | None,
         session: Session | None = None,
-        events: Collection[DatasetEvent] | None = None,
+        events: Collection[AssetEvent] | None = None,
         **extra,
     ) -> str:
         from airflow.models.dagrun import DagRun
@@ -177,7 +208,7 @@ class DatasetTriggeredTimetable(_TrivialTimetable):
     def data_interval_for_events(
         self,
         logical_date: DateTime,
-        events: Collection[DatasetEvent],
+        events: Collection[AssetEvent],
     ) -> DataInterval:
         if not events:
             return DataInterval(logical_date, logical_date)

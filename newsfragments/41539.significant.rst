@@ -1,0 +1,1 @@
+Removed deprecated ``smtp_user`` and ``smtp_password`` configuration parameters from ``smtp`` section. Please use smtp connection (``smtp_default``).

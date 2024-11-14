@@ -30,8 +30,8 @@ then
     for folder in ${SUSPENDED_PROVIDERS_FOLDERS=}
     do
         ADDITIONAL_MYPY_OPTIONS+=(
-            "--exclude" "airflow/providers/${folder}/*"
-            "--exclude" "tests/providers/${folder}/*"
+            "--exclude" "providers/src/airflow/providers/${folder}/*"
+            "--exclude" "providers/tests/${folder}/*"
         )
     done
 fi

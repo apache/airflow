@@ -16,11 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from abc import ABC
 from typing import TYPE_CHECKING
-
-from airflow.exceptions import RemovedInAirflow3Warning
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection
@@ -69,17 +66,6 @@ class BaseSecretsBackend(ABC):
         else:
             return Connection(conn_id=conn_id, uri=value)
 
-    def get_conn_uri(self, conn_id: str) -> str | None:
-        """
-        Get conn_uri from Secrets Backend.
-
-        This method is deprecated and will be removed in a future release; implement ``get_conn_value``
-        instead.
-
-        :param conn_id: connection id
-        """
-        raise NotImplementedError()
-
     def get_connection(self, conn_id: str) -> Connection | None:
         """
         Return connection object with a given ``conn_id``.
@@ -88,51 +74,12 @@ class BaseSecretsBackend(ABC):
 
         :param conn_id: connection id
         """
-        value = None
-
-        not_implemented_get_conn_value = False
-        # TODO: after removal of ``get_conn_uri`` we should not catch NotImplementedError here
-        try:
-            value = self.get_conn_value(conn_id=conn_id)
-        except NotImplementedError:
-            not_implemented_get_conn_value = True
-            warnings.warn(
-                "Method `get_conn_uri` is deprecated. Please use `get_conn_value`.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-
-        if not_implemented_get_conn_value:
-            try:
-                value = self.get_conn_uri(conn_id=conn_id)
-            except NotImplementedError:
-                raise NotImplementedError(
-                    f"Secrets backend {self.__class__.__name__} neither implements "
-                    "`get_conn_value` nor `get_conn_uri`.  Method `get_conn_uri` is "
-                    "deprecated and will be removed in a future release. Please implement `get_conn_value`."
-                )
+        value = self.get_conn_value(conn_id=conn_id)
 
         if value:
             return self.deserialize_connection(conn_id=conn_id, value=value)
         else:
             return None
-
-    def get_connections(self, conn_id: str) -> list[Connection]:
-        """
-        Return connection object with a given ``conn_id``.
-
-        :param conn_id: connection id
-        """
-        warnings.warn(
-            "This method is deprecated. Please use "
-            "`airflow.secrets.base_secrets.BaseSecretsBackend.get_connection`.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        conn = self.get_connection(conn_id=conn_id)
-        if conn:
-            return [conn]
-        return []
 
     def get_variable(self, key: str) -> str | None:
         """

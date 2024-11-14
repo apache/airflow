@@ -40,9 +40,15 @@ import attrs
 import lazy_object_proxy
 from sqlalchemy import select
 
-from airflow.datasets import Dataset, coerce_to_uri
+from airflow.assets import (
+    Asset,
+    AssetAlias,
+    AssetAliasEvent,
+    AssetRef,
+    extract_event_key,
+)
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.dataset import DatasetEvent, DatasetModel
+from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel, _fetch_active_assets_by_name
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.types import NOTSET
 
@@ -97,7 +103,7 @@ KNOWN_CONTEXT_KEYS: set[str] = {
     "ti",
     "tomorrow_ds",
     "tomorrow_ds_nodash",
-    "triggering_dataset_events",
+    "triggering_asset_events",
     "ts",
     "ts_nodash",
     "ts_nodash_with_tz",
@@ -159,16 +165,41 @@ class ConnectionAccessor:
 
 @attrs.define()
 class OutletEventAccessor:
-    """Wrapper to access an outlet dataset event in template.
+    """
+    Wrapper to access an outlet asset event in template.
 
     :meta private:
     """
 
-    extra: dict[str, Any]
+    raw_key: str | Asset | AssetAlias
+    extra: dict[str, Any] = attrs.Factory(dict)
+    asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
+
+    def add(self, asset: Asset | str, extra: dict[str, Any] | None = None) -> None:
+        """Add an AssetEvent to an existing Asset."""
+        if isinstance(asset, str):
+            asset_uri = asset
+        elif isinstance(asset, Asset):
+            asset_uri = asset.uri
+        else:
+            return
+
+        if isinstance(self.raw_key, str):
+            asset_alias_name = self.raw_key
+        elif isinstance(self.raw_key, AssetAlias):
+            asset_alias_name = self.raw_key.name
+        else:
+            return
+
+        event = AssetAliasEvent(
+            source_alias_name=asset_alias_name, dest_asset_uri=asset_uri, extra=extra or {}
+        )
+        self.asset_alias_events.append(event)
 
 
 class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
-    """Lazy mapping of outlet dataset event accessors.
+    """
+    Lazy mapping of outlet asset event accessors.
 
     :meta private:
     """
@@ -176,48 +207,69 @@ class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
     def __init__(self) -> None:
         self._dict: dict[str, OutletEventAccessor] = {}
 
+    def __str__(self) -> str:
+        return f"OutletEventAccessors(_dict={self._dict})"
+
     def __iter__(self) -> Iterator[str]:
         return iter(self._dict)
 
     def __len__(self) -> int:
         return len(self._dict)
 
-    def __getitem__(self, key: str | Dataset) -> OutletEventAccessor:
-        if (uri := coerce_to_uri(key)) not in self._dict:
-            self._dict[uri] = OutletEventAccessor({})
-        return self._dict[uri]
+    def __getitem__(self, key: str | Asset | AssetAlias) -> OutletEventAccessor:
+        event_key = extract_event_key(key)
+        if event_key not in self._dict:
+            self._dict[event_key] = OutletEventAccessor(extra={}, raw_key=key)
+        return self._dict[event_key]
 
 
-class LazyDatasetEventSelectSequence(LazySelectSequence[DatasetEvent]):
-    """List-like interface to lazily access DatasetEvent rows.
+class LazyAssetEventSelectSequence(LazySelectSequence[AssetEvent]):
+    """
+    List-like interface to lazily access AssetEvent rows.
 
     :meta private:
     """
 
     @staticmethod
     def _rebuild_select(stmt: TextClause) -> Select:
-        return select(DatasetEvent).from_statement(stmt)
+        return select(AssetEvent).from_statement(stmt)
 
     @staticmethod
-    def _process_row(row: Row) -> DatasetEvent:
+    def _process_row(row: Row) -> AssetEvent:
         return row[0]
 
 
 @attrs.define(init=False)
-class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
-    """Lazy mapping for inlet dataset events accessors.
+class InletEventsAccessors(Mapping[str, LazyAssetEventSelectSequence]):
+    """
+    Lazy mapping for inlet asset events accessors.
 
     :meta private:
     """
 
     _inlets: list[Any]
-    _datasets: dict[str, Dataset]
+    _assets: dict[str, Asset]
+    _asset_aliases: dict[str, AssetAlias]
     _session: Session
 
     def __init__(self, inlets: list, *, session: Session) -> None:
         self._inlets = inlets
-        self._datasets = {inlet.uri: inlet for inlet in inlets if isinstance(inlet, Dataset)}
         self._session = session
+        self._assets = {}
+        self._asset_aliases = {}
+
+        _asset_ref_names: list[str] = []
+        for inlet in inlets:
+            if isinstance(inlet, Asset):
+                self._assets[inlet.name] = inlet
+            elif isinstance(inlet, AssetAlias):
+                self._asset_aliases[inlet.name] = inlet
+            elif isinstance(inlet, AssetRef):
+                _asset_ref_names.append(inlet.name)
+
+        if _asset_ref_names:
+            for asset_name, asset in _fetch_active_assets_by_name(_asset_ref_names, self._session).items():
+                self._assets[asset_name] = asset
 
     def __iter__(self) -> Iterator[str]:
         return iter(self._inlets)
@@ -225,16 +277,31 @@ class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
     def __len__(self) -> int:
         return len(self._inlets)
 
-    def __getitem__(self, key: int | str | Dataset) -> LazyDatasetEventSelectSequence:
+    def __getitem__(self, key: int | str | Asset | AssetAlias) -> LazyAssetEventSelectSequence:
         if isinstance(key, int):  # Support index access; it's easier for trivial cases.
-            dataset = self._inlets[key]
-            if not isinstance(dataset, Dataset):
+            obj = self._inlets[key]
+            if not isinstance(obj, (Asset, AssetAlias, AssetRef)):
                 raise IndexError(key)
         else:
-            dataset = self._datasets[coerce_to_uri(key)]
-        return LazyDatasetEventSelectSequence.from_select(
-            select(DatasetEvent).join(DatasetEvent.dataset).where(DatasetModel.uri == dataset.uri),
-            order_by=[DatasetEvent.timestamp],
+            obj = key
+
+        if isinstance(obj, AssetAlias):
+            asset_alias = self._asset_aliases[obj.name]
+            join_clause = AssetEvent.source_aliases
+            where_clause = AssetAliasModel.name == asset_alias.name
+        elif isinstance(obj, (Asset, AssetRef)):
+            join_clause = AssetEvent.asset
+            where_clause = AssetModel.name == self._assets[obj.name].name
+        elif isinstance(obj, str):
+            asset = self._assets[extract_event_key(obj)]
+            join_clause = AssetEvent.asset
+            where_clause = AssetModel.name == asset.name
+        else:
+            raise ValueError(key)
+
+        return LazyAssetEventSelectSequence.from_select(
+            select(AssetEvent).join(join_clause).where(where_clause),
+            order_by=[AssetEvent.timestamp],
             session=self._session,
         )
 
@@ -256,7 +323,8 @@ def _create_deprecation_warning(key: str, replacements: list[str]) -> RemovedInA
 
 
 class Context(MutableMapping[str, Any]):
-    """Jinja2 template context for task rendering.
+    """
+    Jinja2 template context for task rendering.
 
     This is a mapping (dict-like) class that can lazily emit warnings when
     (and only when) deprecated context keys are accessed.
@@ -287,7 +355,8 @@ class Context(MutableMapping[str, Any]):
         return repr(self._context)
 
     def __reduce_ex__(self, protocol: SupportsIndex) -> tuple[Any, ...]:
-        """Pickle the context as a dict.
+        """
+        Pickle the context as a dict.
 
         We are intentionally going through ``__getitem__`` in this function,
         instead of using ``items()``, to trigger deprecation warnings.
@@ -348,7 +417,8 @@ class Context(MutableMapping[str, Any]):
 
 
 def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
-    """Merge parameters into an existing context.
+    """
+    Merge parameters into an existing context.
 
     Like ``dict.update()`` , this take the same parameters, and updates
     ``context`` in-place.
@@ -359,11 +429,15 @@ def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
 
     :meta private:
     """
+    if not context:
+        context = Context()
+
     context.update(*args, **kwargs)
 
 
 def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
-    """Update context after task unmapping.
+    """
+    Update context after task unmapping.
 
     Since ``get_template_context()`` is called before unmapping, the context
     contains information about the mapped task. We need to do some in-place
@@ -378,7 +452,8 @@ def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
 
 
 def context_copy_partial(source: Context, keys: Container[str]) -> Context:
-    """Create a context by copying items under selected keys in ``source``.
+    """
+    Create a context by copying items under selected keys in ``source``.
 
     This is implemented as a free function because the ``Context`` type is
     "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
@@ -392,7 +467,8 @@ def context_copy_partial(source: Context, keys: Container[str]) -> Context:
 
 
 def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
-    """Create a mapping that wraps deprecated entries in a lazy object proxy.
+    """
+    Create a mapping that wraps deprecated entries in a lazy object proxy.
 
     This further delays deprecation warning to until when the entry is actually
     used, instead of when it's accessed in the context. The result is useful for

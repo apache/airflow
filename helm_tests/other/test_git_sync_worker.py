@@ -132,3 +132,73 @@ class TestGitSyncWorker:
         )
 
         assert "git-sync-ssh-key" not in jmespath.search("spec.template.spec.volumes[].name", docs[0])
+
+    def test_validate_if_ssh_params_are_added_with_git_ssh_key(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "sshKey": "dummy-ssh-key",
+                    }
+                }
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert {"name": "GIT_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )
+        assert {"name": "GITSYNC_SSH_KEY_FILE", "value": "/etc/git-secret/ssh"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )
+        assert {"name": "GIT_SYNC_SSH", "value": "true"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )
+        assert {"name": "GITSYNC_SSH", "value": "true"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )
+        assert {"name": "GIT_KNOWN_HOSTS", "value": "false"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )
+        assert {"name": "GITSYNC_SSH_KNOWN_HOSTS", "value": "false"} in jmespath.search(
+            "spec.template.spec.containers[1].env", docs[0]
+        )
+        assert {
+            "name": "git-sync-ssh-key",
+            "secret": {"secretName": "release-name-ssh-secret", "defaultMode": 288},
+        } in jmespath.search("spec.template.spec.volumes", docs[0])
+
+    def test_container_lifecycle_hooks(self):
+        docs = render_chart(
+            values={
+                "dags": {
+                    "gitSync": {
+                        "enabled": True,
+                        "containerLifecycleHooks": {
+                            "postStart": {
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /git/message_start",
+                                    ]
+                                }
+                            },
+                            "preStop": {
+                                "exec": {
+                                    "command": ["/bin/sh", "-c", "echo preStop handler > /git/message_start"]
+                                }
+                            },
+                        },
+                    },
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        assert {
+            "postStart": {
+                "exec": {"command": ["/bin/sh", "-c", "echo postStart handler > /git/message_start"]}
+            },
+            "preStop": {"exec": {"command": ["/bin/sh", "-c", "echo preStop handler > /git/message_start"]}},
+        } == jmespath.search("spec.template.spec.containers[1].lifecycle", docs[0])

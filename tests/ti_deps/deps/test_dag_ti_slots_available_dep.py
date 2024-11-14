@@ -24,7 +24,7 @@ import pytest
 from airflow.models import TaskInstance
 from airflow.ti_deps.deps.dag_ti_slots_available_dep import DagTISlotsAvailableDep
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestDagTISlotsAvailableDep:
@@ -34,7 +34,7 @@ class TestDagTISlotsAvailableDep:
         """
         dag = Mock(concurrency=1, get_concurrency_reached=Mock(return_value=True))
         task = Mock(dag=dag, pool_slots=1)
-        ti = TaskInstance(task, execution_date=None)
+        ti = TaskInstance(task)
 
         assert not DagTISlotsAvailableDep().is_met(ti=ti)
 
@@ -44,6 +44,6 @@ class TestDagTISlotsAvailableDep:
         """
         dag = Mock(concurrency=1, get_concurrency_reached=Mock(return_value=False))
         task = Mock(dag=dag, pool_slots=1)
-        ti = TaskInstance(task, execution_date=None)
+        ti = TaskInstance(task)
 
         assert DagTISlotsAvailableDep().is_met(ti=ti)

@@ -1,0 +1,4 @@
+Removed a set of deprecations in from ``airflow.models.dagrun``.
+
+- Removed deprecated method ``DagRun.get_run()``. Instead you should use standard Sqlalchemy DagRun model retrieval.
+- Removed deprecated method ``DagRun.get_log_filename_template()``. Please use ``get_log_template()`` instead.

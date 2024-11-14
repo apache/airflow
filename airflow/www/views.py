@@ -32,11 +32,11 @@ import traceback
 import warnings
 from bisect import insort_left
 from collections import defaultdict
-from functools import cached_property
+from functools import cache, cached_property
 from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Collection, Iterator, Mapping, MutableMapping, Sequence
-from urllib.parse import unquote, urlencode, urljoin, urlsplit
+from urllib.parse import unquote, urlencode, urljoin, urlparse, urlsplit
 
 import configupdater
 import flask.json
@@ -87,10 +87,9 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
     set_state,
 )
+from airflow.assets import Asset, AssetAlias
 from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
-from airflow.compat.functools import cache
 from airflow.configuration import AIRFLOW_CONFIG, conf
-from airflow.datasets import Dataset
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
@@ -103,10 +102,11 @@ from airflow.hooks.base import BaseHook
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, Trigger, XCom
-from airflow.models.dag import get_dataset_triggered_next_run_info
+from airflow.models import Connection, DagModel, DagTag, Log, Trigger, XCom
+from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel, DagScheduleAssetReference
+from airflow.models.dag import get_asset_triggered_next_run_info
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
-from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
@@ -118,8 +118,9 @@ from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.timetables.simple import ContinuousTimetable
-from airflow.utils import json as utils_json, timezone, usage_data_collection, yaml
+from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.db import get_query_count
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
@@ -132,11 +133,11 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.strings import to_boolean
 from airflow.utils.task_group import TaskGroup, task_group_to_dict
 from airflow.utils.timezone import td_format, utcnow
-from airflow.utils.types import NOTSET
+from airflow.utils.types import NOTSET, DagRunTriggeredByType
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
-from airflow.www.extensions.init_auth_manager import get_auth_manager
+from airflow.www.extensions.init_auth_manager import get_auth_manager, is_auth_manager_initialized
 from airflow.www.forms import (
     DagRunEditForm,
     DateTimeForm,
@@ -177,7 +178,7 @@ def sanitize_args(args: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in args.items() if not key.startswith("_")}
 
 
-# Following the release of https://github.com/python/cpython/issues/102153 in Python 3.8.17 and 3.9.17 on
+# Following the release of https://github.com/python/cpython/issues/102153 in Python 3.9.17 on
 # June 6, 2023, we are adding extra sanitization of the urls passed to get_safe_url method to make it works
 # the same way regardless if the user uses latest Python patchlevel versions or not. This also follows
 # a recommended solution by the Python core team.
@@ -217,35 +218,6 @@ def get_safe_url(url):
 
     # This will ensure we only redirect to the right scheme/netloc
     return redirect_url.geturl()
-
-
-def build_scarf_url(dags_count: int) -> str:
-    """
-    Build the URL for the Scarf usage data collection.
-
-    :meta private:
-    """
-    if not settings.is_usage_data_collection_enabled():
-        return ""
-
-    scarf_domain = "https://apacheairflow.gateway.scarf.sh"
-    platform_sys, platform_arch = usage_data_collection.get_platform_info()
-    db_version = usage_data_collection.get_database_version()
-    db_name = usage_data_collection.get_database_name()
-    executor = usage_data_collection.get_executor()
-    python_version = usage_data_collection.get_python_version()
-
-    # Path Format:
-    # /{version}/{python_version}/{platform}/{arch}/{database}/{db_version}/{executor}/{num_dags}
-    #
-    # This path redirects to a Pixel tracking URL
-    scarf_url = (
-        f"{scarf_domain}/webserver"
-        f"/{version}/{python_version}"
-        f"/{platform_sys}/{platform_arch}/{db_name}/{db_version}/{executor}/{dags_count}"
-    )
-
-    return scarf_url
 
 
 def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
@@ -458,7 +430,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
                 "label": item.label,
                 "extra_links": item.extra_links,
                 "is_mapped": item_is_mapped,
-                "has_outlet_datasets": any(isinstance(i, Dataset) for i in (item.outlets or [])),
+                "has_outlet_assets": any(isinstance(i, (Asset, AssetAlias)) for i in (item.outlets or [])),
                 "operator": item.operator_name,
                 "trigger_rule": item.trigger_rule,
                 **setup_teardown_type,
@@ -687,18 +659,25 @@ def method_not_allowed(error):
 
 def show_traceback(error):
     """Show Traceback for a given error."""
+    if not is_auth_manager_initialized():
+        # this is the case where internal API component is used and auth manager is not used/initialized
+        return ("Error calling the API", 500)
     is_logged_in = get_auth_manager().is_logged_in()
     return (
         render_template(
             "airflow/traceback.html",
             python_version=sys.version.split(" ")[0] if is_logged_in else "redacted",
             airflow_version=version if is_logged_in else "redacted",
-            hostname=get_hostname()
-            if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and is_logged_in
-            else "redacted",
-            info=traceback.format_exc()
-            if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and is_logged_in
-            else "Error! Please contact server admin.",
+            hostname=(
+                get_hostname()
+                if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and is_logged_in
+                else "redacted"
+            ),
+            info=(
+                traceback.format_exc()
+                if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and is_logged_in
+                else "Error! Please contact server admin."
+            ),
         ),
         500,
     )
@@ -724,10 +703,11 @@ class AirflowBaseView(BaseView):
 
     if not conf.getboolean("core", "unit_test_mode"):
         executor, _ = ExecutorLoader.import_default_executor_cls()
-        extra_args["sqlite_warning"] = settings.engine.dialect.name == "sqlite"
+        extra_args["sqlite_warning"] = settings.engine and (settings.engine.dialect.name == "sqlite")
         if not executor.is_production:
             extra_args["production_executor_warning"] = executor.__name__
-        extra_args["otel_on"] = conf.getboolean("metrics", "otel_on")
+        extra_args["otel_metrics_on"] = conf.getboolean("metrics", "otel_on")
+        extra_args["otel_traces_on"] = conf.getboolean("traces", "otel_on")
 
     line_chart_attr = {
         "legend.maxKeyLength": 200,
@@ -795,19 +775,22 @@ class Airflow(AirflowBaseView):
             return redirect(url_for("Airflow.index"))
 
         filter_tags_cookie_val = flask_session.get(FILTER_TAGS_COOKIE)
+        filter_lastrun_cookie_val = flask_session.get(FILTER_LASTRUN_COOKIE)
+
+        # update filter args in url from session values if needed
+        if (not arg_tags_filter and filter_tags_cookie_val) or (
+            not arg_lastrun_filter and filter_lastrun_cookie_val
+        ):
+            tags = arg_tags_filter or (filter_tags_cookie_val and filter_tags_cookie_val.split(","))
+            lastrun = arg_lastrun_filter or filter_lastrun_cookie_val
+            return redirect(url_for("Airflow.index", tags=tags, lastrun=lastrun))
+
         if arg_tags_filter:
             flask_session[FILTER_TAGS_COOKIE] = ",".join(arg_tags_filter)
-        elif filter_tags_cookie_val:
-            # If tags exist in cookie, but not URL, add them to the URL
-            return redirect(url_for("Airflow.index", tags=filter_tags_cookie_val.split(",")))
 
-        filter_lastrun_cookie_val = flask_session.get(FILTER_LASTRUN_COOKIE)
         if arg_lastrun_filter:
             arg_lastrun_filter = arg_lastrun_filter.strip().lower()
             flask_session[FILTER_LASTRUN_COOKIE] = arg_lastrun_filter
-        elif filter_lastrun_cookie_val:
-            # If tags exist in cookie, but not URL, add them to the URL
-            return redirect(url_for("Airflow.index", lastrun=filter_lastrun_cookie_val))
 
         if arg_status_filter is None:
             filter_status_cookie_val = flask_session.get(FILTER_STATUS_COOKIE)
@@ -831,7 +814,7 @@ class Airflow(AirflowBaseView):
 
         with create_session() as session:
             # read orm_dags from the db
-            dags_query = select(DagModel).where(~DagModel.is_subdag, DagModel.is_active)
+            dags_query = select(DagModel).where(DagModel.is_active)
 
             if arg_search_query:
                 escaped_arg_search_query = arg_search_query.replace("_", r"\_")
@@ -976,29 +959,32 @@ class Airflow(AirflowBaseView):
                     else:
                         current_dags = current_dags.order_by(null_case, sort_column)
 
-            dags = (
+            dags: list[DagModel] = (
                 session.scalars(
                     current_dags.options(joinedload(DagModel.tags)).offset(start).limit(dags_per_page)
                 )
                 .unique()
                 .all()
             )
-            can_create_dag_run = get_auth_manager().is_authorized_dag(
-                method="POST", access_entity=DagAccessEntity.RUN, user=g.user
-            )
 
-            dataset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.schedule_interval == "Dataset"}
-            if dataset_triggered_dag_ids:
-                dataset_triggered_next_run_info = get_dataset_triggered_next_run_info(
-                    dataset_triggered_dag_ids, session=session
+            asset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.asset_expression is not None}
+            if asset_triggered_dag_ids:
+                asset_triggered_next_run_info = get_asset_triggered_next_run_info(
+                    asset_triggered_dag_ids, session=session
                 )
             else:
-                dataset_triggered_next_run_info = {}
+                asset_triggered_next_run_info = {}
 
             file_tokens = {}
             for dag in dags:
                 dag.can_edit = get_auth_manager().is_authorized_dag(
                     method="PUT", details=DagDetails(id=dag.dag_id), user=g.user
+                )
+                can_create_dag_run = get_auth_manager().is_authorized_dag(
+                    method="POST",
+                    access_entity=DagAccessEntity.RUN,
+                    details=DagDetails(id=dag.dag_id),
+                    user=g.user,
                 )
                 dag.can_trigger = dag.can_edit and can_create_dag_run
                 dag.can_delete = get_auth_manager().is_authorized_dag(
@@ -1069,9 +1055,7 @@ class Airflow(AirflowBaseView):
             section="webserver", key="instance_name_has_markup", fallback=False
         )
 
-        dashboard_alerts = [
-            fm for fm in settings.DASHBOARD_UIALERTS if fm.should_show(get_airflow_app().appbuilder)
-        ]
+        dashboard_alerts = [fm for fm in settings.DASHBOARD_UIALERTS if fm.should_show()]
 
         def _iter_parsed_moved_data_table_names():
             for table_name in inspect(session.get_bind()).get_table_names():
@@ -1102,11 +1086,6 @@ class Airflow(AirflowBaseView):
                     ),
                     "warning",
                 )
-
-        try:
-            scarf_url = build_scarf_url(dags_count=all_dags_count)
-        except Exception:
-            scarf_url = ""
 
         return self.render_template(
             "airflow/dags.html",
@@ -1146,19 +1125,19 @@ class Airflow(AirflowBaseView):
             sorting_key=arg_sorting_key,
             sorting_direction=arg_sorting_direction,
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
-            dataset_triggered_next_run_info=dataset_triggered_next_run_info,
-            scarf_url=scarf_url,
+            asset_triggered_next_run_info=asset_triggered_next_run_info,
             file_tokens=file_tokens,
         )
 
-    @expose("/datasets")
-    @auth.has_access_dataset("GET")
-    def datasets(self):
-        """Datasets view."""
+    @expose("/assets")
+    @auth.has_access_asset("GET")
+    def assets(self):
+        """Assets view."""
         state_color_mapping = State.state_color.copy()
         state_color_mapping["null"] = state_color_mapping.pop(None)
         return self.render_template(
-            "airflow/datasets.html",
+            "airflow/assets.html",
+            auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             state_color_mapping=state_color_mapping,
         )
 
@@ -1176,10 +1155,10 @@ class Airflow(AirflowBaseView):
             standalone_dag_processor=standalone_dag_processor,
         )
 
-    @expose("/next_run_datasets_summary", methods=["POST"])
+    @expose("/next_run_assets_summary", methods=["POST"])
     @provide_session
-    def next_run_datasets_summary(self, session: Session = NEW_SESSION):
-        """Next run info for dataset triggered DAGs."""
+    def next_run_assets_summary(self, session: Session = NEW_SESSION):
+        """Next run info for asset triggered DAGs."""
         allowed_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
 
         if not allowed_dag_ids:
@@ -1193,22 +1172,17 @@ class Airflow(AirflowBaseView):
         else:
             filter_dag_ids = allowed_dag_ids
 
-        dataset_triggered_dag_ids = [
-            dag_id
-            for dag_id in (
-                session.scalars(
-                    select(DagModel.dag_id)
-                    .where(DagModel.dag_id.in_(filter_dag_ids))
-                    .where(DagModel.schedule_interval == "Dataset")
-                )
-            )
-        ]
+        asset_triggered_dag_ids = session.scalars(
+            select(DagModel.dag_id)
+            .where(DagModel.dag_id.in_(filter_dag_ids))
+            .where(DagModel.asset_expression.is_not(None))
+        ).all()
 
-        dataset_triggered_next_run_info = get_dataset_triggered_next_run_info(
-            dataset_triggered_dag_ids, session=session
+        asset_triggered_next_run_info = get_asset_triggered_next_run_info(
+            asset_triggered_dag_ids, session=session
         )
 
-        return flask.json.jsonify(dataset_triggered_next_run_info)
+        return flask.json.jsonify(asset_triggered_next_run_info)
 
     @expose("/dag_stats", methods=["POST"])
     @auth.has_access_dag("GET", DagAccessEntity.RUN)
@@ -2042,8 +2016,6 @@ class Airflow(AirflowBaseView):
 
         # Prepare form fields with param struct details to render a proper form with schema information
         form_fields = {}
-        allow_raw_html_descriptions = conf.getboolean("webserver", "allow_raw_html_descriptions")
-        form_trust_problems = []
         for k, v in dag.params.items():
             form_fields[k] = v.dump()
             form_field: dict = form_fields[k]
@@ -2061,19 +2033,6 @@ class Airflow(AirflowBaseView):
                     form_field_schema["type"] = ["array", "null"]
                 elif isinstance(form_field_value, dict):
                     form_field_schema["type"] = ["object", "null"]
-            # Mark HTML fields as safe if allowed
-            if allow_raw_html_descriptions:
-                if "description_html" in form_field_schema:
-                    form_field["description"] = Markup(form_field_schema["description_html"])
-                if "custom_html_form" in form_field_schema:
-                    form_field_schema["custom_html_form"] = Markup(form_field_schema["custom_html_form"])
-            else:
-                if "description_html" in form_field_schema and "description_md" not in form_field_schema:
-                    form_trust_problems.append(f"Field {k} uses HTML description")
-                    form_field["description"] = form_field_schema.pop("description_html")
-                if "custom_html_form" in form_field_schema:
-                    form_trust_problems.append(f"Field {k} uses custom HTML form definition")
-                    form_field_schema.pop("custom_html_form")
             if "description_md" in form_field_schema:
                 form_field["description"] = wwwutils.wrapped_markdown(form_field_schema["description_md"])
             # Check for default values and pre-populate
@@ -2093,34 +2052,6 @@ class Airflow(AirflowBaseView):
                         )
                 else:
                     form_field["value"] = request.values.get(k)
-        if form_trust_problems:
-            flash(
-                Markup(
-                    "At least one field in the trigger form uses a raw HTML form definition. This is not allowed for "
-                    "security. Please switch to markdown description via <code>description_md</code>. "
-                    "Raw HTML is deprecated and must be enabled via "
-                    "<code>webserver.allow_raw_html_descriptions</code> configuration parameter. Using plain text "
-                    "as fallback for these fields. "
-                    f"<ul><li>{'</li><li>'.join(form_trust_problems)}</li></ul>"
-                ),
-                "warning",
-            )
-        if allow_raw_html_descriptions and any("description_html" in p.schema for p in dag.params.values()):
-            flash(
-                Markup(
-                    "The form params use raw HTML in <code>description_html</code> which is deprecated. "
-                    "Please migrate to <code>description_md</code>."
-                ),
-                "warning",
-            )
-        if allow_raw_html_descriptions and any("custom_html_form" in p.schema for p in dag.params.values()):
-            flash(
-                Markup(
-                    "The form params use <code>custom_html_form</code> definition. "
-                    "This is deprecated with Airflow 2.8.0 and will be removed in a future release."
-                ),
-                "warning",
-            )
 
         ui_fields_defined = any("const" not in f["schema"] for f in form_fields.values())
         show_trigger_form_if_no_params = conf.getboolean("webserver", "show_trigger_form_if_no_params")
@@ -2146,7 +2077,7 @@ class Airflow(AirflowBaseView):
             .limit(num_recent_confs)
         )
         recent_confs = {
-            run_id: json.dumps(run_conf)
+            run_id: json.dumps(run_conf, cls=utils_json.WebEncoder)
             for run_id, run_conf in ((run.run_id, run.conf) for run in recent_runs)
             if isinstance(run_conf, dict) and any(run_conf)
         }
@@ -2181,6 +2112,7 @@ class Airflow(AirflowBaseView):
                         },
                         indent=4,
                         ensure_ascii=False,
+                        cls=utils_json.WebEncoder,
                     )
                 except TypeError:
                     flash("Could not pre-populate conf field due to non-JSON-serializable data-types")
@@ -2270,6 +2202,7 @@ class Airflow(AirflowBaseView):
                 )
 
         try:
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
             dag_run = dag.create_dagrun(
                 run_type=DagRunType.MANUAL,
                 execution_date=execution_date,
@@ -2277,8 +2210,9 @@ class Airflow(AirflowBaseView):
                 state=DagRunState.QUEUED,
                 conf=run_conf,
                 external_trigger=True,
-                dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
+                dag_version=dag_version,
                 run_id=run_id,
+                triggered_by=DagRunTriggeredByType.UI,
             )
         except (ValueError, ParamValidationError) as ve:
             flash(f"{ve}", "error")
@@ -2323,8 +2257,6 @@ class Airflow(AirflowBaseView):
                 start_date=start_date,
                 end_date=end_date,
                 task_ids=task_ids,
-                include_subdags=recursive,
-                include_parentdag=recursive,
                 only_failed=only_failed,
                 session=session,
             )
@@ -2337,8 +2269,6 @@ class Airflow(AirflowBaseView):
                 start_date=start_date,
                 end_date=end_date,
                 task_ids=task_ids,
-                include_subdags=recursive,
-                include_parentdag=recursive,
                 only_failed=only_failed,
                 dry_run=True,
                 session=session,
@@ -2488,10 +2418,9 @@ class Airflow(AirflowBaseView):
 
     @expose("/blocked", methods=["POST"])
     @auth.has_access_dag("GET", DagAccessEntity.RUN)
-    @action_logging
     @provide_session
     def blocked(self, session: Session = NEW_SESSION):
-        """Mark Dag Blocked."""
+        """Retrieve active_dag_runs and max_active_runs information for running Dags."""
         allowed_dag_ids = get_auth_manager().get_permitted_dag_ids(user=g.user)
 
         # Filter by post parameters
@@ -3349,15 +3278,24 @@ class Airflow(AirflowBaseView):
         if run_states:
             query = query.where(DagRun.state.in_(run_states))
 
+        # Retrieve, sort and encode the previous DAG Runs
         dag_runs = wwwutils.sorted_dag_runs(
             query, ordering=dag.timetable.run_ordering, limit=num_runs, session=session
         )
+        encoded_runs = []
+        encoding_errors = []
+        for dr in dag_runs:
+            encoded_dr, error = wwwutils.encode_dag_run(dr, json_encoder=utils_json.WebEncoder)
+            if error:
+                encoding_errors.append(error)
+            else:
+                encoded_runs.append(encoded_dr)
 
-        encoded_runs = [wwwutils.encode_dag_run(dr, json_encoder=utils_json.WebEncoder) for dr in dag_runs]
         data = {
             "groups": dag_to_grid(dag, dag_runs, session),
             "dag_runs": encoded_runs,
             "ordering": dag.timetable.run_ordering,
+            "errors": encoding_errors,
         }
         # avoid spaces to reduce payload size
         return (
@@ -3367,6 +3305,7 @@ class Airflow(AirflowBaseView):
 
     @expose("/object/historical_metrics_data")
     @auth.has_access_view(AccessView.CLUSTER_ACTIVITY)
+    @mark_fastapi_migration_done
     def historical_metrics_data(self):
         """Return cluster activity historical metrics."""
         start_date = _safe_parse_datetime(request.args.get("start_date"))
@@ -3424,11 +3363,12 @@ class Airflow(AirflowBaseView):
             {"Content-Type": "application/json; charset=utf-8"},
         )
 
-    @expose("/object/next_run_datasets/<string:dag_id>")
+    @expose("/object/next_run_assets/<string:dag_id>")
     @auth.has_access_dag("GET", DagAccessEntity.RUN)
-    @auth.has_access_dataset("GET")
-    def next_run_datasets(self, dag_id):
-        """Return datasets necessary, and their status, for the next dag run."""
+    @auth.has_access_asset("GET")
+    @mark_fastapi_migration_done
+    def next_run_assets(self, dag_id):
+        """Return assets necessary, and their status, for the next dag run."""
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
         if not dag:
             return {"error": f"can't find dag {dag_id}"}, 404
@@ -3442,46 +3382,46 @@ class Airflow(AirflowBaseView):
                 dict(info._mapping)
                 for info in session.execute(
                     select(
-                        DatasetModel.id,
-                        DatasetModel.uri,
-                        func.max(DatasetEvent.timestamp).label("lastUpdate"),
+                        AssetModel.id,
+                        AssetModel.uri,
+                        func.max(AssetEvent.timestamp).label("lastUpdate"),
                     )
+                    .join(DagScheduleAssetReference, DagScheduleAssetReference.asset_id == AssetModel.id)
                     .join(
-                        DagScheduleDatasetReference, DagScheduleDatasetReference.dataset_id == DatasetModel.id
-                    )
-                    .join(
-                        DatasetDagRunQueue,
+                        AssetDagRunQueue,
                         and_(
-                            DatasetDagRunQueue.dataset_id == DatasetModel.id,
-                            DatasetDagRunQueue.target_dag_id == DagScheduleDatasetReference.dag_id,
+                            AssetDagRunQueue.asset_id == AssetModel.id,
+                            AssetDagRunQueue.target_dag_id == DagScheduleAssetReference.dag_id,
                         ),
                         isouter=True,
                     )
                     .join(
-                        DatasetEvent,
+                        AssetEvent,
                         and_(
-                            DatasetEvent.dataset_id == DatasetModel.id,
-                            DatasetEvent.timestamp >= latest_run.execution_date
-                            if latest_run and latest_run.execution_date
-                            else True,
+                            AssetEvent.asset_id == AssetModel.id,
+                            (
+                                AssetEvent.timestamp >= latest_run.execution_date
+                                if latest_run and latest_run.execution_date
+                                else True
+                            ),
                         ),
                         isouter=True,
                     )
-                    .where(DagScheduleDatasetReference.dag_id == dag_id, ~DatasetModel.is_orphaned)
-                    .group_by(DatasetModel.id, DatasetModel.uri)
-                    .order_by(DatasetModel.uri)
+                    .where(DagScheduleAssetReference.dag_id == dag_id, AssetModel.active.has())
+                    .group_by(AssetModel.id, AssetModel.uri)
+                    .order_by(AssetModel.uri)
                 )
             ]
-            data = {"dataset_expression": dag_model.dataset_expression, "events": events}
+            data = {"asset_expression": dag_model.asset_expression, "events": events}
         return (
             htmlsafe_json_dumps(data, separators=(",", ":"), dumps=flask.json.dumps),
             {"Content-Type": "application/json; charset=utf-8"},
         )
 
-    @expose("/object/dataset_dependencies")
+    @expose("/object/asset_dependencies")
     @auth.has_access_dag("GET", DagAccessEntity.DEPENDENCIES)
-    def dataset_dependencies(self):
-        """Return dataset dependencies graph."""
+    def asset_dependencies(self):
+        """Return asset dependencies graph."""
         nodes_dict: dict[str, Any] = {}
         edge_tuples: set[dict[str, str]] = set()
 
@@ -3489,16 +3429,27 @@ class Airflow(AirflowBaseView):
             dag_node_id = f"dag:{dag}"
             if dag_node_id not in nodes_dict:
                 for dep in dependencies:
-                    if dep.dependency_type == "dag" or dep.dependency_type == "dataset":
+                    if dep.dependency_type in ("dag", "asset", "asset-alias"):
+                        # add node
                         nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, "dag")
                         if dep.node_id not in nodes_dict:
                             nodes_dict[dep.node_id] = node_dict(
                                 dep.node_id, dep.dependency_id, dep.dependency_type
                             )
-                        if dep.source != "dataset":
-                            edge_tuples.add((f"dag:{dep.source}", dep.node_id))
-                        if dep.target != "dataset":
-                            edge_tuples.add((dep.node_id, f"dag:{dep.target}"))
+
+                        # add edge
+
+                        # not start dep
+                        if dep.source != dep.dependency_type:
+                            source = dep.source if ":" in dep.source else f"dag:{dep.source}"
+                            target = dep.node_id
+                            edge_tuples.add((source, target))
+
+                        # not end dep
+                        if dep.target != dep.dependency_type:
+                            source = dep.node_id
+                            target = dep.target if ":" in dep.target else f"dag:{dep.target}"
+                            edge_tuples.add((source, target))
 
         nodes = list(nodes_dict.values())
         edges = [{"source": source, "target": target} for source, target in edge_tuples]
@@ -3513,15 +3464,15 @@ class Airflow(AirflowBaseView):
             {"Content-Type": "application/json; charset=utf-8"},
         )
 
-    @expose("/object/datasets_summary")
-    @auth.has_access_dataset("GET")
-    def datasets_summary(self):
+    @expose("/object/assets_summary")
+    @auth.has_access_asset("GET")
+    def assets_summary(self):
         """
-        Get a summary of datasets.
+        Get a summary of assets.
 
         Includes the datetime they were last updated and how many updates they've ever had.
         """
-        allowed_attrs = ["uri", "last_dataset_update"]
+        allowed_attrs = ["uri", "last_asset_update"]
 
         # Grab query parameters
         limit = int(request.args.get("limit", 25))
@@ -3548,61 +3499,61 @@ class Airflow(AirflowBaseView):
         with create_session() as session:
             if lstripped_orderby == "uri":
                 if order_by.startswith("-"):
-                    order_by = (DatasetModel.uri.desc(),)
+                    order_by = (AssetModel.uri.desc(),)
                 else:
-                    order_by = (DatasetModel.uri.asc(),)
-            elif lstripped_orderby == "last_dataset_update":
+                    order_by = (AssetModel.uri.asc(),)
+            elif lstripped_orderby == "last_asset_update":
                 if order_by.startswith("-"):
                     order_by = (
-                        func.max(DatasetEvent.timestamp).desc(),
-                        DatasetModel.uri.asc(),
+                        func.max(AssetEvent.timestamp).desc(),
+                        AssetModel.uri.asc(),
                     )
                     if session.bind.dialect.name == "postgresql":
                         order_by = (order_by[0].nulls_last(), *order_by[1:])
                 else:
                     order_by = (
-                        func.max(DatasetEvent.timestamp).asc(),
-                        DatasetModel.uri.desc(),
+                        func.max(AssetEvent.timestamp).asc(),
+                        AssetModel.uri.desc(),
                     )
                     if session.bind.dialect.name == "postgresql":
                         order_by = (order_by[0].nulls_first(), *order_by[1:])
 
-            count_query = select(func.count(DatasetModel.id))
+            count_query = select(func.count(AssetModel.id))
 
             has_event_filters = bool(updated_before or updated_after)
 
             query = (
                 select(
-                    DatasetModel.id,
-                    DatasetModel.uri,
-                    func.max(DatasetEvent.timestamp).label("last_dataset_update"),
-                    func.sum(case((DatasetEvent.id.is_not(None), 1), else_=0)).label("total_updates"),
+                    AssetModel.id,
+                    AssetModel.uri,
+                    func.max(AssetEvent.timestamp).label("last_asset_update"),
+                    func.sum(case((AssetEvent.id.is_not(None), 1), else_=0)).label("total_updates"),
                 )
-                .join(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id, isouter=not has_event_filters)
+                .join(AssetEvent, AssetEvent.asset_id == AssetModel.id, isouter=not has_event_filters)
                 .group_by(
-                    DatasetModel.id,
-                    DatasetModel.uri,
+                    AssetModel.id,
+                    AssetModel.uri,
                 )
                 .order_by(*order_by)
             )
 
             if has_event_filters:
-                count_query = count_query.join(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
+                count_query = count_query.join(AssetEvent, AssetEvent.asset_id == AssetModel.id)
 
-            filters = [~DatasetModel.is_orphaned]
+            filters = [AssetModel.active.has()]
             if uri_pattern:
-                filters.append(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
+                filters.append(AssetModel.uri.ilike(f"%{uri_pattern}%"))
             if updated_after:
-                filters.append(DatasetEvent.timestamp >= updated_after)
+                filters.append(AssetEvent.timestamp >= updated_after)
             if updated_before:
-                filters.append(DatasetEvent.timestamp <= updated_before)
+                filters.append(AssetEvent.timestamp <= updated_before)
 
             query = query.where(*filters).offset(offset).limit(limit)
             count_query = count_query.where(*filters)
 
             query = session.execute(query)
-            datasets = [dict(dataset._mapping) for dataset in query]
-            data = {"datasets": datasets, "total_entries": session.scalar(count_query)}
+            assets = [dict(asset._mapping) for asset in query]
+            data = {"assets": assets, "total_entries": session.scalar(count_query)}
 
             return (
                 htmlsafe_json_dumps(data, separators=(",", ":"), cls=utils_json.WebEncoder),
@@ -3882,119 +3833,6 @@ class AirflowModelView(ModelView):
         return action.func(items)
 
 
-class SlaMissModelView(AirflowModelView):
-    """View to show SlaMiss table."""
-
-    route_base = "/slamiss"
-
-    datamodel = AirflowModelView.CustomSQLAInterface(SlaMiss)  # type: ignore
-
-    class_permission_name = permissions.RESOURCE_SLA_MISS
-    method_permission_name = {
-        "list": "read",
-        "action_muldelete": "delete",
-        "action_mulnotificationsent": "edit",
-        "action_mulnotificationsentfalse": "edit",
-        "action_mulemailsent": "edit",
-        "action_mulemailsentfalse": "edit",
-    }
-
-    base_permissions = [
-        permissions.ACTION_CAN_READ,
-        permissions.ACTION_CAN_ACCESS_MENU,
-    ]
-
-    list_columns = ["dag_id", "task_id", "execution_date", "email_sent", "notification_sent", "timestamp"]
-
-    label_columns = {
-        "execution_date": "Logical Date",
-    }
-
-    add_columns = ["dag_id", "task_id", "execution_date", "email_sent", "notification_sent", "timestamp"]
-    edit_columns = ["dag_id", "task_id", "execution_date", "email_sent", "notification_sent", "timestamp"]
-    search_columns = ["dag_id", "task_id", "email_sent", "notification_sent", "timestamp", "execution_date"]
-    base_order = ("execution_date", "desc")
-    base_filters = [["dag_id", DagFilter, list]]
-
-    formatters_columns = {
-        "task_id": wwwutils.task_instance_link,
-        "execution_date": wwwutils.datetime_f("execution_date"),
-        "timestamp": wwwutils.datetime_f("timestamp"),
-        "dag_id": wwwutils.dag_link,
-        "map_index": wwwutils.format_map_index,
-    }
-
-    @action("muldelete", "Delete", "Are you sure you want to delete selected records?", single=False)
-    @auth.has_access_dag_entities("DELETE", DagAccessEntity.SLA_MISS)
-    def action_muldelete(self, items):
-        """Multiple delete action."""
-        self.datamodel.delete_all(items)
-        self.update_redirect()
-        return redirect(self.get_redirect())
-
-    @action(
-        "mulnotificationsent",
-        "Set notification sent to true",
-        "Are you sure you want to set all these notifications to sent?",
-        single=False,
-    )
-    @auth.has_access_dag_entities("PUT", DagAccessEntity.SLA_MISS)
-    def action_mulnotificationsent(self, items: list[SlaMiss]):
-        return self._set_notification_property(items, "notification_sent", True)
-
-    @action(
-        "mulnotificationsentfalse",
-        "Set notification sent to false",
-        "Are you sure you want to mark these SLA alerts as notification not sent yet?",
-        single=False,
-    )
-    @auth.has_access_dag_entities("PUT", DagAccessEntity.SLA_MISS)
-    def action_mulnotificationsentfalse(self, items: list[SlaMiss]):
-        return self._set_notification_property(items, "notification_sent", False)
-
-    @action(
-        "mulemailsent",
-        "Set email sent to true",
-        "Are you sure you want to mark these SLA alerts as emails were sent?",
-        single=False,
-    )
-    @auth.has_access_dag_entities("PUT", DagAccessEntity.SLA_MISS)
-    def action_mulemailsent(self, items: list[SlaMiss]):
-        return self._set_notification_property(items, "email_sent", True)
-
-    @action(
-        "mulemailsentfalse",
-        "Set email sent to false",
-        "Are you sure you want to mark these SLA alerts as emails not sent yet?",
-        single=False,
-    )
-    @auth.has_access_dag_entities("PUT", DagAccessEntity.SLA_MISS)
-    def action_mulemailsentfalse(self, items: list[SlaMiss]):
-        return self._set_notification_property(items, "email_sent", False)
-
-    @provide_session
-    def _set_notification_property(
-        self,
-        items: list[SlaMiss],
-        attr: str,
-        new_value: bool,
-        session: Session = NEW_SESSION,
-    ):
-        try:
-            count = 0
-            for sla in items:
-                count += 1
-                setattr(sla, attr, new_value)
-                session.merge(sla)
-            session.commit()
-            flash(f"{count} SLAMisses had {attr} set to {new_value}.")
-        except Exception as ex:
-            flash(str(ex), "error")
-            flash("Failed to set state", "error")
-        self.update_redirect()
-        return redirect(self.get_default_url())
-
-
 class XComModelView(AirflowModelView):
     """View to show records from XCom table."""
 
@@ -4019,6 +3857,17 @@ class XComModelView(AirflowModelView):
     search_columns = ["key", "value", "timestamp", "dag_id", "task_id", "run_id", "execution_date"]
     list_columns = ["key", "value", "timestamp", "dag_id", "task_id", "run_id", "map_index", "execution_date"]
     base_order = ("dag_run_id", "desc")
+
+    order_columns = [
+        "key",
+        "value",
+        "timestamp",
+        "dag_id",
+        "task_id",
+        "run_id",
+        "map_index",
+        # "execution_date", # execution_date sorting is not working and crashing the UI, disabled for now.
+    ]
 
     base_filters = [["dag_id", DagFilter, list]]
 
@@ -4089,7 +3938,8 @@ class ConnectionFormWidget(FormWidget):
 
 
 class ConnectionFormProxy:
-    """A stand-in for the connection form class.
+    """
+    A stand-in for the connection form class.
 
     Flask-Appbuilder model views only ever call the ``refresh()`` function on
     the form class, so this is the perfect place to make the form generation
@@ -4164,7 +4014,8 @@ class ConnectionModelView(AirflowModelView):
     base_order = ("conn_id", "asc")
 
     def _iter_extra_field_names_and_sensitivity(self) -> Iterator[tuple[str, str, bool]]:
-        """Iterate through provider-backed connection fields.
+        """
+        Iterate through provider-backed connection fields.
 
         Note that this cannot be a property (including a cached property)
         because Flask-Appbuilder attempts to access all members on startup, and
@@ -4182,7 +4033,8 @@ class ConnectionModelView(AirflowModelView):
 
     @property
     def add_columns(self) -> list[str]:
-        """A list of columns to show in the Add form.
+        """
+        A list of columns to show in the Add form.
 
         This dynamically calculates additional fields from providers and add
         them to the backing list. This calculation is done exactly once (by
@@ -4199,7 +4051,8 @@ class ConnectionModelView(AirflowModelView):
 
     @property
     def edit_columns(self) -> list[str]:
-        """A list of columns to show in the Edit form.
+        """
+        A list of columns to show in the Edit form.
 
         This dynamically calculates additional fields from providers and add
         them to the backing list. This calculation is done exactly once (by
@@ -4372,7 +4225,10 @@ class ConnectionModelView(AirflowModelView):
             if is_sensitive and field_name in extra_dictionary:
                 extra_dictionary[field_name] = SENSITIVE_FIELD_PLACEHOLDER
         # form.data is a property that builds the dictionary from fields so we have to modify the fields
-        form.extra.data = json.dumps(extra_dictionary)
+        if extra_dictionary:
+            form.extra.data = json.dumps(extra_dictionary)
+        else:
+            form.extra.data = None
 
 
 class PluginView(AirflowBaseView):
@@ -4398,9 +4254,9 @@ class PluginView(AirflowBaseView):
     def list(self):
         """List loaded plugins."""
         plugins_manager.ensure_plugins_loaded()
-        plugins_manager.integrate_executor_plugins()
         plugins_manager.initialize_extra_operators_links_plugins()
         plugins_manager.initialize_web_ui_plugins()
+        plugins_manager.initialize_fastapi_plugins()
 
         plugins = []
         for plugin_no, plugin in enumerate(plugins_manager.plugins, 1):
@@ -4471,7 +4327,14 @@ class ProviderView(AirflowBaseView):
         def _build_link(match_obj):
             text = match_obj.group(1)
             url = match_obj.group(2)
-            return Markup(f'<a href="{url}">{text}</a>')
+
+            # parsing the url to check if it's a valid url
+            parsed_url = urlparse(url)
+            if not (parsed_url.scheme == "http" or parsed_url.scheme == "https"):
+                # returning the original raw text
+                return escape(match_obj.group(0))
+
+            return Markup(f'<a href="{url}" target="_blank" rel="noopener noreferrer">{text}</a>')
 
         cd = escape(description)
         cd = re2.sub(r"`(.*)[\s+]+&lt;(.*)&gt;`__", _build_link, cd)
@@ -5271,7 +5134,6 @@ class TaskInstanceModelView(AirflowModelView):
         "end_date",
         "duration",
         "note",
-        "job_id",
         "hostname",
         "unixname",
         "priority_weight",
@@ -5296,7 +5158,6 @@ class TaskInstanceModelView(AirflowModelView):
         "end_date",
         "duration",
         # "note",  # TODO: Maybe figure out how to re-enable this.
-        "job_id",
         "hostname",
         "unixname",
         "priority_weight",
@@ -5342,7 +5203,7 @@ class TaskInstanceModelView(AirflowModelView):
 
     edit_form = TaskInstanceEditForm
 
-    base_order = ("job_id", "asc")
+    base_order = ("queued_dttm", "asc")
 
     base_filters = [["dag_id", DagFilter, list]]
 
@@ -5437,8 +5298,6 @@ class TaskInstanceModelView(AirflowModelView):
                             start_date=dag_run.execution_date,
                             end_date=dag_run.execution_date,
                             task_ids=downstream_task_ids_to_clear,
-                            include_subdags=False,
-                            include_parentdag=False,
                             session=session,
                             dry_run=True,
                         )
@@ -5587,7 +5446,6 @@ class AutocompleteView(AirflowBaseView):
             DagModel.dag_id.label("name"),
             DagModel._dag_display_property_value.label("dag_display_name"),
         ).where(
-            ~DagModel.is_subdag,
             DagModel.is_active,
             or_(
                 DagModel.dag_id.ilike(f"%{query}%"),
@@ -5602,7 +5460,7 @@ class AutocompleteView(AirflowBaseView):
                 sqla.literal(None).label("dag_display_name"),
             )
             .distinct()
-            .where(~DagModel.is_subdag, DagModel.is_active, DagModel.owners.ilike(f"%{query}%"))
+            .where(DagModel.is_active, DagModel.owners.ilike(f"%{query}%"))
         )
 
         # Hide DAGs if not showing status: "all"
@@ -5695,7 +5553,7 @@ def add_user_permissions_to_dag(sender, template, context, **extra):
         return
     dag = context["dag"]
     can_create_dag_run = get_auth_manager().is_authorized_dag(
-        method="POST", access_entity=DagAccessEntity.RUN
+        method="POST", access_entity=DagAccessEntity.RUN, details=DagDetails(id=dag.dag_id)
     )
 
     dag.can_edit = get_auth_manager().is_authorized_dag(method="PUT", details=DagDetails(id=dag.dag_id))
@@ -5724,7 +5582,8 @@ def restrict_to_dev(f):
 
 
 class DevView(BaseView):
-    """View to show Airflow Dev Endpoints.
+    """
+    View to show Airflow Dev Endpoints.
 
     This view should only be accessible in development mode. You can enable development mode by setting
     `AIRFLOW_ENV=development` in your environment.
@@ -5741,7 +5600,8 @@ class DevView(BaseView):
 
 
 class DocsView(BaseView):
-    """View to show airflow dev docs endpoints.
+    """
+    View to show airflow dev docs endpoints.
 
     This view should only be accessible in development mode. You can enable development mode by setting
     `AIRFLOW_ENV=development` in your environment.

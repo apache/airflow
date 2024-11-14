@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-Upgrading Airflow™ to a newer version
+Upgrading Airflow® to a newer version
 -------------------------------------
 
 Why you need to upgrade
@@ -35,7 +35,7 @@ Upgrade preparation - make a backup of DB
 
 It is highly recommended to make a backup of your metadata DB before any migration.
 If you do not have a "hot backup" capability for your DB, you should
-do it after shutting down your Airflow instances, so that the backup of is consistent.
+do it after shutting down your Airflow instances, so that the backup of your database will be consistent.
 If you did not make a backup and your migration fails, you might end-up in
 a half-migrated state and restoring DB from backup and repeating the
 migration might be the only easy way out. This can for example be caused by a broken
@@ -56,6 +56,16 @@ when you choose to upgrade airflow via their UI.
 
 How to upgrade
 ==============
+
+Reinstall Apache Airflow®, specifying the desired new version.
+
+To upgrade a bootstrapped local instance, you can set the ``AIRFLOW_VERSION`` environment variable to the
+intended version prior to rerunning the installation command. Upgrade incrementally by patch version: e.g.,
+if upgrading from version 2.8.2 to 2.8.4, upgrade first to 2.8.3. For more detailed guidance, see
+:doc:`/start`.
+
+To upgrade a PyPI package, rerun the ``pip install`` command in your environment using the desired version
+as a constraint. For more detailed guidance, see :doc:`/installation/installing-from-pypi`.
 
 In order to manually migrate the database you should run the ``airflow db migrate`` command in your
 environment. It can be run either in your virtual environment or in the containers that give

@@ -1,0 +1,7 @@
+Removed deprecated parameters from core-operators.
+
+Parameters removed:
+
+- airflow.operators.datetime.BranchDateTimeOperator: use_task_execution_date
+- airflow.operators.trigger_dagrun.TriggerDagRunOperator: execution_date
+- airflow.operators.weekday.BranchDayOfWeekOperator: use_task_execution_day

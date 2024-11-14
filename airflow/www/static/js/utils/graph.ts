@@ -74,7 +74,7 @@ const formatEdge = (e: WebserverEdge, font: string, node?: DepNode) => ({
   targets: [e.targetId],
   isSetupTeardown: e.isSetupTeardown,
   parentNode: node?.id,
-  isSourceDataset: e.isSourceDataset,
+  isSourceAsset: e.isSourceAsset,
   labels: e.label
     ? [
         {
@@ -154,6 +154,8 @@ const generateGraph = ({
           .map((e) => formatEdge(e, font, node)),
       };
     }
+    const isGate =
+      node.value.class === "or-gate" || node.value.class === "and-gate";
     const isJoinNode = id.includes("join_id");
     if (!isOpen && children?.length) {
       filteredEdges = filteredEdges
@@ -176,7 +178,16 @@ const generateGraph = ({
 
     const label = value.isMapped ? `${value.label} [100]` : value.label;
     const labelLength = getTextWidth(label, font);
-    const width = labelLength > 200 ? labelLength : 200;
+    let width = labelLength > 200 ? labelLength : 200;
+    let height = 80;
+
+    if (isJoinNode) {
+      width = 10;
+      height = 10;
+    } else if (isGate) {
+      width = 30;
+      height = 30;
+    }
 
     return {
       id,
@@ -186,8 +197,8 @@ const generateGraph = ({
         isJoinNode,
         childCount,
       },
-      width: isJoinNode ? 10 : width,
-      height: isJoinNode ? 10 : 80,
+      width,
+      height,
     };
   };
 

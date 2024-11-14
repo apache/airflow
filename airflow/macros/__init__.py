@@ -25,21 +25,13 @@ from random import random  # noqa: F401
 from typing import TYPE_CHECKING, Any
 
 import dateutil  # noqa: F401
+from babel import Locale
+from babel.dates import LC_TIME, format_datetime
 
 import airflow.utils.yaml as yaml  # noqa: F401
-from airflow.utils.deprecation_tools import add_deprecated_classes
 
 if TYPE_CHECKING:
     from pendulum import DateTime
-
-__deprecated_classes = {
-    "hive": {
-        "closest_ds_partition": "airflow.providers.apache.hive.macros.hive.closest_ds_partition",
-        "max_partition": "airflow.providers.apache.hive.macros.hive.max_partition",
-    },
-}
-
-add_deprecated_classes(__deprecated_classes, __name__)
 
 
 def ds_add(ds: str, days: int) -> str:
@@ -64,16 +56,47 @@ def ds_format(ds: str, input_format: str, output_format: str) -> str:
     """
     Output datetime string in a given format.
 
-    :param ds: input string which contains a date
-    :param input_format: input string format. E.g. %Y-%m-%d
-    :param output_format: output string format  E.g. %Y-%m-%d
+    :param ds: Input string which contains a date.
+    :param input_format: Input string format (e.g., '%Y-%m-%d').
+    :param output_format: Output string format (e.g., '%Y-%m-%d').
 
     >>> ds_format("2015-01-01", "%Y-%m-%d", "%m-%d-%y")
     '01-01-15'
     >>> ds_format("1/5/2015", "%m/%d/%Y", "%Y-%m-%d")
     '2015-01-05'
+    >>> ds_format("12/07/2024", "%d/%m/%Y", "%A %d %B %Y", "en_US")
+    'Friday 12 July 2024'
     """
     return datetime.strptime(str(ds), input_format).strftime(output_format)
+
+
+def ds_format_locale(
+    ds: str, input_format: str, output_format: str, locale: Locale | str | None = None
+) -> str:
+    """
+    Output localized datetime string in a given Babel format.
+
+    :param ds: Input string which contains a date.
+    :param input_format: Input string format (e.g., '%Y-%m-%d').
+    :param output_format: Output string Babel format (e.g., `yyyy-MM-dd`).
+    :param locale: Locale used to format the output string (e.g., 'en_US').
+                   If locale not specified, default LC_TIME will be used and if that's also not available,
+                   'en_US' will be used.
+
+    >>> ds_format("2015-01-01", "%Y-%m-%d", "MM-dd-yy")
+    '01-01-15'
+    >>> ds_format("1/5/2015", "%m/%d/%Y", "yyyy-MM-dd")
+    '2015-01-05'
+    >>> ds_format("12/07/2024", "%d/%m/%Y", "EEEE dd MMMM yyyy", "en_US")
+    'Friday 12 July 2024'
+
+    .. versionadded:: 2.10.0
+    """
+    return format_datetime(
+        datetime.strptime(str(ds), input_format),
+        format=output_format,
+        locale=locale or LC_TIME or Locale("en_US"),
+    )
 
 
 def datetime_diff_for_humans(dt: Any, since: DateTime | None = None) -> str:

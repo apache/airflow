@@ -64,6 +64,7 @@ howto/check-health.rst administration-and-deployment/logging-monitoring/check-he
 errors.rst administration-and-deployment/logging-monitoring/errors.rst
 howto/write-logs.rst administration-and-deployment/logging-monitoring/logging-tasks.rst
 metrics.rst administration-and-deployment/logging-monitoring/metrics.rst
+traces.rst administration-and-deployment/logging-monitoring/traces.rst
 howto/tracking-user-activity.rst administration-and-deployment/logging-monitoring/tracking-user-activity.rst
 
 # Quick start
@@ -99,6 +100,7 @@ logging-monitoring/index.rst administration-and-deployment/logging-monitoring/in
 concepts/index.rst core-concepts/index.rst
 executor/index.rst core-concepts/executor/index.rst
 upgrading-from-1-10/index.rst howto/upgrading-from-1-10/index.rst
+core-concepts/auth-manager.rst core-concepts/auth-manager/index.rst
 
 listeners.rst administration-and-deployment/listeners.rst
 kubernetes.rst administration-and-deployment/kubernetes.rst
@@ -119,6 +121,7 @@ logging-monitoring/callbacks.rst administration-and-deployment/logging-monitorin
 logging-monitoring/logging-tasks.rst administration-and-deployment/logging-monitoring/logging-tasks.rst
 logging-monitoring/check-health.rst administration-and-deployment/logging-monitoring/check-health.rst
 logging-monitoring/metrics.rst administration-and-deployment/logging-monitoring/metrics.rst
+logging-monitoring/traces.rst administration-and-deployment/logging-monitoring/traces.rst
 concepts/params.rst core-concepts/params.rst
 concepts/dynamic-task-mapping.rst authoring-and-scheduling/dynamic-task-mapping.rst
 concepts/sensors.rst core-concepts/sensors.rst

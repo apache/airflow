@@ -66,6 +66,7 @@ const config = {
     flash: `${CSS_DIR}/flash.css`,
     graph: `${CSS_DIR}/graph.css`,
     loadingDots: `${CSS_DIR}/loading-dots.css`,
+    login: `${JS_DIR}/login/index.tsx`,
     main: [`${CSS_DIR}/main.css`, `${JS_DIR}/main.js`],
     materialIcons: `${CSS_DIR}/material-icons.css`,
     moment: "moment-timezone",
@@ -73,9 +74,10 @@ const config = {
     task: `${JS_DIR}/task.js`,
     taskInstances: `${JS_DIR}/task_instances.js`,
     tiLog: `${JS_DIR}/ti_log.js`,
+    toggleTheme: `${JS_DIR}/toggle_theme.js`,
     grid: `${JS_DIR}/dag/index.tsx`,
     clusterActivity: `${JS_DIR}/cluster-activity/index.tsx`,
-    datasets: `${JS_DIR}/datasets/index.tsx`,
+    assets: `${JS_DIR}/assets/index.tsx`,
     trigger: `${JS_DIR}/trigger.js`,
     variableEdit: `${JS_DIR}/variable_edit.js`,
   },
@@ -96,14 +98,6 @@ const config = {
   },
   module: {
     rules: [
-      {
-        test: /datatables\.net.*/,
-        use: [
-          {
-            loader: "imports-loader?define=>false",
-          },
-        ],
-      },
       {
         test: /\.(js|jsx|tsx|ts)$/,
         exclude: /node_modules/,
@@ -217,20 +211,17 @@ const config = {
           to: "d3-tip.js",
           flatten: true,
         },
-        {
-          from: "node_modules/bootstrap-3-typeahead/*min.*",
-          flatten: true,
-        },
-        {
-          from: "node_modules/datatables.net/**/**.min.*",
-          flatten: true,
-        },
-        {
-          from: "node_modules/datatables.net-bs/**/**.min.*",
-          flatten: true,
-        },
+
         {
           from: "node_modules/eonasdan-bootstrap-datetimepicker/build/css/bootstrap-datetimepicker.min.css",
+          flatten: true,
+        },
+        {
+          from: "node_modules/jquery-ui/dist/jquery-ui.min.js",
+          flatten: true,
+        },
+        {
+          from: "node_modules/jquery-ui/dist/themes/base/jquery-ui.min.css",
           flatten: true,
         },
         {

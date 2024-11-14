@@ -55,7 +55,8 @@ class ResolveMixin:
     """A runtime-resolved value."""
 
     def iter_references(self) -> typing.Iterable[tuple[Operator, str]]:
-        """Find underlying XCom references this contains.
+        """
+        Find underlying XCom references this contains.
 
         This is used by the DAG parser to recursively find task dependencies.
 
@@ -63,8 +64,9 @@ class ResolveMixin:
         """
         raise NotImplementedError
 
-    def resolve(self, context: Context) -> typing.Any:
-        """Resolve this value for runtime.
+    def resolve(self, context: Context, *, include_xcom: bool = True) -> typing.Any:
+        """
+        Resolve this value for runtime.
 
         :meta private:
         """

@@ -30,8 +30,18 @@ The sole purpose of this yaml file is it to check the values file is consistent 
   {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
     {{- if .Values.redis.enabled }}
 
-      {{- if and .Values.redis.passwordSecretName (not .Values.data.brokerUrlSecretName) }}
-        {{ required "When using the internal redis of the chart and setting the value redis.passwordSecretName, you must also set the value data.brokerUrlSecretName." nil }}
+      {{- if .Values.redis.passwordSecretName }}
+        {{- $existedBrokerUrlCmd := false }}
+        {{- range .Values.env }}
+          {{- if eq .name "AIRFLOW__CELERY__BROKER_URL_CMD" }}
+            {{- $existedBrokerUrlCmd = true }}
+            {{- break -}}
+          {{- end }}
+        {{- end }}
+
+        {{- if not (or .Values.data.brokerUrlSecretName $existedBrokerUrlCmd) }}
+          {{ required "When using the internal redis of the chart and setting the value redis.passwordSecretName, you must also set the value data.brokerUrlSecretName or AIRFLOW__CELERY__BROKER_URL_CMD in env." nil }}
+        {{- end }}
       {{- end }}
 
       {{- if and .Values.redis.passwordSecretName .Values.redis.password }}

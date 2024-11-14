@@ -22,13 +22,13 @@ import pytest
 
 from airflow.models import DagRun, TaskInstance
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import BranchPythonOperator
+from airflow.providers.standard.operators.python import BranchPythonOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.fixture(autouse=True)

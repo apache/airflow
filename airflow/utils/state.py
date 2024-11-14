@@ -33,7 +33,8 @@ class JobState(str, Enum):
 
 
 class TaskInstanceState(str, Enum):
-    """All possible states that a Task Instance can be in.
+    """
+    All possible states that a Task Instance can be in.
 
     Note that None is also allowed, so always use this in a type hint with Optional.
     """
@@ -58,20 +59,13 @@ class TaskInstanceState(str, Enum):
     SKIPPED = "skipped"  # Skipped by branching or some other mechanism
     DEFERRED = "deferred"  # Deferrable operator waiting on a trigger
 
-    # Not used anymore, kept for compatibility.
-    # TODO: Remove in Airflow 3.0.
-    SHUTDOWN = "shutdown"
-    """The task instance is being shut down.
-
-    :meta private:
-    """
-
     def __str__(self) -> str:
         return self.value
 
 
 class DagRunState(str, Enum):
-    """All possible states that a DagRun can be in.
+    """
+    All possible states that a DagRun can be in.
 
     These are "shared" with TaskInstanceState in some parts of the code,
     so please ensure that their values always match the ones with the
@@ -107,14 +101,6 @@ class State:
     UPSTREAM_FAILED = TaskInstanceState.UPSTREAM_FAILED
     SKIPPED = TaskInstanceState.SKIPPED
     DEFERRED = TaskInstanceState.DEFERRED
-
-    # Not used anymore, kept for compatibility.
-    # TODO: Remove in Airflow 3.0.
-    SHUTDOWN = TaskInstanceState.SHUTDOWN
-    """The task instance is being shut down.
-
-    :meta private:
-    """
 
     finished_dr_states: frozenset[DagRunState] = frozenset([DagRunState.SUCCESS, DagRunState.FAILED])
     unfinished_dr_states: frozenset[DagRunState] = frozenset([DagRunState.QUEUED, DagRunState.RUNNING])
@@ -206,19 +192,19 @@ class State:
     A list of states indicating that a task or dag is a success state.
     """
 
-    # Kept for compatibility. DO NOT USE.
-    # TODO: Remove in Airflow 3.0.
-    terminating_states = frozenset([TaskInstanceState.SHUTDOWN, TaskInstanceState.RESTARTING])
-    """
-    A list of states indicating that a task has been terminated.
-
-    :meta private:
-    """
-
     adoptable_states = frozenset(
         [TaskInstanceState.QUEUED, TaskInstanceState.RUNNING, TaskInstanceState.RESTARTING]
     )
     """
     A list of states indicating that a task can be adopted or reset by a scheduler job
     if it was queued by another scheduler job that is not running anymore.
+    """
+
+    ran_and_finished_states = frozenset(
+        [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED]
+    )
+    """
+    A list of states indicating that a task has run and finished. This excludes states like
+    removed and upstream_failed. Skipped is included because a user can raise a
+    AirflowSkipException in a task and it will be marked as skipped.
     """

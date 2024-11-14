@@ -21,33 +21,33 @@
 
 import { getMetaValue } from "./utils";
 import { approxTimeFromNow, formatDateTime } from "./datetime_utils";
-import { openDatasetModal, getDatasetTooltipInfo } from "./datasetUtils";
+import { openAssetModal, getAssetTooltipInfo } from "./assetUtils";
 
 const dagId = getMetaValue("dag_id");
 const pausedUrl = getMetaValue("paused_url");
 // eslint-disable-next-line import/prefer-default-export
 export const dagTZ = getMetaValue("dag_timezone");
-const datasetsUrl = getMetaValue("datasets_url");
+const assetsUrl = getMetaValue("assets_url");
 const nextRun = {
   createAfter: getMetaValue("next_dagrun_create_after"),
   intervalStart: getMetaValue("next_dagrun_data_interval_start"),
   intervalEnd: getMetaValue("next_dagrun_data_interval_end"),
 };
-let nextDatasets = [];
-let nextDatasetsError;
+let nextAssets = [];
+let nextAssetsError;
 
-const setNextDatasets = (datasets, error) => {
-  nextDatasets = datasets;
-  nextDatasetsError = error;
+const setNextAssets = (assets, error) => {
+  nextAssets = assets;
+  nextAssetsError = error;
 };
 
 $(window).on("load", function onLoad() {
   $(`a[href*="${this.location.pathname}"]`).parent().addClass("active");
   $(".never_active").removeClass("active");
-  const run = $("#next-dataset-tooltip");
-  const singleDatasetUri = $(run).data("uri");
-  if (!singleDatasetUri) {
-    getDatasetTooltipInfo(dagId, run, setNextDatasets);
+  const run = $("#next-asset-tooltip");
+  const singleAssetUri = $(run).data("uri");
+  if (!singleAssetUri) {
+    getAssetTooltipInfo(dagId, run, setNextAssets);
   }
 });
 
@@ -55,7 +55,7 @@ $("#pause_resume").on("change", function onChange() {
   const $input = $(this);
   const id = $input.data("dag-id");
   const isPaused = $input.is(":checked");
-  const requireConfirmation = $input.data("require-confirmation");
+  const requireConfirmation = $input.is("[data-require-confirmation]");
   if (requireConfirmation) {
     const confirmation = window.confirm(
       `Are you sure you want to ${isPaused ? "resume" : "pause"} this DAG?`
@@ -104,15 +104,15 @@ $("#next-run").on("mouseover", () => {
   });
 });
 
-$(".next-dataset-triggered").on("click", (e) => {
-  const run = $("#next-dataset-tooltip");
+$(".next-asset-triggered").on("click", (e) => {
+  const run = $("#next-asset-tooltip");
   const summary = $(e.target).data("summary");
-  const singleDatasetUri = $(run).data("uri");
-  if (!singleDatasetUri) {
-    openDatasetModal(dagId, summary, nextDatasets, nextDatasetsError);
+  const singleAssetUri = $(run).data("uri");
+  if (!singleAssetUri) {
+    openAssetModal(dagId, summary, nextAssets, nextAssetsError);
   } else {
-    window.location.href = `${datasetsUrl}?uri=${encodeURIComponent(
-      singleDatasetUri
+    window.location.href = `${assetsUrl}?uri=${encodeURIComponent(
+      singleAssetUri
     )}`;
   }
 });

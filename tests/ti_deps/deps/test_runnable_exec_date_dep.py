@@ -28,7 +28,7 @@ from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.fixture(autouse=True)

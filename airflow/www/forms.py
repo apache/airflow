@@ -20,6 +20,7 @@ from __future__ import annotations
 import datetime
 import json
 import operator
+from functools import cache
 from typing import Iterator
 
 import pendulum
@@ -36,7 +37,6 @@ from wtforms import widgets
 from wtforms.fields import Field, IntegerField, PasswordField, SelectField, StringField, TextAreaField
 from wtforms.validators import InputRequired, Optional
 
-from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.types import DagRunType
@@ -99,7 +99,8 @@ class DateTimeForm(FlaskForm):
 
 
 class DagRunEditForm(DynamicForm):
-    """Form for editing DAG Run.
+    """
+    Form for editing DAG Run.
 
     Only note field is editable, so everything else is read-only here.
     """
@@ -132,7 +133,8 @@ class DagRunEditForm(DynamicForm):
 
 
 class TaskInstanceEditForm(DynamicForm):
-    """Form for editing TaskInstance.
+    """
+    Form for editing TaskInstance.
 
     Only note and state fields are editable, so everything else is read-only here.
     """
@@ -176,7 +178,8 @@ class TaskInstanceEditForm(DynamicForm):
 
 @cache
 def create_connection_form_class() -> type[DynamicForm]:
-    """Create a form class for editing and adding Connection.
+    """
+    Create a form class for editing and adding Connection.
 
     This class is created dynamically because it relies heavily on run-time
     provider discovery, which slows down webserver startup a lot.

@@ -20,11 +20,10 @@ import contextlib
 from io import StringIO
 from unittest import mock
 
-import pytest
-
 from airflow.cli import cli_parser
 from airflow.cli.commands import config_command
-from tests.test_utils.config import conf_vars
+
+from tests_common.test_utils.config import conf_vars
 
 STATSD_CONFIG_BEGIN_WITH = "# `StatsD <https://github.com/statsd/statsd>`"
 
@@ -144,9 +143,11 @@ class TestCliConfigList:
         assert any(not line.startswith("# Example:") for line in lines if line)
         assert any(not line.startswith("# Example:") for line in lines if line)
         assert any(line.startswith("# Variable:") for line in lines if line)
-        assert any(line.startswith("# task_runner = StandardTaskRunner") for line in lines if line)
+        assert any(
+            line.startswith("# hostname_callable = airflow.utils.net.getfqdn") for line in lines if line
+        )
 
-    @conf_vars({("core", "task_runner"): "test-runner"})
+    @conf_vars({("core", "hostname_callable"): "testfn"})
     def test_cli_show_config_defaults_not_show_conf_changes(self):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             config_command.show_config(
@@ -154,9 +155,11 @@ class TestCliConfigList:
             )
         output = temp_stdout.getvalue()
         lines = output.splitlines()
-        assert any(line.startswith("# task_runner = StandardTaskRunner") for line in lines if line)
+        assert any(
+            line.startswith("# hostname_callable = airflow.utils.net.getfqdn") for line in lines if line
+        )
 
-    @mock.patch("os.environ", {"AIRFLOW__CORE__TASK_RUNNER": "test-env-runner"})
+    @mock.patch("os.environ", {"AIRFLOW__CORE__HOSTNAME_CALLABLE": "test_env"})
     def test_cli_show_config_defaults_do_not_show_env_changes(self):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             config_command.show_config(
@@ -164,23 +167,25 @@ class TestCliConfigList:
             )
         output = temp_stdout.getvalue()
         lines = output.splitlines()
-        assert any(line.startswith("# task_runner = StandardTaskRunner") for line in lines if line)
+        assert any(
+            line.startswith("# hostname_callable = airflow.utils.net.getfqdn") for line in lines if line
+        )
 
-    @conf_vars({("core", "task_runner"): "test-runner"})
+    @conf_vars({("core", "hostname_callable"): "testfn"})
     def test_cli_show_changed_defaults_when_overridden_in_conf(self):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
         output = temp_stdout.getvalue()
         lines = output.splitlines()
-        assert any(line.startswith("task_runner = test-runner") for line in lines if line)
+        assert any(line.startswith("hostname_callable = testfn") for line in lines if line)
 
-    @mock.patch("os.environ", {"AIRFLOW__CORE__TASK_RUNNER": "test-env-runner"})
+    @mock.patch("os.environ", {"AIRFLOW__CORE__HOSTNAME_CALLABLE": "test_env"})
     def test_cli_show_changed_defaults_when_overridden_in_env(self):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             config_command.show_config(self.parser.parse_args(["config", "list", "--color", "off"]))
         output = temp_stdout.getvalue()
         lines = output.splitlines()
-        assert any(line.startswith("task_runner = test-env-runner") for line in lines if line)
+        assert any(line.startswith("hostname_callable = test_env") for line in lines if line)
 
     def test_cli_has_providers(self):
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
@@ -222,13 +227,8 @@ class TestCliConfigGetValue:
 
         config_command.get_value(self.parser.parse_args(["config", "get-value", "some_section", "value"]))
 
-    @mock.patch("airflow.cli.commands.config_command.conf")
-    def test_should_raise_exception_when_option_is_missing(self, mock_conf):
-        mock_conf.has_section.return_value = True
-        mock_conf.has_option.return_value = False
-
-        with pytest.raises(SystemExit) as ctx:
-            config_command.get_value(
-                self.parser.parse_args(["config", "get-value", "missing-section", "dags_folder"])
-            )
-        assert "The option [missing-section/dags_folder] is not found in config." == str(ctx.value)
+    def test_should_raise_exception_when_option_is_missing(self, caplog):
+        config_command.get_value(
+            self.parser.parse_args(["config", "get-value", "missing-section", "dags_folder"])
+        )
+        assert "section/key [missing-section/dags_folder] not found in config" in caplog.text

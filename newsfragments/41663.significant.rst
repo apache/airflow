@@ -1,0 +1,1 @@
+Removed deprecated auth ``airflow.api.auth.backend.basic_auth`` from ``auth_backends``. Please use ``airflow.providers.fab.auth_manager.api.auth.backend.basic_auth`` instead.

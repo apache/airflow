@@ -29,7 +29,7 @@
   - [Build RC artifacts](#build-rc-artifacts)
   - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
-- [Verify the release candidate by PMCs](#verify-the-release-candidate-by-pmcs)
+- [Verify the release candidate by PMC members](#verify-the-release-candidate-by-pmc-members)
   - [SVN check](#svn-check)
   - [Source tarball reproducibility check](#source-tarball-reproducibility-check)
   - [Licence check](#licence-check)
@@ -159,7 +159,7 @@ exit
 The minimum version of Kubernetes should be updated according to
 https://github.com/apache/airflow/blob/main/README.md#requirements in two places:
 
-* [../helm-chart/README.md](../helm-chart/README.md)
+* [../../helm-chart/README.md](../chart/README.md)
 * [../docs/helm-chart/index.rst](../docs/helm-chart/index.rst)
 
 
@@ -376,9 +376,9 @@ Note, you need to update the `helm gpg verify` output and verify the end of the 
 
 Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [thread](https://lists.apache.org/thread/cv194w1fqqykrhswhmm54zy9gnnv6kgm).
 
-# Verify the release candidate by PMCs
+# Verify the release candidate by PMC members
 
-The PMCs should verify the releases in order to make sure the release is following the
+The PMC members should verify the releases in order to make sure the release is following the
 [Apache Legal Release Policy](http://www.apache.org/legal/release-policy.html).
 
 At least 3 (+1) votes should be recorded in accordance to
@@ -402,7 +402,7 @@ The following files should be present (7 files):
 * `airflow-{VERSION}.tgz` + .asc + .sha512
 * `airflow-{VERSION}.tgz.prov`
 
-As a PMC you should be able to clone the SVN repository:
+As a PMC member, you should be able to clone the SVN repository:
 
 ```shell
 svn co https://dist.apache.org/repos/dist/dev/airflow
@@ -842,7 +842,7 @@ Announcement is done from official Apache-Airflow accounts.
 * Fosstodon: https://fosstodon.org/@airflow
 
 Make sure attach the release image generated with Figma to the post.
-If you don't have access to the account ask PMC to post.
+If you don't have access to the account ask a PMC member to post.
 
 ------------------------------------------------------------------------------------------------------------
 

@@ -33,7 +33,7 @@ class RunnableExecDateDep(BaseTIDep):
         cur_date = timezone.utcnow()
 
         # don't consider runs that are executed in the future unless
-        # specified by config and schedule_interval is None
+        # specified by config and schedule is None
         logical_date = ti.get_dagrun(session).execution_date
         if logical_date > cur_date and not ti.task.dag.allow_future_exec_dates:
             yield self._failing_status(

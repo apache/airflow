@@ -23,10 +23,6 @@ Introduction
 The SMTP notifier (:class:`airflow.providers.smtp.notifications.smtp.SmtpNotifier`) allows users to send
 messages to SMTP servers using the various ``on_*_callbacks`` at both the DAG level and Task level.
 
-You can also use a notifier with ``sla_miss_callback``.
-
-.. note::
-    When notifiers are used with `sla_miss_callback` the context will contain only values passed to the callback, refer :ref:`sla_miss_callback<concepts:sla_miss_callback>`.
 
 Example Code:
 -------------
@@ -35,12 +31,12 @@ Example Code:
 
     from datetime import datetime
     from airflow import DAG
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.smtp.notifications.smtp import send_smtp_notification
 
     with DAG(
         dag_id="smtp_notifier",
-        schedule_interval=None,
+        schedule=None,
         start_date=datetime(2023, 1, 1),
         catchup=False,
         on_failure_callback=[

@@ -19,26 +19,24 @@
 
 Airbyte Connection
 ==================
-The Airbyte connection type use the HTTP protocol.
+The Airbyte connection type use the Airbyte API Python SDK to authenticate to the server.
 
-Configuring the Connection - Config API
----------------------------------------
 Host(required)
-    The host to connect to the Airbyte server.
+    The full qualified host domain to connect to the Airbyte server.
+    If you are using Airbyte Cloud: ``https://api.airbyte.com/v1/``
+    If you are using Airbyte OSS: ``http://localhost:8000/api/public/v1/``
+    Be aware: If you're changing the API path, you must update the value accordingly.
 
-Port (required)
-    The port for the Airbyte server.
+Token URL (optional)
+    The prefix for URL used to create the access token.
+    If you are using Airbyte Cloud: ``v1/applications/token`` (default value)
+    If you are using Airbyte OSS: ``/api/public/v1/applications/token```
+    Be aware: If you're changing the API path, you must update the value accordingly.
 
-Login (optional)
-    Specify the user name to connect.
+Client ID (required)
+    The Client ID to connect to the Airbyte server.
+    You can find this information in the Settings / Applications page in Airbyte UI.
 
-Password (optional)
-    Specify the password to connect.
-
-Configuring the Connection - Cloud API
---------------------------------------
-Host(required)
-    The host to connect to the Airbyte Cloud. (Typically ``https://api.airbyte.com``)
-
-Password (required)
-    Cloud API Key obtained from https://portal.airbyte.com/
+Client Secret (required)
+    The Client Secret to connect to the Airbyte server.
+    You can find this information in the Settings / Applications page in Airbyte UI.

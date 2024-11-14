@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import pytest
 
-from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION
 from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, convert_test_type_to_pytest_args
 
 
@@ -46,7 +45,6 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         (
             "Integration",
             [
-                "tests/integration/api_experimental",
                 "tests/integration/cli",
                 "tests/integration/executors",
                 "tests/integration/security",
@@ -55,7 +53,7 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         ),
         (
             "API",
-            ["tests/api", "tests/api_experimental", "tests/api_connexion", "tests/api_internal"],
+            ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_fastapi"],
             False,
         ),
         (
@@ -65,7 +63,7 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         ),
         (
             "System",
-            ["tests/system"],
+            [],
             False,
         ),
         (
@@ -75,7 +73,7 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         ),
         (
             "Providers",
-            ["tests/providers"],
+            ["providers/tests"],
             False,
         ),
         (
@@ -85,33 +83,33 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         ),
         (
             "Providers[amazon]",
-            ["tests/providers/amazon"],
+            ["providers/tests/amazon"],
             False,
         ),
         (
             "Providers[common.io]",
-            ["tests/providers/common/io"],
+            ["providers/tests/common/io"],
             False,
         ),
         (
             "Providers[amazon,google,apache.hive]",
-            ["tests/providers/amazon", "tests/providers/google", "tests/providers/apache/hive"],
+            ["providers/tests/amazon", "providers/tests/google", "providers/tests/apache/hive"],
             False,
         ),
         (
             "Providers[-amazon,google,microsoft.azure]",
             [
-                "tests/providers",
-                "--ignore=tests/providers/amazon",
-                "--ignore=tests/providers/google",
-                "--ignore=tests/providers/microsoft/azure",
+                "providers/tests",
+                "--ignore=providers/tests/amazon",
+                "--ignore=providers/tests/google",
+                "--ignore=providers/tests/microsoft/azure",
             ],
             False,
         ),
         (
             "PlainAsserts",
             [
-                "tests/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context",
+                "providers/tests/standard/operators/test_python.py::TestPythonVirtualenvOperator::test_airflow_context",
                 "--assert=plain",
             ],
             False,
@@ -124,41 +122,41 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         (
             "PythonVenv",
             [
-                "tests/operators/test_python.py::TestPythonVirtualenvOperator",
+                "providers/tests/standard/operators/test_python.py::TestPythonVirtualenvOperator",
             ],
             False,
         ),
         (
             "BranchPythonVenv",
             [
-                "tests/operators/test_python.py::TestBranchPythonVirtualenvOperator",
+                "providers/tests/standard/operators/test_python.py::TestBranchPythonVirtualenvOperator",
             ],
             False,
         ),
         (
             "ExternalPython",
             [
-                "tests/operators/test_python.py::TestExternalPythonOperator",
+                "providers/tests/standard/operators/test_python.py::TestExternalPythonOperator",
             ],
             False,
         ),
         (
             "BranchExternalPython",
             [
-                "tests/operators/test_python.py::TestBranchExternalPythonOperator",
+                "providers/tests/standard/operators/test_python.py::TestBranchExternalPythonOperator",
             ],
             False,
         ),
         (
             "Other",
             [
+                "tests/assets",
                 "tests/auth",
                 "tests/callbacks",
                 "tests/charts",
                 "tests/cluster_policies",
                 "tests/config_templates",
                 "tests/dag_processing",
-                "tests/datasets",
                 "tests/decorators",
                 "tests/hooks",
                 "tests/io",
@@ -189,7 +187,6 @@ def test_pytest_args_for_regular_test_types(
         convert_test_type_to_pytest_args(
             test_type=test_type,
             skip_provider_tests=skip_provider_tests,
-            python_version=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         )
         == pytest_args
     )
@@ -200,7 +197,6 @@ def test_pytest_args_for_missing_provider():
         convert_test_type_to_pytest_args(
             test_type="Providers[missing.provider]",
             skip_provider_tests=False,
-            python_version=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         )
 
 
@@ -227,7 +223,6 @@ def test_pytest_args_for_helm_test_types(helm_test_package: str, pytest_args: li
             test_type="Helm",
             skip_provider_tests=False,
             helm_test_package=helm_test_package,
-            python_version=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         )
         == pytest_args
     )
@@ -238,7 +233,7 @@ def test_pytest_args_for_helm_test_types(helm_test_package: str, pytest_args: li
     [
         (
             "API",
-            ["tests/api", "tests/api_experimental", "tests/api_connexion", "tests/api_internal"],
+            ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_fastapi"],
             False,
         ),
         (
@@ -252,9 +247,9 @@ def test_pytest_args_for_helm_test_types(helm_test_package: str, pytest_args: li
             "API CLI",
             [
                 "tests/api",
-                "tests/api_experimental",
                 "tests/api_connexion",
                 "tests/api_internal",
+                "tests/api_fastapi",
                 "tests/cli",
             ],
             False,
@@ -273,7 +268,7 @@ def test_pytest_args_for_helm_test_types(helm_test_package: str, pytest_args: li
                 "tests/models",
                 "tests/ti_deps",
                 "tests/utils",
-                "tests/providers",
+                "providers/tests",
             ],
             False,
         ),
@@ -286,7 +281,7 @@ def test_pytest_args_for_helm_test_types(helm_test_package: str, pytest_args: li
                 "tests/models",
                 "tests/ti_deps",
                 "tests/utils",
-                "tests/providers/amazon",
+                "providers/tests/amazon",
             ],
             False,
         ),
@@ -299,8 +294,8 @@ def test_pytest_args_for_helm_test_types(helm_test_package: str, pytest_args: li
                 "tests/models",
                 "tests/ti_deps",
                 "tests/utils",
-                "tests/providers/amazon",
-                "tests/providers/google",
+                "providers/tests/amazon",
+                "providers/tests/google",
             ],
             False,
         ),
@@ -313,7 +308,7 @@ def test_pytest_args_for_helm_test_types(helm_test_package: str, pytest_args: li
                 "tests/models",
                 "tests/ti_deps",
                 "tests/utils",
-                "tests/providers",
+                "providers/tests",
             ],
             False,
         ),
@@ -329,6 +324,19 @@ def test_pytest_args_for_helm_test_types(helm_test_package: str, pytest_args: li
             ],
             True,
         ),
+        (
+            "Core Providers[-amazon,google] Providers[amazon] Providers[google]",
+            [
+                "tests/core",
+                "tests/executors",
+                "tests/jobs",
+                "tests/models",
+                "tests/ti_deps",
+                "tests/utils",
+                "providers/tests",
+            ],
+            False,
+        ),
     ],
 )
 def test_folders_for_parallel_test_types(
@@ -338,7 +346,6 @@ def test_folders_for_parallel_test_types(
         convert_parallel_types_to_folders(
             parallel_test_types_list=parallel_test_types.split(" "),
             skip_provider_tests=skip_provider_tests,
-            python_version=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         )
         == folders
     )

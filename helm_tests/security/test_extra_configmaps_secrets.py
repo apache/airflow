@@ -217,3 +217,32 @@ class TestExtraConfigMapsSecrets:
 
         for k8s_object in k8s_objects:
             assert k8s_object["metadata"]["annotations"] == expected_annotations
+
+    def test_extra_configmaps_secrets_disable_helm_hooks(self):
+        k8s_objects = render_chart(
+            name=RELEASE_NAME,
+            values={
+                "extraSecrets": {
+                    "{{ .Release.Name }}-extra-secret-1": {
+                        "useHelmHooks": False,
+                        "annotations": {"test_annotation": "test_annotation_value"},
+                        "stringData": "data: secretData",
+                    }
+                },
+                "extraConfigMaps": {
+                    "{{ .Release.Name }}-extra-configmap-1": {
+                        "useHelmHooks": False,
+                        "annotations": {"test_annotation": "test_annotation_value"},
+                        "data": "data: configData",
+                    }
+                },
+            },
+            show_only=["templates/configmaps/extra-configmaps.yaml", "templates/secrets/extra-secrets.yaml"],
+        )
+
+        expected_annotations = {
+            "test_annotation": "test_annotation_value",
+        }
+
+        for k8s_object in k8s_objects:
+            assert k8s_object["metadata"]["annotations"] == expected_annotations

@@ -80,3 +80,21 @@ Extra (optional)
     .. code-block:: bash
 
         export AIRFLOW_CONN_TERADATA_DEFAULT='teradata://teradata_user:XXXXXXXXXXXX@1.1.1.1:/teradatadb?tmode=tera&sslmode=verify-ca&sslca=%2Ftmp%2Fserver-ca.pem'
+
+Setting QueryBand
+-----------------
+QueryBand can be specified using extra connection configuration parameter as below. The value specified in query_band will be set as session query band.
+
+    .. code-block:: json
+
+       {
+          "query_band": "appname=airflow;org=test;"
+       }
+
+When specifying the connection as URI (in :envvar:`AIRFLOW_CONN_{CONN_ID}` variable) you should specify query_band as URL-encoded as below.
+
+For example:
+
+    .. code-block:: bash
+
+        export AIRFLOW_CONN_TERADATA_DEFAULT='teradata://teradata_user:XXXXXXXXXXXX@1.1.1.1:/teradatadb?query_band=appname%3Dairflow%3Borg%3Dtest%3B'

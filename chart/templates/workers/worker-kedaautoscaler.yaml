@@ -64,5 +64,4 @@ spec:
         {{- end }}
         query: {{ tpl .Values.workers.keda.query . | quote }}
     {{- end }}
-
 {{- end }}

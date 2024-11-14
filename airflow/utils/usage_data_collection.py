@@ -79,8 +79,8 @@ def get_database_version() -> str:
         return "None"
 
     version_info = settings.engine.dialect.server_version_info
-    # Example: (1, 2, 3) -> "1.2.3"
-    return ".".join(map(str, version_info)) if version_info else "None"
+    # Example: (1, 2, 3) -> "1.2" (cut only major+minor w/o patch)
+    return ".".join(map(str, version_info[0:2])) if version_info else "None"
 
 
 def get_database_name() -> str:
@@ -94,4 +94,5 @@ def get_executor() -> str:
 
 
 def get_python_version() -> str:
-    return platform.python_version()
+    # Cut only major+minor from the python version string (e.g. 3.10.12 --> 3.10)
+    return ".".join(platform.python_version().split(".")[0:2])

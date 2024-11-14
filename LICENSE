@@ -215,7 +215,7 @@ Third party Apache 2.0 licenses
 
 The following components are provided under the Apache 2.0 License.
 See project link for details. The text of each license is also included
-at licenses/LICENSE-[project].txt.
+at 3rd-party-licenses/LICENSE-[project].txt.
 
     (ALv2 License) hue v4.3.0 (https://github.com/cloudera/hue/)
     (ALv2 License) jqclock v2.3.0 (https://github.com/JohnRDOrazio/jQuery-Clock-Plugin)
@@ -227,7 +227,7 @@ MIT licenses
 ========================================================================
 
 The following components are provided under the MIT License. See project link for details.
-The text of each license is also included at licenses/LICENSE-[project].txt.
+The text of each license is also included at 3rd-party-licenses/LICENSE-[project].txt.
 
     (MIT License) jquery v3.5.1 (https://jquery.org/license/)
     (MIT License) dagre-d3 v0.6.4 (https://github.com/cpettitt/dagre-d3)
@@ -243,11 +243,11 @@ The text of each license is also included at licenses/LICENSE-[project].txt.
 BSD 3-Clause licenses
 ========================================================================
 The following components are provided under the BSD 3-Clause license. See project links for details.
-The text of each license is also included at licenses/LICENSE-[project].txt.
+The text of each license is also included at 3rd-party-licenses/LICENSE-[project].txt.
 
     (BSD 3 License) d3 v5.16.0 (https://d3js.org)
     (BSD 3 License) d3-shape v2.1.0 (https://github.com/d3/d3-shape)
     (BSD 3 License) cgroupspy 0.2.1 (https://github.com/cloudsigma/cgroupspy)
 
 ========================================================================
-See licenses/LICENSES-ui.txt for packages used in `/airflow/www`
+See 3rd-party-licenses/LICENSES-ui.txt for packages used in `/airflow/www`

@@ -22,14 +22,13 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import AirflowException
-
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
 
 class PriorityWeightStrategy(ABC):
-    """Priority weight strategy interface.
+    """
+    Priority weight strategy interface.
 
     This feature is experimental and subject to change at any time.
 
@@ -46,7 +45,8 @@ class PriorityWeightStrategy(ABC):
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> PriorityWeightStrategy:
-        """Deserialize a priority weight strategy from data.
+        """
+        Deserialize a priority weight strategy from data.
 
         This is called when a serialized DAG is deserialized. ``data`` will be whatever
         was returned by ``serialize`` during DAG serialization. The default
@@ -55,7 +55,8 @@ class PriorityWeightStrategy(ABC):
         return cls(**data)  # type: ignore[call-arg]
 
     def serialize(self) -> dict[str, Any]:
-        """Serialize the priority weight strategy for JSON encoding.
+        """
+        Serialize the priority weight strategy for JSON encoding.
 
         This is called during DAG serialization to store priority weight strategy information
         in the database. This should return a JSON-serializable dict that will be fed into
@@ -124,7 +125,8 @@ airflow_priority_weight_strategies_classes = {
 def validate_and_load_priority_weight_strategy(
     priority_weight_strategy: str | PriorityWeightStrategy | None,
 ) -> PriorityWeightStrategy:
-    """Validate and load a priority weight strategy.
+    """
+    Validate and load a priority weight strategy.
 
     Returns the priority weight strategy if it is valid, otherwise raises an exception.
 
@@ -146,5 +148,5 @@ def validate_and_load_priority_weight_strategy(
         priority_weight_strategy_class = qualname(priority_weight_strategy)
     loaded_priority_weight_strategy = _get_registered_priority_weight_strategy(priority_weight_strategy_class)
     if loaded_priority_weight_strategy is None:
-        raise AirflowException(f"Unknown priority strategy {priority_weight_strategy_class}")
+        raise ValueError(f"Unknown priority strategy {priority_weight_strategy_class}")
     return loaded_priority_weight_strategy()

@@ -29,7 +29,6 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow import configuration
 from airflow.configuration import (
     AirflowConfigException,
     AirflowConfigParser,
@@ -42,16 +41,26 @@ from airflow.configuration import (
     write_default_airflow_configuration_if_needed,
 )
 from airflow.providers_manager import ProvidersManager
-from tests.test_utils.config import conf_vars
-from tests.test_utils.reset_warning_registry import reset_warning_registry
+
 from tests.utils.test_config import (
     remove_all_configurations,
     set_deprecated_options,
     set_sensitive_config_values,
     use_config,
 )
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.reset_warning_registry import reset_warning_registry
 
 HOME_DIR = os.path.expanduser("~")
+
+# The conf has been updated with sql_alchemy_con and deactivate_stale_dags_interval to test the
+# functionality of deprecated options support.
+conf.deprecated_options[("database", "sql_alchemy_conn")] = ("core", "sql_alchemy_conn", "2.3.0")
+conf.deprecated_options[("scheduler", "parsing_cleanup_interval")] = (
+    "scheduler",
+    "deactivate_stale_dags_interval",
+    "2.5.0",
+)
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -646,13 +655,15 @@ AIRFLOW_HOME = /root/airflow
                     ),
                 },
             }
-            test_conf.read_dict({"api": {"auth_backends": "airflow.api.auth.backend.basic_auth"}})
+            test_conf.read_dict(
+                {"api": {"auth_backends": "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"}}
+            )
 
             with pytest.warns(FutureWarning):
                 test_conf.validate()
                 assert (
                     test_conf.get("api", "auth_backends")
-                    == "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+                    == "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth,airflow.providers.fab.auth_manager.api.auth.backend.session"
                 )
 
     def test_command_from_env(self):
@@ -956,33 +967,6 @@ class TestDeprecatedConf:
 
     @conf_vars(
         {
-            ("logging", "logging_level"): None,
-            ("core", "logging_level"): None,
-        }
-    )
-    def test_deprecated_options_with_new_section(self):
-        # Guarantee we have a deprecated setting, so we test the deprecation
-        # lookup even if we remove this explicit fallback
-        with set_deprecated_options(
-            deprecated_options={("logging", "logging_level"): ("core", "logging_level", "2.0.0")}
-        ):
-            # Remove it so we are sure we use the right setting
-            conf.remove_option("core", "logging_level")
-            conf.remove_option("logging", "logging_level")
-
-            with pytest.warns(DeprecationWarning):
-                with mock.patch.dict("os.environ", AIRFLOW__CORE__LOGGING_LEVEL="VALUE"):
-                    assert conf.get("logging", "logging_level") == "VALUE"
-
-            with pytest.warns(FutureWarning, match="Please update your `conf.get"):
-                with mock.patch.dict("os.environ", AIRFLOW__CORE__LOGGING_LEVEL="VALUE"):
-                    assert conf.get("core", "logging_level") == "VALUE"
-
-            with pytest.warns(DeprecationWarning), conf_vars({("core", "logging_level"): "VALUE"}):
-                assert conf.get("logging", "logging_level") == "VALUE"
-
-    @conf_vars(
-        {
             ("celery", "result_backend"): None,
             ("celery", "celery_result_backend"): None,
             ("celery", "celery_result_backend_cmd"): None,
@@ -1027,14 +1011,6 @@ sql_alchemy_conn=sqlite://test
     @pytest.mark.parametrize(
         "old, new",
         [
-            (
-                ("api", "auth_backend", "airflow.api.auth.backend.basic_auth"),
-                (
-                    "api",
-                    "auth_backends",
-                    "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session",
-                ),
-            ),
             (
                 ("core", "sql_alchemy_conn", "postgres+psycopg2://localhost/postgres"),
                 ("database", "sql_alchemy_conn", "postgresql://localhost/postgres"),
@@ -1169,22 +1145,6 @@ sql_alchemy_conn=sqlite://test
         ):
             # Test when you read using the old section you get told to change your `conf.get` call
             assert test_conf.get("old_section", "val") == expected
-
-    def test_deprecated_funcs(self):
-        for func in [
-            "get",
-            "getboolean",
-            "getfloat",
-            "getint",
-            "has_option",
-            "remove_option",
-            "as_dict",
-            "set",
-        ]:
-            with mock.patch(f"airflow.configuration.conf.{func}") as mock_method:
-                with pytest.warns(DeprecationWarning):
-                    getattr(configuration, func)()
-                mock_method.assert_called_once()
 
     @pytest.mark.parametrize("display_source", [True, False])
     @mock.patch.dict("os.environ", {}, clear=True)
@@ -1484,7 +1444,7 @@ sql_alchemy_conn=sqlite://test
             test_conf.items("scheduler")
         assert len(captured) == 1
         c = captured[0]
-        assert c.category == FutureWarning
+        assert c.category is FutureWarning
         assert (
             "you should use[scheduler/parsing_cleanup_interval] "
             "instead. Please update your `conf.get*`" in str(c.message)
@@ -1494,7 +1454,7 @@ sql_alchemy_conn=sqlite://test
                 test_conf.items("scheduler")
         assert len(captured) == 1
         c = captured[0]
-        assert c.category == DeprecationWarning
+        assert c.category is DeprecationWarning
         assert (
             "deactivate_stale_dags_interval option in [scheduler] "
             "has been renamed to parsing_cleanup_interval" in str(c.message)
@@ -1518,12 +1478,12 @@ sql_alchemy_conn=sqlite://test
 
         w = captured.pop()
         assert "the old setting has been used, but please update" in str(w.message)
-        assert w.category == DeprecationWarning
+        assert w.category is DeprecationWarning
         # only if we use old value, do we also get a warning about code update
         if key == old_val:
             w = captured.pop()
             assert "your `conf.get*` call to use the new name" in str(w.message)
-            assert w.category == FutureWarning
+            assert w.category is FutureWarning
 
     def test_as_dict_raw(self):
         test_conf = AirflowConfigParser()
@@ -1592,8 +1552,8 @@ sql_alchemy_conn=sqlite://test
         airflow_cfg = AirflowConfigParser()
         airflow_cfg.remove_all_read_configurations()
         default_options = airflow_cfg.get_options_including_defaults("core")
-        assert "task_runner" in default_options
-        assert "StandardTaskRunner" == airflow_cfg.get("core", "task_runner")
+        assert "hostname_callable" in default_options
+        assert "airflow.utils.net.getfqdn" == airflow_cfg.get("core", "hostname_callable")
         assert "test-key" not in default_options
         no_options = airflow_cfg.get_options_including_defaults("test-section")
         assert no_options == []
@@ -1601,16 +1561,16 @@ sql_alchemy_conn=sqlite://test
         airflow_cfg.set("test-section", "test-key", "test-value")
         test_section_options = airflow_cfg.get_options_including_defaults("test-section")
         assert "test-key" in test_section_options
-        assert "StandardTaskRunner" == airflow_cfg.get("core", "task_runner")
+        assert "airflow.utils.net.getfqdn" == airflow_cfg.get("core", "hostname_callable")
         airflow_cfg.add_section("core")
         airflow_cfg.set("core", "new-test-key", "test-value")
-        airflow_cfg.set("core", "task_runner", "test-runner")
+        airflow_cfg.set("core", "hostname_callable", "test-fn")
         all_core_options_including_defaults = airflow_cfg.get_options_including_defaults("core")
         assert "new-test-key" in all_core_options_including_defaults
         assert "dags_folder" in all_core_options_including_defaults
         assert "test-value" == airflow_cfg.get("core", "new-test-key")
-        assert "test-runner" == airflow_cfg.get("core", "task_runner")
-        assert sum(1 for option in all_core_options_including_defaults if option == "task_runner") == 1
+        assert "test-fn" == airflow_cfg.get("core", "hostname_callable")
+        assert sum(1 for option in all_core_options_including_defaults if option == "hostname_callable") == 1
 
 
 def test_sensitive_values():
@@ -1623,7 +1583,7 @@ def test_sensitive_values():
     sensitive_values = {
         ("database", "sql_alchemy_conn"),
         ("core", "fernet_key"),
-        ("smtp", "smtp_password"),
+        ("core", "internal_api_secret_key"),
         ("webserver", "secret_key"),
         ("secrets", "backend_kwargs"),
         ("sentry", "sentry_dsn"),
@@ -1633,6 +1593,8 @@ def test_sensitive_values():
         ("celery", "broker_url"),
         ("celery", "flower_basic_auth"),
         ("celery", "result_backend"),
+        ("opensearch", "username"),
+        ("opensearch", "password"),
     }
     all_keys = {(s, k) for s, v in conf.configuration_description.items() for k in v.get("options")}
     suspected_sensitive = {(s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))}
@@ -1784,3 +1746,18 @@ class TestWriteDefaultAirflowConfigurationIfNeeded:
 
         with pytest.raises(IsADirectoryError, match="configuration file, but got a directory"):
             write_default_airflow_configuration_if_needed()
+
+    @conf_vars({("mysection1", "mykey1"): "supersecret1", ("mysection2", "mykey2"): "supersecret2"})
+    @patch.object(
+        conf,
+        "sensitive_config_values",
+        new_callable=lambda: [("mysection1", "mykey1"), ("mysection2", "mykey2")],
+    )
+    @patch("airflow.utils.log.secrets_masker.mask_secret")
+    def test_mask_conf_values(self, mock_mask_secret, mock_sensitive_config_values):
+        conf.mask_secrets()
+
+        mock_mask_secret.assert_any_call("supersecret1")
+        mock_mask_secret.assert_any_call("supersecret2")
+
+        assert mock_mask_secret.call_count == 2

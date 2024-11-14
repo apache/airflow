@@ -1,14 +1,12 @@
 {
   "airbyte": {
     "deps": [
-      "apache-airflow-providers-http",
-      "apache-airflow>=2.7.0"
+      "airbyte-api>=0.52.0",
+      "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [
-      "http"
-    ],
+    "cross-providers-deps": [],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -16,7 +14,7 @@
     "deps": [
       "alibabacloud_adb20211201>=1.0.0",
       "alibabacloud_tea_openapi>=0.3.7",
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "oss2>=2.14.0"
     ],
     "devel-deps": [],
@@ -28,27 +26,28 @@
   "amazon": {
     "deps": [
       "PyAthena>=3.0.10",
-      "apache-airflow-providers-common-sql>=1.3.1",
+      "apache-airflow-providers-common-compat>=1.2.1",
+      "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow-providers-http",
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "asgiref>=2.3.0",
-      "boto3>=1.34.0",
-      "botocore>=1.34.0",
+      "boto3>=1.34.90",
+      "botocore>=1.34.90",
       "inflection>=0.5.1",
       "jmespath>=0.7.0",
       "jsonpath_ng>=1.5.3",
+      "python3-saml>=1.16.0",
       "redshift_connector>=2.0.918",
-      "sqlalchemy_redshift>=0.8.6",
-      "watchtower>=3.0.0,<4"
+      "watchtower>=3.0.0,!=3.3.0,<4"
     ],
     "devel-deps": [
-      "aiobotocore>=2.7.0",
+      "aiobotocore>=2.13.0",
       "aws_xray_sdk>=2.12.0",
       "moto[cloudformation,glue]>=5.0.0",
-      "mypy-boto3-appflow>=1.33.0",
-      "mypy-boto3-rds>=1.33.0",
-      "mypy-boto3-redshift-data>=1.33.0",
-      "mypy-boto3-s3>=1.33.0",
+      "mypy-boto3-appflow>=1.34.0,<1.35.39",
+      "mypy-boto3-rds>=1.34.90",
+      "mypy-boto3-redshift-data>=1.34.0",
+      "mypy-boto3-s3>=1.34.90",
       "openapi-schema-validator>=0.6.2",
       "openapi-spec-validator>=0.7.1",
       "s3fs>=2023.10.0"
@@ -57,6 +56,7 @@
     "cross-providers-deps": [
       "apache.hive",
       "cncf.kubernetes",
+      "common.compat",
       "common.sql",
       "exasol",
       "ftp",
@@ -74,13 +74,14 @@
   },
   "apache.beam": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "apache-beam>=2.53.0",
       "pyarrow>=14.0.1"
     ],
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
+      "common.compat",
       "google"
     ],
     "excluded-python-versions": [
@@ -90,7 +91,7 @@
   },
   "apache.cassandra": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "cassandra-driver>=3.29.1"
     ],
     "devel-deps": [],
@@ -101,8 +102,8 @@
   },
   "apache.drill": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.3.1",
-      "apache-airflow>=2.7.0",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
       "sqlalchemy-drill>=1.1.0"
     ],
     "devel-deps": [],
@@ -115,8 +116,8 @@
   },
   "apache.druid": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.3.1",
-      "apache-airflow>=2.7.0",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
       "pydruid>=0.4.1"
     ],
     "devel-deps": [],
@@ -131,7 +132,7 @@
   "apache.flink": {
     "deps": [
       "apache-airflow-providers-cncf-kubernetes>=5.1.0",
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "cryptography>=41.0.0"
     ],
     "devel-deps": [],
@@ -144,11 +145,11 @@
   },
   "apache.hdfs": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "hdfs[avro,dataframe,kerberos]>=2.5.4;python_version<\"3.12\"",
       "hdfs[avro,dataframe,kerberos]>=2.7.3;python_version>=\"3.12\"",
-      "pandas>=1.5.3,<2.2;python_version<\"3.12\"",
-      "pandas>=2.1.1,<2.2;python_version>=\"3.12\""
+      "pandas>=1.5.3,<2.2;python_version<\"3.9\"",
+      "pandas>=2.1.2,<2.2;python_version>=\"3.9\""
     ],
     "devel-deps": [],
     "plugins": [],
@@ -158,12 +159,12 @@
   },
   "apache.hive": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.3.1",
-      "apache-airflow>=2.7.0",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
       "hmsclient>=0.1.0",
       "jmespath>=0.7.0",
-      "pandas>=1.5.3,<2.2;python_version<\"3.12\"",
-      "pandas>=2.1.1,<2.2;python_version>=\"3.12\"",
+      "pandas>=1.5.3,<2.2;python_version<\"3.9\"",
+      "pandas>=2.1.2,<2.2;python_version>=\"3.9\"",
       "pyhive[hive_pure_sasl]>=0.7.0",
       "thrift>=0.11.0"
     ],
@@ -188,7 +189,7 @@
   },
   "apache.iceberg": {
     "deps": [
-      "apache-airflow>=2.7.0"
+      "apache-airflow>=2.8.0"
     ],
     "devel-deps": [
       "pyiceberg>=0.5.0"
@@ -200,10 +201,13 @@
   },
   "apache.impala": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
       "impyla>=0.18.0,<1.0"
     ],
-    "devel-deps": [],
+    "devel-deps": [
+      "kerberos>=1.3.0"
+    ],
     "plugins": [],
     "cross-providers-deps": [
       "common.sql"
@@ -213,7 +217,7 @@
   },
   "apache.kafka": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "asgiref>=2.3.0",
       "confluent-kafka>=2.3.0"
     ],
@@ -225,7 +229,7 @@
   },
   "apache.kylin": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "kylinpy>=2.7.0"
     ],
     "devel-deps": [],
@@ -238,8 +242,8 @@
     "deps": [
       "aiohttp>=3.9.2",
       "apache-airflow-providers-http",
-      "apache-airflow>=2.7.0",
-      "asgiref"
+      "apache-airflow>=2.8.0",
+      "asgiref>=2.3.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -251,7 +255,7 @@
   },
   "apache.pig": {
     "deps": [
-      "apache-airflow>=2.7.0"
+      "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -261,8 +265,8 @@
   },
   "apache.pinot": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.3.1",
-      "apache-airflow>=2.7.0",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
       "pinotdb>=5.1.0"
     ],
     "devel-deps": [],
@@ -275,21 +279,22 @@
   },
   "apache.spark": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "grpcio-status>=1.59.0",
       "pyspark>=3.1.3"
     ],
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "cncf.kubernetes"
+      "cncf.kubernetes",
+      "common.compat"
     ],
     "excluded-python-versions": [],
     "state": "ready"
   },
   "apprise": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "apprise>=1.8.0"
     ],
     "devel-deps": [],
@@ -300,7 +305,7 @@
   },
   "arangodb": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "python-arango>=7.3.2"
     ],
     "devel-deps": [],
@@ -311,7 +316,7 @@
   },
   "asana": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "asana>=0.10,<4.0.0"
     ],
     "devel-deps": [],
@@ -322,7 +327,7 @@
   },
   "atlassian.jira": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "atlassian-python-api>3.41.10"
     ],
     "devel-deps": [],
@@ -333,7 +338,7 @@
   },
   "celery": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "celery[redis]>=5.3.0,<6,!=5.3.3,!=5.3.2",
       "flower>=1.0.0",
       "google-re2>=1.0"
@@ -348,24 +353,26 @@
   },
   "cloudant": {
     "deps": [
-      "apache-airflow>=2.7.0",
-      "cloudant>=2.13.0"
+      "apache-airflow>=2.8.0",
+      "ibmcloudant==0.9.1 ; python_version >= \"3.10\""
     ],
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [],
-    "excluded-python-versions": [],
+    "excluded-python-versions": [
+      "3.9"
+    ],
     "state": "ready"
   },
   "cncf.kubernetes": {
     "deps": [
       "aiofiles>=23.2.0",
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "asgiref>=3.5.2",
       "cryptography>=41.0.0",
       "google-re2>=1.0",
-      "kubernetes>=28.1.0,<=29.0.0",
-      "kubernetes_asyncio>=28.1.0,<=29.0.0"
+      "kubernetes>=29.0.0,<=31.0.0",
+      "kubernetes_asyncio>=29.0.0,<=31.0.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -375,12 +382,25 @@
   },
   "cohere": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "cohere>=4.37,<5"
     ],
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "ready"
+  },
+  "common.compat": {
+    "deps": [
+      "apache-airflow>=2.8.0"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [
+      "openlineage",
+      "standard"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -391,6 +411,7 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
+      "common.compat",
       "openlineage"
     ],
     "excluded-python-versions": [],
@@ -398,9 +419,9 @@
   },
   "common.sql": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "more-itertools>=9.0.0",
-      "sqlparse>=0.4.2"
+      "sqlparse>=0.5.1"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -413,19 +434,24 @@
   "databricks": {
     "deps": [
       "aiohttp>=3.9.2, <4",
-      "apache-airflow-providers-common-sql>=1.10.0",
-      "apache-airflow>=2.7.0",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
       "databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0",
       "mergedeep>=1.3.4",
-      "pandas>=1.5.3,<2.2;python_version<\"3.12\"",
-      "pandas>=2.1.1,<2.2;python_version>=\"3.12\"",
+      "pandas>=1.5.3,<2.2;python_version<\"3.9\"",
+      "pandas>=2.1.2,<2.2;python_version>=\"3.9\"",
       "pyarrow>=14.0.1",
       "requests>=2.27.0,<3"
     ],
     "devel-deps": [
       "deltalake>=0.12.0"
     ],
-    "plugins": [],
+    "plugins": [
+      {
+        "name": "databricks_workflow",
+        "plugin-class": "airflow.providers.databricks.plugins.databricks_workflow.DatabricksWorkflowPlugin"
+      }
+    ],
     "cross-providers-deps": [
       "common.sql"
     ],
@@ -434,7 +460,7 @@
   },
   "datadog": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "datadog>=0.14.0"
     ],
     "devel-deps": [],
@@ -447,8 +473,8 @@
     "deps": [
       "aiohttp>=3.9.2",
       "apache-airflow-providers-http",
-      "apache-airflow>=2.7.0",
-      "asgiref"
+      "apache-airflow>=2.8.0",
+      "asgiref>=2.3.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -462,7 +488,7 @@
   "dingding": {
     "deps": [
       "apache-airflow-providers-http",
-      "apache-airflow>=2.7.0"
+      "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -475,7 +501,7 @@
   "discord": {
     "deps": [
       "apache-airflow-providers-http",
-      "apache-airflow>=2.7.0"
+      "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -487,20 +513,40 @@
   },
   "docker": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "docker>=7.1.0",
       "python-dotenv>=0.21.0"
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "edge": {
+    "deps": [
+      "apache-airflow>=2.10.0",
+      "pydantic>=2.6.4"
+    ],
+    "devel-deps": [],
+    "plugins": [
+      {
+        "name": "edge_executor",
+        "plugin-class": "airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin"
+      }
+    ],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
+    "excluded-python-versions": [],
+    "state": "not-ready"
+  },
   "elasticsearch": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.3.1",
-      "apache-airflow>=2.7.0",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
       "elasticsearch>=8.10,<9"
     ],
     "devel-deps": [],
@@ -513,10 +559,10 @@
   },
   "exasol": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.10.0",
-      "apache-airflow>=2.7.0",
-      "pandas>=1.5.3,<2.2;python_version<\"3.12\"",
-      "pandas>=2.1.1,<2.2;python_version>=\"3.12\"",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
+      "pandas>=1.5.3,<2.2;python_version<\"3.9\"",
+      "pandas>=2.1.2,<2.2;python_version>=\"3.9\"",
       "pyexasol>=0.5.1"
     ],
     "devel-deps": [],
@@ -529,22 +575,27 @@
   },
   "fab": {
     "deps": [
+      "apache-airflow-providers-common-compat>=1.2.1",
       "apache-airflow>=2.9.0",
-      "flask-appbuilder==4.5.0",
+      "flask-appbuilder==4.5.2",
       "flask-login>=0.6.2",
       "flask>=2.2,<2.3",
       "google-re2>=1.0",
       "jmespath>=0.7.0"
     ],
-    "devel-deps": [],
+    "devel-deps": [
+      "kerberos>=1.3.0"
+    ],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
   "facebook": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "facebook-business>=15.0.2"
     ],
     "devel-deps": [],
@@ -555,11 +606,12 @@
   },
   "ftp": {
     "deps": [
-      "apache-airflow>=2.7.0"
+      "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
+      "common.compat",
       "openlineage"
     ],
     "excluded-python-versions": [],
@@ -568,7 +620,7 @@
   "github": {
     "deps": [
       "PyGithub>=2.1.1",
-      "apache-airflow>=2.7.0"
+      "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -579,25 +631,26 @@
   "google": {
     "deps": [
       "PyOpenSSL>=23.0.0",
-      "apache-airflow-providers-common-sql>=1.7.2",
-      "apache-airflow>=2.7.0",
+      "apache-airflow-providers-common-compat>=1.2.1",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
       "asgiref>=3.5.2",
       "dill>=0.2.3",
-      "gcloud-aio-auth>=4.0.0,<5.0.0",
+      "gcloud-aio-auth>=5.2.0",
       "gcloud-aio-bigquery>=6.1.2",
       "gcloud-aio-storage>=9.0.0",
       "gcsfs>=2023.10.0",
-      "google-ads>=23.1.0",
+      "google-ads>=25.1.0",
       "google-analytics-admin>=0.9.0",
       "google-api-core>=2.11.0,!=2.16.0,!=2.18.0",
       "google-api-python-client>=2.0.2",
       "google-auth-httplib2>=0.0.1",
-      "google-auth>=1.0.0",
-      "google-cloud-aiplatform>=1.42.1",
+      "google-auth>=2.29.0",
+      "google-cloud-aiplatform>=1.70.0",
       "google-cloud-automl>=2.12.0",
       "google-cloud-batch>=0.13.0",
       "google-cloud-bigquery-datatransfer>=3.13.0",
-      "google-cloud-bigquery<3.21.0,>=3.4.0",
+      "google-cloud-bigquery>=3.4.0,!=3.21.*,!=3.22.0,!=3.23.*",
       "google-cloud-bigtable>=2.17.0",
       "google-cloud-build>=3.22.0",
       "google-cloud-compute>=1.10.0",
@@ -607,7 +660,7 @@
       "google-cloud-dataform>=0.5.0",
       "google-cloud-dataplex>=1.10.0",
       "google-cloud-dataproc-metastore>=1.12.0",
-      "google-cloud-dataproc>=5.8.0",
+      "google-cloud-dataproc>=5.12.0",
       "google-cloud-dlp>=3.12.0",
       "google-cloud-kms>=2.15.0",
       "google-cloud-language>=2.9.0",
@@ -620,7 +673,7 @@
       "google-cloud-redis>=2.12.0",
       "google-cloud-run>=0.10.0",
       "google-cloud-secret-manager>=2.16.0",
-      "google-cloud-spanner>=3.11.1",
+      "google-cloud-spanner>=3.11.1,!=3.49.0",
       "google-cloud-speech>=2.18.0",
       "google-cloud-storage-transfer>=1.4.1",
       "google-cloud-storage>=2.7.0",
@@ -631,13 +684,15 @@
       "google-cloud-vision>=3.4.0",
       "google-cloud-workflows>=1.10.0",
       "grpcio-gcp>=0.2.2",
-      "httpx>=0.18.0",
+      "httpx>=0.25.0",
+      "immutabledict>=4.2.0",
       "json-merge-patch>=0.2",
-      "looker-sdk>=22.4.0",
+      "looker-sdk>=22.4.0,!=24.18.0",
       "pandas-gbq>=0.7.0",
-      "pandas>=1.5.3,<2.2;python_version<\"3.12\"",
-      "pandas>=2.1.1,<2.2;python_version>=\"3.12\"",
+      "pandas>=1.5.3,<2.2;python_version<\"3.9\"",
+      "pandas>=2.1.2,<2.2;python_version>=\"3.9\"",
       "proto-plus>=1.19.6",
+      "pyarrow>=14.0.1",
       "python-slugify>=7.0.0",
       "sqlalchemy-bigquery>=1.2.1",
       "sqlalchemy-spanner>=1.6.2",
@@ -650,6 +705,7 @@
       "apache.beam",
       "apache.cassandra",
       "cncf.kubernetes",
+      "common.compat",
       "common.sql",
       "facebook",
       "microsoft.azure",
@@ -669,7 +725,7 @@
   },
   "grpc": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "google-auth-httplib2>=0.0.1",
       "google-auth>=1.0.0, <3.0.0",
       "grpcio>=1.59.0"
@@ -682,7 +738,7 @@
   },
   "hashicorp": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "hvac>=1.1.0"
     ],
     "devel-deps": [],
@@ -695,11 +751,11 @@
   },
   "http": {
     "deps": [
-      "aiohttp>=3.9.2",
-      "apache-airflow>=2.7.0",
-      "asgiref",
-      "requests>=2.27.0,<3",
-      "requests_toolbelt"
+      "aiohttp>=3.9.2,<3.11.0",
+      "apache-airflow>=2.8.0",
+      "asgiref>=2.3.0",
+      "requests-toolbelt>=0.4.0",
+      "requests>=2.27.0,<3"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -709,7 +765,7 @@
   },
   "imap": {
     "deps": [
-      "apache-airflow>=2.7.0"
+      "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -719,7 +775,7 @@
   },
   "influxdb": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "influxdb-client>=1.19.0",
       "requests>=2.27.0,<3"
     ],
@@ -731,8 +787,8 @@
   },
   "jdbc": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.3.1",
-      "apache-airflow>=2.7.0",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
       "jaydebeapi>=1.1.1"
     ],
     "devel-deps": [],
@@ -745,7 +801,7 @@
   },
   "jenkins": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "python-jenkins>=1.0.0"
     ],
     "devel-deps": [],
@@ -758,14 +814,14 @@
     "deps": [
       "adal>=1.2.7",
       "adlfs>=2023.10.0",
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "azure-batch>=8.0.0",
       "azure-cosmos>=4.6.0",
       "azure-datalake-store>=0.0.45",
       "azure-identity>=1.3.1",
       "azure-keyvault-secrets>=4.1.0",
-      "azure-kusto-data>=4.1.0",
-      "azure-mgmt-containerinstance>=9.0.0",
+      "azure-kusto-data>=4.1.0,!=4.6.0",
+      "azure-mgmt-containerinstance>=10.1.0",
       "azure-mgmt-containerregistry>=8.0.0",
       "azure-mgmt-cosmosdb>=3.0.0",
       "azure-mgmt-datafactory>=2.0.0",
@@ -778,13 +834,18 @@
       "azure-storage-file-share>=12.7.0",
       "azure-synapse-artifacts>=0.17.0",
       "azure-synapse-spark>=0.2.0",
+      "microsoft-kiota-abstractions<1.4.0",
+      "microsoft-kiota-http>=1.3.0,!=1.3.4",
+      "microsoft-kiota-serialization-json==1.0.0",
+      "microsoft-kiota-serialization-text==1.0.0",
       "msgraph-core>=1.0.0"
     ],
     "devel-deps": [
-      "pywinrm"
+      "pywinrm>=0.4"
     ],
     "plugins": [],
     "cross-providers-deps": [
+      "amazon",
       "google",
       "oracle",
       "sftp"
@@ -794,8 +855,9 @@
   },
   "microsoft.mssql": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.3.1",
-      "apache-airflow>=2.7.0",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
+      "methodtools>=0.4.7",
       "pymssql>=2.3.0"
     ],
     "devel-deps": [],
@@ -808,7 +870,7 @@
   },
   "microsoft.psrp": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "pypsrp>=0.8.0"
     ],
     "devel-deps": [],
@@ -819,7 +881,7 @@
   },
   "microsoft.winrm": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "pywinrm>=0.4"
     ],
     "devel-deps": [],
@@ -830,7 +892,7 @@
   },
   "mongo": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "dnspython>=1.13.0",
       "pymongo>=4.0.0"
     ],
@@ -844,10 +906,10 @@
   },
   "mysql": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.3.1",
-      "apache-airflow>=2.7.0",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
       "mysql-connector-python>=8.0.29",
-      "mysqlclient>=1.4.0"
+      "mysqlclient>=1.4.0; sys_platform != 'darwin'"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -864,7 +926,7 @@
   },
   "neo4j": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "neo4j>=4.2.1"
     ],
     "devel-deps": [],
@@ -875,8 +937,8 @@
   },
   "odbc": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.10.0",
-      "apache-airflow>=2.7.0",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
       "pyodbc>=5.0.0"
     ],
     "devel-deps": [],
@@ -889,8 +951,8 @@
   },
   "openai": {
     "deps": [
-      "apache-airflow>=2.7.0",
-      "openai[datalib]>=1.23"
+      "apache-airflow>=2.8.0",
+      "openai[datalib]>=1.32.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -900,7 +962,7 @@
   },
   "openfaas": {
     "deps": [
-      "apache-airflow>=2.7.0"
+      "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -910,11 +972,12 @@
   },
   "openlineage": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.6.0",
-      "apache-airflow>=2.7.0",
+      "apache-airflow-providers-common-compat>=1.2.1",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
       "attrs>=22.2",
-      "openlineage-integration-common>=1.15.0",
-      "openlineage-python>=1.15.0"
+      "openlineage-integration-common>=1.24.2",
+      "openlineage-python>=1.24.2"
     ],
     "devel-deps": [],
     "plugins": [
@@ -924,6 +987,7 @@
       }
     ],
     "cross-providers-deps": [
+      "common.compat",
       "common.sql"
     ],
     "excluded-python-versions": [],
@@ -931,7 +995,7 @@
   },
   "opensearch": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "opensearch-py>=2.2.0"
     ],
     "devel-deps": [],
@@ -942,7 +1006,7 @@
   },
   "opsgenie": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "opsgenie-sdk>=2.1.5"
     ],
     "devel-deps": [],
@@ -953,8 +1017,8 @@
   },
   "oracle": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.3.1",
-      "apache-airflow>=2.7.0",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
       "oracledb>=2.0.0"
     ],
     "devel-deps": [],
@@ -967,7 +1031,7 @@
   },
   "pagerduty": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "pdpyras>=4.2.0"
     ],
     "devel-deps": [],
@@ -978,26 +1042,24 @@
   },
   "papermill": {
     "deps": [
-      "apache-airflow>=2.7.0",
-      "ipykernel",
-      "pandas>=1.5.3,<2.2;python_version<\"3.12\"",
-      "pandas>=2.1.1,<2.2;python_version>=\"3.12\"",
-      "papermill[all]>=2.4.0",
-      "scrapbook[all]"
+      "apache-airflow>=2.8.0",
+      "ipykernel>=6.29.4",
+      "pandas>=1.5.3,<2.2;python_version<\"3.9\"",
+      "pandas>=2.1.2,<2.2;python_version>=\"3.9\"",
+      "papermill[all]>=2.6.0",
+      "scrapbook[all]>=0.5.0"
     ],
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [],
-    "excluded-python-versions": [
-      "3.12"
-    ],
+    "excluded-python-versions": [],
     "state": "ready"
   },
   "pgvector": {
     "deps": [
       "apache-airflow-providers-postgres>=5.7.1",
-      "apache-airflow>=2.7.0",
-      "pgvector>=0.2.3"
+      "apache-airflow>=2.8.0",
+      "pgvector!=0.3.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -1010,7 +1072,7 @@
   },
   "pinecone": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "pinecone-client>=3.1.0"
     ],
     "devel-deps": [],
@@ -1021,8 +1083,8 @@
   },
   "postgres": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.3.1",
-      "apache-airflow>=2.7.0",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
       "psycopg2-binary>=2.9.4"
     ],
     "devel-deps": [],
@@ -1037,10 +1099,10 @@
   },
   "presto": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.3.1",
-      "apache-airflow>=2.7.0",
-      "pandas>=1.5.3,<2.2;python_version<\"3.12\"",
-      "pandas>=2.1.1,<2.2;python_version>=\"3.12\"",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
+      "pandas>=1.5.3,<2.2;python_version<\"3.9\"",
+      "pandas>=2.1.2,<2.2;python_version>=\"3.9\"",
       "presto-python-client>=0.8.4"
     ],
     "devel-deps": [],
@@ -1054,8 +1116,8 @@
   },
   "qdrant": {
     "deps": [
-      "apache-airflow>=2.7.0",
-      "qdrant_client>=1.9.0"
+      "apache-airflow>=2.8.0",
+      "qdrant_client>=1.10.1"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -1065,7 +1127,7 @@
   },
   "redis": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "redis>=4.5.2,!=4.5.5,!=5.0.2"
     ],
     "devel-deps": [],
@@ -1076,9 +1138,9 @@
   },
   "salesforce": {
     "deps": [
-      "apache-airflow>=2.7.0",
-      "pandas>=1.5.3,<2.2;python_version<\"3.12\"",
-      "pandas>=2.1.1,<2.2;python_version>=\"3.12\"",
+      "apache-airflow>=2.8.0",
+      "pandas>=1.5.3,<2.2;python_version<\"3.9\"",
+      "pandas>=2.1.2,<2.2;python_version>=\"3.9\"",
       "simple-salesforce>=1.0.0"
     ],
     "devel-deps": [],
@@ -1089,7 +1151,7 @@
   },
   "samba": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "smbprotocol>=1.5.0"
     ],
     "devel-deps": [],
@@ -1103,7 +1165,7 @@
   "segment": {
     "deps": [
       "analytics-python>=1.2.9",
-      "apache-airflow>=2.7.0"
+      "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -1113,7 +1175,7 @@
   },
   "sendgrid": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "sendgrid>=6.0.0"
     ],
     "devel-deps": [],
@@ -1125,13 +1187,14 @@
   "sftp": {
     "deps": [
       "apache-airflow-providers-ssh>=2.1.0",
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "asyncssh>=2.12.0",
       "paramiko>=2.9.0"
     ],
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
+      "common.compat",
       "openlineage",
       "ssh"
     ],
@@ -1140,7 +1203,7 @@
   },
   "singularity": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "spython>=0.0.56"
     ],
     "devel-deps": [],
@@ -1151,8 +1214,8 @@
   },
   "slack": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.3.1",
-      "apache-airflow>=2.7.0",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
       "slack_sdk>=3.19.0"
     ],
     "devel-deps": [],
@@ -1165,7 +1228,7 @@
   },
   "smtp": {
     "deps": [
-      "apache-airflow>=2.7.0"
+      "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -1175,15 +1238,20 @@
   },
   "snowflake": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.10.0",
-      "apache-airflow>=2.7.0",
+      "apache-airflow-providers-common-compat>=1.1.0",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
+      "pandas>=1.5.3,<2.2;python_version<\"3.9\"",
+      "pandas>=2.1.2,<2.2;python_version>=\"3.9\"",
       "pyarrow>=14.0.1",
       "snowflake-connector-python>=3.7.1",
+      "snowflake-snowpark-python>=1.17.0;python_version<\"3.12\"",
       "snowflake-sqlalchemy>=1.4.0"
     ],
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
+      "common.compat",
       "common.sql",
       "openlineage"
     ],
@@ -1192,8 +1260,8 @@
   },
   "sqlite": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.3.1",
-      "apache-airflow>=2.7.0"
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -1205,7 +1273,7 @@
   },
   "ssh": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "paramiko>=2.9.0",
       "sshtunnel>=0.3.2"
     ],
@@ -1215,9 +1283,20 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "standard": {
+    "deps": [
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "ready"
+  },
   "tableau": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "tableauserverclient>=0.25"
     ],
     "devel-deps": [],
@@ -1226,24 +1305,9 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
-  "tabular": {
-    "deps": [
-      "apache-airflow-providers-apache-iceberg",
-      "apache-airflow>=2.7.0"
-    ],
-    "devel-deps": [
-      "pyiceberg>=0.5.0"
-    ],
-    "plugins": [],
-    "cross-providers-deps": [
-      "apache.iceberg"
-    ],
-    "excluded-python-versions": [],
-    "state": "ready"
-  },
   "telegram": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "python-telegram-bot>=20.2"
     ],
     "devel-deps": [],
@@ -1254,8 +1318,8 @@
   },
   "teradata": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.3.1",
-      "apache-airflow>=2.7.0",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
       "teradatasql>=17.20.0.28",
       "teradatasqlalchemy>=17.20.0.0"
     ],
@@ -1271,10 +1335,10 @@
   },
   "trino": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.3.1",
-      "apache-airflow>=2.7.0",
-      "pandas>=1.5.3,<2.2;python_version<\"3.12\"",
-      "pandas>=2.1.1,<2.2;python_version>=\"3.12\"",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
+      "pandas>=1.5.3,<2.2;python_version<\"3.9\"",
+      "pandas>=2.1.2,<2.2;python_version>=\"3.9\"",
       "trino>=0.318.0"
     ],
     "devel-deps": [],
@@ -1289,8 +1353,8 @@
   },
   "vertica": {
     "deps": [
-      "apache-airflow-providers-common-sql>=1.3.1",
-      "apache-airflow>=2.7.0",
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
       "vertica-python>=0.6.0"
     ],
     "devel-deps": [],
@@ -1303,10 +1367,11 @@
   },
   "weaviate": {
     "deps": [
-      "apache-airflow>=2.7.0",
-      "pandas>=1.5.3,<2.2;python_version<\"3.12\"",
-      "pandas>=2.1.1,<2.2;python_version>=\"3.12\"",
-      "weaviate-client>=3.24.2"
+      "apache-airflow>=2.8.0",
+      "httpx>=0.25.0",
+      "pandas>=1.5.3,<2.2;python_version<\"3.9\"",
+      "pandas>=2.1.2,<2.2;python_version>=\"3.9\"",
+      "weaviate-client>=4.4.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -1316,9 +1381,9 @@
   },
   "yandex": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "yandex-query-client>=0.1.4",
-      "yandexcloud>=0.278.0,!=0.289.0,!=0.290.0,<0.292.0"
+      "yandexcloud>=0.308.0"
     ],
     "devel-deps": [],
     "plugins": [],
@@ -1326,9 +1391,24 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "ydb": {
+    "deps": [
+      "apache-airflow-providers-common-sql>=1.20.0",
+      "apache-airflow>=2.8.0",
+      "ydb-dbapi>=0.1.0",
+      "ydb>=3.18.8"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [
+      "common.sql"
+    ],
+    "excluded-python-versions": [],
+    "state": "ready"
+  },
   "zendesk": {
     "deps": [
-      "apache-airflow>=2.7.0",
+      "apache-airflow>=2.8.0",
       "zenpy>=2.0.40"
     ],
     "devel-deps": [],

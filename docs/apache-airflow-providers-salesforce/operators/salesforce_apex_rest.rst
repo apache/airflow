@@ -30,7 +30,7 @@ You can also use this library to call custom Apex methods:
 This would call the endpoint ``https://<instance>.salesforce.com/services/apexrest/User/Activity`` with ``payload`` as
 the body content encoded with ``json.dumps``
 
-.. exampleinclude:: /../../tests/system/providers/salesforce/example_salesforce_apex_rest.py
+.. exampleinclude:: /../../providers/tests/system/salesforce/example_salesforce_apex_rest.py
     :language: python
     :start-after: [START howto_salesforce_apex_rest_operator]
     :end-before: [END howto_salesforce_apex_rest_operator]

@@ -31,6 +31,7 @@ from airflow.api_connexion.schemas.event_log_schema import (
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models import Log
 from airflow.utils import timezone
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -40,6 +41,7 @@ if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.AUDIT_LOG)
 @provide_session
 def get_event_log(*, event_log_id: int, session: Session = NEW_SESSION) -> APIResponse:
@@ -50,6 +52,7 @@ def get_event_log(*, event_log_id: int, session: Session = NEW_SESSION) -> APIRe
     return event_log_schema.dump(event_log)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.AUDIT_LOG)
 @format_parameters({"limit": check_limit})
 @provide_session
@@ -58,6 +61,8 @@ def get_event_logs(
     dag_id: str | None = None,
     task_id: str | None = None,
     run_id: str | None = None,
+    map_index: int | None = None,
+    try_number: int | None = None,
     owner: str | None = None,
     event: str | None = None,
     excluded_events: str | None = None,
@@ -90,6 +95,10 @@ def get_event_logs(
         query = query.where(Log.task_id == task_id)
     if run_id:
         query = query.where(Log.run_id == run_id)
+    if map_index:
+        query = query.where(Log.map_index == map_index)
+    if try_number:
+        query = query.where(Log.try_number == try_number)
     if owner:
         query = query.where(Log.owner == owner)
     if event:

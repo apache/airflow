@@ -39,17 +39,25 @@ def get_docs_url(page: str | None = None) -> str:
     return result
 
 
+def get_project_url_from_metadata(provider_name: str):
+    """Return the Project-URL from metadata."""
+    return metadata.metadata(provider_name).get_all("Project-URL")
+
+
 def get_doc_url_for_provider(provider_name: str, provider_version: str) -> str:
     """Prepare link to Airflow Provider documentation."""
     try:
-        metadata_items = metadata.metadata(provider_name).get_all("Project-URL")
+        from urllib.parse import urlparse
+
+        metadata_items = get_project_url_from_metadata(provider_name)
         if isinstance(metadata_items, str):
             metadata_items = [metadata_items]
         if metadata_items:
             for item in metadata_items:
                 if item.lower().startswith("documentation"):
                     _, _, url = item.partition(",")
-                    if url:
+                    parsed_url = urlparse(url)
+                    if url and (parsed_url.scheme in ("http", "https") and bool(parsed_url.netloc)):
                         return url.strip()
     except metadata.PackageNotFoundError:
         pass

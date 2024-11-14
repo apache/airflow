@@ -17,11 +17,17 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import Column, Index, Integer, String, Text
 
 from airflow.models.base import Base, StringID
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 
 class Log(Base):
@@ -40,28 +46,40 @@ class Log(Base):
     owner = Column(String(500))
     owner_display_name = Column(String(500))
     extra = Column(Text)
+    try_number = Column(Integer)
 
     __table_args__ = (
-        Index("idx_log_dag", dag_id),
         Index("idx_log_dttm", dttm),
         Index("idx_log_event", event),
+        Index("idx_log_task_instance", dag_id, task_id, run_id, map_index, try_number),
     )
 
-    def __init__(self, event, task_instance=None, owner=None, owner_display_name=None, extra=None, **kwargs):
+    def __init__(
+        self,
+        event,
+        task_instance: TaskInstance | TaskInstanceKey | None = None,
+        owner=None,
+        owner_display_name=None,
+        extra=None,
+        **kwargs,
+    ):
         self.dttm = timezone.utcnow()
         self.event = event
         self.extra = extra
 
         task_owner = None
 
+        self.execution_date = None
         if task_instance:
             self.dag_id = task_instance.dag_id
             self.task_id = task_instance.task_id
-            self.execution_date = task_instance.execution_date
+            if execution_date := getattr(task_instance, "execution_date", None):
+                self.execution_date = execution_date
             self.run_id = task_instance.run_id
+            self.try_number = task_instance.try_number
             self.map_index = task_instance.map_index
-            if getattr(task_instance, "task", None):
-                task_owner = task_instance.task.owner
+            if task := getattr(task_instance, "task", None):
+                task_owner = task.owner
 
         if "task_id" in kwargs:
             self.task_id = kwargs["task_id"]
@@ -73,6 +91,8 @@ class Log(Base):
             self.run_id = kwargs["run_id"]
         if "map_index" in kwargs:
             self.map_index = kwargs["map_index"]
+        if "try_number" in kwargs:
+            self.try_number = kwargs["try_number"]
 
         self.owner = owner or task_owner
         self.owner_display_name = owner_display_name or None

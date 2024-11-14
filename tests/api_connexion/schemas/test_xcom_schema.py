@@ -25,14 +25,15 @@ from airflow.api_connexion.schemas.xcom_schema import (
     XComCollection,
     xcom_collection_item_schema,
     xcom_collection_schema,
-    xcom_schema,
+    xcom_schema_string,
 )
 from airflow.models import DagRun, XCom
-from airflow.utils.dates import parse_execution_date
+from airflow.utils import timezone
 from airflow.utils.session import create_session
-from tests.test_utils.config import conf_vars
 
-pytestmark = pytest.mark.db_test
+from tests_common.test_utils.config import conf_vars
+
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -89,7 +90,7 @@ def create_xcom(create_task_instance, session):
 
 class TestXComCollectionItemSchema:
     default_time = "2016-04-02T21:00:00+00:00"
-    default_time_parsed = parse_execution_date(default_time)
+    default_time_parsed = timezone.parse(default_time)
 
     def test_serialize(self, create_xcom, session):
         create_xcom(
@@ -132,8 +133,8 @@ class TestXComCollectionItemSchema:
 class TestXComCollectionSchema:
     default_time_1 = "2016-04-02T21:00:00+00:00"
     default_time_2 = "2016-04-02T21:01:00+00:00"
-    time_1 = parse_execution_date(default_time_1)
-    time_2 = parse_execution_date(default_time_2)
+    time_1 = timezone.parse(default_time_1)
+    time_2 = timezone.parse(default_time_2)
 
     def test_serialize(self, create_xcom, session):
         create_xcom(
@@ -187,7 +188,7 @@ class TestXComCollectionSchema:
 
 class TestXComSchema:
     default_time = "2016-04-02T21:00:00+00:00"
-    default_time_parsed = parse_execution_date(default_time)
+    default_time_parsed = timezone.parse(default_time)
 
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_serialize(self, create_xcom, session):
@@ -199,7 +200,7 @@ class TestXComSchema:
             value=pickle.dumps(b"test_binary"),
         )
         xcom_model = session.query(XCom).first()
-        deserialized_xcom = xcom_schema.dump(xcom_model)
+        deserialized_xcom = xcom_schema_string.dump(xcom_model)
         assert deserialized_xcom == {
             "key": "test_key",
             "timestamp": self.default_time,
@@ -220,7 +221,7 @@ class TestXComSchema:
             "dag_id": "test_dag",
             "value": b"test_binary",
         }
-        result = xcom_schema.load(xcom_dump)
+        result = xcom_schema_string.load(xcom_dump)
         assert result == {
             "key": "test_key",
             "timestamp": self.default_time_parsed,

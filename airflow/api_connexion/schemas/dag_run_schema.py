@@ -32,7 +32,7 @@ from airflow.api_connexion.schemas.enum_schemas import DagStateField
 from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 
 class ConfObject(fields.Field):
@@ -74,10 +74,12 @@ class DAGRunSchema(SQLAlchemySchema):
     last_scheduling_decision = auto_field(dump_only=True)
     run_type = auto_field(dump_only=True)
     note = auto_field(dump_only=False)
+    triggered_by = fields.Enum(DagRunTriggeredByType, by_value=True, dump_only=True)
 
     @pre_load
     def autogenerate(self, data, **kwargs):
-        """Auto generate run_id and logical_date if they are not provided.
+        """
+        Auto generate run_id and logical_date if they are not provided.
 
         For compatibility, if `execution_date` is submitted, it is converted
         to `logical_date`.

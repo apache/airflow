@@ -34,6 +34,19 @@ the Airflow team.
        any Airflow version from the ``Airflow 2`` line. There is no guarantee that it will work, but if it does,
        then you can use latest features from that image to build images for previous Airflow versions.
 
+Airflow 3.0
+~~~~~~~~~~~
+
+  * The ``virtualenv`` package is no longer installed in the reference container. Airflow 3 and standard
+    provider relies on ``venv`` module from Python standard library.
+  * There is no ``pipx`` and ``mssql-cli`` installed in the image by default. We recommend to use
+    ``uv tool`` instead of ``pipx`` and ``mssql-cli`` is not used in the image by default as we do not
+    have mssql metadata support any more.
+
+Airflow 2.10
+~~~~~~~~~~~~
+  * The image does not support Debian-Bullseye(11) anymore. The image is based on Debian-Bookworm (12).
+
 Airflow 2.9
 ~~~~~~~~~~~
 
@@ -302,6 +315,17 @@ here so that users affected can find the reason for the changes.
 +--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
 | Date         | Affected images     | Potentially breaking change             | Reason                 | Link to Pull Request / Issue                   |
 +==============+=====================+=========================================+========================+================================================+
+| 02 Aug 2024  | 2.9.3               | * The ``apache-airflow-providers-fab``  | FAB provider logout    | https://github.com/apache/airflow/issues/40922 |
+|              |                     |   upgraded from 1.2.1 to 1.2.2          | did not work for 2.9.3 |                                                |
++--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
+| 12 Mar 2024  | 2.8.3               | * The image was refreshed with new      | Both dependencies      | https://github.com/apache/airflow/pull/37748   |
+|              |                     |   dependencies (pandas < 2.2 and        | caused breaking        | https://github.com/apache/airflow/pull/37701   |
+|              |                     |   SMTP provider 1.6.1                   | changes                |                                                |
++--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
+| 16 Dec 2023  | All 2..\*           | * The AIRFLOW_GID 500 was removed       | MySQL repository is    | https://github.com/apache/airflow/issues/36231 |
+|              |                     | * MySQL ``apt`` repository key changed. | removed after the      |                                                |
+|              |                     |                                         | key expiry fiasco      |                                                |
++--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
 | 17 June 2022 | 2.2.5               | * The ``Authlib`` library downgraded    | Flask App Builder      | https://github.com/apache/airflow/pull/24516   |
 |              |                     |   from 1.0.1 to 0.15.5 version          | not compatible with    |                                                |
 |              | 2.3.0-2.3.2         |                                         | Authlib >= 1.0.0       |                                                |
@@ -309,12 +333,4 @@ here so that users affected can find the reason for the changes.
 | 18 Jan 2022  | All 2.2.\*, 2.1.\*  | * The AIRFLOW_GID 500 was removed       | MySQL changed keys     | https://github.com/apache/airflow/pull/20912   |
 |              |                     | * MySQL ``apt`` repository key changed. | to sign their packages |                                                |
 |              |                     |                                         | on 17 Jan 2022         |                                                |
-+--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
-| 16 Dec 2023  | All 2..\*           | * The AIRFLOW_GID 500 was removed       | MySQL repository is    | https://github.com/apache/airflow/issues/36231 |
-|              |                     | * MySQL ``apt`` repository key changed. | removed after the      |                                                |
-|              |                     |                                         | key expiry fiasco      |                                                |
-+--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
-| 12 Mar 2024  | 2.8.3               | * The image was refreshed with new      | Both dependencies      | https://github.com/apache/airflow/pull/37748   |
-|              |                     |   dependencies (pandas < 2.2 and        | caused breaking        | https://github.com/apache/airflow/pull/37701   |
-|              |                     |   SMTP provider 1.6.1                   | changes                |                                                |
 +--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+

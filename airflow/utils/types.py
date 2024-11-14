@@ -19,30 +19,41 @@ from __future__ import annotations
 import enum
 from typing import TYPE_CHECKING
 
-from airflow.typing_compat import TypedDict
+import airflow.sdk.types
+from airflow.typing_compat import TypeAlias, TypedDict
 
 if TYPE_CHECKING:
     from datetime import datetime
 
+ArgNotSet: TypeAlias = airflow.sdk.types.ArgNotSet
 
-class ArgNotSet:
-    """Sentinel type for annotations, useful when None is not viable.
-
-    Use like this::
-
-        def is_arg_passed(arg: Union[ArgNotSet, None] = NOTSET) -> bool:
-            if arg is NOTSET:
-                return False
-            return True
+NOTSET = airflow.sdk.types.NOTSET
 
 
-        is_arg_passed()  # False.
-        is_arg_passed(None)  # True.
+class AttributeRemoved:
+    """
+    Sentinel type to signal when attribute removed on serialization.
+
+    :meta private:
     """
 
+    def __init__(self, attribute_name: str):
+        self.attribute_name = attribute_name
 
-NOTSET = ArgNotSet()
-"""Sentinel value for argument default. See ``ArgNotSet``."""
+    def __getattr__(self, item):
+        if item == "attribute_name":
+            return super().__getattribute__(item)
+        raise RuntimeError(
+            f"Attribute {self.attribute_name} was removed on "
+            f"serialization and must be set again - found when accessing {item}."
+        )
+
+
+"""
+Sentinel value for attributes removed on serialization.
+
+:meta private:
+"""
 
 
 class DagRunType(str, enum.Enum):
@@ -51,7 +62,7 @@ class DagRunType(str, enum.Enum):
     BACKFILL_JOB = "backfill"
     SCHEDULED = "scheduled"
     MANUAL = "manual"
-    DATASET_TRIGGERED = "dataset_triggered"
+    ASSET_TRIGGERED = "asset_triggered"
 
     def __str__(self) -> str:
         return self.value
@@ -72,3 +83,16 @@ class EdgeInfoType(TypedDict):
     """Extra metadata that the DAG can store about an edge, usually generated from an EdgeModifier."""
 
     label: str | None
+
+
+class DagRunTriggeredByType(enum.Enum):
+    """Class with TriggeredBy types for DagRun."""
+
+    CLI = "cli"  # for the trigger subcommand of the CLI: airflow dags trigger
+    OPERATOR = "operator"  # for the TriggerDagRunOperator
+    REST_API = "rest_api"  # for triggering the DAG via RESTful API
+    UI = "ui"  # for clicking the `Trigger DAG` button
+    TEST = "test"  # for dag.test()
+    TIMETABLE = "timetable"  # for timetable based triggering
+    ASSET = "asset"  # for asset_triggered run type
+    BACKFILL = "backfill"

@@ -42,6 +42,9 @@ metadata:
     {{- end }}
 spec:
   type: ClusterIP
+  {{- if .Values.pgbouncer.service.clusterIp }}
+  clusterIP: {{ .Values.pgbouncer.service.clusterIp }}
+  {{- end }}
   selector:
     tier: airflow
     component: pgbouncer
@@ -50,7 +53,7 @@ spec:
     - name: pgbouncer
       protocol: TCP
       port: {{ .Values.ports.pgbouncer }}
-    - name: pgbouncer-metrics
+    - name: pgb-metrics
       protocol: TCP
       port: {{ .Values.ports.pgbouncerScrape }}
 {{- end }}

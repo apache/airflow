@@ -156,6 +156,9 @@ fi
 if [[ ${INTEGRATION_MONGO} == "true" ]]; then
     check_service "MongoDB" "run_nc mongo 27017" 50
 fi
+if [[ ${INTEGRATION_REDIS} == "true" ]]; then
+    check_service "Redis" "run_nc redis 6379" 50
+fi
 if [[ ${INTEGRATION_CELERY} == "true" ]]; then
     check_service "Redis" "run_nc redis 6379" 50
     check_service "RabbitMQ" "run_nc rabbitmq 5672" 50
@@ -194,6 +197,10 @@ fi
 
 if [[ ${INTEGRATION_DRILL} == "true" ]]; then
     check_service "drill" "run_nc drill 8047" 50
+fi
+
+if [[ ${INTEGRATION_YDB} == "true" ]]; then
+    check_service "YDB Cluster" "run_nc ydb 2136" 50
 fi
 
 if [[ ${EXIT_CODE} != 0 ]]; then

@@ -17,7 +17,44 @@
  * under the License.
  */
 
-import { extendTheme } from "@chakra-ui/react";
+import { extendTheme, createMultiStyleConfigHelpers } from "@chakra-ui/react";
+import { tableAnatomy } from "@chakra-ui/anatomy";
+
+const { definePartsStyle, defineMultiStyleConfig } =
+  createMultiStyleConfigHelpers(tableAnatomy.keys);
+
+const variantRounded = definePartsStyle((props) => {
+  const { colorScheme: c } = props;
+
+  return {
+    tbody: {
+      tr: {
+        "&:nth-of-type(odd)": {
+          "th, td": {
+            borderBottomWidth: "1px",
+            borderColor: `${c}.100`,
+          },
+          td: {
+            background: "white",
+          },
+        },
+        "&:nth-of-type(even)": {
+          "th, td": {
+            borderBottomWidth: "1px",
+            borderColor: `${c}.100`,
+          },
+          td: {
+            background: `${c}.100`,
+          },
+        },
+      },
+    },
+  };
+});
+
+const tableTheme = defineMultiStyleConfig({
+  variants: { striped: variantRounded },
+});
 
 const theme = extendTheme({
   styles: {
@@ -33,6 +70,7 @@ const theme = extendTheme({
         fontSize: "md",
       },
     },
+    Table: tableTheme,
   },
 });
 

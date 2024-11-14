@@ -35,6 +35,108 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+11.0.0
+......
+
+Latest change: 2024-10-26
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`93ad181684 <https://github.com/apache/airflow/commit/93ad181684c8314e199f2521f487cd4292e06b5c>`_  2024-10-26   ``Add context to Azure Service Bus Message callback (#43370)``
+`64336c29b1 <https://github.com/apache/airflow/commit/64336c29b1c758772ad9819e4586d0b689725a6b>`_  2024-10-24   ``Add documentation for the PowerBIDatasetRefresh Operator. (#42754)``
+`7b151d32c8 <https://github.com/apache/airflow/commit/7b151d32c809805a6406999b83401663baf7eb41>`_  2024-10-15   ``Add upperbound to microsoft-kiota-abstractions (#43021)``
+`2b101e2377 <https://github.com/apache/airflow/commit/2b101e2377f8d49a46aca6c219e4b38ee099a98d>`_  2024-10-15   ``Feature: Added event_handler parameter in MSGraphAsyncOperator (#42539)``
+`7d8ea68bda <https://github.com/apache/airflow/commit/7d8ea68bdaae3258bd391b8f6ae0277258a7c437>`_  2024-10-12   ``Restrict looker-sdk version 24.18.0 and microsoft-kiota-http 1.3.4 (#42954)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ========================================================================================
+
+10.5.1
+......
+
+Latest change: 2024-10-09
+
+=================================================================================================  ===========  ==================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
+`1cb9294c64 <https://github.com/apache/airflow/commit/1cb9294c6442f4e6792c1ea2b1948b1d38284326>`_  2024-10-06   ``Removed conditional check for task context logging in airflow version 2.8.0 and above (#42764)``
+`d89f305a34 <https://github.com/apache/airflow/commit/d89f305a343a187240d72bb291982dd29854fb2e>`_  2024-09-29   ``Bugfix/42575 workaround pin azure kusto data (#42576)``
+`193defd289 <https://github.com/apache/airflow/commit/193defd2898772e7e989cbee85815d49e9f0d8f0>`_  2024-09-25   ``(bugfix): Paginated results in MSGraphAsyncOperator (#42414)``
+=================================================================================================  ===========  ==================================================================================================
+
+10.5.0
+......
+
+Latest change: 2024-09-21
+
+=================================================================================================  ===========  ========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================
+`7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
+`ede34ebee7 <https://github.com/apache/airflow/commit/ede34ebee70648f83209c43e51d39ac6779c66b5>`_  2024-09-05   ``Allow custom api versions in MSGraphAsyncOperator (#41331)``
+`85ad5c374d <https://github.com/apache/airflow/commit/85ad5c374d93a0f95891b15c27c14e012b7c8974>`_  2024-09-05   `` Add callback to process Azure Service Bus message contents (#41601)``
+`1613e9ec1c <https://github.com/apache/airflow/commit/1613e9ec1c4e5523953e045c8adcef1b9d4ce95d>`_  2024-08-25   ``remove soft_fail (#41710)``
+`716c4300a6 <https://github.com/apache/airflow/commit/716c4300a6507609ae64148b9726272fd5071492>`_  2024-08-20   ``Remove deprecated log handler argument filename_template (#41552)``
+=================================================================================================  ===========  ========================================================================
+
+10.4.0
+......
+
+Latest change: 2024-08-19
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`75fb7acbac <https://github.com/apache/airflow/commit/75fb7acbaca09a040067f0a5a37637ff44eb9e14>`_  2024-08-19   ``Prepare docs for Aug 2nd wave of providers (#41559)``
+`01390839dd <https://github.com/apache/airflow/commit/01390839dd57bc8a104a8d41c923beb5455fe489>`_  2024-08-14   ``Microsoft Power BI operator to refresh the dataset (#40356)``
+`d2c9e8cfc0 <https://github.com/apache/airflow/commit/d2c9e8cfc00f30f4b3102197c2145c6e44b3d837>`_  2024-08-14   ``Export Azure Container Instance log messages to XCOM (#41142)``
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+`68a6a0583b <https://github.com/apache/airflow/commit/68a6a0583b5100c1f313d7bff3dc664205d9a1ad>`_  2024-08-11   ``Fix mypy checks for new azure libraries (#41386)``
+=================================================================================================  ===========  =======================================================================
+
+10.3.0
+......
+
+Latest change: 2024-08-03
+
+=================================================================================================  ===========  ==============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
+`e6d382244e <https://github.com/apache/airflow/commit/e6d382244e066fdb655dc64cafd40184753e6346>`_  2024-07-13   ``Bump minimum version for azure containerinstance. (#40767)``
+`63000a77ba <https://github.com/apache/airflow/commit/63000a77ba4ab70b50950f506cee6964e10c88a3>`_  2024-07-09   ``Added priority to Azure Container Instances (#40616)``
+=================================================================================================  ===========  ==============================================================
+
+10.2.0
+......
+
+Latest change: 2024-07-09
+
+=================================================================================================  ===========  ===========================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================
+`09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``
+`03b1840e18 <https://github.com/apache/airflow/commit/03b1840e18ba8c1055522fc6e8f81a23230c573d>`_  2024-07-08   ``S3 to wasb (#40511)``
+`a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+=================================================================================================  ===========  ===========================================================
+
+10.1.2
+......
+
+Latest change: 2024-06-22
+
+=================================================================================================  ===========  ========================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================================================
+`6e5ae26382 <https://github.com/apache/airflow/commit/6e5ae26382b328e88907e8301d4b2352ef8524c5>`_  2024-06-22   ``Prepare docs 2nd wave June 2024 (#40273)``
+`d9d09638a5 <https://github.com/apache/airflow/commit/d9d09638a5a57ec48e2ed791f248a55202f29869>`_  2024-06-20   ``BUGFIX: Make sure XComs work correctly in MSGraphAsyncOperator with paged results and dynamic task mapping (#40301)``
+`e7052d4244 <https://github.com/apache/airflow/commit/e7052d42440070e77eb6ff1cea41550f368f77c9>`_  2024-06-18   ``Revert "refactor: Make sure xcoms work correctly in multi-threaded environmen…" (#40300)``
+`9b394a7229 <https://github.com/apache/airflow/commit/9b394a7229484914d80fffeeb7c2d109cd58cc02>`_  2024-06-18   ``refactor: Make sure xcoms work correctly in multi-threaded environment by taking the map_index into account (#40297)``
+`c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
+`d5f81a4e2d <https://github.com/apache/airflow/commit/d5f81a4e2de0d4236cffcf2e2d3c682b4c6ec355>`_  2024-05-27   ``Switch AzureDataLakeStorageV2Hook to use DefaultAzureCredential for managed identity/workload auth (#38497)``
+=================================================================================================  ===========  ========================================================================================================================
+
 10.1.1
 ......
 
@@ -43,6 +145,7 @@ Latest change: 2024-05-26
 =================================================================================================  ===========  ===================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
 `e81cefb8a6 <https://github.com/apache/airflow/commit/e81cefb8a65c53e9ba340d456915b260ff87afdf>`_  2024-05-26   ``Remove unused backward compatibility _read function in WasbTaskHandler (#39827)``
 `ecf6e57e27 <https://github.com/apache/airflow/commit/ecf6e57e275cc002f40cd0412647bbd0242cfdef>`_  2024-05-13   ``Update example AzureContainerInstancesOperator (#39466)``
 =================================================================================================  ===========  ===================================================================================

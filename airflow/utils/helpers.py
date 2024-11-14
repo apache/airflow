@@ -21,7 +21,6 @@ import copy
 import itertools
 import re
 import signal
-import warnings
 from datetime import datetime
 from functools import reduce
 from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Mapping, MutableMapping, TypeVar, cast
@@ -29,8 +28,7 @@ from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Mapping, M
 from lazy_object_proxy import Proxy
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
-from airflow.utils.module_loading import import_string
+from airflow.exceptions import AirflowException
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
@@ -52,12 +50,23 @@ def validate_key(k: str, max_length: int = 250):
     if not isinstance(k, str):
         raise TypeError(f"The key has to be a string and is {type(k)}:{k}")
     if len(k) > max_length:
-        raise AirflowException(f"The key has to be less than {max_length} characters")
+        raise AirflowException(f"The key: {k} has to be less than {max_length} characters")
     if not KEY_REGEX.match(k):
         raise AirflowException(
             f"The key {k!r} has to be made of alphanumeric characters, dashes, "
             f"dots and underscores exclusively"
         )
+
+
+def validate_instance_args(instance: object, expected_arg_types: dict[str, Any]) -> None:
+    """Validate that the instance has the expected types for the arguments."""
+    for arg_name, expected_arg_type in expected_arg_types.items():
+        instance_arg_value = getattr(instance, arg_name, None)
+        if instance_arg_value is not None and not isinstance(instance_arg_value, expected_arg_type):
+            raise TypeError(
+                f"'{arg_name}' has an invalid type {type(instance_arg_value)} with value "
+                f"{instance_arg_value}, expected type is {expected_arg_type}"
+            )
 
 
 def validate_group_key(k: str, max_length: int = 200):
@@ -220,26 +229,6 @@ def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> tuple[Iterabl
     return itertools.filterfalse(pred, iter_1), filter(pred, iter_2)
 
 
-def chain(*args, **kwargs):
-    """Use `airflow.models.baseoperator.chain`, this function is deprecated."""
-    warnings.warn(
-        "This function is deprecated. Please use `airflow.models.baseoperator.chain`.",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    return import_string("airflow.models.baseoperator.chain")(*args, **kwargs)
-
-
-def cross_downstream(*args, **kwargs):
-    """Use `airflow.models.baseoperator.cross_downstream`, this function is deprecated."""
-    warnings.warn(
-        "This function is deprecated. Please use `airflow.models.baseoperator.cross_downstream`.",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    return import_string("airflow.models.baseoperator.cross_downstream")(*args, **kwargs)
-
-
 def build_airflow_url_with_query(query: dict[str, Any]) -> str:
     """
     Build airflow url using base_url and default_view and provided query.
@@ -256,7 +245,8 @@ def build_airflow_url_with_query(query: dict[str, Any]) -> str:
 # The 'template' argument is typed as Any because the jinja2.Template is too
 # dynamic to be effectively type-checked.
 def render_template(template: Any, context: MutableMapping[str, Any], *, native: bool) -> Any:
-    """Render a Jinja2 template with given Airflow context.
+    """
+    Render a Jinja2 template with given Airflow context.
 
     The default implementation of ``jinja2.Template.render()`` converts the
     input context into dict eagerly many times, which triggers deprecation
@@ -370,7 +360,8 @@ def prune_dict(val: Any, mode="strict"):
 
 
 def prevent_duplicates(kwargs1: dict[str, Any], kwargs2: Mapping[str, Any], *, fail_reason: str) -> None:
-    """Ensure *kwargs1* and *kwargs2* do not contain common keys.
+    """
+    Ensure *kwargs1* and *kwargs2* do not contain common keys.
 
     :raises TypeError: If common keys are found.
     """

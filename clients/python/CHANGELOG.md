@@ -17,6 +17,33 @@
  under the License.
  -->
 
+# v2.10.0
+
+## Major changes:
+
+   - Add dag_stats rest api endpoint ([#41017](https://github.com/apache/airflow/pull/41017))
+   - AIP-64: Add task instance history list endpoint ([#40988](https://github.com/apache/airflow/pull/40988))
+   - Change DAG Audit log tab to Event Log ([#40967](https://github.com/apache/airflow/pull/40967))
+   - AIP-64: Add REST API endpoints for TI try level details ([#40441](https://github.com/apache/airflow/pull/40441))
+   - Make XCom display as react json ([#40640](https://github.com/apache/airflow/pull/40640))
+   - Replace usages of task context logger with the log table ([#40867](https://github.com/apache/airflow/pull/40867))
+   - Fix tasks API endpoint when DAG doesn't have `start_date` ([#40878](https://github.com/apache/airflow/pull/40878))
+   - Add try_number to log table ([#40739](https://github.com/apache/airflow/pull/40739))
+   - Add executor field to the task instance API ([#40034](https://github.com/apache/airflow/pull/40034))
+   - Add task documentation to details tab in grid view. ([#39899](https://github.com/apache/airflow/pull/39899))
+   - Add max_consecutive_failed_dag_runs in API spec ([#39830](https://github.com/apache/airflow/pull/39830))
+   - Add task failed dependencies to details page. ([#38449](https://github.com/apache/airflow/pull/38449))
+   - Add dag re-parsing request endpoint ([#39138](https://github.com/apache/airflow/pull/39138))
+   - Reorder OpenAPI Spec tags alphabetically ([#38717](https://github.com/apache/airflow/pull/38717))
+
+
+# v2.9.1
+
+## Major changes:
+
+   - Add max_consecutive_failed_dag_runs in API spec ([#39830](https://github.com/apache/airflow/pull/39830))
+
+
 # v2.9.0
 
 ## Major changes:

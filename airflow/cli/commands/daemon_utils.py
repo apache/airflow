@@ -37,7 +37,8 @@ def run_command_with_daemon_option(
     umask: str = settings.DAEMON_UMASK,
     pid_file: str | None = None,
 ):
-    """Run the command in a daemon process if daemon mode enabled or within this process if not.
+    """
+    Run the command in a daemon process if daemon mode enabled or within this process if not.
 
     :param args: the set of arguments passed to the original CLI command
     :param process_name: process name used in naming log and PID files for the daemon

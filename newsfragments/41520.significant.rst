@@ -1,0 +1,5 @@
+Removed deprecated methods in airflow/utils/helpers.py
+
+ Methods removed:
+   * chain (Use ``airflow.models.baseoperator.chain``)
+   * cross_downstream (Use ``airflow.models.baseoperator.cross_downstream``)

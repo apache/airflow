@@ -1,0 +1,26 @@
+**Breaking Change**
+
+The ``load_connections`` parameter has been removed from the ``local_file_system``.
+This parameter was previously deprecated in favor of ``load_connections_dict``.
+
+If your code still uses ``load_connections``, you should update it to use ``load_connections_dict``
+instead to ensure compatibility with future Airflow versions.
+
+Example update:
+
+.. code-block:: python
+
+    connection_by_conn_id = local_filesystem.load_connections_dict(file_path="a.json")
+
+The ``get_connections`` parameter has been removed from the ``LocalFilesystemBackend`` class.
+This parameter was previously deprecated in favor of ``get_connection``.
+
+If your code still uses ``get_connections``, you should update it to use ``get_connection``
+instead to ensure compatibility with future Airflow versions.
+
+
+Example update:
+
+.. code-block:: python
+
+    connection_by_conn_id = LocalFilesystemBackend().get_connection(conn_id="conn_id")

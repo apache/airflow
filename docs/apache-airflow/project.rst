@@ -18,7 +18,7 @@
 
 
 Project
-=======
+========
 
 History
 -------
@@ -57,6 +57,7 @@ Committers
 - Ephraim Anierobi (@ephraimbuddy)
 - Felix Uellendall (@feluelle)
 - Fokko Driesprong (@fokko)
+- Gopal Dirisala (@dirrao)
 - Hitesh Shah (@hiteshs)
 - Hussein Awala (@hussein-awala)
 - Jakob Homan (@jghoman)
@@ -69,6 +70,7 @@ Committers
 - Joshua Carp (@jmcarp)
 - Joy Gao (@joygao)
 - Kamil Breguła (@mik-laj)
+- Karthikeyan Singaravelan (@tirkarthi)
 - Kaxil Naik (@kaxil)
 - Kengo Seki (@sekikn)
 - Kevin Yang (@KevinYang21)
@@ -80,18 +82,23 @@ Committers
 - Pankaj Koti (@pankajkoti)
 - Pankaj Singh (@pankajastro)
 - Patrick Leo Tardif (@pltardif)
+- Pavan Kumar Gopidesu (@gopidesupavan)
 - Phani Kumar (@phanikumv)
 - Pierre Jeambrun (@pierrejeambrun)
 - Ping Zhang (@pingzh)
 - Qian Yu (@yuqian90)
 - Qingping Hou (@houqp)
+- Rom Sharon (@romsharon98)
 - Ry Walker (@ryw)
 - Ryan Hamilton (@ryanahamilton)
+- Ryan Hatter (@RNHTTR)
+- Shahar Epstein (@shahar1)
 - Siddharth "Sid" Anand (@r39132)
 - Sumit Maheshwari (@msumit)
 - Tao Feng (@feng-tao)
 - Tomasz Urbaszek (@turbaszek)
 - Tzu-ping Chung (@uranusjr)
+- Utkarsh Sharma (@utkarsharma2)
 - Vikram Koka (@vikramkoka)
 - Vincent Beck (@vincbeck)
 - Wei Lee (@Lee-W)

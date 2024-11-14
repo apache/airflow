@@ -24,11 +24,11 @@ from sqlalchemy import select
 
 from airflow.models import DagBag
 from airflow.models.dagbag import DagPriorityParsingRequest
-from airflow.security import permissions
-from tests.test_utils.api_connexion_utils import create_user, delete_user
-from tests.test_utils.db import clear_db_dag_parsing_requests
 
-pytestmark = pytest.mark.db_test
+from tests_common.test_utils.api_connexion_utils import create_user, delete_user
+from tests_common.test_utils.db import clear_db_dag_parsing_requests
+
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
@@ -38,28 +38,23 @@ EXAMPLE_DAG_FILE = os.path.join("airflow", "example_dags", "example_bash_operato
 EXAMPLE_DAG_ID = "example_bash_operator"
 TEST_DAG_ID = "latest_only"
 NOT_READABLE_DAG_ID = "latest_only_with_trigger"
-TEST_MULTIPLE_DAGS_ID = "dataset_produces_1"
+TEST_MULTIPLE_DAGS_ID = "asset_produces_1"
 
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
     create_user(
-        app,  # type:ignore
+        app,
         username="test",
-        role_name="Test",
-        permissions=[(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)],  # type: ignore
+        role_name="admin",
     )
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
-        TEST_DAG_ID,
-        access_control={"Test": [permissions.ACTION_CAN_EDIT]},
-    )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(app, username="test_no_permissions", role_name=None)
 
     yield app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(app, username="test")
+    delete_user(app, username="test_no_permissions")
 
 
 class TestDagParsingRequest:

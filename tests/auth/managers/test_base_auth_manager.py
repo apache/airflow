@@ -20,7 +20,6 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from flask import Flask
 from flask_appbuilder.menu import Menu
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
@@ -31,16 +30,14 @@ from airflow.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.exceptions import AirflowException
-from airflow.www.extensions.init_appbuilder import init_appbuilder
-from airflow.www.security_manager import AirflowSecurityManagerV2
 
 if TYPE_CHECKING:
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.auth.managers.models.resource_details import (
         AccessView,
+        AssetDetails,
         ConfigurationDetails,
         DagAccessEntity,
-        DatasetDetails,
     )
 
 
@@ -76,8 +73,8 @@ class EmptyAuthManager(BaseAuthManager):
     ) -> bool:
         raise NotImplementedError()
 
-    def is_authorized_dataset(
-        self, *, method: ResourceMethod, details: DatasetDetails | None = None, user: BaseUser | None = None
+    def is_authorized_asset(
+        self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
     ) -> bool:
         raise NotImplementedError()
 
@@ -112,13 +109,6 @@ class EmptyAuthManager(BaseAuthManager):
 @pytest.fixture
 def auth_manager():
     return EmptyAuthManager(None)
-
-
-@pytest.fixture
-def auth_manager_with_appbuilder():
-    flask_app = Flask(__name__)
-    appbuilder = init_appbuilder(flask_app)
-    return EmptyAuthManager(appbuilder)
 
 
 class TestBaseAuthManager:
@@ -238,9 +228,11 @@ class TestBaseAuthManager:
         )
         assert result == expected
 
-    @pytest.mark.db_test
-    def test_security_manager_return_default_security_manager(self, auth_manager_with_appbuilder):
-        assert isinstance(auth_manager_with_appbuilder.security_manager, AirflowSecurityManagerV2)
+    @patch("airflow.www.security_manager.AirflowSecurityManagerV2")
+    def test_security_manager_return_default_security_manager(
+        self, mock_airflow_security_manager, auth_manager
+    ):
+        assert auth_manager.security_manager == mock_airflow_security_manager()
 
     @pytest.mark.parametrize(
         "access_all, access_per_dag, dag_ids, expected",

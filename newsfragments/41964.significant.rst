@@ -1,0 +1,6 @@
+``--tree`` flag for ``airflow tasks list`` command removed
+
+The format of the output with that flag can be expensive to generate and extremely large, depending on the DAG.
+``airflow dag show`` is a better way to visualize the relationship of tasks in a DAG.
+
+``DAG.tree_view`` and ``DAG.get_tree_view`` have also been removed.

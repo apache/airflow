@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
+
 import pytest
 
 from airflow.models.dag import DAG
@@ -23,9 +25,14 @@ from airflow.models.dagrun import DagRun
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
-from tests.models import DEFAULT_DATE
 
-pytestmark = pytest.mark.db_test
+from tests.models import DEFAULT_DATE
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
+
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 def test_runtype_enum_escape():
@@ -34,8 +41,9 @@ def test_runtype_enum_escape():
     referenced in DB query
     """
     with create_session() as session:
-        dag = DAG(dag_id="test_enum_dags", start_date=DEFAULT_DATE)
+        dag = DAG(dag_id="test_enum_dags", schedule=timedelta(days=1), start_date=DEFAULT_DATE)
         data_interval = dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE)
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             state=State.RUNNING,
@@ -43,6 +51,7 @@ def test_runtype_enum_escape():
             start_date=DEFAULT_DATE,
             session=session,
             data_interval=data_interval,
+            **triggered_by_kwargs,
         )
 
         query = session.query(

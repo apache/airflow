@@ -27,7 +27,12 @@ import pytest
 from airflow.models import Connection
 from airflow.utils.session import create_session
 from airflow.www.views import ConnectionFormWidget, ConnectionModelView
-from tests.test_utils.www import _check_last_log, _check_last_log_masked_connection, check_content_in_response
+
+from tests_common.test_utils.www import (
+    _check_last_log,
+    _check_last_log_masked_connection,
+    check_content_in_response,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -47,7 +52,7 @@ def conn_with_extra() -> dict[str, Any]:
 
 
 @pytest.fixture(autouse=True)
-def clear_connections():
+def _clear_connections():
     with create_session() as session:
         session.query(Connection).delete()
 

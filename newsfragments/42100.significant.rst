@@ -1,0 +1,21 @@
+Removed deprecated logging configuration.
+
+    * Removed deprecated configuration ``interleave_timestamp_parser`` from ``core``. Please use ``interleave_timestamp_parser`` from ``logging`` instead.
+    * Removed deprecated configuration ``base_log_folder`` from ``core``. Please use ``base_log_folder`` from ``logging`` instead.
+    * Removed deprecated configuration ``remote_logging`` from ``core``. Please use ``remote_logging`` from ``logging`` instead.
+    * Removed deprecated configuration ``remote_log_conn_id`` from ``core``. Please use ``remote_log_conn_id`` from ``logging`` instead.
+    * Removed deprecated configuration ``remote_base_log_folder`` from ``core``. Please use ``remote_base_log_folder`` from ``logging`` instead.
+    * Removed deprecated configuration ``encrypt_s3_logs`` from ``core``. Please use ``encrypt_s3_logs`` from ``logging`` instead.
+    * Removed deprecated configuration ``logging_level`` from ``core``. Please use ``logging_level`` from ``logging`` instead.
+    * Removed deprecated configuration ``fab_logging_level`` from ``core``. Please use ``fab_logging_level`` from ``logging`` instead.
+    * Removed deprecated configuration ``logging_config_class`` from ``core``. Please use ``logging_config_class`` from ``logging`` instead.
+    * Removed deprecated configuration ``colored_console_log`` from ``core``. Please use ``colored_console_log`` from ``logging`` instead.
+    * Removed deprecated configuration ``colored_log_format`` from ``core``. Please use ``colored_log_format`` from ``logging`` instead.
+    * Removed deprecated configuration ``colored_formatter_class`` from ``core``. Please use ``colored_formatter_class`` from ``logging`` instead.
+    * Removed deprecated configuration ``log_format`` from ``core``. Please use ``log_format`` from ``logging`` instead.
+    * Removed deprecated configuration ``simple_log_format`` from ``core``. Please use ``simple_log_format`` from ``logging`` instead.
+    * Removed deprecated configuration ``task_log_prefix_template`` from ``core``. Please use ``task_log_prefix_template`` from ``logging`` instead.
+    * Removed deprecated configuration ``log_filename_template`` from ``core``. Please use ``log_filename_template`` from ``logging`` instead.
+    * Removed deprecated configuration ``log_processor_filename_template`` from ``core``. Please use ``log_processor_filename_template`` from ``logging`` instead.
+    * Removed deprecated configuration ``dag_processor_manager_log_location`` from ``core``. Please use ``dag_processor_manager_log_location`` from ``logging`` instead.
+    * Removed deprecated configuration ``task_log_reader`` from ``core``. Please use ``task_log_reader`` from ``logging`` instead.

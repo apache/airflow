@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 
@@ -31,7 +31,7 @@ args = {
 
 
 dag_id = "test_dagrun_fast_follow"
-dag = DAG(dag_id=dag_id, default_args=args)
+dag = DAG(dag_id=dag_id, schedule=None, default_args=args)
 
 # A -> B -> C
 task_a = PythonOperator(task_id="A", dag=dag, python_callable=lambda: True)

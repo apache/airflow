@@ -256,10 +256,7 @@ important to watch DagRun activity status in time when introducing
 new ``depends_on_past=True``, unless you are planning on running a backfill
 for the new task(s).
 
-It is also important to note that the task's ``start_date``, in the context of a
-backfill CLI command, gets overridden by the backfill's ``start_date`` commands.
-This allows for a backfill on tasks that have ``depends_on_past=True`` to
-actually start. If this were not the case, the backfill just would not start.
+It is also important to note that the task's ``start_date`` is ignored in backfills.
 
 Using time zones
 ----------------
@@ -401,7 +398,7 @@ What does ``TemplateNotFound`` mean?
 -------------------------------------
 
 ``TemplateNotFound`` errors are usually due to misalignment with user expectations when passing path to operator
-that trigger Jinja templating. A common occurrence is with :ref:`BashOperators<howto/operator:BashOperator>`.
+that trigger Jinja templating. A common occurrence is with :class:`~airflow.providers.standard.operators.BashOperator`.
 
 Another commonly missed fact is that the files are resolved relative to where the pipeline file lives. You can add
 other directories to the ``template_searchpath`` of the DAG object to allow for other non-relative location.
@@ -466,7 +463,7 @@ Setting retries for each task drastically reduces the chance that either of thes
 How do I stop the sync perms happening multiple times per webserver?
 --------------------------------------------------------------------
 
-Set the value of ``update_fab_perms`` configuration in ``airflow.cfg`` to ``False``.
+Set the value of ``[fab] update_fab_perms`` configuration in ``airflow.cfg`` to ``False``.
 
 
 How to reduce the airflow UI page load time?
@@ -494,7 +491,7 @@ What does "MySQL Server has gone away" mean?
 
 You may occasionally experience ``OperationalError`` with the message "MySQL Server has gone away". This is due to the
 connection pool keeping connections open too long and you are given an old connection that has expired. To ensure a
-valid connection, you can set :ref:`config:core__sql_alchemy_pool_recycle` to ensure connections are invalidated after
+valid connection, you can set :ref:`config:database__sql_alchemy_pool_recycle` to ensure connections are invalidated after
 that many seconds and new ones are created.
 
 
@@ -545,4 +542,3 @@ The telemetry data collected is limited to the following:
 - Operating system & machine architecture
 - Executor
 - Metadata DB type & its version
-- Number of DAGs

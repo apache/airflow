@@ -32,7 +32,8 @@ if TYPE_CHECKING:
 
 
 def _covers_every_hour(cron: croniter) -> bool:
-    """Check whether the given cron runs at least once an hour.
+    """
+    Check whether the given cron runs at least once an hour.
 
     This indicates whether we need to implement a workaround for (what I call)
     the "fold hour problem". Folding happens when a region switches time
@@ -83,7 +84,8 @@ class CronMixin:
         self.description: str = interval_description
 
     def __eq__(self, other: Any) -> bool:
-        """Both expression and timezone should match.
+        """
+        Both expression and timezone should match.
 
         This is only for testing purposes and should not be relied on otherwise.
         """
@@ -122,7 +124,8 @@ class CronMixin:
         return convert_to_utc(current.in_timezone(self._timezone) - delta)
 
     def _align_to_next(self, current: DateTime) -> DateTime:
-        """Get the next scheduled time.
+        """
+        Get the next scheduled time.
 
         This is ``current + interval``, unless ``current`` falls right on the
         interval boundary, when ``current`` is returned.
@@ -133,7 +136,8 @@ class CronMixin:
         return current
 
     def _align_to_prev(self, current: DateTime) -> DateTime:
-        """Get the prev scheduled time.
+        """
+        Get the prev scheduled time.
 
         This is ``current - interval``, unless ``current`` falls right on the
         interval boundary, when ``current`` is returned.

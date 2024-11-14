@@ -20,7 +20,11 @@ import datetime
 
 from airflow.models.dag import DAG
 
-with DAG(dag_id="test_mapped_taskflow", start_date=datetime.datetime(2022, 1, 1)) as dag:
+with DAG(
+    dag_id="test_mapped_taskflow",
+    start_date=datetime.datetime(2022, 1, 1),
+    schedule="@daily",
+) as dag:
 
     @dag.task
     def make_list():

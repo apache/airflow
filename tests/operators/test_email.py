@@ -22,10 +22,10 @@ from unittest import mock
 
 import pytest
 
-from airflow.models.dag import DAG
 from airflow.operators.email import EmailOperator
 from airflow.utils import timezone
-from tests.test_utils.config import conf_vars
+
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -38,30 +38,24 @@ send_email_test = mock.Mock()
 
 
 class TestEmailOperator:
-    def setup_class(self):
-        self.dag = DAG(
-            "test_dag",
-            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
-            schedule=INTERVAL,
-        )
-
-    def _run_as_operator(self, **kwargs):
-        task = EmailOperator(
-            to="airflow@example.com",
-            subject="Test Run",
-            html_content="The quick brown fox jumps over the lazy dog",
-            task_id="task",
-            dag=self.dag,
-            files=["/tmp/Report-A-{{ ds }}.csv"],
-            custom_headers={"Reply-To": "reply_to@example.com"},
-            **kwargs,
-        )
-        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        self.dag.clear()
-
-    def test_execute(self):
+    def test_execute(self, dag_maker):
         with conf_vars({("email", "email_backend"): "tests.operators.test_email.send_email_test"}):
-            self._run_as_operator()
+            with dag_maker(
+                "test_dag",
+                default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+                schedule=INTERVAL,
+                serialized=True,
+            ):
+                task = EmailOperator(
+                    to="airflow@example.com",
+                    subject="Test Run",
+                    html_content="The quick brown fox jumps over the lazy dog",
+                    task_id="task",
+                    files=["/tmp/Report-A-{{ ds }}.csv"],
+                    custom_headers={"Reply-To": "reply_to@example.com"},
+                )
+            dag_maker.create_dagrun()
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         assert send_email_test.call_count == 1
         call_args = send_email_test.call_args.kwargs
         assert call_args["files"] == ["/tmp/Report-A-2016-01-01.csv"]

@@ -33,14 +33,18 @@ from airflow.utils.helpers import (
     merge_dicts,
     prune_dict,
     validate_group_key,
+    validate_instance_args,
     validate_key,
 )
 from airflow.utils.types import NOTSET
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_dags, clear_db_runs
+
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
 if TYPE_CHECKING:
     from airflow.jobs.job import Job
+
+pytestmark = pytest.mark.skip_if_database_isolation_mode
 
 
 @pytest.fixture
@@ -199,7 +203,7 @@ class TestHelpers:
                 "characters, dashes, dots and underscores exclusively",
                 AirflowException,
             ),
-            (" " * 251, "The key has to be less than 250 characters", AirflowException),
+            (" " * 251, f"The key: {' ' * 251} has to be less than 250 characters", AirflowException),
         ],
     )
     def test_validate_key(self, key_id, message, exception):
@@ -355,3 +359,36 @@ class SchedulerJobRunner(MockJobRunner):
 
 class TriggererJobRunner(MockJobRunner):
     job_type = "TriggererJob"
+
+
+class ClassToValidateArgs:
+    def __init__(self, name, age, active):
+        self.name = name
+        self.age = age
+        self.active = active
+
+
+# Edge cases
+@pytest.mark.parametrize(
+    "instance, expected_arg_types",
+    [
+        (ClassToValidateArgs("Alice", 30, None), {"name": str, "age": int, "active": bool}),
+        (ClassToValidateArgs(None, 25, True), {"name": str, "age": int, "active": bool}),
+    ],
+)
+def test_validate_instance_args_raises_no_error(instance, expected_arg_types):
+    validate_instance_args(instance, expected_arg_types)
+
+
+# Error cases
+@pytest.mark.parametrize(
+    "instance, expected_arg_types",
+    [
+        (ClassToValidateArgs("Alice", "thirty", True), {"name": str, "age": int, "active": bool}),
+        (ClassToValidateArgs("Bob", 25, "yes"), {"name": str, "age": int, "active": bool}),
+        (ClassToValidateArgs(123, 25, True), {"name": str, "age": int, "active": bool}),
+    ],
+)
+def test_validate_instance_args_raises_error(instance, expected_arg_types):
+    with pytest.raises(TypeError):
+        validate_instance_args(instance, expected_arg_types)

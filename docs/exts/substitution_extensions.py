@@ -28,7 +28,6 @@ from sphinx.transforms import SphinxTransform
 from sphinx.transforms.post_transforms.code import HighlightLanguageTransform
 
 if TYPE_CHECKING:
-    from docutils.utils import SystemMessage
     from sphinx.application import Sphinx
 
 LOGGER = logging.getLogger(__name__)
@@ -86,7 +85,7 @@ class SubstitutionCodeBlockTransform(SphinxTransform):
             node.rawsource = node.astext()
 
 
-def substitution_code_role(*args, **kwargs) -> tuple[list, list[SystemMessage]]:
+def substitution_code_role(*args, **kwargs) -> tuple[list, list[Any]]:
     """Decorate an inline code so that SubstitutionCodeBlockTransform will notice it"""
     [node], system_messages = code_role(*args, **kwargs)
     node[_SUBSTITUTION_OPTION_NAME] = True  # type: ignore[index]

@@ -69,7 +69,7 @@ def commit_changes(version_branch):
         if DRY_RUN:
             console_print("Skipping below command on CI")
         run_command(
-            ["git", "commit", "-m", f"Update default branches for {version_branch}"],
+            ["git", "commit", "-m", f"Update default branches for {version_branch}", "--no-verify"],
             dry_run_override=DRY_RUN,
             check=True,
         )
@@ -227,7 +227,7 @@ def create_minor_version_branch(version_branch):
     if confirm_action("Build latest breeze image?"):
         if DRY_RUN:
             console_print("Skipping below command on CI")
-        run_command(["breeze", "ci-image", "build", "--python", "3.8"], dry_run_override=DRY_RUN, check=True)
+        run_command(["breeze", "ci-image", "build", "--python", "3.9"], dry_run_override=DRY_RUN, check=True)
     # Update default branches
     update_default_branch(version_branch)
     # Commit changes

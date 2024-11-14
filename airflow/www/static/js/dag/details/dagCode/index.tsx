@@ -18,11 +18,13 @@
  */
 
 import React, { useRef } from "react";
-import { Box, Heading, Spinner, Alert, AlertIcon } from "@chakra-ui/react";
+import { Box, Heading, Spinner } from "@chakra-ui/react";
+
 import { useOffsetTop } from "src/utils";
 import Time from "src/components/Time";
-
 import { useDag, useDagCode } from "src/api";
+import ErrorAlert from "src/components/ErrorAlert";
+
 import CodeBlock from "./CodeBlock";
 
 const DagCode = () => {
@@ -45,12 +47,7 @@ const DagCode = () => {
           Parsed at: <Time dateTime={dagData.lastParsedTime} />
         </Heading>
       )}
-      {!!error && (
-        <Alert status="error" marginBottom="10px">
-          <AlertIcon />
-          An error occurred while fetching the dag source code.
-        </Alert>
-      )}
+      <ErrorAlert error={error} />
       {isLoading && (
         <Spinner size="xl" color="blue.500" thickness="4px" speed="0.65s" />
       )}

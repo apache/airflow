@@ -18,12 +18,18 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import InternalError, OperationalError
 
 from airflow.utils.retries import retry_db_transaction
+
+if TYPE_CHECKING:
+    from sqlalchemy.exc import DBAPIError
+
+pytestmark = pytest.mark.skip_if_database_isolation_mode
 
 
 class TestRetries:
@@ -45,23 +51,24 @@ class TestRetries:
         assert mock_obj.call_count == 2
 
     @pytest.mark.db_test
-    def test_retry_db_transaction_with_default_retries(self, caplog):
+    @pytest.mark.parametrize("excection_type", [OperationalError, InternalError])
+    def test_retry_db_transaction_with_default_retries(self, caplog, excection_type: type[DBAPIError]):
         """Test that by default 3 retries will be carried out"""
         mock_obj = mock.MagicMock()
         mock_session = mock.MagicMock()
         mock_rollback = mock.MagicMock()
         mock_session.rollback = mock_rollback
-        op_error = OperationalError(statement=mock.ANY, params=mock.ANY, orig=mock.ANY)
+        db_error = excection_type(statement=mock.ANY, params=mock.ANY, orig=mock.ANY)
 
         @retry_db_transaction
         def test_function(session):
             session.execute("select 1")
             mock_obj(2)
-            raise op_error
+            raise db_error
 
         caplog.set_level(logging.DEBUG, logger=self.__module__)
         caplog.clear()
-        with pytest.raises(OperationalError):
+        with pytest.raises(excection_type):
             test_function(session=mock_session)
 
         for try_no in range(1, 4):

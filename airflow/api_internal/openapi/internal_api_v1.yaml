@@ -36,7 +36,6 @@ servers:
 paths:
   "/rpcapi":
     post:
-      operationId: rpcapi
       deprecated: false
       x-openapi-router-controller: airflow.api_internal.endpoints.rpc_api_endpoint
       operationId: internal_airflow_api

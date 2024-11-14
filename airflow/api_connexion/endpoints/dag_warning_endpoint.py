@@ -29,6 +29,7 @@ from airflow.api_connexion.schemas.dag_warning_schema import (
 from airflow.api_connexion.security import get_readable_dags
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models.dagwarning import DagWarning as DagWarningModel
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -38,6 +39,7 @@ if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.WARNING)
 @format_parameters({"limit": check_limit})
 @provide_session
@@ -50,7 +52,8 @@ def get_dag_warnings(
     order_by: str = "timestamp",
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Get DAG warnings.
+    """
+    Get DAG warnings.
 
     :param dag_id: the dag_id to optionally filter by
     :param warning_type: the warning type to optionally filter by

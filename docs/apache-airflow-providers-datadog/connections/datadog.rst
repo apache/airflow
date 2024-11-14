@@ -44,3 +44,25 @@ Extra
     ``app_key``: Datadog `application key <https://docs.datadoghq.com/account_management/api-app-keys/#application-keys>`__
 
     ``source_type_name``: Datadog `source type name <https://docs.datadoghq.com/integrations/faq/list-of-api-source-attribute-value/>`__ (defaults to my_apps).
+
+
+Secret Management
+-----------------
+
+When storing the connection details in a secret management system, it can be convenient to name the secret with the default value::
+
+  secret name: airflow/connections/datadog_default
+
+The following json is an example of what the secret contents should look like::
+
+  {
+    "conn_type": "datadog",
+    "description": "Datadog connection for my app",
+    "extra": {
+      "api_host": "https://api.datadoghq.com",
+      "api_key": "my api key",
+      "app_key": "my app key",
+      "source_type_name": "apache"
+    },
+    "host": "environment-region-application.domain.com"
+  }

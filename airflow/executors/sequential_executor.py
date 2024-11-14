@@ -29,6 +29,7 @@ import subprocess
 from typing import TYPE_CHECKING, Any
 
 from airflow.executors.base_executor import BaseExecutor
+from airflow.traces.tracer import Trace, add_span
 
 if TYPE_CHECKING:
     from airflow.executors.base_executor import CommandType
@@ -47,8 +48,6 @@ class SequentialExecutor(BaseExecutor):
     SequentialExecutor alongside sqlite as you first install it.
     """
 
-    supports_pickling: bool = False
-
     is_local: bool = True
     is_single_threaded: bool = True
     is_production: bool = False
@@ -59,6 +58,7 @@ class SequentialExecutor(BaseExecutor):
         super().__init__()
         self.commands_to_run = []
 
+    @add_span
     def execute_async(
         self,
         key: TaskInstanceKey,
@@ -68,6 +68,18 @@ class SequentialExecutor(BaseExecutor):
     ) -> None:
         self.validate_airflow_tasks_run_command(command)
         self.commands_to_run.append((key, command))
+
+        span = Trace.get_current_span()
+        if span.is_recording():
+            span.set_attributes(
+                {
+                    "dag_id": key.dag_id,
+                    "run_id": key.run_id,
+                    "task_id": key.task_id,
+                    "try_number": key.try_number,
+                    "commands_to_run": str(self.commands_to_run),
+                }
+            )
 
     def sync(self) -> None:
         for key, command in self.commands_to_run:

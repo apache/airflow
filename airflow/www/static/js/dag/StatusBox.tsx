@@ -20,6 +20,7 @@
 import React from "react";
 import { isEqual } from "lodash";
 import { Box, useTheme, BoxProps } from "@chakra-ui/react";
+import { MdRefresh } from "react-icons/md";
 
 import { useContainerRef } from "src/context/containerRef";
 import type { Task, TaskInstance, TaskState } from "src/types";
@@ -27,19 +28,21 @@ import type { SelectionProps } from "src/dag/useSelection";
 import { getStatusBackgroundColor, hoverDelay } from "src/utils";
 import Tooltip from "src/components/Tooltip";
 
-import InstanceTooltip from "./InstanceTooltip";
+import InstanceTooltip from "src/components/InstanceTooltip";
 
 export const boxSize = 10;
 export const boxSizePx = `${boxSize}px`;
 
 interface StatusWithNotesProps extends BoxProps {
   state: TaskState;
+  tryNumber?: number;
   containsNotes?: boolean;
 }
 
 export const StatusWithNotes = ({
   state,
   containsNotes,
+  tryNumber,
   ...rest
 }: StatusWithNotesProps) => {
   const color = state && stateColors[state] ? stateColors[state] : "white";
@@ -50,13 +53,18 @@ export const StatusWithNotes = ({
       background={getStatusBackgroundColor(color, !!containsNotes)}
       borderRadius="2px"
       borderWidth={state ? 0 : 1}
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
       {...rest}
-    />
+    >
+      {tryNumber !== undefined && tryNumber > 1 && <MdRefresh color="white" />}
+    </Box>
   );
 };
 
 interface SimpleStatusProps extends BoxProps {
-  state: TaskState;
+  state: TaskState | undefined;
 }
 export const SimpleStatus = ({ state, ...rest }: SimpleStatusProps) => (
   <Box
@@ -137,6 +145,7 @@ const StatusBox = ({
         <StatusWithNotes
           state={instance.state}
           containsNotes={containsNotes}
+          tryNumber={instance.tryNumber}
           onClick={onClick}
           cursor="pointer"
           data-testid="task-instance"

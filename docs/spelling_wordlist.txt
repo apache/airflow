@@ -32,6 +32,7 @@ airbyte
 AirflowException
 airflowignore
 ajax
+aks
 AlertApi
 alertPolicies
 Alibaba
@@ -88,6 +89,8 @@ asctime
 asend
 asia
 assertEqualIgnoreMultipleSpaces
+AssetEvent
+AssetEvents
 assigment
 ast
 astroid
@@ -156,6 +159,7 @@ balancers
 Banco
 Bas
 BaseClient
+BaseHook
 BaseObject
 BaseOperator
 baseOperator
@@ -225,7 +229,6 @@ cgi
 Cgroups
 cgroups
 cgroupspy
-Chainable
 chakra
 Changelog
 changelog
@@ -250,8 +253,8 @@ classpaths
 cleartext
 cli
 clientId
-Cloudant
 cloudant
+CloudantV
 cloudbuild
 CloudBuildClient
 cloudml
@@ -362,6 +365,7 @@ dagrun
 DagRunPydantic
 dagruns
 DagRunState
+dagRunState
 DAGs
 Dask
 dask
@@ -599,6 +603,7 @@ falsy
 faq
 Fargate
 fargate
+fastapi
 fbee
 fc
 fd
@@ -667,6 +672,8 @@ gcpcloudsql
 GCS
 gcs
 gdbm
+Gelf
+gelf
 generateUploadUrl
 Gentner
 geq
@@ -772,6 +779,7 @@ hyperparameter
 hyperparameters
 IaC
 iam
+ibmcloudant
 idempotence
 idempotency
 IdP
@@ -783,6 +791,7 @@ ignoreUnknownValues
 ImageAnnotatorClient
 imageORfile
 imagePullPolicy
+imagePullSecrets
 imageVersion
 Imap
 imap
@@ -824,8 +833,15 @@ ints
 intvl
 Investorise
 io
+IP
 ip
 ipc
+IPv
+ipv
+IPv4
+ipv4
+IPv6
+ipv6
 iPython
 irreproducible
 IRSA
@@ -877,6 +893,7 @@ Json
 json
 jsonl
 jthomas
+juli
 Jupyter
 jupyter
 jupytercmd
@@ -900,9 +917,11 @@ keyring
 keyspace
 keytab
 kfp
+KiB
 Kibana
 killMode
 Kinesis
+kinesis
 kinit
 kms
 knn
@@ -966,6 +985,7 @@ loglevel
 Logstash
 logstash
 longblob
+lookups
 Lowin
 lshift
 lxml
@@ -1086,6 +1106,8 @@ noqa
 nosasl
 NotFound
 notificationChannels
+NotIn
+notin
 npm
 ns
 ntlm
@@ -1433,6 +1455,7 @@ Seedlist
 seedlist
 seekable
 segmentGranularity
+selectin
 Sendgrid
 sendgrid
 sentimentMax
@@ -1445,6 +1468,7 @@ serializer
 serializers
 serverless
 ServiceAccount
+sessionmaker
 setattr
 setdefault
 setMachineType
@@ -1470,6 +1494,9 @@ SlackResponse
 slas
 smtp
 SnowflakeHook
+Snowpark
+snowpark
+SnowparkOperator
 somecollection
 somedatabase
 sortable
@@ -1518,10 +1545,12 @@ sslrootcert
 ssm
 Stackdriver
 stackdriver
+stacklevel
 stacktrace
 starttls
 StatefulSet
 StatefulSets
+statics
 StatsD
 statsd
 stderr
@@ -1606,6 +1635,7 @@ taskflow
 TaskGroup
 taskgroup
 TaskGroups
+taskGroups
 TaskInstance
 taskinstance
 TaskInstanceKey
@@ -1613,6 +1643,8 @@ taskinstancekey
 taskmeta
 taskmixin
 tasksetmeta
+tasksState
+taskTree
 tblproperties
 TCP
 tcp
@@ -1643,6 +1675,7 @@ Tez
 tez
 theService
 Thinknear
+THIRDPARTY
 TicketAudit
 timedelta
 timedeltas
@@ -1665,6 +1698,7 @@ tooltip
 tooltips
 traceback
 tracebacks
+tracemalloc
 TrainingPipeline
 travis
 triage
@@ -1702,6 +1736,7 @@ unarchived
 unassigns
 uncomment
 uncommenting
+uncompress
 Undead
 undead
 Undeads
@@ -1781,6 +1816,7 @@ verticaql
 Vevo
 videointelligence
 VideoIntelligenceServiceClient
+views
 virtualenv
 virtualenvs
 vm
@@ -1838,6 +1874,8 @@ Yandex
 yandex
 yandexcloud
 yarnpkg
+YDB
+ydb
 Yieldr
 yml
 youtrack

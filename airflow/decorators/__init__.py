@@ -23,6 +23,7 @@ from airflow.decorators.bash import bash_task
 from airflow.decorators.branch_external_python import branch_external_python_task
 from airflow.decorators.branch_python import branch_task
 from airflow.decorators.branch_virtualenv import branch_virtualenv_task
+from airflow.decorators.condition import run_if, skip_if
 from airflow.decorators.external_python import external_python_task
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
@@ -66,6 +67,8 @@ class TaskDecoratorCollection:
     short_circuit = staticmethod(short_circuit_task)
     sensor = staticmethod(sensor_task)
     bash = staticmethod(bash_task)
+    run_if = staticmethod(run_if)
+    skip_if = staticmethod(skip_if)
 
     __call__: Any = python  # Alias '@task' to '@task.python'.
 

@@ -49,7 +49,7 @@ Init Containers
 ---------------
 
 You can also deploy extra init containers through the ``extraInitContainers`` parameter.
-You can define different containers for the scheduler, webserver, worker, triggerer and DAG processor pods.
+You can define different containers for the scheduler, webserver, worker, triggerer, DAG processor, create user Job and migrate database Job pods.
 
 For example, an init container that just says hello:
 

@@ -118,10 +118,10 @@ Source tree - without polluting your editable installation with installed provid
 
 The person acting as release manager has to fulfill certain pre-requisites. More details and FAQs are
 available in the [ASF Release Policy](http://www.apache.org/legal/release-policy.html) but here some important
-pre-requisites are listed below. Note that release manager does not have to be a PMC - it is enough
+pre-requisites are listed below. Note that release manager does not have to be a PMC member - it is enough
 to be committer to assume the release manager role, but there are final steps in the process (uploading
 final releases to SVN) that can only be done by PMC member. If needed, the release manager
-can ask PMC to perform that final step of release.
+can ask a PMC member to perform that final step of release.
 
 ## Upload Public keys to id.apache.org and GitHub
 

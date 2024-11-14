@@ -43,45 +43,46 @@ command as in the example below.
 .. code-block:: console
 
     $ airflow config get-value api auth_backends
-    airflow.api.auth.backend.basic_auth
-
-Disable authentication
-''''''''''''''''''''''
-
-If you wish to have the experimental API work, and aware of the risks of enabling this without authentication
-(or if you have your own authentication layer in front of Airflow) you can set the following in ``airflow.cfg``:
-
-.. code-block:: ini
-
-    [api]
-    auth_backends = airflow.api.auth.backend.default
-
-.. note::
-
-    You can only disable authentication for experimental API, not the stable REST API.
-
-See :doc:`apache-airflow:administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
+    airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
 
 Kerberos authentication
 '''''''''''''''''''''''
 
-Kerberos authentication is currently supported for the API.
+Kerberos authentication is currently supported for the API, both experimental and stable.
 
 To enable Kerberos authentication, set the following in the configuration:
 
 .. code-block:: ini
 
     [api]
-    auth_backends = airflow.api.auth.backend.kerberos_auth
+    auth_backends = airflow.providers.fab.auth_manager.api.auth.backend.kerberos_auth
 
     [kerberos]
     keytab = <KEYTAB>
 
-The Kerberos service is configured as ``airflow/fully.qualified.domainname@REALM``. Make sure this
-principal exists in the keytab file.
+The airflow Kerberos service is configured as ``airflow/fully.qualified.domainname@REALM``. Make sure this
+principal exists `in both the Kerberos database as well as in the keytab file </docs/apache-airflow/stable/security/kerberos.html#enabling-kerberos>`_.
 
 You have to make sure to name your users with the kerberos full username/realm in order to make it
-works. This means that your user name should be ``user_name@KERBEROS-REALM``.
+work. This means that your user name should be ``user_name@REALM``.
+
+.. code-block:: bash
+
+    kinit user_name@REALM
+    ENDPOINT_URL="http://localhost:8080/"
+    curl -X GET  \
+        --negotiate \  # enables Negotiate (SPNEGO) authentication
+        --service airflow \  # matches the `airflow` service name in the `airflow/fully.qualified.domainname@REALM` principal
+        --user : \
+        "${ENDPOINT_URL}/api/v1/pools"
+
+
+.. note::
+
+    Remember that the stable API is secured by both authentication and `access control <./access-control.html>`_.
+    This means that your user needs to have a Role with necessary associated permissions, otherwise you'll receive
+    a 403 response.
+
 
 Basic authentication
 ''''''''''''''''''''
@@ -95,7 +96,7 @@ To enable basic authentication, set the following in the configuration:
 .. code-block:: ini
 
     [api]
-    auth_backends = airflow.api.auth.backend.basic_auth
+    auth_backends = airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
 
 Username and password needs to be base64 encoded and send through the
 ``Authorization`` HTTP header in the following format:

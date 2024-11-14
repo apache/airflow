@@ -23,9 +23,9 @@ from cov_runner import run_tests
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
-source_files = ["airflow/api_experimental", "airflow/api_connexion", "airflow/api_internal"]
+source_files = ["airflow/api_connexion", "airflow/api_internal"]
 
-restapi_files = ["tests/api_experimental", "tests/api_connexion", "tests/api_internal"]
+restapi_files = ["tests/api_connexion", "tests/api_internal"]
 
 files_not_fully_covered = [
     "airflow/api_connexion/endpoints/forward_to_fab_endpoint.py",

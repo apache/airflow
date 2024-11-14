@@ -23,7 +23,7 @@ Released packages
 
 .. jinja:: official_download_page
 
-    This page describes downloading and verifying Airflow™ version
+    This page describes downloading and verifying Airflow® version
     ``{{ airflow_version }}`` using officially released packages.
     You can also install ``Apache Airflow`` - as most Python packages - via :doc:`PyPI <installing-from-pypi>`.
     You can choose different version of Airflow by selecting different version from the drop-down at
@@ -32,7 +32,7 @@ Released packages
 The ``source``, ``sdist`` and ``whl`` packages released are the "official" sources of installation that you
 can use if you want to verify the origin of the packages and want to verify checksums and signatures of
 the packages. The packages are available via the
-`Official Apache Software Foundations Downloads <http://ws.apache.org/mirrors.cgi>`_
+`Official Apache Software Foundations Downloads <https://dlcdn.apache.org/>`_
 
 As of version 2.8 Airflow follows PEP 517/518 and uses ``pyproject.toml`` file to define build dependencies
 and build process and it requires relatively modern versions of packaging tools to get airflow built from
@@ -41,7 +41,7 @@ dependencies. In case of ``pip`` it means that at least version 22.1.0 is needed
 2022) to build or install Airflow from sources. This does not affect the ability of installing Airflow from
 released wheel packages.
 
-The |version| downloads of Airflow™ are available at:
+The |version| downloads of Airflow® are available at:
 
 .. jinja:: official_download_page
 

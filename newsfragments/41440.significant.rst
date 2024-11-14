@@ -1,0 +1,16 @@
+Removed unused methods / properties in models/dag.py
+
+Methods removed:
+  * date_range
+  * is_fixed_time_schedule
+  * next_dagrun_after_date
+  * get_run_dates
+  * normalize_schedule
+  * full_filepath
+  * concurrency
+  * filepath
+  * concurrency_reached
+  * normalized_schedule_interval
+  * latest_execution_date
+  * set_dag_runs_state
+  * bulk_sync_to_db

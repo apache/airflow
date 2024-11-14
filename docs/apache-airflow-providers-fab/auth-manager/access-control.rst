@@ -46,7 +46,7 @@ Viewer
 ^^^^^^
 ``Viewer`` users have limited read permissions:
 
-.. exampleinclude:: /../../airflow/providers/fab/auth_manager/security_manager/override.py
+.. exampleinclude:: /../../providers/src/airflow/providers/fab/auth_manager/security_manager/override.py
     :language: python
     :start-after: [START security_viewer_perms]
     :end-before: [END security_viewer_perms]
@@ -55,7 +55,7 @@ User
 ^^^^
 ``User`` users have ``Viewer`` permissions plus additional permissions:
 
-.. exampleinclude:: /../../airflow/providers/fab/auth_manager/security_manager/override.py
+.. exampleinclude:: /../../providers/src/airflow/providers/fab/auth_manager/security_manager/override.py
     :language: python
     :start-after: [START security_user_perms]
     :end-before: [END security_user_perms]
@@ -64,7 +64,7 @@ Op
 ^^
 ``Op`` users have ``User`` permissions plus additional permissions:
 
-.. exampleinclude:: /../../airflow/providers/fab/auth_manager/security_manager/override.py
+.. exampleinclude:: /../../providers/src/airflow/providers/fab/auth_manager/security_manager/override.py
     :language: python
     :start-after: [START security_op_perms]
     :end-before: [END security_op_perms]
@@ -74,7 +74,7 @@ Admin
 ``Admin`` users have all possible permissions, including granting or revoking permissions from
 other users. ``Admin`` users have ``Op`` permission plus additional permissions:
 
-.. exampleinclude:: /../../airflow/providers/fab/auth_manager/security_manager/override.py
+.. exampleinclude:: /../../providers/src/airflow/providers/fab/auth_manager/security_manager/override.py
     :language: python
     :start-after: [START security_admin_perms]
     :end-before: [END security_admin_perms]
@@ -138,7 +138,7 @@ There are five default roles: Public, Viewer, User, Op, and Admin. Each one has 
 DAG-level permissions
 ^^^^^^^^^^^^^^^^^^^^^
 
-For DAG-level permissions exclusively, access can be controlled at the level of all DAGs or individual DAG objects. This includes ``DAGs.can_read``, ``DAGs.can_edit``, and ``DAGs.can_delete``. When these permissions are listed, access is granted to users who either have the listed permission or the same permission for the specific DAG being acted upon. For individual DAGs, the resource name is ``DAG:`` + the DAG ID.
+For DAG-level permissions exclusively, access can be controlled at the level of all DAGs or individual DAG objects. This includes ``DAGs.can_read``, ``DAGs.can_edit``, ``DAGs.can_delete``, ``DAG Runs.can_read``, ``DAG Runs.can_create``, ``DAG Runs.can_delete``, and ``DAG Runs.menu_access``. When these permissions are listed, access is granted to users who either have the listed permission or the same permission for the specific DAG being acted upon. For individual DAGs, the resource name is ``DAG:`` + the DAG ID, or for the DAG Runs resource the resource name is ``DAG Run:``.
 
 For example, if a user is trying to view DAG information for the ``example_dag_id``, and the endpoint requires ``DAGs.can_read`` access, access will be granted if the user has either ``DAGs.can_read`` or ``DAG:example_dag_id.can_read`` access.
 
@@ -157,7 +157,7 @@ Endpoint                                                                        
 /dags                                                                              GET    DAGs.can_read                                                     Viewer
 /dags/{dag_id}                                                                     GET    DAGs.can_read                                                     Viewer
 /dags/{dag_id}                                                                     PATCH  DAGs.can_edit                                                     User
-/dags/{dag_id}/clearTaskInstances                                                  POST   DAGs.can_edit, DAG Runs.can_read, Task Instances.can_edit         User
+/dags/{dag_id}/clearTaskInstances                                                  PUT    DAGs.can_edit, DAG Runs.can_edit, Task Instances.can_edit         User
 /dags/{dag_id}/details                                                             GET    DAGs.can_read                                                     Viewer
 /dags/{dag_id}/tasks                                                               GET    DAGs.can_read, Task Instances.can_read                            Viewer
 /dags/{dag_id}/tasks/{task_id}                                                     GET    DAGs.can_read, Task Instances.can_read                            Viewer
@@ -166,9 +166,9 @@ Endpoint                                                                        
 /dags/{dag_id}/dagRuns/{dag_run_id}                                                DELETE DAGs.can_edit, DAG Runs.can_delete                                User
 /dags/{dag_id}/dagRuns/{dag_run_id}                                                GET    DAGs.can_read, DAG Runs.can_read                                  Viewer
 /dags/~/dagRuns/list                                                               POST   DAGs.can_edit, DAG Runs.can_read                                  User
-/datasets                                                                          GET    Datasets.can_read                                                 Viewer
-/datasets/{uri}                                                                    GET    Datasets.can_read                                                 Viewer
-/datasets/events                                                                   GET    Datasets.can_read                                                 Viewer
+/assets                                                                            GET    Assets.can_read                                                   Viewer
+/assets/{uri}                                                                      GET    Assets.can_read                                                   Viewer
+/assets/events                                                                     GET    Assets.can_read                                                   Viewer
 /eventLogs                                                                         GET    Audit Logs.can_read                                               Viewer
 /eventLogs/{event_log_id}                                                          GET    Audit Logs.can_read                                               Viewer
 /importErrors                                                                      GET    ImportError.can_read                                              Viewer
@@ -264,8 +264,8 @@ Set Task Instance as failed            DAGs.can_edit                            
 Set Task Instance as success           DAGs.can_edit                                                           User
 Set Task Instance as up_for_retry      DAGs.can_edit                                                           User
 Autocomplete                           DAGs.can_read                                                           Viewer
-Show Dataset menu                      Datasets.menu_access                                                    Viewer
-Show Datasets                          Datasets.can_read                                                       Viewer
+Show Asset menu                        Assets.menu_access                                                      Viewer
+Show Assets                            Assets.can_read                                                         Viewer
 Show Docs menu                         Docs.menu_access                                                        Viewer
 Show Documentation menu                Documentation.menu_access                                               Viewer
 Show Jobs menu                         Jobs.menu_access                                                        Viewer
@@ -319,6 +319,18 @@ Setting ``access_control`` on a DAG will overwrite any previously existing DAG-l
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         access_control={
             "Viewer": {"can_edit", "can_read", "can_delete"},
+        },
+    )
+
+It's also possible to add DAG Runs resource permissions in a similar way, but explicit adding the resource name to identify which resource the permissions are for:
+
+.. code-block:: python
+
+    DAG(
+        dag_id="example_fine_grained_access",
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        access_control={
+            "Viewer": {"DAGs": {"can_edit", "can_read", "can_delete"}, "DAG Runs": {"can_create"}},
         },
     )
 

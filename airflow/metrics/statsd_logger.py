@@ -25,8 +25,8 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.metrics.protocols import Timer
 from airflow.metrics.validators import (
-    AllowListValidator,
-    BlockListValidator,
+    PatternAllowListValidator,
+    PatternBlockListValidator,
     get_validator,
     validate_stat,
 )
@@ -55,7 +55,7 @@ def prepare_stat_with_tags(fn: T) -> T:
             if stat is not None and tags is not None:
                 for k, v in tags.items():
                     if self.metric_tags_validator.test(k):
-                        if all(c not in [",", "="] for c in v + k):
+                        if all(c not in [",", "="] for c in f"{v}{k}"):
                             stat += f",{k}={v}"
                         else:
                             log.error("Dropping invalid tag: %s=%s.", k, v)
@@ -70,9 +70,9 @@ class SafeStatsdLogger:
     def __init__(
         self,
         statsd_client: StatsClient,
-        metrics_validator: ListValidator = AllowListValidator(),
+        metrics_validator: ListValidator = PatternAllowListValidator(),
         influxdb_tags_enabled: bool = False,
-        metric_tags_validator: ListValidator = AllowListValidator(),
+        metric_tags_validator: ListValidator = PatternAllowListValidator(),
     ) -> None:
         self.statsd = statsd_client
         self.metrics_validator = metrics_validator
@@ -177,8 +177,11 @@ def get_statsd_logger(cls) -> SafeStatsdLogger:
         host=conf.get("metrics", "statsd_host"),
         port=conf.getint("metrics", "statsd_port"),
         prefix=conf.get("metrics", "statsd_prefix"),
+        ipv6=conf.getboolean("metrics", "statsd_ipv6", fallback=False),
     )
 
     influxdb_tags_enabled = conf.getboolean("metrics", "statsd_influxdb_enabled", fallback=False)
-    metric_tags_validator = BlockListValidator(conf.get("metrics", "statsd_disabled_tags", fallback=None))
+    metric_tags_validator = PatternBlockListValidator(
+        conf.get("metrics", "statsd_disabled_tags", fallback=None)
+    )
     return SafeStatsdLogger(statsd, get_validator(), influxdb_tags_enabled, metric_tags_validator)

@@ -30,7 +30,6 @@ __all__ = [
     "DagBag",
     "DagWarning",
     "DagModel",
-    "DagPickle",
     "DagRun",
     "DagTag",
     "DbCallbackRequest",
@@ -41,8 +40,6 @@ __all__ = [
     "Pool",
     "RenderedTaskInstanceFields",
     "SkipMixin",
-    "SlaMiss",
-    "TaskFail",
     "TaskInstance",
     "TaskReschedule",
     "Trigger",
@@ -51,7 +48,6 @@ __all__ = [
     "clear_task_instances",
 ]
 
-
 from typing import TYPE_CHECKING
 
 
@@ -59,37 +55,26 @@ def import_all_models():
     for name in __lazy_imports:
         __getattr__(name)
 
+    import airflow.models.asset
+    import airflow.models.backfill
+    import airflow.models.dag_version
     import airflow.models.dagwarning
-    import airflow.models.dataset
     import airflow.models.errors
     import airflow.models.serialized_dag
+    import airflow.models.taskinstancehistory
     import airflow.models.tasklog
+    import airflow.providers.fab.auth_manager.models
 
 
 def __getattr__(name):
     # PEP-562: Lazy loaded attributes on python modules
-    if name != "ImportError":
-        path = __lazy_imports.get(name)
-        if not path:
-            raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    path = __lazy_imports.get(name)
+    if not path:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
-        from airflow.utils.module_loading import import_string
+    from airflow.utils.module_loading import import_string
 
-        val = import_string(f"{path}.{name}")
-    else:
-        import warnings
-
-        from airflow.exceptions import RemovedInAirflow3Warning
-        from airflow.models.errors import ParseImportError
-
-        warnings.warn(
-            f"Import '{__name__}.ImportError' is deprecated due to shadowing with builtin exception "
-            f"ImportError and will be removed in the future. "
-            f"Please consider to use '{ParseImportError.__module__}.ParseImportError' instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        val = ParseImportError
+    val = import_string(f"{path}.{name}")
 
     # Store for next time
     globals()[name] = val
@@ -105,7 +90,6 @@ __lazy_imports = {
     "Connection": "airflow.models.connection",
     "DagBag": "airflow.models.dagbag",
     "DagModel": "airflow.models.dag",
-    "DagPickle": "airflow.models.dagpickle",
     "DagRun": "airflow.models.dagrun",
     "DagTag": "airflow.models.dag",
     "DagWarning": "airflow.models.dagwarning",
@@ -117,8 +101,6 @@ __lazy_imports = {
     "Pool": "airflow.models.pool",
     "RenderedTaskInstanceFields": "airflow.models.renderedtifields",
     "SkipMixin": "airflow.models.skipmixin",
-    "SlaMiss": "airflow.models.slamiss",
-    "TaskFail": "airflow.models.taskfail",
     "TaskInstance": "airflow.models.taskinstance",
     "TaskReschedule": "airflow.models.taskreschedule",
     "Trigger": "airflow.models.trigger",
@@ -136,7 +118,6 @@ if TYPE_CHECKING:
     from airflow.models.connection import Connection
     from airflow.models.dag import DAG, DagModel, DagTag
     from airflow.models.dagbag import DagBag
-    from airflow.models.dagpickle import DagPickle
     from airflow.models.dagrun import DagRun
     from airflow.models.dagwarning import DagWarning
     from airflow.models.db_callback_request import DbCallbackRequest
@@ -147,9 +128,8 @@ if TYPE_CHECKING:
     from airflow.models.pool import Pool
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
     from airflow.models.skipmixin import SkipMixin
-    from airflow.models.slamiss import SlaMiss
-    from airflow.models.taskfail import TaskFail
     from airflow.models.taskinstance import TaskInstance, clear_task_instances
+    from airflow.models.taskinstancehistory import TaskInstanceHistory
     from airflow.models.taskreschedule import TaskReschedule
     from airflow.models.trigger import Trigger
     from airflow.models.variable import Variable

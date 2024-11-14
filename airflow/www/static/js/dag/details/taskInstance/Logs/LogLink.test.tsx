@@ -42,19 +42,21 @@ describe("Test LogLink Component.", () => {
     expect(linkElement).not.toHaveAttribute("target");
     expect(
       linkElement?.href.includes(
-        `?dag_id=dummyDagId&task_id=dummyTaskId&execution_date=2020%3A01%3A01T01%3A00%2B00%3A00&map_index=-1&format=file&try_number=${tryNumber}`
+        `?dag_id=dummyDagId&task_id=dummyTaskId&execution_date=2020%3A01%3A01T01%3A00%2B00%3A00&map_index=-1&try_number=${tryNumber}&format=file`
       )
     ).toBeTruthy();
   });
 
   test("External Link", () => {
     const tryNumber = 1;
+    const mapIndex = 2;
     const { getByText, container } = render(
       <LogLink
         tryNumber={tryNumber}
         dagId="dummyDagId"
         taskId="dummyTaskId"
         executionDate="2020:01:01T01:00+00:00"
+        mapIndex={mapIndex}
       />
     );
 
@@ -64,7 +66,7 @@ describe("Test LogLink Component.", () => {
     expect(linkElement).toHaveAttribute("target", "_blank");
     expect(
       linkElement?.href.includes(
-        `?dag_id=dummyDagId&task_id=dummyTaskId&execution_date=2020%3A01%3A01T01%3A00%2B00%3A00&map_index=-1&try_number=${tryNumber}`
+        `?dag_id=dummyDagId&task_id=dummyTaskId&execution_date=2020%3A01%3A01T01%3A00%2B00%3A00&map_index=${mapIndex}&try_number=${tryNumber}`
       )
     ).toBeTruthy();
   });

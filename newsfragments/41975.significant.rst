@@ -1,0 +1,1 @@
+Metrics basic deprecated validators  (``AllowListValidator`` and ``BlockListValidator``) were removed in favor of pattern matching. Pattern matching validators (``PatternAllowListValidator`` and ``PatternBlockListValidator``) are enabled by default. Configuration parameter ``metrics_use_pattern_match``was removed from the ``metrics`` section.

@@ -40,10 +40,16 @@ class XComCollectionItemSchema(SQLAlchemySchema):
     dag_id = auto_field()
 
 
-class XComSchema(XComCollectionItemSchema):
-    """XCom schema."""
+class XComSchemaNative(XComCollectionItemSchema):
+    """XCom schema with native return type."""
 
-    value = auto_field()
+    value = fields.Raw()
+
+
+class XComSchemaString(XComCollectionItemSchema):
+    """XCom schema forced to be string."""
+
+    value = fields.String()
 
 
 class XComCollection(NamedTuple):
@@ -60,6 +66,7 @@ class XComCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
-xcom_schema = XComSchema()
+xcom_schema_native = XComSchemaNative()
+xcom_schema_string = XComSchemaString()
 xcom_collection_item_schema = XComCollectionItemSchema()
 xcom_collection_schema = XComCollectionSchema()

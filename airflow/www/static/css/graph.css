@@ -161,9 +161,14 @@ g.node text {
   background-color: #e6f1f2;
 }
 
-.legend-item.dataset {
+.legend-item.asset {
   float: left;
   background-color: #fcecd4;
+}
+
+.legend-item.asset-alias {
+  float: left;
+  background-color: #e8cfe4;
 }
 
 g.node.dag rect {
@@ -178,6 +183,10 @@ g.node.sensor rect {
   fill: #e6f1f2;
 }
 
-g.node.dataset rect {
+g.node.asset rect {
   fill: #fcecd4;
+}
+
+g.node.asset-alias rect {
+  fill: #e8cfe4;
 }

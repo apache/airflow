@@ -16,7 +16,7 @@
 #
 # WARNING: THIS DOCKERFILE IS NOT INTENDED FOR PRODUCTION USE OR DEPLOYMENT.
 #
-ARG PYTHON_BASE_IMAGE="python:3.8-slim-bookworm"
+ARG PYTHON_BASE_IMAGE="python:3.9-slim-bookworm"
 
 ##############################################################################################
 # This is the script image where we keep all inlined bash scripts needed in other segments
@@ -70,11 +70,7 @@ function get_runtime_apt_deps() {
     echo
     echo "DEBIAN CODENAME: ${debian_version}"
     echo
-    if [[ "${debian_version}" == "bullseye" ]]; then
-        debian_version_apt_deps="libffi7 libldap-2.4-2 libssl1.1 netcat"
-    else
-        debian_version_apt_deps="libffi8 libldap-2.5-0 libssl3 netcat-openbsd"
-    fi
+    debian_version_apt_deps="libffi8 libldap-2.5-0 libssl3 netcat-openbsd"
     echo
     echo "APPLIED INSTALLATION CONFIGURATION FOR DEBIAN VERSION: ${debian_version}"
     echo
@@ -123,19 +119,6 @@ function install_debian_dev_dependencies() {
     echo
     echo "DEBIAN CODENAME: ${debian_version}"
     echo
-    if [[ "${debian_version}" == "bullseye" ]]; then
-        echo
-        echo "Bullseye detected - replacing dependencies in additional dev apt deps"
-        echo
-        # Replace dependencies in additional dev apt deps to be compatible with Bullseye
-        ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS//libgcc-11-dev/libgcc-10-dev}
-        ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS//netcat-openbsd/netcat}
-        echo
-        echo "Replaced bullseye dev apt dependencies"
-        echo "${ADDITIONAL_DEV_APT_COMMAND}"
-        echo
-    fi
-
     # shellcheck disable=SC2086
     apt-get install -y --no-install-recommends ${DEV_APT_DEPS} ${ADDITIONAL_DEV_APT_DEPS}
 }
@@ -478,8 +461,6 @@ function common::get_colors() {
 }
 
 function common::get_packaging_tool() {
-    : "${AIRFLOW_PIP_VERSION:?Should be set}"
-    : "${AIRFLOW_UV_VERSION:?Should be set}"
     : "${AIRFLOW_USE_UV:?Should be set}"
 
     ## IMPORTANT: IF YOU MODIFY THIS FUNCTION YOU SHOULD ALSO MODIFY CORRESPONDING FUNCTION IN
@@ -575,7 +556,12 @@ function common::install_packaging_tools() {
         echo "${COLOR_BLUE}Checking packaging tools for system Python installation: $(which python)${COLOR_RESET}"
         echo
     fi
-    if [[ ! ${AIRFLOW_PIP_VERSION} =~ [0-9.]* ]]; then
+    if [[ ${AIRFLOW_PIP_VERSION=} == "" ]]; then
+        echo
+        echo "${COLOR_BLUE}Installing latest pip version${COLOR_RESET}"
+        echo
+        pip install --root-user-action ignore --disable-pip-version-check --upgrade pip
+    elif [[ ! ${AIRFLOW_PIP_VERSION} =~ ^[0-9].* ]]; then
         echo
         echo "${COLOR_BLUE}Installing pip version from spec ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
         echo
@@ -588,11 +574,15 @@ function common::install_packaging_tools() {
             echo
             echo "${COLOR_BLUE}(Re)Installing pip version: ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
             echo
-            # shellcheck disable=SC2086
             pip install --root-user-action ignore --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
         fi
     fi
-    if [[ ! ${AIRFLOW_UV_VERSION} =~ [0-9.]* ]]; then
+    if [[ ${AIRFLOW_UV_VERSION=} == "" ]]; then
+        echo
+        echo "${COLOR_BLUE}Installing latest uv version${COLOR_RESET}"
+        echo
+        pip install --root-user-action ignore --disable-pip-version-check --upgrade uv
+    elif [[ ! ${AIRFLOW_UV_VERSION} =~ ^[0-9].* ]]; then
         echo
         echo "${COLOR_BLUE}Installing uv version from spec ${AIRFLOW_UV_VERSION}${COLOR_RESET}"
         echo
@@ -644,35 +634,6 @@ function common::import_trusted_gpg() {
 }
 EOF
 
-# The content below is automatically copied from scripts/docker/install_pipx_tools.sh
-COPY <<"EOF" /install_pipx_tools.sh
-#!/usr/bin/env bash
-. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
-
-function install_pipx_tools() {
-    echo
-    echo "${COLOR_BLUE}Installing pipx tools${COLOR_RESET}"
-    echo
-    # Make sure PIPX is installed in latest version
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "pipx>=1.2.1"
-    if [[ $(uname -m) != "aarch64" ]]; then
-        # Do not install mssql-cli for ARM
-        # Install all the tools we need available in command line but without impacting the current environment
-        pipx install mssql-cli
-
-        # Unfortunately mssql-cli installed by `pipx` does not work out of the box because it uses
-        # its own execution bash script which is not compliant with the auto-activation of
-        # pipx venvs - we need to manually patch Python executable in the script to fix it: ¯\_(ツ)_/¯
-        sed "s/python /\/root\/\.local\/pipx\/venvs\/mssql-cli\/bin\/python /" -i /root/.local/bin/mssql-cli
-    fi
-}
-
-common::get_colors
-common::get_packaging_tool
-
-install_pipx_tools
-EOF
-
 # The content below is automatically copied from scripts/docker/install_airflow.sh
 COPY <<"EOF" /install_airflow.sh
 #!/usr/bin/env bash
@@ -693,8 +654,18 @@ function install_airflow() {
     # Determine the installation_command_flags based on AIRFLOW_INSTALLATION_METHOD method
     local installation_command_flags
     if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then
+        # We need _a_ file in there otherwise the editable install doesn't include anything in the .pth file
+        mkdir -p ./providers/src/airflow/providers/
+        touch ./providers/src/airflow/providers/__init__.py
+
+        # Similarly we need _a_ file for task_sdk too
+        mkdir -p ./task_sdk/src/airflow/sdk/
+        touch ./task_sdk/src/airflow/sdk/__init__.py
+
+        trap 'rm -f ./providers/src/airflow/providers/__init__.py ./task_sdk/src/airflow/__init__.py 2>/dev/null' EXIT
+
         # When installing from sources - we always use `--editable` mode
-        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
+        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION} --editable ./providers --editable ./task_sdk"
     elif [[ ${AIRFLOW_INSTALLATION_METHOD} == "apache-airflow" ]]; then
         installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
     elif [[ ${AIRFLOW_INSTALLATION_METHOD} == apache-airflow\ @\ * ]]; then
@@ -827,7 +798,7 @@ chmod 1777 /tmp
 
 AIRFLOW_SOURCES=$(cd "${IN_CONTAINER_DIR}/../.." || exit 1; pwd)
 
-PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.8}
+PYTHON_MAJOR_MINOR_VERSION=${PYTHON_MAJOR_MINOR_VERSION:=3.9}
 
 export AIRFLOW_HOME=${AIRFLOW_HOME:=${HOME}}
 
@@ -902,18 +873,27 @@ function environment_initialization() {
         export AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR=True
     fi
 
+    RUN_TESTS=${RUN_TESTS:="false"}
     if [[ ${DATABASE_ISOLATION=} == "true" ]]; then
         echo "${COLOR_BLUE}Force database isolation configuration:${COLOR_RESET}"
         export AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION=True
-        export AIRFLOW__CORE__INTERNAL_API_URL=http://localhost:8080
-        export AIRFLOW__WEBSERVER_RUN_INTERNAL_API=True
+        export AIRFLOW__CORE__INTERNAL_API_URL=http://localhost:9080
+        # some random secret keys. Setting them as environment variables will make them used in tests and in
+        # the internal API server
+        export AIRFLOW__CORE__INTERNAL_API_SECRET_KEY="Z27xjUwQTz4txlWZyJzLqg=="
+        export AIRFLOW__CORE__FERNET_KEY="l7KBR9aaH2YumhL1InlNf24gTNna8aW2WiwF2s-n_PE="
+        if [[ ${START_AIRFLOW=} != "true" ]]; then
+            export RUN_TESTS_WITH_DATABASE_ISOLATION="true"
+        fi
     fi
 
-    RUN_TESTS=${RUN_TESTS:="false"}
     CI=${CI:="false"}
 
     # Added to have run-tests on path
     export PATH=${PATH}:${AIRFLOW_SOURCES}
+
+    # Directory where simple auth manager store generated passwords
+    export AIRFLOW_AUTH_MANAGER_CREDENTIAL_DIRECTORY="/files"
 
     mkdir -pv "${AIRFLOW_HOME}/logs/"
 
@@ -985,15 +965,36 @@ function determine_airflow_to_use() {
         mkdir -p "${AIRFLOW_SOURCES}"/logs/
         mkdir -p "${AIRFLOW_SOURCES}"/tmp/
     else
+        if [[ ${USE_AIRFLOW_VERSION} =~ 2\.[7-8].* && ${TEST_TYPE} == "Providers[fab]" ]]; then
+            echo
+            echo "${COLOR_YELLOW}Skipping FAB tests on Airflow 2.7 and 2.8 because of FAB incompatibility with them${COLOR_RESET}"
+            echo
+            exit 0
+        fi
+        if [[ ${CLEAN_AIRFLOW_INSTALLATION=} == "true" ]]; then
+            echo
+            echo "${COLOR_BLUE}Uninstalling all packages first${COLOR_RESET}"
+            echo
+            pip freeze | grep -ve "^-e" | grep -ve "^#" | grep -ve "^uv" | xargs pip uninstall -y --root-user-action ignore
+            # Now install rich ad click first to use the installation script
+            uv pip install rich rich-click click --python "/usr/local/bin/python" \
+                --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
+        fi
         python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
+        echo
+        echo "${COLOR_BLUE}Reinstalling all development dependencies${COLOR_RESET}"
+        echo
+        python "${IN_CONTAINER_DIR}/install_devel_deps.py" \
+           --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         # Some packages might leave legacy typing module which causes test issues
         pip uninstall -y typing || true
-        # Upgrade pytest and pytest extensions to latest version if they have been accidentally
-        # downgraded by constraints
-        pip install --upgrade pytest pytest aiofiles aioresponses pytest-asyncio pytest-custom-exit-code \
-           pytest-icdiff pytest-instafail pytest-mock pytest-rerunfailures pytest-timeouts \
-           pytest-xdist pytest requests_mock time-machine \
-           --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
+        if [[ ${LINK_PROVIDERS_TO_AIRFLOW_PACKAGE=} == "true" ]]; then
+            echo
+            echo "${COLOR_BLUE}Linking providers to airflow package as we are using them from mounted sources.${COLOR_RESET}"
+            echo
+            rm -rf /usr/local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/providers
+            ln -s "${AIRFLOW_SOURCES}/providers/src/airflow/providers" "/usr/local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/providers"
+        fi
     fi
 
     if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
@@ -1010,53 +1011,24 @@ function check_boto_upgrade() {
     echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
     echo
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs || true
-    # We need to include oss2 as dependency as otherwise jmespath will be bumped and it will not pass
-    # the pip check test, Similarly gcloud-aio-auth limit is needed to be included as it bumps cryptography
+    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs yandexcloud opensearch-py || true
+    # We need to include few dependencies to pass pip check with other dependencies:
+    #   * oss2 as dependency as otherwise jmespath will be bumped (sync with alibaba provider)
+    #   * cryptography is kept for snowflake-connector-python limitation (sync with snowflake provider)
+    #   * requests needs to be limited to be compatible with apache beam (sync with apache-beam provider)
+    #   * yandexcloud requirements for requests does not match those of apache.beam and latest botocore
+    #   Both requests and yandexcloud exclusion above might be removed after
+    #   https://github.com/apache/beam/issues/32080 is addressed
+    #   This is already addressed and planned for 2.59.0 release.
+    #   When you remove yandexcloud and opensearch from the above list, you can also remove the
+    #   optional providers_dependencies exclusions from "test_example_dags.py" in "tests/always".
+    set -x
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore \
-       "oss2>=2.14.0" "gcloud-aio-auth>=4.0.0,<5.0.0"
+       "oss2>=2.14.0" "cryptography<43.0.0" "requests!=2.32.*,<3.0.0,>=2.24.0"
+    set +x
     pip check
 }
-
-function check_pydantic() {
-    if [[ ${PYDANTIC=} == "none" ]]; then
-        echo
-        echo "${COLOR_YELLOW}Reinstalling airflow from local sources to account for pyproject.toml changes${COLOR_RESET}"
-        echo
-        # shellcheck disable=SC2086
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} -e .
-        echo
-        echo "${COLOR_YELLOW}Remove pydantic and 3rd party libraries that depend on it${COLOR_RESET}"
-        echo
-        # shellcheck disable=SC2086
-        ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} pydantic aws-sam-translator openai \
-           pyiceberg qdrant-client cfn-lint weaviate-client google-cloud-aiplatform
-        pip check
-    elif [[ ${PYDANTIC=} == "v1" ]]; then
-        echo
-        echo "${COLOR_YELLOW}Reinstalling airflow from local sources to account for pyproject.toml changes${COLOR_RESET}"
-        echo
-        # shellcheck disable=SC2086
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} -e .
-        echo
-        echo "${COLOR_YELLOW}Uninstalling dependencies which are not compatible with Pydantic 1${COLOR_RESET}"
-        echo
-        # shellcheck disable=SC2086
-        ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} pyiceberg waeviate-client
-        echo
-        echo "${COLOR_YELLOW}Downgrading Pydantic to < 2${COLOR_RESET}"
-        echo
-        # shellcheck disable=SC2086
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "pydantic<2.0.0"
-        pip check
-    else
-        echo
-        echo "${COLOR_BLUE}Leaving default pydantic v2${COLOR_RESET}"
-        echo
-    fi
-}
-
 
 function check_downgrade_sqlalchemy() {
     if [[ ${DOWNGRADE_SQLALCHEMY=} != "true" ]]; then
@@ -1102,6 +1074,33 @@ function check_run_tests() {
        export PYTEST_PLAIN_ASSERTS="true"
     fi
 
+    if [[ ${DATABASE_ISOLATION=} == "true" ]]; then
+        echo "${COLOR_BLUE}Starting internal API server:${COLOR_RESET}"
+        # We need to start the internal API server before running tests
+        airflow db migrate
+        # We set a very large clock grace allowing to have tests running in other time/years
+        AIRFLOW__CORE__INTERNAL_API_CLOCK_GRACE=999999999 airflow internal-api >"${AIRFLOW_HOME}/logs/internal-api.log" 2>&1 &
+        echo
+        echo -n "${COLOR_YELLOW}Waiting for internal API server to listen on 9080. ${COLOR_RESET}"
+        echo
+        for _ in $(seq 1 40)
+        do
+            sleep 0.5
+            nc -z localhost 9080 && echo && echo "${COLOR_GREEN}Internal API server started!!${COLOR_RESET}" && break
+            echo -n "."
+        done
+        if ! nc -z localhost 9080; then
+            echo
+            echo "${COLOR_RED}Internal API server did not start in 20 seconds!!${COLOR_RESET}"
+            echo
+            echo "${COLOR_BLUE}Logs:${COLOR_RESET}"
+            echo
+            cat "${AIRFLOW_HOME}/logs/internal-api.log"
+            echo
+            exit 1
+        fi
+    fi
+
     if [[ ${RUN_SYSTEM_TESTS:="false"} == "true" ]]; then
         exec "${IN_CONTAINER_DIR}/run_system_tests.sh" "${@}"
     else
@@ -1113,34 +1112,33 @@ function check_force_lowest_dependencies() {
     if [[ ${FORCE_LOWEST_DEPENDENCIES=} != "true" ]]; then
         return
     fi
-    EXTRA=""
+    export EXTRA=""
     if [[ ${TEST_TYPE=} =~ Providers\[.*\] ]]; then
         # shellcheck disable=SC2001
-        EXTRA=$(echo "[${TEST_TYPE}]" | sed 's/Providers\[\(.*\)\]/\1/')
+        EXTRA=$(echo "[${TEST_TYPE}]" | sed 's/Providers\[\(.*\)\]/\1/' | sed 's/\./-/')
+        export EXTRA
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for provider: ${EXTRA}${COLOR_RESET}"
         echo
+        if ! /opt/airflow/scripts/in_container/is_provider_excluded.py; then
+            echo
+            echo "Skipping ${EXTRA} provider check on Python ${PYTHON_MAJOR_MINOR_VERSION}!"
+            echo
+            exit 0
+        fi
     else
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for Airflow.${COLOR_RESET}"
         echo
     fi
     set -x
-    # TODO: hard-code explicitly papermill on 3.12 but we should automate it
-    if [[ ${EXTRA}  == "[papermill]" && ${PYTHON_MAJOR_MINOR_VERSION} == "3.12" ]]; then
-        echo
-        echo "Skipping papermill check on Python 3.12!"
-        echo
-        exit 0
-    fi
-    uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}"
+    uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}" --editable "./task_sdk"
     set +x
 }
 
 determine_airflow_to_use
 environment_initialization
 check_boto_upgrade
-check_pydantic
 check_downgrade_sqlalchemy
 check_downgrade_pendulum
 check_force_lowest_dependencies
@@ -1170,8 +1168,11 @@ SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "n
 ARG PYTHON_BASE_IMAGE
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 
-# By increasing this number we can do force build of all dependencies
-ARG DEPENDENCIES_EPOCH_NUMBER="11"
+# By increasing this number we can do force build of all dependencies.
+# NOTE! When you want to make sure dependencies are installed from scratch in your PR after removing
+# some dependencies, you also need to set "disable image cache" in your PR to make sure the image is
+# not built using the "main" version of those dependencies.
+ARG DEPENDENCIES_EPOCH_NUMBER="14"
 
 # Make sure noninteractive debian install is used and language variables set
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
@@ -1232,7 +1233,7 @@ RUN bash /scripts/docker/install_mysql.sh prod \
     && chmod 0440 /etc/sudoers.d/airflow
 
 # Install Helm
-ARG HELM_VERSION="v3.9.4"
+ARG HELM_VERSION="v3.15.3"
 
 RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && PLATFORM=$([ "$(uname -m)" = "aarch64" ] && echo "arm64" || echo "amd64" ) \
@@ -1261,9 +1262,6 @@ ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
 ARG AIRFLOW_CI_BUILD_EPOCH="10"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
-ARG AIRFLOW_PIP_VERSION=24.0
-ARG AIRFLOW_UV_VERSION=0.2.3
-ARG AIRFLOW_USE_UV="true"
 # Setup PIP
 # By default PIP install run without cache to make image smaller
 ARG PIP_NO_CACHE_DIR="true"
@@ -1285,8 +1283,6 @@ ARG AIRFLOW_VERSION=""
 # Additional PIP flags passed to all pip install commands except reinstalling pip itself
 ARG ADDITIONAL_PIP_INSTALL_FLAGS=""
 
-ARG AIRFLOW_PIP_VERSION=24.0
-ARG AIRFLOW_UV_VERSION=0.2.3
 ARG AIRFLOW_USE_UV="true"
 
 ENV AIRFLOW_REPO=${AIRFLOW_REPO}\
@@ -1332,25 +1328,44 @@ COPY --from=scripts install_packaging_tools.sh install_airflow_dependencies_from
 # The Airflow and providers are uninstalled, only dependencies remain.
 # the cache is only used when "upgrade to newer dependencies" is not set to automatically
 # account for removed dependencies (we do not install them in the first place)
+#
+# We are installing from branch tip without fixing UV or PIP version - in order to avoid rebuilding the
+# base cache layer every time the UV or PIP version changes.
 RUN bash /scripts/docker/install_packaging_tools.sh; \
     if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" ]]; then \
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
+
+# Here we fix the versions so all subsequent commands will use the versions
+# from the sources
+# You can swap comments between those two args to test pip from the main version
+# When you attempt to test if the version of `pip` from specified branch works for our builds
+# Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
+ARG AIRFLOW_PIP_VERSION=24.3.1
+# ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
+ARG AIRFLOW_UV_VERSION=0.5.1
+
+ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
+    AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION}
+
 # The PATH is needed for PIPX to find the tools installed
 ENV PATH="/root/.local/bin:${PATH}"
 
-COPY --from=scripts install_pipx_tools.sh /scripts/docker/
-
 # Install useful command line tools in their own virtualenv so that they do not clash with
-# dependencies installed in Airflow
-RUN bash /scripts/docker/install_pipx_tools.sh
+# dependencies installed in Airflow also reinstall PIP and UV to make sure they are installed
+# in the version specified above
+RUN bash /scripts/docker/install_packaging_tools.sh
 
 # Airflow sources change frequently but dependency configuration won't change that often
 # We copy pyproject.toml and other files needed to perform setup of dependencies
 # So in case pyproject.toml changes we can install latest dependencies required.
 COPY pyproject.toml ${AIRFLOW_SOURCES}/pyproject.toml
+COPY providers/pyproject.toml ${AIRFLOW_SOURCES}/providers/pyproject.toml
+COPY task_sdk/pyproject.toml ${AIRFLOW_SOURCES}/task_sdk/pyproject.toml
+COPY task_sdk/README.md ${AIRFLOW_SOURCES}/task_sdk/README.md
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/
+COPY tests_common/ ${AIRFLOW_SOURCES}/tests_common/
 COPY generated/* ${AIRFLOW_SOURCES}/generated/
 COPY constraints/* ${AIRFLOW_SOURCES}/constraints/
 COPY LICENSE ${AIRFLOW_SOURCES}/LICENSE

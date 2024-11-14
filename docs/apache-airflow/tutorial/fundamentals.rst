@@ -359,43 +359,9 @@ dependencies into account, no state is registered in the database. It is
 convenient for locally testing a full run of your DAG, given that e.g. if one of
 your tasks expects data at some location, it is available.
 
-Backfill
-''''''''
-Everything looks like it's running fine so let's run a backfill.
-``backfill`` will respect your dependencies, emit logs into files and talk to
-the database to record status. If you do have a webserver up, you will be able
-to track the progress. ``airflow webserver`` will start a web server if you
-are interested in tracking the progress visually as your backfill progresses.
-
-Note that if you use ``depends_on_past=True``, individual task instances
-will depend on the success of their previous task instance (that is, previous
-according to the logical date). Task instances with their logical dates equal to
-``start_date`` will disregard this dependency because there would be no past
-task instances created for them.
-
-You may also want to consider ``wait_for_downstream=True`` when using ``depends_on_past=True``.
-While ``depends_on_past=True`` causes a task instance to depend on the success
-of its previous task_instance, ``wait_for_downstream=True`` will cause a task instance
-to also wait for all task instances *immediately downstream* of the previous
-task instance to succeed.
-
-The date range in this context is a ``start_date`` and optionally an ``end_date``,
-which are used to populate the run schedule with task instances from this DAG.
-
-.. code-block:: bash
-
-    # optional, start a web server in debug mode in the background
-    # airflow webserver --debug &
-
-    # start your backfill on a date range
-    airflow dags backfill tutorial \
-        --start-date 2015-06-01 \
-        --end-date 2015-06-07
-
-
 What's Next?
 -------------
-That's it! You have written, tested and backfilled your very first Airflow
+That's it! You have written and tested your very first Airflow
 pipeline. Merging your code into a repository that has a Scheduler
 running against it should result in being triggered and run every day.
 

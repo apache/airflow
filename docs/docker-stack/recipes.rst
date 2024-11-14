@@ -16,7 +16,7 @@
     under the License.
 
 Recipes
-=======
+========
 
 Users sometimes share interesting ways of using the Docker images. We encourage users to contribute these
 recipes to the documentation in case they prove useful to other members of the community by

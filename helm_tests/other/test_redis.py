@@ -143,7 +143,9 @@ class TestRedis:
         self.assert_broker_url_env(k8s_obj_by_key)
 
     @pytest.mark.parametrize("executor", CELERY_EXECUTORS_PARAMS)
-    def test_redis_by_chart_password_secret_name_missing_broker_url_secret_name(self, executor):
+    def test_redis_by_chart_password_secret_name_missing_broker_url_secret_name_and_broker_url_cmd(
+        self, executor
+    ):
         with pytest.raises(CalledProcessError):
             render_chart(
                 RELEASE_NAME_REDIS,
@@ -184,6 +186,30 @@ class TestRedis:
         )
 
         self.assert_broker_url_env(k8s_obj_by_key, expected_broker_url_secret_name)
+
+    @pytest.mark.parametrize("executor", CELERY_EXECUTORS_PARAMS)
+    def test_redis_by_chart_password_secret_name_without_broker_url_secret(self, executor):
+        k8s_objects = render_chart(
+            RELEASE_NAME_REDIS,
+            {
+                "executor": executor,
+                "redis": {
+                    "enabled": True,
+                    "passwordSecretName": "test-redis-password-secret-name",
+                },
+                "env": [
+                    {"name": "AIRFLOW__CELERY__BROKER_URL_CMD", "value": "test-broker-url"},
+                ],
+                "enableBuiltInSecretEnvVars": {"AIRFLOW__CELERY__BROKER_URL": False},
+            },
+        )
+        k8s_obj_by_key = prepare_k8s_lookup_dict(k8s_objects)
+        created_redis_objects = SET_POSSIBLE_REDIS_OBJECT_KEYS & set(k8s_obj_by_key.keys())
+
+        assert created_redis_objects == SET_POSSIBLE_REDIS_OBJECT_KEYS - {
+            REDIS_OBJECTS["SECRET_PASSWORD"],
+            REDIS_OBJECTS["NETWORK_POLICY"],
+        }
 
     @pytest.mark.parametrize("executor", CELERY_EXECUTORS_PARAMS)
     def test_external_redis_broker_url(self, executor):
@@ -377,6 +403,30 @@ class TestRedis:
             "spec.volumeClaimTemplates[0].spec.storageClassName", docs[0]
         )
 
+    def test_redis_template_persistence_storage_existing_claim(self):
+        docs = render_chart(
+            values={"redis": {"persistence": {"existingClaim": "test-existing-claim"}}},
+            show_only=["templates/redis/redis-statefulset.yaml"],
+        )
+        assert {
+            "name": "redis-db",
+            "persistentVolumeClaim": {"claimName": "test-existing-claim"},
+        } in jmespath.search("spec.template.spec.volumes", docs[0])
+
+    @pytest.mark.parametrize(
+        "redis_values, expected",
+        [
+            ({}, 600),
+            ({"redis": {"terminationGracePeriodSeconds": 1200}}, 1200),
+        ],
+    )
+    def test_redis_termination_grace_period_seconds(self, redis_values, expected):
+        docs = render_chart(
+            values=redis_values,
+            show_only=["templates/redis/redis-statefulset.yaml"],
+        )
+        assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
+
 
 class TestRedisServiceAccount:
     """Tests redis service account."""
@@ -402,3 +452,44 @@ class TestRedisServiceAccount:
             show_only=["templates/redis/redis-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+
+class TestRedisService:
+    """Tests redis service."""
+
+    @pytest.mark.parametrize(
+        "redis_values, expected",
+        [
+            ({"redis": {"service": {"type": "ClusterIP"}}}, "ClusterIP"),
+            ({"redis": {"service": {"type": "NodePort"}}}, "NodePort"),
+            ({"redis": {"service": {"type": "LoadBalancer"}}}, "LoadBalancer"),
+        ],
+    )
+    def test_redis_service_type(self, redis_values, expected):
+        docs = render_chart(
+            values=redis_values,
+            show_only=["templates/redis/redis-service.yaml"],
+        )
+        assert expected == jmespath.search("spec.type", docs[0])
+
+    def test_redis_service_nodeport(self):
+        docs = render_chart(
+            values={
+                "redis": {
+                    "service": {"type": "NodePort", "nodePort": 11111},
+                },
+            },
+            show_only=["templates/redis/redis-service.yaml"],
+        )
+        assert 11111 == jmespath.search("spec.ports[0].nodePort", docs[0])
+
+    def test_redis_service_clusterIP(self):
+        docs = render_chart(
+            values={
+                "redis": {
+                    "service": {"type": "ClusterIP", "clusterIP": "127.0.0.1"},
+                },
+            },
+            show_only=["templates/redis/redis-service.yaml"],
+        )
+        assert "127.0.0.1" == jmespath.search("spec.clusterIP", docs[0])

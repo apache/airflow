@@ -64,6 +64,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Docker cache specification to build the image (registry, local, disabled)."
         required: true
         type: string
+      disable-airflow-repo-cache:
+        description: "Disable airflow repo cache read from main."
+        required: true
+        type: string
       canary-run:
         description: "Whether this is a canary run (true/false)"
         required: true
@@ -78,6 +82,10 @@ on:  # yamllint disable-line rule:truthy
         type: string
       debug-resources:
         description: "Whether to debug resources (true/false)"
+        required: true
+        type: string
+      use-uv:
+        description: "Whether to use uv to build the image (true/false)"
         required: true
         type: string
 jobs:
@@ -109,9 +117,10 @@ jobs:
       python-versions: ${{ inputs.python-versions }}
       branch: ${{ inputs.branch }}
       constraints-branch: ${{ inputs.constraints-branch }}
-      use-uv: "true"
+      use-uv: ${{ inputs.use-uv}}
       include-success-outputs: ${{ inputs.include-success-outputs }}
       docker-cache: ${{ inputs.docker-cache }}
+      disable-airflow-repo-cache: ${{ inputs.disable-airflow-repo-cache }}
     if: inputs.branch == 'main'
 
   # Check that after earlier cache push, breeze command will build quickly
@@ -145,26 +154,28 @@ jobs:
       - name: "Check that image builds quickly"
         run: breeze shell --max-time 600 --platform "linux/amd64"
 
-  # This is only a check if ARM images are successfully building when committer runs PR from
-  # Apache repository. This is needed in case you want to fix failing cache job in "canary" run
-  # There is no point in running this one in "canary" run, because the above step is doing the
-  # same build anyway.
-  build-ci-arm-images:
-    name: Build CI ARM images (in-workflow)
-    uses: ./.github/workflows/ci-image-build.yml
-    permissions:
-      contents: read
-      packages: write
-    secrets: inherit
-    with:
-      push-image: "false"
-      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
-      image-tag: ${{ inputs.image-tag }}
-      python-versions: ${{ inputs.python-versions }}
-      platform: "linux/arm64"
-      branch: ${{ inputs.branch }}
-      constraints-branch: ${{ inputs.constraints-branch }}
-      use-uv: "true"
-      upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
-      docker-cache: ${{ inputs.docker-cache }}
+#  # This is only a check if ARM images are successfully building when committer runs PR from
+#  # Apache repository. This is needed in case you want to fix failing cache job in "canary" run
+#  # There is no point in running this one in "canary" run, because the above step is doing the
+#  # same build anyway.
+#  build-ci-arm-images:
+#    name: Build CI ARM images (in-workflow)
+#    uses: ./.github/workflows/ci-image-build.yml
+#    permissions:
+#      contents: read
+#      packages: write
+#    secrets: inherit
+#    with:
+#      push-image: "false"
+#      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
+#      runs-on-as-json-self-hosted: ${{ inputs.runs-on-as-json-self-hosted }}
+#      image-tag: ${{ inputs.image-tag }}
+#      python-versions: ${{ inputs.python-versions }}
+#      platform: "linux/arm64"
+#      branch: ${{ inputs.branch }}
+#      constraints-branch: ${{ inputs.constraints-branch }}
+#      use-uv: ${{ inputs.use-uv}}
+#      upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
+#      docker-cache: ${{ inputs.docker-cache }}
+#      disable-airflow-repo-cache:  ${{ inputs.disable-airflow-repo-cache }}
+#

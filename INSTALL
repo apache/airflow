@@ -3,8 +3,8 @@ INSTALL / BUILD instructions for Apache Airflow
 Basic installation of Airflow from sources and development environment setup
 ============================================================================
 
-This is a generic installation method that requires minimum standard tools to develop airflow and
-test it in a local virtual environment (using standard CPyhon installation and `pip`).
+This is a generic installation method that requires minimum standard tools to develop Airflow and
+test it in a local virtual environment (using standard CPython installation and `pip`).
 
 Depending on your system, you might need different prerequisites, but the following
 systems/prerequisites are known to work:
@@ -47,7 +47,8 @@ you get all sources in one place. This is the most convenient way to develop Air
 Otherwise, you have to install Airflow and Providers separately from sources in the same environment, which
 is not as convenient.
 
-## Creating virtualenv
+Creating virtualenv
+-------------------
 
 Airflow pulls in quite a lot of dependencies to connect to other services. You generally want to
 test or run Airflow from a virtualenv to ensure those dependencies are separated from your system-wide versions. Using system-installed Python installation is strongly discouraged as the versions of Python
@@ -59,9 +60,10 @@ Once you have a suitable Python version installed, you can create a virtualenv a
     python3 -m venv PATH_TO_YOUR_VENV
     source PATH_TO_YOUR_VENV/bin/activate
 
-## Installing Airflow locally
+Installing Airflow locally
+--------------------------
 
-Installing airflow locally can be done using pip - note that this will install "development" version of
+Installing Airflow locally can be done using pip - note that this will install "development" version of
 Airflow, where all providers are installed from local sources (if available), not from `pypi`.
 It will also not include pre-installed providers installed from PyPI. If you install from sources of
 just Airflow, you need to install separately each provider you want to develop. If you install
@@ -79,7 +81,6 @@ this one contains the minimum set of tools and dependencies needed to run unit t
 
     pip install -e ".[devel]"
 
-
 You can also install optional packages that are needed to run certain tests. In case of local installation
 for example, you can install all prerequisites for Google provider, tests, and
 all Hadoop providers with this command:
@@ -93,124 +94,82 @@ or you can install all packages needed to run tests for core, providers, and all
 
 You can see the list of all available extras below.
 
-# Using Hatch to manage your Python, virtualenvs, and build packages
+Additionally when you want to develop providers you need to install providers code in editable mode:
 
-Airflow uses [hatch](https://hatch.pypa.io/) as a build and development tool. It is one of the popular
-build tools and environment managers for Python, maintained by the Python Packaging Authority.
-It is an optional tool that is only really needed when you want to build packages from sources, but
-it is also very convenient to manage your Python versions and virtualenvs.
+    pip install -e "./providers"
 
-Airflow project contains some pre-defined virtualenv definitions in `pyproject.toml` that can be
-easily used by Hatch to create your local venvs. This is not necessary for you to develop and test
-Airflow, but it is a convenient way to manage your local Python versions and virtualenvs.
+Using ``uv`` to manage your Python, virtualenvs, and install airflow for development
+====================================================================================
 
-Installing Hatch
-----------------
+While you can manually install airflow locally from sources, Airflow committers recommend using
+[uv](https://docs.astral.sh/uv/) as a build and development tool. It is a modern,
+recently introduced popular packaging front-end tool and environment managers for Python.
+It is an optional tool that is only really needed when you want to build packages from sources, you can use
+many other packaging frontends (for example ``hatch``) but ``uv`` is very fast and convenient to manage
+also your Python versions and virtualenvs. Also we use ``
 
-You can install Hatch using various other ways (including Gui installers).
+Installing ``uv``
+-----------------
 
-Example using `pipx`:
+You can install uv following [the instructions](https://docs.astral.sh/uv/getting-started/installation/ on
+
+Using ``uv`` to manage your virtualenvs
+---------------------------------------
+
+You can create a virtualenv with ``uv`` using the following command:
+
+    uv venv create
+
+You can sync to latest versions of airflow dependencies using:
+
+    uv sync
+
+And if you want to use some extras (for example because you want to develop providers) you can add
+extras to the command:
+
+    uv sync --extra devel
+
+You can also synchronize all extras:
+
+    uv sync --all-extras
+
+Building airflow packages with Hatch
+====================================
+
+While building packages will work with any compliant packaging front-end tool, for reproducibility, we
+recommend using ``hatch``. It is a modern, fast, and convenient tool to build packages from sources managed
+by the Python Packaging Authority. It is also used by Airflow to build packages in CI/CD as well as by
+release managers to build locally packages for verification of reproducibility of the build.
+
+Installing ``hatch``
+--------------------
+
+More information about hatch can be found in https://hatch.pypa.io/
+
+We recommend to install ``hatch`` using ```uv tool`` command which will make hatch available as a CLI
+command globally:
+
+    uv tool install hatch
+
+You can still install ``hatch`` using ``pipx`` if you prefer:
 
     pipx install hatch
 
-We recommend using `pipx` as you can manage installed Python apps easily and later use it
-to upgrade `hatch` easily as needed with:
 
-    pipx upgrade hatch
+It's important to keep your hatch up to date. You can do this by running:
 
-## Using Hatch to manage your Python versions
+    uv tool upgrade hatch
 
-You can also use Hatch to install and manage airflow virtualenvs and development
-environments. For example, you can install Python 3.10 with this command:
 
-    hatch python install 3.10
-
-or install all Python versions that are used in Airflow:
-
-    hatch python install all
-
-## Using Hatch to manage your virtualenvs
-
-Airflow has some pre-defined virtualenvs that you can use to develop and test airflow.
-You can see the list of available envs with:
-
-    hatch env show
-
-This is what it shows currently:
-
-┏━━━━━━━━━━━━━┳━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ Name        ┃ Type    ┃ Description                                                   ┃
-┡━━━━━━━━━━━━━╇━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
-│ default     │ virtual │ Default environment with Python 3.8 for maximum compatibility │
-├─────────────┼─────────┼───────────────────────────────────────────────────────────────┤
-│ airflow-38  │ virtual │ Environment with Python 3.8. No devel installed.              │
-├─────────────┼─────────┼───────────────────────────────────────────────────────────────┤
-│ airflow-39  │ virtual │ Environment with Python 3.9. No devel installed.              │
-├─────────────┼─────────┼───────────────────────────────────────────────────────────────┤
-│ airflow-310 │ virtual │ Environment with Python 3.10. No devel installed.             │
-├─────────────┼─────────┼───────────────────────────────────────────────────────────────┤
-│ airflow-311 │ virtual │ Environment with Python 3.11. No devel installed              │
-├─────────────┼─────────┼───────────────────────────────────────────────────────────────┤
-│ airflow-312 │ virtual │ Environment with Python 3.12. No devel installed              │
-└─────────────┴─────────┴───────────────────────────────────────────────────────────────┘
-
-The default env (if you have not used one explicitly) is `default` and it is a Python 3.8
-virtualenv for maximum compatibility with `devel` extra installed - this devel extra contains the minimum set
-of dependencies and tools that should be used during unit testing of core Airflow and running all `airflow`
-CLI commands - without support for providers or databases.
-
-The other environments are just bare-bones Python virtualenvs with Airflow core requirements only,
-without any extras installed and without any tools. They are much faster to create than the default
-environment, and you can manually install either appropriate extras or tools that you need for
-testing or development.
-
-    hatch env create
-
-You can create specific environments by using them in create command:
-
-    hatch env create airflow-310
-
-You can install extras in the environment by running pip command:
-
-    hatch -e airflow-310 run -- pip install -e ".[devel,google]"
-
-And you can enter the environment by running a shell of your choice (for example, zsh) where you
-can run any commands
-
-    hatch -e airflow-310 shell
-
-Once you are in the environment (indicated usually by an updated prompt), you can just install
-the extra dependencies you need:
-
-    [~/airflow] [airflow-310] pip install -e ".[devel,google]"
-
-You can exit the environment by just exiting the shell.
-
-You can also see where Hatch created the virtualenvs and use it in your IDE or activate it manually:
-
-    hatch env find airflow-310
-
-You will get a path similar to the following:
-
-    /Users/jarek/Library/Application Support/hatch/env/virtual/apache-airflow/TReRdyYt/apache-airflow
-
-Then you will find `python` binary and `activate` script in the `bin` sub-folder of this directory, and
-you can configure your IDE to use this python virtualenv if you want to use that environment in your IDE.
-
-You can also set the default environment name by the HATCH_ENV environment variable.
-
-You can clean the environment by running the following:
-
-    hatch env prune
-
-More information about hatch can be found in https://hatch.pypa.io/1.9/environment/
-
-## Using Hatch to build your packages
+Using Hatch to build your packages
+----------------------------------
 
 You can use Hatch to build installable packages from the Airflow sources. Such package will
-include all metadata configured in `pyproject.toml` and will be installable with pip.
+include all metadata configured in `pyproject.toml` and will be installable with ``pip`` and and any other
+PEP-compliant packaging front-end.
 
-The packages will have pre-installed dependencies for providers that are available when Airflow is installed from PyPI. Both `wheel` and `sdist` packages are built by default.
+The packages will have pre-installed dependencies for providers that are available when Airflow is i
+onstalled from PyPI. Both `wheel` and `sdist` packages are built by default.
 
     hatch build
 
@@ -219,7 +178,8 @@ You can also build only `wheel` or `sdist` packages:
     hatch build -t wheel
     hatch build -t sdist
 
-## Installing recommended version of dependencies
+Installing recommended version of dependencies
+==============================================
 
 Whatever virtualenv solution you use, when you want to make sure you are using the same
 version of dependencies as in main, you can install the recommended version of the dependencies by using
@@ -228,15 +188,15 @@ to avoid "works-for-me" syndrome, where you use different versions of dependenci
 that are used in main CI tests and by other contributors.
 
 There are different constraint files for different Python versions. For example, this command will install
-all basic devel requirements and requirements of Google provider as last successfully tested for Python 3.8:
+all basic devel requirements and requirements of Google provider as last successfully tested for Python 3.9:
 
     pip install -e ".[devel,google]"" \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.8.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.9.txt"
 
 Using the 'constraints-no-providers' constraint files, you can upgrade Airflow without paying attention to the provider's dependencies. This allows you to keep installed provider dependencies and install the latest supported ones using pure Airflow core.
 
 pip install -e ".[devel]" \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.8.txt"
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.9.txt"
 
 Airflow extras
 ==============
@@ -256,9 +216,8 @@ Those extras are available as regular core airflow extras - they install optiona
 
 # START CORE EXTRAS HERE
 
-aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, deprecated-api, github-
-enterprise, google-auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, pydantic,
-rabbitmq, s3fs, saml, sentry, statsd, uv, virtualenv
+aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, github-enterprise, google-
+auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, sentry, statsd, uv
 
 # END CORE EXTRAS HERE
 
@@ -273,13 +232,13 @@ or dependencies that are necessary to enable the feature in an editable build.
 airbyte, alibaba, amazon, apache.beam, apache.cassandra, apache.drill, apache.druid, apache.flink,
 apache.hdfs, apache.hive, apache.iceberg, apache.impala, apache.kafka, apache.kylin, apache.livy,
 apache.pig, apache.pinot, apache.spark, apprise, arangodb, asana, atlassian.jira, celery, cloudant,
-cncf.kubernetes, cohere, common.io, common.sql, databricks, datadog, dbt.cloud, dingding, discord,
-docker, elasticsearch, exasol, fab, facebook, ftp, github, google, grpc, hashicorp, http, imap,
-influxdb, jdbc, jenkins, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo,
-mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie, oracle, pagerduty,
-papermill, pgvector, pinecone, postgres, presto, qdrant, redis, salesforce, samba, segment,
-sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, tableau, tabular, telegram,
-teradata, trino, vertica, weaviate, yandex, zendesk
+cncf.kubernetes, cohere, common.compat, common.io, common.sql, databricks, datadog, dbt.cloud,
+dingding, discord, docker, edge, elasticsearch, exasol, fab, facebook, ftp, github, google, grpc,
+hashicorp, http, imap, influxdb, jdbc, jenkins, microsoft.azure, microsoft.mssql, microsoft.psrp,
+microsoft.winrm, mongo, mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie,
+oracle, pagerduty, papermill, pgvector, pinecone, postgres, presto, qdrant, redis, salesforce,
+samba, segment, sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, standard, tableau,
+telegram, teradata, trino, vertica, weaviate, yandex, ydb, zendesk
 
 # END PROVIDER EXTRAS HERE
 

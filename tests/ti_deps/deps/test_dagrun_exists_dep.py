@@ -26,7 +26,7 @@ from airflow.models.dagrun import DagRun
 from airflow.ti_deps.deps.dagrun_exists_dep import DagrunRunningDep
 from airflow.utils.state import State
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestDagrunRunningDep:
@@ -35,7 +35,7 @@ class TestDagrunRunningDep:
         """
         Task instances without dagruns should fail this dep
         """
-        dag = DAG("test_dag", max_active_runs=2)
+        dag = DAG("test_dag", schedule=None, max_active_runs=2)
         dagrun = DagRun(state=State.QUEUED)
         ti = Mock(task=Mock(dag=dag), get_dagrun=Mock(return_value=dagrun))
         assert not DagrunRunningDep().is_met(ti=ti)

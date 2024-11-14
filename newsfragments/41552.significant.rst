@@ -1,0 +1,1 @@
+Removed deprecated ``filename_template`` argument from ``airflow.utils.log.file_task_handler.FileTaskHandler``.

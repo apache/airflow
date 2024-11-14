@@ -23,7 +23,7 @@ XComs
 
 XComs (short for "cross-communications") are a mechanism that let :doc:`tasks` talk to each other, as by default Tasks are entirely isolated and may be running on entirely different machines.
 
-An XCom is identified by a ``key`` (essentially its name), as well as the ``task_id`` and ``dag_id`` it came from. They can have any (serializable) value, but they are only designed for small amounts of data; do not use them to pass around large values, like dataframes.
+An XCom is identified by a ``key`` (essentially its name), as well as the ``task_id`` and ``dag_id`` it came from. They can have any serializable value (including objects that are decorated with ``@dataclass`` or ``@attr.define``, see :ref:`TaskFlow arguments <concepts:arbitrary-arguments>`:), but they are only designed for small amounts of data; do not use them to pass around large values, like dataframes.
 
 XComs are explicitly "pushed" and "pulled" to/from their storage using the ``xcom_push`` and ``xcom_pull`` methods on Task Instances.
 
@@ -64,8 +64,8 @@ Object Storage XCom Backend
 
 The default XCom backend is the :class:`~airflow.models.xcom.BaseXCom` class, which stores XComs in the Airflow database. This is fine for small values, but can be problematic for large values, or for large numbers of XComs.
 
-To enable storing XComs in an object store, you can set the ``xcom_backend`` configuration option to ``airflow.providers.common.io.xcom.backend.XComObjectStorageBackend``. You will also need to set ``xcom_objectstorage_path`` to the desired location. The connection
-id is obtained from the user part of the url the you will provide, e.g. ``xcom_objectstorage_path = s3://conn_id@mybucket/key``. Furthermore, ``xcom_objectstorage_threshold`` is required
+To enable storing XComs in an object store, you can set the ``xcom_backend`` configuration option to ``airflow.providers.common.io.xcom.backend.XComObjectStorageBackend``.
+You will also need to set ``xcom_objectstorage_path`` to the desired location. The connection id is obtained from the user part of the url that you will provide, e.g. ``xcom_objectstorage_path = s3://conn_id@mybucket/key``. Furthermore, ``xcom_objectstorage_threshold`` is required
 to be something larger than -1. Any object smaller than the threshold in bytes will be stored in the database and anything larger will be be
 put in object storage. This will allow a hybrid setup. If an xcom is stored on object storage a reference will be
 saved in the database. Finally, you can set ``xcom_objectstorage_compression`` to fsspec supported compression methods like ``zip`` or ``snappy`` to
@@ -79,7 +79,7 @@ So for example the following configuration will store anything above 1MB in S3 a
       [common.io]
       xcom_objectstorage_path = s3://conn_id@mybucket/key
       xcom_objectstorage_threshold = 1048576
-      xcom_objectstoragee_compression = gzip
+      xcom_objectstorage_compression = gzip
 
 
 .. note::
@@ -124,7 +124,7 @@ You can also examine Airflow's configuration:
 Working with Custom Backends in K8s via Helm
 --------------------------------------------
 
-Running custom XCom backends in K8s will introduce even more complexity to you Airflow deployment. Put simply, sometimes things go wrong which can be difficult to debug.
+Running custom XCom backends in K8s will introduce even more complexity to your Airflow deployment. Put simply, sometimes things go wrong which can be difficult to debug.
 
 For example, if you define a custom XCom backend in the Chart ``values.yaml`` (via the ``xcom_backend`` configuration) and Airflow fails to load the class, the entire Chart deployment will fail with each pod container attempting to restart time and time again.
 

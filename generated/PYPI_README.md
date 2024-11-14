@@ -54,20 +54,18 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 
 Apache Airflow is tested with:
 
-|             | Main version (dev)           | Stable version (2.9.1)      |
-|-------------|------------------------------|-----------------------------|
-| Python      | 3.8, 3.9, 3.10, 3.11, 3.12   | 3.8, 3.9, 3.10, 3.11, 3.12  |
-| Platform    | AMD64/ARM64(\*)              | AMD64/ARM64(\*)             |
-| Kubernetes  | 1.26, 1.27, 1.28, 1.29, 1.30 | 1.26, 1.27, 1.28, 1.29      |
-| PostgreSQL  | 12, 13, 14, 15, 16           | 12, 13, 14, 15, 16          |
-| MySQL       | 8.0, 8.4, Innovation         | 8.0, Innovation             |
-| SQLite      | 3.15.0+                      | 3.15.0+                     |
+|            | Main version (dev)         | Stable version (2.10.3)    |
+|------------|----------------------------|----------------------------|
+| Python     | 3.9, 3.10, 3.11, 3.12      | 3.8, 3.9, 3.10, 3.11, 3.12 |
+| Platform   | AMD64/ARM64(\*)            | AMD64/ARM64(\*)            |
+| Kubernetes | 1.28, 1.29, 1.30, 1.31     | 1.27, 1.28, 1.29, 1.30     |
+| PostgreSQL | 12, 13, 14, 15, 16, 17     | 12, 13, 14, 15, 16         |
+| MySQL      | 8.0, 8.4, Innovation       | 8.0, 8.4, Innovation       |
+| SQLite     | 3.15.0+                    | 3.15.0+                    |
 
 \* Experimental
 
-**Note**: MySQL 5.x versions are unable to or have limitations with
-running multiple schedulers -- please see the [Scheduler docs](https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/scheduler.html).
-MariaDB is not tested/recommended.
+**Note**: MariaDB is not tested/recommended.
 
 **Note**: SQLite is used in Airflow tests. Do not use it in production. We recommend
 using the latest stable version of SQLite for local development.
@@ -79,9 +77,7 @@ The work to add Windows support is tracked via [#10388](https://github.com/apach
 it is not a high priority. You should only use Linux-based distros as "Production" execution environment
 as this is the only environment that is supported. The only distro that is used in our CI tests and that
 is used in the [Community managed DockerHub image](https://hub.docker.com/p/apache/airflow) is
-`Debian Bookworm`. We also have support for legacy ``Debian Bullseye`` base image if you want to build a
-custom image but it is deprecated and option to do it will be removed in the Dockerfile that
-will accompany Airflow 2.9.1 so you are advised to switch to ``Debian Bookworm`` for your custom images.
+`Debian Bookworm`.
 
 ## Getting started
 
@@ -132,15 +128,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.9.1' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.9.1/constraints-3.8.txt"
+pip install 'apache-airflow==2.10.3' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.3/constraints-3.9.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.8.3' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.9.1/constraints-3.8.txt"
+pip install 'apache-airflow[postgres,google]==2.10.3' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.3/constraints-3.9.txt"
 ```
 
 For information on installing provider packages, check
@@ -163,7 +159,9 @@ release provided they have access to the appropriate platform and tools.
 
 ## Contributing
 
-Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/main/contributing-docs/README.rst).
+Want to help build Apache Airflow? Check out our [contributors' guide](https://github.com/apache/airflow/blob/main/contributing-docs/README.rst) for a comprehensive overview of how to contribute, including setup instructions, coding standards, and pull request guidelines.
+
+If you can't wait to contribute, and want to get started asap, check out the [contribution quickstart](https://github.com/apache/airflow/blob/main/contributing-docs/03_contributors_quick_start.rst) here!
 
 Official Docker (container) images for Apache Airflow are described in [images](dev/breeze/doc/ci/02_images.md).
 

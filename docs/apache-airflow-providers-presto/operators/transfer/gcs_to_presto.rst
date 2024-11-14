@@ -39,7 +39,7 @@ This operator assumes that CSV does not have headers and the data is correspondi
 pre-existing presto table. Optionally, you can provide schema as tuple/list of strings or as a path to a
 JSON file in the same bucket as the CSV file.
 
-.. exampleinclude:: /../../tests/system/providers/presto/example_gcs_to_presto.py
+.. exampleinclude:: /../../providers/tests/system/presto/example_gcs_to_presto.py
     :language: python
     :dedent: 4
     :start-after: [START gcs_csv_to_presto_table]

@@ -96,8 +96,6 @@ You can use the default airflow SMTP backend to send email with SendGrid
      smtp_host=smtp.sendgrid.net
      smtp_starttls=False
      smtp_ssl=False
-     smtp_user=apikey
-     smtp_password=<generated-api-key>
      smtp_port=587
      smtp_mail_from=<your-from-email>
 
@@ -108,8 +106,6 @@ Equivalent environment variables looks like
      AIRFLOW__SMTP__SMTP_HOST=smtp.sendgrid.net
      AIRFLOW__SMTP__SMTP_STARTTLS=False
      AIRFLOW__SMTP__SMTP_SSL=False
-     AIRFLOW__SMTP__SMTP_USER=apikey
-     AIRFLOW__SMTP__SMTP_PASSWORD=<generated-api-key>
      AIRFLOW__SMTP__SMTP_PORT=587
      AIRFLOW__SMTP__SMTP_MAIL_FROM=<your-from-email>
 

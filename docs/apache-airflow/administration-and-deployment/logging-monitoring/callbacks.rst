@@ -34,7 +34,7 @@ For example, you may wish to alert when certain tasks have failed, or have the l
     Callback functions are executed after tasks are completed.
     Errors in callback functions will show up in scheduler logs rather than task logs.
     By default, scheduler logs do not show up in the UI and instead can be found in
-    ``$AIRFLOW_HOME/logs/scheduler/latest/PROJECT/DAG_FILE.py.log``
+    ``$AIRFLOW_HOME/logs/scheduler/latest/DAG_FILE.py.log``
 
 Callback Types
 --------------
@@ -46,7 +46,6 @@ Name                                        Description
 =========================================== ================================================================
 ``on_success_callback``                     Invoked when the task :ref:`succeeds <concepts:task-instances>`
 ``on_failure_callback``                     Invoked when the task :ref:`fails <concepts:task-instances>`
-``sla_miss_callback``                       Invoked when a task misses its defined :ref:`SLA <concepts:slas>`
 ``on_retry_callback``                       Invoked when the task is :ref:`up for retry <concepts:task-instances>`
 ``on_execute_callback``                     Invoked right before the task begins executing.
 ``on_skipped_callback``                     Invoked when the task is :ref:`running <concepts:task-instances>` and  AirflowSkipException raised.

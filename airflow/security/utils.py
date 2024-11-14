@@ -42,7 +42,8 @@ from airflow.utils.net import get_hostname
 
 
 def get_components(principal) -> list[str] | None:
-    """Split the kerberos principal string into parts.
+    """
+    Split the kerberos principal string into parts.
 
     :return: *None* if the principal is empty. Otherwise split the value into
         parts. Assuming the principal string is valid, the return value should
