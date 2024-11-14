@@ -32,18 +32,14 @@ export const useImportErrors = (
     orderBy?: string;
   } = {},
 ) => {
-  const { limit = 10, offset, orderBy } = searchParams;
+  const { limit = 5, offset, orderBy } = searchParams;
 
-  const {
-    data: errorsData,
-    error: errorsError,
-    isFetching: isErrorsFetching,
-    isLoading: isErrorsLoading,
-  } = useImportErrorServiceGetImportErrors(
-    { limit, offset, orderBy },
-    undefined,
-    queryOptions,
-  );
+  const { data: errorsData, error: errorsError } =
+    useImportErrorServiceGetImportErrors(
+      { limit, offset, orderBy },
+      undefined,
+      queryOptions,
+    );
 
   return {
     data: {
@@ -51,7 +47,5 @@ export const useImportErrors = (
       total_entries: errorsData?.total_entries ?? 0,
     },
     error: errorsError,
-    isFetching: isErrorsFetching,
-    isLoading: isErrorsLoading,
   };
 };

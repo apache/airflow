@@ -21,14 +21,16 @@ import { FiChevronRight } from "react-icons/fi";
 
 import { useImportErrors } from "src/queries/useDagsImportErrors";
 
-// Custom hook with pagination
+import { DAGImportErrorsModal } from "./DAGImportErrorsModal";
 
 const PAGE_LIMIT = 10;
 
 export const DAGImportErrors = () => {
   const { onClose, onOpen, open } = useDisclosure();
-  const { data, error, isLoading } = useImportErrors({
+  const { data, error } = useImportErrors({
     limit: PAGE_LIMIT,
+    offset: 0,
+    orderBy: "",
   });
   const importErrorsCount = data.total_entries || 0;
 
@@ -50,7 +52,7 @@ export const DAGImportErrors = () => {
           <FiChevronRight />
         </Box>
       </Button>
-      {/* <DAGImportErrorsModal isOpen={isOpen} onClose={onClose} /> */}
+      <DAGImportErrorsModal onClose={onClose} open={open} />
     </Box>
   );
 };
