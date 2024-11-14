@@ -39,6 +39,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import _run_inline_trigger
+from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.triggers.base import TriggerEvent
 from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
@@ -83,23 +84,34 @@ class TestCliDags:
         # Assert that there are serialized Dags
         serialized_dags_before_command = session.query(SerializedDagModel).all()
         assert len(serialized_dags_before_command)  # There are serialized DAGs to delete
+        # delete all versioning
+        session.query(DagVersion).delete()
 
-        # Run clear of serialized dags
-        dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize", "--clear-only", "--yes"]))
-        # Assert no serialized Dags
+        serialized_dags_before_command = session.query(SerializedDagModel).all()
+        assert not len(serialized_dags_before_command)  # There are no more serialized dag
+        dag_version_before_command = session.query(DagVersion).all()
+        assert not len(dag_version_before_command)
+        # Serialize the dags
+        dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize"]))
+        # Assert serialized Dags
         serialized_dags_after_clear = session.query(SerializedDagModel).all()
-        assert not len(serialized_dags_after_clear)
+        assert len(serialized_dags_after_clear)
+        dag_version_after_command = session.query(DagVersion).all()
+        assert len(dag_version_after_command)
 
-        # Serialize manually
-        dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize", "--yes"]))
+        # Serialize the dag with clear history
+        dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize", "--clear-history"]))
 
         # Check serialized DAGs are back
+        dagv = session.query(DagVersion).all()
+        assert len(dagv)
         serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
         assert len(serialized_dags_after_reserialize) >= 40  # Serialized DAGs back
+        assert len(dagv) == len(serialized_dags_after_reserialize)
 
     def test_reserialize_should_support_subdir_argument(self, session):
         # Run clear of serialized dags
-        dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize", "--clear-only", "--yes"]))
+        session.query(DagVersion).delete()
 
         # Assert no serialized Dags
         serialized_dags_after_clear = session.query(SerializedDagModel).all()
@@ -113,9 +125,7 @@ class TestCliDags:
         with mock.patch(
             "airflow.cli.commands.dag_command.DagBag.__init__.__defaults__", tuple(dagbag_default)
         ):
-            dag_command.dag_reserialize(
-                self.parser.parse_args(["dags", "reserialize", "--subdir", dag_path, "--yes"])
-            )
+            dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize", "--subdir", dag_path]))
 
         # Check serialized DAG are back
         serialized_dags_after_reserialize = session.query(SerializedDagModel).all()

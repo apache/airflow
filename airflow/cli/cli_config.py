@@ -968,10 +968,10 @@ ARG_CAPACITY = Arg(
 )
 
 # reserialize
-ARG_CLEAR_ONLY = Arg(
-    ("--clear-only",),
+ARG_CLEAR_HISTORY = Arg(
+    ("--clear-history",),
     action="store_true",
-    help="If passed, serialized DAGs will be cleared but not reserialized.",
+    help="If passed, DAGs history will be cleared.",
 )
 
 ARG_DAG_LIST_COLUMNS = Arg(
@@ -1251,10 +1251,9 @@ DAGS_COMMANDS = (
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_reserialize"),
         args=(
-            ARG_CLEAR_ONLY,
+            ARG_CLEAR_HISTORY,
             ARG_SUBDIR,
             ARG_VERBOSE,
-            ARG_YES,
         ),
     ),
 )

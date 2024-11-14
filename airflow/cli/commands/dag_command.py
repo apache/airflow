@@ -538,12 +538,8 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
 @provide_session
 def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
     """Serialize a DAG instance."""
-    if not (
-        args.yes or input("This will clean out all DAG versioning history. Proceed? (y/n)").upper() == "Y"
-    ):
-        raise SystemExit("Cancelled")
-    session.execute(delete(DagVersion).execution_options(synchronize_session=False))
+    if args.clear_history:
+        session.execute(delete(DagVersion).execution_options(synchronize_session=False))
 
-    if not args.clear_only:
-        dagbag = DagBag(process_subdir(args.subdir))
-        dagbag.sync_to_db(session=session)
+    dagbag = DagBag(process_subdir(args.subdir))
+    dagbag.sync_to_db(session=session)
