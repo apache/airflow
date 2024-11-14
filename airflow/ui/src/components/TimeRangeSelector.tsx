@@ -37,7 +37,7 @@ type Props = {
   readonly timeOptions: ListCollection<{ label: string; value: string }>;
 };
 
-const TimeSelector = ({
+const TimeRangeSelector = ({
   defaultValue,
   endDate,
   setEndDate,
@@ -82,4 +82,4 @@ const TimeSelector = ({
   );
 };
 
-export default TimeSelector;
+export default TimeRangeSelector;

@@ -22,7 +22,7 @@ import { useState } from "react";
 
 import { useDashboardServiceHistoricalMetrics } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import TimeSelector from "src/components/TimeSelector";
+import TimeRangeSelector from "src/components/TimeRangeSelector";
 
 import { DagRunMetrics } from "./DagRunMetrics";
 import { MetricSectionSkeleton } from "./MetricSectionSkeleton";
@@ -68,7 +68,7 @@ export const HistoricalMetrics = () => {
     <Box width="100%">
       <ErrorAlert error={error} />
       <VStack alignItems="left" gap={2}>
-        <TimeSelector
+        <TimeRangeSelector
           defaultValue={defaultHour}
           endDate={endDate}
           setEndDate={setEndDate}

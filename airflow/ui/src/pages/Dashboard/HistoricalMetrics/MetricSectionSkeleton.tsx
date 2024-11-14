@@ -19,7 +19,7 @@
 import { VStack, Skeleton } from "@chakra-ui/react";
 
 export const MetricSectionSkeleton = () => (
-  <VStack height={200} width="full">
+  <VStack>
     <Skeleton height={200} width="full" />
     <Skeleton height={200} width="full" />
   </VStack>
