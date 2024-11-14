@@ -23,9 +23,7 @@ from unittest import mock
 import pytest
 import time_machine
 from moto import mock_aws
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.variable import Variable
@@ -34,8 +32,7 @@ from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchanged
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 

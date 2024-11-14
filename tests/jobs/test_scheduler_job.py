@@ -33,12 +33,11 @@ import pendulum
 import psutil
 import pytest
 import time_machine
-from packaging.version import Version
 from pytest import param
 from sqlalchemy import func, select, update
 
 import airflow.example_dags
-from airflow import __version__ as airflow_version, settings
+from airflow import settings
 from airflow.assets import Asset
 from airflow.assets.manager import AssetManager
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
@@ -78,6 +77,7 @@ from tests.listeners.test_listeners import get_listener_manager
 from tests.models import TEST_DAGS_FOLDER
 from tests.utils.test_timezone import UTC
 from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars, env_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -93,8 +93,6 @@ from tests_common.test_utils.db import (
 from tests_common.test_utils.mock_executor import MockExecutor
 from tests_common.test_utils.mock_operators import CustomOperator
 
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 

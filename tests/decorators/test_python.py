@@ -21,9 +21,7 @@ from datetime import date, timedelta
 from typing import TYPE_CHECKING, Dict, Tuple, Union
 
 import pytest
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException, XComNotFound
@@ -43,9 +41,7 @@ from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from providers.tests.standard.operators.test_python import BasePythonTest
-
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

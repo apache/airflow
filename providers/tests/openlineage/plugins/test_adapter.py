@@ -36,9 +36,8 @@ from openlineage.client.facet_v2 import (
     processing_engine_run,
     sql_job,
 )
-from packaging.version import Version
 
-from airflow import DAG, __version__ as airflow_version
+from airflow import DAG
 from airflow.models.dagrun import DagRun, DagRunState
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.operators.empty import EmptyOperator
@@ -53,11 +52,9 @@ from airflow.providers.openlineage.plugins.facets import (
 from airflow.providers.openlineage.utils.utils import get_airflow_job_facet
 from airflow.utils.task_group import TaskGroup
 
-from tests_common.test_utils.compat import BashOperator
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BashOperator
 from tests_common.test_utils.config import conf_vars
 
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 pytestmark = pytest.mark.db_test
 
 

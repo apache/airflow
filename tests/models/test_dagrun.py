@@ -25,9 +25,8 @@ from unittest.mock import call
 
 import pendulum
 import pytest
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version, settings
+from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import setup, task, task_group, teardown
 from airflow.exceptions import AirflowException
@@ -50,11 +49,10 @@ from airflow.utils.types import DagRunType
 
 from tests.models import DEFAULT_DATE as _DEFAULT_DATE
 from tests_common.test_utils import db
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_operators import MockOperator
 
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 

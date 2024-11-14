@@ -20,16 +20,13 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.transfers.mongo_to_s3 import MongoToS3Operator
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 TASK_ID = "test_mongo_to_s3_operator"
 MONGO_CONN_ID = "default_mongo"

@@ -19,9 +19,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 import pytest
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.utils.session import create_session
@@ -29,9 +27,7 @@ from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
 from tests.models import DEFAULT_DATE
-
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

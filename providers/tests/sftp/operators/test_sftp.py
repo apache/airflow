@@ -25,9 +25,7 @@ from unittest import mock
 
 import paramiko
 import pytest
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import DAG, Connection
 from airflow.providers.common.compat.openlineage.facet import Dataset
@@ -38,10 +36,9 @@ from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
 
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 pytestmark = pytest.mark.db_test
 
 
@@ -346,12 +343,6 @@ class TestSFTPOperator:
                 operation=SFTPOperation.GET,
                 create_intermediate_dirs=True,
             )
-        from packaging.version import Version
-
-        from airflow import __version__ as airflow_version
-
-        AIRFLOW_VERSION = Version(airflow_version)
-        AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
         if AIRFLOW_V_3_0_PLUS:
             for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:

@@ -21,12 +21,8 @@ from datetime import datetime, timedelta
 from unittest.mock import MagicMock, call, patch
 
 import pytest
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
-
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 yandexcloud = pytest.importorskip("yandexcloud")
 

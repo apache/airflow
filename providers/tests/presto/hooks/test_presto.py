@@ -23,16 +23,13 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from packaging.version import Version
 from prestodb.transaction import IsolationLevel
 
-from airflow import __version__ as airflow_version
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.presto.hooks.presto import PrestoHook, generate_presto_client_info
 
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 
 def test_generate_airflow_presto_client_info_header():

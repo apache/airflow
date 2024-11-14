@@ -24,9 +24,8 @@ import pendulum
 import pytest
 from dateutil import parser
 from kubernetes.client import ApiClient, models as k8s
-from packaging.version import Version
 
-from airflow import __version__, __version__ as airflow_version
+from airflow import __version__
 from airflow.exceptions import AirflowConfigException
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import PodReconciliationError
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import add_unique_suffix
@@ -38,8 +37,7 @@ from airflow.providers.cncf.kubernetes.pod_generator import (
 )
 from airflow.providers.cncf.kubernetes.secret import Secret
 
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 now = pendulum.now("UTC")
 

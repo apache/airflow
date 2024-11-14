@@ -27,9 +27,7 @@ from unittest.mock import patch
 
 import psutil
 import pytest
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.jobs.job import Job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
@@ -45,10 +43,9 @@ from airflow.utils.timeout import timeout
 
 from tests.listeners import xcom_listener
 from tests.listeners.file_write_listener import FileWriteListener
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_runs
 
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 

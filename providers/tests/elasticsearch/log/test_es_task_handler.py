@@ -31,9 +31,7 @@ from urllib.parse import quote
 import elasticsearch
 import pendulum
 import pytest
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.configuration import conf
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse
 from airflow.providers.elasticsearch.log.es_task_handler import (
@@ -48,11 +46,10 @@ from airflow.utils.timezone import datetime
 
 from providers.tests.elasticsearch.log.elasticmock import elasticmock
 from providers.tests.elasticsearch.log.elasticmock.utilities import SearchFailedException
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 pytestmark = pytest.mark.db_test
 
 AIRFLOW_SOURCES_ROOT_DIR = Path(__file__).parents[4].resolve()

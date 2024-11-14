@@ -21,9 +21,7 @@ from datetime import datetime
 
 import pendulum
 import pytest
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagBag, DagModel
 from airflow.models.dag import DAG
@@ -32,11 +30,10 @@ from airflow.security import permissions
 from airflow.utils.session import provide_session
 
 from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 from tests_common.test_utils.www import _check_last_log
 
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 pytestmark = [
     pytest.mark.db_test,
     pytest.mark.skip_if_database_isolation_mode,

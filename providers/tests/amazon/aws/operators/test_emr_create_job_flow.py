@@ -25,9 +25,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from botocore.waiter import Waiter
 from jinja2 import StrictUndefined
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.exceptions import TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
@@ -37,9 +35,7 @@ from airflow.utils.types import DagRunType
 
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
 from providers.tests.amazon.aws.utils.test_waiter import assert_expected_waiter_type
-
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 TASK_ID = "test_task"
 

@@ -23,9 +23,7 @@ from urllib.parse import quote_plus
 
 import pytest
 from markupsafe import escape
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
@@ -36,7 +34,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import BashOperator, PythonOperator
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BashOperator, PythonOperator
 from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_runs,
@@ -45,8 +43,6 @@ from tests_common.test_utils.db import (
 )
 from tests_common.test_utils.www import check_content_in_response, check_content_not_in_response
 
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 

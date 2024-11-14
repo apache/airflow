@@ -25,11 +25,10 @@ from unittest.mock import MagicMock
 
 import pytest
 from kubernetes.client import models as k8s
-from packaging.version import Version
 from sqlalchemy import text
 from sqlalchemy.exc import StatementError
 
-from airflow import __version__ as airflow_version, settings
+from airflow import settings
 from airflow.models.dag import DAG
 from airflow.serialization.enums import DagAttributeTypes, Encoding
 from airflow.serialization.serialized_objects import BaseSerialization
@@ -44,8 +43,7 @@ from airflow.utils.sqlalchemy import (
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
 
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

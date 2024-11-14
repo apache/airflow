@@ -21,9 +21,7 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.exceptions import AirflowException
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
@@ -31,8 +29,7 @@ from airflow.providers.apache.kylin.operators.kylin_cube import KylinCubeOperato
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = timezone.datetime(2020, 1, 1)
 

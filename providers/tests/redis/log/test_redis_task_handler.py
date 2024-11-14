@@ -21,9 +21,7 @@ import logging
 from unittest.mock import patch
 
 import pytest
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.redis.log.redis_task_handler import RedisTaskHandler
@@ -31,10 +29,9 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
 
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 pytestmark = pytest.mark.db_test
 
 

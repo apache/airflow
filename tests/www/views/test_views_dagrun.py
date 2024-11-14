@@ -18,9 +18,7 @@
 from __future__ import annotations
 
 import pytest
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.security import permissions
 from airflow.utils import timezone
@@ -33,14 +31,13 @@ from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     delete_user,
 )
 from tests.www.views.test_views_tasks import _get_appbuilder_pk_string
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.www import (
     check_content_in_response,
     check_content_not_in_response,
     client_with_login,
 )
 
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 

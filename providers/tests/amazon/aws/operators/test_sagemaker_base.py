@@ -34,6 +34,7 @@ from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 CONFIG: dict = {
     "key1": "1",
@@ -167,13 +168,6 @@ class TestSageMakerExperimentOperator:
         new_callable=mock.PropertyMock,
     )
     def test_create_experiment(self, conn_mock, session, clean_dags_and_dagruns):
-        from packaging.version import Version
-
-        from airflow import __version__ as airflow_version
-
-        AIRFLOW_VERSION = Version(airflow_version)
-        AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
-
         conn_mock().create_experiment.return_value = {"ExperimentArn": "abcdef"}
 
         # putting a DAG around the operator so that jinja template gets rendered

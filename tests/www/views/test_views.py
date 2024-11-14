@@ -24,9 +24,7 @@ from unittest.mock import patch
 
 import pytest
 from markupsafe import Markup
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.configuration import (
     initialize_config,
     write_default_airflow_configuration_if_needed,
@@ -43,12 +41,11 @@ from airflow.www.views import (
     get_value_from_path,
 )
 
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
 from tests_common.test_utils.www import check_content_in_response, check_content_not_in_response
 
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 

@@ -26,9 +26,8 @@ from getpass import getuser
 import pendulum
 import pytest
 import time_machine
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version, settings
+from airflow import settings
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
@@ -50,7 +49,7 @@ from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import (
     delete_roles,
     delete_user,
 )
-from tests_common.test_utils.compat import BashOperator
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS, BashOperator
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs, clear_db_xcom
 from tests_common.test_utils.www import (
@@ -59,8 +58,6 @@ from tests_common.test_utils.www import (
     client_with_login,
 )
 
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 

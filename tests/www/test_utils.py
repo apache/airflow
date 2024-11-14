@@ -30,11 +30,9 @@ from bs4 import BeautifulSoup
 from flask_appbuilder.models.sqla.filters import get_field_setup_query, set_value_to_type
 from flask_wtf import FlaskForm
 from markupsafe import Markup
-from packaging.version import Version
 from sqlalchemy.orm import Query
 from wtforms.fields import StringField, TextAreaField
 
-from airflow import __version__ as airflow_version
 from airflow.models import DagRun
 from airflow.utils import json as utils_json
 from airflow.www import utils
@@ -47,8 +45,7 @@ from airflow.www.utils import (
 )
 from airflow.www.widgets import AirflowDateTimePickerROWidget, BS3TextAreaROWidget, BS3TextFieldROWidget
 
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
