@@ -294,7 +294,7 @@ class TestGetDagRunAssetTriggerEvents:
                 {
                     "timestamp": event.timestamp.isoformat().replace("+00:00", "Z"),
                     "asset_id": asset1_id,
-                    "asset_uri": asset1.uri,
+                    "uri": asset1.uri,
                     "extra": {},
                     "id": event.id,
                     "source_dag_id": ti.dag_id,
