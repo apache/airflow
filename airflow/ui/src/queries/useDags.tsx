@@ -49,7 +49,7 @@ export const useDags = (
     queryOptions,
   );
 
-  const { lastDagRunState, orderBy, ...runsParams } = searchParams;
+  const { orderBy, ...runsParams } = searchParams;
   const {
     data: runsData,
     error: runsError,
