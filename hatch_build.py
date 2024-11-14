@@ -352,6 +352,7 @@ BUNDLE_EXTRAS: dict[str, list[str]] = {
 # in order to make sure the dependency is not installed in the CI image build process from the main
 # of Airflow branch. After your PR is merged, you should remove it from the list there.
 DEPENDENCIES = [
+    "aiosqlite>=0.5.0",
     # Alembic is important to handle our migrations in predictable and performant way. It is developed
     # together with SQLAlchemy. Our experience with Alembic is that it very stable in minor version
     # The 1.13.0 of alembic marked some migration code as SQLAlchemy 2+ only so we limit it to 1.13.1
