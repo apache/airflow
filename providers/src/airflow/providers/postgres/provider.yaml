@@ -22,9 +22,10 @@ description: |
   `PostgreSQL <https://www.postgresql.org/>`__
 
 state: ready
-source-date-epoch: 1728485329
+source-date-epoch: 1731570750
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 5.14.0
   - 5.13.1
   - 5.13.0
   - 5.12.0
@@ -67,7 +68,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.8.0
-  - apache-airflow-providers-common-sql>=1.17.0
+  - apache-airflow-providers-common-sql>=1.20.0
   - psycopg2-binary>=2.9.4
 
 additional-extras:

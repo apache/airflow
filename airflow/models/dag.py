@@ -777,9 +777,7 @@ class DAG(TaskSDKDag, LoggingMixin):
     @classmethod
     def get_serialized_fields(cls):
         """Stringified DAGs and operators contain exactly these fields."""
-        return TaskSDKDag.get_serialized_fields() | {
-            "_processor_dags_folder",
-        }
+        return TaskSDKDag.get_serialized_fields() | {"_processor_dags_folder"}
 
     @staticmethod
     @internal_api_call
