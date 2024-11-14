@@ -31,6 +31,19 @@ Breaking changes
   It is impossible to use ``apache-airflow-providers-fab`` >= 2.0 with Airflow 2.X.
   If you use Airflow 2.X, please use ``apache-airflow-providers-fab`` 1.X.
 
+1.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fab_auth_manager: allow get_user method to return the user authenticated via Kerberos (#43662)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Expand and improve the kerberos api authentication documentation (#43682)``
+
 1.5.0
 .....
 

@@ -751,7 +751,7 @@
   },
   "http": {
     "deps": [
-      "aiohttp>=3.9.2",
+      "aiohttp>=3.9.2,<3.11.0",
       "apache-airflow>=2.8.0",
       "asgiref>=2.3.0",
       "requests-toolbelt>=0.4.0",

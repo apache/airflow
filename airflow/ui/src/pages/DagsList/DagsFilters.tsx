@@ -18,24 +18,27 @@
  */
 import {
   Box,
+  Button,
   createListCollection,
   Field,
   HStack,
   type SelectValueChangeDetails,
 } from "@chakra-ui/react";
-import { Select as ReactSelect } from "chakra-react-select";
-import type { MultiValue } from "chakra-react-select";
+import { Select as ReactSelect, type MultiValue } from "chakra-react-select";
 import { useCallback } from "react";
+import { LuX } from "react-icons/lu";
 import { useSearchParams } from "react-router-dom";
 
 import { useDagServiceGetDagTags } from "openapi/queries";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { QuickFilterButton } from "src/components/QuickFilterButton";
+import { StateCircle } from "src/components/StateCircle";
 import { Select } from "src/components/ui";
 import {
   SearchParamsKeys,
   type SearchParamsKeysType,
 } from "src/constants/searchParams";
+import { pluralize } from "src/utils";
 
 const {
   LAST_DAG_RUN_STATE: LAST_DAG_RUN_STATE_PARAM,
@@ -119,36 +122,59 @@ export const DagsFilters = () => {
     [searchParams, setSearchParams],
   );
 
+  const onClearFilters = () => {
+    searchParams.delete(PAUSED_PARAM);
+    searchParams.delete(LAST_DAG_RUN_STATE_PARAM);
+    searchParams.delete(TAGS_PARAM);
+
+    setSearchParams(searchParams);
+  };
+
+  let filterCount = 0;
+
+  if (state !== null) {
+    filterCount += 1;
+  }
+  if (showPaused !== null) {
+    filterCount += 1;
+  }
+  if (selectedTags.length > 0) {
+    filterCount += 1;
+  }
+
   return (
     <HStack justifyContent="space-between">
       <HStack gap={4}>
         <HStack>
           <QuickFilterButton
-            active={isAll}
+            isActive={isAll}
             onClick={handleStateChange}
             value="all"
           >
             All
           </QuickFilterButton>
           <QuickFilterButton
-            active={isFailed}
+            isActive={isFailed}
             onClick={handleStateChange}
             value="failed"
           >
+            <StateCircle state="failed" />
             Failed
           </QuickFilterButton>
           <QuickFilterButton
-            active={isRunning}
+            isActive={isRunning}
             onClick={handleStateChange}
             value="running"
           >
+            <StateCircle state="running" />
             Running
           </QuickFilterButton>
           <QuickFilterButton
-            active={isSuccess}
+            isActive={isSuccess}
             onClick={handleStateChange}
             value="success"
           >
+            <StateCircle state="success" />
             Success
           </QuickFilterButton>
         </HStack>
@@ -157,7 +183,7 @@ export const DagsFilters = () => {
           onValueChange={handlePausedChange}
           value={showPaused === null ? ["All"] : [showPaused]}
         >
-          <Select.Trigger>
+          <Select.Trigger colorPalette="blue" isActive={Boolean(showPaused)}>
             <Select.ValueText width={20} />
           </Select.Trigger>
           <Select.Content>
@@ -168,15 +194,21 @@ export const DagsFilters = () => {
             ))}
           </Select.Content>
         </Select.Root>
-      </HStack>
-      <Box>
         <Field.Root>
           <ReactSelect
             aria-label="Filter Dags by tag"
             chakraStyles={{
+              clearIndicator: (provided) => ({
+                ...provided,
+                color: "gray.fg",
+              }),
               container: (provided) => ({
                 ...provided,
                 minWidth: 64,
+              }),
+              control: (provided) => ({
+                ...provided,
+                colorPalette: "blue",
               }),
               menu: (provided) => ({
                 ...provided,
@@ -187,10 +219,12 @@ export const DagsFilters = () => {
             isMulti
             noOptionsMessage={() => "No tags found"}
             onChange={handleSelectTagsChange}
-            options={data?.tags.map((tag) => ({
-              label: tag,
-              value: tag,
-            }))}
+            options={
+              data?.tags.map((tag) => ({
+                label: tag,
+                value: tag,
+              })) ?? []
+            }
             placeholder="Filter by tag"
             value={selectedTags.map((tag) => ({
               label: tag,
@@ -198,6 +232,13 @@ export const DagsFilters = () => {
             }))}
           />
         </Field.Root>
+      </HStack>
+      <Box>
+        {filterCount > 0 && (
+          <Button onClick={onClearFilters} size="sm" variant="outline">
+            <LuX /> Reset {pluralize("filter", filterCount)}
+          </Button>
+        )}
       </Box>
     </HStack>
   );

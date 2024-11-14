@@ -16,26 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Text } from "@chakra-ui/react";
+import { Box, type BoxProps } from "@chakra-ui/react";
 
-import type { DAGRunResponse } from "openapi/requests/types.gen";
-import Time from "src/components/Time";
+import type { TaskInstanceState } from "openapi/requests/types.gen";
 import { stateColor } from "src/utils/stateColor";
 
-type Props = {
-  readonly latestRun?: DAGRunResponse;
-};
-
-export const LatestRun = ({ latestRun }: Props) =>
-  latestRun ? (
-    <HStack fontSize="sm">
-      <Time datetime={latestRun.start_date} />
-      <Box
-        bg={stateColor[latestRun.state]}
-        borderRadius="50%"
-        height={2}
-        width={2}
-      />
-      <Text color={stateColor[latestRun.state]}>{latestRun.state}</Text>
-    </HStack>
-  ) : undefined;
+export const StateCircle = ({
+  state,
+  ...rest
+}: {
+  readonly state: TaskInstanceState;
+} & BoxProps) => (
+  <Box
+    {...rest}
+    bg={stateColor[state]}
+    borderRadius="50%"
+    h={2}
+    maxW={2}
+    w={2}
+  />
+);
