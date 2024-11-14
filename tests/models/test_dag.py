@@ -845,11 +845,11 @@ class TestDag:
         dag_id2 = "test_asset_dag2"
         task_id = "test_asset_task"
         uri1 = "s3://asset/1"
-        d1 = Asset(uri1, extra={"not": "used"})
-        d2 = Asset("s3://asset/2")
-        d3 = Asset("s3://asset/3")
-        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=[d1])
-        EmptyOperator(task_id=task_id, dag=dag1, outlets=[d2, d3])
+        a1 = Asset(uri1, extra={"not": "used"})
+        a2 = Asset("s3://asset/2")
+        a3 = Asset("s3://asset/3")
+        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=[a1])
+        EmptyOperator(task_id=task_id, dag=dag1, outlets=[a2, a3])
         dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE, schedule=None)
         EmptyOperator(task_id=task_id, dag=dag2, outlets=[Asset(uri1, extra={"should": "be used"})])
         session = settings.Session()
@@ -857,9 +857,9 @@ class TestDag:
         DAG.bulk_write_to_db([dag1, dag2], session=session)
         session.commit()
         stored_assets = {x.uri: x for x in session.query(AssetModel).all()}
-        asset1_orm = stored_assets[d1.uri]
-        asset2_orm = stored_assets[d2.uri]
-        asset3_orm = stored_assets[d3.uri]
+        asset1_orm = stored_assets[a1.uri]
+        asset2_orm = stored_assets[a2.uri]
+        asset3_orm = stored_assets[a3.uri]
         assert stored_assets[uri1].extra == {"should": "be used"}
         assert [x.dag_id for x in asset1_orm.consuming_dags] == [dag_id1]
         assert [(x.task_id, x.dag_id) for x in asset1_orm.producing_tasks] == [(task_id, dag_id2)]
@@ -882,15 +882,15 @@ class TestDag:
         # so if any references are *removed*, they should also be deleted from the DB
         # so let's remove some references and see what happens
         dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=None)
-        EmptyOperator(task_id=task_id, dag=dag1, outlets=[d2])
+        EmptyOperator(task_id=task_id, dag=dag1, outlets=[a2])
         dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE, schedule=None)
         EmptyOperator(task_id=task_id, dag=dag2)
         DAG.bulk_write_to_db([dag1, dag2], session=session)
         session.commit()
         session.expunge_all()
         stored_assets = {x.uri: x for x in session.query(AssetModel).all()}
-        asset1_orm = stored_assets[d1.uri]
-        asset2_orm = stored_assets[d2.uri]
+        asset1_orm = stored_assets[a1.uri]
+        asset2_orm = stored_assets[a2.uri]
         assert [x.dag_id for x in asset1_orm.consuming_dags] == []
         assert set(
             session.query(
