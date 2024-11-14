@@ -46,8 +46,6 @@ from airflow.sdk.definitions.abstractoperator import (
     DEFAULT_TRIGGER_RULE,
     DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     DEFAULT_WEIGHT_RULE,
-    MAXIMUM_PRIORITY_WEIGHT,
-    MINIMUM_PRIORITY_WEIGHT,
     AbstractOperator,
 )
 from airflow.sdk.definitions.decorators import fixup_decorator_warning_stack
@@ -62,6 +60,7 @@ from airflow.utils import timezone
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import AttributeRemoved
+from airflow.utils.weight_rule import db_safe_priority
 
 T = TypeVar("T", bound=FunctionType)
 
@@ -875,9 +874,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         validate_instance_args(self, BASEOPERATOR_ARGS_EXPECTED_TYPES)
 
         # Ensure priority_weight is within the valid range
-        self.priority_weight = max(
-            MINIMUM_PRIORITY_WEIGHT, min(MAXIMUM_PRIORITY_WEIGHT, self.priority_weight)
-        )
+        # Note: Cross-import from airflow.utils to be cleaned up later
+        self.priority_weight = db_safe_priority(self.priority_weight)
 
     def __eq__(self, other):
         if type(self) is type(other):
