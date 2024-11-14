@@ -107,7 +107,9 @@ class TestDagRunOperator:
             )
             .one()
         )
-        with mock.patch("airflow.operators.trigger_dagrun.build_airflow_url_with_query") as mock_build_url:
+        with mock.patch(
+            "airflow.providers.standard.operators.trigger_dagrun.build_airflow_url_with_query"
+        ) as mock_build_url:
             triggering_task.get_extra_links(triggering_ti, "Triggered DAG")
         assert mock_build_url.called
         args, _ = mock_build_url.call_args
