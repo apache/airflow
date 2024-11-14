@@ -87,7 +87,6 @@ jobs:
       - run: python -m pytest -n auto --color=yes
         working-directory: ./dev/breeze/
 
-
   tests-ui:
     timeout-minutes: 10
     name: React UI tests
@@ -178,6 +177,8 @@ jobs:
           path: ./airflow-client-python
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+      - name: "Cleanup dist files"
+        run: rm -rfv ./dist/*
       - name: "Generate client with breeze"
         run: >
           breeze release-management prepare-python-client --package-format both
@@ -187,6 +188,7 @@ jobs:
         working-directory: ./airflow-client-python
       - name: Install hatch
         run: |
+          set -x
           python -m pip install --upgrade uv
           uv tool install hatch
       - name: Run tests
@@ -194,18 +196,22 @@ jobs:
         env:
           HATCH_ENV: "test"
         working-directory: ./clients/python
-      - name: "Install source version of required packages"
+      - name: "Prepare provider packages"
+        run: >
+          breeze release-management prepare-provider-packages --package-format
+          wheel --skip-tag-check --version-suffix-for-pypi dev0
+      - name: "Prepare task.sdk package"
+        run: breeze release-management prepare-task-sdk-package --package-format wheel
+      - name: "Install all packages"
         run: |
-            breeze release-management prepare-provider-packages fab standard common.sql --package-format  \
-            wheel --skip-tag-check --version-suffix-for-pypi dev0
-            pip install . dist/apache_airflow_providers_fab-*.whl \
-            dist/apache_airflow_providers_standard-*.whl dist/apache_airflow_providers_common_sql-*.whl
-            breeze release-management prepare-task-sdk-package --package-format wheel
-            pip install ./dist/apache_airflow_task_sdk-*.whl
-      - name: "Install Python client"
-        run: pip install ./dist/apache_airflow_client-*.whl
+          set -x
+          apt-get update -y && apt-get upgrade -y && apt-get install -y libkrb5-dev gcc
+          uv venv
+          uv pip install . dist/*.whl
       - name: "Initialize Airflow DB and start webserver"
         run: |
+          . ./venv/bin/activate
+          set -x
           airflow db init
           # Let scheduler runs a few loops and get all DAG files from example DAGs serialized to DB
           airflow scheduler --num-runs 100
@@ -225,7 +231,9 @@ jobs:
           timeout 30 bash -c 'until nc -z $0 $1; do echo "sleeping"; sleep 1; done' localhost 8080
           sleep 5
       - name: "Run test python client"
-        run: python ./clients/python/test_python_client.py
+        run: |
+          . ./venv/bin/activate
+          python ./clients/python/test_python_client.py
         env:
           FORCE_COLOR: "standard"
       - name: "Stop running webserver"
