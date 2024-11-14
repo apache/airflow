@@ -99,7 +99,7 @@ class TelegramFileOperator(BaseOperator):
     :param telegram_conn_id: Telegram connection ID which its password is Telegram API token
     :param token: Telegram API Token
     :param chat_id: Telegram chat ID for a chat/channel/group
-    :param file: The path of the file or media to be sent via Telegram.
+    :param file: The path of the file or media to be sent via Telegram
     :param telegram_kwargs: Extra args to be passed to telegram client
     """
 
@@ -131,11 +131,11 @@ class TelegramFileOperator(BaseOperator):
     def execute(self, context: Context) -> None:
         """Call the TelegramHook to send the provided Telegram file."""
         if self.file:
-            self.telegram_kwargs["document"] = self.file
+            self.telegram_kwargs["file"] = self.file
 
         telegram_hook = TelegramHook(
             telegram_conn_id=self.telegram_conn_id,
             token=self.token,
             chat_id=self.chat_id,
         )
-        telegram_hook.send_message(self.telegram_kwargs)
+        telegram_hook.send_file(**self.telegram_kwargs)
