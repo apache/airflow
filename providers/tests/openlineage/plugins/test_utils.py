@@ -346,14 +346,14 @@ def test_serialize_timetable():
         "asset_condition": {
             "__type": DagAttributeTypes.ASSET_ANY,
             "objects": [
-                {"__type": DagAttributeTypes.ASSET, "extra": {}, "uri": "2"},
+                {"__type": DagAttributeTypes.ASSET, "extra": {}, "name": "2", "uri": "2"},
                 {"__type": DagAttributeTypes.ASSET_ANY, "objects": []},
-                {"__type": DagAttributeTypes.ASSET, "extra": {}, "uri": "3"},
+                {"__type": DagAttributeTypes.ASSET, "extra": {}, "name": "3", "uri": "3"},
                 {
                     "__type": DagAttributeTypes.ASSET_ALL,
                     "objects": [
                         {"__type": DagAttributeTypes.ASSET_ANY, "objects": []},
-                        {"__type": DagAttributeTypes.ASSET, "extra": {}, "uri": "4"},
+                        {"__type": DagAttributeTypes.ASSET, "extra": {}, "name": "4", "uri": "4"},
                     ],
                 },
             ],
