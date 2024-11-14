@@ -834,6 +834,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
     from airflow.utils.log.logging_mixin import LoggingMixin
 
+    from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
     class DagFactory(LoggingMixin, DagMaker):
         _own_session = False
 
@@ -900,12 +902,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     dag, processor_subdir=self.dag_model.processor_subdir
                 )
                 sdm = SerializedDagModel.get(dag.dag_id, session=self.session)
-                from packaging.version import Version
-
-                from airflow import __version__ as airflow_version
-
-                AIRFLOW_VERSION = Version(airflow_version)
-                AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
                 if AIRFLOW_V_3_0_PLUS and not sdm:
                     from airflow.models.dag_version import DagVersion
@@ -935,15 +931,9 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                 self._bag_dag_compat(self.dag)
 
         def create_dagrun(self, **kwargs):
-            from packaging.version import Version
-
-            from airflow import __version__ as airflow_version
             from airflow.utils import timezone
             from airflow.utils.state import State
             from airflow.utils.types import DagRunType
-
-            AIRFLOW_VERSION = Version(airflow_version)
-            AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.utils.types import DagRunTriggeredByType
@@ -996,13 +986,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             return self.dag_run
 
         def create_dagrun_after(self, dagrun, **kwargs):
-            from packaging.version import Version
-
-            from airflow import __version__ as airflow_version
-
-            AIRFLOW_VERSION = Version(airflow_version)
-            AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
-
             next_info = self.dag.next_dagrun_info(self.dag.get_run_data_interval(dagrun))
             if next_info is None:
                 raise ValueError(f"cannot create run after {dagrun}")
@@ -1078,12 +1061,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                         return
                     # To isolate problems here with problems from elsewhere on the session object
                     self.session.rollback()
-                    from packaging.version import Version
-
-                    from airflow import __version__ as airflow_version
-
-                    AIRFLOW_VERSION = Version(airflow_version)
-                    AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
                     if AIRFLOW_V_3_0_PLUS:
                         from airflow.models.dag_version import DagVersion
@@ -1262,6 +1239,8 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
     """
     from airflow.operators.empty import EmptyOperator
 
+    from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
     def maker(
         logical_date=None,
         dagrun_state=None,
@@ -1289,13 +1268,6 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
         last_heartbeat_at=None,
         **kwargs,
     ) -> TaskInstance:
-        from packaging.version import Version
-
-        from airflow import __version__ as airflow_version
-
-        AIRFLOW_VERSION = Version(airflow_version)
-        AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
-
         if AIRFLOW_V_3_0_PLUS:
             from airflow.utils.types import DagRunTriggeredByType
 
@@ -1352,6 +1324,8 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
 
 @pytest.fixture
 def create_serialized_task_instance_of_operator(dag_maker: DagMaker):
+    from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
     def _create_task_instance(
         operator_class,
         *,
@@ -1360,13 +1334,6 @@ def create_serialized_task_instance_of_operator(dag_maker: DagMaker):
         session=None,
         **operator_kwargs,
     ) -> TaskInstance:
-        from packaging.version import Version
-
-        from airflow import __version__ as airflow_version
-
-        AIRFLOW_VERSION = Version(airflow_version)
-        AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
-
         with dag_maker(dag_id=dag_id, serialized=True, session=session):
             operator_class(**operator_kwargs)
         if logical_date is None:
@@ -1387,6 +1354,8 @@ class CreateTaskInstanceOfOperator(Protocol):
 
 @pytest.fixture
 def create_task_instance_of_operator(dag_maker: DagMaker) -> CreateTaskInstanceOfOperator:
+    from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
     def _create_task_instance(
         operator_class,
         *,
@@ -1395,13 +1364,6 @@ def create_task_instance_of_operator(dag_maker: DagMaker) -> CreateTaskInstanceO
         session=None,
         **operator_kwargs,
     ) -> TaskInstance:
-        from packaging.version import Version
-
-        from airflow import __version__ as airflow_version
-
-        AIRFLOW_VERSION = Version(airflow_version)
-        AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
-
         with dag_maker(dag_id=dag_id, session=session, serialized=True):
             operator_class(**operator_kwargs)
         if logical_date is None:
