@@ -18,8 +18,10 @@
  */
 import { VStack, Heading, Text, Box, Button, HStack } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
+import { PiFilePy } from "react-icons/pi";
 
 import type { ImportErrorResponse } from "openapi/requests/types.gen";
+import Time from "src/components/Time";
 import { Accordion, Dialog } from "src/components/ui";
 import { useImportErrors } from "src/queries/useDagsImportErrors";
 
@@ -38,10 +40,9 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({
 }) => {
   const [currentPage, setCurrentPage] = useState(0);
 
-  const { data, error } = useImportErrors({
+  const { data } = useImportErrors({
     limit: PAGE_LIMIT,
     offset: currentPage * PAGE_LIMIT,
-    orderBy: "import_error_id",
   });
 
   const importErrors: Array<ImportErrorResponse> = data.import_errors;
@@ -90,11 +91,13 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({
                 value={importError.filename}
               >
                 <Accordion.ItemTrigger cursor="pointer">
-                  {importError.import_error_id}
-                  {". "}
+                  <PiFilePy />
                   {importError.filename}
                 </Accordion.ItemTrigger>
                 <Accordion.ItemContent>
+                  <Text color="gray.500" fontSize="sm" mb={1}>
+                    Timestamp : <Time datetime={importError.timestamp} />
+                  </Text>
                   <Text color="red.600" fontSize="sm" whiteSpace="pre-wrap">
                     <code>{importError.stack_trace}</code>
                   </Text>
