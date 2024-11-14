@@ -40,6 +40,7 @@ from airflow.assets import (
     AssetAlias,
     AssetAll,
     AssetAny,
+    AssetRef,
     BaseAsset,
     _AssetAliasCondition,
 )
@@ -254,7 +255,7 @@ def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
     :meta private:
     """
     if isinstance(var, Asset):
-        return {"__type": DAT.ASSET, "uri": var.uri, "extra": var.extra}
+        return {"__type": DAT.ASSET, "name": var.name, "uri": var.uri, "extra": var.extra}
     if isinstance(var, AssetAlias):
         return {"__type": DAT.ASSET_ALIAS, "name": var.name}
     if isinstance(var, AssetAll):
@@ -272,7 +273,7 @@ def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
     """
     dat = var["__type"]
     if dat == DAT.ASSET:
-        return Asset(var["uri"], extra=var["extra"])
+        return Asset(uri=var["uri"], name=var["name"], extra=var["extra"])
     if dat == DAT.ASSET_ALL:
         return AssetAll(*(decode_asset_condition(x) for x in var["objects"]))
     if dat == DAT.ASSET_ANY:
@@ -743,6 +744,8 @@ class BaseSerialization:
         elif isinstance(var, BaseAsset):
             serialized_asset = encode_asset_condition(var)
             return cls._encode(serialized_asset, type_=serialized_asset.pop("__type"))
+        elif isinstance(var, AssetRef):
+            return cls._encode({"name": var.name}, type_=DAT.ASSET_REF)
         elif isinstance(var, SimpleTaskInstance):
             return cls._encode(
                 cls.serialize(var.__dict__, strict=strict, use_pydantic_models=use_pydantic_models),
@@ -876,6 +879,8 @@ class BaseSerialization:
             return AssetAny(*(decode_asset_condition(x) for x in var["objects"]))
         elif type_ == DAT.ASSET_ALL:
             return AssetAll(*(decode_asset_condition(x) for x in var["objects"]))
+        elif type_ == DAT.ASSET_REF:
+            return AssetRef(name=var["name"])
         elif type_ == DAT.SIMPLE_TASK_INSTANCE:
             return SimpleTaskInstance(**cls.deserialize(var))
         elif type_ == DAT.CONNECTION:
