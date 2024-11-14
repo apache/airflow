@@ -43,6 +43,12 @@ if TYPE_CHECKING:
 DEFAULT_OWNER: str = "airflow"
 DEFAULT_POOL_SLOTS: int = 1
 DEFAULT_PRIORITY_WEIGHT: int = 1
+# Databases do not support arbitrary precision integers, so we need to limit the range of priority weights.
+# postgres: -2147483648 to +2147483647 (see https://www.postgresql.org/docs/current/datatype-numeric.html)
+# mysql: -2147483648 to +2147483647 (see https://dev.mysql.com/doc/refman/8.4/en/integer-types.html)
+# sqlite: -9223372036854775808 to +9223372036854775807 (see https://sqlite.org/datatype3.html)
+MINIMUM_PRIORITY_WEIGHT: int = -2147483648
+MAXIMUM_PRIORITY_WEIGHT: int = 2147483647
 DEFAULT_EXECUTOR: str | None = None
 DEFAULT_QUEUE: str = "default"
 DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST: bool = False
