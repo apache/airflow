@@ -906,6 +906,7 @@
   },
   "mysql": {
     "deps": [
+      "aiomysql>=0.2.0",
       "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.8.0",
       "mysql-connector-python>=8.0.29",
@@ -1085,6 +1086,7 @@
     "deps": [
       "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.8.0",
+      "asyncpg>=0.30.0",
       "psycopg2-binary>=2.9.4"
     ],
     "devel-deps": [],
@@ -1260,6 +1262,7 @@
   },
   "sqlite": {
     "deps": [
+      "aiosqlite>=0.20.0",
       "apache-airflow-providers-common-sql>=1.20.0",
       "apache-airflow>=2.8.0"
     ],

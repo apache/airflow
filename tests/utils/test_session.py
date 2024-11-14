@@ -18,7 +18,9 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import select
 
+from airflow.models import Log
 from airflow.utils.session import provide_session
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
@@ -53,3 +55,13 @@ class TestSession:
 
         session = object()
         assert wrapper(session=session) is session
+
+    @pytest.mark.asyncio
+    async def test_async_session(self):
+        from airflow.settings import create_async_session
+
+        session = create_async_session()
+        session.add(Log(event="hihi1234"))
+        await session.commit()
+        l = await session.scalar(select(Log).where(Log.event == "hihi1234").limit(1))  # noqa: E741
+        assert l.event == "hihi1234"
