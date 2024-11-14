@@ -29,7 +29,7 @@ from sqlalchemy.inspection import inspect
 
 from airflow.api_connexion.endpoints.task_instance_endpoint import _convert_ti_states
 from airflow.models import Base, Connection
-from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
+from airflow.models.asset import AssetEvent, AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
@@ -440,6 +440,86 @@ class _DagIdAssetReferenceFilter(BaseParam[list[str]]):
         )
 
 
+class _AssetIdFilter(BaseParam[int]):
+    """Filter on asset_id."""
+
+    def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
+        super().__init__(skip_none=skip_none)
+        self.attribute = attribute
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(self.attribute == self.value)
+
+    def depends(self, asset_id: int | None = None) -> _AssetIdFilter:
+        return self.set_value(asset_id)
+
+
+class _SourceDagIdFilter(BaseParam[str]):
+    """Filter on source_dag_id."""
+
+    def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
+        super().__init__(skip_none=skip_none)
+        self.attribute = attribute
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(self.attribute == self.value)
+
+    def depends(self, source_dag_id: str | None = None) -> _SourceDagIdFilter:
+        return self.set_value(source_dag_id)
+
+
+class _SourceTaskIdFilter(BaseParam[str]):
+    """Filter on source_task_id."""
+
+    def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
+        super().__init__(skip_none=skip_none)
+        self.attribute = attribute
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(self.attribute == self.value)
+
+    def depends(self, source_task_id: str | None = None) -> _SourceTaskIdFilter:
+        return self.set_value(source_task_id)
+
+
+class _SourceRunIdFilter(BaseParam[str]):
+    """filter on source_run_id."""
+
+    def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
+        super().__init__(skip_none=skip_none)
+        self.attribute = attribute
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(self.attribute == self.value)
+
+    def depends(self, source_run_id: str | None = None) -> _SourceRunIdFilter:
+        return self.set_value(source_run_id)
+
+
+class _SourceMapIndexFilter(BaseParam[int]):
+    """Filter on source_map_index."""
+
+    def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
+        super().__init__(skip_none=skip_none)
+        self.attribute = attribute
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(self.attribute == self.value)
+
+    def depends(self, source_map_index: int | None = None) -> _SourceMapIndexFilter:
+        return self.set_value(source_map_index)
+
+
 class Range(BaseModel, Generic[T]):
     """Range with a lower and upper bound."""
 
@@ -536,4 +616,19 @@ QueryTIExecutorFilter = Annotated[_TIExecutorFilter, Depends(_TIExecutorFilter()
 QueryUriPatternSearch = Annotated[_UriPatternSearch, Depends(_UriPatternSearch().depends)]
 QueryAssetDagIdPatternSearch = Annotated[
     _DagIdAssetReferenceFilter, Depends(_DagIdAssetReferenceFilter().depends)
+]
+QueryAssetIdFilter = Annotated[_AssetIdFilter, Depends(_AssetIdFilter(AssetEvent.asset_id).depends)]
+
+
+QuerySourceDagIdFilter = Annotated[
+    _SourceDagIdFilter, Depends(_SourceDagIdFilter(AssetEvent.source_dag_id).depends)
+]
+QuerySourceTaskIdFilter = Annotated[
+    _SourceTaskIdFilter, Depends(_SourceTaskIdFilter(AssetEvent.source_task_id).depends)
+]
+QuerySourceRunIdFilter = Annotated[
+    _SourceRunIdFilter, Depends(_SourceRunIdFilter(AssetEvent.source_run_id).depends)
+]
+QuerySourceMapIndexFilter = Annotated[
+    _SourceMapIndexFilter, Depends(_SourceMapIndexFilter(AssetEvent.source_map_index).depends)
 ]
