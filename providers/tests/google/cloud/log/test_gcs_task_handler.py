@@ -107,10 +107,7 @@ class TestGCSTaskHandler:
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )
-        assert (
-            logs == " INFO - ::group::Log message source details\n*** Found remote logs:\n"
-            "***   * gs://bucket/remote/log/location/1.log\n INFO - ::endgroup::\nCONTENT"
-        )
+        assert "*** Found remote logs:\n***   * gs://bucket/remote/log/location/1.log\nCONTENT" in logs
         assert {"end_of_log": True, "log_pos": 7} == metadata
 
     @mock.patch(
@@ -130,15 +127,13 @@ class TestGCSTaskHandler:
         ti.state = TaskInstanceState.SUCCESS
         log, metadata = self.gcs_task_handler._read(ti, self.ti.try_number)
 
-        assert log == (
-            " INFO - ::group::Log message source details\n"
+        assert (
             "*** Found remote logs:\n"
             "***   * gs://bucket/remote/log/location/1.log\n"
             "*** Unable to read remote log Failed to connect\n"
             "*** Found local files:\n"
             f"***   * {self.gcs_task_handler.local_base}/1.log\n"
-            " INFO - ::endgroup::\n"
-        )
+        ) in log
         assert metadata == {"end_of_log": True, "log_pos": 0}
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value

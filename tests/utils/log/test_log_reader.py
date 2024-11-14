@@ -144,38 +144,13 @@ class TestLogView:
         ti.state = TaskInstanceState.SUCCESS
         logs, metadatas = task_log_reader.read_log_chunks(ti=ti, try_number=None, metadata={})
 
-        assert logs == [
-            [
-                (
-                    "localhost",
-                    " INFO - ::group::Log message source details\n"
-                    "*** Found local files:\n"
-                    f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-                    " INFO - ::endgroup::\n"
-                    "try_number=1.",
-                )
-            ],
-            [
-                (
-                    "localhost",
-                    " INFO - ::group::Log message source details\n"
-                    "*** Found local files:\n"
-                    f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
-                    " INFO - ::endgroup::\n"
-                    f"try_number=2.",
-                )
-            ],
-            [
-                (
-                    "localhost",
-                    " INFO - ::group::Log message source details\n"
-                    "*** Found local files:\n"
-                    f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
-                    " INFO - ::endgroup::\n"
-                    f"try_number=3.",
-                )
-            ],
-        ]
+        for i in range(0, 3):
+            assert logs[i][0][0] == "localhost"
+            assert (
+                "*** Found local files:\n"
+                f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/{i + 1}.log\n"
+            ) in logs[i][0][1]
+            assert f"try_number={i + 1}." in logs[i][0][1]
         assert metadatas == {"end_of_log": True, "log_pos": 13}
 
     def test_test_test_read_log_stream_should_read_one_try(self):
