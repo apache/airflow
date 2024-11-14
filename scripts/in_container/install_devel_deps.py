@@ -22,6 +22,7 @@ import json
 from pathlib import Path
 
 from in_container_utils import click, run_command
+from packaging.requirements import Requirement
 
 AIRFLOW_SOURCES_DIR = Path(__file__).resolve().parents[2]
 
@@ -46,7 +47,7 @@ def get_devel_deps_from_providers():
     devel_deps_from_providers = []
     deps = json.loads((AIRFLOW_SOURCES_DIR / "generated" / "provider_dependencies.json").read_text())
     for dep in deps:
-        devel_deps = [short_dep.split(">=")[0] for short_dep in deps[dep]["devel-deps"]]
+        devel_deps = [Requirement(short_dep).name for short_dep in deps[dep]["devel-deps"]]
         if devel_deps:
             devel_deps_from_providers.extend(devel_deps)
     return devel_deps_from_providers
