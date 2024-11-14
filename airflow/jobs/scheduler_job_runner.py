@@ -1120,6 +1120,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 for executor in self.job.executors:
                     try:
                         # this is backcompat check if executor does not inherit from BaseExecutor
+                        # todo: remove in airflow 3.0
                         if not hasattr(executor, "_task_event_logs"):
                             continue
                         with create_session() as session:
@@ -1838,8 +1839,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             ),
                         )
                     )
-                    with suppress(KeyError):
-                        executor.running.remove(ti.key)
                     self._reschedule_stuck_task(ti)
                 else:
                     self.log.warning(
@@ -1856,7 +1855,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             ),
                         )
                     )
-                    executor.fail(ti.key)
+                    ti.set_state(TaskInstanceState.FAILED, session=session)
+                with suppress(KeyError):
+                    executor.running.remove(ti.key)
 
     @deprecated(
         reason="This is backcompat layer for older executor interface. Should be removed in 3.0",
