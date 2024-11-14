@@ -21,3 +21,32 @@ Sensors.
 
 :sphinx-autoapi-skip:
 """
+
+from __future__ import annotations
+
+from airflow.utils.deprecation_tools import add_deprecated_classes
+
+__deprecated_classes = {
+    "python":{
+        "PythonSensor": "airflow.providers.standard.sensors.python.PythonSensor",
+    },
+    "bash":{
+        "BashSensor": "airflow.providers.standard.sensor.bash.BashSensor",
+    },
+    "date_time":{
+        "DateTimeSensor": "airflow.providers.standard.sensors.date_time.DateTimeSensor",
+        "DateTimeSensorAsync": "airflow.providers.standard.sensors.date_time.DateTimeSensorAsync",
+    },
+    "time_sensor": {
+        "TimeSensor": "airflow.providers.standard.sensors.time.TimeSensor",
+        "TimeSensorAsync": "airflow.providers.standard.sensors.time.TimeSensorAsync",
+    },
+    "weekday": {
+        "DayOfWeekSensor": "airflow.providers.standard.sensors.weekday.DayOfWeekSensor",
+    },
+    "time_delta": {
+        "TimeDeltaSensor": "airflow.providers.standard.sensors.time_delta.TimeDeltaSensor",
+        "TimeDeltaSensorAsync": "airflow.providers.standard.sensors.time_delta.TimeDeltaSensorAsync",
+    }
+}
+add_deprecated_classes(__deprecated_classes, __name__)

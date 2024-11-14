@@ -194,6 +194,26 @@ export const $AssetResponse = {
   description: "Asset serializer for responses.",
 } as const;
 
+export const $BackfillCollectionResponse = {
+  properties: {
+    backfills: {
+      items: {
+        $ref: "#/components/schemas/BackfillResponse",
+      },
+      type: "array",
+      title: "Backfills",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["backfills", "total_entries"],
+  title: "BackfillCollectionResponse",
+  description: "Backfill Collection serializer for responses.",
+} as const;
+
 export const $BackfillPostBody = {
   properties: {
     dag_id: {
@@ -234,6 +254,82 @@ export const $BackfillPostBody = {
   required: ["dag_id", "from_date", "to_date"],
   title: "BackfillPostBody",
   description: "Object used for create backfill request.",
+} as const;
+
+export const $BackfillResponse = {
+  properties: {
+    id: {
+      type: "integer",
+      title: "Id",
+    },
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    from_date: {
+      type: "string",
+      format: "date-time",
+      title: "From Date",
+    },
+    to_date: {
+      type: "string",
+      format: "date-time",
+      title: "To Date",
+    },
+    dag_run_conf: {
+      type: "object",
+      title: "Dag Run Conf",
+    },
+    is_paused: {
+      type: "boolean",
+      title: "Is Paused",
+    },
+    reprocess_behavior: {
+      $ref: "#/components/schemas/ReprocessBehavior",
+    },
+    max_active_runs: {
+      type: "integer",
+      title: "Max Active Runs",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      title: "Created At",
+    },
+    completed_at: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Completed At",
+    },
+    updated_at: {
+      type: "string",
+      format: "date-time",
+      title: "Updated At",
+    },
+  },
+  type: "object",
+  required: [
+    "id",
+    "dag_id",
+    "from_date",
+    "to_date",
+    "dag_run_conf",
+    "is_paused",
+    "reprocess_behavior",
+    "max_active_runs",
+    "created_at",
+    "completed_at",
+    "updated_at",
+  ],
+  title: "BackfillResponse",
+  description: "Base serializer for Backfill.",
 } as const;
 
 export const $BaseInfoSchema = {
@@ -1166,6 +1262,18 @@ export const $DAGRunResponse = {
       ],
       title: "Logical Date",
     },
+    queued_at: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Queued At",
+    },
     start_date: {
       anyOf: [
         {
@@ -1260,6 +1368,7 @@ export const $DAGRunResponse = {
     "run_id",
     "dag_id",
     "logical_date",
+    "queued_at",
     "start_date",
     "end_date",
     "data_interval_start",
