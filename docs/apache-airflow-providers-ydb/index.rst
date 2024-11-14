@@ -77,7 +77,7 @@ apache-airflow-providers-ydb package
 `YDB <https://ydb.tech/>`__
 
 
-Release: 1.4.0
+Release: 1.5.0
 
 Provider package
 ----------------
@@ -101,7 +101,7 @@ The minimum Apache Airflow version supported by this provider package is ``2.8.0
 PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.8.0``
-``apache-airflow-providers-common-sql``  ``>=1.14.1``
+``apache-airflow-providers-common-sql``  ``>=1.20.0``
 ``ydb``                                  ``>=3.18.8``
 ``ydb-dbapi``                            ``>=0.1.0``
 =======================================  ==================
@@ -131,5 +131,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-ydb 1.4.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ydb-1.4.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ydb-1.4.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ydb-1.4.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-ydb 1.4.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ydb-1.4.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ydb-1.4.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ydb-1.4.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-ydb 1.5.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ydb-1.5.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ydb-1.5.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ydb-1.5.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-ydb 1.5.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ydb-1.5.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ydb-1.5.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_ydb-1.5.0-py3-none-any.whl.sha512>`__)

@@ -28,40 +28,62 @@ Changelog
 ---------
 
 
-main
-.....
+10.0.0
+......
 
-All deprecated classes, parameters and features have been removed from the Kubernetes provider package.
-The following breaking changes were introduced:
 
-* Helpers
-   * Remove ``add_pod_suffix`` method from ``kubernetes_helper_functions.py``. Use ``add_unique_suffix`` instead.
-   * Remove ``make_unique_pod_id`` method from ``PodGenerator``. Use ``add_unique_suffix`` in ``kubernetes_helper_functions`` instead.
-   * Remove ``create_pod_id`` method from ``kubernetes_helper_functions.py``. Use ``create_unique_id`` instead.
-   * Remove ``gen_pod`` method from ``PodGenerator``.
-   * Remove ``add_xcom_sidecar`` method from ``PodGenerator``. Use ``airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar`` instead.
-   * Remove the option to using a dictionary for the executor_config ``from_obj`` function in ``PodGenerator``. Use a ``kubernetes.client.models.V1Pod`` class with a "pod_override" key.
-   * Remove ``from_legacy_obj`` method from ``PodGenerator``.
-   * Remove ``airflow.providers.cncf.kubernetes.pod_launcher_deprecated`` module. Use ``airflow.providers.cncf.kubernetes.utils.pod_manager`` instead.
+Breaking changes
+~~~~~~~~~~~~~~~~
 
-* Operators
-   * Remove ``airflow.providers.cncf.kubernetes.operators.kubernetes_pod``. Use ``airflow.providers.cncf.kubernetes.operators.pod`` instead.
-   * Remove ``is_delete_operator_pod`` parameters from ``KubernetesPodOperator``. Use ``on_finish_action`` instead.
-   * Remove ``progress_callback`` parameters from ``KubernetesPodOperator``. Use ``callbacks`` instead.
-   * Remove ``execute_complete`` method from ``KubernetesPodOperator``. Use ``trigger_reentry`` instead.
-   * Remove ``xcom_push`` parameter from ``SparkKubernetesOperator``. Use ``do_xcom_push``.
+.. warning::
+  All deprecated classes, parameters and features have been removed from the Kubernetes provider package.
+  The following breaking changes were introduced:
 
-* Triggers
-   * Remove ``should_delete_pod`` parameter from ``KubernetesPodTrigger``. Use ``on_finish_action`` instead.
+  * Helpers
+     * Remove ``add_pod_suffix`` method from ``kubernetes_helper_functions.py``. Use ``add_unique_suffix`` instead.
+     * Remove ``make_unique_pod_id`` method from ``PodGenerator``. Use ``add_unique_suffix`` in ``kubernetes_helper_functions`` instead.
+     * Remove ``create_pod_id`` method from ``kubernetes_helper_functions.py``. Use ``create_unique_id`` instead.
+     * Remove ``gen_pod`` method from ``PodGenerator``.
+     * Remove ``add_xcom_sidecar`` method from ``PodGenerator``. Use ``airflow.providers.cncf.kubernetes.utils.xcom_sidecar.add_xcom_sidecar`` instead.
+     * Remove the option to using a dictionary for the executor_config ``from_obj`` function in ``PodGenerator``. Use a ``kubernetes.client.models.V1Pod`` class with a "pod_override" key.
+     * Remove ``from_legacy_obj`` method from ``PodGenerator``.
+     * Remove ``airflow.providers.cncf.kubernetes.pod_launcher_deprecated`` module. Use ``airflow.providers.cncf.kubernetes.utils.pod_manager`` instead.
 
-* Utils
-   * Remove ``progress_callback`` parameter from ``PodManager``.
-   * Remove ``follow_container_logs`` method from ``PodManager``. Use ``fetch_container_logs`` instead.
+  * Operators
+     * Remove ``airflow.providers.cncf.kubernetes.operators.kubernetes_pod``. Use ``airflow.providers.cncf.kubernetes.operators.pod`` instead.
+     * Remove ``is_delete_operator_pod`` parameters from ``KubernetesPodOperator``. Use ``on_finish_action`` instead.
+     * Remove ``progress_callback`` parameters from ``KubernetesPodOperator``. Use ``callbacks`` instead.
+     * Remove ``execute_complete`` method from ``KubernetesPodOperator``. Use ``trigger_reentry`` instead.
+     * Remove ``xcom_push`` parameter from ``SparkKubernetesOperator``. Use ``do_xcom_push``.
 
+  * Triggers
+     * Remove ``should_delete_pod`` parameter from ``KubernetesPodTrigger``. Use ``on_finish_action`` instead.
+
+  * Utils
+     * Remove ``progress_callback`` parameter from ``PodManager``.
+     * Remove ``follow_container_logs`` method from ``PodManager``. Use ``fetch_container_logs`` instead.
 
 .. warning::
   Set the default value of ``namespace`` in ``@task.kubernetes`` to ``None``, so it uses the cluster namespace when ``in_cluster`` is True. Be sure to specify a namespace when using this decorator. To retain the previous behavior, set ``namespace="default"``
 
+* ``Remove deprecations cncf.kubernetes (#43689)``
+* ``Change default value of 'namespace' in 'task.kubernetes' to be None (#43402)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add random_name_suffix to SparkKubernetesOperator (#43847)``
+* ``terminate kubernetes watch in case of unknown error (#43645)``
+
+Misc
+~~~~
+
+* ``AIP-72: Remove DAG pickling (#43667)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Start porting DAG definition code to the Task SDK (#43076)``
 
 9.0.1
 .....
