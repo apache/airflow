@@ -98,13 +98,13 @@ class TaskInstanceOperations:
         """Tell the API server that this TI has started running."""
         body = TIEnterRunningPayload(pid=pid, hostname=get_hostname(), unixname=getuser(), start_date=when)
 
-        self.client.patch(f"task-instance/{id}/state", content=self.client.encoder.encode(body))
+        self.client.patch(f"task-instance/{id}/state", content=body.model_dump_json())
 
     def finish(self, id: uuid.UUID, state: TaskInstanceState, when: datetime):
         """Tell the API server that this TI has reached a terminal state."""
         body = TITerminalStatePayload(end_date=when, state=TerminalState(state))
 
-        self.client.patch(f"task-instance/{id}/state", content=self.client.encoder.encode(body))
+        self.client.patch(f"task-instance/{id}/state", content=body.model_dump_json())
 
     def heartbeat(self, id: uuid.UUID):
         self.client.put(f"task-instance/{id}/heartbeat")
