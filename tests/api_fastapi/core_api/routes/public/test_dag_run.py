@@ -288,7 +288,7 @@ class TestClearDagRun:
         for each in body["task_instances"]:
             assert each["state"] == "success"
         dag_run = session.scalar(select(DagRun).filter_by(dag_id=DAG1_ID, run_id=DAG1_RUN1_ID))
-        assert dag_run.state == DagRunState.SUCCESS
+        assert dag_run.state == DAG1_RUN1_STATE
 
     def test_clear_dag_run_not_found(self, test_client):
         response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns/invalid/clear", json={"dry_run": False})
