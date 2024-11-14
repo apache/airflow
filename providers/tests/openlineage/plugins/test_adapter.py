@@ -606,6 +606,9 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
                         nominalStartTime=event_time.isoformat(),
                         nominalEndTime=event_time.isoformat(),
                     ),
+                    "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
+                        version=ANY, name="Airflow", openlineageAdapterVersion=ANY
+                    ),
                     "airflowDagRun": AirflowDagRunFacet(
                         dag=expected_dag_info,
                         dagRun={
