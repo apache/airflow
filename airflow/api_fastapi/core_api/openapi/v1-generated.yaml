@@ -4082,17 +4082,16 @@ components:
       description: Connection Test serializer for responses.
     CreateAssetEventsBody:
       properties:
-        asset_uri:
+        uri:
           type: string
-          title: Asset Uri
+          title: Uri
         extra:
           type: object
           title: Extra
       additionalProperties: false
       type: object
       required:
-      - asset_uri
-      - extra
+      - uri
       title: CreateAssetEventsBody
       description: Create asset events request.
     DAGCollectionResponse:

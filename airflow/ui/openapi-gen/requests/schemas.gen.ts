@@ -697,9 +697,9 @@ export const $ConnectionTestResponse = {
 
 export const $CreateAssetEventsBody = {
   properties: {
-    asset_uri: {
+    uri: {
       type: "string",
-      title: "Asset Uri",
+      title: "Uri",
     },
     extra: {
       type: "object",
@@ -708,7 +708,7 @@ export const $CreateAssetEventsBody = {
   },
   additionalProperties: false,
   type: "object",
-  required: ["asset_uri", "extra"],
+  required: ["uri"],
   title: "CreateAssetEventsBody",
   description: "Create asset events request.",
 } as const;

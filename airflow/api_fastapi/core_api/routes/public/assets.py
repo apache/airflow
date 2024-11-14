@@ -140,31 +140,27 @@ def get_asset_events(
 
 @assets_router.post(
     "/events",
-    responses=create_openapi_http_exception_doc([401, 403, 404]),
+    responses=create_openapi_http_exception_doc([404]),
 )
 def create_asset_events(
-    create_asset_request: CreateAssetEventsBody,
+    body: CreateAssetEventsBody,
     session: Annotated[Session, Depends(get_session)],
 ) -> AssetEventResponse:
     """Create asset events."""
-    asset = session.scalar(
-        select(AssetModel).where(AssetModel.uri == create_asset_request.asset_uri).limit(1)
-    )
+    asset = session.scalar(select(AssetModel).where(AssetModel.uri == body.uri).limit(1))
     if not asset:
-        raise HTTPException(404, f"Asset with uri: `{create_asset_request.asset_uri}` was not found")
+        raise HTTPException(404, f"Asset with uri: `{body.uri}` was not found")
     timestamp = timezone.utcnow()
 
-    create_asset_request.extra["from_rest_api"] = True
-
     assets_event = asset_manager.register_asset_change(
-        asset=Asset(uri=create_asset_request.asset_uri),
+        asset=Asset(uri=body.uri),
         timestamp=timestamp,
-        extra=create_asset_request.extra,
+        extra=body.extra,
         session=session,
     )
 
     if not assets_event:
-        raise HTTPException(404, f"Asset with uri: `{create_asset_request.asset_uri}` was not found")
+        raise HTTPException(404, f"Asset with uri: `{body.uri}` was not found")
     return AssetEventResponse.model_validate(assets_event, from_attributes=True)
 
 

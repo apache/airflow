@@ -178,8 +178,8 @@ export type ConnectionTestResponse = {
  * Create asset events request.
  */
 export type CreateAssetEventsBody = {
-  asset_uri: string;
-  extra: {
+  uri: string;
+  extra?: {
     [key: string]: unknown;
   };
 };

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class DagScheduleAssetReference(BaseModel):
@@ -104,8 +104,15 @@ class AssetEventCollectionResponse(BaseModel):
 class CreateAssetEventsBody(BaseModel):
     """Create asset events request."""
 
-    asset_uri: str
-    extra: dict
+    uri: str
+    extra: dict = Field(default_factory=dict)
+
+    @field_validator("extra", mode="before")
+    def set_from_rest_api(cls, v):
+        if not isinstance(v, dict):
+            v = {}
+        v.setdefault("from_rest_api", True)
+        return v
 
     class Config:
         """Pydantic config."""
