@@ -391,13 +391,17 @@ class BaseExecutor(LoggingMixin):
                 span_id=span_id,
                 links=links,
             ) as span:
-                span.set_attribute("dag_id", key.dag_id)
-                span.set_attribute("run_id", key.run_id)
-                span.set_attribute("task_id", key.task_id)
-                span.set_attribute("try_number", key.try_number)
-                span.set_attribute("command", str(command))
-                span.set_attribute("queue", str(queue))
-                span.set_attribute("executor_config", str(executor_config))
+                span.set_attributes(
+                    {
+                        "dag_id": key.dag_id,
+                        "run_id": key.run_id,
+                        "task_id": key.task_id,
+                        "try_number": key.try_number,
+                        "command": str(command),
+                        "queue": str(queue),
+                        "executor_config": str(executor_config),
+                    }
+                )
                 del self.queued_tasks[key]
                 self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
                 self.running.add(key)
@@ -436,11 +440,15 @@ class BaseExecutor(LoggingMixin):
                 component="BaseExecutor",
                 parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
             ) as span:
-                span.set_attribute("dag_id", key.dag_id)
-                span.set_attribute("run_id", key.run_id)
-                span.set_attribute("task_id", key.task_id)
-                span.set_attribute("try_number", key.try_number)
-                span.set_attribute("error", True)
+                span.set_attributes(
+                    {
+                        "dag_id": key.dag_id,
+                        "run_id": key.run_id,
+                        "task_id": key.task_id,
+                        "try_number": key.try_number,
+                        "error": True,
+                    }
+                )
 
         self.change_state(key, TaskInstanceState.FAILED, info)
 
@@ -459,10 +467,14 @@ class BaseExecutor(LoggingMixin):
                 component="BaseExecutor",
                 parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
             ) as span:
-                span.set_attribute("dag_id", key.dag_id)
-                span.set_attribute("run_id", key.run_id)
-                span.set_attribute("task_id", key.task_id)
-                span.set_attribute("try_number", key.try_number)
+                span.set_attributes(
+                    {
+                        "dag_id": key.dag_id,
+                        "run_id": key.run_id,
+                        "task_id": key.task_id,
+                        "try_number": key.try_number,
+                    }
+                )
 
         self.change_state(key, TaskInstanceState.SUCCESS, info)
 

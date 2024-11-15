@@ -19,11 +19,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class DagScheduleAssetReference(BaseModel):
-    """Serializable version of the DagScheduleAssetReference ORM SqlAlchemyModel."""
+    """DAG schedule reference serializer for assets."""
 
     dag_id: str
     created_at: datetime
@@ -31,7 +31,7 @@ class DagScheduleAssetReference(BaseModel):
 
 
 class TaskOutletAssetReference(BaseModel):
-    """Serializable version of the TaskOutletAssetReference ORM SqlAlchemyModel."""
+    """Task outlet reference serializer for assets."""
 
     dag_id: str
     task_id: str
@@ -40,7 +40,7 @@ class TaskOutletAssetReference(BaseModel):
 
 
 class AssetAliasSchema(BaseModel):
-    """Serializable version of the AssetAliasSchema ORM SqlAlchemyModel."""
+    """Asset alias serializer for assets."""
 
     id: int
     name: str
@@ -63,4 +63,39 @@ class AssetCollectionResponse(BaseModel):
     """Asset collection response."""
 
     assets: list[AssetResponse]
+    total_entries: int
+
+
+class DagRunAssetReference(BaseModel):
+    """DAGRun serializer for asset responses."""
+
+    run_id: str
+    dag_id: str
+    execution_date: datetime = Field(alias="logical_date")
+    start_date: datetime
+    end_date: datetime
+    state: str
+    data_interval_start: datetime
+    data_interval_end: datetime
+
+
+class AssetEventResponse(BaseModel):
+    """Asset event serializer for responses."""
+
+    id: int
+    asset_id: int
+    uri: str
+    extra: dict | None = None
+    source_task_id: str | None = None
+    source_dag_id: str | None = None
+    source_run_id: str | None = None
+    source_map_index: int
+    created_dagruns: list[DagRunAssetReference]
+    timestamp: datetime
+
+
+class AssetEventCollectionResponse(BaseModel):
+    """Asset event collection response."""
+
+    asset_events: list[AssetEventResponse]
     total_entries: int

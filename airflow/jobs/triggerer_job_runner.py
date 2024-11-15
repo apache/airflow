@@ -436,9 +436,13 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         Stats.gauge("triggerer.capacity_left", capacity_left, tags={"hostname": self.job.hostname})
 
         span = Trace.get_current_span()
-        span.set_attribute("trigger host", self.job.hostname)
-        span.set_attribute("triggers running", len(self.trigger_runner.triggers))
-        span.set_attribute("capacity left", capacity_left)
+        span.set_attributes(
+            {
+                "trigger host": self.job.hostname,
+                "triggers running": len(self.trigger_runner.triggers),
+                "capacity left": capacity_left,
+            }
+        )
 
 
 class TriggerDetails(TypedDict):
