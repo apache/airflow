@@ -36,7 +36,7 @@ def task_instance(session, create_task_instance, request):
         dag_id="TEST_DAG_ID",
         task_id="TEST_TASK_ID",
         run_id="TEST_RUN_ID",
-        execution_date=request.instance.default_time,
+        logical_date=request.instance.default_time,
     )
 
 
@@ -60,7 +60,7 @@ class TestEventLogSchema(TestEventLogSchemaBase):
             "run_id": "TEST_RUN_ID",
             "map_index": -1,
             "try_number": 0,
-            "execution_date": self.default_time.isoformat(),
+            "logical_date": self.default_time.isoformat(),
             "owner": "airflow",
             "when": self.default_time.isoformat(),
             "extra": None,
@@ -86,7 +86,7 @@ class TestEventLogCollection(TestEventLogSchemaBase):
                     "run_id": "TEST_RUN_ID",
                     "map_index": -1,
                     "try_number": 0,
-                    "execution_date": self.default_time.isoformat(),
+                    "logical_date": self.default_time.isoformat(),
                     "owner": "airflow",
                     "when": self.default_time.isoformat(),
                     "extra": None,
@@ -99,7 +99,7 @@ class TestEventLogCollection(TestEventLogSchemaBase):
                     "run_id": "TEST_RUN_ID",
                     "map_index": -1,
                     "try_number": 0,
-                    "execution_date": self.default_time.isoformat(),
+                    "logical_date": self.default_time.isoformat(),
                     "owner": "airflow",
                     "when": self.default_time2.isoformat(),
                     "extra": None,

@@ -189,7 +189,7 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
 
-    def _get_execution_dates(self, context) -> tuple[datetime, datetime]:
+    def _get_logical_dates(self, context) -> tuple[datetime, datetime]:
         if isinstance(self.execution_range, timedelta):
             if self.execution_range < timedelta(0):
                 return context["logical_date"], context["logical_date"] - self.execution_range
@@ -203,7 +203,7 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
             return context["logical_date"] - timedelta(1), context["logical_date"]
 
     def poke(self, context: Context) -> bool:
-        start_date, end_date = self._get_execution_dates(context)
+        start_date, end_date = self._get_logical_dates(context)
 
         if datetime.now(end_date.tzinfo) < end_date:
             return False
@@ -251,7 +251,7 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
         for dag_run in dag_runs:
             if (
                 start_date.timestamp()
-                < parser.parse(dag_run["execution_date"]).timestamp()
+                < parser.parse(dag_run["logical_date"]).timestamp()
                 < end_date.timestamp()
             ) and dag_run["state"] not in self.allowed_states:
                 return False
@@ -259,7 +259,7 @@ class CloudComposerDAGRunSensor(BaseSensorOperator):
 
     def execute(self, context: Context) -> None:
         if self.deferrable:
-            start_date, end_date = self._get_execution_dates(context)
+            start_date, end_date = self._get_logical_dates(context)
             self.defer(
                 trigger=CloudComposerDAGRunTrigger(
                     project_id=self.project_id,

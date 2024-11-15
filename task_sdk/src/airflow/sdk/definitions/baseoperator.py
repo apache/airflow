@@ -330,16 +330,16 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param max_retry_delay: maximum delay interval between retries, can be set as
         ``timedelta`` or ``float`` seconds, which will be converted into ``timedelta``.
     :param start_date: The ``start_date`` for the task, determines
-        the ``execution_date`` for the first task instance. The best practice
+        the ``logical_date`` for the first task instance. The best practice
         is to have the start_date rounded
         to your DAG's ``schedule_interval``. Daily jobs have their start_date
         some day at 00:00:00, hourly jobs have their start_date at 00:00
         of a specific hour. Note that Airflow simply looks at the latest
-        ``execution_date`` and adds the ``schedule_interval`` to determine
-        the next ``execution_date``. It is also very important
+        ``logical_date`` and adds the ``schedule_interval`` to determine
+        the next ``logical_date``. It is also very important
         to note that different tasks' dependencies
         need to line up in time. If task A depends on task B and their
-        start_date are offset in a way that their execution_date don't line
+        start_date are offset in a way that their logical_date don't line
         up, A's dependencies will never be met. If you are looking to delay
         a task, for example running a daily task at 2AM, look into the
         ``TimeSensor`` and ``TimeDeltaSensor``. We advise against using
@@ -454,7 +454,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         Resources constructor) to their values.
     :param run_as_user: unix username to impersonate while running the task
     :param max_active_tis_per_dag: When set, a task will be able to limit the concurrent
-        runs across execution_dates.
+        runs across logical_dates.
     :param max_active_tis_per_dagrun: When set, a task will be able to limit the concurrent
         task instances per DAG run.
     :param executor: Which executor to target when running this task. NOT YET SUPPORTED

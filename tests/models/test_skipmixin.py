@@ -63,7 +63,7 @@ class TestSkipMixin:
             tasks = [EmptyOperator(task_id="task")]
         dag_run = dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
-            execution_date=now,
+            logical_date=now,
             state=State.FAILED,
         )
         SkipMixin().skip(dag_run=dag_run, tasks=tasks)
