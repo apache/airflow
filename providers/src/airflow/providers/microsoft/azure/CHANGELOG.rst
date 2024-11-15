@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+11.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add copy_object functionality for wasbhook (#43037)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Power BI trigger fetch status (#43494)``
+
+Misc
+~~~~
+
+* ``Add min version to ipykernel,scrapbook, pywinrm (#43603)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 11.0.0
 ......
 

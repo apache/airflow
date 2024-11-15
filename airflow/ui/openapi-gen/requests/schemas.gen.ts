@@ -103,8 +103,7 @@ export const $AssetAliasSchema = {
   type: "object",
   required: ["id", "name"],
   title: "AssetAliasSchema",
-  description:
-    "Serializable version of the AssetAliasSchema ORM SqlAlchemyModel.",
+  description: "Asset alias serializer for assets.",
 } as const;
 
 export const $AssetCollectionResponse = {
@@ -125,6 +124,114 @@ export const $AssetCollectionResponse = {
   required: ["assets", "total_entries"],
   title: "AssetCollectionResponse",
   description: "Asset collection response.",
+} as const;
+
+export const $AssetEventCollectionResponse = {
+  properties: {
+    asset_events: {
+      items: {
+        $ref: "#/components/schemas/AssetEventResponse",
+      },
+      type: "array",
+      title: "Asset Events",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["asset_events", "total_entries"],
+  title: "AssetEventCollectionResponse",
+  description: "Asset event collection response.",
+} as const;
+
+export const $AssetEventResponse = {
+  properties: {
+    id: {
+      type: "integer",
+      title: "Id",
+    },
+    asset_id: {
+      type: "integer",
+      title: "Asset Id",
+    },
+    uri: {
+      type: "string",
+      title: "Uri",
+    },
+    extra: {
+      anyOf: [
+        {
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Extra",
+    },
+    source_task_id: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Source Task Id",
+    },
+    source_dag_id: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Source Dag Id",
+    },
+    source_run_id: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Source Run Id",
+    },
+    source_map_index: {
+      type: "integer",
+      title: "Source Map Index",
+    },
+    created_dagruns: {
+      items: {
+        $ref: "#/components/schemas/DagRunAssetReference",
+      },
+      type: "array",
+      title: "Created Dagruns",
+    },
+    timestamp: {
+      type: "string",
+      format: "date-time",
+      title: "Timestamp",
+    },
+  },
+  type: "object",
+  required: [
+    "id",
+    "asset_id",
+    "uri",
+    "source_map_index",
+    "created_dagruns",
+    "timestamp",
+  ],
+  title: "AssetEventResponse",
+  description: "Asset event serializer for responses.",
 } as const;
 
 export const $AssetResponse = {
@@ -194,6 +301,26 @@ export const $AssetResponse = {
   description: "Asset serializer for responses.",
 } as const;
 
+export const $BackfillCollectionResponse = {
+  properties: {
+    backfills: {
+      items: {
+        $ref: "#/components/schemas/BackfillResponse",
+      },
+      type: "array",
+      title: "Backfills",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["backfills", "total_entries"],
+  title: "BackfillCollectionResponse",
+  description: "Backfill Collection serializer for responses.",
+} as const;
+
 export const $BackfillPostBody = {
   properties: {
     dag_id: {
@@ -234,6 +361,82 @@ export const $BackfillPostBody = {
   required: ["dag_id", "from_date", "to_date"],
   title: "BackfillPostBody",
   description: "Object used for create backfill request.",
+} as const;
+
+export const $BackfillResponse = {
+  properties: {
+    id: {
+      type: "integer",
+      title: "Id",
+    },
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    from_date: {
+      type: "string",
+      format: "date-time",
+      title: "From Date",
+    },
+    to_date: {
+      type: "string",
+      format: "date-time",
+      title: "To Date",
+    },
+    dag_run_conf: {
+      type: "object",
+      title: "Dag Run Conf",
+    },
+    is_paused: {
+      type: "boolean",
+      title: "Is Paused",
+    },
+    reprocess_behavior: {
+      $ref: "#/components/schemas/ReprocessBehavior",
+    },
+    max_active_runs: {
+      type: "integer",
+      title: "Max Active Runs",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      title: "Created At",
+    },
+    completed_at: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Completed At",
+    },
+    updated_at: {
+      type: "string",
+      format: "date-time",
+      title: "Updated At",
+    },
+  },
+  type: "object",
+  required: [
+    "id",
+    "dag_id",
+    "from_date",
+    "to_date",
+    "dag_run_conf",
+    "is_paused",
+    "reprocess_behavior",
+    "max_active_runs",
+    "created_at",
+    "completed_at",
+    "updated_at",
+  ],
+  title: "BackfillResponse",
+  description: "Base serializer for Backfill.",
 } as const;
 
 export const $BaseInfoSchema = {
@@ -1100,6 +1303,19 @@ export const $DAGResponse = {
   description: "DAG serializer for responses.",
 } as const;
 
+export const $DAGRunClearBody = {
+  properties: {
+    dry_run: {
+      type: "boolean",
+      title: "Dry Run",
+      default: true,
+    },
+  },
+  type: "object",
+  title: "DAGRunClearBody",
+  description: "DAG Run serializer for clear endpoint body.",
+} as const;
+
 export const $DAGRunPatchBody = {
   properties: {
     state: {
@@ -1165,6 +1381,18 @@ export const $DAGRunResponse = {
         },
       ],
       title: "Logical Date",
+    },
+    queued_at: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Queued At",
     },
     start_date: {
       anyOf: [
@@ -1260,6 +1488,7 @@ export const $DAGRunResponse = {
     "run_id",
     "dag_id",
     "logical_date",
+    "queued_at",
     "start_date",
     "end_date",
     "data_interval_start",
@@ -1686,6 +1915,61 @@ export const $DagProcessorInfoSchema = {
   description: "Schema for DagProcessor info.",
 } as const;
 
+export const $DagRunAssetReference = {
+  properties: {
+    run_id: {
+      type: "string",
+      title: "Run Id",
+    },
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    logical_date: {
+      type: "string",
+      format: "date-time",
+      title: "Logical Date",
+    },
+    start_date: {
+      type: "string",
+      format: "date-time",
+      title: "Start Date",
+    },
+    end_date: {
+      type: "string",
+      format: "date-time",
+      title: "End Date",
+    },
+    state: {
+      type: "string",
+      title: "State",
+    },
+    data_interval_start: {
+      type: "string",
+      format: "date-time",
+      title: "Data Interval Start",
+    },
+    data_interval_end: {
+      type: "string",
+      format: "date-time",
+      title: "Data Interval End",
+    },
+  },
+  type: "object",
+  required: [
+    "run_id",
+    "dag_id",
+    "logical_date",
+    "start_date",
+    "end_date",
+    "state",
+    "data_interval_start",
+    "data_interval_end",
+  ],
+  title: "DagRunAssetReference",
+  description: "DAGRun serializer for asset responses.",
+} as const;
+
 export const $DagRunState = {
   type: "string",
   enum: ["queued", "running", "success", "failed"],
@@ -1740,8 +2024,7 @@ export const $DagScheduleAssetReference = {
   type: "object",
   required: ["dag_id", "created_at", "updated_at"],
   title: "DagScheduleAssetReference",
-  description:
-    "Serializable version of the DagScheduleAssetReference ORM SqlAlchemyModel.",
+  description: "DAG schedule reference serializer for assets.",
 } as const;
 
 export const $DagStatsCollectionResponse = {
@@ -2612,6 +2895,26 @@ export const $SchedulerInfoSchema = {
   description: "Schema for Scheduler info.",
 } as const;
 
+export const $TaskCollectionResponse = {
+  properties: {
+    tasks: {
+      items: {
+        $ref: "#/components/schemas/TaskResponse",
+      },
+      type: "array",
+      title: "Tasks",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["tasks", "total_entries"],
+  title: "TaskCollectionResponse",
+  description: "Task collection serializer for responses.",
+} as const;
+
 export const $TaskDependencyCollectionResponse = {
   properties: {
     dependencies: {
@@ -3055,8 +3358,7 @@ export const $TaskOutletAssetReference = {
   type: "object",
   required: ["dag_id", "task_id", "created_at", "updated_at"],
   title: "TaskOutletAssetReference",
-  description:
-    "Serializable version of the TaskOutletAssetReference ORM SqlAlchemyModel.",
+  description: "Task outlet reference serializer for assets.",
 } as const;
 
 export const $TaskResponse = {
@@ -3626,10 +3928,10 @@ export const $XComResponseNative = {
       format: "date-time",
       title: "Timestamp",
     },
-    execution_date: {
+    logical_date: {
       type: "string",
       format: "date-time",
-      title: "Execution Date",
+      title: "Logical Date",
     },
     map_index: {
       type: "integer",
@@ -3651,7 +3953,7 @@ export const $XComResponseNative = {
   required: [
     "key",
     "timestamp",
-    "execution_date",
+    "logical_date",
     "map_index",
     "task_id",
     "dag_id",
@@ -3672,10 +3974,10 @@ export const $XComResponseString = {
       format: "date-time",
       title: "Timestamp",
     },
-    execution_date: {
+    logical_date: {
       type: "string",
       format: "date-time",
-      title: "Execution Date",
+      title: "Logical Date",
     },
     map_index: {
       type: "integer",
@@ -3705,7 +4007,7 @@ export const $XComResponseString = {
   required: [
     "key",
     "timestamp",
-    "execution_date",
+    "logical_date",
     "map_index",
     "task_id",
     "dag_id",

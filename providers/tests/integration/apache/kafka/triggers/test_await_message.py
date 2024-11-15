@@ -75,7 +75,7 @@ class TestTrigger:
 
         trigger = AwaitMessageTrigger(
             topics=[TOPIC],
-            apply_function="tests.integration.providers.apache.kafka.triggers.test_await_message._apply_function",
+            apply_function="providers.tests.integration.apache.kafka.triggers.test_await_message._apply_function",
             apply_function_args=None,
             apply_function_kwargs=None,
             kafka_config_id="trigger.await_message.test.integration.test_1",

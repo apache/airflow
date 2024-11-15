@@ -660,7 +660,7 @@ function install_airflow() {
 
         # Similarly we need _a_ file for task_sdk too
         mkdir -p ./task_sdk/src/airflow/sdk/
-        touch ./task_sdk/src/airflow/sdk/__init__.py
+        echo '__version__ = "0.0.0dev0"' > ./task_sdk/src/airflow/sdk/__init__.py
 
         trap 'rm -f ./providers/src/airflow/providers/__init__.py ./task_sdk/src/airflow/__init__.py 2>/dev/null' EXIT
 
@@ -1068,12 +1068,6 @@ function check_run_tests() {
         python "${IN_CONTAINER_DIR}/remove_arm_packages.py"
     fi
 
-    if [[ ${TEST_TYPE} == "PlainAsserts" ]]; then
-       # Plain asserts should be converted to env variable to make sure they are taken into account
-       # otherwise they will not be effective during test collection when plain assert is breaking collection
-       export PYTEST_PLAIN_ASSERTS="true"
-    fi
-
     if [[ ${DATABASE_ISOLATION=} == "true" ]]; then
         echo "${COLOR_BLUE}Starting internal API server:${COLOR_RESET}"
         # We need to start the internal API server before running tests
@@ -1101,7 +1095,7 @@ function check_run_tests() {
         fi
     fi
 
-    if [[ ${RUN_SYSTEM_TESTS:="false"} == "true" ]]; then
+    if [[ ${TEST_GROUP:=""} == "system" ]]; then
         exec "${IN_CONTAINER_DIR}/run_system_tests.sh" "${@}"
     else
         exec "${IN_CONTAINER_DIR}/run_ci_tests.sh" "${@}"

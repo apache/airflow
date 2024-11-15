@@ -27,6 +27,7 @@ import time
 from collections import Counter, defaultdict, deque
 from datetime import timedelta
 from functools import lru_cache, partial
+from itertools import groupby
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
@@ -339,7 +340,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .where(not_(DM.is_paused))
                 .where(TI.state == TaskInstanceState.SCHEDULED)
                 .options(selectinload(TI.dag_model))
-                .order_by(-TI.priority_weight, DR.execution_date, TI.map_index)
+                .order_by(-TI.priority_weight, DR.logical_date, TI.map_index)
             )
 
             if starved_pools:
@@ -734,7 +735,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Report execution
         for ti_key, (state, _) in event_buffer.items():
-            # We create map (dag_id, task_id, execution_date) -> in-memory try_number
+            # We create map (dag_id, task_id, logical_date) -> in-memory try_number
             ti_primary_key_to_try_number_map[ti_key.primary] = ti_key.try_number
 
             cls.logger().info("Received executor event with state %s for task instance %s", state, ti_key)
@@ -859,28 +860,31 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @classmethod
     def _set_span_attrs__process_executor_events(cls, span, state, ti):
-        span.set_attribute("category", "scheduler")
-        span.set_attribute("task_id", ti.task_id)
-        span.set_attribute("dag_id", ti.dag_id)
-        span.set_attribute("state", ti.state)
-        if ti.state == TaskInstanceState.FAILED:
-            span.set_attribute("error", True)
-        span.set_attribute("start_date", str(ti.start_date))
-        span.set_attribute("end_date", str(ti.end_date))
-        span.set_attribute("duration", ti.duration)
-        span.set_attribute("executor_config", str(ti.executor_config))
-        span.set_attribute("execution_date", str(ti.execution_date))
-        span.set_attribute("hostname", ti.hostname)
-        span.set_attribute("log_url", ti.log_url)
-        span.set_attribute("operator", str(ti.operator))
-        span.set_attribute("try_number", ti.try_number)
-        span.set_attribute("executor_state", state)
-        span.set_attribute("pool", ti.pool)
-        span.set_attribute("queue", ti.queue)
-        span.set_attribute("priority_weight", ti.priority_weight)
-        span.set_attribute("queued_dttm", str(ti.queued_dttm))
-        span.set_attribute("queued_by_job_id", ti.queued_by_job_id)
-        span.set_attribute("pid", ti.pid)
+        span.set_attributes(
+            {
+                "category": "scheduler",
+                "task_id": ti.task_id,
+                "dag_id": ti.dag_id,
+                "state": ti.state,
+                "error": True if state == TaskInstanceState.FAILED else False,
+                "start_date": str(ti.start_date),
+                "end_date": str(ti.end_date),
+                "duration": ti.duration,
+                "executor_config": str(ti.executor_config),
+                "logical_date": str(ti.logical_date),
+                "hostname": ti.hostname,
+                "log_url": ti.log_url,
+                "operator": str(ti.operator),
+                "try_number": ti.try_number,
+                "executor_state": state,
+                "pool": ti.pool,
+                "queue": ti.queue,
+                "priority_weight": ti.priority_weight,
+                "queued_dttm": str(ti.queued_dttm),
+                "queued_by_job_id": ti.queued_by_job_id,
+                "pid": ti.pid,
+            }
+        )
         if span.is_recording():
             span.add_event(name="queued", timestamp=datetime_to_nano(ti.queued_dttm))
             span.add_event(name="started", timestamp=datetime_to_nano(ti.start_date))
@@ -1060,8 +1064,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             with Trace.start_span(
                 span_name="scheduler_job_loop", component="SchedulerJobRunner"
             ) as span, Stats.timer("scheduler.scheduler_loop_duration") as timer:
-                span.set_attribute("category", "scheduler")
-                span.set_attribute("loop_count", loop_count)
+                span.set_attributes(
+                    {
+                        "category": "scheduler",
+                        "loop_count": loop_count,
+                    }
+                )
 
                 if self.using_sqlite and self.processor_agent:
                     self.processor_agent.run_single_parsing_loop()
@@ -1280,15 +1288,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @add_span
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
         """Create a DAG run and update the dag_model to control if/when the next DAGRun should be created."""
-        # Bulk Fetch DagRuns with dag_id and execution_date same
+        # Bulk Fetch DagRuns with dag_id and logical_date same
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
         # duplicate dag runs
         existing_dagruns = (
             session.execute(
-                select(DagRun.dag_id, DagRun.execution_date).where(
+                select(DagRun.dag_id, DagRun.logical_date).where(
                     tuple_in_condition(
-                        (DagRun.dag_id, DagRun.execution_date),
+                        (DagRun.dag_id, DagRun.logical_date),
                         ((dm.dag_id, dm.next_dagrun) for dm in dag_models),
                     ),
                 )
@@ -1329,7 +1337,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 try:
                     dag.create_dagrun(
                         run_type=DagRunType.SCHEDULED,
-                        execution_date=dag_model.next_dagrun,
+                        logical_date=dag_model.next_dagrun,
                         state=DagRunState.QUEUED,
                         data_interval=data_interval,
                         external_trigger=False,
@@ -1364,18 +1372,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session: Session,
     ) -> None:
         """For DAGs that are triggered by assets, create dag runs."""
-        # Bulk Fetch DagRuns with dag_id and execution_date same
+        # Bulk Fetch DagRuns with dag_id and logical_date same
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
         # duplicate dag runs
-        exec_dates = {
+        logical_dates = {
             dag_id: timezone.coerce_datetime(last_time)
             for dag_id, (_, last_time) in asset_triggered_dag_info.items()
         }
         existing_dagruns: set[tuple[str, timezone.DateTime]] = set(
             session.execute(
-                select(DagRun.dag_id, DagRun.execution_date).where(
-                    tuple_in_condition((DagRun.dag_id, DagRun.execution_date), exec_dates.items())
+                select(DagRun.dag_id, DagRun.logical_date).where(
+                    tuple_in_condition((DagRun.dag_id, DagRun.logical_date), logical_dates.items())
                 )
             )
         )
@@ -1403,24 +1411,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # we need to set dag.next_dagrun_info if the Dag Run already exists or if we
             # create a new one. This is so that in the next Scheduling loop we try to create new runs
             # instead of falling in a loop of Integrity Error.
-            exec_date = exec_dates[dag.dag_id]
-            if (dag.dag_id, exec_date) not in existing_dagruns:
+            logical_date = logical_dates[dag.dag_id]
+            if (dag.dag_id, logical_date) not in existing_dagruns:
                 previous_dag_run = session.scalar(
                     select(DagRun)
                     .where(
                         DagRun.dag_id == dag.dag_id,
-                        DagRun.execution_date < exec_date,
+                        DagRun.logical_date < logical_date,
                         DagRun.run_type == DagRunType.ASSET_TRIGGERED,
                     )
-                    .order_by(DagRun.execution_date.desc())
+                    .order_by(DagRun.logical_date.desc())
                     .limit(1)
                 )
                 asset_event_filters = [
                     DagScheduleAssetReference.dag_id == dag.dag_id,
-                    AssetEvent.timestamp <= exec_date,
+                    AssetEvent.timestamp <= logical_date,
                 ]
                 if previous_dag_run:
-                    asset_event_filters.append(AssetEvent.timestamp > previous_dag_run.execution_date)
+                    asset_event_filters.append(AssetEvent.timestamp > previous_dag_run.logical_date)
 
                 asset_events = session.scalars(
                     select(AssetEvent)
@@ -1431,10 +1439,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .where(*asset_event_filters)
                 ).all()
 
-                data_interval = dag.timetable.data_interval_for_events(exec_date, asset_events)
+                data_interval = dag.timetable.data_interval_for_events(logical_date, asset_events)
                 run_id = dag.timetable.generate_run_id(
                     run_type=DagRunType.ASSET_TRIGGERED,
-                    logical_date=exec_date,
+                    logical_date=logical_date,
                     data_interval=data_interval,
                     session=session,
                     events=asset_events,
@@ -1443,7 +1451,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag_run = dag.create_dagrun(
                     run_id=run_id,
                     run_type=DagRunType.ASSET_TRIGGERED,
-                    execution_date=exec_date,
+                    logical_date=logical_date,
                     data_interval=data_interval,
                     state=DagRunState.QUEUED,
                     external_trigger=False,
@@ -1518,10 +1526,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         @add_span
         def _update_state(dag: DAG, dag_run: DagRun):
             span = Trace.get_current_span()
-            span.set_attribute("state", str(DagRunState.RUNNING))
-            span.set_attribute("run_id", dag_run.run_id)
-            span.set_attribute("type", dag_run.run_type)
-            span.set_attribute("dag_id", dag_run.dag_id)
+            span.set_attributes(
+                {
+                    "state": str(DagRunState.RUNNING),
+                    "run_id": dag_run.run_id,
+                    "type": dag_run.run_type,
+                    "dag_id": dag_run.dag_id,
+                }
+            )
 
             dag_run.state = DagRunState.RUNNING
             dag_run.start_date = timezone.utcnow()
@@ -1631,9 +1643,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         with Trace.start_span(
             span_name="_schedule_dag_run", component="SchedulerJobRunner", links=links
         ) as span:
-            span.set_attribute("dag_id", dag_run.dag_id)
-            span.set_attribute("run_id", dag_run.run_id)
-            span.set_attribute("run_type", dag_run.run_type)
+            span.set_attributes(
+                {
+                    "dag_id": dag_run.dag_id,
+                    "run_id": dag_run.run_id,
+                    "run_type": dag_run.run_type,
+                }
+            )
             callback: DagCallbackRequest | None = None
 
             dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
@@ -1690,8 +1706,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                 return callback_to_execute
 
-            if dag_run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:
-                self.log.error("Execution date is in future: %s", dag_run.execution_date)
+            if dag_run.logical_date > timezone.utcnow() and not dag.allow_future_exec_dates:
+                self.log.error("Logical date is in future: %s", dag_run.logical_date)
                 return callback
 
             if not self._verify_integrity_if_dag_changed(dag_run=dag_run, session=session):
@@ -1705,7 +1721,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if self._should_update_dag_next_dagruns(dag, dag_model, last_dag_run=dag_run, session=session):
                 dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
             # This will do one query per dag run. We "could" build up a complex
-            # query to update all the TIs across all the execution dates and dag
+            # query to update all the TIs across all the logical dates and dag
             # IDs in a single query, but it turns out that can be _very very slow_
             # see #11147/commit ee90807ac for more details
             if span.is_recording():
@@ -1814,12 +1830,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Stats.gauge("pool.deferred_slots", slot_stats["deferred"], tags={"pool_name": pool_name})
                 Stats.gauge("pool.scheduled_slots", slot_stats["scheduled"], tags={"pool_name": pool_name})
 
-                span.set_attribute("category", "scheduler")
-                span.set_attribute(f"pool.open_slots.{pool_name}", slot_stats["open"])
-                span.set_attribute(f"pool.queued_slots.{pool_name}", slot_stats["queued"])
-                span.set_attribute(f"pool.running_slots.{pool_name}", slot_stats["running"])
-                span.set_attribute(f"pool.deferred_slots.{pool_name}", slot_stats["deferred"])
-                span.set_attribute(f"pool.scheduled_slots.{pool_name}", slot_stats["scheduled"])
+                span.set_attributes(
+                    {
+                        "category": "scheduler",
+                        f"pool.open_slots.{pool_name}": slot_stats["open"],
+                        f"pool.queued_slots.{pool_name}": slot_stats["queued"],
+                        f"pool.running_slots.{pool_name}": slot_stats["running"],
+                        f"pool.deferred_slots.{pool_name}": slot_stats["deferred"],
+                        f"pool.scheduled_slots.{pool_name}": slot_stats["scheduled"],
+                    }
+                )
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
@@ -2088,15 +2108,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         active_name_to_uri: dict[str, str] = {name: uri for name, uri in active_assets}
         active_uri_to_name: dict[str, str] = {uri: name for name, uri in active_assets}
 
-        def _generate_dag_warnings(offending: AssetModel, attr: str, value: str) -> Iterator[DagWarning]:
+        def _generate_warning_message(
+            offending: AssetModel, attr: str, value: str
+        ) -> Iterator[tuple[str, str]]:
             for ref in itertools.chain(offending.consuming_dags, offending.producing_tasks):
-                yield DagWarning(
-                    dag_id=ref.dag_id,
-                    error_type=DagWarningType.ASSET_CONFLICT,
-                    message=f"Cannot activate asset {offending}; {attr} is already associated to {value!r}",
+                yield (
+                    ref.dag_id,
+                    f"Cannot activate asset {offending}; {attr} is already associated to {value!r}",
                 )
 
-        def _activate_assets_generate_warnings() -> Iterator[DagWarning]:
+        def _activate_assets_generate_warnings() -> Iterator[tuple[str, str]]:
             incoming_name_to_uri: dict[str, str] = {}
             incoming_uri_to_name: dict[str, str] = {}
             for asset in assets:
@@ -2104,28 +2125,38 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     continue
                 existing_uri = active_name_to_uri.get(asset.name) or incoming_name_to_uri.get(asset.name)
                 if existing_uri is not None and existing_uri != asset.uri:
-                    yield from _generate_dag_warnings(asset, "name", existing_uri)
+                    yield from _generate_warning_message(asset, "name", existing_uri)
                     continue
                 existing_name = active_uri_to_name.get(asset.uri) or incoming_uri_to_name.get(asset.uri)
                 if existing_name is not None and existing_name != asset.name:
-                    yield from _generate_dag_warnings(asset, "uri", existing_name)
+                    yield from _generate_warning_message(asset, "uri", existing_name)
                     continue
                 incoming_name_to_uri[asset.name] = asset.uri
                 incoming_uri_to_name[asset.uri] = asset.name
                 session.add(AssetActive.for_asset(asset))
 
-        warnings_to_have = {w.dag_id: w for w in _activate_assets_generate_warnings()}
+        warnings_to_have = {
+            dag_id: DagWarning(
+                dag_id=dag_id,
+                warning_type=DagWarningType.ASSET_CONFLICT,
+                message="\n".join([message for _, message in group]),
+            )
+            for dag_id, group in groupby(
+                sorted(_activate_assets_generate_warnings()), key=operator.itemgetter(0)
+            )
+        }
+
         session.execute(
             delete(DagWarning).where(
                 DagWarning.warning_type == DagWarningType.ASSET_CONFLICT,
-                DagWarning.dag_id.in_(warnings_to_have),
+                DagWarning.dag_id.not_in(warnings_to_have),
             )
         )
         existing_warned_dag_ids: set[str] = set(
             session.scalars(
                 select(DagWarning.dag_id).where(
                     DagWarning.warning_type == DagWarningType.ASSET_CONFLICT,
-                    DagWarning.dag_id.not_in(warnings_to_have),
+                    DagWarning.dag_id.in_(warnings_to_have),
                 )
             )
         )
