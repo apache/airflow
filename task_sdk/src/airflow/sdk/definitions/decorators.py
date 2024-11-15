@@ -24,13 +24,38 @@ from typing import TYPE_CHECKING, Any, Callable
 import attrs
 
 from airflow.models.asset import _fetch_active_assets_by_name
-from airflow.models.dag import DAG, ScheduleArg
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk.definitions.asset import Asset, AssetRef
+from airflow.sdk.definitions.dag import DAG, ScheduleArg
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.io.path import ObjectStoragePath
+
+
+import sys
+from types import FunctionType
+
+
+class _autostacklevel_warn:
+    def __init__(self):
+        self.warnings = __import__("warnings")
+
+    def __getattr__(self, name: str):
+        return getattr(self.warnings, name)
+
+    def __dir__(self):
+        return dir(self.warnings)
+
+    def warn(self, message, category=None, stacklevel=1, source=None):
+        self.warnings.warn(message, category, stacklevel + 2, source)
+
+
+def fixup_decorator_warning_stack(func: FunctionType):
+    if func.__globals__.get("warnings") is sys.modules["warnings"]:
+        # Yes, this is more than slightly hacky, but it _automatically_ sets the right stacklevel parameter to
+        # `warnings.warn` to ignore the decorator.
+        func.__globals__["warnings"] = _autostacklevel_warn()
 
 
 class _AssetMainOperator(PythonOperator):
