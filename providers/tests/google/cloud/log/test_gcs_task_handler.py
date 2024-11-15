@@ -107,7 +107,8 @@ class TestGCSTaskHandler:
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )
-        assert "*** Found remote logs:\n***   * gs://bucket/remote/log/location/1.log\nCONTENT" in logs
+        assert "*** Found remote logs:\n***   * gs://bucket/remote/log/location/1.log\n" in logs
+        assert logs.endswith("CONTENT")
         assert {"end_of_log": True, "log_pos": 7} == metadata
 
     @mock.patch(

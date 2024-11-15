@@ -128,7 +128,6 @@ class TestS3TaskHandler:
         ti.state = TaskInstanceState.SUCCESS
         log, metadata = self.s3_task_handler.read(ti)
         actual = log[0][0][-1]
-        expected = "*** Found logs in s3:\n***   * s3://bucket/remote/log/location/1.log\nLog line"
         assert "*** Found logs in s3:\n***   * s3://bucket/remote/log/location/1.log\n" in actual
         assert actual.endswith("Log line")
         assert metadata == [{"end_of_log": True, "log_pos": 8}]
