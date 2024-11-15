@@ -1936,8 +1936,15 @@ export const $DagRunAssetReference = {
       title: "Start Date",
     },
     end_date: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "End Date",
     },
     state: {

@@ -470,6 +470,39 @@ export const useDagRunServiceGetDagRunSuspense = <
     ...options,
   });
 /**
+ * Get Upstream Asset Events
+ * If dag run is asset-triggered, return the asset events that triggered it.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @returns AssetEventCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagRunServiceGetUpstreamAssetEventsSuspense = <
+  TData = Common.DagRunServiceGetUpstreamAssetEventsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn(
+      { dagId, dagRunId },
+      queryKey,
+    ),
+    queryFn: () =>
+      DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }) as TData,
+    ...options,
+  });
+/**
  * Get Dag Source
  * Get source code using file token.
  * @param data The data for the request.

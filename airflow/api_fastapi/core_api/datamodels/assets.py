@@ -73,7 +73,7 @@ class DagRunAssetReference(BaseModel):
     dag_id: str
     execution_date: datetime = Field(alias="logical_date")
     start_date: datetime
-    end_date: datetime
+    end_date: datetime | None
     state: str
     data_interval_start: datetime
     data_interval_end: datetime
