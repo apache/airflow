@@ -27,14 +27,19 @@ import {
 import { FiChevronRight } from "react-icons/fi";
 
 import { useImportErrorServiceGetImportErrors } from "openapi/queries";
+import { ErrorAlert } from "src/components/ErrorAlert";
 
 import { DAGImportErrorsModal } from "./DAGImportErrorsModal";
 
 export const DAGImportErrors = () => {
   const { onClose, onOpen, open } = useDisclosure();
 
-  const { data, error, isFetching, isLoading } =
-    useImportErrorServiceGetImportErrors();
+  const {
+    data,
+    error: DagImportErrorFailure,
+    isFetching,
+    isLoading,
+  } = useImportErrorServiceGetImportErrors();
   const importErrorsCount = data?.total_entries ?? 0;
   const importErrors = data?.import_errors ?? [];
 
@@ -43,8 +48,9 @@ export const DAGImportErrors = () => {
   }
 
   return (
-    importErrorsCount > 0 && (
-      <Box alignItems="center" display="flex" gap={2}>
+    <Box alignItems="center" display="flex" gap={2}>
+      <ErrorAlert error={DagImportErrorFailure} />
+      {importErrorsCount > 0 && (
         <Button
           alignItems="center"
           borderRadius="md"
@@ -66,12 +72,12 @@ export const DAGImportErrors = () => {
             <FiChevronRight />
           </Box>
         </Button>
-        <DAGImportErrorsModal
-          importErrors={importErrors}
-          onClose={onClose}
-          open={open}
-        />
-      </Box>
-    )
+      )}
+      <DAGImportErrorsModal
+        importErrors={importErrors}
+        onClose={onClose}
+        open={open}
+      />
+    </Box>
   );
 };
