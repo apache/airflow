@@ -31,8 +31,7 @@ from uuid6 import uuid7
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
-    State1 as TerminalState,
-    TaskInstanceState,
+    TerminalTIState,
     TIEnterRunningPayload,
     TITerminalStatePayload,
     ValidationError as RemoteValidationError,
@@ -100,9 +99,9 @@ class TaskInstanceOperations:
 
         self.client.patch(f"task-instance/{id}/state", content=body.model_dump_json())
 
-    def finish(self, id: uuid.UUID, state: TaskInstanceState, when: datetime):
+    def finish(self, id: uuid.UUID, state: TerminalTIState, when: datetime):
         """Tell the API server that this TI has reached a terminal state."""
-        body = TITerminalStatePayload(end_date=when, state=TerminalState(state))
+        body = TITerminalStatePayload(end_date=when, state=TerminalTIState(state))
 
         self.client.patch(f"task-instance/{id}/state", content=body.model_dump_json())
 
