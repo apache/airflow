@@ -418,7 +418,7 @@ def get_task_instances_batch(
     "/{task_id}/tries/{task_try_number}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
-async def get_task_instance_try_details(
+def get_task_instance_try_details(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
