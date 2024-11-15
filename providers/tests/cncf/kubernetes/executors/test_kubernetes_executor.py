@@ -1214,7 +1214,14 @@ class TestKubernetesExecutor:
     @pytest.mark.db_test
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
     def test_cleanup_stuck_queued_tasks(self, mock_kube_dynamic_client, dag_maker, create_dummy_dag, session):
-        """Delete any pods associated with a task stuck in queued."""
+        """
+        This verifies legacy behavior.  Remove when removing ``cleanup_stuck_queued_tasks``.
+
+        It's expected that that method, ``cleanup_stuck_queued_tasks`` will patch the pod
+        such that it is ignored by watcher, delete the pod, remove from running set, and
+        fail the task.
+
+        """
         mock_kube_client = mock.MagicMock()
         mock_kube_dynamic_client.return_value = mock.MagicMock()
         mock_pod_resource = mock.MagicMock()
@@ -1255,8 +1262,61 @@ class TestKubernetesExecutor:
         executor.kube_scheduler = mock.MagicMock()
         ti.refresh_from_db()
         tis = [ti]
-        list(executor.cleanup_tasks_stuck_in_queued(tis=tis))
+        with pytest.warns(DeprecationWarning):
+            executor.cleanup_stuck_queued_tasks(tis=tis)
         executor.kube_scheduler.delete_pod.assert_called_once()
+        assert executor.running == set()
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
+    def test_revoke_task(self, mock_kube_dynamic_client, dag_maker, create_dummy_dag, session):
+        """
+        It's expected that that ``revoke_tasks`` will patch the pod
+        such that it is ignored by watcher, delete the pod and remove from running set.
+        """
+        mock_kube_client = mock.MagicMock()
+        mock_kube_dynamic_client.return_value = mock.MagicMock()
+        mock_pod_resource = mock.MagicMock()
+        mock_kube_dynamic_client.return_value.resources.get.return_value = mock_pod_resource
+        mock_kube_dynamic_client.return_value.get.return_value = k8s.V1PodList(
+            items=[
+                k8s.V1Pod(
+                    metadata=k8s.V1ObjectMeta(
+                        annotations={
+                            "dag_id": "test_cleanup_stuck_queued_tasks",
+                            "task_id": "bash",
+                            "run_id": "test",
+                            "try_number": 0,
+                        },
+                        labels={
+                            "role": "airflow-worker",
+                            "dag_id": "test_cleanup_stuck_queued_tasks",
+                            "task_id": "bash",
+                            "airflow-worker": 123,
+                            "run_id": "test",
+                            "try_number": 0,
+                        },
+                    ),
+                    status=k8s.V1PodStatus(phase="Pending"),
+                )
+            ]
+        )
+        create_dummy_dag(dag_id="test_cleanup_stuck_queued_tasks", task_id="bash", with_dagrun_type=None)
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.task_instances[0]
+        ti.state = State.QUEUED
+        ti.queued_by_job_id = 123
+        session.flush()
+
+        executor = self.kubernetes_executor
+        executor.job_id = 123
+        executor.kube_client = mock_kube_client
+        executor.kube_scheduler = mock.MagicMock()
+        ti.refresh_from_db()
+        executor.revoke_task(ti=ti)
+        executor.kube_scheduler.patch_pod_revoked.assert_called_once()
+        executor.kube_scheduler.delete_pod.assert_called_once()
+        mock_kube_client.patch_namespaced_pod.calls[0] == []
         assert executor.running == set()
 
     @pytest.mark.parametrize(

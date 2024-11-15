@@ -28,6 +28,7 @@ from importlib import reload
 from typing import Generator
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
+from uuid import uuid4
 
 import pendulum
 import psutil
@@ -59,6 +60,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
+from airflow.models.log import Log
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
@@ -124,6 +126,19 @@ def load_examples():
 
 
 # Patch the MockExecutor into the dict of known executors in the Loader
+@contextlib.contextmanager
+def _loader_mock(mock_executors):
+    with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
+        # The executors are mocked, so cannot be loaded/imported. Mock load_executor and return the
+        # correct object for the given input executor name.
+        loader_mock.side_effect = lambda *x: {
+            ("default_exec",): mock_executors[0],
+            (None,): mock_executors[0],
+            ("secondary_exec",): mock_executors[1],
+        }[x]
+        yield
+
+
 @patch.dict(
     ExecutorLoader.executors, {MOCK_EXECUTOR: f"{MockExecutor.__module__}.{MockExecutor.__qualname__}"}
 )
@@ -2219,8 +2234,8 @@ class TestSchedulerJob:
         job_runner._task_queued_timeout = 300
         mock_exec_1 = mock_executors[0]
         mock_exec_2 = mock_executors[1]
-        mock_exec_1.cleanup_tasks_stuck_in_queued.side_effect = NotImplementedError
-        mock_exec_2.cleanup_tasks_stuck_in_queued.side_effect = NotImplementedError
+        mock_exec_1.revoke_task.side_effect = NotImplementedError
+        mock_exec_2.revoke_task.side_effect = NotImplementedError
 
         with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
             # The executors are mocked, so cannot be loaded/imported. Mock load_executor and return the
@@ -2242,60 +2257,77 @@ class TestSchedulerJob:
 
     @conf_vars({("scheduler", "num_stuck_in_queued_retries"): "2"})
     def test_handle_stuck_queued_tasks_multiple_attempts(self, dag_maker, session, mock_executors):
+        """Verify that tasks stuck in queued will be rescheduled up to N times."""
         with dag_maker("test_fail_stuck_queued_tasks_multiple_executors"):
-            op1 = EmptyOperator(task_id="op1")
-            op2 = EmptyOperator(task_id="op2", executor="default_exec")
+            EmptyOperator(task_id="op1")
+            EmptyOperator(task_id="op2", executor="default_exec")
 
-        dr = dag_maker.create_dagrun()
-        ti1 = dr.get_task_instance(task_id=op1.task_id, session=session)
-        ti2 = dr.get_task_instance(task_id=op2.task_id, session=session)
-        for ti in [ti1, ti2]:
-            ti.state = State.QUEUED
-            ti.queued_dttm = timezone.utcnow() - timedelta(minutes=15)
-        session.commit()
+        def _queue_tasks(tis):
+            for ti in tis:
+                ti.state = "queued"
+                ti.queued_dttm = timezone.utcnow()
+            session.commit()
+
+        run_id = str(uuid4())
+        dr = dag_maker.create_dagrun(run_id=run_id)
+
+        tis = dr.get_task_instances(session=session)
+        _queue_tasks(tis=tis)
         scheduler_job = Job()
-        job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0)
-        job_runner._reschedule_stuck_task = MagicMock()
-        job_runner._task_queued_timeout = 300
+        scheduler = SchedulerJobRunner(job=scheduler_job, num_runs=0)
+        # job_runner._reschedule_stuck_task = MagicMock()
+        scheduler._task_queued_timeout = -300  # always in violation of timeout
 
-        # We need to return the representations s.t. the handle function creates the logs and checks for retries
-        mock_executors[0].cleanup_tasks_stuck_in_queued.return_value = (x for x in [ti1, ti2])
-
-        with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
-            # The executors are mocked, so cannot be loaded/imported. Mock load_executor and return the
-            # correct object for the given input executor name.
-            loader_mock.side_effect = lambda *x: {
-                ("default_exec",): mock_executors[0],
-                (None,): mock_executors[0],
-                ("secondary_exec",): mock_executors[1],
-            }[x]
-            job_runner._handle_tasks_stuck_in_queued()
+        with _loader_mock(mock_executors):
+            scheduler._handle_tasks_stuck_in_queued(session=session)
 
         # If the task gets stuck in queued once, we reset it to scheduled
-        actual_calls = job_runner._reschedule_stuck_task.mock_calls
-        assert actual_calls == [mock.call(ti1), mock.call(ti2)]
-        mock_executors[0].fail.assert_not_called()
+        tis = dr.get_task_instances(session=session)
+        assert [x.state for x in tis] == ["scheduled", "scheduled"]
+        assert [x.queued_dttm for x in tis] == [None, None]
 
-        with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
-            loader_mock.side_effect = lambda *x: {
-                ("default_exec",): mock_executors[0],
-                (None,): mock_executors[0],
-                ("secondary_exec",): mock_executors[1],
-            }[x]
-            mock_executors[0].cleanup_tasks_stuck_in_queued.return_value = (x for x in [ti1, ti2])
-            job_runner._handle_tasks_stuck_in_queued()
-            mock_executors[0].fail.assert_not_called()
-            mock_executors[0].cleanup_tasks_stuck_in_queued.return_value = (x for x in [ti1, ti2])
-            job_runner._handle_tasks_stuck_in_queued()
-
-        # If the task gets stuck in queued 3 or more times, we fail the task
-        actual_calls = mock_executors[0].fail.mock_calls
-        assert actual_calls == [
-            mock.call(ti1.key),
-            mock.call(ti2.key),
+        _queue_tasks(tis=tis)
+        log_events = [x.event for x in session.scalars(select(Log)).all()]
+        assert log_events == [
+            "stuck in queued reschedule",
+            "stuck in queued reschedule",
         ]
 
-    def test_handle_stuck_queued_tasks_not_imp_tolerated(self, dag_maker, session, caplog):
+        with _loader_mock(mock_executors):
+            scheduler._handle_tasks_stuck_in_queued(session=session)
+        session.commit()
+
+        log_events = [x.event for x in session.scalars(select(Log).where(Log.run_id == run_id)).all()]
+        assert log_events == [
+            "stuck in queued reschedule",
+            "stuck in queued reschedule",
+            "stuck in queued reschedule",
+            "stuck in queued reschedule",
+        ]
+        mock_executors[0].fail.assert_not_called()
+        tis = dr.get_task_instances(session=session)
+        assert [x.state for x in tis] == ["scheduled", "scheduled"]
+        _queue_tasks(tis=tis)
+
+        with _loader_mock(mock_executors):
+            scheduler._handle_tasks_stuck_in_queued(session=session)
+        session.commit()
+        log_events = [x.event for x in session.scalars(select(Log).where(Log.run_id == run_id)).all()]
+        assert log_events == [
+            "stuck in queued reschedule",
+            "stuck in queued reschedule",
+            "stuck in queued reschedule",
+            "stuck in queued reschedule",
+            "stuck in queued tries exceeded",
+            "stuck in queued tries exceeded",
+        ]
+
+        mock_executors[0].fail.assert_not_called()  # just demoing that we don't fail with executor method
+        states = [x.state for x in dr.get_task_instances(session=session)]
+        assert states == ["failed", "failed"]
+
+    def test_revoke_task_not_imp_tolerated(self, dag_maker, session, caplog):
+        """Test that if executor no implement revoke_task then we don't blow up."""
         with dag_maker("test_fail_stuck_queued_tasks"):
             op1 = EmptyOperator(task_id="op1")
 
@@ -2306,6 +2338,10 @@ class TestSchedulerJob:
         session.commit()
         from airflow.executors.local_executor import LocalExecutor
 
+        assert "revoke_task" in BaseExecutor.__dict__
+        # this is just verifying that LocalExecutor is good enough for this test
+        # in that it does not implement revoke_task
+        assert "revoke_task" not in LocalExecutor.__dict__
         scheduler_job = Job(executor=LocalExecutor())
         job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=0)
         job_runner._task_queued_timeout = 300

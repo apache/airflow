@@ -1796,8 +1796,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             try:
                 for ti in stuck_tis:
                     executor.revoke_task(ti=ti)
-                    executor.running.discard(ti.key)
-                    executor.queued_tasks.pop(ti.key, None)
                     self._maybe_requeue_stuck_ti(
                         ti=ti,
                         session=session,

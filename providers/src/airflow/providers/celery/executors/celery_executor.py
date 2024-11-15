@@ -460,6 +460,8 @@ class CeleryExecutor(BaseExecutor):
                 app.control.revoke(celery_async_result.task_id)
             except Exception:
                 self.log.exception("Error revoking task instance %s from celery", ti.key)
+        self.running.discard(ti.key)
+        self.queued_tasks.pop(ti.key, None)
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:
