@@ -1019,15 +1019,11 @@ class TestGoogleBaseAsyncHook:
 
     @pytest.mark.asyncio
     @mock.patch("google.auth.default")
-    @mock.patch("google.auth.impersonated_credentials._make_iam_token_request")
-    async def test_get_token_impersonation(
-        self, mock_make_iam_token_request, mock_auth_default, monkeypatch, requests_mock
-    ) -> None:
+    async def test_get_token_impersonation(self, mock_auth_default, monkeypatch, requests_mock) -> None:
         mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
         mock_credentials.token = "ACCESS_TOKEN"
         mock_credentials.universe_domain = "googleapis.com"
         mock_auth_default.return_value = (mock_credentials, "PROJECT_ID")
-        mock_make_iam_token_request.return_value = ("IMPERSONATED_ACCESS_TOKEN", "2014-10-02T15:01:23Z")
         monkeypatch.setenv(
             "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT",
             "google-cloud-platform://?project=CONN_PROJECT_ID",
@@ -1048,14 +1044,10 @@ class TestGoogleBaseAsyncHook:
 
     @pytest.mark.asyncio
     @mock.patch("google.auth.default")
-    @mock.patch("google.auth.impersonated_credentials._make_iam_token_request")
-    async def test_get_token_impersonation_conn(
-        self, mock_make_iam_token_request, mock_auth_default, monkeypatch, requests_mock
-    ) -> None:
+    async def test_get_token_impersonation_conn(self, mock_auth_default, monkeypatch, requests_mock) -> None:
         mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
         mock_credentials.universe_domain = "googleapis.com"
         mock_auth_default.return_value = (mock_credentials, "PROJECT_ID")
-        mock_make_iam_token_request.return_value = ("IMPERSONATED_ACCESS_TOKEN", "2014-10-02T15:01:23Z")
         monkeypatch.setenv(
             "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT",
             "google-cloud-platform://?project=CONN_PROJECT_ID&impersonation_chain=SERVICE_ACCOUNT@SA_PROJECT.iam.gserviceaccount.com",
