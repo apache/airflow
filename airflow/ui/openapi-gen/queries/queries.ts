@@ -2482,6 +2482,53 @@ export const useDagServiceDeleteDag = <
     ...options,
   });
 /**
+ * Delete Dag Asset Queued Event
+ * Delete a queued asset event for a DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.uri
+ * @param data.before
+ * @returns void Successful Response
+ * @throws ApiError
+ */
+export const useDagServiceDeleteDagAssetQueuedEvent = <
+  TData = Common.DagServiceDeleteDagAssetQueuedEventMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        before?: string;
+        dagId: string;
+        uri: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      before?: string;
+      dagId: string;
+      uri: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ before, dagId, uri }) =>
+      DagService.deleteDagAssetQueuedEvent({
+        before,
+        dagId,
+        uri,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Delete Pool
  * Delete a pool entry.
  * @param data The data for the request.

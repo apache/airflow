@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, Request, Response, status
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from airflow.api.common import delete_dag as delete_dag_module
@@ -350,3 +350,32 @@ def get_dag_asset_queued_events(
         ],
         total_entries=total_entries,
     )
+
+
+@dags_router.delete(
+    "/{dag_id}/assets/queuedEvent/{uri:path}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
+def delete_dag_asset_queued_event(
+    dag_id: str,
+    uri: str,
+    session: Annotated[Session, Depends(get_session)],
+    before: str = Query(None),
+):
+    """Delete a queued asset event for a DAG."""
+    where_clause = _generate_queued_event_where_clause(dag_id=dag_id, before=before, uri=uri)
+    delete_statement = (
+        delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
+    )
+    result = session.execute(delete_statement)
+    if result.rowcount == 0:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail=f"Queue event with dag_id: `{dag_id}` and asset uri: `{uri}` was not found",
+        )

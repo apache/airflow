@@ -1915,6 +1915,65 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/assets/queuedEvent/{uri}:
+    delete:
+      tags:
+      - DAG
+      summary: Delete Dag Asset Queued Event
+      description: Delete a queued asset event for a DAG.
+      operationId: delete_dag_asset_queued_event
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: uri
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Uri
+      - name: before
+        in: query
+        required: false
+        schema:
+          type: string
+          title: Before
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/eventLogs/{event_log_id}:
     get:
       tags:

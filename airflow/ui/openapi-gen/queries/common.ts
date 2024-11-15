@@ -1118,6 +1118,9 @@ export type DagRunServiceDeleteDagRunMutationResult = Awaited<
 export type DagServiceDeleteDagMutationResult = Awaited<
   ReturnType<typeof DagService.deleteDag>
 >;
+export type DagServiceDeleteDagAssetQueuedEventMutationResult = Awaited<
+  ReturnType<typeof DagService.deleteDagAssetQueuedEvent>
+>;
 export type PoolServiceDeletePoolMutationResult = Awaited<
   ReturnType<typeof PoolService.deletePool>
 >;
