@@ -2418,6 +2418,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -2649,7 +2655,7 @@ paths:
             schema:
               $ref: '#/components/schemas/PoolPatchBody'
       responses:
-        '201':
+        '200':
           description: Successful Response
           content:
             application/json:
@@ -3040,21 +3046,17 @@ paths:
         in: query
         required: false
         schema:
-          type: string
-          title: Dag Id
-      - name: dag_run_id
-        in: path
-        required: true
+          type: integer
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
         schema:
-          type: string
-          title: Dag Run Id
-      - name: task_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Task Id
-      - name: map_index
+          type: integer
+          default: 0
+          title: Offset
+      - name: order_by
         in: query
         required: false
         schema:
@@ -3239,9 +3241,9 @@ paths:
         schema:
           type: string
           title: Dag Run Id
-      - name: logical_date_gte
-        in: query
-        required: false
+      - name: task_id
+        in: path
+        required: true
         schema:
           type: string
           title: Task Id
@@ -3257,7 +3259,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
+                $ref: '#/components/schemas/TaskInstanceResponse'
         '401':
           content:
             application/json:
@@ -3482,57 +3484,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list:
-    post:
-      tags:
-      - Task Instance
-      summary: Get Task Instances Batch
-      description: Get list of task instances.
-      operationId: get_task_instances_batch
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/TaskInstancesBatchBody'
-        required: true
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/TaskInstanceCollectionResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-        '404':
-          description: Not Found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/tasks/:
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}:
     get:
       tags:
-      - Task
-      summary: Get Tasks
-      description: Get tasks for DAG.
-      operationId: get_tasks
+      - Task Instance
+      summary: Get Task Instance Try Details
+      description: Get task instance details by try number.
+      operationId: get_task_instance_try_details
       parameters:
       - name: dag_id
         in: path
@@ -3540,20 +3498,38 @@ paths:
         schema:
           type: string
           title: Dag Id
-      - name: order_by
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: task_try_number
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Task Try Number
+      - name: map_index
         in: query
         required: false
         schema:
-          type: string
-          default: task_id
-          title: Order By
+          type: integer
+          default: -1
+          title: Map Index
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskCollectionResponse'
+                $ref: '#/components/schemas/TaskInstanceHistoryResponse'
         '401':
           content:
             application/json:
@@ -3566,12 +3542,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
@@ -3596,7 +3566,6 @@ paths:
         in: path
         required: true
         schema:
-          title: Task Id
           type: string
           title: Dag Id
       - name: task_id
@@ -6038,6 +6007,126 @@ components:
       - total_entries
       title: TaskInstanceCollectionResponse
       description: Task Instance Collection serializer for responses.
+    TaskInstanceHistoryResponse:
+      properties:
+        task_id:
+          type: string
+          title: Task Id
+        dag_id:
+          type: string
+          title: Dag Id
+        dag_run_id:
+          type: string
+          title: Dag Run Id
+        map_index:
+          type: integer
+          title: Map Index
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration
+        state:
+          anyOf:
+          - $ref: '#/components/schemas/TaskInstanceState'
+          - type: 'null'
+        try_number:
+          type: integer
+          title: Try Number
+        max_tries:
+          type: integer
+          title: Max Tries
+        task_display_name:
+          type: string
+          title: Task Display Name
+        hostname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hostname
+        unixname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Unixname
+        pool:
+          type: string
+          title: Pool
+        pool_slots:
+          type: integer
+          title: Pool Slots
+        queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue
+        priority_weight:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Priority Weight
+        operator:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Operator
+        queued_when:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Queued When
+        pid:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Pid
+        executor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Executor
+        executor_config:
+          type: string
+          title: Executor Config
+      type: object
+      required:
+      - task_id
+      - dag_id
+      - dag_run_id
+      - map_index
+      - start_date
+      - end_date
+      - duration
+      - state
+      - try_number
+      - max_tries
+      - task_display_name
+      - hostname
+      - unixname
+      - pool
+      - pool_slots
+      - queue
+      - priority_weight
+      - operator
+      - queued_when
+      - pid
+      - executor
+      - executor_config
+      title: TaskInstanceHistoryResponse
+      description: TaskInstance serializer for responses.
     TaskInstanceResponse:
       properties:
         id:

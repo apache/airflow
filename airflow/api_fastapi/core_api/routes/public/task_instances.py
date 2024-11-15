@@ -50,12 +50,14 @@ from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
+    TaskInstanceHistoryResponse,
     TaskInstanceResponse,
     TaskInstancesBatchBody,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.exceptions import TaskNotFound
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils.db import get_query_count
@@ -410,3 +412,37 @@ def get_task_instances_batch(
         ],
         total_entries=total_entries,
     )
+
+
+@task_instances_router.get(
+    "/{task_id}/tries/{task_try_number}", responses=create_openapi_http_exception_doc([401, 403, 404])
+)
+async def get_task_instance_try_details(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    task_try_number: int,
+    session: Annotated[Session, Depends(get_session)],
+    map_index: int = -1,
+) -> TaskInstanceHistoryResponse:
+    """Get task instance details by try number."""
+
+    def _query(TI):
+        query = select(TI).where(
+            TI.dag_id == dag_id,
+            TI.run_id == dag_run_id,
+            TI.task_id == task_id,
+            TI.try_number == task_try_number,
+            TI.map_index == map_index,
+        )
+
+        task_instance = session.scalar(query)
+        return task_instance
+
+    result = _query(TI) or _query(TIH)
+    if result is None:
+        raise HTTPException(
+            404,
+            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}`, try_number: `{task_try_number}` and map_index: `{map_index}` was not found",
+        )
+    return TaskInstanceHistoryResponse.model_validate(result, from_attributes=True)
