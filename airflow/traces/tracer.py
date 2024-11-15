@@ -298,7 +298,7 @@ class EmptyTrace:
     @classmethod
     def extract(cls, carrier) -> EmptyContext:
         """Extract the span context from a provided carrier."""
-        raise EMPTY_CTX
+        return EMPTY_CTX
 
 
 class _Trace(type):

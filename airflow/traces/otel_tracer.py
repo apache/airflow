@@ -272,7 +272,12 @@ class OtelTrace:
         return span
 
     def start_root_span(
-        self, span_name: str, component: str | None = None, start_time=None, start_as_current: bool = True
+        self,
+        span_name: str,
+        component: str | None = None,
+        links=None,
+        start_time=None,
+        start_as_current: bool = True,
     ):
         """Start a root span."""
         # If no context is passed to the new span,
@@ -284,11 +289,16 @@ class OtelTrace:
         )
         invalid_ctx = trace.set_span_in_context(NonRecordingSpan(invalid_span_ctx))
 
+        if links is None:
+            _links = []
+        else:
+            _links = links
+
         return self._new_span(
             span_name=span_name,
             parent_context=invalid_ctx,
             component=component,
-            links=None,
+            links=_links,
             start_time=start_time,
             start_as_current=start_as_current,
         )
@@ -313,7 +323,10 @@ class OtelTrace:
             if isinstance(context_val, NonRecordingSpan):
                 parent_span_context = context_val.get_span_context()
 
-        _links = gen_links_from_kv_list(links) if links else []
+        if links is None:
+            _links = []
+        else:
+            _links = links
         _links.append(
             Link(
                 context=parent_span_context,
