@@ -43,7 +43,7 @@ import structlog
 from pydantic import TypeAdapter
 
 from airflow.sdk.api.client import Client
-from airflow.sdk.api.datamodels._generated import TaskInstanceState
+from airflow.sdk.api.datamodels._generated import TerminalTIState
 from airflow.sdk.execution_time.comms import (
     ConnectionResponse,
     GetConnection,
@@ -431,8 +431,8 @@ class WatchedSubprocess:
         Not valid before the process has finished.
         """
         if self._exit_code == 0:
-            return self._terminal_state or TaskInstanceState.SUCCESS
-        return TaskInstanceState.FAILED
+            return self._terminal_state or TerminalTIState.SUCCESS
+        return TerminalTIState.FAILED
 
     def __rich_repr__(self):
         yield "pid", self.pid
