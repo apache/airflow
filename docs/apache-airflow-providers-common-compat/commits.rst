@@ -35,14 +35,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.2.2
+.....
+
+Latest change: 2024-11-05
+
+=================================================================================================  ===========  ================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================================
+`73f2eab680 <https://github.com/apache/airflow/commit/73f2eab68081e966fd808bfaca923eed1f81bc43>`_  2024-11-05   ``serialize asset/dataset timetable conditions in OpenLineage info also for Airflow 2 (#43434)``
+`06088a3abc <https://github.com/apache/airflow/commit/06088a3abcbb46533e74de360746db766d50cf66>`_  2024-10-31   ``Standard provider python operator (#42081)``
+`68f8164a36 <https://github.com/apache/airflow/commit/68f8164a36db66e7096c1205abead183d34b8ae6>`_  2024-10-18   ``Fix provider title in documentation (#43157)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ================================================================================================
+
 1.2.1
 .....
 
-Latest change: 2024-09-30
+Latest change: 2024-10-09
 
 =================================================================================================  ===========  ==================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
 `ede7cb27fd <https://github.com/apache/airflow/commit/ede7cb27fd39e233889d127490a2255df8c5d27d>`_  2024-09-30   ``Rename dataset related python variable names to asset (#41348)``
 =================================================================================================  ===========  ==================================================================
 
