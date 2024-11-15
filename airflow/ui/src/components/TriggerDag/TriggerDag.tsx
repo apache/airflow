@@ -40,5 +40,4 @@ export const TriggerDag = (dagParams: DagParams) => {
   `);
 
   // TODO triggering logic (would be placed here once the FAST API is available)
-  console.log("Triggering DAG with parameters:", dagParams);
 };
