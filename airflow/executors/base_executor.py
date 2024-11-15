@@ -579,7 +579,8 @@ class BaseExecutor(LoggingMixin):
         It should attempt to ensure that the task is no longer running on the worker,
         and ensure that it is cleared out from internal data structures.
 
-        It should *not* change the state of the task in airflow.
+        It should *not* change the state of the task in airflow, or add any events
+        to the event buffer.
 
         It should not raise any error.
 
