@@ -63,5 +63,5 @@ class TestSession:
         session = create_async_session()
         session.add(Log(event="hihi1234"))
         await session.commit()
-        l = await session.scalar(select(Log).where(Log.event == "hihi1234").limit(1))  # noqa: E741
-        assert l.event == "hihi1234"
+        my_special_log_event = await session.scalar(select(Log).where(Log.event == "hihi1234").limit(1))
+        assert my_special_log_event.event == "hihi1234"
