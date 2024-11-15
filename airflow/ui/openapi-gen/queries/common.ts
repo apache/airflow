@@ -571,50 +571,6 @@ export const UseDagServiceGetDagDetailsKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useDagServiceGetDagDetailsKey, ...(queryKey ?? [{ dagId }])];
-export type ConnectionServiceGetConnectionDefaultResponse = Awaited<
-  ReturnType<typeof ConnectionService.getConnection>
->;
-export type ConnectionServiceGetConnectionQueryResult<
-  TData = ConnectionServiceGetConnectionDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useConnectionServiceGetConnectionKey =
-  "ConnectionServiceGetConnection";
-export const UseConnectionServiceGetConnectionKeyFn = (
-  {
-    connectionId,
-  }: {
-    connectionId: string;
-  },
-  queryKey?: Array<unknown>,
-) => [
-  useConnectionServiceGetConnectionKey,
-  ...(queryKey ?? [{ connectionId }]),
-];
-export type ConnectionServiceGetConnectionsDefaultResponse = Awaited<
-  ReturnType<typeof ConnectionService.getConnections>
->;
-export type ConnectionServiceGetConnectionsQueryResult<
-  TData = ConnectionServiceGetConnectionsDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useConnectionServiceGetConnectionsKey =
-  "ConnectionServiceGetConnections";
-export const UseConnectionServiceGetConnectionsKeyFn = (
-  {
-    limit,
-    offset,
-    orderBy,
-  }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  } = {},
-  queryKey?: Array<unknown>,
-) => [
-  useConnectionServiceGetConnectionsKey,
-  ...(queryKey ?? [{ limit, offset, orderBy }]),
-];
 export type ConfigServiceGetConfigDefaultResponse = Awaited<
   ReturnType<typeof ConfigService.getConfig>
 >;
@@ -625,17 +581,14 @@ export type ConfigServiceGetConfigQueryResult<
 export const useConfigServiceGetConfigKey = "ConfigServiceGetConfig";
 export const UseConfigServiceGetConfigKeyFn = (
   {
-    contentType,
+    accept,
     section,
   }: {
-    contentType: "application/json" | "text/plain";
+    accept?: "application/json" | "text/plain";
     section?: string;
-  },
+  } = {},
   queryKey?: Array<unknown>,
-) => [
-  useConfigServiceGetConfigKey,
-  ...(queryKey ?? [{ contentType, section }]),
-];
+) => [useConfigServiceGetConfigKey, ...(queryKey ?? [{ accept, section }])];
 export type ConfigServiceGetConfigValueDefaultResponse = Awaited<
   ReturnType<typeof ConfigService.getConfigValue>
 >;
@@ -646,58 +599,18 @@ export type ConfigServiceGetConfigValueQueryResult<
 export const useConfigServiceGetConfigValueKey = "ConfigServiceGetConfigValue";
 export const UseConfigServiceGetConfigValueKeyFn = (
   {
-    contentType,
+    accept,
     option,
     section,
   }: {
-    contentType: "application/json" | "text/plain";
+    accept?: "application/json" | "text/plain";
     option: string;
     section: string;
   },
   queryKey?: Array<unknown>,
 ) => [
   useConfigServiceGetConfigValueKey,
-  ...(queryKey ?? [{ contentType, option, section }]),
-];
-export type DagRunServiceGetDagRunDefaultResponse = Awaited<
-  ReturnType<typeof DagRunService.getDagRun>
->;
-export type DagRunServiceGetDagRunQueryResult<
-  TData = DagRunServiceGetDagRunDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useDagRunServiceGetDagRunKey = "DagRunServiceGetDagRun";
-export const UseDagRunServiceGetDagRunKeyFn = (
-  {
-    dagId,
-    dagRunId,
-  }: {
-    dagId: string;
-    dagRunId: string;
-  },
-  queryKey?: Array<unknown>,
-) => [useDagRunServiceGetDagRunKey, ...(queryKey ?? [{ dagId, dagRunId }])];
-export type DagSourceServiceGetDagSourceDefaultResponse = Awaited<
-  ReturnType<typeof DagSourceService.getDagSource>
->;
-export type DagSourceServiceGetDagSourceQueryResult<
-  TData = DagSourceServiceGetDagSourceDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useDagSourceServiceGetDagSourceKey =
-  "DagSourceServiceGetDagSource";
-export const UseDagSourceServiceGetDagSourceKeyFn = (
-  {
-    accept,
-    fileToken,
-  }: {
-    accept?: string;
-    fileToken: string;
-  },
-  queryKey?: Array<unknown>,
-) => [
-  useDagSourceServiceGetDagSourceKey,
-  ...(queryKey ?? [{ accept, fileToken }]),
+  ...(queryKey ?? [{ accept, option, section }]),
 ];
 export type EventLogServiceGetEventLogDefaultResponse = Awaited<
   ReturnType<typeof EventLogService.getEventLog>

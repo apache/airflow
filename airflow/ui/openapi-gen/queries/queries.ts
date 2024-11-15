@@ -908,76 +908,11 @@ export const useDagServiceGetDagDetails = <
     ...options,
   });
 /**
- * Get Connection
- * Get a connection entry.
- * @param data The data for the request.
- * @param data.connectionId
- * @returns ConnectionResponse Successful Response
- * @throws ApiError
- */
-export const useConnectionServiceGetConnection = <
-  TData = Common.ConnectionServiceGetConnectionDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    connectionId,
-  }: {
-    connectionId: string;
-  },
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseConnectionServiceGetConnectionKeyFn(
-      { connectionId },
-      queryKey,
-    ),
-    queryFn: () => ConnectionService.getConnection({ connectionId }) as TData,
-    ...options,
-  });
-/**
- * Get Connections
- * Get all connection entries.
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @returns ConnectionCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useConnectionServiceGetConnections = <
-  TData = Common.ConnectionServiceGetConnectionsDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    limit,
-    offset,
-    orderBy,
-  }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  } = {},
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseConnectionServiceGetConnectionsKeyFn(
-      { limit, offset, orderBy },
-      queryKey,
-    ),
-    queryFn: () =>
-      ConnectionService.getConnections({ limit, offset, orderBy }) as TData,
-    ...options,
-  });
-/**
  * Get Config
  * @param data The data for the request.
- * @param data.contentType
  * @param data.section
- * @returns unknown Successful Response
+ * @param data.accept
+ * @returns Config Successful Response
  * @throws ApiError
  */
 export const useConfigServiceGetConfig = <
@@ -986,21 +921,21 @@ export const useConfigServiceGetConfig = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    contentType,
+    accept,
     section,
   }: {
-    contentType: "application/json" | "text/plain";
+    accept?: "application/json" | "text/plain";
     section?: string;
-  },
+  } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseConfigServiceGetConfigKeyFn(
-      { contentType, section },
+      { accept, section },
       queryKey,
     ),
-    queryFn: () => ConfigService.getConfig({ contentType, section }) as TData,
+    queryFn: () => ConfigService.getConfig({ accept, section }) as TData,
     ...options,
   });
 /**
@@ -1008,8 +943,8 @@ export const useConfigServiceGetConfig = <
  * @param data The data for the request.
  * @param data.section
  * @param data.option
- * @param data.contentType
- * @returns unknown Successful Response
+ * @param data.accept
+ * @returns Config Successful Response
  * @throws ApiError
  */
 export const useConfigServiceGetConfigValue = <
@@ -1018,11 +953,11 @@ export const useConfigServiceGetConfigValue = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    contentType,
+    accept,
     option,
     section,
   }: {
-    contentType: "application/json" | "text/plain";
+    accept?: "application/json" | "text/plain";
     option: string;
     section: string;
   },
@@ -1031,75 +966,11 @@ export const useConfigServiceGetConfigValue = <
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseConfigServiceGetConfigValueKeyFn(
-      { contentType, option, section },
+      { accept, option, section },
       queryKey,
     ),
     queryFn: () =>
-      ConfigService.getConfigValue({ contentType, option, section }) as TData,
-    ...options,
-  });
-/**
- * Get Dag Run
- * @param data The data for the request.
- * @param data.dagId
- * @param data.dagRunId
- * @returns DAGRunResponse Successful Response
- * @throws ApiError
- */
-export const useDagRunServiceGetDagRun = <
-  TData = Common.DagRunServiceGetDagRunDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    dagId,
-    dagRunId,
-  }: {
-    dagId: string;
-    dagRunId: string;
-  },
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseDagRunServiceGetDagRunKeyFn(
-      { dagId, dagRunId },
-      queryKey,
-    ),
-    queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }) as TData,
-    ...options,
-  });
-/**
- * Get Dag Source
- * Get source code using file token.
- * @param data The data for the request.
- * @param data.fileToken
- * @param data.accept
- * @returns DAGSourceResponse Successful Response
- * @throws ApiError
- */
-export const useDagSourceServiceGetDagSource = <
-  TData = Common.DagSourceServiceGetDagSourceDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    accept,
-    fileToken,
-  }: {
-    accept?: string;
-    fileToken: string;
-  },
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseDagSourceServiceGetDagSourceKeyFn(
-      { accept, fileToken },
-      queryKey,
-    ),
-    queryFn: () =>
-      DagSourceService.getDagSource({ accept, fileToken }) as TData,
+      ConfigService.getConfigValue({ accept, option, section }) as TData,
     ...options,
   });
 /**
@@ -3093,6 +2964,7 @@ export const useDagRunServiceDeleteDagRun = <
  * Delete the specific DAG.
  * @param data The data for the request.
  * @param data.dagId
+ * @param data.accept
  * @returns unknown Successful Response
  * @throws ApiError
  */
@@ -3106,6 +2978,7 @@ export const useDagServiceDeleteDag = <
       TData,
       TError,
       {
+        accept?: "application/json" | "text/plain";
         dagId: string;
       },
       TContext
@@ -3117,12 +2990,13 @@ export const useDagServiceDeleteDag = <
     TData,
     TError,
     {
+      accept?: "application/json" | "text/plain";
       dagId: string;
     },
     TContext
   >({
-    mutationFn: ({ dagId }) =>
-      DagService.deleteDag({ dagId }) as unknown as Promise<TData>,
+    mutationFn: ({ accept, dagId }) =>
+      DagService.deleteDag({ accept, dagId }) as unknown as Promise<TData>,
     ...options,
   });
 /**

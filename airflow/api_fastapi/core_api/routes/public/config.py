@@ -16,12 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Literal
+import textwrap
 
-from fastapi import Header, HTTPException, status
+from fastapi import HTTPException, status
 from fastapi.responses import Response
 
+from airflow.api_fastapi.common.headers import HeaderAcceptJsonOrText
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.datamodels.config import (
     Config,
     ConfigOption,
@@ -29,6 +31,21 @@ from airflow.api_fastapi.core_api.datamodels.config import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.configuration import conf
+
+text_example_response = {
+    Mimetype.TEXT: {
+        "schema": {
+            "type": "string",
+            "example": textwrap.dedent(
+                """\
+    [core]
+    dags_folder = /opt/airflow/dags
+    base_log_folder = /opt/airflow/logs
+    """
+            ),
+        }
+    }
+}
 
 
 def _check_expose_config() -> bool:
@@ -48,19 +65,34 @@ def _check_expose_config() -> bool:
     return display_sensitive
 
 
+def _response_based_on_accept(accept: Mimetype, config: Config):
+    if accept == Mimetype.TEXT:
+        return Response(content=config.text_format, media_type=Mimetype.TEXT)
+    return config
+
+
 config_router = AirflowRouter(tags=["Config"], prefix="/config")
 
 
 @config_router.get(
     "/",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses={
+        **create_openapi_http_exception_doc(
+            [
+                status.HTTP_401_UNAUTHORIZED,
+                status.HTTP_403_FORBIDDEN,
+                status.HTTP_404_NOT_FOUND,
+                status.HTTP_406_NOT_ACCEPTABLE,
+            ]
+        ),
+        "200": {"description": "Successful Response", "content": text_example_response},
+    },
+    response_model=Config,
 )
 def get_config(
+    accept: HeaderAcceptJsonOrText,
     section: str | None = None,
-    content_type: Literal["application/json", "text/plain"] = Header(...),
-) -> Response:
+):
     display_sensitive = _check_expose_config()
 
     if section and not conf.has_section(section):
@@ -83,24 +115,29 @@ def get_config(
             for section, options in conf_dict.items()
         ]
     )
-
-    return Response(
-        content=config.model_dump_json() if content_type == "application/json" else config.text_format,
-        headers={"Content-Type": content_type},
-    )
+    return _response_based_on_accept(accept, config)
 
 
 @config_router.get(
     "/section/{section}/option/{option}",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses={
+        **create_openapi_http_exception_doc(
+            [
+                status.HTTP_401_UNAUTHORIZED,
+                status.HTTP_403_FORBIDDEN,
+                status.HTTP_404_NOT_FOUND,
+                status.HTTP_406_NOT_ACCEPTABLE,
+            ]
+        ),
+        "200": {"description": "Successful Response", "content": text_example_response},
+    },
+    response_model=Config,
 )
 def get_config_value(
     section: str,
     option: str,
-    content_type: Literal["application/json", "text/plain"] = Header(...),
-) -> Response:
+    accept: HeaderAcceptJsonOrText,
+):
     _check_expose_config()
 
     if not conf.has_option(section, option):
@@ -115,7 +152,4 @@ def get_config_value(
         value = conf.get(section, option)
 
     config = Config(sections=[ConfigSection(name=section, options=[ConfigOption(key=option, value=value)])])
-    return Response(
-        content=config.model_dump_json() if content_type == "application/json" else config.text_format,
-        headers={"Content-Type": content_type},
-    )
+    return _response_based_on_accept(accept, config)

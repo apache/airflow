@@ -24,9 +24,10 @@ import pytest
 
 from tests_common.test_utils.config import conf_vars
 
-HEADERS_JSON = {"Content-Type": "application/json"}
-HEADERS_TEXT = {"Content-Type": "text/plain"}
-HEADERS_INVALID = {"Content-Type": "invalid"}
+HEADERS_JSON = {"Accept": "application/json"}
+HEADERS_TEXT = {"Accept": "text/plain"}
+HEADERS_INVALID = {"Accept": "invalid"}
+HEADERS_JSON_UTF8 = {"Accept": "application/json; charset=utf-8"}
 SECTION_CORE = "core"
 SECTION_SMTP = "smtp"
 SECTION_DATABASE = "database"
@@ -114,6 +115,34 @@ class TestGetConfig(TestConfigEndpoint):
             ),
             (
                 None,
+                HEADERS_JSON_UTF8,
+                200,
+                {
+                    "sections": [
+                        {
+                            "name": SECTION_CORE,
+                            "options": [
+                                {"key": OPTION_KEY_PARALLELISM, "value": OPTION_VALUE_PARALLELISM},
+                            ],
+                        },
+                        {
+                            "name": SECTION_SMTP,
+                            "options": [
+                                {"key": OPTION_KEY_SMTP_HOST, "value": OPTION_VALUE_SMTP_HOST},
+                                {"key": OPTION_KEY_SMTP_MAIL_FROM, "value": OPTION_VALUE_SMTP_MAIL_FROM},
+                            ],
+                        },
+                        {
+                            "name": SECTION_DATABASE,
+                            "options": [
+                                {"key": OPTION_KEY_SQL_ALCHEMY_CONN, "value": OPTION_VALUE_SQL_ALCHEMY_CONN},
+                            ],
+                        },
+                    ],
+                },
+            ),
+            (
+                None,
                 HEADERS_TEXT,
                 200,
                 textwrap.dedent(
@@ -133,18 +162,8 @@ class TestGetConfig(TestConfigEndpoint):
             (
                 None,
                 HEADERS_INVALID,
-                422,
-                {
-                    "detail": [
-                        {
-                            "type": "literal_error",
-                            "loc": ["header", "content-type"],
-                            "msg": "Input should be 'application/json' or 'text/plain'",
-                            "input": "invalid",
-                            "ctx": {"expected": "'application/json' or 'text/plain'"},
-                        }
-                    ]
-                },
+                406,
+                {"detail": "Only application/json or text/plain is supported"},
             ),
             (
                 SECTION_CORE,
@@ -201,10 +220,10 @@ class TestGetConfig(TestConfigEndpoint):
         else:
             response = test_client.get("/public/config/", headers=headers, params=query_params)
         assert response.status_code == expected_status_code
-        if response.status_code != 200 or headers == HEADERS_JSON:
-            assert response.json() == expected_response
-        else:
+        if headers == HEADERS_TEXT:
             assert response.text == expected_response
+        else:
+            assert response.json() == expected_response
 
 
 class TestGetConfigValue(TestConfigEndpoint):

@@ -129,6 +129,29 @@ export type BaseInfoSchema = {
 };
 
 /**
+ * List of config sections with their options.
+ */
+export type Config = {
+  sections: Array<ConfigSection>;
+};
+
+/**
+ * Config option.
+ */
+export type ConfigOption = {
+  key: string;
+  value: string | [string, string];
+};
+
+/**
+ * Config Section Schema.
+ */
+export type ConfigSection = {
+  name: string;
+  options: Array<ConfigOption>;
+};
+
+/**
  * Connection Serializer for requests body.
  */
 export type ConnectionBody = {
@@ -1355,6 +1378,7 @@ export type PatchDagData = {
 export type PatchDagResponse = DAGResponse;
 
 export type DeleteDagData = {
+  accept?: "application/json" | "text/plain";
   dagId: string;
 };
 
@@ -1366,84 +1390,20 @@ export type GetDagDetailsData = {
 
 export type GetDagDetailsResponse = DAGDetailsResponse;
 
-export type DeleteConnectionData = {
-  connectionId: string;
-};
-
-export type DeleteConnectionResponse = void;
-
-export type GetConnectionData = {
-  connectionId: string;
-};
-
-export type GetConnectionResponse = ConnectionResponse;
-
-export type PatchConnectionData = {
-  connectionId: string;
-  requestBody: ConnectionBody;
-  updateMask?: Array<string> | null;
-};
-
-export type PatchConnectionResponse = ConnectionResponse;
-
-export type GetConnectionsData = {
-  limit?: number;
-  offset?: number;
-  orderBy?: string;
-};
-
-export type GetConnectionsResponse = ConnectionCollectionResponse;
-
-export type PostConnectionData = {
-  requestBody: ConnectionBody;
-};
-
-export type PostConnectionResponse = ConnectionResponse;
-
 export type GetConfigData = {
-  contentType: "application/json" | "text/plain";
+  accept?: "application/json" | "text/plain";
   section?: string | null;
 };
 
-export type GetConfigResponse = unknown;
+export type GetConfigResponse = Config;
 
 export type GetConfigValueData = {
-  contentType: "application/json" | "text/plain";
+  accept?: "application/json" | "text/plain";
   option: string;
   section: string;
 };
 
-export type GetConfigValueResponse = unknown;
-
-export type GetDagRunData = {
-  dagId: string;
-  dagRunId: string;
-};
-
-export type GetDagRunResponse = DAGRunResponse;
-
-export type DeleteDagRunData = {
-  dagId: string;
-  dagRunId: string;
-};
-
-export type DeleteDagRunResponse = void;
-
-export type PatchDagRunData = {
-  dagId: string;
-  dagRunId: string;
-  requestBody: DAGRunPatchBody;
-  updateMask?: Array<string> | null;
-};
-
-export type PatchDagRunResponse = DAGRunResponse;
-
-export type GetDagSourceData = {
-  accept?: string;
-  fileToken: string;
-};
-
-export type GetDagSourceResponse = DAGSourceResponse;
+export type GetConfigValueResponse = Config;
 
 export type GetEventLogData = {
   eventLogId: number;
@@ -2630,60 +2590,6 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/config/": {
-    get: {
-      req: GetConfigData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: unknown;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/config/section/{section}/option/{option}": {
-    get: {
-      req: GetConfigValueData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: unknown;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
   "/public/dags/tags": {
     get: {
       req: GetDagTagsData;
@@ -2820,6 +2726,68 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/config/": {
+    get: {
+      req: GetConfigData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: Config;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Not Acceptable
+         */
+        406: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/config/section/{section}/option/{option}": {
+    get: {
+      req: GetConfigValueData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: Config;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Not Acceptable
+         */
+        406: HTTPExceptionResponse;
         /**
          * Validation Error
          */
