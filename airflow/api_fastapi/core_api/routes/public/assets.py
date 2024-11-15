@@ -19,8 +19,8 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import Depends, HTTPException, Query, status
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session, joinedload, subqueryload
 
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
@@ -175,3 +175,25 @@ def get_asset(
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with uri: `{uri}` was not found")
 
     return AssetResponse.model_validate(asset, from_attributes=True)
+
+
+@assets_router.delete(
+    "/queuedEvent/{uri:path}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
+def delete_asset_queued_events(
+    uri: str,
+    session: Annotated[Session, Depends(get_session)],
+    before: str = Query(None),
+):
+    """Delete queued asset events for an asset."""
+    where_clause = _generate_queued_event_where_clause(uri=uri, before=before)
+    delete_stmt = delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
+    result = session.execute(delete_stmt)
+    if result.rowcount == 0:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Queue event with uri: `{uri}` was not found")

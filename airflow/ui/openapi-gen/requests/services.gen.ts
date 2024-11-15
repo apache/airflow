@@ -11,6 +11,8 @@ import type {
   GetAssetEventsResponse,
   GetAssetData,
   GetAssetResponse,
+  DeleteAssetQueuedEventsData,
+  DeleteAssetQueuedEventsResponse,
   HistoricalMetricsData,
   HistoricalMetricsResponse,
   RecentDagRunsData,
@@ -232,6 +234,36 @@ export class AssetService {
       url: "/public/assets/{uri}",
       path: {
         uri: data.uri,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Delete Asset Queued Events
+   * Delete queued asset events for an asset.
+   * @param data The data for the request.
+   * @param data.uri
+   * @param data.before
+   * @returns void Successful Response
+   * @throws ApiError
+   */
+  public static deleteAssetQueuedEvents(
+    data: DeleteAssetQueuedEventsData,
+  ): CancelablePromise<DeleteAssetQueuedEventsResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/public/assets/queuedEvent/{uri}",
+      path: {
+        uri: data.uri,
+      },
+      query: {
+        before: data.before,
       },
       errors: {
         401: "Unauthorized",
