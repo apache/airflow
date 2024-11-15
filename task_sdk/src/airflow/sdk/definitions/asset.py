@@ -17,11 +17,12 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 import os
 import urllib.parse
 import warnings
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Mapping
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -35,17 +36,21 @@ import attrs
 from sqlalchemy import select
 
 from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.models.asset import _fetch_active_assets_by_name
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk.definitions.dag import DAG, ScheduleArg
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.typing_compat import TypedDict
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
     from sqlalchemy.orm.session import Session
 
+    from airflow.io.path import ObjectStoragePath
 
-__all__ = ["Asset", "AssetAll", "AssetAny", "Dataset", "Model"]
+__all__ = ["Asset", "AssetAll", "AssetAny", "Dataset", "Model", "AssetRef", "asset"]
 
 
 log = logging.getLogger(__name__)
@@ -180,11 +185,16 @@ def expand_alias_to_assets(alias: str | AssetAlias, *, session: Session = NEW_SE
     return []
 
 
-@attrs.define(kw_only=True)
-class AssetRef:
-    """Reference to an asset."""
+def _set_extra_default(extra: dict | None) -> dict:
+    """
+    Automatically convert None to an empty dict.
 
-    name: str
+    This allows the caller site to continue doing ``Asset(uri, extra=None)``,
+    but still allow the ``extra`` attribute to always be a dict.
+    """
+    if extra is None:
+        return {}
+    return extra
 
 
 class BaseAsset:
@@ -269,18 +279,6 @@ class AssetAliasEvent(TypedDict):
     source_alias_name: str
     dest_asset_uri: str
     extra: dict[str, Any]
-
-
-def _set_extra_default(extra: dict | None) -> dict:
-    """
-    Automatically convert None to an empty dict.
-
-    This allows the caller site to continue doing ``Asset(uri, extra=None)``,
-    but still allow the ``extra`` attribute to always be a dict.
-    """
-    if extra is None:
-        return {}
-    return extra
 
 
 @attrs.define(init=False, unsafe_hash=False)
@@ -559,3 +557,109 @@ class Metadata:
             self.alias_name = alias.name
         else:
             self.alias_name = alias
+
+
+@attrs.define(kw_only=True)
+class AssetRef:
+    """Reference to an asset."""
+
+    name: str
+
+
+class _AssetMainOperator(PythonOperator):
+    def __init__(self, *, definition_name: str, uri: str | None = None, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._definition_name = definition_name
+        self._uri = uri
+
+    def _iter_kwargs(
+        self, context: Mapping[str, Any], active_assets: dict[str, Asset]
+    ) -> Iterator[tuple[str, Any]]:
+        value: Any
+        for key in inspect.signature(self.python_callable).parameters:
+            if key == "self":
+                value = active_assets.get(self._definition_name)
+            elif key == "context":
+                value = context
+            else:
+                value = active_assets.get(key, Asset(name=key))
+            yield key, value
+
+    def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
+        active_assets: dict[str, Asset] = {}
+        asset_names = [asset_ref.name for asset_ref in self.inlets if isinstance(asset_ref, AssetRef)]
+        if "self" in inspect.signature(self.python_callable).parameters:
+            asset_names.append(self._definition_name)
+
+        if asset_names:
+            with create_session() as session:
+                active_assets = _fetch_active_assets_by_name(asset_names, session)
+        return dict(self._iter_kwargs(context, active_assets))
+
+
+@attrs.define(kw_only=True)
+class AssetDefinition(Asset):
+    """
+    Asset representation from decorating a function with ``@asset``.
+
+    :meta private:
+    """
+
+    function: Callable
+    schedule: ScheduleArg
+
+    def __attrs_post_init__(self) -> None:
+        parameters = inspect.signature(self.function).parameters
+
+        with DAG(dag_id=self.name, schedule=self.schedule, auto_register=True):
+            _AssetMainOperator(
+                task_id="__main__",
+                inlets=[
+                    AssetRef(name=inlet_asset_name)
+                    for inlet_asset_name in parameters
+                    if inlet_asset_name not in ("self", "context")
+                ],
+                outlets=[self.to_asset()],
+                python_callable=self.function,
+                definition_name=self.name,
+                uri=self.uri,
+            )
+
+    def to_asset(self) -> Asset:
+        return Asset(
+            name=self.name,
+            uri=self.uri,
+            group=self.group,
+            extra=self.extra,
+        )
+
+    def serialize(self):
+        return {
+            "uri": self.uri,
+            "name": self.name,
+            "group": self.group,
+            "extra": self.extra,
+        }
+
+
+@attrs.define(kw_only=True)
+class asset:
+    """Create an asset by decorating a materialization function."""
+
+    schedule: ScheduleArg
+    uri: str | ObjectStoragePath | None = None
+    group: str = ""
+    extra: dict[str, Any] = attrs.field(factory=dict)
+
+    def __call__(self, f: Callable) -> AssetDefinition:
+        if (name := f.__name__) != f.__qualname__:
+            raise ValueError("nested function not supported")
+
+        return AssetDefinition(
+            name=name,
+            uri=name if self.uri is None else str(self.uri),
+            group=self.group,
+            extra=self.extra,
+            function=f,
+            schedule=self.schedule,
+        )

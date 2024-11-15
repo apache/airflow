@@ -22,8 +22,7 @@ from unittest.mock import ANY
 import pytest
 
 from airflow.models.asset import AssetActive, AssetModel
-from airflow.sdk.definitions.asset import Asset
-from airflow.sdk.definitions.decorators import AssetRef, _AssetMainOperator, asset
+from airflow.sdk.definitions.asset import Asset, AssetRef, _AssetMainOperator, asset
 
 pytestmark = pytest.mark.db_test
 
