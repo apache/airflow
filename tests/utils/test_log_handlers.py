@@ -426,7 +426,8 @@ class TestFileTaskLogHandler:
             actual = fth._read(ti=ti, try_number=1)
         if served_logs_checked:
             fth._read_from_logs_server.assert_called_once()
-            assert "*** this message\nthis\nlog\ncontent" in actual[0]
+            assert "*** this message\n" in actual[0]
+            assert actual[0].endswith("this\nlog\ncontent")
             assert actual[1] == {"end_of_log": True, "log_pos": 16}
         else:
             fth._read_from_logs_server.assert_not_called()
