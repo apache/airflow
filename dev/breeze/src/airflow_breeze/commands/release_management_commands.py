@@ -157,7 +157,12 @@ from airflow_breeze.utils.run_utils import (
     run_command,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
-from airflow_breeze.utils.version_utils import get_latest_airflow_version, get_latest_helm_chart_version, create_package_version, is_local_package_version
+from airflow_breeze.utils.version_utils import (
+    create_package_version,
+    get_latest_airflow_version,
+    get_latest_helm_chart_version,
+    is_local_package_version,
+)
 from airflow_breeze.utils.versions import is_pre_release
 from airflow_breeze.utils.virtualenv_utils import create_pip_command, create_venv
 

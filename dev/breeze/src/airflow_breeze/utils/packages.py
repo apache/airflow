@@ -48,9 +48,8 @@ from airflow_breeze.utils.publish_docs_helpers import (
     get_provider_yaml_paths,
 )
 from airflow_breeze.utils.run_utils import run_command
-from airflow_breeze.utils.versions import get_version_tag, strip_leading_zeros_from_version
-
 from airflow_breeze.utils.version_utils import remove_local_version_suffix
+from airflow_breeze.utils.versions import get_version_tag, strip_leading_zeros_from_version
 
 MIN_AIRFLOW_VERSION = "2.8.0"
 HTTPS_REMOTE = "apache-https-for-providers"
@@ -424,10 +423,7 @@ def get_dist_package_name_prefix(provider_id: str) -> str:
 def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
     # Need to resolve a version suffix based on PyPi versions, but can ignore local version suffix.
     pypi_version_suffix = remove_local_version_suffix(version_suffix)
-    if (pypi_version_suffix
-        and install_clause.startswith("apache-airflow")
-        and ">=" in install_clause
-    ):
+    if pypi_version_suffix and install_clause.startswith("apache-airflow") and ">=" in install_clause:
         # Applies version suffix to the apache-airflow and provider package dependencies to make
         # sure that pre-release versions have correct limits - this address the issue with how
         # pip handles pre-release versions when packages are pre-release and refer to each other - we
@@ -612,7 +608,7 @@ def format_version_suffix(version_suffix: str) -> str:
 
     """
     if version_suffix:
-        if '.' == version_suffix[0] or '+' == version_suffix[0]:
+        if "." == version_suffix[0] or "+" == version_suffix[0]:
             return version_suffix
         else:
             return f".{version_suffix}"

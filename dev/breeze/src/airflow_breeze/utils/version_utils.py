@@ -36,6 +36,7 @@ def get_latest_airflow_version():
     latest_released_version = response.json()["info"]["version"]
     return latest_released_version
 
+
 def create_package_version(version_suffix_for_pypi: str, version_suffix_for_local: str) -> str:
     """
     Creates a package version by combining the version suffix for PyPI and the version suffix for local. If
@@ -56,7 +57,7 @@ def create_package_version(version_suffix_for_pypi: str, version_suffix_for_loca
 
     # ensure the local version suffix starts with a plus sign
     if version_suffix_for_local[0] != "+":
-        version_suffix_for_local = '+' + version_suffix_for_local
+        version_suffix_for_local = "+" + version_suffix_for_local
 
     # if there is a PyPi version suffix, return the combined version. Otherwise just return the local version.
     if version_suffix_for_pypi:
@@ -66,8 +67,8 @@ def create_package_version(version_suffix_for_pypi: str, version_suffix_for_loca
 
 
 def remove_local_version_suffix(version_suffix: str) -> str:
-    if '+' in version_suffix:
-        return version_suffix.split('+')[0]
+    if "+" in version_suffix:
+        return version_suffix.split("+")[0]
     else:
         return version_suffix
 
@@ -81,10 +82,10 @@ def is_local_package_version(version_suffix: str) -> bool:
         version_suffix (str): The version suffix to check.
 
     Returns:
-        bool: True if the version suffix contais a '+', False otherwise. Please note this does not
+        bool: True if the version suffix contains a '+', False otherwise. Please note this does not
         guarantee that the version suffix is a valid local version suffix.
     """
-    if version_suffix and ('+' in version_suffix):
+    if version_suffix and ("+" in version_suffix):
         return True
     else:
         return False
