@@ -192,7 +192,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._enable_tracemalloc = conf.getboolean("scheduler", "enable_tracemalloc")
 
         # this param is intentionally undocumented
-        self._num_stuck_queued_retries = conf.getint("scheduler", "num_stuck_in_queued_retries")
+        self._num_stuck_queued_retries = conf.getint(
+            section="scheduler",
+            key="num_stuck_in_queued_retries",
+            fallback=2,
+        )
 
         if self._enable_tracemalloc:
             import tracemalloc
