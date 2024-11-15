@@ -426,7 +426,7 @@ export type DagRunAssetReference = {
   dag_id: string;
   logical_date: string;
   start_date: string;
-  end_date: string;
+  end_date: string | null;
   state: string;
   data_interval_start: string;
   data_interval_end: string;
@@ -1128,6 +1128,13 @@ export type PatchDagRunData = {
 };
 
 export type PatchDagRunResponse = DAGRunResponse;
+
+export type GetUpstreamAssetEventsData = {
+  dagId: string;
+  dagRunId: string;
+};
+
+export type GetUpstreamAssetEventsResponse = AssetEventCollectionResponse;
 
 export type ClearDagRunData = {
   dagId: string;
@@ -1991,6 +1998,33 @@ export type $OpenApiTs = {
          * Bad Request
          */
         400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents": {
+    get: {
+      req: GetUpstreamAssetEventsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: AssetEventCollectionResponse;
         /**
          * Unauthorized
          */
