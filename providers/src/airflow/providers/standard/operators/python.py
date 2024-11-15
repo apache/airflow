@@ -359,37 +359,37 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "ds_nodash",
         "expanded_ti_count",
         "inlets",
-        "next_ds",  # should be removed when Airflow 2 support is dropped.
-        "next_ds_nodash",  # should be removed when Airflow 2 support is dropped.
         "outlets",
-        "prev_ds",  # should be removed when Airflow 2 support is dropped.
-        "prev_ds_nodash",  # should be removed when Airflow 2 support is dropped.
         "run_id",
         "task_instance_key_str",
         "test_mode",
-        "tomorrow_ds",  # should be removed when Airflow 2 support is dropped.
-        "tomorrow_ds_nodash",  # should be removed when Airflow 2 support is dropped.
         "ts",
         "ts_nodash",
         "ts_nodash_with_tz",
-        "yesterday_ds",  # should be removed when Airflow 2 support is dropped.
-        "yesterday_ds_nodash",  # should be removed when Airflow 2 support is dropped.
+        # The following should be removed when Airflow 2 support is dropped.
+        "next_ds",
+        "next_ds_nodash",
+        "prev_ds",
+        "prev_ds_nodash",
+        "tomorrow_ds",
+        "tomorrow_ds_nodash",
+        "yesterday_ds",
+        "yesterday_ds_nodash",
     }
     PENDULUM_SERIALIZABLE_CONTEXT_KEYS = {
         "data_interval_end",
         "data_interval_start",
-        "execution_date",  # should be removed when Airflow 2 support is dropped.
         "logical_date",
-        "next_execution_date",  # should be removed when Airflow 2 support is dropped.
         "prev_data_interval_end_success",
         "prev_data_interval_start_success",
-        "prev_execution_date",  # should be removed when Airflow 2 support is dropped.
-        "prev_execution_date_success",  # should be removed when Airflow 2 support is dropped.
         "prev_start_date_success",
         "prev_end_date_success",
+        # The following should be removed when Airflow 2 support is dropped.
+        "execution_date",
+        "next_execution_date",
+        "prev_execution_date",
+        "prev_execution_date_success",
     }
-    if not AIRFLOW_V_3_0_PLUS:
-        PENDULUM_SERIALIZABLE_CONTEXT_KEYS.add("execution_date")
 
     AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {
         "macros",
@@ -398,7 +398,9 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "dag_run",
         "task",
         "params",
-        "triggering_asset_events" if AIRFLOW_V_3_0_PLUS else "triggering_dataset_events",
+        "triggering_asset_events",
+        # The following should be removed when Airflow 2 support is dropped.
+        "triggering_dataset_events",
     }
 
     def __init__(
