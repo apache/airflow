@@ -25,7 +25,7 @@ import { useExtraLinks } from "src/api";
 interface Props {
   dagId: string;
   taskId: string;
-  executionDate: string;
+  logicalDate: string;
   mapIndex?: number | undefined;
   extraLinks: string[];
   tryNumber?: number | undefined;
@@ -34,7 +34,7 @@ interface Props {
 const ExtraLinks = ({
   dagId,
   taskId,
-  executionDate,
+  logicalDate,
   mapIndex,
   extraLinks,
   tryNumber,
@@ -42,7 +42,7 @@ const ExtraLinks = ({
   const { data: links } = useExtraLinks({
     dagId,
     taskId,
-    executionDate,
+    logicalDate,
     mapIndex,
     extraLinks,
     tryNumber,

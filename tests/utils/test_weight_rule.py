@@ -19,7 +19,14 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.utils.weight_rule import WeightRule
+from airflow.utils.weight_rule import DB_SAFE_MAXIMUM, DB_SAFE_MINIMUM, WeightRule, db_safe_priority
+
+
+def test_db_safe_priority():
+    assert db_safe_priority(1) == 1
+    assert db_safe_priority(-1) == -1
+    assert db_safe_priority(9999999999) == DB_SAFE_MAXIMUM
+    assert db_safe_priority(-9999999999) == DB_SAFE_MINIMUM
 
 
 class TestWeightRule:

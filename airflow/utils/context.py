@@ -71,7 +71,6 @@ KNOWN_CONTEXT_KEYS: set[str] = {
     "data_interval_start",
     "ds",
     "ds_nodash",
-    "execution_date",
     "expanded_ti_count",
     "exception",
     "inlets",
@@ -79,18 +78,11 @@ KNOWN_CONTEXT_KEYS: set[str] = {
     "logical_date",
     "macros",
     "map_index_template",
-    "next_ds",
-    "next_ds_nodash",
-    "next_execution_date",
     "outlets",
     "outlet_events",
     "params",
     "prev_data_interval_start_success",
     "prev_data_interval_end_success",
-    "prev_ds",
-    "prev_ds_nodash",
-    "prev_execution_date",
-    "prev_execution_date_success",
     "prev_start_date_success",
     "prev_end_date_success",
     "reason",
@@ -101,16 +93,12 @@ KNOWN_CONTEXT_KEYS: set[str] = {
     "test_mode",
     "templates_dict",
     "ti",
-    "tomorrow_ds",
-    "tomorrow_ds_nodash",
     "triggering_asset_events",
     "ts",
     "ts_nodash",
     "ts_nodash_with_tz",
     "try_number",
     "var",
-    "yesterday_ds",
-    "yesterday_ds_nodash",
 }
 
 
@@ -330,20 +318,7 @@ class Context(MutableMapping[str, Any]):
     (and only when) deprecated context keys are accessed.
     """
 
-    _DEPRECATION_REPLACEMENTS: dict[str, list[str]] = {
-        "execution_date": ["data_interval_start", "logical_date"],
-        "next_ds": ["{{ data_interval_end | ds }}"],
-        "next_ds_nodash": ["{{ data_interval_end | ds_nodash }}"],
-        "next_execution_date": ["data_interval_end"],
-        "prev_ds": [],
-        "prev_ds_nodash": [],
-        "prev_execution_date": [],
-        "prev_execution_date_success": ["prev_data_interval_start_success"],
-        "tomorrow_ds": [],
-        "tomorrow_ds_nodash": [],
-        "yesterday_ds": [],
-        "yesterday_ds_nodash": [],
-    }
+    _DEPRECATION_REPLACEMENTS: dict[str, list[str]] = {}
 
     def __init__(self, context: MutableMapping[str, Any] | None = None, **kwargs: Any) -> None:
         self._context: MutableMapping[str, Any] = context or {}

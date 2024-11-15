@@ -26,6 +26,27 @@
 Changelog
 ---------
 
+1.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+* ``Add ProcessingEngineRunFacet to OL DAG Start event (#43213)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``serialize asset/dataset timetable conditions in OpenLineage info also for Airflow 2 (#43434)``
+* ``OpenLineage: accept whole config when instantiating OpenLineageClient. (#43740)``
+
+Misc
+~~~~
+
+* ``Temporarily limit openlineage to <1.24.0 (#43732)``
+* ``Move python operator to Standard provider (#42081)``
+
 1.13.0
 ......
 

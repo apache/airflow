@@ -66,7 +66,7 @@ class BaseParam(Generic[T], ABC):
         pass
 
 
-class _LimitFilter(BaseParam[int]):
+class LimitFilter(BaseParam[int]):
     """Filter on the limit."""
 
     def to_orm(self, select: Select) -> Select:
@@ -75,11 +75,11 @@ class _LimitFilter(BaseParam[int]):
 
         return select.limit(self.value)
 
-    def depends(self, limit: int = 100) -> _LimitFilter:
+    def depends(self, limit: int = 100) -> LimitFilter:
         return self.set_value(limit)
 
 
-class _OffsetFilter(BaseParam[int]):
+class OffsetFilter(BaseParam[int]):
     """Filter on offset."""
 
     def to_orm(self, select: Select) -> Select:
@@ -87,7 +87,7 @@ class _OffsetFilter(BaseParam[int]):
             return select
         return select.offset(self.value)
 
-    def depends(self, offset: int = 0) -> _OffsetFilter:
+    def depends(self, offset: int = 0) -> OffsetFilter:
         return self.set_value(offset)
 
 
@@ -115,16 +115,52 @@ class _OnlyActiveFilter(BaseParam[bool]):
         return self.set_value(only_active)
 
 
-class _DagIdsFilter(BaseParam[list[str]]):
-    """Filter on multi-valued dag_ids param for DagRun."""
+class DagIdsFilter(BaseParam[list[str]]):
+    """Filter on dag ids."""
+
+    def __init__(self, model: Base, value: list[str] | None = None, skip_none: bool = True) -> None:
+        super().__init__(value, skip_none)
+        self.model = model
 
     def to_orm(self, select: Select) -> Select:
         if self.value and self.skip_none:
-            return select.where(DagRun.dag_id.in_(self.value))
+            return select.where(self.model.dag_id.in_(self.value))
         return select
 
-    def depends(self, dag_ids: list[str] = Query(None)) -> _DagIdsFilter:
+    def depends(self, dag_ids: list[str] = Query(None)) -> DagIdsFilter:
         return self.set_value(dag_ids)
+
+
+class DagRunIdsFilter(BaseParam[list[str]]):
+    """Filter on dag run ids."""
+
+    def __init__(self, model: Base, value: list[str] | None = None, skip_none: bool = True) -> None:
+        super().__init__(value, skip_none)
+        self.model = model
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value and self.skip_none:
+            return select.where(self.model.run_id.in_(self.value))
+        return select
+
+    def depends(self, dag_run_ids: list[str] = Query(None)) -> DagRunIdsFilter:
+        return self.set_value(dag_run_ids)
+
+
+class TaskIdsFilter(BaseParam[list[str]]):
+    """Filter on task ids."""
+
+    def __init__(self, model: Base, value: list[str] | None = None, skip_none: bool = True) -> None:
+        super().__init__(value, skip_none)
+        self.model = model
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value and self.skip_none:
+            return select.where(self.model.task_id.in_(self.value))
+        return select
+
+    def depends(self, task_ids: list[str] = Query(None)) -> TaskIdsFilter:
+        return self.set_value(task_ids)
 
 
 class _SearchParam(BaseParam[str]):
@@ -273,7 +309,7 @@ class _OwnersFilter(BaseParam[List[str]]):
         return self.set_value(owners)
 
 
-class _TIStateFilter(BaseParam[List[Optional[TaskInstanceState]]]):
+class TIStateFilter(BaseParam[List[Optional[TaskInstanceState]]]):
     """Filter on task instance state."""
 
     def to_orm(self, select: Select) -> Select:
@@ -286,12 +322,12 @@ class _TIStateFilter(BaseParam[List[Optional[TaskInstanceState]]]):
         conditions = [TaskInstance.state == state for state in self.value]
         return select.where(or_(*conditions))
 
-    def depends(self, state: list[str] = Query(default_factory=list)) -> _TIStateFilter:
+    def depends(self, state: list[str] = Query(default_factory=list)) -> TIStateFilter:
         states = _convert_ti_states(state)
         return self.set_value(states)
 
 
-class _TIPoolFilter(BaseParam[List[str]]):
+class TIPoolFilter(BaseParam[List[str]]):
     """Filter on task instance pool."""
 
     def to_orm(self, select: Select) -> Select:
@@ -304,11 +340,11 @@ class _TIPoolFilter(BaseParam[List[str]]):
         conditions = [TaskInstance.pool == pool for pool in self.value]
         return select.where(or_(*conditions))
 
-    def depends(self, pool: list[str] = Query(default_factory=list)) -> _TIPoolFilter:
+    def depends(self, pool: list[str] = Query(default_factory=list)) -> TIPoolFilter:
         return self.set_value(pool)
 
 
-class _TIQueueFilter(BaseParam[List[str]]):
+class TIQueueFilter(BaseParam[List[str]]):
     """Filter on task instance queue."""
 
     def to_orm(self, select: Select) -> Select:
@@ -321,11 +357,11 @@ class _TIQueueFilter(BaseParam[List[str]]):
         conditions = [TaskInstance.queue == queue for queue in self.value]
         return select.where(or_(*conditions))
 
-    def depends(self, queue: list[str] = Query(default_factory=list)) -> _TIQueueFilter:
+    def depends(self, queue: list[str] = Query(default_factory=list)) -> TIQueueFilter:
         return self.set_value(queue)
 
 
-class _TIExecutorFilter(BaseParam[List[str]]):
+class TIExecutorFilter(BaseParam[List[str]]):
     """Filter on task instance executor."""
 
     def to_orm(self, select: Select) -> Select:
@@ -338,7 +374,7 @@ class _TIExecutorFilter(BaseParam[List[str]]):
         conditions = [TaskInstance.executor == executor for executor in self.value]
         return select.where(or_(*conditions))
 
-    def depends(self, executor: list[str] = Query(default_factory=list)) -> _TIExecutorFilter:
+    def depends(self, executor: list[str] = Query(default_factory=list)) -> TIExecutorFilter:
         return self.set_value(executor)
 
 
@@ -603,8 +639,8 @@ DateTimeQuery = Annotated[datetime, AfterValidator(_safe_parse_datetime)]
 OptionalDateTimeQuery = Annotated[Union[datetime, None], AfterValidator(_safe_parse_datetime_optional)]
 
 # DAG
-QueryLimit = Annotated[_LimitFilter, Depends(_LimitFilter().depends)]
-QueryOffset = Annotated[_OffsetFilter, Depends(_OffsetFilter().depends)]
+QueryLimit = Annotated[LimitFilter, Depends(LimitFilter().depends)]
+QueryOffset = Annotated[OffsetFilter, Depends(OffsetFilter().depends)]
 QueryPausedFilter = Annotated[_PausedFilter, Depends(_PausedFilter().depends)]
 QueryOnlyActiveFilter = Annotated[_OnlyActiveFilter, Depends(_OnlyActiveFilter().depends)]
 QueryDagIdPatternSearch = Annotated[_DagIdPatternSearch, Depends(_DagIdPatternSearch().depends)]
@@ -619,7 +655,7 @@ QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter().depends)]
 
 # DagRun
 QueryLastDagRunStateFilter = Annotated[_LastDagRunStateFilter, Depends(_LastDagRunStateFilter().depends)]
-QueryDagIdsFilter = Annotated[_DagIdsFilter, Depends(_DagIdsFilter().depends)]
+QueryDagIdsFilter = Annotated[DagIdsFilter, Depends(DagIdsFilter(DagRun).depends)]
 
 # DAGWarning
 QueryDagIdInDagWarningFilter = Annotated[_DagIdFilter, Depends(_DagIdFilter(DagWarning.dag_id).depends)]
@@ -629,10 +665,10 @@ QueryWarningTypeFilter = Annotated[_WarningTypeFilter, Depends(_WarningTypeFilte
 QueryDagTagPatternSearch = Annotated[_DagTagNamePatternSearch, Depends(_DagTagNamePatternSearch().depends)]
 
 # TI
-QueryTIStateFilter = Annotated[_TIStateFilter, Depends(_TIStateFilter().depends)]
-QueryTIPoolFilter = Annotated[_TIPoolFilter, Depends(_TIPoolFilter().depends)]
-QueryTIQueueFilter = Annotated[_TIQueueFilter, Depends(_TIQueueFilter().depends)]
-QueryTIExecutorFilter = Annotated[_TIExecutorFilter, Depends(_TIExecutorFilter().depends)]
+QueryTIStateFilter = Annotated[TIStateFilter, Depends(TIStateFilter().depends)]
+QueryTIPoolFilter = Annotated[TIPoolFilter, Depends(TIPoolFilter().depends)]
+QueryTIQueueFilter = Annotated[TIQueueFilter, Depends(TIQueueFilter().depends)]
+QueryTIExecutorFilter = Annotated[TIExecutorFilter, Depends(TIExecutorFilter().depends)]
 
 # Assets
 QueryUriPatternSearch = Annotated[_UriPatternSearch, Depends(_UriPatternSearch().depends)]

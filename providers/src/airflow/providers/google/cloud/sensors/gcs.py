@@ -192,7 +192,7 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
     :param object: The name of the object to download in the Google cloud
         storage bucket.
     :param ts_func: Callback for defining the update condition. The default callback
-        returns execution_date + schedule_interval. The callback takes the context
+        returns logical_date + schedule_interval. The callback takes the context
         as parameter.
     :param google_cloud_conn_id: The connection ID to use when
         connecting to Google Cloud Storage.

@@ -19,11 +19,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class DagScheduleAssetReference(BaseModel):
-    """Serializable version of the DagScheduleAssetReference ORM SqlAlchemyModel."""
+    """DAG schedule reference serializer for assets."""
 
     dag_id: str
     created_at: datetime
@@ -31,7 +31,7 @@ class DagScheduleAssetReference(BaseModel):
 
 
 class TaskOutletAssetReference(BaseModel):
-    """Serializable version of the TaskOutletAssetReference ORM SqlAlchemyModel."""
+    """Task outlet reference serializer for assets."""
 
     dag_id: str
     task_id: str
@@ -40,7 +40,7 @@ class TaskOutletAssetReference(BaseModel):
 
 
 class AssetAliasSchema(BaseModel):
-    """Serializable version of the AssetAliasSchema ORM SqlAlchemyModel."""
+    """Asset alias serializer for assets."""
 
     id: int
     name: str
@@ -73,7 +73,7 @@ class DagRunAssetReference(BaseModel):
     dag_id: str
     execution_date: datetime = Field(alias="logical_date")
     start_date: datetime
-    end_date: datetime
+    end_date: datetime | None
     state: str
     data_interval_start: datetime
     data_interval_end: datetime
@@ -114,3 +114,20 @@ class QueuedEventCollectionResponse(BaseModel):
 
     queued_events: list[QueuedEventResponse]
     total_entries: int
+
+
+class CreateAssetEventsBody(BaseModel):
+    """Create asset events request."""
+
+    uri: str
+    extra: dict = Field(default_factory=dict)
+
+    @field_validator("extra", mode="after")
+    def set_from_rest_api(cls, v: dict) -> dict:
+        v["from_rest_api"] = True
+        return v
+
+    class Config:
+        """Pydantic config."""
+
+        extra = "forbid"

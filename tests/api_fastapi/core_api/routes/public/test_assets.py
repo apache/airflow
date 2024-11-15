@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import urllib
 from typing import Generator
+from unittest import mock
 
 import pytest
 import time_machine
@@ -93,7 +94,7 @@ def _create_dag_run(session, num: int = 2):
             dag_id="source_dag_id",
             run_id=f"source_run_id_{i}",
             run_type=DagRunType.MANUAL,
-            execution_date=timezone.parse(default_time),
+            logical_date=timezone.parse(default_time),
             start_date=timezone.parse(default_time),
             data_interval=(timezone.parse(default_time), timezone.parse(default_time)),
             external_trigger=True,
@@ -520,3 +521,31 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
 
         assert response.status_code == 404
         assert response.json()["detail"] == "Queue event with dag_id: `not_exists` was not found"
+
+
+class TestPostAssetEvents(TestAssets):
+    @pytest.mark.usefixtures("time_freezer")
+    def test_should_respond_200(self, test_client, session):
+        self.create_assets()
+        event_payload = {"uri": "s3://bucket/key/1", "extra": {"foo": "bar"}}
+        response = test_client.post("/public/assets/events", json=event_payload)
+        assert response.status_code == 200
+        assert response.json() == {
+            "id": mock.ANY,
+            "asset_id": 1,
+            "uri": "s3://bucket/key/1",
+            "extra": {"foo": "bar", "from_rest_api": True},
+            "source_task_id": None,
+            "source_dag_id": None,
+            "source_run_id": None,
+            "source_map_index": -1,
+            "created_dagruns": [],
+            "timestamp": self.default_time.replace("+00:00", "Z"),
+        }
+
+    def test_invalid_attr_not_allowed(self, test_client, session):
+        self.create_assets()
+        event_invalid_payload = {"asset_uri": "s3://bucket/key/1", "extra": {"foo": "bar"}, "fake": {}}
+        response = test_client.post("/public/assets/events", json=event_invalid_payload)
+
+        assert response.status_code == 422

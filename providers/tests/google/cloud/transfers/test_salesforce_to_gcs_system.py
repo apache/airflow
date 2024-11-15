@@ -38,8 +38,8 @@ SALESFORCE_CREDENTIALS_PATH = os.path.join(CREDENTIALS_DIR, SALESFORCE_KEY)
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GCP_BIGQUERY_KEY)
 @pytest.mark.credential_file(SALESFORCE_KEY)
-@pytest.mark.system("google.cloud")
-@pytest.mark.system("salesforce")
+@pytest.mark.system
+@pytest.mark.system
 class TestSalesforceIntoGCSExample(GoogleSystemTest):
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     @provide_salesforce_connection(SALESFORCE_CREDENTIALS_PATH)

@@ -32,7 +32,9 @@ from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
-    AUTOCOMPLETE_INTEGRATIONS,
+    AUTOCOMPLETE_ALL_INTEGRATIONS,
+    AUTOCOMPLETE_CORE_INTEGRATIONS,
+    AUTOCOMPLETE_PROVIDERS_INTEGRATIONS,
     DEFAULT_UV_HTTP_TIMEOUT,
 )
 from airflow_breeze.utils.custom_param_types import (
@@ -230,10 +232,23 @@ option_include_success_outputs = click.option(
     is_flag=True,
     envvar="INCLUDE_SUCCESS_OUTPUTS",
 )
-option_integration = click.option(
+option_all_integration = click.option(
     "--integration",
-    help="Integration(s) to enable when running (can be more than one).",
-    type=BetterChoice(AUTOCOMPLETE_INTEGRATIONS),
+    help="Core Integrations to enable when running (can be more than one).",
+    type=BetterChoice(AUTOCOMPLETE_ALL_INTEGRATIONS),
+    multiple=True,
+)
+
+option_core_integration = click.option(
+    "--integration",
+    help="Core Integrations to enable when running (can be more than one).",
+    type=BetterChoice(AUTOCOMPLETE_CORE_INTEGRATIONS),
+    multiple=True,
+)
+option_providers_integration = click.option(
+    "--integration",
+    help="Providers Integration(s) to enable when running (can be more than one).",
+    type=BetterChoice(AUTOCOMPLETE_PROVIDERS_INTEGRATIONS),
     multiple=True,
 )
 option_image_name = click.option(

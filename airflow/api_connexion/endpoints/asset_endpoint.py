@@ -324,6 +324,7 @@ def delete_asset_queued_events(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("POST")
 @provide_session
 @action_logging
