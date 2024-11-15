@@ -62,6 +62,8 @@ Extra (optional)
     * ``private_key_content``: Specify the content of the private key file.
     * ``session_parameters``: Specify `session level parameters <https://docs.snowflake.com/en/user-guide/python-connector-example.html#setting-session-parameters>`_.
     * ``insecure_mode``: Turn off OCSP certificate checks. For details, see: `How To: Turn Off OCSP Checking in Snowflake Client Drivers - Snowflake Community <https://community.snowflake.com/s/article/How-to-turn-off-OCSP-checking-in-Snowflake-client-drivers>`_.
+    * ``host``: Target Snowflake hostname to connect to (e.g., for local testing with LocalStack).
+    * ``port``: Target Snowflake port to connect to (e.g., for local testing with LocalStack).
 
 URI format example
 ^^^^^^^^^^^^^^^^^^
