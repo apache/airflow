@@ -638,6 +638,8 @@ class KubernetesExecutor(BaseExecutor):
         if TYPE_CHECKING:
             assert self.kube_client
             assert self.kube_scheduler
+        self.running.discard(ti.key)
+        self.queued_tasks.pop(ti.key, None)
         pod_combined_search_str_to_pod_map = self.get_pod_combined_search_str_to_pod_map()
         # Build the pod selector
         base_label_selector = f"dag_id={ti.dag_id},task_id={ti.task_id}"
