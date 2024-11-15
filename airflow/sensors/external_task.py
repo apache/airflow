@@ -70,7 +70,7 @@ class ExternalDagLink(BaseOperatorLink):
         )
         query = {
             "dag_id": external_dag_id,
-            "execution_date": ti.execution_date.isoformat(),  # type: ignore[union-attr]
+            "logical_date": ti.logical_date.isoformat(),  # type: ignore[union-attr]
         }
 
         return build_airflow_url_with_query(query)
@@ -351,7 +351,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                     external_dag_id=self.external_dag_id,
                     external_task_group_id=self.external_task_group_id,
                     external_task_ids=self.external_task_ids,
-                    execution_dates=self._get_dttm_filter(context),
+                    logical_dates=self._get_dttm_filter(context),
                     allowed_states=self.allowed_states,
                     poke_interval=self.poll_interval,
                     soft_fail=self.soft_fail,
@@ -406,7 +406,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         """
         Get the count of records against dttm filter and states.
 
-        :param dttm_filter: date time filter for execution date
+        :param dttm_filter: date time filter for logical date
         :param session: airflow session object
         :param states: task or dag states
         :return: count of record against the filters
@@ -436,7 +436,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         Handle backward compatibility.
 
         This function is to handle backwards compatibility with how this operator was
-        previously where it only passes the execution date, but also allow for the newer
+        previously where it only passes the logical date, but also allow for the newer
         implementation to pass all context variables as keyword arguments, to allow
         for more sophisticated returns of dates to return.
         """
@@ -464,14 +464,14 @@ class ExternalTaskMarker(EmptyOperator):
 
     :param external_dag_id: The dag_id that contains the dependent task that needs to be cleared.
     :param external_task_id: The task_id of the dependent task that needs to be cleared.
-    :param execution_date: The logical date of the dependent task execution that needs to be cleared.
+    :param logical_date: The logical date of the dependent task execution that needs to be cleared.
     :param recursion_depth: The maximum level of transitive dependencies allowed. Default is 10.
         This is mostly used for preventing cyclic dependencies. It is fine to increase
         this number if necessary. However, too many levels of transitive dependencies will make
         it slower to clear tasks in the web UI.
     """
 
-    template_fields = ["external_dag_id", "external_task_id", "execution_date"]
+    template_fields = ["external_dag_id", "external_task_id", "logical_date"]
     ui_color = "#4db7db"
     operator_extra_links = [ExternalDagLink()]
 
@@ -483,20 +483,20 @@ class ExternalTaskMarker(EmptyOperator):
         *,
         external_dag_id: str,
         external_task_id: str,
-        execution_date: str | datetime.datetime | None = "{{ logical_date.isoformat() }}",
+        logical_date: str | datetime.datetime | None = "{{ logical_date.isoformat() }}",
         recursion_depth: int = 10,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.external_dag_id = external_dag_id
         self.external_task_id = external_task_id
-        if isinstance(execution_date, datetime.datetime):
-            self.execution_date = execution_date.isoformat()
-        elif isinstance(execution_date, str):
-            self.execution_date = execution_date
+        if isinstance(logical_date, datetime.datetime):
+            self.logical_date = logical_date.isoformat()
+        elif isinstance(logical_date, str):
+            self.logical_date = logical_date
         else:
             raise TypeError(
-                f"Expected str or datetime.datetime type for execution_date. Got {type(execution_date)}"
+                f"Expected str or datetime.datetime type for logical_date. Got {type(logical_date)}"
             )
 
         if recursion_depth <= 0:
