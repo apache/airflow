@@ -330,11 +330,11 @@ class TestGetDagRunAssetTriggerEvents:
 
     def test_should_respond_404(self, test_client):
         response = test_client.get(
-            "public/dags/invalid-id/dagRuns/invalid-id/upstreamAssetEvents",
+            "public/dags/invalid-id/dagRuns/invalid-run-id/upstreamAssetEvents",
         )
         assert response.status_code == 404
         assert (
-            "The DagRun with dag_id: `invalid-id` and run_id: `invalid-id` was not found"
+            "The DagRun with dag_id: `invalid-id` and run_id: `invalid-run-id` was not found"
             == response.json()["detail"]
         )
 
