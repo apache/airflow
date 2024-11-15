@@ -90,7 +90,7 @@ def get_assets(
 
 @assets_router.get(
     "/events",
-    responses=create_openapi_http_exception_doc([401, 403, 404]),
+    responses=create_openapi_http_exception_doc([404]),
 )
 def get_asset_events(
     limit: QueryLimit,
@@ -142,7 +142,7 @@ def get_asset_events(
     "/events",
     responses=create_openapi_http_exception_doc([404]),
 )
-def create_asset_events(
+def create_asset_event(
     body: CreateAssetEventsBody,
     session: Annotated[Session, Depends(get_session)],
 ) -> AssetEventResponse:

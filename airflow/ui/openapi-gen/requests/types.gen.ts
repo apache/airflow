@@ -1009,11 +1009,11 @@ export type GetAssetEventsData = {
 
 export type GetAssetEventsResponse = AssetEventCollectionResponse;
 
-export type CreateAssetEventsData = {
+export type CreateAssetEventData = {
   requestBody: CreateAssetEventsBody;
 };
 
-export type CreateAssetEventsResponse = AssetEventResponse;
+export type CreateAssetEventResponse = AssetEventResponse;
 
 export type GetAssetData = {
   uri: string;
@@ -1552,7 +1552,7 @@ export type $OpenApiTs = {
       };
     };
     post: {
-      req: CreateAssetEventsData;
+      req: CreateAssetEventData;
       res: {
         /**
          * Successful Response

@@ -107,12 +107,11 @@ class CreateAssetEventsBody(BaseModel):
     uri: str
     extra: dict = Field(default_factory=dict)
 
-    @field_validator("extra", mode="before")
+    @field_validator("extra", mode="after")
     def set_from_rest_api(cls, v):
-        if not isinstance(v, dict):
-            v = {}
-        v.setdefault("from_rest_api", True)
-        return v
+        if isinstance(v, dict):
+            v["from_rest_api"] = True
+            return v
 
     class Config:
         """Pydantic config."""

@@ -349,9 +349,9 @@ paths:
     post:
       tags:
       - Asset
-      summary: Create Asset Events
+      summary: Create Asset Event
       description: Create asset events.
-      operationId: create_asset_events
+      operationId: create_asset_event
       requestBody:
         required: true
         content:

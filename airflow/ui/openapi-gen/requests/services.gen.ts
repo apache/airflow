@@ -9,8 +9,8 @@ import type {
   GetAssetsResponse,
   GetAssetEventsData,
   GetAssetEventsResponse,
-  CreateAssetEventsData,
-  CreateAssetEventsResponse,
+  CreateAssetEventData,
+  CreateAssetEventResponse,
   GetAssetData,
   GetAssetResponse,
   HistoricalMetricsData,
@@ -221,16 +221,16 @@ export class AssetService {
   }
 
   /**
-   * Create Asset Events
+   * Create Asset Event
    * Create asset events.
    * @param data The data for the request.
    * @param data.requestBody
    * @returns AssetEventResponse Successful Response
    * @throws ApiError
    */
-  public static createAssetEvents(
-    data: CreateAssetEventsData,
-  ): CancelablePromise<CreateAssetEventsResponse> {
+  public static createAssetEvent(
+    data: CreateAssetEventData,
+  ): CancelablePromise<CreateAssetEventResponse> {
     return __request(OpenAPI, {
       method: "POST",
       url: "/public/assets/events",

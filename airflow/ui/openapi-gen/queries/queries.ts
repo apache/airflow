@@ -1726,15 +1726,15 @@ export const useVersionServiceGetVersion = <
     ...options,
   });
 /**
- * Create Asset Events
+ * Create Asset Event
  * Create asset events.
  * @param data The data for the request.
  * @param data.requestBody
  * @returns AssetEventResponse Successful Response
  * @throws ApiError
  */
-export const useAssetServiceCreateAssetEvents = <
-  TData = Common.AssetServiceCreateAssetEventsMutationResult,
+export const useAssetServiceCreateAssetEvent = <
+  TData = Common.AssetServiceCreateAssetEventMutationResult,
   TError = unknown,
   TContext = unknown,
 >(
@@ -1759,7 +1759,7 @@ export const useAssetServiceCreateAssetEvents = <
     TContext
   >({
     mutationFn: ({ requestBody }) =>
-      AssetService.createAssetEvents({
+      AssetService.createAssetEvent({
         requestBody,
       }) as unknown as Promise<TData>,
     ...options,
