@@ -32,7 +32,7 @@ import time
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
-from typing import TYPE_CHECKING, Any, Generator, Iterable, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Tuple
 
 from celery import states as celery_states
 from deprecated import deprecated
@@ -435,8 +435,7 @@ class CeleryExecutor(BaseExecutor):
         return not_adopted_tis
 
     @deprecated(
-        reason="Replaced by function `cleanup_tasks_stuck_in_queued`. "
-        "Upgrade airflow core to make this go away.",
+        reason="Replaced by function `revoke_task`. Upgrade airflow core to make this go away.",
         category=AirflowProviderDeprecationWarning,
     )
     def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
@@ -445,31 +444,22 @@ class CeleryExecutor(BaseExecutor):
 
         This method is deprecated. Use `cleanup_tasks_stuck_in_queued` instead.
         """
-        cleaned_up_tis = self.cleanup_tasks_stuck_in_queued(tis=tis)
         reprs = []
-        for ti in cleaned_up_tis:
+        for ti in tis:
             reprs.append(repr(ti))
+            self.revoke_task(ti=ti)
             self.fail(ti.key)
         return reprs
 
-    def cleanup_tasks_stuck_in_queued(
-        self, *, tis: Iterable[TaskInstance]
-    ) -> Generator[TaskInstance, None, None]:
-        """
-        Given list of tis that are stuck in queued, remove them from executor.
-
-        :param tis: List of task instances to remove from this executor.
-        """
+    def revoke_task(self, *, ti: TaskInstance):
         from airflow.providers.celery.executors.celery_executor_utils import app
 
-        for ti in tis:
-            celery_async_result = self.tasks.pop(ti.key, None)
-            if celery_async_result:
-                try:
-                    app.control.revoke(celery_async_result.task_id)
-                except Exception as ex:
-                    self.log.error("Error revoking task instance %s from celery: %s", ti.key, ex)
-            yield ti
+        celery_async_result = self.tasks.pop(ti.key, None)
+        if celery_async_result:
+            try:
+                app.control.revoke(celery_async_result.task_id)
+            except Exception:
+                self.log.exception("Error revoking task instance %s from celery", ti.key)
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:

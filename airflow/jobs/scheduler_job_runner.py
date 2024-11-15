@@ -1791,64 +1791,70 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         ``[scheduler] num_stuck_in_queued_retries``. With this new configuration, an airflow admin can decide how
         sensitive they would like their airflow to be WRT failing stuck tasks.
         """
-        self.log.debug("Calling SchedulerJob._fail_tasks_stuck_in_queued method")
-
-        tasks_stuck_in_queued = session.scalars(
-            select(TI).where(
-                TI.state == TaskInstanceState.QUEUED,
-                TI.queued_dttm < (timezone.utcnow() - timedelta(seconds=self._task_queued_timeout)),
-                TI.queued_by_job_id == self.job.id,
-            )
-        ).all()
-
-        num_allowed_retries = conf.getint("scheduler", "num_stuck_in_queued_retries")
+        tasks_stuck_in_queued = self._get_tis_stuck_in_queued(session)
         for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued).items():
             try:
-                # BaseExecutor has "abstract" method `cleanup_tasks_stuck_in_queued`
-                # We are tolerant of implementers not implementing it.
-                tis = executor.cleanup_tasks_stuck_in_queued(tis=stuck_tis)
+                for ti in stuck_tis:
+                    executor.revoke_task(ti=ti)
+                    executor.running.discard(ti.key)
+                    executor.queued_tasks.pop(ti.key, None)
+                    self._maybe_requeue_stuck_ti(
+                        ti=ti,
+                        session=session,
+                    )
             except NotImplementedError:
+                # this block only gets entered if the executor has not implemented `revoke_task`.
+                # in which case, we try the fallback logic
                 # todo: remove the call to _stuck_in_queued_backcompat_logic in airflow 3.0.
                 #   after 3.0, `cleanup_stuck_queued_tasks` will be removed, so we should
                 #   just continue immediately.
                 self._stuck_in_queued_backcompat_logic(executor, stuck_tis)
                 continue
 
-            # ok we know that we now have a "modern" version of the executor, which
-            # expects us to try to requeue tasks "cleaned up" by `cleanup_stuck_queued_tasks`
-            for ti in tis:
-                num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
-                if num_times_stuck < num_allowed_retries:
-                    self.log.warning("Task stuck in queued; will try to requeue. task_id=%s", ti.task_id)
-                    session.add(
-                        Log(
-                            event=TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
-                            task_instance=ti.key,
-                            extra=(
-                                f"Task was in queued state for longer than {self._task_queued_timeout} "
-                                "seconds; task state will be set back to scheduled."
-                            ),
-                        )
-                    )
-                    self._reschedule_stuck_task(ti)
-                else:
-                    self.log.warning(
-                        "Task requeue attempts exceeded max; marking failed. task_instance=%s",
-                        ti,
-                    )
-                    session.add(
-                        Log(
-                            event="stuck in queued tries exceeded",
-                            task_instance=ti.key,
-                            extra=(
-                                f"Task was requeued more than {num_allowed_retries} times "
-                                "and will be failed."
-                            ),
-                        )
-                    )
-                    ti.set_state(TaskInstanceState.FAILED, session=session)
-                with suppress(KeyError):
-                    executor.running.remove(ti.key)
+    def _get_tis_stuck_in_queued(self, session) -> Iterable[TaskInstance]:
+        """Query db for TIs that are stuck in queued."""
+        return session.scalars(
+            select(TI).where(
+                TI.state == TaskInstanceState.QUEUED,
+                TI.queued_dttm < (timezone.utcnow() - timedelta(seconds=self._task_queued_timeout)),
+                TI.queued_by_job_id == self.job.id,
+            )
+        )
+
+    def _maybe_requeue_stuck_ti(self, *, ti, session):
+        """
+        Requeue task if it has not been attempted too many times.
+
+        Otherwise, fail it.
+        """
+        num_allowed_retries = conf.getint("scheduler", "num_stuck_in_queued_retries")
+        num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
+        if num_times_stuck < num_allowed_retries:
+            self.log.info("Task stuck in queued; will try to requeue. task_id=%s", ti.task_id)
+            session.add(
+                Log(
+                    event=TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+                    task_instance=ti.key,
+                    extra=(
+                        f"Task was in queued state for longer than {self._task_queued_timeout} "
+                        "seconds; task state will be set back to scheduled."
+                    ),
+                )
+            )
+            self._reschedule_stuck_task(ti)
+        else:
+            self.log.info(
+                "Task requeue attempts exceeded max; marking failed. task_instance=%s",
+                ti,
+            )
+            session.add(
+                Log(
+                    event="stuck in queued tries exceeded",
+                    task_instance=ti.key,
+                    extra=f"Task was requeued more than {num_allowed_retries} times and will be failed.",
+                )
+            )
+            ti.set_state(TaskInstanceState.FAILED, session=session)
 
     @deprecated(
         reason="This is backcompat layer for older executor interface. Should be removed in 3.0",
@@ -2261,7 +2267,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.add(warning)
             existing_warned_dag_ids.add(warning.dag_id)
 
-    def _executor_to_tis(self, tis: list[TaskInstance]) -> dict[BaseExecutor, list[TaskInstance]]:
+    def _executor_to_tis(self, tis: Iterable[TaskInstance]) -> dict[BaseExecutor, list[TaskInstance]]:
         """Organize TIs into lists per their respective executor."""
         _executor_to_tis: defaultdict[BaseExecutor, list[TaskInstance]] = defaultdict(list)
         for ti in tis:

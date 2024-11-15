@@ -35,4 +35,13 @@ if TYPE_CHECKING:
 
 ALL_NAMESPACES = "ALL_NAMESPACES"
 POD_EXECUTOR_DONE_KEY = "airflow_executor_done"
-POD_DELETE_STUCK_IN_QUEUED_KEY = "airflow_delete_because_stuck"
+
+POD_REVOKED_KEY = "airflow_pod_revoked"
+"""Label to indicate pod revoked by executor.
+
+When executor the executor revokes a task, the pod deletion is the result of
+the revocation.  So we don't want it to process that as an external deletion.
+So we want events on a revoked pod to be ignored.
+
+:meta private:
+"""

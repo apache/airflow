@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generator, Iterable, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from deprecated import deprecated
 
@@ -234,7 +234,7 @@ class LocalKubernetesExecutor(BaseExecutor):
         ]
 
     @deprecated(
-        reason="Replaced by function `cleanup_tasks_stuck_in_queued`.",
+        reason="Replaced by function `revoke_task`. Upgrade airflow core to make this go away.",
         category=AirflowProviderDeprecationWarning,
         action="ignore",  # ignoring since will get warning from the nested executors
     )
@@ -244,11 +244,9 @@ class LocalKubernetesExecutor(BaseExecutor):
         kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
         return self.kubernetes_executor.cleanup_stuck_queued_tasks(kubernetes_tis)
 
-    def cleanup_tasks_stuck_in_queued(
-        self, *, tis: Iterable[TaskInstance]
-    ) -> Generator[TaskInstance, None, None]:
-        kubernetes_tis = (x for x in tis if x.queue == self.KUBERNETES_QUEUE)
-        yield from self.kubernetes_executor.cleanup_tasks_stuck_in_queued(tis=kubernetes_tis)
+    def revoke_task(self, *, ti: TaskInstance):
+        if ti.queue == self.KUBERNETES_QUEUE:
+            self.kubernetes_executor.revoke_task(ti=ti)
 
     def end(self) -> None:
         """End local and kubernetes executor."""

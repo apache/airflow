@@ -33,7 +33,7 @@ from collections import Counter, defaultdict
 from contextlib import suppress
 from datetime import datetime
 from queue import Empty, Queue
-from typing import TYPE_CHECKING, Any, Generator, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from deprecated import deprecated
 from kubernetes.dynamic import DynamicClient
@@ -608,7 +608,7 @@ class KubernetesExecutor(BaseExecutor):
             return tis_to_flush
 
     @deprecated(
-        reason="Replaced by function `cleanup_tasks_stuck_in_queued`.",
+        reason="Replaced by function `revoke_task`. Upgrade airflow core to make this go away.",
         category=AirflowProviderDeprecationWarning,
     )
     def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
@@ -622,48 +622,37 @@ class KubernetesExecutor(BaseExecutor):
         :param tis: List of Task Instances to clean up
         :return: List of readable task instances for a warning message
         """
-        cleaned_up_tis = self.cleanup_tasks_stuck_in_queued(tis=tis)
-        return [repr(x) for x in cleaned_up_tis]
+        reprs = []
+        for ti in tis:
+            reprs.append(repr(ti))
+            self.revoke_task(ti=ti)
+            self.fail(ti.key)
+        return reprs
 
-    def cleanup_tasks_stuck_in_queued(
-        self, *, tis: Iterable[TaskInstance]
-    ) -> Generator[TaskInstance, None, None]:
+    def revoke_task(self, *, ti: TaskInstance):
         """
-        Handle remnants of tasks that were failed because they were stuck in queued.
+        Revoke task that may be running.
 
-        Tasks can get stuck in queued. If such a task is detected, it will be marked
-        as `UP_FOR_RETRY` if the task instance has remaining retries or marked as `FAILED`
-        if it doesn't.
-
-        :param tis: List of Task Instances to clean up
-        :return: List of readable task instances for a warning message
+        :param ti: task instance to revoke
         """
         if TYPE_CHECKING:
             assert self.kube_client
             assert self.kube_scheduler
         pod_combined_search_str_to_pod_map = self.get_pod_combined_search_str_to_pod_map()
-        for ti in tis:
-            # Build the pod selector
-            base_label_selector = f"dag_id={ti.dag_id},task_id={ti.task_id}"
-            if ti.map_index >= 0:
-                # Old tasks _couldn't_ be mapped, so we don't have to worry about compat
-                base_label_selector += f",map_index={ti.map_index}"
+        # Build the pod selector
+        base_label_selector = f"dag_id={ti.dag_id},task_id={ti.task_id}"
+        if ti.map_index >= 0:
+            # Old tasks _couldn't_ be mapped, so we don't have to worry about compat
+            base_label_selector += f",map_index={ti.map_index}"
 
-            search_str = f"{base_label_selector},run_id={ti.run_id}"
-            pod = pod_combined_search_str_to_pod_map.get(search_str, None)
-            if not pod:
-                self.log.warning("Cannot find pod for ti %s", ti)
-                continue
+        search_str = f"{base_label_selector},run_id={ti.run_id}"
+        pod = pod_combined_search_str_to_pod_map.get(search_str, None)
+        if not pod:
+            self.log.warning("Cannot find pod for ti %s", ti)
+            return
 
-            # If the executor interface has function 'cleanup_tasks_stuck_in_queued',
-            # then we know that it will try to requeue the task. In that case, we patch
-            # the pod with a label that ensures it's ignored by the kubernetes watcher
-            if hasattr(super(), "cleanup_tasks_stuck_in_queued"):
-                self.kube_scheduler.patch_pod_delete_stuck(
-                    pod_name=pod.metadata.name, namespace=pod.metadata.namespace
-                )
-            self.kube_scheduler.delete_pod(pod_name=pod.metadata.name, namespace=pod.metadata.namespace)
-            yield ti
+        self.kube_scheduler.patch_pod_revoked(pod_name=pod.metadata.name, namespace=pod.metadata.namespace)
+        self.kube_scheduler.delete_pod(pod_name=pod.metadata.name, namespace=pod.metadata.namespace)
 
     def adopt_launched_task(
         self,

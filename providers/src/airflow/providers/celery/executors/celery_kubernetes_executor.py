@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING, Generator, Iterable, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from deprecated import deprecated
 
@@ -248,8 +248,7 @@ class CeleryKubernetesExecutor(BaseExecutor):
         ]
 
     @deprecated(
-        reason="Replaced by function `cleanup_tasks_stuck_in_queued`. "
-        "Upgrade airflow core to make this go away.",
+        reason="Replaced by function `revoke_task`. Upgrade airflow core to make this go away.",
         category=AirflowProviderDeprecationWarning,
         action="ignore",  # ignoring since will get warning from the nested executors
     )
@@ -261,26 +260,24 @@ class CeleryKubernetesExecutor(BaseExecutor):
             *self.kubernetes_executor.cleanup_stuck_queued_tasks(kubernetes_tis),
         ]
 
-    def cleanup_tasks_stuck_in_queued(
-        self, *, tis: Iterable[TaskInstance]
-    ) -> Generator[TaskInstance, None, None]:
-        celery_tis = (x for x in tis if x.queue != self.kubernetes_queue)
-        kubernetes_tis = (x for x in tis if x.queue == self.kubernetes_queue)
-        yield from self.celery_executor.cleanup_tasks_stuck_in_queued(tis=celery_tis)
-        try:
-            yield from self.kubernetes_executor.cleanup_tasks_stuck_in_queued(tis=kubernetes_tis)
-        except NotImplementedError:
-            self.log.warning(
-                "Your kubernetes provider version is old. Falling back to deprecated "
-                "function, `cleanup_stuck_queued_tasks`. You must upgrade k8s "
-                "provider to enable 'stuck in queue' retries and stuck in queue "
-                "event logging."
-            )
-            for ti_repr in self.kubernetes_executor.cleanup_stuck_queued_tasks(tis=list(kubernetes_tis)):
-                self.log.info(
-                    "task stuck in queued and will be marked failed. task_instance=%s",
-                    ti_repr,
+    def revoke_task(self, *, ti: TaskInstance):
+        if ti.queue == self.kubernetes_queue:
+            try:
+                self.kubernetes_executor.revoke_task(ti=ti)
+            except NotImplementedError:
+                self.log.warning(
+                    "Your kubernetes provider version is old. Falling back to deprecated "
+                    "function, `cleanup_stuck_queued_tasks`. You must upgrade k8s "
+                    "provider to enable 'stuck in queue' retries and stuck in queue "
+                    "event logging."
                 )
+                for ti_repr in self.kubernetes_executor.cleanup_stuck_queued_tasks(tis=[ti]):
+                    self.log.info(
+                        "task stuck in queued and will be marked failed. task_instance=%s",
+                        ti_repr,
+                    )
+        else:
+            self.celery_executor.revoke_task(ti=ti)
 
     def end(self) -> None:
         """End celery and kubernetes executor."""

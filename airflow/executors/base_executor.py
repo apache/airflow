@@ -22,7 +22,7 @@ import logging
 import sys
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
 
 import pendulum
 from deprecated import deprecated
@@ -555,7 +555,7 @@ class BaseExecutor(LoggingMixin):
         raise NotImplementedError
 
     @deprecated(
-        reason="Replaced by function `cleanup_tasks_stuck_in_queued`.",
+        reason="Replaced by function `revoke_task`.",
         category=RemovedInAirflow3Warning,
         action="ignore",
     )
@@ -572,17 +572,18 @@ class BaseExecutor(LoggingMixin):
         """
         raise NotImplementedError
 
-    def cleanup_tasks_stuck_in_queued(self, *, tis: Iterable[TaskInstance]) -> Iterable[TaskInstance]:
+    def revoke_task(self, *, ti: TaskInstance):
         """
-        Try to remove the tis from the executor so they can safely be requeued.
+        Attempt to remove task from executor.
 
-        This function will be called for task instances that the scheduler detects
-        as having been in the queued state for too long.
+        It should attempt to ensure that the task is no longer running on the worker.
 
-        The timeout duration is controlled by scheduler setting ``task_queued_timeout``.
+        It should *not* change the state of the task in airflow, nor mess with the
+        internal data structures that record which tasks the executor "has".
 
-        :param tis: List of Task Instances to clean up
-        :return: List of task instances that were removed from the executor.
+        It should not raise any error.
+
+        :param ti: Task instance to remove
         """
         raise NotImplementedError
 
