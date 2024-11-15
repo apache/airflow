@@ -20,7 +20,7 @@ import pendulum
 
 from airflow.decorators import dag, task
 from airflow.sdk.definitions.asset import Asset
-from airflow.sdk.definitions.decorators import asset
+from airflow.sdk.definitions.decorators.asset import asset
 
 
 @asset(uri="s3://bucket/asset1_producer", schedule=None)

@@ -23,7 +23,7 @@ import pytest
 
 from airflow.models.asset import AssetActive, AssetModel
 from airflow.sdk.definitions.asset import Asset
-from airflow.sdk.definitions.decorators import AssetRef, _AssetMainOperator, asset
+from airflow.sdk.definitions.decorators.asset import AssetRef, _AssetMainOperator, asset
 
 pytestmark = pytest.mark.db_test
 
@@ -119,8 +119,8 @@ class TestAssetDefinition:
             "uri": "s3://bucket/object",
         }
 
-    @mock.patch("airflow.sdk.definitions.decorators._AssetMainOperator")
-    @mock.patch("airflow.sdk.definitions.decorators.DAG")
+    @mock.patch("airflow.sdk.definitions.decorators.asset._AssetMainOperator")
+    @mock.patch("airflow.sdk.definitions.decorators.asset.DAG")
     def test__attrs_post_init__(
         self, DAG, _AssetMainOperator, example_asset_func_with_valid_arg_as_inlet_asset
     ):
