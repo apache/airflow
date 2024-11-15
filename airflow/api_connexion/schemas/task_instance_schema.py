@@ -45,7 +45,7 @@ class TaskInstanceSchema(SQLAlchemySchema):
     dag_id = auto_field()
     run_id = auto_field(data_key="dag_run_id")
     map_index = auto_field()
-    execution_date = auto_field()
+    logical_date = auto_field()
     start_date = auto_field()
     end_date = auto_field()
     duration = auto_field()
@@ -196,7 +196,7 @@ class SetTaskInstanceStateFormSchema(Schema):
 
     dry_run = fields.Boolean(load_default=True)
     task_id = fields.Str(required=True)
-    execution_date = fields.DateTime(validate=validate_istimezone)
+    logical_date = fields.DateTime(validate=validate_istimezone)
     dag_run_id = fields.Str()
     include_upstream = fields.Boolean(required=True)
     include_downstream = fields.Boolean(required=True)
@@ -212,8 +212,8 @@ class SetTaskInstanceStateFormSchema(Schema):
     @validates_schema
     def validate_form(self, data, **kwargs):
         """Validate set task instance state form."""
-        if not exactly_one(data.get("execution_date"), data.get("dag_run_id")):
-            raise ValidationError("Exactly one of execution_date or dag_run_id must be provided")
+        if not exactly_one(data.get("logical_date"), data.get("dag_run_id")):
+            raise ValidationError("Exactly one of logical_date or dag_run_id must be provided")
 
 
 class SetSingleTaskInstanceStateFormSchema(Schema):
@@ -234,7 +234,7 @@ class TaskInstanceReferenceSchema(Schema):
     task_id = fields.Str()
     run_id = fields.Str(data_key="dag_run_id")
     dag_id = fields.Str()
-    execution_date = fields.DateTime()
+    logical_date = fields.DateTime()
 
 
 class TaskInstanceReferenceCollection(NamedTuple):
