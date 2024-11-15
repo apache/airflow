@@ -108,9 +108,8 @@ class CreateAssetEventsBody(BaseModel):
     extra: dict = Field(default_factory=dict)
 
     @field_validator("extra", mode="after")
-    def set_from_rest_api(cls, v):
-        if isinstance(v, dict):
-            v["from_rest_api"] = True
+    def set_from_rest_api(cls, v: dict) -> dict:
+        v["from_rest_api"] = True
             return v
 
     class Config:
