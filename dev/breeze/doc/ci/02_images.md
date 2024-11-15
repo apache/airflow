@@ -543,8 +543,8 @@ The entrypoint performs those operations:
   sets the right pytest flags
 - Sets default "tests" target in case the target is not explicitly set
   as additional argument
-- Runs system tests if RUN_SYSTEM_TESTS flag is specified, otherwise
-  runs regular unit and integration tests
+- Runs system tests if TEST_GROUP is "system-core" or "system-providers"
+  otherwise runs regular unit and integration tests
 
 
 # Naming conventions for stored images
