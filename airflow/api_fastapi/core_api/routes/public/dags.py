@@ -44,6 +44,7 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.common.utils import format_datetime
 from airflow.api_fastapi.core_api.datamodels.dags import (
     DAGCollectionResponse,
     DAGDetailsResponse,
@@ -57,9 +58,29 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DAG, DagModel, DagTag
 from airflow.models.asset import AssetDagRunQueue, AssetModel
-from airflow.utils import timezone
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
+
+
+def _generate_queued_event_where_clause(
+    *,
+    dag_id: str | None = None,
+    uri: str | None = None,
+    before: str | None = None,
+) -> list:
+    """Get AssetDagRunQueue where clause."""
+    where_clause = []
+    if dag_id is not None:
+        where_clause.append(AssetDagRunQueue.target_dag_id == dag_id)
+    if uri is not None:
+        where_clause.append(
+            AssetDagRunQueue.asset_id.in_(
+                select(AssetModel.id).where(AssetModel.uri == uri),
+            ),
+        )
+    if before is not None:
+        where_clause.append(AssetDagRunQueue.created_at < format_datetime(before))
+    return where_clause
 
 
 @dags_router.get("/")
@@ -323,10 +344,7 @@ def get_dag_asset_queued_events(
     before: str = Query(None),
 ) -> QueuedEventCollectionResponse:
     """Get queued asset events for a DAG."""
-    where_clause = [AssetDagRunQueue.target_dag_id == dag_id]
-    if before:
-        before_parsed = timezone.parse(before)
-        where_clause.append(AssetDagRunQueue.created_at < before_parsed)
+    where_clause = _generate_queued_event_where_clause(dag_id=dag_id, before=before)
     query = (
         select(AssetDagRunQueue, AssetModel.uri)
         .join(AssetModel, AssetDagRunQueue.asset_id == AssetModel.id)
