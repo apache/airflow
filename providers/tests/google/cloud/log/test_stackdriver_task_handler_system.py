@@ -40,7 +40,7 @@ from tests_common.test_utils.gcp_system_helpers import (
 )
 
 
-@pytest.mark.system("google")
+@pytest.mark.system
 @pytest.mark.credential_file(GCP_STACKDRIVER)
 class TestStackdriverLoggingHandlerSystem(GoogleSystemTest):
     def setup_method(self) -> None:

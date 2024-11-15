@@ -108,7 +108,7 @@ describe("Test Logs Component.", () => {
         dagId="dummyDagId"
         dagRunId="dummyDagRunId"
         taskId="dummyTaskId"
-        executionDate="2020:01:01T01:00+00:00"
+        logicalDate="2020:01:01T01:00+00:00"
         tryNumber={tryNumber}
       />
     );
@@ -153,7 +153,7 @@ describe("Test Logs Component.", () => {
           dagId="dummyDagId"
           dagRunId="dummyDagRunId"
           taskId="dummyTaskId"
-          executionDate="2020:01:01T01:00+00:00"
+          logicalDate="2020:01:01T01:00+00:00"
           mapIndex={1}
           tryNumber={tryNumber}
         />
@@ -175,7 +175,7 @@ describe("Test Logs Component.", () => {
         dagId="dummyDagId"
         dagRunId="dummyDagRunId"
         taskId="dummyTaskId"
-        executionDate="2020:01:01T01:00+00:00"
+        logicalDate="2020:01:01T01:00+00:00"
         mapIndex={1}
         tryNumber={tryNumber}
       />
@@ -211,7 +211,7 @@ describe("Test Logs Component.", () => {
         dagId="dummyDagId"
         dagRunId="dummyDagRunId"
         taskId="dummyTaskId"
-        executionDate="2020:01:01T01:00+00:00"
+        logicalDate="2020:01:01T01:00+00:00"
         tryNumber={tryNumber}
       />
     );

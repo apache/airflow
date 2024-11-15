@@ -217,7 +217,7 @@ class TestPatchDag(TestDagEndpoint):
             environ_overrides={"REMOTE_USER": "test_granular_permissions"},
         )
         assert response.status_code == 200
-        _check_last_log(session, dag_id="TEST_DAG_1", event="api.patch_dag", execution_date=None)
+        _check_last_log(session, dag_id="TEST_DAG_1", event="api.patch_dag", logical_date=None)
 
     def test_validation_error_raises_400(self):
         patch_body = {

@@ -25,6 +25,8 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.utils import timezone
 
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
 TEST_CONN = "aws_test_conn"
 
 
@@ -118,7 +120,10 @@ class TestAwsBaseSensor:
         with dag_maker("test_aws_base_sensor", serialized=True):
             FakeDynamoDBSensor(task_id="fake-task-id", **op_kwargs, poke_interval=1)
 
-        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        if AIRFLOW_V_3_0_PLUS:
+            dagrun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
+        else:
+            dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
         tis = {ti.task_id: ti for ti in dagrun.task_instances}
         tis["fake-task-id"].run()
 

@@ -42,6 +42,7 @@ from providers.tests.apache.hive import (
     MockSubProcess,
 )
 from tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -64,12 +65,13 @@ class TestHiveCliHook:
         mock_popen.return_value = mock_subprocess
         mock_temp_dir.return_value = "test_run_cli"
 
+        envron_name = "AIRFLOW_CTX_LOGICAL_DATE" if AIRFLOW_V_3_0_PLUS else "AIRFLOW_CTX_EXECUTION_DATE"
         with mock.patch.dict(
             "os.environ",
             {
                 "AIRFLOW_CTX_DAG_ID": "test_dag_id",
                 "AIRFLOW_CTX_TASK_ID": "test_task_id",
-                "AIRFLOW_CTX_EXECUTION_DATE": "2015-01-01T00:00:00+00:00",
+                envron_name: "2015-01-01T00:00:00+00:00",
                 "AIRFLOW_CTX_TRY_NUMBER": "1",
                 "AIRFLOW_CTX_DAG_RUN_ID": "55",
                 "AIRFLOW_CTX_DAG_OWNER": "airflow",
@@ -78,7 +80,7 @@ class TestHiveCliHook:
         ):
             hook = MockHiveCliHook()
             hook.run_cli("SHOW DATABASES")
-
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         hive_cmd = [
             "beeline",
             "-u",
@@ -88,7 +90,7 @@ class TestHiveCliHook:
             "-hiveconf",
             "airflow.ctx.task_id=test_task_id",
             "-hiveconf",
-            "airflow.ctx.execution_date=2015-01-01T00:00:00+00:00",
+            f"airflow.ctx.{date_key}=2015-01-01T00:00:00+00:00",
             "-hiveconf",
             "airflow.ctx.try_number=1",
             "-hiveconf",
@@ -124,21 +126,24 @@ class TestHiveCliHook:
 
     @mock.patch("subprocess.Popen")
     def test_run_cli_with_hive_conf(self, mock_popen):
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         hql = (
             "set key;\n"
             "set airflow.ctx.dag_id;\nset airflow.ctx.dag_run_id;\n"
-            "set airflow.ctx.task_id;\nset airflow.ctx.execution_date;\n"
+            f"set airflow.ctx.task_id;\nset airflow.ctx.{date_key};\n"
         )
 
         dag_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_DAG_ID"]["env_var_format"]
         task_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_TASK_ID"]["env_var_format"]
-        execution_date_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_EXECUTION_DATE"][
-            "env_var_format"
-        ]
+        logical_date_ctx_var_name = (
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_LOGICAL_DATE"]["env_var_format"]
+            if AIRFLOW_V_3_0_PLUS
+            else AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_EXECUTION_DATE"]["env_var_format"]
+        )
         dag_run_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_DAG_RUN_ID"][
             "env_var_format"
         ]
-
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         mock_output = [
             "Connecting to jdbc:hive2://localhost:10000/default",
             "log4j:WARN No appenders could be found for logger (org.apache.hive.jdbc.Utils).",
@@ -177,11 +182,11 @@ class TestHiveCliHook:
             "| airflow.ctx.task_id=test_task_id  |",
             "+-----------------------------------+--+",
             "1 row selected (0.009 seconds)",
-            "0: jdbc:hive2://localhost:10000/default> set airflow.ctx.execution_date;",
+            f"0: jdbc:hive2://localhost:10000/default> set airflow.ctx.{date_key};",
             "+-------------------------------------------------+--+",
             "|                       set                       |",
             "+-------------------------------------------------+--+",
-            "| airflow.ctx.execution_date=test_execution_date  |",
+            f"| airflow.ctx.{date_key}=test_{date_key}  |",
             "+-------------------------------------------------+--+",
             "1 row selected (0.006 seconds)",
             "0: jdbc:hive2://localhost:10000/default> ",
@@ -195,7 +200,7 @@ class TestHiveCliHook:
             {
                 dag_id_ctx_var_name: "test_dag_id",
                 task_id_ctx_var_name: "test_task_id",
-                execution_date_ctx_var_name: "test_execution_date",
+                logical_date_ctx_var_name: f"test_{date_key}",
                 dag_run_id_ctx_var_name: "test_dag_run_id",
             },
         ):
@@ -208,13 +213,13 @@ class TestHiveCliHook:
             assert "value" in process_inputs
             assert "test_dag_id" in process_inputs
             assert "test_task_id" in process_inputs
-            assert "test_execution_date" in process_inputs
+            assert f"test_{date_key}" in process_inputs
             assert "test_dag_run_id" in process_inputs
 
             assert "value" in output
             assert "test_dag_id" in output
             assert "test_task_id" in output
-            assert "test_execution_date" in output
+            assert f"test_{date_key}" in output
             assert "test_dag_run_id" in output
 
     @mock.patch("airflow.providers.apache.hive.hooks.hive.HiveCliHook.run_cli")
@@ -680,12 +685,13 @@ class TestHiveServer2Hook:
         hook = MockHiveServer2Hook()
         query = f"SELECT * FROM {self.table}"
 
+        envron_name = "AIRFLOW_CTX_LOGICAL_DATE" if AIRFLOW_V_3_0_PLUS else "AIRFLOW_CTX_EXECUTION_DATE"
         with mock.patch.dict(
             "os.environ",
             {
                 "AIRFLOW_CTX_DAG_ID": "test_dag_id",
                 "AIRFLOW_CTX_TASK_ID": "HiveHook_3835",
-                "AIRFLOW_CTX_EXECUTION_DATE": "2015-01-01T00:00:00+00:00",
+                envron_name: "2015-01-01T00:00:00+00:00",
                 "AIRFLOW_CTX_DAG_RUN_ID": "55",
                 "AIRFLOW_CTX_DAG_OWNER": "airflow",
                 "AIRFLOW_CTX_DAG_EMAIL": "test@airflow.com",
@@ -694,11 +700,11 @@ class TestHiveServer2Hook:
             results = hook.get_records(query, schema=self.database)
 
         assert results == [(1, 1), (2, 2)]
-
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         hook.get_conn.assert_called_with(self.database)
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_id=test_dag_id")
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.task_id=HiveHook_3835")
-        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.execution_date=2015-01-01T00:00:00+00:00")
+        hook.mock_cursor.execute.assert_any_call(f"set airflow.ctx.{date_key}=2015-01-01T00:00:00+00:00")
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_run_id=55")
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_owner=airflow")
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_email=test@airflow.com")
@@ -707,12 +713,13 @@ class TestHiveServer2Hook:
         hook = MockHiveServer2Hook()
         query = f"SELECT * FROM {self.table}"
 
+        envron_name = "AIRFLOW_CTX_LOGICAL_DATE" if AIRFLOW_V_3_0_PLUS else "AIRFLOW_CTX_EXECUTION_DATE"
         with mock.patch.dict(
             "os.environ",
             {
                 "AIRFLOW_CTX_DAG_ID": "test_dag_id",
                 "AIRFLOW_CTX_TASK_ID": "HiveHook_3835",
-                "AIRFLOW_CTX_EXECUTION_DATE": "2015-01-01T00:00:00+00:00",
+                envron_name: "2015-01-01T00:00:00+00:00",
                 "AIRFLOW_CTX_DAG_RUN_ID": "55",
                 "AIRFLOW_CTX_DAG_OWNER": "airflow",
                 "AIRFLOW_CTX_DAG_EMAIL": "test@airflow.com",
@@ -722,11 +729,11 @@ class TestHiveServer2Hook:
 
         assert len(df) == 2
         assert df["hive_server_hook.a"].values.tolist() == [1, 2]
-
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         hook.get_conn.assert_called_with(self.database)
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_id=test_dag_id")
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.task_id=HiveHook_3835")
-        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.execution_date=2015-01-01T00:00:00+00:00")
+        hook.mock_cursor.execute.assert_any_call(f"set airflow.ctx.{date_key}=2015-01-01T00:00:00+00:00")
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_run_id=55")
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_owner=airflow")
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_email=test@airflow.com")
@@ -792,13 +799,13 @@ class TestHiveServer2Hook:
         ]
 
         hook = MockHiveServer2Hook()
-
+        envron_name = "AIRFLOW_CTX_LOGICAL_DATE" if AIRFLOW_V_3_0_PLUS else "AIRFLOW_CTX_EXECUTION_DATE"
         with mock.patch.dict(
             "os.environ",
             {
                 "AIRFLOW_CTX_DAG_ID": "test_dag_id",
                 "AIRFLOW_CTX_TASK_ID": "HiveHook_3835",
-                "AIRFLOW_CTX_EXECUTION_DATE": "2015-01-01T00:00:00+00:00",
+                envron_name: "2015-01-01T00:00:00+00:00",
                 "AIRFLOW_CTX_DAG_RUN_ID": "55",
                 "AIRFLOW_CTX_DAG_OWNER": "airflow",
                 "AIRFLOW_CTX_DAG_EMAIL": "test@airflow.com",
@@ -807,31 +814,35 @@ class TestHiveServer2Hook:
             results = hook.get_records(sqls, schema=self.database)
         assert results == [(1, 1), (2, 2)]
 
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         hook.get_conn.assert_called_with(self.database)
         hook.mock_cursor.execute.assert_any_call("CREATE TABLE IF NOT EXISTS test_multi_statements (i INT)")
         hook.mock_cursor.execute.assert_any_call(f"SELECT * FROM {self.table}")
         hook.mock_cursor.execute.assert_any_call("DROP TABLE test_multi_statements")
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_id=test_dag_id")
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.task_id=HiveHook_3835")
-        hook.mock_cursor.execute.assert_any_call("set airflow.ctx.execution_date=2015-01-01T00:00:00+00:00")
+        hook.mock_cursor.execute.assert_any_call(f"set airflow.ctx.{date_key}=2015-01-01T00:00:00+00:00")
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_run_id=55")
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_owner=airflow")
         hook.mock_cursor.execute.assert_any_call("set airflow.ctx.dag_email=test@airflow.com")
 
     def test_get_results_with_hive_conf(self):
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         hql = [
             "set key",
             "set airflow.ctx.dag_id",
             "set airflow.ctx.dag_run_id",
             "set airflow.ctx.task_id",
-            "set airflow.ctx.execution_date",
+            f"set airflow.ctx.{date_key}",
         ]
 
         dag_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_DAG_ID"]["env_var_format"]
         task_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_TASK_ID"]["env_var_format"]
-        execution_date_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_EXECUTION_DATE"][
-            "env_var_format"
-        ]
+        logical_date_ctx_var_name = (
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_LOGICAL_DATE"]["env_var_format"]
+            if AIRFLOW_V_3_0_PLUS
+            else AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_EXECUTION_DATE"]["env_var_format"]
+        )
         dag_run_id_ctx_var_name = AIRFLOW_VAR_NAME_FORMAT_MAPPING["AIRFLOW_CONTEXT_DAG_RUN_ID"][
             "env_var_format"
         ]
@@ -841,7 +852,7 @@ class TestHiveServer2Hook:
             {
                 dag_id_ctx_var_name: "test_dag_id",
                 task_id_ctx_var_name: "test_task_id",
-                execution_date_ctx_var_name: "test_execution_date",
+                logical_date_ctx_var_name: f"test_{date_key}",
                 dag_run_id_ctx_var_name: "test_dag_run_id",
             },
         ):
@@ -853,7 +864,7 @@ class TestHiveServer2Hook:
                         ("value", "test"),
                         ("test_dag_id", "test"),
                         ("test_task_id", "test"),
-                        ("test_execution_date", "test"),
+                        (f"test_{date_key}", "test"),
                         ("test_dag_run_id", "test"),
                     ]
                 )
@@ -865,7 +876,7 @@ class TestHiveServer2Hook:
         assert "value" in output
         assert "test_dag_id" in output
         assert "test_task_id" in output
-        assert "test_execution_date" in output
+        assert f"test_{date_key}" in output
         assert "test_dag_run_id" in output
 
 

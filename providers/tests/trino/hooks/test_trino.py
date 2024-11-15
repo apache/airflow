@@ -29,6 +29,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.trino.hooks.trino import TrinoHook
 
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
 HOOK_GET_CONNECTION = "airflow.providers.trino.hooks.trino.TrinoHook.get_connection"
 BASIC_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.BasicAuthentication"
 KERBEROS_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.KerberosAuthentication"
@@ -68,10 +70,11 @@ class TestTrinoHookConn:
         mock_get_connection.return_value = Connection(
             login="login", password="password", host="host", schema="hive"
         )
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         client = json.dumps(
             {
                 "dag_id": "dag-id",
-                "execution_date": "2022-01-01T00:00:00",
+                date_key: "2022-01-01T00:00:00",
                 "task_id": "task-id",
                 "try_number": "1",
                 "dag_run_id": "dag-run-id",
