@@ -367,6 +367,7 @@ def get_task_instances(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:

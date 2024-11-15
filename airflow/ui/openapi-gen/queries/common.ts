@@ -1103,6 +1103,9 @@ export type DagRunServiceClearDagRunMutationResult = Awaited<
 export type PoolServicePostPoolMutationResult = Awaited<
   ReturnType<typeof PoolService.postPool>
 >;
+export type TaskInstanceServiceGetTaskInstancesBatchMutationResult = Awaited<
+  ReturnType<typeof TaskInstanceService.getTaskInstancesBatch>
+>;
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>
 >;
