@@ -509,7 +509,7 @@ export const prefetchUseDagSourceServiceGetDagSource = (
     dagId,
     versionNumber,
   }: {
-    accept?: string;
+    accept?: "application/json" | "text/plain";
     dagId: string;
     versionNumber?: number;
   },
@@ -542,6 +542,57 @@ export const prefetchUseDagStatsServiceGetDagStats = (
   queryClient.prefetchQuery({
     queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }),
     queryFn: () => DagStatsService.getDagStats({ dagIds }),
+  });
+/**
+ * Get Config
+ * @param data The data for the request.
+ * @param data.section
+ * @param data.accept
+ * @returns Config Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseConfigServiceGetConfig = (
+  queryClient: QueryClient,
+  {
+    accept,
+    section,
+  }: {
+    accept?: "application/json" | "text/plain";
+    section?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseConfigServiceGetConfigKeyFn({ accept, section }),
+    queryFn: () => ConfigService.getConfig({ accept, section }),
+  });
+/**
+ * Get Config Value
+ * @param data The data for the request.
+ * @param data.section
+ * @param data.option
+ * @param data.accept
+ * @returns Config Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseConfigServiceGetConfigValue = (
+  queryClient: QueryClient,
+  {
+    accept,
+    option,
+    section,
+  }: {
+    accept?: "application/json" | "text/plain";
+    option: string;
+    section: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseConfigServiceGetConfigValueKeyFn({
+      accept,
+      option,
+      section,
+    }),
+    queryFn: () => ConfigService.getConfigValue({ accept, option, section }),
   });
 /**
  * List Dag Warnings
@@ -732,57 +783,6 @@ export const prefetchUseDagServiceGetDagDetails = (
   queryClient.prefetchQuery({
     queryKey: Common.UseDagServiceGetDagDetailsKeyFn({ dagId }),
     queryFn: () => DagService.getDagDetails({ dagId }),
-  });
-/**
- * Get Config
- * @param data The data for the request.
- * @param data.section
- * @param data.accept
- * @returns Config Successful Response
- * @throws ApiError
- */
-export const prefetchUseConfigServiceGetConfig = (
-  queryClient: QueryClient,
-  {
-    accept,
-    section,
-  }: {
-    accept?: "application/json" | "text/plain";
-    section?: string;
-  } = {},
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseConfigServiceGetConfigKeyFn({ accept, section }),
-    queryFn: () => ConfigService.getConfig({ accept, section }),
-  });
-/**
- * Get Config Value
- * @param data The data for the request.
- * @param data.section
- * @param data.option
- * @param data.accept
- * @returns Config Successful Response
- * @throws ApiError
- */
-export const prefetchUseConfigServiceGetConfigValue = (
-  queryClient: QueryClient,
-  {
-    accept,
-    option,
-    section,
-  }: {
-    accept?: "application/json" | "text/plain";
-    option: string;
-    section: string;
-  },
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseConfigServiceGetConfigValueKeyFn({
-      accept,
-      option,
-      section,
-    }),
-    queryFn: () => ConfigService.getConfigValue({ accept, option, section }),
   });
 /**
  * Get Event Log

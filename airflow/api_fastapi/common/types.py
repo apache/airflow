@@ -17,8 +17,8 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Annotated
 from enum import Enum
+from typing import Annotated
 
 from pydantic import AfterValidator, AliasGenerator, AwareDatetime, BaseModel, BeforeValidator, ConfigDict
 
@@ -57,6 +57,7 @@ class TimeDelta(BaseModel):
 
 
 TimeDeltaWithValidation = Annotated[TimeDelta, BeforeValidator(_validate_timedelta_field)]
+
 
 class Mimetype(str, Enum):
     """Mimetype for the `Content-Type` header."""
