@@ -60,6 +60,7 @@ from airflow.utils import timezone
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import AttributeRemoved
+from airflow.utils.weight_rule import db_safe_priority
 
 T = TypeVar("T", bound=FunctionType)
 
@@ -364,6 +365,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         This allows the executor to trigger higher priority tasks before
         others when things get backed up. Set priority_weight as a higher
         number for more important tasks.
+        As not all database engines support 64-bit integers, values are capped with 32-bit.
+        Valid range is from -2,147,483,648 to 2,147,483,647.
     :param weight_rule: weighting method used for the effective total
         priority weight of the task. Options are:
         ``{ downstream | upstream | absolute }`` default is ``downstream``
@@ -385,7 +388,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         Additionally, when set to ``absolute``, there is bonus effect of
         significantly speeding up the task creation process as for very large
         DAGs. Options can be set as string or using the constants defined in
-        the static class ``airflow.utils.WeightRule``
+        the static class ``airflow.utils.WeightRule``.
+        Irrespective of the weight rule, resulting priority values are capped with 32-bit.
         |experimental|
         Since 2.9.0, Airflow allows to define custom priority weight strategy,
         by creating a subclass of
@@ -868,6 +872,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             self.dag = dag
 
         validate_instance_args(self, BASEOPERATOR_ARGS_EXPECTED_TYPES)
+
+        # Ensure priority_weight is within the valid range
+        # Note: Cross-import from airflow.utils to be cleaned up later
+        self.priority_weight = db_safe_priority(self.priority_weight)
 
     def __eq__(self, other):
         if type(self) is type(other):
