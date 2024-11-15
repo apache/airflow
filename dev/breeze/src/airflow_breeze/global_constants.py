@@ -77,12 +77,14 @@ ALLOWED_BACKENDS = [SQLITE_BACKEND, MYSQL_BACKEND, POSTGRES_BACKEND, NONE_BACKEN
 ALLOWED_PROD_BACKENDS = [MYSQL_BACKEND, POSTGRES_BACKEND]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 CELERY_INTEGRATION = "celery"
-TESTABLE_INTEGRATIONS = [
-    "cassandra",
+TESTABLE_CORE_INTEGRATIONS = [
     CELERY_INTEGRATION,
+    "kerberos",
+]
+TESTABLE_PROVIDERS_INTEGRATIONS = [
+    "cassandra",
     "drill",
     "kafka",
-    "kerberos",
     "mongo",
     "mssql",
     "pinot",
@@ -98,19 +100,41 @@ KEYCLOAK_INTEGRATION = "keycloak"
 STATSD_INTEGRATION = "statsd"
 OTEL_INTEGRATION = "otel"
 OPENLINEAGE_INTEGRATION = "openlineage"
-OTHER_INTEGRATIONS = [STATSD_INTEGRATION, OTEL_INTEGRATION, OPENLINEAGE_INTEGRATION, KEYCLOAK_INTEGRATION]
+OTHER_CORE_INTEGRATIONS = [STATSD_INTEGRATION, OTEL_INTEGRATION, KEYCLOAK_INTEGRATION]
+OTHER_PROVIDERS_INTEGRATIONS = [OPENLINEAGE_INTEGRATION]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm"]
-ALL_INTEGRATIONS = sorted(
+ALL_CORE_INTEGRATIONS = sorted(
     [
-        *TESTABLE_INTEGRATIONS,
-        *OTHER_INTEGRATIONS,
+        *TESTABLE_CORE_INTEGRATIONS,
+        *OTHER_CORE_INTEGRATIONS,
     ]
 )
-AUTOCOMPLETE_INTEGRATIONS = sorted(
+ALL_PROVIDERS_INTEGRATIONS = sorted(
+    [
+        *TESTABLE_PROVIDERS_INTEGRATIONS,
+        *OTHER_PROVIDERS_INTEGRATIONS,
+    ]
+)
+AUTOCOMPLETE_CORE_INTEGRATIONS = sorted(
     [
         "all-testable",
         "all",
-        *ALL_INTEGRATIONS,
+        *ALL_CORE_INTEGRATIONS,
+    ]
+)
+AUTOCOMPLETE_PROVIDERS_INTEGRATIONS = sorted(
+    [
+        "all-testable",
+        "all",
+        *ALL_PROVIDERS_INTEGRATIONS,
+    ]
+)
+AUTOCOMPLETE_ALL_INTEGRATIONS = sorted(
+    [
+        "all-testable",
+        "all",
+        *ALL_CORE_INTEGRATIONS,
+        *ALL_PROVIDERS_INTEGRATIONS,
     ]
 )
 ALLOWED_TTY = ["auto", "enabled", "disabled"]
@@ -184,7 +208,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "24.3.1"
-UV_VERSION = "0.5.1"
+UV_VERSION = "0.5.2"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -199,44 +223,58 @@ REGULAR_DOC_PACKAGES = [
 
 
 @cache
-def all_selective_test_types() -> tuple[str, ...]:
-    return tuple(sorted(e.value for e in SelectiveUnitTestTypes))
+def all_selective_core_test_types() -> tuple[str, ...]:
+    return tuple(sorted(e.value for e in SelectiveCoreTestType))
 
 
 @cache
-def all_selective_test_types_except_providers() -> tuple[str, ...]:
-    return tuple(sorted(e.value for e in SelectiveUnitTestTypes if e != SelectiveUnitTestTypes.PROVIDERS))
+def providers_test_type() -> tuple[str, ...]:
+    return tuple(sorted(e.value for e in SelectiveProvidersTestType))
 
 
-class SelectiveUnitTestTypes(Enum):
+class SelectiveTestType(Enum):
+    pass
+
+
+class SelectiveCoreTestType(SelectiveTestType):
     ALWAYS = "Always"
     API = "API"
-    BRANCH_PYTHON_VENV = "BranchPythonVenv"
-    EXTERNAL_PYTHON = "ExternalPython"
-    EXTERNAL_BRANCH_PYTHON = "BranchExternalPython"
     CLI = "CLI"
     CORE = "Core"
     SERIALIZATION = "Serialization"
     OTHER = "Other"
     OPERATORS = "Operators"
-    PLAIN_ASSERTS = "PlainAsserts"
-    PROVIDERS = "Providers"
-    PYTHON_VENV = "PythonVenv"
     WWW = "WWW"
 
 
-ALLOWED_TEST_TYPE_CHOICES = [
-    "All",
-    "Default",
-    *all_selective_test_types(),
-    "All-Postgres",
-    "All-MySQL",
-    "All-Quarantined",
-]
+class SelectiveProvidersTestType(SelectiveTestType):
+    PROVIDERS = "Providers"
 
-ALLOWED_PARALLEL_TEST_TYPE_CHOICES = [
-    *all_selective_test_types(),
-]
+
+class SelectiveTaskSdkTestType(SelectiveTestType):
+    TASK_SDK = "TaskSdk"
+
+
+class GroupOfTests(Enum):
+    CORE = "core"
+    PROVIDERS = "providers"
+    TASK_SDK = "task-sdk"
+    HELM = "helm"
+    INTEGRATION_CORE = "integration-core"
+    INTEGRATION_PROVIDERS = "integration-providers"
+    SYSTEM = "system"
+
+
+ALL_TEST_TYPE = "All"
+NONE_TEST_TYPE = "None"
+
+ALL_TEST_SUITES: dict[str, tuple[str, ...]] = {
+    "All": (),
+    "All-Long": ("-m", "long_running", "--include-long-running"),
+    "All-Quarantined": ("-m", "quarantined", "--include-quarantined"),
+    "All-Postgres": ("--backend", "postgres"),
+    "All-MySQL": ("--backend", "mysql"),
+}
 
 
 @cache
@@ -250,10 +288,12 @@ def all_helm_test_packages() -> list[str]:
     )
 
 
-ALLOWED_HELM_TEST_PACKAGES = [
-    "all",
-    *all_helm_test_packages(),
-]
+ALLOWED_TEST_TYPE_CHOICES: dict[GroupOfTests, list[str]] = {
+    GroupOfTests.CORE: [*ALL_TEST_SUITES.keys(), *all_selective_core_test_types()],
+    GroupOfTests.PROVIDERS: [*ALL_TEST_SUITES.keys()],
+    GroupOfTests.TASK_SDK: [ALL_TEST_TYPE],
+    GroupOfTests.HELM: [ALL_TEST_TYPE, *all_helm_test_packages()],
+}
 
 
 @cache
@@ -507,8 +547,6 @@ FILES_FOR_REBUILD_CHECK = [
     "scripts/docker/install_from_docker_context_files.sh",
     "scripts/docker/install_mysql.sh",
 ]
-
-ENABLED_SYSTEMS = ""
 
 CURRENT_KUBERNETES_VERSIONS = ALLOWED_KUBERNETES_VERSIONS
 CURRENT_EXECUTORS = [KUBERNETES_EXECUTOR]

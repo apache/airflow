@@ -81,7 +81,7 @@ class TestFileTaskLogHandler:
             dag_id="dag_for_testing_k8s_executor_log_read",
             task_id="task_for_testing_k8s_executor_log_read",
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
         )
         ti.state = state
         ti.triggerer_job = None
@@ -122,13 +122,22 @@ class TestFileTaskLogHandler:
                 executor_config={"pod_override": pod_override},
             )
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        dagrun = dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
-            state=State.RUNNING,
-            execution_date=DEFAULT_DATE,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
-            **triggered_by_kwargs,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dagrun = dag.create_dagrun(
+                run_type=DagRunType.MANUAL,
+                state=State.RUNNING,
+                logical_date=DEFAULT_DATE,
+                data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
+                **triggered_by_kwargs,
+            )
+        else:
+            dagrun = dag.create_dagrun(
+                run_type=DagRunType.MANUAL,
+                state=State.RUNNING,
+                execution_date=DEFAULT_DATE,
+                data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
+                **triggered_by_kwargs,
+            )
         ti = TaskInstance(task=task, run_id=dagrun.run_id)
         ti.try_number = 3
 

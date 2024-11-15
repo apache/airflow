@@ -41,7 +41,7 @@ class Log(Base):
     task_id = Column(StringID())
     map_index = Column(Integer)
     event = Column(String(60))
-    execution_date = Column(UtcDateTime)
+    logical_date = Column(UtcDateTime)
     run_id = Column(StringID())
     owner = Column(String(500))
     owner_display_name = Column(String(500))
@@ -69,13 +69,13 @@ class Log(Base):
 
         task_owner = None
 
-        self.execution_date = None
+        self.logical_date = None
         if task_instance:
             self.dag_id = task_instance.dag_id
             self.task_id = task_instance.task_id
-            if execution_date := getattr(task_instance, "execution_date", None):
-                self.execution_date = execution_date
             self.run_id = task_instance.run_id
+            if logical_date := getattr(task_instance, "logical_date", None):
+                self.logical_date = logical_date
             self.try_number = task_instance.try_number
             self.map_index = task_instance.map_index
             if task := getattr(task_instance, "task", None):
@@ -85,8 +85,8 @@ class Log(Base):
             self.task_id = kwargs["task_id"]
         if "dag_id" in kwargs:
             self.dag_id = kwargs["dag_id"]
-        if kwargs.get("execution_date"):
-            self.execution_date = kwargs["execution_date"]
+        if kwargs.get("logical_date"):
+            self.logical_date = kwargs["logical_date"]
         if kwargs.get("run_id"):
             self.run_id = kwargs["run_id"]
         if "map_index" in kwargs:

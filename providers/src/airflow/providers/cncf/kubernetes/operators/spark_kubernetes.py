@@ -198,8 +198,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             "task_id": ti.task_id,
             "run_id": run_id,
             "spark_kubernetes_operator": "True",
-            # 'execution_date': context['ts'],
-            # 'try_number': context['ti'].try_number,
         }
 
         # If running on Airflow 2.3+:

@@ -387,6 +387,32 @@ export const prefetchUseDagRunServiceGetDagRun = (
     queryFn: () => DagRunService.getDagRun({ dagId, dagRunId }),
   });
 /**
+ * Get Upstream Asset Events
+ * If dag run is asset-triggered, return the asset events that triggered it.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @returns AssetEventCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagRunServiceGetUpstreamAssetEvents = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagRunServiceGetUpstreamAssetEventsKeyFn({
+      dagId,
+      dagRunId,
+    }),
+    queryFn: () => DagRunService.getUpstreamAssetEvents({ dagId, dagRunId }),
+  });
+/**
  * Get Dag Source
  * Get source code using file token.
  * @param data The data for the request.
@@ -783,16 +809,6 @@ export const prefetchUseImportErrorServiceGetImportErrors = (
     }),
     queryFn: () =>
       ImportErrorService.getImportErrors({ limit, offset, orderBy }),
-  });
-/**
- * Get Health
- * @returns HealthInfoSchema Successful Response
- * @throws ApiError
- */
-export const prefetchUseMonitorServiceGetHealth = (queryClient: QueryClient) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseMonitorServiceGetHealthKeyFn(),
-    queryFn: () => MonitorService.getHealth(),
   });
 /**
  * Get Plugins
@@ -1275,6 +1291,29 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
       }),
   });
 /**
+ * Get Tasks
+ * Get tasks for DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.orderBy
+ * @returns TaskCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseTaskServiceGetTasks = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    orderBy,
+  }: {
+    dagId: string;
+    orderBy?: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseTaskServiceGetTasksKeyFn({ dagId, orderBy }),
+    queryFn: () => TaskService.getTasks({ dagId, orderBy }),
+  });
+/**
  * Get Task
  * Get simplified representation of a task.
  * @param data The data for the request.
@@ -1348,17 +1387,6 @@ export const prefetchUseVariableServiceGetVariables = (
     queryFn: () => VariableService.getVariables({ limit, offset, orderBy }),
   });
 /**
- * Get Version
- * Get version information.
- * @returns VersionInfo Successful Response
- * @throws ApiError
- */
-export const prefetchUseVersionServiceGetVersion = (queryClient: QueryClient) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseVersionServiceGetVersionKeyFn(),
-    queryFn: () => VersionService.getVersion(),
-  });
-/**
  * Get Xcom Entry
  * Get an XCom entry.
  * @param data The data for the request.
@@ -1412,4 +1440,25 @@ export const prefetchUseXcomServiceGetXcomEntry = (
         taskId,
         xcomKey,
       }),
+  });
+/**
+ * Get Health
+ * @returns HealthInfoSchema Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseMonitorServiceGetHealth = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseMonitorServiceGetHealthKeyFn(),
+    queryFn: () => MonitorService.getHealth(),
+  });
+/**
+ * Get Version
+ * Get version information.
+ * @returns VersionInfo Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseVersionServiceGetVersion = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseVersionServiceGetVersionKeyFn(),
+    queryFn: () => VersionService.getVersion(),
   });

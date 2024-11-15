@@ -45,6 +45,7 @@ class TestTaskEndpoint:
     unscheduled_task_id2 = "unscheduled_task_2"
     task1_start_date = datetime(2020, 6, 15)
     task2_start_date = datetime(2020, 6, 16)
+    api_prefix = "/public/dags"
 
     def create_dags(self, test_client):
         with DAG(self.dag_id, schedule=None, start_date=self.task1_start_date, doc_md="details") as dag:
@@ -128,7 +129,7 @@ class TestGetTask(TestTaskEndpoint):
             "doc_md": None,
         }
         response = test_client.get(
-            f"/public/dags/{self.dag_id}/tasks/{self.task_id}",
+            f"{self.api_prefix}/{self.dag_id}/tasks/{self.task_id}",
         )
         assert response.status_code == 200
         assert response.json() == expected
@@ -164,7 +165,7 @@ class TestGetTask(TestTaskEndpoint):
             "doc_md": None,
         }
         response = test_client.get(
-            f"/public/dags/{self.mapped_dag_id}/tasks/{self.mapped_task_id}",
+            f"{self.api_prefix}/{self.mapped_dag_id}/tasks/{self.mapped_task_id}",
         )
         assert response.status_code == 200
         assert response.json() == expected
@@ -215,7 +216,7 @@ class TestGetTask(TestTaskEndpoint):
         }
         for task_id, downstream_task_id in downstream_dict.items():
             response = test_client.get(
-                f"/public/dags/{self.unscheduled_dag_id}/tasks/{task_id}",
+                f"{self.api_prefix}/{self.unscheduled_dag_id}/tasks/{task_id}",
             )
             assert response.status_code == 200
             expected["downstream_task_ids"] = [downstream_task_id] if downstream_task_id else []
@@ -273,7 +274,7 @@ class TestGetTask(TestTaskEndpoint):
             "doc_md": None,
         }
         response = test_client.get(
-            f"/public/dags/{self.dag_id}/tasks/{self.task_id}",
+            f"{self.api_prefix}/{self.dag_id}/tasks/{self.task_id}",
         )
         assert response.status_code == 200
         assert response.json() == expected
@@ -282,13 +283,254 @@ class TestGetTask(TestTaskEndpoint):
     def test_should_respond_404(self, test_client):
         task_id = "xxxx_not_existing"
         response = test_client.get(
-            f"/public/dags/{self.dag_id}/tasks/{task_id}",
+            f"{self.api_prefix}/{self.dag_id}/tasks/{task_id}",
         )
         assert response.status_code == 404
 
     def test_should_respond_404_when_dag_not_found(self, test_client):
         dag_id = "xxxx_not_existing"
         response = test_client.get(
-            f"/public/dags/{dag_id}/tasks/{self.task_id}",
+            f"{self.api_prefix}/{dag_id}/tasks/{self.task_id}",
         )
+        assert response.status_code == 404
+
+
+class TestGetTasks(TestTaskEndpoint):
+    def test_should_respond_200(self, test_client):
+        expected = {
+            "tasks": [
+                {
+                    "class_ref": {
+                        "class_name": "EmptyOperator",
+                        "module_path": "airflow.operators.empty",
+                    },
+                    "depends_on_past": False,
+                    "downstream_task_ids": [self.task_id2],
+                    "end_date": None,
+                    "execution_timeout": None,
+                    "extra_links": [],
+                    "operator_name": "EmptyOperator",
+                    "owner": "airflow",
+                    "params": {
+                        "foo": {
+                            "__class": "airflow.models.param.Param",
+                            "value": "bar",
+                            "description": None,
+                            "schema": {},
+                        }
+                    },
+                    "pool": "default_pool",
+                    "pool_slots": 1.0,
+                    "priority_weight": 1.0,
+                    "queue": "default",
+                    "retries": 0.0,
+                    "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
+                    "retry_exponential_backoff": False,
+                    "start_date": "2020-06-15T00:00:00Z",
+                    "task_id": "op1",
+                    "task_display_name": "op1",
+                    "template_fields": [],
+                    "trigger_rule": "all_success",
+                    "ui_color": "#e8f7e4",
+                    "ui_fgcolor": "#000",
+                    "wait_for_downstream": False,
+                    "weight_rule": "downstream",
+                    "is_mapped": False,
+                    "doc_md": None,
+                },
+                {
+                    "class_ref": {
+                        "class_name": "EmptyOperator",
+                        "module_path": "airflow.operators.empty",
+                    },
+                    "depends_on_past": False,
+                    "downstream_task_ids": [],
+                    "end_date": None,
+                    "execution_timeout": None,
+                    "extra_links": [],
+                    "operator_name": "EmptyOperator",
+                    "owner": "airflow",
+                    "params": {},
+                    "pool": "default_pool",
+                    "pool_slots": 1.0,
+                    "priority_weight": 1.0,
+                    "queue": "default",
+                    "retries": 0.0,
+                    "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
+                    "retry_exponential_backoff": False,
+                    "start_date": "2020-06-16T00:00:00Z",
+                    "task_id": self.task_id2,
+                    "task_display_name": self.task_id2,
+                    "template_fields": [],
+                    "trigger_rule": "all_success",
+                    "ui_color": "#e8f7e4",
+                    "ui_fgcolor": "#000",
+                    "wait_for_downstream": False,
+                    "weight_rule": "downstream",
+                    "is_mapped": False,
+                    "doc_md": None,
+                },
+            ],
+            "total_entries": 2,
+        }
+        response = test_client.get(f"{self.api_prefix}/{self.dag_id}/tasks")
+        assert response.status_code == 200
+        assert response.json() == expected
+
+    def test_get_tasks_mapped(self, test_client):
+        expected = {
+            "tasks": [
+                {
+                    "class_ref": {"class_name": "EmptyOperator", "module_path": "airflow.operators.empty"},
+                    "depends_on_past": False,
+                    "downstream_task_ids": [],
+                    "end_date": None,
+                    "execution_timeout": None,
+                    "extra_links": [],
+                    "is_mapped": True,
+                    "operator_name": "EmptyOperator",
+                    "owner": "airflow",
+                    "params": {},
+                    "pool": "default_pool",
+                    "pool_slots": 1.0,
+                    "priority_weight": 1.0,
+                    "queue": "default",
+                    "retries": 0.0,
+                    "retry_delay": {"__type": "TimeDelta", "days": 0, "microseconds": 0, "seconds": 300},
+                    "retry_exponential_backoff": False,
+                    "start_date": "2020-06-15T00:00:00Z",
+                    "task_id": "mapped_task",
+                    "task_display_name": "mapped_task",
+                    "template_fields": [],
+                    "trigger_rule": "all_success",
+                    "ui_color": "#e8f7e4",
+                    "ui_fgcolor": "#000",
+                    "wait_for_downstream": False,
+                    "weight_rule": "downstream",
+                    "doc_md": None,
+                },
+                {
+                    "class_ref": {
+                        "class_name": "EmptyOperator",
+                        "module_path": "airflow.operators.empty",
+                    },
+                    "depends_on_past": False,
+                    "downstream_task_ids": [],
+                    "end_date": None,
+                    "execution_timeout": None,
+                    "extra_links": [],
+                    "operator_name": "EmptyOperator",
+                    "owner": "airflow",
+                    "params": {},
+                    "pool": "default_pool",
+                    "pool_slots": 1.0,
+                    "priority_weight": 1.0,
+                    "queue": "default",
+                    "retries": 0.0,
+                    "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
+                    "retry_exponential_backoff": False,
+                    "start_date": "2020-06-15T00:00:00Z",
+                    "task_id": self.task_id3,
+                    "task_display_name": self.task_id3,
+                    "template_fields": [],
+                    "trigger_rule": "all_success",
+                    "ui_color": "#e8f7e4",
+                    "ui_fgcolor": "#000",
+                    "wait_for_downstream": False,
+                    "weight_rule": "downstream",
+                    "is_mapped": False,
+                    "doc_md": None,
+                },
+            ],
+            "total_entries": 2,
+        }
+        response = test_client.get(f"{self.api_prefix}/{self.mapped_dag_id}/tasks")
+        assert response.status_code == 200
+        assert response.json() == expected
+
+    def test_get_unscheduled_tasks(self, test_client):
+        downstream_dict = {
+            self.unscheduled_task_id1: self.unscheduled_task_id2,
+            self.unscheduled_task_id2: None,
+        }
+        expected = {
+            "tasks": [
+                {
+                    "class_ref": {
+                        "class_name": "EmptyOperator",
+                        "module_path": "airflow.operators.empty",
+                    },
+                    "depends_on_past": False,
+                    "downstream_task_ids": [downstream_task_id] if downstream_task_id else [],
+                    "end_date": None,
+                    "execution_timeout": None,
+                    "extra_links": [],
+                    "operator_name": "EmptyOperator",
+                    "owner": "airflow",
+                    "params": {
+                        "is_unscheduled": {
+                            "__class": "airflow.models.param.Param",
+                            "value": True,
+                            "description": None,
+                            "schema": {},
+                        }
+                    },
+                    "pool": "default_pool",
+                    "pool_slots": 1.0,
+                    "priority_weight": 1.0,
+                    "queue": "default",
+                    "retries": 0.0,
+                    "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
+                    "retry_exponential_backoff": False,
+                    "start_date": None,
+                    "task_id": task_id,
+                    "task_display_name": task_id,
+                    "template_fields": [],
+                    "trigger_rule": "all_success",
+                    "ui_color": "#e8f7e4",
+                    "ui_fgcolor": "#000",
+                    "wait_for_downstream": False,
+                    "weight_rule": "downstream",
+                    "is_mapped": False,
+                    "doc_md": None,
+                }
+                for (task_id, downstream_task_id) in downstream_dict.items()
+            ],
+            "total_entries": len(downstream_dict),
+        }
+        response = test_client.get(f"{self.api_prefix}/{self.unscheduled_dag_id}/tasks")
+        assert response.status_code == 200
+        assert response.json() == expected
+
+    def test_should_respond_200_ascending_order_by_start_date(self, test_client):
+        response = test_client.get(
+            f"{self.api_prefix}/{self.dag_id}/tasks?order_by=start_date",
+        )
+        assert response.status_code == 200
+        assert self.task1_start_date < self.task2_start_date
+        assert response.json()["tasks"][0]["task_id"] == self.task_id
+        assert response.json()["tasks"][1]["task_id"] == self.task_id2
+
+    def test_should_respond_200_descending_order_by_start_date(self, test_client):
+        response = test_client.get(
+            f"{self.api_prefix}/{self.dag_id}/tasks?order_by=-start_date",
+        )
+        assert response.status_code == 200
+        # - means is descending
+        assert self.task1_start_date < self.task2_start_date
+        assert response.json()["tasks"][0]["task_id"] == self.task_id2
+        assert response.json()["tasks"][1]["task_id"] == self.task_id
+
+    def test_should_raise_400_for_invalid_order_by_name(self, test_client):
+        response = test_client.get(
+            f"{self.api_prefix}/{self.dag_id}/tasks?order_by=invalid_task_colume_name",
+        )
+        assert response.status_code == 400
+        assert (
+            response.json()["detail"] == "'EmptyOperator' object has no attribute 'invalid_task_colume_name'"
+        )
+
+    def test_should_respond_404(self, test_client):
+        dag_id = "xxxx_not_existing"
+        response = test_client.get(f"{self.api_prefix}/{dag_id}/tasks")
         assert response.status_code == 404

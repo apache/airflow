@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+4.0.3
+.....
+
+Misc
+~~~~
+
+* ``Bump 'uv' to '0.4.28' (#43451)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.0.2
 .....
 
