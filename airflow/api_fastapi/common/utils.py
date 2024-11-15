@@ -33,4 +33,4 @@ def format_datetime(value: str) -> datetime:
     try:
         return timezone.parse(value)
     except (ParserError, TypeError) as err:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Incorrect datetime argument: {err}")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=f"Incorrect datetime argument: {err}")
