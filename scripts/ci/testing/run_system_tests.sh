@@ -20,35 +20,13 @@ export COLOR_RED=$'\e[31m'
 export COLOR_YELLOW=$'\e[33m'
 export COLOR_RESET=$'\e[0m'
 
-if [[ ! "$#" -eq 2 ]]; then
-    echo "${COLOR_RED}You must provide 2 arguments. Test group and integration!.${COLOR_RESET}"
-    exit 1
-fi
-
-TEST_GROUP=${1}
-INTEGRATION=${2}
-
-breeze down
 set +e
-breeze testing "${TEST_GROUP}-integration-tests" --integration "${INTEGRATION}"
+breeze testing system-tests "${@}"
 RESULT=$?
 set -e
 if [[ ${RESULT} != "0" ]]; then
     echo
-    echo "${COLOR_YELLOW}The ${TEST_GROUP} Integration Tests failed. Retrying once${COLOR_RESET}"
+    echo "${COLOR_RED}The ${TEST_GROUP} system test ${TEST_TO_RUN} failed! Giving up${COLOR_RESET}"
     echo
-    echo "This could be due to a flaky test, re-running once to re-check it After restarting docker."
-    echo
-    sudo service docker restart
-    breeze down
-    set +e
-    breeze testing "${TEST_GROUP}-integration-tests" --integration "${INTEGRATION}"
-    RESULT=$?
-    set -e
-    if [[ ${RESULT} != "0" ]]; then
-        echo
-        echo "${COLOR_RED}The ${TEST_GROUP} integration tests failed for the second time! Giving up${COLOR_RESET}"
-        echo
-        exit ${RESULT}
-    fi
+    exit ${RESULT}
 fi

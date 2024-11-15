@@ -77,7 +77,7 @@ def get_dag_fail_root(dag_maker):
     return dag
 
 
-@pytest.mark.system("core")
+@pytest.mark.system
 class TestExampleDagsSystem(SystemTest):
     @pytest.mark.parametrize(
         "module",
