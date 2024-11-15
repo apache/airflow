@@ -57,7 +57,6 @@ from airflow.api_fastapi.core_api.routes.public.assets import _generate_queued_e
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DAG, DagModel, DagTag
 from airflow.models.asset import AssetDagRunQueue, AssetModel
-from airflow.utils import timezone
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
@@ -370,29 +369,19 @@ def get_dag_asset_queued_event(
     before: str = Query(None),
 ) -> QueuedEventResponse:
     """Get a queued asset event for a DAG."""
-    where_clause = [AssetDagRunQueue.target_dag_id == dag_id]
-    if uri:
-        where_clause.append(
-            AssetDagRunQueue.asset_id.in_(
-                select(AssetModel.id).where(AssetModel.uri == uri),
-            ),
-        )
-    if before:
-        before_parsed = timezone.parse(before)
-        where_clause.append(AssetDagRunQueue.created_at < before_parsed)
-
-    adrq = session.scalar(
+    where_clause = _generate_queued_event_where_clause(dag_id=dag_id, uri=uri, before=before)
+    query = (
         select(AssetDagRunQueue)
         .join(AssetModel, AssetDagRunQueue.asset_id == AssetModel.id)
         .where(*where_clause)
     )
-
+    adrq = session.scalar(query)
     if not adrq:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             f"Queue event with dag_id: `{dag_id}` and asset uri: `{uri}` was not found",
         )
 
-    queued_event = {"created_at": adrq.created_at, "dag_id": dag_id, "uri": uri}
+    queued_event = QueuedEventResponse(created_at=adrq.created_at, dag_id=adrq.target_dag_id, uri=uri)
 
     return QueuedEventResponse.model_validate(queued_event, from_attributes=True)
