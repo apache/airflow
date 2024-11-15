@@ -52,11 +52,6 @@ transfer_config = TransferConfig(
 
 
 class TestBigQueryCreateDataTransferOperator:
-    def _set_execute_complete(self, session, ti, **next_kwargs):
-        ti.next_method = "execute_complete"
-        ti.next_kwargs = next_kwargs
-        session.flush()
-
     @mock.patch(
         "airflow.providers.google.cloud.operators.bigquery_dts.BiqQueryDataTransferServiceHook",
         **{"return_value.create_transfer_config.return_value": transfer_config},
