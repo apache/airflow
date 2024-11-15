@@ -43,7 +43,7 @@ class RuntimeTaskInstance(TaskInstance):
 
 def parse(what: StartupDetails) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
-    # Using DagBag here is aoubt 98% wrong, but it'll do for now
+    # Using DagBag here is about 98% wrong, but it'll do for now
 
     from airflow.models.dagbag import DagBag
 
@@ -64,7 +64,8 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
     task = dag.task_dict[what.ti.task_id]
     if not isinstance(task, BaseOperator):
         raise TypeError(f"task is of the wrong type, got {type(task)}, wanted {BaseOperator}")
-    return RuntimeTaskInstance(**what.ti.model_dump(exclude_unset=True), task=task)
+
+    return RuntimeTaskInstance.model_construct(**what.ti.model_dump(exclude_unset=True), task=task)
 
 
 @attrs.define()
