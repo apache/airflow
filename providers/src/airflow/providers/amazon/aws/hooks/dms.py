@@ -242,7 +242,7 @@ class DmsHook(AwsBaseHook):
             return resp.get("ReplicationConfigs", [])
         except Exception as ex:
             self.log.error("Error while describing replication configs: %s", str(ex))
-            return []
+            raise ex
 
     def create_replication_config(
         self,
@@ -310,8 +310,9 @@ class DmsHook(AwsBaseHook):
         try:
             resp = self.conn.describe_replications(Filters=filters, **kwargs)
             return resp.get("Replications", [])
-        except Exception:
-            return []
+        except Exception as ex:
+            self.log.error("Error while describing replications: %s", str(ex))
+            raise ex
 
     def delete_replication_config(
         self, replication_config_arn: str, delay: int = 60, max_attempts: int = 120

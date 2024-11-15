@@ -167,7 +167,7 @@ Delete a serverless replication configuration
 =============================================
 
 To delete a serverless replication config use
-:class:`~airflow.providers.amazon.aws.operators.dms.DmsDescribeReplicationsOperator`.
+:class:`~airflow.providers.amazon.aws.operators.dms.DmsDeleteReplicationConfigOperator`.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_dms_serverless.py
     :language: python

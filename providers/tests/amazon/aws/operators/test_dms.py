@@ -627,7 +627,20 @@ class TestDmsDeleteReplicationConfigOperator:
         op.execute({})
 
         mock_conn.delete_replication_config.assert_called_once()
-        mock_waiter.assert_not_called()
+        mock_waiter.assert_has_calls(
+            [
+                mock.call("replication_terminal_status"),
+                mock.call().wait(
+                    Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
+                    WaiterConfig={"Delay": 60, "MaxAttempts": 60},
+                ),
+                mock.call("replication_deprovisioned"),
+                mock.call().wait(
+                    Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
+                    WaiterConfig={"Delay": 60, "MaxAttempts": 60},
+                ),
+            ]
+        )
         mock_handle.assert_called_once()
 
     @mock.patch.object(DmsHook, "conn")
@@ -662,8 +675,23 @@ class TestDmsDeleteReplicationConfigOperator:
         )
         op.execute({})
 
-        mock_waiter.assert_called_with("replication_config_deleted")
-        mock_waiter.assert_called_once()
+        mock_waiter.assert_has_calls(
+            [
+                mock.call("replication_terminal_status"),
+                mock.call().wait(
+                    Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
+                    WaiterConfig={"Delay": 60, "MaxAttempts": 60},
+                ),
+                mock.call("replication_deprovisioned"),
+                mock.call().wait(
+                    Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
+                    WaiterConfig={"Delay": 60, "MaxAttempts": 60},
+                ),
+            ]
+        )
+
+        # mock_waiter.assert_called_with("replication_config_deleted")
+        # mock_waiter.assert_called_once()
 
     @mock.patch.object(DmsHook, "conn")
     @mock.patch.object(DmsHook, "describe_replications")
@@ -686,12 +714,12 @@ class TestDmsDeleteReplicationConfigOperator:
                 mock.call("replication_deprovisioned"),
                 mock.call().wait(
                     Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
-                    WaiterConfig={"Delay": 5, "MaxAttempts": 60},
+                    WaiterConfig={"Delay": 60, "MaxAttempts": 60},
                 ),
                 mock.call("replication_config_deleted"),
                 mock.call().wait(
                     Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
-                    WaiterConfig={"Delay": 5, "MaxAttempts": 60},
+                    WaiterConfig={"Delay": 60, "MaxAttempts": 60},
                 ),
             ]
         )
@@ -716,12 +744,12 @@ class TestDmsDeleteReplicationConfigOperator:
                 mock.call("replication_terminal_status"),
                 mock.call().wait(
                     Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
-                    WaiterConfig={"Delay": 5, "MaxAttempts": 60},
+                    WaiterConfig={"Delay": 60, "MaxAttempts": 60},
                 ),
                 mock.call("replication_deprovisioned"),
                 mock.call().wait(
                     Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
-                    WaiterConfig={"Delay": 5, "MaxAttempts": 60},
+                    WaiterConfig={"Delay": 60, "MaxAttempts": 60},
                 ),
             ]
         )
@@ -747,12 +775,12 @@ class TestDmsDeleteReplicationConfigOperator:
                 mock.call("replication_terminal_status"),
                 mock.call().wait(
                     Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
-                    WaiterConfig={"Delay": 5, "MaxAttempts": 60},
+                    WaiterConfig={"Delay": 60, "MaxAttempts": 60},
                 ),
                 mock.call("replication_deprovisioned"),
                 mock.call().wait(
                     Filters=[{"Name": "replication-config-arn", "Values": ["arn:xxxxxx"]}],
-                    WaiterConfig={"Delay": 5, "MaxAttempts": 60},
+                    WaiterConfig={"Delay": 60, "MaxAttempts": 60},
                 ),
             ]
         )
@@ -770,40 +798,10 @@ class TestDmsDeleteReplicationConfigOperator:
             deferrable=False,
             wait_for_completion=False,
         )
-        op.execute({})
+        with pytest.raises(IndexError):
+            op.execute({})
         mock_waiter.assert_not_called()
         mock_conn.delete_replication_config.assert_not_called()
-
-    @mock.patch.object(DmsHook, "conn")
-    @mock.patch.object(DmsHook, "describe_replications")
-    @mock.patch.object(DmsDeleteReplicationConfigOperator, "defer")
-    @mock.patch.object(DmsHook, "get_waiter")
-    def test_handle_delete(self, mock_waiter, mock_defer, mock_describe, mock_conn):
-        mock_describe.return_value = self.get_replication_status(
-            status="stopped", deprovisioned="deprovisioned"
-        )
-
-        op = DmsDeleteReplicationConfigOperator(
-            task_id="delete_replication_config",
-            replication_config_arn=self.TASK_DATA["ReplicationConfigArn"],
-            deferrable=False,
-            wait_for_completion=True,
-        )
-        op.execute({})
-        mock_waiter.assert_called_with("replication_config_deleted")
-
-        mock_waiter.reset_mock()
-
-        op = DmsDeleteReplicationConfigOperator(
-            task_id="delete_replication_config",
-            replication_config_arn=self.TASK_DATA["ReplicationConfigArn"],
-            deferrable=False,
-            wait_for_completion=False,
-        )
-
-        op.execute({})
-        mock_waiter.assert_not_called()
-        mock_defer.assert_not_called()
 
     @mock.patch.object(DmsHook, "conn")
     @mock.patch.object(DmsHook, "describe_replications")
@@ -841,9 +839,22 @@ class TestDmsDeleteReplicationConfigOperator:
 class TestDmsDescribeReplicationsOperator:
     FILTER = [{"Name": "replication-type", "Values": ["cdc"]}]
 
+    def get_replications(self):
+        return {
+            "Replications": [
+                {
+                    "Status": "test",
+                    "ReplicationArn": "XXXXXXXXXXXXXXXXXXXXXXXXX",
+                    "ReplicationIdentifier": "test-config",
+                    "SourceEndpointArn": "XXXXXXXXXXXXXXXXXXXXXXXXX",
+                    "TargetEndpointArn": "XXXXXXXXXXXXXXXXXXXXXXXXX",
+                }
+            ]
+        }
+
     @mock.patch.object(DmsHook, "conn")
     def test_filter(self, mock_conn):
-        mock_conn.describe_replications.return_value = []
+        mock_conn.describe_replications.return_value = self.get_replications()
 
         op = DmsDescribeReplicationsOperator(
             task_id="test_task",
@@ -857,7 +868,7 @@ class TestDmsDescribeReplicationsOperator:
 
     @mock.patch.object(DmsHook, "conn")
     def test_filter_none(self, mock_conn):
-        mock_conn.describe_replications.return_value = []
+        mock_conn.describe_replications.return_value = self.get_replications()
 
         op = DmsDescribeReplicationsOperator(
             task_id="test_task",

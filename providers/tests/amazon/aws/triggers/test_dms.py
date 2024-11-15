@@ -31,7 +31,7 @@ from airflow.providers.amazon.aws.triggers.dms import (
 )
 from airflow.triggers.base import TriggerEvent
 
-from tests.providers.amazon.aws.utils.test_waiter import assert_expected_waiter_type
+from providers.tests.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 BASE_TRIGGER_CLASSPATH = "airflow.providers.amazon.aws.triggers.dms."
 

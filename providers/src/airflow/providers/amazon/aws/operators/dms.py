@@ -416,6 +416,8 @@ class DmsDeleteReplicationConfigOperator(AwsBaseOperator[DmsHook]):
     :param wait_for_completion: If True, waits for the replication config to be deleted before returning.
         If False, the operator will return immediately after the request is made.
     :param deferrable: Run the operator in deferrable mode.
+    :param waiter_delay: The number of seconds to wait between retries (default: 60).
+    :param waiter_max_attempts: The maximum number of attempts to be made (default: 60).
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -435,7 +437,7 @@ class DmsDeleteReplicationConfigOperator(AwsBaseOperator[DmsHook]):
         replication_config_arn: str,
         wait_for_completion: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        waiter_delay: int = 5,
+        waiter_delay: int = 60,
         waiter_max_attempts: int = 60,
         aws_conn_id: str | None = "aws_default",
         **kwargs,
@@ -456,93 +458,67 @@ class DmsDeleteReplicationConfigOperator(AwsBaseOperator[DmsHook]):
             filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}]
         )
 
-        if len(results) > 0:
-            current_state = results[0].get("Status", "")
-            self.log.info(
-                "Current state of replication config(%s) is %s.", self.replication_config_arn, current_state
-            )
-            # replication must be deprovisioned before deleting
-            provision_status = self.hook.get_provision_status(
-                replication_config_arn=self.replication_config_arn
-            )
+        current_state = results[0].get("Status", "")
+        self.log.info(
+            "Current state of replication config(%s) is %s.", self.replication_config_arn, current_state
+        )
+        # replication must be deprovisioned before deleting
+        provision_status = self.hook.get_provision_status(replication_config_arn=self.replication_config_arn)
 
-            if (
-                current_state.lower() in self.VALID_STATES
-                and provision_status in self.TERMINAL_PROVISION_STATES
-            ):
-                self.log.info("DMS replication config(%s) is in valid state.", self.replication_config_arn)
-
-                self.hook.delete_replication_config(
-                    replication_config_arn=self.replication_config_arn,
-                    delay=self.waiter_delay,
-                    max_attempts=self.waiter_max_attempts,
+        if self.deferrable:
+            if current_state.lower() not in self.VALID_STATES:
+                self.log.info("Deferring until terminal status reached.")
+                self.defer(
+                    trigger=DmsReplicationTerminalStatusTrigger(
+                        replication_config_arn=self.replication_config_arn,
+                        waiter_delay=self.waiter_delay,
+                        waiter_max_attempts=self.waiter_max_attempts,
+                        aws_conn_id=self.aws_conn_id,
+                    ),
+                    method_name="retry_execution",
                 )
-                self.handle_delete_wait()
-
-            else:
-                # Must be in a terminal state to delete
-                self.log.info(
-                    "DMS replication config(%s) cannot be deleted until replication is in terminal state and deprovisioned. Waiting for terminal state.",
-                    self.replication_config_arn,
+            if provision_status not in self.TERMINAL_PROVISION_STATES:  # not deprovisioned:
+                self.log.info("Deferring until deprovisioning completes.")
+                self.defer(
+                    trigger=DmsReplicationDeprovisionedTrigger(
+                        replication_config_arn=self.replication_config_arn,
+                        waiter_delay=self.waiter_delay,
+                        waiter_max_attempts=self.waiter_max_attempts,
+                        aws_conn_id=self.aws_conn_id,
+                    ),
+                    method_name="retry_execution",
                 )
-                if self.deferrable:
-                    if current_state.lower() not in self.VALID_STATES:
-                        self.log.info("Deferring until terminal status reached.")
-                        self.defer(
-                            trigger=DmsReplicationTerminalStatusTrigger(
-                                replication_config_arn=self.replication_config_arn,
-                                waiter_delay=self.waiter_delay,
-                                waiter_max_attempts=self.waiter_max_attempts,
-                                aws_conn_id=self.aws_conn_id,
-                            ),
-                            method_name="retry_execution",
-                        )
-                    if provision_status not in self.TERMINAL_PROVISION_STATES:  # not deprovisioned:
-                        self.log.info("Deferring until deprovisioning completes.")
-                        self.defer(
-                            trigger=DmsReplicationDeprovisionedTrigger(
-                                replication_config_arn=self.replication_config_arn,
-                                waiter_delay=self.waiter_delay,
-                                waiter_max_attempts=self.waiter_max_attempts,
-                                aws_conn_id=self.aws_conn_id,
-                            ),
-                            method_name="retry_execution",
-                        )
 
-                else:
-                    self.hook.get_waiter("replication_terminal_status").wait(
-                        Filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}],
-                        WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
-                    )
-                    self.hook.get_waiter("replication_deprovisioned").wait(
-                        Filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}],
-                        WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
-                    )
-                    self.hook.delete_replication_config(self.replication_config_arn)
-                    self.handle_delete_wait()
-
-        else:
-            self.log.info("DMS replication config(%s) does not exist.", self.replication_config_arn)
+        self.hook.get_waiter("replication_terminal_status").wait(
+            Filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}],
+            WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+        )
+        self.hook.get_waiter("replication_deprovisioned").wait(
+            Filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}],
+            WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+        )
+        self.hook.delete_replication_config(self.replication_config_arn)
+        self.handle_delete_wait()
 
     def handle_delete_wait(self):
-        if self.deferrable:
-            self.log.info("Deferring until replication config is deleted.")
-            self.defer(
-                trigger=DmsReplicationConfigDeletedTrigger(
-                    replication_config_arn=self.replication_config_arn,
-                    waiter_delay=self.waiter_delay,
-                    waiter_max_attempts=self.waiter_max_attempts,
-                    aws_conn_id=self.aws_conn_id,
-                ),
-                method_name="execute_complete",
-            )
-
         if self.wait_for_completion:
-            self.hook.get_waiter("replication_config_deleted").wait(
-                Filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}],
-                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
-            )
-            self.log.info("DMS replication config(%s) deleted.", self.replication_config_arn)
+            if self.deferrable:
+                self.log.info("Deferring until replication config is deleted.")
+                self.defer(
+                    trigger=DmsReplicationConfigDeletedTrigger(
+                        replication_config_arn=self.replication_config_arn,
+                        waiter_delay=self.waiter_delay,
+                        waiter_max_attempts=self.waiter_max_attempts,
+                        aws_conn_id=self.aws_conn_id,
+                    ),
+                    method_name="execute_complete",
+                )
+            else:
+                self.hook.get_waiter("replication_config_deleted").wait(
+                    Filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}],
+                    WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+                )
+                self.log.info("DMS replication config(%s) deleted.", self.replication_config_arn)
 
     def execute_complete(self, context, event=None):
         self.replication_config_arn = event.get("replication_config_arn")
@@ -717,20 +693,20 @@ class DmsStartReplicationOperator(AwsBaseOperator[DmsHook]):
                 current_status,
             )
 
-            if self.deferrable:
-                self.log.info("Deferring until %s replication completes.", self.replication_config_arn)
-                self.defer(
-                    trigger=DmsReplicationCompleteTrigger(
-                        replication_config_arn=self.replication_config_arn,
-                        waiter_delay=self.waiter_delay,
-                        waiter_max_attempts=self.waiter_max_attempts,
-                        aws_conn_id=self.aws_conn_id,
-                    ),
-                    method_name="execute_complete",
-                )
-
             if self.wait_for_completion:
                 self.log.info("Waiting for %s replication to complete.", self.replication_config_arn)
+
+                if self.deferrable:
+                    self.log.info("Deferring until %s replication completes.", self.replication_config_arn)
+                    self.defer(
+                        trigger=DmsReplicationCompleteTrigger(
+                            replication_config_arn=self.replication_config_arn,
+                            waiter_delay=self.waiter_delay,
+                            waiter_max_attempts=self.waiter_max_attempts,
+                            aws_conn_id=self.aws_conn_id,
+                        ),
+                        method_name="execute_complete",
+                    )
 
                 self.hook.get_waiter("replication_complete").wait(
                     Filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}],
@@ -814,19 +790,20 @@ class DmsStopReplicationOperator(AwsBaseOperator[DmsHook]):
                 "Stopping DMS replication config(%s). Current status: %s", self.replication_config_arn, status
             )
 
-            if self.deferrable:
-                self.log.info("Deferring until %s replication stops.", self.replication_config_arn)
-                self.defer(
-                    trigger=DmsReplicationStoppedTrigger(
-                        replication_config_arn=self.replication_config_arn,
-                        waiter_delay=self.waiter_delay,
-                        waiter_max_attempts=self.waiter_max_attempts,
-                        aws_conn_id=self.aws_conn_id,
-                    ),
-                    method_name="execute_complete",
-                )
             if self.wait_for_completion:
                 self.log.info("Waiting for %s replication to stop.", self.replication_config_arn)
+
+                if self.deferrable:
+                    self.log.info("Deferring until %s replication stops.", self.replication_config_arn)
+                    self.defer(
+                        trigger=DmsReplicationStoppedTrigger(
+                            replication_config_arn=self.replication_config_arn,
+                            waiter_delay=self.waiter_delay,
+                            waiter_max_attempts=self.waiter_max_attempts,
+                            aws_conn_id=self.aws_conn_id,
+                        ),
+                        method_name="execute_complete",
+                    )
                 self.hook.get_waiter("replication_stopped").wait(
                     Filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}],
                     WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
