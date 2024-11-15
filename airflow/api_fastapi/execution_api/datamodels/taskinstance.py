@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Discriminator, Tag, WithJsonSchema
@@ -97,3 +98,17 @@ class TIHeartbeatInfo(BaseModel):
 
     hostname: str
     pid: int
+
+
+# This model is not used in the API, but it is included in generated OpenAPI schema
+# for use in the client SDKs.
+class TaskInstance(BaseModel):
+    """Schema for TaskInstance model with minimal required fields needed for Runtime."""
+
+    id: uuid.UUID
+
+    task_id: str
+    dag_id: str
+    run_id: str
+    try_number: int
+    map_index: int | None = None
