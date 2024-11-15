@@ -14,3 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from __future__ import annotations
+
+
+def get_logical_date_key() -> str:
+    """
+    Get the key for execution/logical date for the appropriate Airflow version.
+
+    This is done by detecting the CLI argument name. There are various ways to
+    do this, but the CLI key name has a very small import footprint (especially
+    compared to importing ORM models).
+    """
+    from airflow.cli import cli_config
+
+    if hasattr(cli_config, "ARG_LOGICAL_DATE"):
+        return "logical_date"
+    return "execution_date"

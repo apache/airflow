@@ -143,12 +143,12 @@ def _reset_db(dag, task1, task2, task3, task4, task_secret):
 
 @pytest.fixture
 def create_dag_run(dag, task1, task2, task3, task4, task_secret):
-    def _create_dag_run(*, execution_date, session):
+    def _create_dag_run(*, logical_date, session):
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag_run = dag.create_dagrun(
             state=DagRunState.RUNNING,
-            execution_date=execution_date,
-            data_interval=(execution_date, execution_date),
+            logical_date=logical_date,
+            data_interval=(logical_date, logical_date),
             run_type=DagRunType.SCHEDULED,
             session=session,
             **triggered_by_kwargs,
@@ -184,13 +184,13 @@ def test_rendered_template_view(admin_client, create_dag_run, task1):
     assert task1.bash_command == "{{ task_instance_key_str }}"
 
     with create_session() as session:
-        dag_run = create_dag_run(execution_date=DEFAULT_DATE, session=session)
+        dag_run = create_dag_run(logical_date=DEFAULT_DATE, session=session)
         ti = dag_run.get_task_instance(task1.task_id, session=session)
         assert ti is not None, "task instance not found"
         ti.refresh_from_task(task1)
         session.add(RenderedTaskInstanceFields(ti))
 
-    url = f"rendered-templates?task_id=task1&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}"
+    url = f"rendered-templates?task_id=task1&dag_id=testdag&logical_date={quote_plus(str(DEFAULT_DATE))}"
 
     resp = admin_client.get(url, follow_redirects=True)
     check_content_in_response("testdag__task1__20200301", resp)
@@ -205,9 +205,9 @@ def test_rendered_template_view_for_unexecuted_tis(admin_client, create_dag_run,
     assert task1.bash_command == "{{ task_instance_key_str }}"
 
     with create_session() as session:
-        create_dag_run(execution_date=DEFAULT_DATE, session=session)
+        create_dag_run(logical_date=DEFAULT_DATE, session=session)
 
-    url = f"rendered-templates?task_id=task1&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}"
+    url = f"rendered-templates?task_id=task1&dag_id=testdag&logical_date={quote_plus(str(DEFAULT_DATE))}"
 
     resp = admin_client.get(url, follow_redirects=True)
     check_content_in_response("testdag__task1__20200301", resp)
@@ -218,9 +218,9 @@ def test_user_defined_filter_and_macros_raise_error(admin_client, create_dag_run
     assert task2.bash_command == 'echo {{ fullname("Apache", "Airflow") | hello }}'
 
     with create_session() as session:
-        create_dag_run(execution_date=DEFAULT_DATE, session=session)
+        create_dag_run(logical_date=DEFAULT_DATE, session=session)
 
-    url = f"rendered-templates?task_id=task2&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}"
+    url = f"rendered-templates?task_id=task2&dag_id=testdag&logical_date={quote_plus(str(DEFAULT_DATE))}"
 
     resp = admin_client.get(url, follow_redirects=True)
     assert resp.status_code == 200
@@ -249,14 +249,14 @@ def test_rendered_template_secret(admin_client, create_dag_run, task_secret):
     assert task_secret.bash_command == "echo {{ var.value.my_secret }} && echo {{ var.value.spam }}"
 
     with create_session() as session:
-        dag_run = create_dag_run(execution_date=DEFAULT_DATE, session=session)
+        dag_run = create_dag_run(logical_date=DEFAULT_DATE, session=session)
         ti = dag_run.get_task_instance(task_secret.task_id, session=session)
         assert ti is not None, "task instance not found"
         ti.refresh_from_task(task_secret)
         assert ti.state == TaskInstanceState.QUEUED
 
     date = quote_plus(str(DEFAULT_DATE))
-    url = f"rendered-templates?task_id=task_secret&dag_id=testdag&execution_date={date}"
+    url = f"rendered-templates?task_id=task_secret&dag_id=testdag&logical_date={date}"
 
     resp = admin_client.get(url, follow_redirects=True)
     check_content_in_response("***", resp)
@@ -337,13 +337,13 @@ def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, 
     task_secret: BashOperator = dag.get_task(task_id="task1")
     task_secret.env = env
     date = quote_plus(str(DEFAULT_DATE))
-    url = f"task?task_id=task1&dag_id=testdag&execution_date={date}"
+    url = f"task?task_id=task1&dag_id=testdag&logical_date={date}"
 
     with create_session() as session:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag.create_dagrun(
             state=DagRunState.RUNNING,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             run_type=DagRunType.SCHEDULED,
             session=session,
@@ -366,9 +366,9 @@ def test_rendered_template_view_for_list_template_field_args(admin_client, creat
     assert task3.sql == ["SELECT 1;", "SELECT 2;"]
 
     with create_session() as session:
-        create_dag_run(execution_date=DEFAULT_DATE, session=session)
+        create_dag_run(logical_date=DEFAULT_DATE, session=session)
 
-    url = f"rendered-templates?task_id=task3&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}"
+    url = f"rendered-templates?task_id=task3&dag_id=testdag&logical_date={quote_plus(str(DEFAULT_DATE))}"
 
     resp = admin_client.get(url, follow_redirects=True)
     check_content_in_response("List item #0", resp)
@@ -384,9 +384,9 @@ def test_rendered_template_view_for_op_args(admin_client, create_dag_run, task4)
     assert list(task4.op_kwargs.values()) == ["{{ task_instance_key_str }}_kwargs"]
 
     with create_session() as session:
-        create_dag_run(execution_date=DEFAULT_DATE, session=session)
+        create_dag_run(logical_date=DEFAULT_DATE, session=session)
 
-    url = f"rendered-templates?task_id=task4&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}"
+    url = f"rendered-templates?task_id=task4&dag_id=testdag&logical_date={quote_plus(str(DEFAULT_DATE))}"
 
     resp = admin_client.get(url, follow_redirects=True)
     check_content_in_response("testdag__task4__20200301_args", resp)

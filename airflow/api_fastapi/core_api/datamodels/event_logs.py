@@ -33,7 +33,7 @@ class EventLogResponse(BaseModel):
     map_index: int | None
     try_number: int | None
     event: str
-    execution_date: datetime | None = Field(alias="logical_date")
+    logical_date: datetime | None
     owner: str | None
     extra: str | None
 

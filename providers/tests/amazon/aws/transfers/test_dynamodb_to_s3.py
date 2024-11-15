@@ -33,6 +33,8 @@ from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import (
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
 
 class TestJSONEncoder:
     @pytest.mark.parametrize("value", ["102938.3043847474", 1.010001, 10, "100", "1E-128", 1e-128])
@@ -272,12 +274,20 @@ class TestDynamodbToS3:
             dest_aws_conn_id="{{ ds }}",
         )
         ti = TaskInstance(operator, run_id="something")
-        ti.dag_run = DagRun(
-            dag_id=dag.dag_id,
-            run_id="something",
-            execution_date=timezone.datetime(2020, 1, 1),
-            run_type=DagRunType.MANUAL,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            ti.dag_run = DagRun(
+                dag_id=dag.dag_id,
+                run_id="something",
+                logical_date=timezone.datetime(2020, 1, 1),
+                run_type=DagRunType.MANUAL,
+            )
+        else:
+            ti.dag_run = DagRun(
+                dag_id=dag.dag_id,
+                run_id="something",
+                execution_date=timezone.datetime(2020, 1, 1),
+                run_type=DagRunType.MANUAL,
+            )
         session.add(ti)
         session.commit()
         ti.render_templates()

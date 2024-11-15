@@ -111,7 +111,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         lazy="joined",
         passive_deletes="all",
     )
-    execution_date = association_proxy("dag_run", "execution_date")
+    logical_date = association_proxy("dag_run", "logical_date")
 
     @reconstructor
     def init_on_load(self):
@@ -374,12 +374,12 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             query = query.filter(BaseXCom.map_index == map_indexes)
 
         if include_prior_dates:
-            dr = session.query(DagRun.execution_date).filter(DagRun.run_id == run_id).subquery()
-            query = query.filter(BaseXCom.execution_date <= dr.c.execution_date)
+            dr = session.query(DagRun.logical_date).filter(DagRun.run_id == run_id).subquery()
+            query = query.filter(BaseXCom.logical_date <= dr.c.logical_date)
         else:
             query = query.filter(BaseXCom.run_id == run_id)
 
-        query = query.order_by(DagRun.execution_date.desc(), BaseXCom.timestamp.desc())
+        query = query.order_by(DagRun.logical_date.desc(), BaseXCom.timestamp.desc())
         if limit:
             return query.limit(limit)
         return query
@@ -424,7 +424,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
-        # Given the historic order of this function (execution_date was first argument) to add a new optional
+        # Given the historic order of this function (logical_date was first argument) to add a new optional
         # param we need to add default values for everything :(
         if dag_id is None:
             raise TypeError("clear() missing required argument: dag_id")

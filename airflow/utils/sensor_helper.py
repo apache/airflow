@@ -40,7 +40,7 @@ def _get_count(
     """
     Get the count of records against dttm filter and states.
 
-    :param dttm_filter: date time filter for execution date
+    :param dttm_filter: date time filter for logical date
     :param external_task_ids: The list of task_ids
     :param external_task_group_id: The ID of the external task group
     :param external_dag_id: The ID of the external DAG.
@@ -85,12 +85,12 @@ def _count_query(model, states, dttm_filter, external_dag_id, session: Session) 
 
     :param model: The SQLAlchemy model representing the relevant table.
     :param states: task or dag states
-    :param dttm_filter: date time filter for execution date
+    :param dttm_filter: date time filter for logical date
     :param external_dag_id: The ID of the external DAG.
     :param session: airflow session object
     """
     query = select(func.count()).filter(
-        model.dag_id == external_dag_id, model.state.in_(states), model.execution_date.in_(dttm_filter)
+        model.dag_id == external_dag_id, model.state.in_(states), model.logical_date.in_(dttm_filter)
     )
     return query
 
@@ -99,7 +99,7 @@ def _get_external_task_group_task_ids(dttm_filter, external_task_group_id, exter
     """
     Get the count of records against dttm filter and states.
 
-    :param dttm_filter: date time filter for execution date
+    :param dttm_filter: date time filter for logical date
     :param external_task_group_id: The ID of the external task group
     :param external_dag_id: The ID of the external DAG.
     :param session: airflow session object
@@ -112,7 +112,7 @@ def _get_external_task_group_task_ids(dttm_filter, external_task_group_id, exter
             select(TaskInstance).filter(
                 TaskInstance.dag_id == external_dag_id,
                 TaskInstance.task_id.in_(task.task_id for task in task_group),
-                TaskInstance.execution_date.in_(dttm_filter),
+                TaskInstance.logical_date.in_(dttm_filter),
             )
         )
 

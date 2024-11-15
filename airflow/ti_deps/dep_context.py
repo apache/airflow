@@ -89,7 +89,7 @@ class DepContext:
         Ensure finished_tis is populated if it's currently None, which allows running tasks without dag_run.
 
          :param dag_run: The DagRun for which to find finished tasks
-         :return: A list of all the finished tasks of this DAG and execution_date
+         :return: A list of all the finished tasks of this DAG and logical_date
         """
         if self.finished_tis is None:
             finished_tis = dag_run.get_task_instances(state=State.finished, session=session)

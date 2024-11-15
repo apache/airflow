@@ -522,7 +522,7 @@ class TestGetAssetEvents(TestAssetEndpoint):
             dag_id="TEST_DAG_ID",
             run_id="TEST_DAG_RUN_ID",
             run_type=DagRunType.ASSET_TRIGGERED,
-            execution_date=timezone.parse(self.default_time),
+            logical_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             external_trigger=True,
             state="success",
@@ -604,7 +604,7 @@ class TestPostAssetEvents(TestAssetEndpoint):
             session,
             dag_id=None,
             event="api.create_asset_event",
-            execution_date=None,
+            logical_date=None,
             expected_extra=event_payload,
         )
 
@@ -622,7 +622,7 @@ class TestPostAssetEvents(TestAssetEndpoint):
             session,
             dag_id=None,
             event="api.create_asset_event",
-            execution_date=None,
+            logical_date=None,
             expected_extra=expected_extra,
         )
 

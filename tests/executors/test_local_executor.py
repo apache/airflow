@@ -78,14 +78,14 @@ class TestLocalExecutor:
         success_key = "success {}"
         assert executor.result_queue.empty()
 
-        execution_date = datetime.datetime.now()
+        logical_date = datetime.datetime.now()
         for i in range(self.TEST_SUCCESS_COMMANDS):
             key_id, command = success_key.format(i), success_command
-            key = key_id, "fake_ti", execution_date, 0
+            key = key_id, "fake_ti", logical_date, 0
             executor.running.add(key)
             executor.execute_async(key=key, command=command)
 
-        fail_key = "fail", "fake_ti", execution_date, 0
+        fail_key = "fail", "fake_ti", logical_date, 0
         executor.running.add(fail_key)
         executor.execute_async(key=fail_key, command=fail_command)
 
@@ -95,7 +95,7 @@ class TestLocalExecutor:
 
         for i in range(self.TEST_SUCCESS_COMMANDS):
             key_id = success_key.format(i)
-            key = key_id, "fake_ti", execution_date, 0
+            key = key_id, "fake_ti", logical_date, 0
             assert executor.event_buffer[key][0] == State.SUCCESS
         assert executor.event_buffer[fail_key][0] == State.FAILED
 

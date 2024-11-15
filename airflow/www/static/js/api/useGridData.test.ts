@@ -24,7 +24,7 @@ import { areActiveRuns } from "./useGridData";
 
 const commonDagRunParams = {
   runId: "runId",
-  executionDate: "2022-01-01T10:00+00:00",
+  logicalDate: "2022-01-01T10:00+00:00",
   dataIntervalStart: "2022-01-01T05:00+00:00",
   dataIntervalEnd: "2022-01-01T10:00+00:00",
   runType: "scheduled" as DagRun["runType"],

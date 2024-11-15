@@ -170,8 +170,8 @@ EXPECTED_JSON = {
 
 
 def test_build_task_group_context_manager():
-    execution_date = pendulum.parse("20200101")
-    with DAG("test_build_task_group_context_manager", schedule=None, start_date=execution_date) as dag:
+    logical_date = pendulum.parse("20200101")
+    with DAG("test_build_task_group_context_manager", schedule=None, start_date=logical_date) as dag:
         task1 = EmptyOperator(task_id="task1")
         with TaskGroup("group234") as group234:
             _ = EmptyOperator(task_id="task2")
@@ -207,8 +207,8 @@ def test_build_task_group():
     This is an alternative syntax to use TaskGroup. It should result in the same TaskGroup
     as using context manager.
     """
-    execution_date = pendulum.parse("20200101")
-    dag = DAG("test_build_task_group", schedule=None, start_date=execution_date)
+    logical_date = pendulum.parse("20200101")
+    dag = DAG("test_build_task_group", schedule=None, start_date=logical_date)
     task1 = EmptyOperator(task_id="task1", dag=dag)
     group234 = TaskGroup("group234", dag=dag)
     _ = EmptyOperator(task_id="task2", dag=dag, task_group=group234)
@@ -241,8 +241,8 @@ def test_build_task_group_with_prefix():
     """
     Tests that prefix_group_id turns on/off prefixing of task_id with group_id.
     """
-    execution_date = pendulum.parse("20200101")
-    with DAG("test_build_task_group_with_prefix", schedule=None, start_date=execution_date) as dag:
+    logical_date = pendulum.parse("20200101")
+    with DAG("test_build_task_group_with_prefix", schedule=None, start_date=logical_date) as dag:
         task1 = EmptyOperator(task_id="task1")
         with TaskGroup("group234", prefix_group_id=False) as group234:
             task2 = EmptyOperator(task_id="task2")
@@ -324,8 +324,8 @@ def test_build_task_group_with_task_decorator():
     def task_5():
         print("task_5")
 
-    execution_date = pendulum.parse("20200101")
-    with DAG("test_build_task_group_with_task_decorator", schedule=None, start_date=execution_date) as dag:
+    logical_date = pendulum.parse("20200101")
+    with DAG("test_build_task_group_with_task_decorator", schedule=None, start_date=logical_date) as dag:
         tsk_1 = task_1()
 
         with TaskGroup("group234") as group234:
@@ -375,8 +375,8 @@ def test_sub_dag_task_group():
     """
     Tests dag.partial_subset() updates task_group correctly.
     """
-    execution_date = pendulum.parse("20200101")
-    with DAG("test_test_task_group_sub_dag", schedule=None, start_date=execution_date) as dag:
+    logical_date = pendulum.parse("20200101")
+    with DAG("test_test_task_group_sub_dag", schedule=None, start_date=logical_date) as dag:
         task1 = EmptyOperator(task_id="task1")
         with TaskGroup("group234") as group234:
             _ = EmptyOperator(task_id="task2")
@@ -448,8 +448,8 @@ def test_sub_dag_task_group():
 
 
 def test_dag_edges():
-    execution_date = pendulum.parse("20200101")
-    with DAG("test_dag_edges", schedule=None, start_date=execution_date) as dag:
+    logical_date = pendulum.parse("20200101")
+    with DAG("test_dag_edges", schedule=None, start_date=logical_date) as dag:
         task1 = EmptyOperator(task_id="task1")
         with TaskGroup("group_a") as group_a:
             with TaskGroup("group_b") as group_b:
@@ -557,8 +557,8 @@ def test_dag_edges():
 
 
 def test_dag_edges_setup_teardown():
-    execution_date = pendulum.parse("20200101")
-    with DAG("test_dag_edges", schedule=None, start_date=execution_date) as dag:
+    logical_date = pendulum.parse("20200101")
+    with DAG("test_dag_edges", schedule=None, start_date=logical_date) as dag:
         setup1 = EmptyOperator(task_id="setup1").as_setup()
         teardown1 = EmptyOperator(task_id="teardown1").as_teardown()
 
@@ -589,9 +589,9 @@ def test_dag_edges_setup_teardown_nested():
     from airflow.models.dag import DAG
     from airflow.operators.empty import EmptyOperator
 
-    execution_date = pendulum.parse("20200101")
+    logical_date = pendulum.parse("20200101")
 
-    with DAG(dag_id="s_t_dag", schedule=None, start_date=execution_date) as dag:
+    with DAG(dag_id="s_t_dag", schedule=None, start_date=logical_date) as dag:
 
         @task
         def test_task():
@@ -634,31 +634,31 @@ def test_dag_edges_setup_teardown_nested():
 def test_duplicate_group_id():
     from airflow.exceptions import DuplicateTaskIdFound
 
-    execution_date = pendulum.parse("20200101")
+    logical_date = pendulum.parse("20200101")
 
-    with DAG("test_duplicate_group_id", schedule=None, start_date=execution_date):
+    with DAG("test_duplicate_group_id", schedule=None, start_date=logical_date):
         _ = EmptyOperator(task_id="task1")
         with pytest.raises(DuplicateTaskIdFound, match=r".* 'task1' .*"), TaskGroup("task1"):
             pass
 
-    with DAG("test_duplicate_group_id", schedule=None, start_date=execution_date):
+    with DAG("test_duplicate_group_id", schedule=None, start_date=logical_date):
         _ = EmptyOperator(task_id="task1")
         with TaskGroup("group1", prefix_group_id=False):
             with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"), TaskGroup("group1"):
                 pass
 
-    with DAG("test_duplicate_group_id", schedule=None, start_date=execution_date):
+    with DAG("test_duplicate_group_id", schedule=None, start_date=logical_date):
         with TaskGroup("group1", prefix_group_id=False):
             with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1' .*"):
                 _ = EmptyOperator(task_id="group1")
 
-    with DAG("test_duplicate_group_id", schedule=None, start_date=execution_date):
+    with DAG("test_duplicate_group_id", schedule=None, start_date=logical_date):
         _ = EmptyOperator(task_id="task1")
         with TaskGroup("group1"):
             with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1.downstream_join_id' .*"):
                 _ = EmptyOperator(task_id="downstream_join_id")
 
-    with DAG("test_duplicate_group_id", schedule=None, start_date=execution_date):
+    with DAG("test_duplicate_group_id", schedule=None, start_date=logical_date):
         _ = EmptyOperator(task_id="task1")
         with TaskGroup("group1"):
             with pytest.raises(DuplicateTaskIdFound, match=r".* 'group1.upstream_join_id' .*"):
@@ -740,11 +740,11 @@ def test_build_task_group_deco_context_manager():
         op1 = task_2(task_1(value))
         return section_2(op1)
 
-    execution_date = pendulum.parse("20201109")
+    logical_date = pendulum.parse("20201109")
     with DAG(
         dag_id="example_nested_task_group_decorator",
         schedule=None,
-        start_date=execution_date,
+        start_date=logical_date,
         tags=["example"],
     ) as dag:
         t_start = task_start()
@@ -861,11 +861,11 @@ def test_build_task_group_with_operators():
         """TaskGroup for grouping related Tasks"""
         return task_3(task_2(task_1(value)))
 
-    execution_date = pendulum.parse("20201109")
+    logical_date = pendulum.parse("20201109")
     with DAG(
         dag_id="example_task_group_decorator_mix",
         schedule=None,
-        start_date=execution_date,
+        start_date=logical_date,
         tags=["example"],
     ) as dag:
         t_start = PythonOperator(task_id="task_start", python_callable=task_start, dag=dag)
@@ -921,11 +921,11 @@ def test_task_group_context_mix():
         """TaskGroup for grouping related Tasks"""
         return task_3(task_2(task_1(value)))
 
-    execution_date = pendulum.parse("20201109")
+    logical_date = pendulum.parse("20201109")
     with DAG(
         dag_id="example_task_group_decorator_mix",
         schedule=None,
-        start_date=execution_date,
+        start_date=logical_date,
         tags=["example"],
     ) as dag:
         t_start = PythonOperator(task_id="task_start", python_callable=task_start, dag=dag)
@@ -974,11 +974,11 @@ def test_task_group_context_mix():
 def test_default_args():
     """Testing TaskGroup with default_args"""
 
-    execution_date = pendulum.parse("20201109")
+    logical_date = pendulum.parse("20201109")
     with DAG(
         dag_id="example_task_group_default_args",
         schedule=None,
-        start_date=execution_date,
+        start_date=logical_date,
         default_args={"owner": "dag"},
     ):
         with TaskGroup("group1", default_args={"owner": "group"}):
@@ -1036,11 +1036,11 @@ def test_duplicate_task_group_id():
     def task_group3():
         task_end()
 
-    execution_date = pendulum.parse("20201109")
+    logical_date = pendulum.parse("20201109")
     with DAG(
         dag_id="example_duplicate_task_group_id",
         schedule=None,
-        start_date=execution_date,
+        start_date=logical_date,
         tags=["example"],
     ) as dag:
         task_group1()
@@ -1092,11 +1092,11 @@ def test_call_taskgroup_twice():
         task_1()
         task_end()
 
-    execution_date = pendulum.parse("20201109")
+    logical_date = pendulum.parse("20201109")
     with DAG(
         dag_id="example_multi_call_task_groups",
         schedule=None,
-        start_date=execution_date,
+        start_date=logical_date,
         tags=["example"],
     ) as dag:
         task_group1("Call1")
@@ -1255,8 +1255,8 @@ def test_topological_sort2():
 
 
 def test_topological_nested_groups():
-    execution_date = pendulum.parse("20200101")
-    with DAG("test_dag_edges", schedule=None, start_date=execution_date) as dag:
+    logical_date = pendulum.parse("20200101")
+    with DAG("test_dag_edges", schedule=None, start_date=logical_date) as dag:
         task1 = EmptyOperator(task_id="task1")
         task5 = EmptyOperator(task_id="task5")
         with TaskGroup("group_a") as group_a:
@@ -1290,8 +1290,8 @@ def test_topological_nested_groups():
 
 
 def test_hierarchical_alphabetical_sort():
-    execution_date = pendulum.parse("20200101")
-    with DAG("test_dag_edges", schedule=None, start_date=execution_date) as dag:
+    logical_date = pendulum.parse("20200101")
+    with DAG("test_dag_edges", schedule=None, start_date=logical_date) as dag:
         task1 = EmptyOperator(task_id="task1")
         task5 = EmptyOperator(task_id="task5")
         with TaskGroup("group_c"):
@@ -1332,8 +1332,8 @@ def test_hierarchical_alphabetical_sort():
 
 
 def test_topological_group_dep():
-    execution_date = pendulum.parse("20200101")
-    with DAG("test_dag_edges", schedule=None, start_date=execution_date) as dag:
+    logical_date = pendulum.parse("20200101")
+    with DAG("test_dag_edges", schedule=None, start_date=logical_date) as dag:
         task1 = EmptyOperator(task_id="task1")
         task6 = EmptyOperator(task_id="task6")
         with TaskGroup("group_a") as group_a:

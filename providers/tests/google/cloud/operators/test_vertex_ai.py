@@ -94,7 +94,6 @@ from airflow.providers.google.cloud.triggers.vertex_ai import (
     CustomTrainingJobTrigger,
     RunPipelineJobTrigger,
 )
-from airflow.utils import timezone
 
 VERTEX_AI_PATH = "airflow.providers.google.cloud.operators.vertex_ai.{}"
 VERTEX_AI_LINKS_PATH = "airflow.providers.google.cloud.links.vertex_ai.{}"
@@ -1228,7 +1227,6 @@ class TestVertexAIDeleteCustomTrainingJobOperator:
             # Other parameters
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         session.add(ti)
         session.commit()
@@ -2047,7 +2045,6 @@ class TestVertexAIDeleteAutoMLTrainingJobOperator:
             # Other parameters
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         session.add(ti)
         session.commit()

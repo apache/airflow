@@ -438,16 +438,16 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
     :param max_retry_delay: maximum delay interval between retries, can be set as
         ``timedelta`` or ``float`` seconds, which will be converted into ``timedelta``.
     :param start_date: The ``start_date`` for the task, determines
-        the ``execution_date`` for the first task instance. The best practice
+        the ``logical_date`` for the first task instance. The best practice
         is to have the start_date rounded
         to your DAG's schedule. Daily jobs have their start_date
         some day at 00:00:00, hourly jobs have their start_date at 00:00
         of a specific hour. Note that Airflow simply looks at the latest
-        ``execution_date`` and adds the schedule to determine
-        the next ``execution_date``. It is also very important
+        ``logical_date`` and adds the schedule to determine
+        the next ``logical_date``. It is also very important
         to note that different tasks' dependencies
         need to line up in time. If task A depends on task B and their
-        start_date are offset in a way that their execution_date don't line
+        start_date are offset in a way that their logical_date don't line
         up, A's dependencies will never be met. If you are looking to delay
         a task, for example running a daily task at 2AM, look into the
         ``TimeSensor`` and ``TimeDeltaSensor``. We advise against using
@@ -552,7 +552,7 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
         Resources constructor) to their values.
     :param run_as_user: unix username to impersonate while running the task
     :param max_active_tis_per_dag: When set, a task will be able to limit the concurrent
-        runs across execution_dates.
+        runs across logical_dates.
     :param max_active_tis_per_dagrun: When set, a task will be able to limit the concurrent
         task instances per DAG run.
     :param executor: Which executor to target when running this task. NOT YET SUPPORTED
@@ -772,9 +772,9 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
         qry = select(TaskInstance).where(TaskInstance.dag_id == self.dag_id)
 
         if start_date:
-            qry = qry.where(TaskInstance.execution_date >= start_date)
+            qry = qry.where(TaskInstance.logical_date >= start_date)
         if end_date:
-            qry = qry.where(TaskInstance.execution_date <= end_date)
+            qry = qry.where(TaskInstance.logical_date <= end_date)
 
         tasks = [self.task_id]
 
@@ -814,10 +814,10 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
             .where(TaskInstance.task_id == self.task_id)
         )
         if start_date:
-            query = query.where(DagRun.execution_date >= start_date)
+            query = query.where(DagRun.logical_date >= start_date)
         if end_date:
-            query = query.where(DagRun.execution_date <= end_date)
-        return session.scalars(query.order_by(DagRun.execution_date)).all()
+            query = query.where(DagRun.logical_date <= end_date)
+        return session.scalars(query.order_by(DagRun.logical_date)).all()
 
     @provide_session
     def run(
@@ -853,7 +853,7 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
                 dag_run = session.scalars(
                     select(DagRun).where(
                         DagRun.dag_id == self.dag_id,
-                        DagRun.execution_date == info.logical_date,
+                        DagRun.logical_date == info.logical_date,
                     )
                 ).one()
                 ti = TaskInstance(self, run_id=dag_run.run_id)
@@ -863,7 +863,7 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
                     dag_id=self.dag_id,
                     run_id=DagRun.generate_run_id(DagRunType.MANUAL, info.logical_date),
                     run_type=DagRunType.MANUAL,
-                    execution_date=info.logical_date,
+                    logical_date=info.logical_date,
                     data_interval=info.data_interval,
                     triggered_by=DagRunTriggeredByType.TEST,
                 )
@@ -953,7 +953,7 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
         :param dag_id: If provided, only pulls XComs from this DAG.
             If None (default), the DAG of the calling task is used.
         :param include_prior_dates: If False, only XComs from the current
-            execution_date are returned. If True, XComs from previous dates
+            logical_date are returned. If True, XComs from previous dates
             are returned as well.
         """
         return context["ti"].xcom_pull(

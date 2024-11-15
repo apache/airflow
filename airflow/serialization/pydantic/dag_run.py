@@ -40,7 +40,7 @@ class DagRunPydantic(BaseModelPydantic):
     id: int
     dag_id: str
     queued_at: Optional[datetime]
-    execution_date: datetime
+    logical_date: datetime
     start_date: Optional[datetime]
     end_date: Optional[datetime]
     state: str
@@ -60,10 +60,6 @@ class DagRunPydantic(BaseModelPydantic):
     triggered_by: Optional[DagRunTriggeredByType]
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
-
-    @property
-    def logical_date(self) -> datetime:
-        return self.execution_date
 
     def get_task_instances(
         self,

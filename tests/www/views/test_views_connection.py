@@ -61,7 +61,7 @@ def _clear_connections():
 def test_create_connection(admin_client, session):
     resp = admin_client.post("/connection/add", data=CONNECTION, follow_redirects=True)
     check_content_in_response("Added Row", resp)
-    _check_last_log(session, dag_id=None, event="connection.create", execution_date=None)
+    _check_last_log(session, dag_id=None, event="connection.create", logical_date=None)
 
 
 def test_connection_id_trailing_blanks(admin_client, session):
@@ -108,7 +108,7 @@ def test_all_fields_with_blanks(admin_client, session):
 @pytest.mark.enable_redact
 def test_action_logging_connection_masked_secrets(session, admin_client):
     admin_client.post("/connection/add", data=conn_with_extra(), follow_redirects=True)
-    _check_last_log_masked_connection(session, dag_id=None, event="connection.create", execution_date=None)
+    _check_last_log_masked_connection(session, dag_id=None, event="connection.create", logical_date=None)
 
 
 def test_prefill_form_null_extra():

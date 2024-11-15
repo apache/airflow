@@ -458,7 +458,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         dr = self.dag_non_serialized.create_dagrun(
             run_id=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=self.dag_non_serialized.timetable.infer_manual_data_interval(
                 run_after=DEFAULT_DATE
@@ -523,7 +523,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         dr = self.dag_non_serialized.create_dagrun(
             run_id=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=self.dag_non_serialized.timetable.infer_manual_data_interval(
                 run_after=DEFAULT_DATE

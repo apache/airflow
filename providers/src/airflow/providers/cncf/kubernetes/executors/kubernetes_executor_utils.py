@@ -28,6 +28,7 @@ from kubernetes.client.rest import ApiException
 from urllib3.exceptions import ReadTimeoutError
 
 from airflow.exceptions import AirflowException
+from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
     ALL_NAMESPACES,
@@ -150,6 +151,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         kwargs["_request_timeout"] = client_timeout
         kwargs["timeout_seconds"] = server_conn_timeout
 
+        logical_date_key = get_logical_date_key()
         for event in self._pod_events(kube_client=kube_client, query_kwargs=kwargs):
             task = event["object"]
             self.log.debug("Event: %s had an event of type %s", task.metadata.name, event["type"])
@@ -159,7 +161,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             task_instance_related_annotations = {
                 "dag_id": annotations["dag_id"],
                 "task_id": annotations["task_id"],
-                "execution_date": annotations.get("execution_date"),
+                logical_date_key: annotations.get(logical_date_key),
                 "run_id": annotations.get("run_id"),
                 "try_number": annotations["try_number"],
             }

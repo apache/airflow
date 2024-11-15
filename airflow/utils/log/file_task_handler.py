@@ -315,7 +315,7 @@ class FileTaskHandler(logging.Handler):
                 run_id=ti.run_id,
                 data_interval_start=data_interval_start,
                 data_interval_end=data_interval_end,
-                execution_date=ti.get_dagrun().logical_date.isoformat(),
+                logical_date=ti.get_dagrun().logical_date.isoformat(),
                 try_number=try_number,
             )
         else:

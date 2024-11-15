@@ -68,7 +68,7 @@ class TestEventLogsEndpoint:
             dag_id=DAG_ID,
             task_id=TASK_ID,
             run_id=DAG_RUN_ID,
-            execution_date=DAG_EXECUTION_DATE,
+            logical_date=DAG_EXECUTION_DATE,
         )
         normal_log = Log(
             event=EVENT_NORMAL,
@@ -167,8 +167,8 @@ class TestGetEventLog(TestEventLogsEndpoint):
             "map_index": event_log.map_index,
             "try_number": event_log.try_number,
             "event": expected_body.get("event"),
-            "logical_date": event_log.execution_date.isoformat().replace("+00:00", "Z")
-            if event_log.execution_date
+            "logical_date": event_log.logical_date.isoformat().replace("+00:00", "Z")
+            if event_log.logical_date
             else None,
             "owner": expected_body.get("owner"),
             "extra": expected_body.get("extra"),
@@ -267,7 +267,7 @@ class TestGetEventLogs(TestEventLogsEndpoint):
                 [EVENT_WITH_OWNER_AND_TASK_INSTANCE, TASK_INSTANCE_EVENT, EVENT_WITH_OWNER, EVENT_NORMAL],
             ),
             (
-                {"order_by": "execution_date"},
+                {"order_by": "logical_date"},
                 200,
                 4,
                 [TASK_INSTANCE_EVENT, EVENT_WITH_OWNER_AND_TASK_INSTANCE, EVENT_NORMAL, EVENT_WITH_OWNER],

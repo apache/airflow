@@ -44,7 +44,7 @@ class BranchDateTimeOperator(BaseBranchOperator):
     :param target_lower: target lower bound.
     :param target_upper: target upper bound.
     :param use_task_logical_date: If ``True``, uses task's logical date to compare with targets.
-        Execution date is useful for backfilling. If ``False``, uses system's date.
+        Logical date is useful for backfilling. If ``False``, uses system's date.
     """
 
     def __init__(

@@ -48,7 +48,7 @@ class HttpSensor(BaseSensorOperator):
 
         def response_check(response, task_instance):
             # The task_instance is injected, so you can pull data form xcom
-            # Other context variables such as dag, ds, execution_date are also available.
+            # Other context variables such as dag, ds, logical_date are also available.
             xcom_data = task_instance.xcom_pull(task_ids="pushing_task")
             # In practice you would do something more sensible with this data..
             print(xcom_data)

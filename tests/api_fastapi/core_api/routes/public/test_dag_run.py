@@ -86,7 +86,7 @@ def setup(dag_maker, session=None):
         state=DAG1_RUN2_STATE,
         run_type=DAG1_RUN2_RUN_TYPE,
         triggered_by=DAG1_RUN2_TRIGGERED_BY,
-        execution_date=EXECUTION_DATE,
+        logical_date=EXECUTION_DATE,
     )
 
     with dag_maker(
@@ -100,14 +100,14 @@ def setup(dag_maker, session=None):
         state=DAG2_RUN1_STATE,
         run_type=DAG2_RUN1_RUN_TYPE,
         triggered_by=DAG2_RUN1_TRIGGERED_BY,
-        execution_date=EXECUTION_DATE,
+        logical_date=EXECUTION_DATE,
     )
     dag_maker.create_dagrun(
         run_id=DAG2_RUN2_ID,
         state=DAG2_RUN2_STATE,
         run_type=DAG2_RUN2_RUN_TYPE,
         triggered_by=DAG2_RUN2_TRIGGERED_BY,
-        execution_date=EXECUTION_DATE,
+        logical_date=EXECUTION_DATE,
     )
 
     dag_maker.dagbag.sync_to_db()

@@ -160,7 +160,7 @@ class StandardTaskRunner(LoggingMixin):
             self.log.info("Running: %s", self._command)
             self.log.info("Subtask %s", self._task_instance.task_id)
 
-            proc_title = "airflow task runner: {0.dag_id} {0.task_id} {0.execution_date_or_run_id}"
+            proc_title = "airflow task runner: {0.dag_id} {0.task_id} {0.logical_date_or_run_id}"
             setproctitle(proc_title.format(args))
             return_code = 0
             try:

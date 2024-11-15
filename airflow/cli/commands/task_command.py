@@ -114,43 +114,43 @@ def _get_dag_run(
     """
     if not exec_date_or_run_id and not create_if_necessary:
         raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
-    execution_date: pendulum.DateTime | None = None
+    logical_date: pendulum.DateTime | None = None
     if exec_date_or_run_id:
         dag_run = DAG.fetch_dagrun(dag_id=dag.dag_id, run_id=exec_date_or_run_id, session=session)
         if dag_run:
             return dag_run, False
         with suppress(ParserError, TypeError):
-            execution_date = timezone.parse(exec_date_or_run_id)
-        if execution_date:
-            dag_run = DAG.fetch_dagrun(dag_id=dag.dag_id, execution_date=execution_date, session=session)
+            logical_date = timezone.parse(exec_date_or_run_id)
+        if logical_date:
+            dag_run = DAG.fetch_dagrun(dag_id=dag.dag_id, logical_date=logical_date, session=session)
         if dag_run:
             return dag_run, False
         elif not create_if_necessary:
             raise DagRunNotFound(
-                f"DagRun for {dag.dag_id} with run_id or execution_date "
+                f"DagRun for {dag.dag_id} with run_id or logical_date "
                 f"of {exec_date_or_run_id!r} not found"
             )
 
-    if execution_date is not None:
-        dag_run_execution_date = execution_date
+    if logical_date is not None:
+        dag_run_logical_date = logical_date
     else:
-        dag_run_execution_date = pendulum.instance(timezone.utcnow())
+        dag_run_logical_date = pendulum.instance(timezone.utcnow())
 
     if create_if_necessary == "memory":
         dag_run = DagRun(
             dag_id=dag.dag_id,
             run_id=exec_date_or_run_id,
-            execution_date=dag_run_execution_date,
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_execution_date),
+            logical_date=dag_run_logical_date,
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date),
             triggered_by=DagRunTriggeredByType.CLI,
         )
         return dag_run, True
     elif create_if_necessary == "db":
         dag_run = dag.create_dagrun(
             state=DagRunState.QUEUED,
-            execution_date=dag_run_execution_date,
+            logical_date=dag_run_logical_date,
             run_id=_generate_temporary_run_id(),
-            data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_execution_date),
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date),
             session=session,
             triggered_by=DagRunTriggeredByType.CLI,
         )
@@ -165,7 +165,7 @@ def _get_ti_db_access(
     task: Operator,
     map_index: int,
     *,
-    exec_date_or_run_id: str | None = None,
+    logical_date_or_run_id: str | None = None,
     pool: str | None = None,
     create_if_necessary: CreateIfNecessary = False,
     session: Session = NEW_SESSION,
@@ -177,7 +177,7 @@ def _get_ti_db_access(
     if task.task_id not in dag.task_dict:
         raise ValueError(f"Provided task {task.task_id} is not in dag '{dag.dag_id}.")
 
-    if not exec_date_or_run_id and not create_if_necessary:
+    if not logical_date_or_run_id and not create_if_necessary:
         raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
     if task.get_needs_expansion():
         if map_index < 0:
@@ -186,7 +186,7 @@ def _get_ti_db_access(
         raise RuntimeError("map_index passed to non-mapped task")
     dag_run, dr_created = _get_dag_run(
         dag=dag,
-        exec_date_or_run_id=exec_date_or_run_id,
+        exec_date_or_run_id=logical_date_or_run_id,
         create_if_necessary=create_if_necessary,
         session=session,
     )
@@ -197,7 +197,7 @@ def _get_ti_db_access(
         if not create_if_necessary:
             raise TaskInstanceNotFound(
                 f"TaskInstance for {dag.dag_id}, {task.task_id}, map={map_index} with "
-                f"run_id or execution_date of {exec_date_or_run_id!r} not found"
+                f"run_id or logical_date of {logical_date_or_run_id!r} not found"
             )
         # TODO: Validate map_index is in range?
         ti = TaskInstance(task, run_id=dag_run.run_id, map_index=map_index)
@@ -214,7 +214,7 @@ def _get_ti(
     task: Operator,
     map_index: int,
     *,
-    exec_date_or_run_id: str | None = None,
+    logical_date_or_run_id: str | None = None,
     pool: str | None = None,
     create_if_necessary: CreateIfNecessary = False,
 ):
@@ -226,7 +226,7 @@ def _get_ti(
         dag=dag,
         task=task,
         map_index=map_index,
-        exec_date_or_run_id=exec_date_or_run_id,
+        logical_date_or_run_id=logical_date_or_run_id,
         pool=pool,
         create_if_necessary=create_if_necessary,
     )
@@ -438,7 +438,7 @@ def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
     else:
         _dag = dag
     task = _dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, pool=args.pool)
+    ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id, pool=args.pool)
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
@@ -487,7 +487,7 @@ def task_failed_deps(args) -> None:
     """
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id)
+    ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
     # tasks_failed-deps is executed with access to the database.
     if isinstance(ti, TaskInstancePydantic):
         raise ValueError("not a TaskInstance")
@@ -514,7 +514,7 @@ def task_state(args) -> None:
     """
     dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id)
+    ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id)
     # task_state is executed with access to the database.
     if isinstance(ti, TaskInstancePydantic):
         raise ValueError("not a TaskInstance")
@@ -572,20 +572,20 @@ def _guess_debugger() -> _SupportedDebugger:
 def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
     """Get the status of all task instances in a DagRun."""
     dag_run = session.scalar(
-        select(DagRun).where(DagRun.run_id == args.execution_date_or_run_id, DagRun.dag_id == args.dag_id)
+        select(DagRun).where(DagRun.run_id == args.logical_date_or_run_id, DagRun.dag_id == args.dag_id)
     )
     if not dag_run:
         try:
-            execution_date = timezone.parse(args.execution_date_or_run_id)
+            logical_date = timezone.parse(args.logical_date_or_run_id)
             dag_run = session.scalar(
-                select(DagRun).where(DagRun.execution_date == execution_date, DagRun.dag_id == args.dag_id)
+                select(DagRun).where(DagRun.logical_date == logical_date, DagRun.dag_id == args.dag_id)
             )
         except (ParserError, TypeError) as err:
-            raise AirflowException(f"Error parsing the supplied execution_date. Error: {err}")
+            raise AirflowException(f"Error parsing the supplied logical_date. Error: {err}")
 
     if dag_run is None:
         raise DagRunNotFound(
-            f"DagRun for {args.dag_id} with run_id or execution_date of {args.execution_date_or_run_id!r} "
+            f"DagRun for {args.dag_id} with run_id or logical_date of {args.logical_date_or_run_id!r} "
             "not found"
         )
 
@@ -594,7 +594,7 @@ def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
     def format_task_instance(ti: TaskInstance) -> dict[str, str]:
         data = {
             "dag_id": ti.dag_id,
-            "execution_date": dag_run.execution_date.isoformat(),
+            "logical_date": dag_run.logical_date.isoformat(),
             "task_id": ti.task_id,
             "state": ti.state,
             "start_date": ti.start_date.isoformat() if ti.start_date else "",
@@ -643,7 +643,7 @@ def task_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> N
         task.params.validate()
 
     ti, dr_created = _get_ti(
-        task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, create_if_necessary="db"
+        task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id, create_if_necessary="db"
     )
     # task_test is executed with access to the database.
     if isinstance(ti, TaskInstancePydantic):
@@ -694,7 +694,7 @@ def task_render(args, dag: DAG | None = None) -> None:
         dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(
-        task, args.map_index, exec_date_or_run_id=args.execution_date_or_run_id, create_if_necessary="memory"
+        task, args.map_index, logical_date_or_run_id=args.logical_date_or_run_id, create_if_necessary="memory"
     )
     # task_render is executed with access to the database.
     if isinstance(ti, TaskInstancePydantic):

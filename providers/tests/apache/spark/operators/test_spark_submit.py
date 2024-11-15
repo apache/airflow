@@ -27,6 +27,8 @@ from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOpe
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
@@ -193,12 +195,20 @@ class TestSparkSubmitOperator:
         # Given
         operator = SparkSubmitOperator(task_id="spark_submit_job", dag=self.dag, **self._config)
         ti = TaskInstance(operator, run_id="spark_test")
-        ti.dag_run = DagRun(
-            dag_id=self.dag.dag_id,
-            run_id="spark_test",
-            execution_date=DEFAULT_DATE,
-            run_type=DagRunType.MANUAL,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            ti.dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                run_id="spark_test",
+                logical_date=DEFAULT_DATE,
+                run_type=DagRunType.MANUAL,
+            )
+        else:
+            ti.dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                run_id="spark_test",
+                execution_date=DEFAULT_DATE,
+                run_type=DagRunType.MANUAL,
+            )
         session.add(ti)
         session.commit()
         # When
@@ -246,7 +256,6 @@ class TestSparkSubmitOperator:
             # Other parameters
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         session.add(ti)
         session.commit()

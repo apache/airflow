@@ -79,7 +79,7 @@ def get_event_logs(
                     "task_id",
                     "run_id",
                     "event",
-                    "execution_date",  # logical_date
+                    "logical_date",
                     "owner",
                     "extra",
                 ],

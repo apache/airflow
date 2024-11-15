@@ -66,7 +66,7 @@ class EcsBaseTestCase:
             operator_class,
             dag_id=self.dag_id,
             task_id=self.task_id,
-            execution_date=timezone.datetime(2021, 12, 21),
+            logical_date=timezone.datetime(2021, 12, 21),
             **kwargs,
         )
         self.session.add(ti)

@@ -98,7 +98,7 @@ class TestDotRenderer:
             task_1 >> task_2
             task_1 >> task_3
 
-        tis = {ti.task_id: ti for ti in dag_maker.create_dagrun(execution_date=START_DATE).task_instances}
+        tis = {ti.task_id: ti for ti in dag_maker.create_dagrun(logical_date=START_DATE).task_instances}
         tis["first"].state = State.SCHEDULED
         tis["second"].state = State.SUCCESS
         tis["third"].state = State.RUNNING
@@ -142,7 +142,7 @@ class TestDotRenderer:
             task_1 >> task_2
             task_1 >> task_3
 
-        tis = dag_maker.create_dagrun(execution_date=START_DATE).task_instances
+        tis = dag_maker.create_dagrun(logical_date=START_DATE).task_instances
         tis[0].state = State.SCHEDULED
         tis[1].state = State.SUCCESS
         tis[2].state = State.RUNNING

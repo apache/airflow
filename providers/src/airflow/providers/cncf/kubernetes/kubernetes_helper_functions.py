@@ -27,6 +27,7 @@ from kubernetes.client.rest import ApiException
 from slugify import slugify
 
 from airflow.configuration import conf
+from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -106,8 +107,10 @@ def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.settings import Session
 
-    if not annotation_run_id and "execution_date" in annotations:
-        execution_date = pendulum.parse(annotations["execution_date"])
+    logical_date_key = get_logical_date_key()
+
+    if not annotation_run_id and logical_date_key in annotations:
+        logical_date = pendulum.parse(annotations[logical_date_key])
         # Do _not_ use create-session, we don't want to expunge
         session = Session()
 
@@ -117,7 +120,7 @@ def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
             .filter(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.task_id == task_id,
-                DagRun.execution_date == execution_date,
+                getattr(DagRun, logical_date_key) == logical_date,
             )
             .scalar()
         )

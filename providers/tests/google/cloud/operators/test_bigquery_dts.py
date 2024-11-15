@@ -32,7 +32,6 @@ from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 PROJECT_ID = "id"
 
-
 TRANSFER_CONFIG = {
     "data_source_id": "google_cloud_storage",
     "destination_dataset_id": "example_dataset",

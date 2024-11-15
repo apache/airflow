@@ -25,7 +25,9 @@ from datetime import datetime, timedelta
 from kubernetes import client
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.models import DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubeConfig
@@ -36,15 +38,21 @@ from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.cli import get_dag
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+
 
 @cli_utils.action_cli
 @providers_configuration_loaded
 def generate_pod_yaml(args):
     """Generate yaml files for each task in the DAG. Used for testing output of KubernetesExecutor."""
-    execution_date = args.execution_date
+    logical_date = args.logical_date if AIRFLOW_V_3_0_PLUS else args.execution_date
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     yaml_output_path = args.output_path
-    dr = DagRun(dag.dag_id, execution_date=execution_date)
+    if AIRFLOW_V_3_0_PLUS:
+        dr = DagRun(dag.dag_id, logical_date=logical_date)
+    else:
+        dr = DagRun(dag.dag_id, execution_date=logical_date)
     kube_config = KubeConfig()
     for task in dag.tasks:
         ti = TaskInstance(task, None)
@@ -55,7 +63,7 @@ def generate_pod_yaml(args):
             pod_id=create_unique_id(args.dag_id, ti.task_id),
             try_number=ti.try_number,
             kube_image=kube_config.kube_image,
-            date=ti.execution_date,
+            date=ti.logical_date if AIRFLOW_V_3_0_PLUS else ti.execution_date,
             args=ti.command_as_list(),
             pod_override_object=PodGenerator.from_obj(ti.executor_config),
             scheduler_job_id="worker-config",
@@ -64,7 +72,7 @@ def generate_pod_yaml(args):
             with_mutation_hook=True,
         )
         api_client = ApiClient()
-        date_string = pod_generator.datetime_to_label_safe_datestring(execution_date)
+        date_string = pod_generator.datetime_to_label_safe_datestring(logical_date)
         yaml_file_name = f"{args.dag_id}_{ti.task_id}_{date_string}.yml"
         os.makedirs(os.path.dirname(yaml_output_path + "/airflow_yaml_output/"), exist_ok=True)
         with open(yaml_output_path + "/airflow_yaml_output/" + yaml_file_name, "w") as output:

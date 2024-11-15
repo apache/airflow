@@ -36,7 +36,7 @@ class _TrivialTimetable(Timetable):
     """Some code reuse for "trivial" timetables that has nothing complex."""
 
     periodic = False
-    run_ordering: Sequence[str] = ("execution_date",)
+    run_ordering: Sequence[str] = ("logical_date",)
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:

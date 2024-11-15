@@ -38,9 +38,14 @@ from typing import TYPE_CHECKING, Any, Sequence
 from kubernetes.dynamic import DynamicClient
 from sqlalchemy import or_, select, update
 
+try:
+    from airflow.cli.cli_config import ARG_LOGICAL_DATE
+except ImportError:  # 2.x compatibility.
+    from airflow.cli.cli_config import (  # type: ignore[attr-defined, no-redef]
+        ARG_EXECUTION_DATE as ARG_LOGICAL_DATE,
+    )
 from airflow.cli.cli_config import (
     ARG_DAG_ID,
-    ARG_EXECUTION_DATE,
     ARG_OUTPUT_PATH,
     ARG_SUBDIR,
     ARG_VERBOSE,
@@ -118,7 +123,7 @@ KUBERNETES_COMMANDS = (
         help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
         "launching into a cluster",
         func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.generate_pod_yaml"),
-        args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_LOGICAL_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH, ARG_VERBOSE),
     ),
 )
 

@@ -66,7 +66,7 @@ def mock_task_instance():
         map_index="13",
         start_date=datetime.now(),
         end_date=datetime.now(),
-        execution_date=datetime.now(),
+        logical_date=datetime.now(),
         duration=0.1,
         state="success",
         try_number=1,

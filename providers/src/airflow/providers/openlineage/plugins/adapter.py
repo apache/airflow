@@ -84,7 +84,7 @@ class OpenLineageAdapter(LoggingMixin):
                     "OpenLineage configuration found. Transport type: `%s`",
                     config.get("type", "no type provided"),
                 )
-                self._client = OpenLineageClient(config=config)
+                self._client = OpenLineageClient(config=config)  # type: ignore[call-arg]
             else:
                 self.log.debug(
                     "OpenLineage configuration not found directly in Airflow. "
@@ -128,11 +128,11 @@ class OpenLineageAdapter(LoggingMixin):
         dag_id: str,
         task_id: str,
         try_number: int,
-        execution_date: datetime,
+        logical_date: datetime,
     ):
         return str(
             generate_static_uuid(
-                instant=execution_date,
+                instant=logical_date,
                 data=f"{conf.namespace()}.{dag_id}.{task_id}.{try_number}".encode(),
             )
         )

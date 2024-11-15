@@ -154,7 +154,7 @@ class BaseAwsLinksTestCase:
         *,
         dag_id,
         task_id,
-        execution_date=None,
+        logical_date=None,
         session=None,
         **operator_kwargs,
     ):
@@ -166,7 +166,7 @@ class BaseAwsLinksTestCase:
                 op,
                 dag_id=dag_id,
                 task_id=task_id,
-                execution_date=execution_date,
+                logical_date=logical_date,
                 session=session,
                 **operator_kwargs,
             ),

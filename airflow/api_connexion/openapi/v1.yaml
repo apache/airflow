@@ -3080,7 +3080,7 @@ components:
             The value of this field can be set only when creating the object. If you try to modify the
             field of an existing object, the request fails with an BAD_REQUEST error.
 
-            If not provided, a value will be generated based on execution_date.
+            If not provided, a value will be generated based on logical_date.
 
             If the specified dag_run_id is in use, the creation request fails with an ALREADY_EXISTS error.
 
@@ -3102,19 +3102,6 @@ components:
 
             *New in version 2.2.0*
           format: date-time
-        execution_date:
-          type: string
-          nullable: true
-          description: |
-            The execution date. This is the same as logical_date, kept for backwards compatibility.
-            If both this field and logical_date are provided but with different values, the request
-            will fail with an BAD_REQUEST error.
-
-            *Changed in version 2.2.0*&#58; Field becomes nullable.
-
-            *Deprecated since version 2.2.0*&#58; Use 'logical_date' instead.
-          format: date-time
-          deprecated: true
         start_date:
           type: string
           format: date-time
@@ -3677,7 +3664,7 @@ components:
             The DagRun ID for this task instance
 
             *New in version 2.3.0*
-        execution_date:
+        logical_date:
           type: string
           format: datetime
         start_date:
@@ -3788,7 +3775,7 @@ components:
           type: string
           readOnly: true
           description: The DAG ID.
-        execution_date:
+        logical_date:
           type: string
           format: datetime
           readOnly: true
@@ -3860,7 +3847,7 @@ components:
         timestamp:
           type: string
           format: datetime
-        execution_date:
+        logical_date:
           type: string
           format: datetime
         map_index:
@@ -4734,14 +4721,14 @@ components:
           description: The task ID.
           type: string
 
-        execution_date:
-          description: The execution date. Either set this or dag_run_id but not both.
+        logical_date:
+          description: The logical date. Either set this or dag_run_id but not both.
           type: string
           format: datetime
 
         dag_run_id:
           description: |
-            The task instance's DAG run ID. Either set this or execution_date but not both.
+            The task instance's DAG run ID. Either set this or logical_date but not both.
 
             *New in version 2.3.0*
           type: string

@@ -31,13 +31,13 @@ export default function useClearTask({
   dagId,
   runId,
   taskId,
-  executionDate,
+  logicalDate,
   isGroup,
 }: {
   dagId: string;
   runId: string;
   taskId: string;
-  executionDate: string;
+  logicalDate: string;
   isGroup: boolean;
 }) {
   const queryClient = useQueryClient();
@@ -70,7 +70,7 @@ export default function useClearTask({
         dag_id: dagId,
         dag_run_id: runId,
         confirmed,
-        execution_date: executionDate,
+        logical_date: logicalDate,
         past,
         future,
         upstream,

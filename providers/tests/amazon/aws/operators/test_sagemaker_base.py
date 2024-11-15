@@ -34,6 +34,7 @@ from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 CONFIG: dict = {
     "key1": "1",
@@ -170,8 +171,8 @@ class TestSageMakerExperimentOperator:
         conn_mock().create_experiment.return_value = {"ExperimentArn": "abcdef"}
 
         # putting a DAG around the operator so that jinja template gets rendered
-        execution_date = timezone.datetime(2020, 1, 1)
-        dag = DAG("test_experiment", schedule=None, start_date=execution_date)
+        logical_date = timezone.datetime(2020, 1, 1)
+        dag = DAG("test_experiment", schedule=None, start_date=logical_date)
         op = SageMakerCreateExperimentOperator(
             name="the name",
             description="the desc",
@@ -179,9 +180,14 @@ class TestSageMakerExperimentOperator:
             task_id="tid",
             dag=dag,
         )
-        dag_run = DagRun(
-            dag_id=dag.dag_id, execution_date=execution_date, run_id="test", run_type=DagRunType.MANUAL
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=dag.dag_id, logical_date=logical_date, run_id="test", run_type=DagRunType.MANUAL
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=dag.dag_id, execution_date=logical_date, run_id="test", run_type=DagRunType.MANUAL
+            )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run
         session.add(ti)

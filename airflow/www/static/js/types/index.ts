@@ -56,7 +56,7 @@ interface DagRun {
   runId: string;
   runType: "manual" | "backfill" | "scheduled" | "asset_triggered";
   state: RunState;
-  executionDate: string;
+  logicalDate: string;
   dataIntervalStart: string;
   dataIntervalEnd: string;
   queuedAt: string | null;
@@ -109,11 +109,7 @@ interface Task {
   setupTeardownType?: "setup" | "teardown";
 }
 
-type RunOrdering = (
-  | "dataIntervalStart"
-  | "executionDate"
-  | "dataIntervalEnd"
-)[];
+type RunOrdering = ("dataIntervalStart" | "logicalDate" | "dataIntervalEnd")[];
 
 export interface MidEdge {
   id: string;

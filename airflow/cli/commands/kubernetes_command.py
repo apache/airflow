@@ -48,10 +48,10 @@ warnings.warn(
 @providers_configuration_loaded
 def generate_pod_yaml(args):
     """Generate yaml files for each task in the DAG. Used for testing output of KubernetesExecutor."""
-    execution_date = args.execution_date
+    logical_date = args.logical_date
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     yaml_output_path = args.output_path
-    dr = DagRun(dag.dag_id, execution_date=execution_date)
+    dr = DagRun(dag.dag_id, logical_date=logical_date)
     kube_config = KubeConfig()
     for task in dag.tasks:
         ti = TaskInstance(task, None)
@@ -62,7 +62,7 @@ def generate_pod_yaml(args):
             pod_id=create_unique_id(args.dag_id, ti.task_id),
             try_number=ti.try_number,
             kube_image=kube_config.kube_image,
-            date=ti.execution_date,
+            date=ti.logical_date,
             args=ti.command_as_list(),
             pod_override_object=PodGenerator.from_obj(ti.executor_config),
             scheduler_job_id="worker-config",
@@ -71,7 +71,7 @@ def generate_pod_yaml(args):
             with_mutation_hook=True,
         )
         api_client = ApiClient()
-        date_string = pod_generator.datetime_to_label_safe_datestring(execution_date)
+        date_string = pod_generator.datetime_to_label_safe_datestring(logical_date)
         yaml_file_name = f"{args.dag_id}_{ti.task_id}_{date_string}.yml"
         os.makedirs(os.path.dirname(yaml_output_path + "/airflow_yaml_output/"), exist_ok=True)
         with open(yaml_output_path + "/airflow_yaml_output/" + yaml_file_name, "w") as output:

@@ -105,7 +105,7 @@ def action_logging(func: T | None = None, event: str | None = None) -> T | Calla
                     "task_id",
                     "dag_run_id",
                     "run_id",
-                    "execution_date",
+                    "logical_date",
                 }
                 extra_fields = {
                     k: secrets_masker.redact(v, k)
@@ -145,13 +145,13 @@ def action_logging(func: T | None = None, event: str | None = None) -> T | Calla
                     run_id=params.get("run_id") or params.get("dag_run_id"),
                 )
 
-                if "execution_date" in request.values:
-                    execution_date_value = request.values.get("execution_date")
+                if "logical_date" in request.values:
+                    logical_date_value = request.values.get("logical_date")
                     try:
-                        log.execution_date = pendulum.parse(execution_date_value, strict=False)
+                        log.logical_date = pendulum.parse(logical_date_value, strict=False)
                     except ParserError:
                         logger.exception(
-                            "Failed to parse execution_date from the request: %s", execution_date_value
+                            "Failed to parse logical_date from the request: %s", logical_date_value
                         )
 
                 session.add(log)

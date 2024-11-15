@@ -79,7 +79,7 @@ class TestGetExtraLinks:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         self.dag.create_dagrun(
             run_id="TEST_DAG_RUN_ID",
-            execution_date=self.default_time,
+            logical_date=self.default_time,
             run_type=DagRunType.MANUAL,
             state=DagRunState.SUCCESS,
             session=session,
