@@ -16,76 +16,78 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { VStack, Heading, Text, Box, Button, HStack } from "@chakra-ui/react";
+import { Heading, Text, HStack, Input } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { PiFilePy } from "react-icons/pi";
 
 import type { ImportErrorResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Accordion, Dialog } from "src/components/ui";
-import { useImportErrors } from "src/queries/useDagsImportErrors";
+import { Pagination } from "src/components/ui/Pagination";
 
 type ImportDAGErrorModalProps = {
+  importErrors: Array<ImportErrorResponse>;
   onClose: () => void;
-  onErrorCountChange: (count: number) => void;
   open: boolean;
 };
 
 const PAGE_LIMIT = 5;
 
 export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({
+  importErrors,
   onClose,
-  onErrorCountChange,
   open,
 }) => {
-  const [currentPage, setCurrentPage] = useState(0);
+  const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filteredErrors, setFilteredErrors] = useState(importErrors);
 
-  const { data } = useImportErrors({
-    limit: PAGE_LIMIT,
-    offset: currentPage * PAGE_LIMIT,
-  });
+  const totalPages = Math.ceil(filteredErrors.length / PAGE_LIMIT);
+  const startRange = (page - 1) * PAGE_LIMIT;
+  const endRange = startRange + PAGE_LIMIT;
+  const visibleItems = filteredErrors.slice(startRange, endRange);
 
-  const importErrors: Array<ImportErrorResponse> = data.import_errors;
-  const importErrorsCount: number = data.total_entries || 0;
-  const totalPages = Math.ceil(importErrorsCount / PAGE_LIMIT);
-
-  useEffect(() => {
-    onErrorCountChange(importErrorsCount);
-  }, [importErrorsCount, onErrorCountChange]);
-
-  useEffect(() => {
+  const onOpenChange = () => {
     if (!open) {
-      setCurrentPage(0);
+      setPage(1);
     }
-  }, [open]);
-
-  const handleNextPage = () => {
-    if (currentPage < totalPages - 1) {
-      setCurrentPage((prev) => prev + 1);
-    }
+    onClose();
   };
 
-  const handlePreviousPage = () => {
-    if (currentPage > 0) {
-      setCurrentPage((prev) => prev - 1);
-    }
-  };
+  useEffect(() => {
+    const query = searchQuery.toLowerCase();
+
+    setFilteredErrors(
+      importErrors.filter((error) =>
+        error.filename.toLowerCase().includes(query),
+      ),
+    );
+    setPage(1);
+  }, [searchQuery, importErrors]);
 
   return (
-    <Dialog.Root onOpenChange={onClose} open={open} size="xl">
+    <Dialog.Root
+      onOpenChange={onOpenChange}
+      open={open}
+      scrollBehavior="inside"
+      size="xl"
+    >
       <Dialog.Content backdrop>
         <Dialog.Header>
-          <VStack align="start" gap={4} position="sticky" top={0} zIndex={1}>
-            <Heading size="xl">DAG Import Errors</Heading>
-            <Text color="gray.500">{`Page ${currentPage + 1} of ${totalPages}`}</Text>
-          </VStack>
+          <Heading size="xl">DAG Import Errors</Heading>
+          <Input
+            mt={4}
+            onChange={(letters) => setSearchQuery(letters.target.value)}
+            placeholder="Search by file path"
+            value={searchQuery}
+          />
         </Dialog.Header>
 
         <Dialog.CloseTrigger />
 
-        <Dialog.Body maxH="500px" overflowY="auto">
+        <Dialog.Body>
           <Accordion.Root collapsible multiple size="md" variant="enclosed">
-            {importErrors.map((importError: ImportErrorResponse) => (
+            {visibleItems.map((importError) => (
               <Accordion.Item
                 key={importError.import_error_id}
                 value={importError.filename}
@@ -96,7 +98,7 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({
                 </Accordion.ItemTrigger>
                 <Accordion.ItemContent>
                   <Text color="gray.500" fontSize="sm" mb={1}>
-                    Timestamp : <Time datetime={importError.timestamp} />
+                    Timestamp: <Time datetime={importError.timestamp} />
                   </Text>
                   <Text color="red.600" fontSize="sm" whiteSpace="pre-wrap">
                     <code>{importError.stack_trace}</code>
@@ -107,24 +109,19 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({
           </Accordion.Root>
         </Dialog.Body>
 
-        <Box p={6}>
-          <HStack justify="space-between">
-            <Button
-              colorPalette="blue"
-              disabled={currentPage === 0}
-              onClick={handlePreviousPage}
-            >
-              Previous
-            </Button>
-            <Button
-              colorPalette="blue"
-              disabled={currentPage === totalPages - 1}
-              onClick={handleNextPage}
-            >
-              Next
-            </Button>
+        <Pagination.Root
+          count={totalPages}
+          onPageChange={(each) => setPage(each.page)}
+          p={4}
+          page={page}
+          pageSize={PAGE_LIMIT}
+        >
+          <HStack>
+            <Pagination.PrevTrigger />
+            <Pagination.Items />
+            <Pagination.NextTrigger />
           </HStack>
-        </Box>
+        </Pagination.Root>
       </Dialog.Content>
     </Dialog.Root>
   );

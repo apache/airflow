@@ -17,22 +17,22 @@
  * under the License.
  */
 import { Box, Badge, Text, Button, useDisclosure } from "@chakra-ui/react";
-import { useState } from "react";
 import { FiChevronRight } from "react-icons/fi";
+
+import { useImportErrorServiceGetImportErrors } from "openapi/queries";
 
 import { DAGImportErrorsModal } from "./DAGImportErrorsModal";
 
 export const DAGImportErrors = () => {
   const { onClose, onOpen, open } = useDisclosure();
-  const [importErrorsCount, setImportErrorsCount] = useState<number>(-1);
 
-  const handleImportErrorsCount = (count: number) => {
-    setImportErrorsCount(count);
-  };
+  const { data, error } = useImportErrorServiceGetImportErrors();
+  const importErrorsCount = data?.total_entries ?? 0;
+  const importErrors = data?.import_errors ?? [];
 
   return (
-    <Box alignItems="center" display="flex" gap={2}>
-      {importErrorsCount > 0 && (
+    importErrorsCount > 0 && (
+      <Box alignItems="center" display="flex" gap={2}>
         <Button
           alignItems="center"
           borderRadius="md"
@@ -49,12 +49,12 @@ export const DAGImportErrors = () => {
             <FiChevronRight />
           </Box>
         </Button>
-      )}
-      <DAGImportErrorsModal
-        onClose={onClose}
-        onErrorCountChange={handleImportErrorsCount}
-        open={open}
-      />
-    </Box>
+        <DAGImportErrorsModal
+          importErrors={importErrors}
+          onClose={onClose}
+          open={open}
+        />
+      </Box>
+    )
   );
 };

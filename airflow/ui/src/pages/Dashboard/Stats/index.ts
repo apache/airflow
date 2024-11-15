@@ -16,36 +16,5 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useImportErrorServiceGetImportErrors } from "openapi/queries";
 
-const queryOptions = {
-  refetchOnMount: true,
-  refetchOnReconnect: false,
-  refetchOnWindowFocus: false,
-  staleTime: 5 * 60 * 1000,
-};
-
-export const useImportErrors = (
-  searchParams: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  } = {},
-) => {
-  const { limit = 5, offset, orderBy } = searchParams;
-
-  const { data: errorsData, error: errorsError } =
-    useImportErrorServiceGetImportErrors(
-      { limit, offset, orderBy },
-      undefined,
-      queryOptions,
-    );
-
-  return {
-    data: {
-      import_errors: errorsData?.import_errors ?? [],
-      total_entries: errorsData?.total_entries ?? 0,
-    },
-    error: errorsError,
-  };
-};
+export { Stats } from "./Stats";
