@@ -29,7 +29,7 @@ export const Health = () => {
 
   return (
     <Box>
-      <Flex color="gray.500" mb={2}>
+      <Flex color="fg.muted" mb={2}>
         <MdOutlineHealthAndSafety />
         <Heading ml={1} size="xs">
           Health

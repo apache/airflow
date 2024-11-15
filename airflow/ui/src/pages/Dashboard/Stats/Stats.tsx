@@ -23,7 +23,7 @@ import { DAGImportErrors } from "./DAGImportErrors";
 
 export const Stats = () => (
   <Box>
-    <Flex color="gray.500" mb={2} mt={2}>
+    <Flex color="fg.muted" my={2}>
       <FiClipboard />
       <Heading ml={1} size="xs">
         Stats

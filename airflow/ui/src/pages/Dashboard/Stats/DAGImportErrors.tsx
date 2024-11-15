@@ -26,7 +26,7 @@ import { DAGImportErrorsModal } from "./DAGImportErrorsModal";
 export const DAGImportErrors = () => {
   const { onClose, onOpen, open } = useDisclosure();
 
-  const { data, error } = useImportErrorServiceGetImportErrors();
+  const { data } = useImportErrorServiceGetImportErrors();
   const importErrorsCount = data?.total_entries ?? 0;
   const importErrors = data?.import_errors ?? [];
 
@@ -45,7 +45,7 @@ export const DAGImportErrors = () => {
             {importErrorsCount}
           </Badge>
           <Box alignItems="center" display="flex" gap={1}>
-            <Text fontWeight="bold">DAG Import Errors</Text>
+            <Text fontWeight="bold">Dag Import Errors</Text>
             <FiChevronRight />
           </Box>
         </Button>

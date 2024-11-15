@@ -42,26 +42,23 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredErrors, setFilteredErrors] = useState(importErrors);
 
-  const totalPages = Math.ceil(filteredErrors.length / PAGE_LIMIT);
   const startRange = (page - 1) * PAGE_LIMIT;
   const endRange = startRange + PAGE_LIMIT;
   const visibleItems = filteredErrors.slice(startRange, endRange);
 
   const onOpenChange = () => {
-    if (!open) {
-      setPage(1);
-    }
+    setSearchQuery("");
+    setPage(1);
     onClose();
   };
 
   useEffect(() => {
     const query = searchQuery.toLowerCase();
-
-    setFilteredErrors(
-      importErrors.filter((error) =>
-        error.filename.toLowerCase().includes(query),
-      ),
+    const filtered = importErrors.filter((error) =>
+      error.filename.toLowerCase().includes(query),
     );
+
+    setFilteredErrors(filtered);
     setPage(1);
   }, [searchQuery, importErrors]);
 
@@ -74,11 +71,11 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({
     >
       <Dialog.Content backdrop>
         <Dialog.Header>
-          <Heading size="xl">DAG Import Errors</Heading>
+          <Heading size="xl">Dag Import Errors</Heading>
           <Input
             mt={4}
             onChange={(letters) => setSearchQuery(letters.target.value)}
-            placeholder="Search by file path"
+            placeholder="Search by file"
             value={searchQuery}
           />
         </Dialog.Header>
@@ -97,10 +94,10 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({
                   {importError.filename}
                 </Accordion.ItemTrigger>
                 <Accordion.ItemContent>
-                  <Text color="gray.500" fontSize="sm" mb={1}>
+                  <Text color="fg.muted" fontSize="sm" mb={1}>
                     Timestamp: <Time datetime={importError.timestamp} />
                   </Text>
-                  <Text color="red.600" fontSize="sm" whiteSpace="pre-wrap">
+                  <Text color="fg.error" fontSize="sm" whiteSpace="pre-wrap">
                     <code>{importError.stack_trace}</code>
                   </Text>
                 </Accordion.ItemContent>
@@ -110,7 +107,7 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({
         </Dialog.Body>
 
         <Pagination.Root
-          count={totalPages}
+          count={filteredErrors.length}
           onPageChange={(each) => setPage(each.page)}
           p={4}
           page={page}
