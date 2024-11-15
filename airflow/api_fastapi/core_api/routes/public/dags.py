@@ -44,16 +44,16 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.assets import QueuedEventCollectionResponse, QueuedEventResponse
 from airflow.api_fastapi.core_api.datamodels.dags import (
     DAGCollectionResponse,
     DAGDetailsResponse,
     DAGPatchBody,
     DAGResponse,
     DAGTagCollectionResponse,
-    QueuedEventCollectionResponse,
-    QueuedEventResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.routes.public.assets import _generate_queued_event_where_clause
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DAG, DagModel, DagTag
 from airflow.models.asset import AssetDagRunQueue, AssetModel
@@ -313,8 +313,6 @@ def delete_dag(
     "/{dag_id}/assets/queuedEvent",
     responses=create_openapi_http_exception_doc(
         [
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
         ]
     ),
@@ -325,23 +323,27 @@ def get_dag_asset_queued_events(
     before: str = Query(None),
 ) -> QueuedEventCollectionResponse:
     """Get queued asset events for a DAG."""
-    where_clause = [AssetDagRunQueue.target_dag_id == dag_id]
-    if before:
-        before_parsed = timezone.parse(before)
-        where_clause.append(AssetDagRunQueue.created_at < before_parsed)
+    where_clause = _generate_queued_event_where_clause(dag_id=dag_id, before=before)
     query = (
         select(AssetDagRunQueue, AssetModel.uri)
         .join(AssetModel, AssetDagRunQueue.asset_id == AssetModel.id)
         .where(*where_clause)
     )
-    result = session.execute(query).all()
-    total_entries = len(result)
-    if not result:
+
+    dag_asset_queued_events_select, total_entries = paginated_select(
+        query,
+        [],
+    )
+    adrqs = session.execute(dag_asset_queued_events_select).all()
+
+    if not adrqs:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with dag_id: `{dag_id}` was not found")
+
     queued_events = [
         QueuedEventResponse(created_at=adrq.created_at, dag_id=adrq.target_dag_id, uri=uri)
-        for adrq, uri in result
+        for adrq, uri in adrqs
     ]
+
     return QueuedEventCollectionResponse(
         queued_events=[
             QueuedEventResponse.model_validate(queued_event, from_attributes=True)
