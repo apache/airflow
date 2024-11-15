@@ -405,7 +405,7 @@ class _AssetBooleanCondition(BaseAsset):
             raise TypeError("expect asset expressions in condition")
 
         self.objects = [
-            _AssetAliasCondition(obj.name) if isinstance(obj, AssetAlias) else obj for obj in objects
+            AssetAliasCondition(obj.name) if isinstance(obj, AssetAlias) else obj for obj in objects
         ]
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
@@ -458,7 +458,7 @@ class AssetAny(_AssetBooleanCondition):
         return {"any": [o.as_expression() for o in self.objects]}
 
 
-class _AssetAliasCondition(AssetAny):
+class AssetAliasCondition(AssetAny):
     """
     Use to expand AssetAlias as AssetAny of its resolved Assets.
 
@@ -470,7 +470,7 @@ class _AssetAliasCondition(AssetAny):
         self.objects = expand_alias_to_assets(name)
 
     def __repr__(self) -> str:
-        return f"_AssetAliasCondition({', '.join(map(str, self.objects))})"
+        return f"AssetAliasCondition({', '.join(map(str, self.objects))})"
 
     def as_expression(self) -> Any:
         """

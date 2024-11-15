@@ -36,7 +36,6 @@ from airflow.sdk.definitions.asset import (
     BaseAsset,
     Dataset,
     Model,
-    _AssetAliasCondition,
     _get_normalized_scheme,
     _sanitize_uri,
 )
@@ -578,7 +577,7 @@ def test_normalize_uri_valid_uri():
 @pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 @pytest.mark.usefixtures("clear_assets")
-class Test_AssetAliasCondition:
+class TestAssetAliasCondition:
     @pytest.fixture
     def asset_1(self, session):
         """Example asset links to asset alias resolved_asset_alias_2."""
@@ -614,22 +613,22 @@ class Test_AssetAliasCondition:
         return asset_alias_2
 
     def test_init(self, asset_alias_1, asset_1, resolved_asset_alias_2):
-        cond = _AssetAliasCondition(name=asset_alias_1.name)
+        cond = AssetAliasCondition(name=asset_alias_1.name)
         assert cond.objects == []
 
-        cond = _AssetAliasCondition(name=resolved_asset_alias_2.name)
+        cond = AssetAliasCondition(name=resolved_asset_alias_2.name)
         assert cond.objects == [Asset(uri=asset_1.uri)]
 
     def test_as_expression(self, asset_alias_1, resolved_asset_alias_2):
         for assset_alias in (asset_alias_1, resolved_asset_alias_2):
-            cond = _AssetAliasCondition(assset_alias.name)
+            cond = AssetAliasCondition(assset_alias.name)
             assert cond.as_expression() == {"alias": assset_alias.name}
 
     def test_evalute(self, asset_alias_1, resolved_asset_alias_2, asset_1):
-        cond = _AssetAliasCondition(asset_alias_1.name)
+        cond = AssetAliasCondition(asset_alias_1.name)
         assert cond.evaluate({asset_1.uri: True}) is False
 
-        cond = _AssetAliasCondition(resolved_asset_alias_2.name)
+        cond = AssetAliasCondition(resolved_asset_alias_2.name)
         assert cond.evaluate({asset_1.uri: True}) is True
 
 

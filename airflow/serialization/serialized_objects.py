@@ -58,7 +58,6 @@ from airflow.sdk.definitions.asset import (
     AssetAny,
     AssetRef,
     BaseAsset,
-    _AssetAliasCondition,
 )
 from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
 from airflow.serialization.dag_dependency import DagDependency
@@ -1053,7 +1052,7 @@ class DependencyDetector:
                     )
                 )
             elif isinstance(obj, AssetAlias):
-                cond = _AssetAliasCondition(obj.name)
+                cond = AssetAliasCondition(obj.name)
 
                 deps.extend(cond.iter_dag_dependencies(source=task.dag_id, target=""))
         return deps
