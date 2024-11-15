@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-15T07:50:16.963501
+# This constraints file was automatically generated on 2024-11-15T13:53:03.997164
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -265,7 +265,7 @@ colorlog==6.9.0
 comm==0.2.2
 confluent-kafka==2.6.0
 connexion==2.14.2
-coverage==7.6.5
+coverage==7.6.6
 crcmod==1.7
 cron-descriptor==1.4.5
 croniter==5.0.1
@@ -388,7 +388,7 @@ h2==4.1.0
 hdfs==2.7.3
 hmsclient==0.1.1
 hpack==4.0.0
-httpcore==1.0.6
+httpcore==1.0.7
 httplib2==0.22.0
 httptools==0.6.4
 httpx==0.27.0
@@ -756,7 +756,7 @@ yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.324.0
 yarl==1.17.1
-ydb-dbapi==0.1.1
+ydb-dbapi==0.1.2
 ydb==3.18.8
 zeep==4.3.1
 zenpy==2.0.55
