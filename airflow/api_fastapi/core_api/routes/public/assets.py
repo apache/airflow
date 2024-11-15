@@ -37,6 +37,7 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.common.utils import format_datetime
 from airflow.api_fastapi.core_api.datamodels.assets import (
     AssetCollectionResponse,
     AssetEventCollectionResponse,
@@ -44,9 +45,30 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
     AssetResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
 
 assets_router = AirflowRouter(tags=["Asset"], prefix="/assets")
+
+
+def _generate_queued_event_where_clause(
+    *,
+    dag_id: str | None = None,
+    uri: str | None = None,
+    before: str | None = None,
+) -> list:
+    """Get AssetDagRunQueue where clause."""
+    where_clause = []
+    if dag_id is not None:
+        where_clause.append(AssetDagRunQueue.target_dag_id == dag_id)
+    if uri is not None:
+        where_clause.append(
+            AssetDagRunQueue.asset_id.in_(
+                select(AssetModel.id).where(AssetModel.uri == uri),
+            ),
+        )
+    if before is not None:
+        where_clause.append(AssetDagRunQueue.created_at < format_datetime(before))
+    return where_clause
 
 
 @assets_router.get(
