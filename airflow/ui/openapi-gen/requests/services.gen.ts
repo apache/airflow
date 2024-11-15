@@ -101,6 +101,8 @@ import type {
   GetMappedTaskInstanceResponse,
   GetTaskInstancesData,
   GetTaskInstancesResponse,
+  GetTasksData,
+  GetTasksResponse,
   GetTaskData,
   GetTaskResponse,
   DeleteVariableData,
@@ -1699,6 +1701,37 @@ export class TaskInstanceService {
 }
 
 export class TaskService {
+  /**
+   * Get Tasks
+   * Get tasks for DAG.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.orderBy
+   * @returns TaskCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getTasks(
+    data: GetTasksData,
+  ): CancelablePromise<GetTasksResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/tasks/",
+      path: {
+        dag_id: data.dagId,
+      },
+      query: {
+        order_by: data.orderBy,
+      },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
   /**
    * Get Task
    * Get simplified representation of a task.
