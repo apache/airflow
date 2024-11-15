@@ -834,6 +834,30 @@ export type TaskInstanceStateCount = {
 };
 
 /**
+ * Task Instance body for get batch.
+ */
+export type TaskInstancesBatchBody = {
+  dag_ids?: Array<string> | null;
+  dag_run_ids?: Array<string> | null;
+  task_ids?: Array<string> | null;
+  state?: Array<TaskInstanceState | null> | null;
+  logical_date_gte?: string | null;
+  logical_date_lte?: string | null;
+  start_date_gte?: string | null;
+  start_date_lte?: string | null;
+  end_date_gte?: string | null;
+  end_date_lte?: string | null;
+  duration_gte?: number | null;
+  duration_lte?: number | null;
+  pool?: Array<string> | null;
+  queue?: Array<string> | null;
+  executor?: Array<string> | null;
+  page_offset?: number;
+  page_limit?: number;
+  order_by?: string | null;
+};
+
+/**
  * Task outlet reference serializer for assets.
  */
 export type TaskOutletAssetReference = {
@@ -1422,6 +1446,12 @@ export type GetTaskInstancesData = {
 };
 
 export type GetTaskInstancesResponse = TaskInstanceCollectionResponse;
+
+export type GetTaskInstancesBatchData = {
+  requestBody: TaskInstancesBatchBody;
+};
+
+export type GetTaskInstancesBatchResponse = TaskInstanceCollectionResponse;
 
 export type GetTasksData = {
   dagId: string;
@@ -2813,6 +2843,33 @@ export type $OpenApiTs = {
   "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/": {
     get: {
       req: GetTaskInstancesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list": {
+    post: {
+      req: GetTaskInstancesBatchData;
       res: {
         /**
          * Successful Response

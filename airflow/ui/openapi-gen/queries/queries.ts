@@ -40,6 +40,7 @@ import {
   DagWarningType,
   PoolPatchBody,
   PoolPostBody,
+  TaskInstancesBatchBody,
   VariableBody,
 } from "../requests/types.gen";
 import * as Common from "./common";
@@ -1998,6 +1999,45 @@ export const usePoolServicePostPool = <
   >({
     mutationFn: ({ requestBody }) =>
       PoolService.postPool({ requestBody }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Get Task Instances Batch
+ * Get list of task instances.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns TaskInstanceCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceGetTaskInstancesBatch = <
+  TData = Common.TaskInstanceServiceGetTaskInstancesBatchMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: TaskInstancesBatchBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: TaskInstancesBatchBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      TaskInstanceService.getTaskInstancesBatch({
+        requestBody,
+      }) as unknown as Promise<TData>,
     ...options,
   });
 /**
