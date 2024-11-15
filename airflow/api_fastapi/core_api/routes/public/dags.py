@@ -57,7 +57,6 @@ from airflow.api_fastapi.core_api.routes.public.assets import _generate_queued_e
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DAG, DagModel, DagTag
 from airflow.models.asset import AssetDagRunQueue, AssetModel
-from airflow.utils import timezone
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
@@ -370,14 +369,9 @@ def delete_dag_asset_queued_events(
     session: Annotated[Session, Depends(get_session)],
     before: str = Query(None),
 ):
-    where_clause = [AssetDagRunQueue.target_dag_id == dag_id]
-    if before:
-        before_parsed = timezone.parse(before)
-        where_clause.append(AssetDagRunQueue.created_at < before_parsed)
-
+    where_clause = _generate_queued_event_where_clause(dag_id=dag_id, before=before)
     delete_statement = delete(AssetDagRunQueue).where(*where_clause)
     result = session.execute(delete_statement)
-
     if result.rowcount == 0:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, detail=f"Queue event with dag_id: `{dag_id}` was not found"
