@@ -16,14 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-import inspect
 from datetime import timedelta
 from typing import Annotated
 
 from pydantic import AfterValidator, AliasGenerator, AwareDatetime, BaseModel, BeforeValidator, ConfigDict
 
-from airflow.models.mappedoperator import MappedOperator
-from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils import timezone
 
 UtcDateTime = Annotated[AwareDatetime, AfterValidator(lambda d: d.astimezone(timezone.utc))]
@@ -59,28 +56,3 @@ class TimeDelta(BaseModel):
 
 
 TimeDeltaWithValidation = Annotated[TimeDelta, BeforeValidator(_validate_timedelta_field)]
-
-
-def get_class_ref(obj) -> dict[str, str | None]:
-    """Return the class_ref dict for obj."""
-    is_mapped_or_serialized = isinstance(obj, (MappedOperator, SerializedBaseOperator))
-
-    module_path = None
-    if is_mapped_or_serialized:
-        module_path = obj._task_module
-    else:
-        module_type = inspect.getmodule(obj)
-        module_path = module_type.__name__ if module_type else None
-
-    class_name = None
-    if is_mapped_or_serialized:
-        class_name = obj._task_type
-    elif obj.__class__ is type:
-        class_name = obj.__name__
-    else:
-        class_name = type(obj).__name__
-
-    return {
-        "module_path": module_path,
-        "class_name": class_name,
-    }

@@ -718,6 +718,14 @@ export type SchedulerInfoSchema = {
 };
 
 /**
+ * Task collection serializer for responses.
+ */
+export type TaskCollectionResponse = {
+  tasks: Array<TaskResponse>;
+  total_entries: number;
+};
+
+/**
  * Task scheduling dependencies collection serializer for responses.
  */
 export type TaskDependencyCollectionResponse = {
@@ -1391,6 +1399,13 @@ export type GetTaskInstancesData = {
 };
 
 export type GetTaskInstancesResponse = TaskInstanceCollectionResponse;
+
+export type GetTasksData = {
+  dagId: string;
+  orderBy?: string;
+};
+
+export type GetTasksResponse = TaskCollectionResponse;
 
 export type GetTaskData = {
   dagId: string;
@@ -2728,6 +2743,37 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: TaskInstanceCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/tasks/": {
+    get: {
+      req: GetTasksData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskCollectionResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
         /**
          * Unauthorized
          */

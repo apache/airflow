@@ -47,6 +47,7 @@ def get_task(*, dag_id: str, task_id: str) -> APIResponse:
     return task_schema.dump(task)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.TASK)
 def get_tasks(*, dag_id: str, order_by: str = "task_id") -> APIResponse:
     """Get tasks for DAG."""
