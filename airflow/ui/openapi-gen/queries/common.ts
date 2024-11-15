@@ -931,6 +931,24 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     },
   ]),
 ];
+export type TaskServiceGetTasksDefaultResponse = Awaited<
+  ReturnType<typeof TaskService.getTasks>
+>;
+export type TaskServiceGetTasksQueryResult<
+  TData = TaskServiceGetTasksDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useTaskServiceGetTasksKey = "TaskServiceGetTasks";
+export const UseTaskServiceGetTasksKeyFn = (
+  {
+    dagId,
+    orderBy,
+  }: {
+    dagId: string;
+    orderBy?: string;
+  },
+  queryKey?: Array<unknown>,
+) => [useTaskServiceGetTasksKey, ...(queryKey ?? [{ dagId, orderBy }])];
 export type TaskServiceGetTaskDefaultResponse = Awaited<
   ReturnType<typeof TaskService.getTask>
 >;
@@ -1056,6 +1074,9 @@ export type ConnectionServicePostConnectionMutationResult = Awaited<
 >;
 export type ConnectionServiceTestConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.testConnection>
+>;
+export type DagRunServiceClearDagRunMutationResult = Awaited<
+  ReturnType<typeof DagRunService.clearDagRun>
 >;
 export type PoolServicePostPoolMutationResult = Awaited<
   ReturnType<typeof PoolService.postPool>

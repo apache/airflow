@@ -1321,6 +1321,19 @@ export const $DAGResponse = {
   description: "DAG serializer for responses.",
 } as const;
 
+export const $DAGRunClearBody = {
+  properties: {
+    dry_run: {
+      type: "boolean",
+      title: "Dry Run",
+      default: true,
+    },
+  },
+  type: "object",
+  title: "DAGRunClearBody",
+  description: "DAG Run serializer for clear endpoint body.",
+} as const;
+
 export const $DAGRunPatchBody = {
   properties: {
     state: {
@@ -2900,6 +2913,26 @@ export const $SchedulerInfoSchema = {
   description: "Schema for Scheduler info.",
 } as const;
 
+export const $TaskCollectionResponse = {
+  properties: {
+    tasks: {
+      items: {
+        $ref: "#/components/schemas/TaskResponse",
+      },
+      type: "array",
+      title: "Tasks",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["tasks", "total_entries"],
+  title: "TaskCollectionResponse",
+  description: "Task collection serializer for responses.",
+} as const;
+
 export const $TaskDependencyCollectionResponse = {
   properties: {
     dependencies: {
@@ -3913,10 +3946,10 @@ export const $XComResponseNative = {
       format: "date-time",
       title: "Timestamp",
     },
-    execution_date: {
+    logical_date: {
       type: "string",
       format: "date-time",
-      title: "Execution Date",
+      title: "Logical Date",
     },
     map_index: {
       type: "integer",
@@ -3938,7 +3971,7 @@ export const $XComResponseNative = {
   required: [
     "key",
     "timestamp",
-    "execution_date",
+    "logical_date",
     "map_index",
     "task_id",
     "dag_id",
@@ -3959,10 +3992,10 @@ export const $XComResponseString = {
       format: "date-time",
       title: "Timestamp",
     },
-    execution_date: {
+    logical_date: {
       type: "string",
       format: "date-time",
-      title: "Execution Date",
+      title: "Logical Date",
     },
     map_index: {
       type: "integer",
@@ -3992,7 +4025,7 @@ export const $XComResponseString = {
   required: [
     "key",
     "timestamp",
-    "execution_date",
+    "logical_date",
     "map_index",
     "task_id",
     "dag_id",

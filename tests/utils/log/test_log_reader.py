@@ -109,7 +109,7 @@ class TestLogView:
             task_id=self.TASK_ID,
             start_date=self.DEFAULT_DATE,
             run_type=DagRunType.SCHEDULED,
-            execution_date=self.DEFAULT_DATE,
+            logical_date=self.DEFAULT_DATE,
             state=TaskInstanceState.RUNNING,
         )
         ti.try_number = 3
@@ -287,15 +287,15 @@ class TestLogView:
         trigger_time = end + datetime.timedelta(hours=4, minutes=29)  # Arbitrary.
 
         # Create two DAG runs that have the same data interval, but not the same
-        # execution date, to check if they correctly use different log files.
+        # logical date, to check if they correctly use different log files.
         scheduled_dagrun: DagRun = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
-            execution_date=start,
+            logical_date=start,
             data_interval=DataInterval(start, end),
         )
         manual_dagrun: DagRun = dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
-            execution_date=trigger_time,
+            logical_date=trigger_time,
             data_interval=DataInterval(start, end),
         )
 

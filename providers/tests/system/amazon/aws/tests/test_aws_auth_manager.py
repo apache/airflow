@@ -165,7 +165,7 @@ def client_admin_permissions(base_app):
     return application.create_app(testing=True)
 
 
-@pytest.mark.system("amazon")
+@pytest.mark.system
 class TestAwsAuthManager:
     """
     Run tests on Airflow using AWS auth manager with real credentials

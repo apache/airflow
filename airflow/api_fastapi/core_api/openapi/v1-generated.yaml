@@ -1207,6 +1207,65 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/clear:
+    post:
+      tags:
+      - DagRun
+      summary: Clear Dag Run
+      operationId: clear_dag_run
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGRunClearBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/TaskInstanceCollectionResponse'
+                - $ref: '#/components/schemas/DAGRunResponse'
+                title: Response Clear Dag Run
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dagSources/{file_token}:
     get:
       tags:
@@ -3188,6 +3247,64 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/tasks/:
+    get:
+      tags:
+      - Task
+      summary: Get Tasks
+      description: Get tasks for DAG.
+      operationId: get_tasks
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: task_id
+          title: Order By
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/{dag_id}/tasks/{task_id}:
     get:
       tags:
@@ -4440,6 +4557,15 @@ components:
       - file_token
       title: DAGResponse
       description: DAG serializer for responses.
+    DAGRunClearBody:
+      properties:
+        dry_run:
+          type: boolean
+          title: Dry Run
+          default: true
+      type: object
+      title: DAGRunClearBody
+      description: DAG Run serializer for clear endpoint body.
     DAGRunPatchBody:
       properties:
         state:
@@ -5535,6 +5661,22 @@ components:
       - latest_scheduler_heartbeat
       title: SchedulerInfoSchema
       description: Schema for Scheduler info.
+    TaskCollectionResponse:
+      properties:
+        tasks:
+          items:
+            $ref: '#/components/schemas/TaskResponse'
+          type: array
+          title: Tasks
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - tasks
+      - total_entries
+      title: TaskCollectionResponse
+      description: Task collection serializer for responses.
     TaskDependencyCollectionResponse:
       properties:
         dependencies:
@@ -6176,10 +6318,10 @@ components:
           type: string
           format: date-time
           title: Timestamp
-        execution_date:
+        logical_date:
           type: string
           format: date-time
-          title: Execution Date
+          title: Logical Date
         map_index:
           type: integer
           title: Map Index
@@ -6195,7 +6337,7 @@ components:
       required:
       - key
       - timestamp
-      - execution_date
+      - logical_date
       - map_index
       - task_id
       - dag_id
@@ -6211,10 +6353,10 @@ components:
           type: string
           format: date-time
           title: Timestamp
-        execution_date:
+        logical_date:
           type: string
           format: date-time
-          title: Execution Date
+          title: Logical Date
         map_index:
           type: integer
           title: Map Index
@@ -6233,7 +6375,7 @@ components:
       required:
       - key
       - timestamp
-      - execution_date
+      - logical_date
       - map_index
       - task_id
       - dag_id

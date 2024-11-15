@@ -284,6 +284,13 @@ export type DAGResponse = {
 };
 
 /**
+ * DAG Run serializer for clear endpoint body.
+ */
+export type DAGRunClearBody = {
+  dry_run?: boolean;
+};
+
+/**
  * DAG Run Serializer for PATCH requests.
  */
 export type DAGRunPatchBody = {
@@ -721,6 +728,14 @@ export type SchedulerInfoSchema = {
 };
 
 /**
+ * Task collection serializer for responses.
+ */
+export type TaskCollectionResponse = {
+  tasks: Array<TaskResponse>;
+  total_entries: number;
+};
+
+/**
  * Task scheduling dependencies collection serializer for responses.
  */
 export type TaskDependencyCollectionResponse = {
@@ -943,7 +958,7 @@ export type VersionInfo = {
 export type XComResponseNative = {
   key: string;
   timestamp: string;
-  execution_date: string;
+  logical_date: string;
   map_index: number;
   task_id: string;
   dag_id: string;
@@ -956,7 +971,7 @@ export type XComResponseNative = {
 export type XComResponseString = {
   key: string;
   timestamp: string;
-  execution_date: string;
+  logical_date: string;
   map_index: number;
   task_id: string;
   dag_id: string;
@@ -1129,6 +1144,16 @@ export type PatchDagRunData = {
 };
 
 export type PatchDagRunResponse = DAGRunResponse;
+
+export type ClearDagRunData = {
+  dagId: string;
+  dagRunId: string;
+  requestBody: DAGRunClearBody;
+};
+
+export type ClearDagRunResponse =
+  | TaskInstanceCollectionResponse
+  | DAGRunResponse;
 
 export type GetDagSourceData = {
   accept?: string;
@@ -1390,6 +1415,13 @@ export type GetTaskInstancesData = {
 };
 
 export type GetTaskInstancesResponse = TaskInstanceCollectionResponse;
+
+export type GetTasksData = {
+  dagId: string;
+  orderBy?: string;
+};
+
+export type GetTasksResponse = TaskCollectionResponse;
 
 export type GetTaskData = {
   dagId: string;
@@ -2000,6 +2032,33 @@ export type $OpenApiTs = {
          * Bad Request
          */
         400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/clear": {
+    post: {
+      req: ClearDagRunData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceCollectionResponse | DAGRunResponse;
         /**
          * Unauthorized
          */
@@ -2725,6 +2784,37 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: TaskInstanceCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/tasks/": {
+    get: {
+      req: GetTasksData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskCollectionResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
         /**
          * Unauthorized
          */
