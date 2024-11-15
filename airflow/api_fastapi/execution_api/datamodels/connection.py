@@ -17,16 +17,17 @@
 
 from __future__ import annotations
 
-from typing import Annotated
-
-from fastapi import Depends
-
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from pydantic import BaseModel, Field
 
 
-def get_task_token() -> TIToken:
-    """TODO: Placeholder for task identity authentication. This should be replaced with actual JWT decoding and validation."""
-    return TIToken(ti_key="test_key")
+class ConnectionResponse(BaseModel):
+    """Connection schema for responses with fields that are needed for Runtime."""
 
-
-TokenDep = Annotated[TIToken, Depends(get_task_token)]
+    conn_id: str
+    conn_type: str
+    host: str | None
+    schema_: str | None = Field(alias="schema")
+    login: str | None
+    password: str | None
+    port: int | None
+    extra: str | None

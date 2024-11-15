@@ -22,7 +22,9 @@ import logging
 from fastapi import HTTPException, status
 
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.execution_api import datamodels, deps
+from airflow.api_fastapi.execution_api import deps
+from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.datamodels.variable import VariableResponse
 from airflow.models.variable import Variable
 
 # TODO: Add dependency on JWT token
@@ -40,10 +42,7 @@ log = logging.getLogger(__name__)
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
     },
 )
-def get_variable(
-    variable_key: str,
-    token: deps.TokenDep,
-) -> datamodels.VariableResponse:
+def get_variable(variable_key: str, token: deps.TokenDep) -> VariableResponse:
     """Get an Airflow Variable."""
     if not has_variable_access(variable_key, token):
         raise HTTPException(
@@ -65,10 +64,10 @@ def get_variable(
             },
         )
 
-    return datamodels.VariableResponse(key=variable_key, value=variable_value)
+    return VariableResponse(key=variable_key, value=variable_value)
 
 
-def has_variable_access(variable_key: str, token: datamodels.TIToken) -> bool:
+def has_variable_access(variable_key: str, token: TIToken) -> bool:
     """Check if the task has access to the variable."""
     # TODO: Placeholder for actual implementation
 
