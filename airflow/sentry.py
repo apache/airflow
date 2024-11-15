@@ -62,7 +62,7 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
     class ConfiguredSentry(DummySentry):
         """Configure Sentry SDK."""
 
-        SCOPE_DAG_RUN_TAGS = frozenset(("data_interval_end", "data_interval_start", "execution_date"))
+        SCOPE_DAG_RUN_TAGS = frozenset(("data_interval_end", "data_interval_start", "logical_date"))
         SCOPE_TASK_INSTANCE_TAGS = frozenset(("task_id", "dag_id", "try_number"))
         SCOPE_CRUMBS = frozenset(("task_id", "state", "operator", "duration"))
 

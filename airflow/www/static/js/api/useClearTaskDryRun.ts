@@ -30,7 +30,7 @@ const useClearTaskDryRun = ({
   dagId,
   runId,
   taskId,
-  executionDate,
+  logicalDate,
   isGroup,
   past,
   future,
@@ -44,7 +44,7 @@ const useClearTaskDryRun = ({
   dagId: string;
   runId: string;
   taskId: string;
-  executionDate: string;
+  logicalDate: string;
   isGroup: boolean;
   past: boolean;
   future: boolean;
@@ -75,7 +75,7 @@ const useClearTaskDryRun = ({
         dag_id: dagId,
         dag_run_id: runId,
         confirmed: false,
-        execution_date: executionDate,
+        logical_date: logicalDate,
         past,
         future,
         upstream,
