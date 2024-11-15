@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+3.8.1
+.....
+
+Misc
+~~~~
+
+* ``Move bash operator to Standard provider (#42252)``
+* ``Purge existing SLA implementation (#42285)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 3.8.0
 .....
 

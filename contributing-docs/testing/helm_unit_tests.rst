@@ -70,7 +70,7 @@ so rather than running all tests, you can run only tests from a selected package
 
 .. code-block:: bash
 
-    breeze testing helm-tests --helm-test-package basic
+    breeze testing helm-tests --test-type basic
 
 Will run all tests from ``tests-charts/basic`` package.
 

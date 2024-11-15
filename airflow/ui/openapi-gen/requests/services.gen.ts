@@ -47,6 +47,8 @@ import type {
   DeleteDagRunResponse,
   PatchDagRunData,
   PatchDagRunResponse,
+  ClearDagRunData,
+  ClearDagRunResponse,
   GetDagSourceData,
   GetDagSourceResponse,
   GetDagStatsData,
@@ -77,7 +79,6 @@ import type {
   GetImportErrorResponse,
   GetImportErrorsData,
   GetImportErrorsResponse,
-  GetHealthResponse,
   GetPluginsData,
   GetPluginsResponse,
   DeletePoolData,
@@ -116,9 +117,10 @@ import type {
   GetVariablesResponse,
   PostVariableData,
   PostVariableResponse,
-  GetVersionResponse,
   GetXcomEntryData,
   GetXcomEntryResponse,
+  GetHealthResponse,
+  GetVersionResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -769,6 +771,36 @@ export class DagRunService {
       },
     });
   }
+
+  /**
+   * Clear Dag Run
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.requestBody
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static clearDagRun(
+    data: ClearDagRunData,
+  ): CancelablePromise<ClearDagRunResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/clear",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
 }
 
 export class DagSourceService {
@@ -1264,24 +1296,6 @@ export class ImportErrorService {
         401: "Unauthorized",
         403: "Forbidden",
         422: "Validation Error",
-      },
-    });
-  }
-}
-
-export class MonitorService {
-  /**
-   * Get Health
-   * @returns HealthInfoSchema Successful Response
-   * @throws ApiError
-   */
-  public static getHealth(): CancelablePromise<GetHealthResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/monitor/health",
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
       },
     });
   }
@@ -1918,25 +1932,6 @@ export class VariableService {
   }
 }
 
-export class VersionService {
-  /**
-   * Get Version
-   * Get version information.
-   * @returns VersionInfo Successful Response
-   * @throws ApiError
-   */
-  public static getVersion(): CancelablePromise<GetVersionResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/version/",
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-      },
-    });
-  }
-}
-
 export class XcomService {
   /**
    * Get Xcom Entry
@@ -1976,6 +1971,35 @@ export class XcomService {
         404: "Not Found",
         422: "Validation Error",
       },
+    });
+  }
+}
+
+export class MonitorService {
+  /**
+   * Get Health
+   * @returns HealthInfoSchema Successful Response
+   * @throws ApiError
+   */
+  public static getHealth(): CancelablePromise<GetHealthResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/monitor/health",
+    });
+  }
+}
+
+export class VersionService {
+  /**
+   * Get Version
+   * Get version information.
+   * @returns VersionInfo Successful Response
+   * @throws ApiError
+   */
+  public static getVersion(): CancelablePromise<GetVersionResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/version/",
     });
   }
 }
