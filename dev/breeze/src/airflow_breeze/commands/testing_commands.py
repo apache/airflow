@@ -28,6 +28,7 @@ from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_i
 from airflow_breeze.commands.common_options import (
     option_backend,
     option_clean_airflow_installation,
+    option_core_integration,
     option_database_isolation,
     option_db_reset,
     option_debug_resources,
@@ -41,13 +42,13 @@ from airflow_breeze.commands.common_options import (
     option_image_name,
     option_image_tag_for_running,
     option_include_success_outputs,
-    option_integration,
     option_keep_env_variables,
     option_mount_sources,
     option_mysql_version,
     option_no_db_cleanup,
     option_parallelism,
     option_postgres_version,
+    option_providers_integration,
     option_python,
     option_run_db_tests_only,
     option_run_in_parallel,
@@ -66,9 +67,11 @@ from airflow_breeze.commands.common_package_installation_options import (
 )
 from airflow_breeze.commands.release_management_commands import option_package_format
 from airflow_breeze.global_constants import (
-    ALLOWED_HELM_TEST_PACKAGES,
-    ALLOWED_PARALLEL_TEST_TYPE_CHOICES,
+    ALL_TEST_TYPE,
     ALLOWED_TEST_TYPE_CHOICES,
+    GroupOfTests,
+    all_selective_core_test_types,
+    providers_test_type,
 )
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.params.shell_params import ShellParams
@@ -93,7 +96,7 @@ from airflow_breeze.utils.run_tests import (
     generate_args_for_pytest,
     run_docker_compose_tests,
 )
-from airflow_breeze.utils.run_utils import get_filesystem_type, run_command
+from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.selective_checks import ALL_CI_SELECTIVE_TEST_TYPES
 
 LOW_MEMORY_CONDITION = 8 * 1024 * 1024 * 1024
@@ -123,7 +126,7 @@ def group_for_testing():
 @option_github_repository
 @option_verbose
 @option_dry_run
-@click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
+@click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
 def docker_compose_tests(
     python: str,
     image_name: str,
@@ -148,7 +151,7 @@ def docker_compose_tests(
     sys.exit(return_code)
 
 
-TEST_PROGRESS_REGEXP = r"tests/.*|.*=====.*"
+TEST_PROGRESS_REGEXP = r"tests/.*|providers/tests/.*|task_sdk/tests/.*|.*=====.*"
 PERCENT_TEST_PROGRESS_REGEXP = r"^tests/.*\[[ \d%]*\].*|^\..*\[[ \d%]*\].*"
 
 
@@ -191,9 +194,9 @@ def _run_test(
         "airflow",
     ]
     pytest_args = generate_args_for_pytest(
+        test_group=shell_params.test_group,
         test_type=shell_params.test_type,
         test_timeout=test_timeout,
-        skip_provider_tests=shell_params.skip_provider_tests,
         skip_db_tests=shell_params.skip_db_tests,
         run_db_tests_only=shell_params.run_db_tests_only,
         backend=shell_params.backend,
@@ -203,7 +206,6 @@ def _run_test(
         parallelism=shell_params.parallelism,
         python_version=python_version,
         parallel_test_types_list=shell_params.parallel_test_types_list,
-        helm_test_package=None,
         keep_env_variables=shell_params.keep_env_variables,
         no_db_cleanup=shell_params.no_db_cleanup,
     )
@@ -273,16 +275,15 @@ def _run_test(
 
 
 def _run_tests_in_pool(
-    tests_to_run: list[str],
+    debug_resources: bool,
+    extra_pytest_args: tuple,
+    include_success_outputs: bool,
     parallelism: int,
     shell_params: ShellParams,
-    extra_pytest_args: tuple,
-    test_timeout: int,
-    db_reset: bool,
-    include_success_outputs: bool,
-    debug_resources: bool,
     skip_cleanup: bool,
     skip_docker_compose_down: bool,
+    test_timeout: int,
+    tests_to_run: list[str],
 ):
     if not tests_to_run:
         return
@@ -292,11 +293,8 @@ def _run_tests_in_pool(
     # tests are still running. We are only adding here test types that take more than 2 minutes to run
     # on a fast machine in parallel
     sorting_order = [
-        "Providers",
-        "Providers[-amazon,google]",
         "Other",
         "Core",
-        "PythonVenv",
         "WWW",
         "CLI",
         "Serialization",
@@ -358,7 +356,6 @@ def pull_images_for_docker_compose(shell_params: ShellParams):
 def run_tests_in_parallel(
     shell_params: ShellParams,
     extra_pytest_args: tuple,
-    db_reset: bool,
     test_timeout: int,
     include_success_outputs: bool,
     debug_resources: bool,
@@ -369,7 +366,6 @@ def run_tests_in_parallel(
     get_console().print("\n[info]Summary of the tests to run\n")
     get_console().print(f"[info]Running tests in parallel with parallelism={parallelism}")
     get_console().print(f"[info]Extra pytest args: {extra_pytest_args}")
-    get_console().print(f"[info]DB reset: {db_reset}")
     get_console().print(f"[info]Test timeout: {test_timeout}")
     get_console().print(f"[info]Include success outputs: {include_success_outputs}")
     get_console().print(f"[info]Debug resources: {debug_resources}")
@@ -384,7 +380,6 @@ def run_tests_in_parallel(
         shell_params=shell_params,
         extra_pytest_args=extra_pytest_args,
         test_timeout=test_timeout,
-        db_reset=db_reset,
         include_success_outputs=include_success_outputs,
         debug_resources=debug_resources,
         skip_cleanup=skip_cleanup,
@@ -421,33 +416,43 @@ option_enable_coverage = click.option(
     is_flag=True,
     envvar="ENABLE_COVERAGE",
 )
-option_excluded_parallel_test_types = click.option(
+option_excluded_parallel_core_test_types = click.option(
     "--excluded-parallel-test-types",
-    help="Space separated list of test types that will be excluded from parallel tes runs.",
+    help="Space separated list of core test types that will be excluded from parallel tes runs.",
     default="",
     show_default=True,
     envvar="EXCLUDED_PARALLEL_TEST_TYPES",
-    type=NotVerifiedBetterChoice(ALLOWED_PARALLEL_TEST_TYPE_CHOICES),
+    type=NotVerifiedBetterChoice(all_selective_core_test_types()),
 )
-option_parallel_test_types = click.option(
+option_parallel_core_test_types = click.option(
     "--parallel-test-types",
-    help="Space separated list of test types used for testing in parallel",
+    help="Space separated list of core test types used for testing in parallel.",
     default=ALL_CI_SELECTIVE_TEST_TYPES,
     show_default=True,
     envvar="PARALLEL_TEST_TYPES",
-    type=NotVerifiedBetterChoice(ALLOWED_PARALLEL_TEST_TYPE_CHOICES),
+    type=NotVerifiedBetterChoice(all_selective_core_test_types()),
+)
+option_excluded_parallel_providers_test_types = click.option(
+    "--excluded-parallel-test-types",
+    help="Space separated list of provider test types that will be excluded from parallel tes runs. You can "
+    "for example `Providers[airbyte,http]`.",
+    default="",
+    envvar="EXCLUDED_PARALLEL_TEST_TYPES",
+    type=str,
+)
+option_parallel_providers_test_types = click.option(
+    "--parallel-test-types",
+    help="Space separated list of provider test types used for testing in parallel. You can also optionally "
+    "specify tests of which providers should be run: `Providers[airbyte,http]`.",
+    default=providers_test_type()[0],
+    envvar="PARALLEL_TEST_TYPES",
+    type=str,
 )
 option_skip_docker_compose_down = click.option(
     "--skip-docker-compose-down",
     help="Skips running docker-compose down after tests",
     is_flag=True,
     envvar="SKIP_DOCKER_COMPOSE_DOWN",
-)
-option_skip_provider_tests = click.option(
-    "--skip-provider-tests",
-    help="Skip provider tests",
-    is_flag=True,
-    envvar="SKIP_PROVIDER_TESTS",
 )
 option_skip_providers = click.option(
     "--skip-providers",
@@ -464,15 +469,41 @@ option_test_timeout = click.option(
     type=IntRange(min=0),
     show_default=True,
 )
-option_test_type = click.option(
+option_test_type_core_group = click.option(
+    "--test-type",
+    help="Type of tests to run for core test group",
+    default=ALL_TEST_TYPE,
+    envvar="TEST_TYPE",
+    show_default=True,
+    type=BetterChoice(ALLOWED_TEST_TYPE_CHOICES[GroupOfTests.CORE]),
+)
+option_test_type_providers_group = click.option(
+    "--test-type",
+    help="Type of test to run. You can also optionally specify tests of which providers "
+    "should be run: `Providers[airbyte,http]` or "
+    "excluded from the full test suite: `Providers[-amazon,google]`",
+    default=ALL_TEST_TYPE,
+    envvar="TEST_TYPE",
+    show_default=True,
+    type=NotVerifiedBetterChoice(ALLOWED_TEST_TYPE_CHOICES[GroupOfTests.PROVIDERS]),
+)
+option_test_type_helm = click.option(
+    "--test-type",
+    help="Type of helm tests to run",
+    default=ALL_TEST_TYPE,
+    envvar="TEST_TYPE",
+    show_default=True,
+    type=BetterChoice(ALLOWED_TEST_TYPE_CHOICES[GroupOfTests.HELM]),
+)
+option_test_type_task_sdk_group = click.option(
     "--test-type",
     help="Type of test to run. With Providers, you can specify tests of which providers "
     "should be run: `Providers[airbyte,http]` or "
     "excluded from the full test suite: `Providers[-amazon,google]`",
-    default="Default",
+    default=ALL_TEST_TYPE,
     envvar="TEST_TYPE",
     show_default=True,
-    type=NotVerifiedBetterChoice(ALLOWED_TEST_TYPE_CHOICES),
+    type=BetterChoice(ALLOWED_TEST_TYPE_CHOICES[GroupOfTests.TASK_SDK]),
 )
 option_use_xdist = click.option(
     "--use-xdist",
@@ -497,10 +528,70 @@ option_force_sa_warnings = click.option(
 
 
 @group_for_testing.command(
-    name="tests",
-    help="Run the specified unit tests. This is a low level testing command that allows you to run "
-    "various kind of tests subset with a number of options. You can also use dedicated commands such "
-    "as db_tests, non_db_tests, integration_tests for more opinionated test suite execution.",
+    name="core-tests",
+    help="Run all (default) or specified core unit tests.",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_airflow_constraints_reference
+@option_backend
+@option_collect_only
+@option_clean_airflow_installation
+@option_db_reset
+@option_debug_resources
+@option_downgrade_pendulum
+@option_downgrade_sqlalchemy
+@option_dry_run
+@option_enable_coverage
+@option_excluded_parallel_core_test_types
+@option_force_sa_warnings
+@option_force_lowest_dependencies
+@option_forward_credentials
+@option_github_repository
+@option_image_tag_for_running
+@option_include_success_outputs
+@option_install_airflow_with_constraints
+@option_keep_env_variables
+@option_mount_sources
+@option_mysql_version
+@option_no_db_cleanup
+@option_package_format
+@option_parallel_core_test_types
+@option_parallelism
+@option_postgres_version
+@option_python
+@option_remove_arm_packages
+@option_run_db_tests_only
+@option_run_in_parallel
+@option_skip_cleanup
+@option_skip_db_tests
+@option_skip_docker_compose_down
+@option_test_timeout
+@option_test_type_core_group
+@option_upgrade_boto
+@option_use_airflow_version
+@option_use_packages_from_dist
+@option_use_xdist
+@option_verbose
+@click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
+def core_tests(**kwargs):
+    _run_test_command(
+        test_group=GroupOfTests.CORE,
+        database_isolation=False,
+        integration=(),
+        excluded_providers="",
+        providers_skip_constraints=False,
+        providers_constraints_location="",
+        skip_providers="",
+        **kwargs,
+    )
+
+
+@group_for_testing.command(
+    name="providers-tests",
+    help="Run all (default) or specified Providers unit tests.",
     context_settings=dict(
         ignore_unknown_options=True,
         allow_extra_args=True,
@@ -518,21 +609,20 @@ option_force_sa_warnings = click.option(
 @option_dry_run
 @option_enable_coverage
 @option_excluded_providers
-@option_excluded_parallel_test_types
+@option_excluded_parallel_providers_test_types
 @option_force_sa_warnings
 @option_force_lowest_dependencies
 @option_forward_credentials
 @option_github_repository
 @option_image_tag_for_running
 @option_include_success_outputs
-@option_integration
 @option_install_airflow_with_constraints
 @option_keep_env_variables
 @option_mount_sources
 @option_mysql_version
 @option_no_db_cleanup
 @option_package_format
-@option_parallel_test_types
+@option_parallel_providers_test_types
 @option_parallelism
 @option_postgres_version
 @option_providers_constraints_location
@@ -544,201 +634,72 @@ option_force_sa_warnings = click.option(
 @option_skip_cleanup
 @option_skip_db_tests
 @option_skip_docker_compose_down
-@option_skip_provider_tests
 @option_skip_providers
 @option_test_timeout
-@option_test_type
+@option_test_type_providers_group
 @option_upgrade_boto
 @option_use_airflow_version
 @option_use_packages_from_dist
 @option_use_xdist
 @option_verbose
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
-def command_for_tests(**kwargs):
-    _run_test_command(**kwargs)
-
-
-@group_for_testing.command(
-    name="db-tests",
-    help="Run all (default) or specified DB-bound unit tests. This is a dedicated command that only runs "
-    "DB tests and it runs them in parallel via splitting tests by test types into separate "
-    "containers with separate database started for each container.",
-    context_settings=dict(
-        ignore_unknown_options=False,
-        allow_extra_args=False,
-    ),
-)
-@option_airflow_constraints_reference
-@option_backend
-@option_collect_only
-@option_clean_airflow_installation
-@option_database_isolation
-@option_debug_resources
-@option_downgrade_pendulum
-@option_downgrade_sqlalchemy
-@option_dry_run
-@option_enable_coverage
-@option_excluded_parallel_test_types
-@option_excluded_providers
-@option_forward_credentials
-@option_force_lowest_dependencies
-@option_github_repository
-@option_image_tag_for_running
-@option_include_success_outputs
-@option_install_airflow_with_constraints
-@option_keep_env_variables
-@option_mount_sources
-@option_mysql_version
-@option_no_db_cleanup
-@option_package_format
-@option_parallel_test_types
-@option_parallelism
-@option_postgres_version
-@option_providers_constraints_location
-@option_providers_skip_constraints
-@option_python
-@option_remove_arm_packages
-@option_skip_cleanup
-@option_skip_docker_compose_down
-@option_skip_provider_tests
-@option_skip_providers
-@option_test_timeout
-@option_upgrade_boto
-@option_use_airflow_version
-@option_use_packages_from_dist
-@option_force_sa_warnings
-@option_verbose
-def command_for_db_tests(**kwargs):
-    _run_test_command(
-        integration=(),
-        run_in_parallel=True,
-        use_xdist=False,
-        skip_db_tests=False,
-        run_db_tests_only=True,
-        test_type="Default",
-        db_reset=True,
-        extra_pytest_args=(),
-        **kwargs,
-    )
-
-
-@group_for_testing.command(
-    name="non-db-tests",
-    help="Run all (default) or specified Non-DB unit tests. This is a dedicated command that only "
-    "runs Non-DB tests and it runs them in parallel via pytest-xdist in single container, "
-    "with `none` backend set.",
-    context_settings=dict(
-        ignore_unknown_options=False,
-        allow_extra_args=False,
-    ),
-)
-@option_airflow_constraints_reference
-@option_collect_only
-@option_clean_airflow_installation
-@option_debug_resources
-@option_downgrade_sqlalchemy
-@option_downgrade_pendulum
-@option_dry_run
-@option_enable_coverage
-@option_excluded_parallel_test_types
-@option_excluded_providers
-@option_forward_credentials
-@option_force_lowest_dependencies
-@option_github_repository
-@option_image_tag_for_running
-@option_include_success_outputs
-@option_install_airflow_with_constraints
-@option_keep_env_variables
-@option_mount_sources
-@option_no_db_cleanup
-@option_package_format
-@option_parallel_test_types
-@option_parallelism
-@option_providers_constraints_location
-@option_providers_skip_constraints
-@option_python
-@option_remove_arm_packages
-@option_skip_cleanup
-@option_skip_docker_compose_down
-@option_skip_provider_tests
-@option_skip_providers
-@option_test_timeout
-@option_upgrade_boto
-@option_use_airflow_version
-@option_use_packages_from_dist
-@option_force_sa_warnings
-@option_verbose
-def command_for_non_db_tests(**kwargs):
-    _run_test_command(
-        backend="none",
-        database_isolation=False,
-        db_reset=False,
-        extra_pytest_args=(),
-        integration=(),
-        run_db_tests_only=False,
-        run_in_parallel=False,
-        skip_db_tests=True,
-        test_type="Default",
-        use_xdist=True,
-        **kwargs,
-    )
+def providers_tests(**kwargs):
+    _run_test_command(test_group=GroupOfTests.PROVIDERS, integration=(), **kwargs)
 
 
 @group_for_testing.command(
     name="task-sdk-tests",
-    help="Run task-sdk tests. This is a dedicated command that only "
-    "runs Task SDk tests & don't need DB and it runs them in parallel via pytest-xdist in single container, "
-    "with `none` backend set.",
+    help="Run task-sdk tests - all task SDK tests are non-DB bound tests.",
     context_settings=dict(
         ignore_unknown_options=False,
         allow_extra_args=False,
     ),
 )
-@option_airflow_constraints_reference
-@option_clean_airflow_installation
 @option_collect_only
 @option_debug_resources
-@option_downgrade_pendulum
-@option_downgrade_sqlalchemy
 @option_dry_run
 @option_enable_coverage
 @option_force_sa_warnings
 @option_forward_credentials
 @option_github_repository
 @option_image_tag_for_running
-@option_include_success_outputs
 @option_keep_env_variables
+@option_include_success_outputs
 @option_mount_sources
-@option_package_format
 @option_parallelism
 @option_python
-@option_remove_arm_packages
 @option_skip_cleanup
 @option_skip_docker_compose_down
 @option_test_timeout
 @option_verbose
-@click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
-def command_for_task_sdk_tests(**kwargs):
+@click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
+def task_sdk_tests(**kwargs):
     _run_test_command(
+        test_group=GroupOfTests.TASK_SDK,
+        airflow_constraints_reference="constraints-main",
         backend="none",
+        clean_airflow_installation=False,
         database_isolation=False,
+        downgrade_pendulum=False,
+        downgrade_sqlalchemy=False,
         db_reset=False,
         integration=(),
+        install_airflow_with_constraints=False,
         run_db_tests_only=False,
         run_in_parallel=False,
         skip_db_tests=True,
-        test_type="TaskSDK",
         use_xdist=True,
         excluded_parallel_test_types="",
         excluded_providers="",
         force_lowest_dependencies=False,
-        install_airflow_with_constraints=False,
         no_db_cleanup=True,
         parallel_test_types="",
+        package_format="wheel",
         providers_constraints_location="",
         providers_skip_constraints=False,
-        skip_provider_tests=True,
+        remove_arm_packages=False,
         skip_providers="",
+        test_type=ALL_TEST_TYPE,
         upgrade_boto=False,
         use_airflow_version=None,
         use_packages_from_dist=False,
@@ -746,8 +707,320 @@ def command_for_task_sdk_tests(**kwargs):
     )
 
 
+@group_for_testing.command(
+    name="core-integration-tests",
+    help="Run the specified integration tests.",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_backend
+@option_collect_only
+@option_db_reset
+@option_dry_run
+@option_enable_coverage
+@option_force_sa_warnings
+@option_forward_credentials
+@option_github_repository
+@option_image_tag_for_running
+@option_core_integration
+@option_keep_env_variables
+@option_mount_sources
+@option_mysql_version
+@option_no_db_cleanup
+@option_postgres_version
+@option_python
+@option_skip_docker_compose_down
+@option_test_timeout
+@option_verbose
+@click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
+def core_integration_tests(
+    backend: str,
+    collect_only: bool,
+    db_reset: bool,
+    enable_coverage: bool,
+    extra_pytest_args: tuple,
+    force_sa_warnings: bool,
+    forward_credentials: bool,
+    github_repository: str,
+    image_tag: str | None,
+    keep_env_variables: bool,
+    integration: tuple,
+    mount_sources: str,
+    mysql_version: str,
+    no_db_cleanup: bool,
+    postgres_version: str,
+    python: str,
+    skip_docker_compose_down: bool,
+    test_timeout: int,
+):
+    shell_params = ShellParams(
+        test_group=GroupOfTests.INTEGRATION_CORE,
+        backend=backend,
+        collect_only=collect_only,
+        enable_coverage=enable_coverage,
+        forward_credentials=forward_credentials,
+        forward_ports=False,
+        github_repository=github_repository,
+        image_tag=image_tag,
+        integration=integration,
+        keep_env_variables=keep_env_variables,
+        mount_sources=mount_sources,
+        mysql_version=mysql_version,
+        no_db_cleanup=no_db_cleanup,
+        postgres_version=postgres_version,
+        python=python,
+        test_type="All",
+        force_sa_warnings=force_sa_warnings,
+        run_tests=True,
+        db_reset=db_reset,
+    )
+    fix_ownership_using_docker()
+    cleanup_python_generated_files()
+    perform_environment_checks()
+    returncode, _ = _run_test(
+        shell_params=shell_params,
+        extra_pytest_args=extra_pytest_args,
+        python_version=python,
+        output=None,
+        test_timeout=test_timeout,
+        output_outside_the_group=True,
+        skip_docker_compose_down=skip_docker_compose_down,
+    )
+    sys.exit(returncode)
+
+
+@group_for_testing.command(
+    name="providers-integration-tests",
+    help="Run the specified integration tests.",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_backend
+@option_collect_only
+@option_db_reset
+@option_dry_run
+@option_enable_coverage
+@option_force_sa_warnings
+@option_forward_credentials
+@option_github_repository
+@option_image_tag_for_running
+@option_providers_integration
+@option_keep_env_variables
+@option_mount_sources
+@option_mysql_version
+@option_no_db_cleanup
+@option_postgres_version
+@option_python
+@option_skip_docker_compose_down
+@option_test_timeout
+@option_verbose
+@click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
+def integration_providers_tests(
+    backend: str,
+    collect_only: bool,
+    db_reset: bool,
+    enable_coverage: bool,
+    extra_pytest_args: tuple,
+    force_sa_warnings: bool,
+    forward_credentials: bool,
+    github_repository: str,
+    image_tag: str | None,
+    integration: tuple,
+    keep_env_variables: bool,
+    mount_sources: str,
+    mysql_version: str,
+    no_db_cleanup: bool,
+    postgres_version: str,
+    python: str,
+    skip_docker_compose_down: bool,
+    test_timeout: int,
+):
+    shell_params = ShellParams(
+        test_group=GroupOfTests.INTEGRATION_PROVIDERS,
+        backend=backend,
+        collect_only=collect_only,
+        enable_coverage=enable_coverage,
+        forward_credentials=forward_credentials,
+        forward_ports=False,
+        github_repository=github_repository,
+        image_tag=image_tag,
+        integration=integration,
+        keep_env_variables=keep_env_variables,
+        mount_sources=mount_sources,
+        mysql_version=mysql_version,
+        no_db_cleanup=no_db_cleanup,
+        postgres_version=postgres_version,
+        python=python,
+        test_type="All",
+        force_sa_warnings=force_sa_warnings,
+        run_tests=True,
+        db_reset=db_reset,
+    )
+    fix_ownership_using_docker()
+    cleanup_python_generated_files()
+    perform_environment_checks()
+    returncode, _ = _run_test(
+        shell_params=shell_params,
+        extra_pytest_args=extra_pytest_args,
+        python_version=python,
+        output=None,
+        test_timeout=test_timeout,
+        output_outside_the_group=True,
+        skip_docker_compose_down=skip_docker_compose_down,
+    )
+    sys.exit(returncode)
+
+
+@group_for_testing.command(
+    name="system-tests",
+    help="Run the specified system tests.",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_backend
+@option_collect_only
+@option_db_reset
+@option_dry_run
+@option_enable_coverage
+@option_force_sa_warnings
+@option_forward_credentials
+@option_github_repository
+@option_image_tag_for_running
+@option_keep_env_variables
+@option_mount_sources
+@option_mysql_version
+@option_no_db_cleanup
+@option_postgres_version
+@option_python
+@option_skip_docker_compose_down
+@option_test_timeout
+@option_verbose
+@click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
+def system_tests(
+    backend: str,
+    collect_only: bool,
+    db_reset: bool,
+    enable_coverage: bool,
+    extra_pytest_args: tuple,
+    force_sa_warnings: bool,
+    forward_credentials: bool,
+    github_repository: str,
+    image_tag: str | None,
+    keep_env_variables: bool,
+    mount_sources: str,
+    mysql_version: str,
+    no_db_cleanup: bool,
+    postgres_version: str,
+    python: str,
+    skip_docker_compose_down: bool,
+    test_timeout: int,
+):
+    shell_params = ShellParams(
+        test_group=GroupOfTests.SYSTEM,
+        backend=backend,
+        collect_only=collect_only,
+        enable_coverage=enable_coverage,
+        forward_credentials=forward_credentials,
+        forward_ports=False,
+        github_repository=github_repository,
+        image_tag=image_tag,
+        integration=(),
+        keep_env_variables=keep_env_variables,
+        mount_sources=mount_sources,
+        mysql_version=mysql_version,
+        no_db_cleanup=no_db_cleanup,
+        postgres_version=postgres_version,
+        python=python,
+        test_type="None",
+        force_sa_warnings=force_sa_warnings,
+        run_tests=True,
+        db_reset=db_reset,
+    )
+    fix_ownership_using_docker()
+    cleanup_python_generated_files()
+    perform_environment_checks()
+    returncode, _ = _run_test(
+        shell_params=shell_params,
+        extra_pytest_args=extra_pytest_args,
+        python_version=python,
+        output=None,
+        test_timeout=test_timeout,
+        output_outside_the_group=True,
+        skip_docker_compose_down=skip_docker_compose_down,
+    )
+    sys.exit(returncode)
+
+
+@group_for_testing.command(
+    name="helm-tests",
+    help="Run Helm chart tests.",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_image_tag_for_running
+@option_mount_sources
+@option_github_repository
+@option_test_timeout
+@option_parallelism
+@option_test_type_helm
+@option_use_xdist
+@option_verbose
+@option_dry_run
+@click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
+def helm_tests(
+    extra_pytest_args: tuple,
+    image_tag: str | None,
+    mount_sources: str,
+    github_repository: str,
+    test_timeout: int,
+    test_type: str,
+    parallelism: int,
+    use_xdist: bool,
+):
+    shell_params = ShellParams(
+        image_tag=image_tag,
+        mount_sources=mount_sources,
+        github_repository=github_repository,
+        run_tests=True,
+        test_type=test_type,
+    )
+    env = shell_params.env_variables_for_docker_commands
+    perform_environment_checks()
+    fix_ownership_using_docker()
+    cleanup_python_generated_files()
+    pytest_args = generate_args_for_pytest(
+        test_group=GroupOfTests.HELM,
+        test_type=test_type,
+        test_timeout=test_timeout,
+        skip_db_tests=False,
+        run_db_tests_only=False,
+        backend="none",
+        use_xdist=use_xdist,
+        enable_coverage=False,
+        collect_only=False,
+        parallelism=parallelism,
+        parallel_test_types_list=[],
+        python_version=shell_params.python,
+        keep_env_variables=False,
+        no_db_cleanup=False,
+    )
+    cmd = ["docker", "compose", "run", "--service-ports", "--rm", "airflow", *pytest_args, *extra_pytest_args]
+    result = run_command(cmd, check=False, env=env, output_outside_the_group=True)
+    fix_ownership_using_docker()
+    sys.exit(result.returncode)
+
+
 def _run_test_command(
     *,
+    test_group: GroupOfTests,
     airflow_constraints_reference: str,
     backend: str,
     collect_only: bool,
@@ -784,7 +1057,6 @@ def _run_test_command(
     skip_cleanup: bool,
     skip_db_tests: bool,
     skip_docker_compose_down: bool,
-    skip_provider_tests: bool,
     skip_providers: str,
     test_timeout: int,
     test_type: str,
@@ -795,8 +1067,6 @@ def _run_test_command(
     mysql_version: str = "",
     postgres_version: str = "",
 ):
-    docker_filesystem = get_filesystem_type("/var/lib/docker")
-    get_console().print(f"Docker filesystem: {docker_filesystem}")
     _verify_parallelism_parameters(
         excluded_parallel_test_types, run_db_tests_only, run_in_parallel, use_xdist
     )
@@ -804,8 +1074,6 @@ def _run_test_command(
     excluded_test_list = excluded_parallel_test_types.split(" ")
     if excluded_test_list:
         test_list = [test for test in test_list if test not in excluded_test_list]
-    if skip_provider_tests or "Providers" in excluded_test_list:
-        test_list = [test for test in test_list if not test.startswith("Providers")]
     shell_params = ShellParams(
         airflow_constraints_reference=airflow_constraints_reference,
         backend=backend,
@@ -838,8 +1106,8 @@ def _run_test_command(
         remove_arm_packages=remove_arm_packages,
         run_db_tests_only=run_db_tests_only,
         skip_db_tests=skip_db_tests,
-        skip_provider_tests=skip_provider_tests,
         test_type=test_type,
+        test_group=test_group,
         upgrade_boto=upgrade_boto,
         use_airflow_version=use_airflow_version,
         use_packages_from_dist=use_packages_from_dist,
@@ -858,7 +1126,7 @@ def _run_test_command(
         ]
         extra_pytest_args = (*extra_pytest_args, *ignored_path_list)
     if run_in_parallel:
-        if test_type != "Default":
+        if test_type != ALL_TEST_TYPE:
             get_console().print(
                 "[error]You should not specify --test-type when --run-in-parallel is set[/]. "
                 f"Your test type = {test_type}\n"
@@ -867,7 +1135,6 @@ def _run_test_command(
         run_tests_in_parallel(
             shell_params=shell_params,
             extra_pytest_args=extra_pytest_args,
-            db_reset=db_reset,
             test_timeout=test_timeout,
             include_success_outputs=include_success_outputs,
             parallelism=parallelism,
@@ -876,21 +1143,10 @@ def _run_test_command(
             skip_docker_compose_down=skip_docker_compose_down,
         )
     else:
-        if shell_params.test_type == "Default":
-            if any(
-                [
-                    arg.startswith("tests/")
-                    or arg.startswith("providers/tests/")
-                    or arg.startswith("task_sdk/tests/")
-                    for arg in extra_pytest_args
-                ]
-            ):
-                # in case some tests are specified as parameters, do not pass "tests" as default
-                # test_type = "All" as default and it will run all "tests" by default then
+        if shell_params.test_type == ALL_TEST_TYPE:
+            if any(["tests/" in arg and not arg.startswith("-") for arg in extra_pytest_args]):
                 shell_params.test_type = "None"
                 shell_params.parallel_test_types_list = []
-            else:
-                shell_params.test_type = "All"
         returncode, _ = _run_test(
             shell_params=shell_params,
             extra_pytest_args=extra_pytest_args,
@@ -901,149 +1157,3 @@ def _run_test_command(
             skip_docker_compose_down=skip_docker_compose_down,
         )
         sys.exit(returncode)
-
-
-@group_for_testing.command(
-    name="integration-tests",
-    help="Run the specified integration tests.",
-    context_settings=dict(
-        ignore_unknown_options=True,
-        allow_extra_args=True,
-    ),
-)
-@option_backend
-@option_db_reset
-@option_dry_run
-@option_enable_coverage
-@option_forward_credentials
-@option_github_repository
-@option_image_tag_for_running
-@option_integration
-@option_mount_sources
-@option_mysql_version
-@option_postgres_version
-@option_python
-@option_skip_provider_tests
-@option_test_timeout
-@option_force_sa_warnings
-@option_verbose
-@click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
-def integration_tests(
-    backend: str,
-    db_reset: bool,
-    enable_coverage: bool,
-    extra_pytest_args: tuple,
-    forward_credentials: bool,
-    github_repository: str,
-    image_tag: str | None,
-    integration: tuple,
-    mount_sources: str,
-    mysql_version: str,
-    postgres_version: str,
-    python: str,
-    skip_provider_tests: bool,
-    force_sa_warnings: bool,
-    test_timeout: int,
-):
-    docker_filesystem = get_filesystem_type("/var/lib/docker")
-    get_console().print(f"Docker filesystem: {docker_filesystem}")
-    shell_params = ShellParams(
-        backend=backend,
-        enable_coverage=enable_coverage,
-        forward_credentials=forward_credentials,
-        forward_ports=False,
-        github_repository=github_repository,
-        image_tag=image_tag,
-        integration=integration,
-        mount_sources=mount_sources,
-        mysql_version=mysql_version,
-        postgres_version=postgres_version,
-        python=python,
-        skip_provider_tests=skip_provider_tests,
-        test_type="Integration",
-        force_sa_warnings=force_sa_warnings,
-        run_tests=True,
-        db_reset=db_reset,
-    )
-    fix_ownership_using_docker()
-    cleanup_python_generated_files()
-    perform_environment_checks()
-    returncode, _ = _run_test(
-        shell_params=shell_params,
-        extra_pytest_args=extra_pytest_args,
-        python_version=python,
-        output=None,
-        test_timeout=test_timeout,
-        output_outside_the_group=True,
-    )
-    sys.exit(returncode)
-
-
-@group_for_testing.command(
-    name="helm-tests",
-    help="Run Helm chart tests.",
-    context_settings=dict(
-        ignore_unknown_options=True,
-        allow_extra_args=True,
-    ),
-)
-@option_image_tag_for_running
-@option_mount_sources
-@option_github_repository
-@option_test_timeout
-@option_parallelism
-@option_use_xdist
-@option_verbose
-@option_dry_run
-@click.option(
-    "--helm-test-package",
-    help="Package to tests",
-    default="all",
-    type=BetterChoice(ALLOWED_HELM_TEST_PACKAGES),
-)
-@click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
-def helm_tests(
-    extra_pytest_args: tuple,
-    image_tag: str | None,
-    mount_sources: str,
-    helm_test_package: str,
-    github_repository: str,
-    test_timeout: int,
-    parallelism: int,
-    use_xdist: bool,
-):
-    if helm_test_package == "all":
-        helm_test_package = ""
-    shell_params = ShellParams(
-        image_tag=image_tag,
-        mount_sources=mount_sources,
-        github_repository=github_repository,
-        run_tests=True,
-        test_type="Helm",
-        helm_test_package=helm_test_package,
-    )
-    env = shell_params.env_variables_for_docker_commands
-    perform_environment_checks()
-    fix_ownership_using_docker()
-    cleanup_python_generated_files()
-    pytest_args = generate_args_for_pytest(
-        test_type="Helm",
-        test_timeout=test_timeout,
-        skip_provider_tests=True,
-        skip_db_tests=False,
-        run_db_tests_only=False,
-        backend="none",
-        use_xdist=use_xdist,
-        enable_coverage=False,
-        collect_only=False,
-        parallelism=parallelism,
-        parallel_test_types_list=[],
-        python_version=shell_params.python,
-        helm_test_package=helm_test_package,
-        keep_env_variables=False,
-        no_db_cleanup=False,
-    )
-    cmd = ["docker", "compose", "run", "--service-ports", "--rm", "airflow", *pytest_args, *extra_pytest_args]
-    result = run_command(cmd, check=False, env=env, output_outside_the_group=True)
-    fix_ownership_using_docker()
-    sys.exit(result.returncode)

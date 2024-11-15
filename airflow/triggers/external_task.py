@@ -41,7 +41,7 @@ class WorkflowTrigger(BaseTrigger):
     A trigger to monitor tasks, task group and dag execution in Apache Airflow.
 
     :param external_dag_id: The ID of the external DAG.
-    :param execution_dates: A list of execution dates for the external DAG.
+    :param logical_dates: A list of logical dates for the external DAG.
     :param external_task_ids: A collection of external task IDs to wait for.
     :param external_task_group_id: The ID of the external task group to wait for.
     :param failed_states: States considered as failed for external tasks.
@@ -54,7 +54,7 @@ class WorkflowTrigger(BaseTrigger):
     def __init__(
         self,
         external_dag_id: str,
-        execution_dates: list,
+        logical_dates: list,
         external_task_ids: typing.Collection[str] | None = None,
         external_task_group_id: str | None = None,
         failed_states: typing.Iterable[str] | None = None,
@@ -70,7 +70,7 @@ class WorkflowTrigger(BaseTrigger):
         self.failed_states = failed_states
         self.skipped_states = skipped_states
         self.allowed_states = allowed_states
-        self.execution_dates = execution_dates
+        self.logical_dates = logical_dates
         self.poke_interval = poke_interval
         self.soft_fail = soft_fail
         super().__init__(**kwargs)
@@ -86,7 +86,7 @@ class WorkflowTrigger(BaseTrigger):
                 "failed_states": self.failed_states,
                 "skipped_states": self.skipped_states,
                 "allowed_states": self.allowed_states,
-                "execution_dates": self.execution_dates,
+                "logical_dates": self.logical_dates,
                 "poke_interval": self.poke_interval,
                 "soft_fail": self.soft_fail,
             },
@@ -109,7 +109,7 @@ class WorkflowTrigger(BaseTrigger):
                     yield TriggerEvent({"status": "skipped"})
                     return
             allowed_count = await self._get_count(self.allowed_states)
-            if allowed_count == len(self.execution_dates):
+            if allowed_count == len(self.logical_dates):
                 yield TriggerEvent({"status": "success"})
                 return
             self.log.info("Sleeping for %s seconds", self.poke_interval)
@@ -124,7 +124,7 @@ class WorkflowTrigger(BaseTrigger):
         :return The count of records.
         """
         return _get_count(
-            dttm_filter=self.execution_dates,
+            dttm_filter=self.logical_dates,
             external_task_ids=self.external_task_ids,
             external_task_group_id=self.external_task_group_id,
             external_dag_id=self.external_dag_id,
@@ -138,7 +138,7 @@ class DagStateTrigger(BaseTrigger):
 
     :param dag_id: The dag_id that contains the task you want to wait for
     :param states: allowed states, default is ``['success']``
-    :param execution_dates: The logical date at which DAG run.
+    :param logical_dates: The logical date at which DAG run.
     :param poll_interval: The time interval in seconds to check the state.
         The default value is 5.0 sec.
     """
@@ -147,13 +147,13 @@ class DagStateTrigger(BaseTrigger):
         self,
         dag_id: str,
         states: list[DagRunState],
-        execution_dates: list[datetime],
+        logical_dates: list[datetime],
         poll_interval: float = 5.0,
     ):
         super().__init__()
         self.dag_id = dag_id
         self.states = states
-        self.execution_dates = execution_dates
+        self.logical_dates = logical_dates
         self.poll_interval = poll_interval
 
     def serialize(self) -> tuple[str, dict[str, typing.Any]]:
@@ -163,7 +163,7 @@ class DagStateTrigger(BaseTrigger):
             {
                 "dag_id": self.dag_id,
                 "states": self.states,
-                "execution_dates": self.execution_dates,
+                "logical_dates": self.logical_dates,
                 "poll_interval": self.poll_interval,
             },
         )
@@ -173,7 +173,7 @@ class DagStateTrigger(BaseTrigger):
         while True:
             # mypy confuses typing here
             num_dags = await self.count_dags()  # type: ignore[call-arg]
-            if num_dags == len(self.execution_dates):
+            if num_dags == len(self.logical_dates):
                 yield TriggerEvent(self.serialize())
                 return
             await asyncio.sleep(self.poll_interval)
@@ -187,7 +187,7 @@ class DagStateTrigger(BaseTrigger):
             .filter(
                 DagRun.dag_id == self.dag_id,
                 DagRun.state.in_(self.states),
-                DagRun.execution_date.in_(self.execution_dates),
+                DagRun.logical_date.in_(self.logical_dates),
             )
             .scalar()
         )

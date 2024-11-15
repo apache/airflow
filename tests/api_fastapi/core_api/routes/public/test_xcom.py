@@ -44,8 +44,8 @@ TEST_DAG_ID = "test-dag-id"
 TEST_TASK_ID = "test-task-id"
 TEST_EXECUTION_DATE = "2005-04-02T00:00:00+00:00"
 
-execution_date_parsed = timezone.parse(TEST_EXECUTION_DATE)
-run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
+logical_date_parsed = timezone.parse(TEST_EXECUTION_DATE)
+run_id = DagRun.generate_run_id(DagRunType.MANUAL, logical_date_parsed)
 
 
 @provide_session
@@ -65,8 +65,8 @@ def _create_dag_run(session=None) -> None:
     dagrun = DagRun(
         dag_id=TEST_DAG_ID,
         run_id=run_id,
-        execution_date=execution_date_parsed,
-        start_date=execution_date_parsed,
+        logical_date=logical_date_parsed,
+        start_date=logical_date_parsed,
         run_type=DagRunType.MANUAL,
     )
     session.add(dagrun)
@@ -114,7 +114,7 @@ class TestGetXComEntry(TestXComEndpoint):
         current_data = response.json()
         assert current_data == {
             "dag_id": TEST_DAG_ID,
-            "execution_date": execution_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "logical_date": logical_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "key": TEST_XCOM_KEY,
             "task_id": TEST_TASK_ID,
             "map_index": -1,
@@ -132,7 +132,7 @@ class TestGetXComEntry(TestXComEndpoint):
         current_data = response.json()
         assert current_data == {
             "dag_id": TEST_DAG_ID,
-            "execution_date": execution_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "logical_date": logical_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "key": TEST_XCOM_KEY,
             "task_id": TEST_TASK_ID,
             "map_index": -1,
@@ -151,7 +151,7 @@ class TestGetXComEntry(TestXComEndpoint):
         current_data = response.json()
         assert current_data == {
             "dag_id": TEST_DAG_ID,
-            "execution_date": execution_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "logical_date": logical_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "key": TEST_XCOM_KEY2,
             "task_id": TEST_TASK_ID,
             "map_index": -1,

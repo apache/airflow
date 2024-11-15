@@ -83,12 +83,12 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
       ref={taskInstanceRef}
       overflowY="auto"
     >
-      {!isGroup && run?.executionDate && (
+      {!isGroup && run?.logicalDate && (
         <TaskNav
           taskId={taskId}
           isMapped={isMapped}
           mapIndex={mapIndex}
-          executionDate={run?.executionDate}
+          logicalDate={run?.logicalDate}
         />
       )}
       {!isGroupOrMappedTaskSummary && <TaskDocumentation taskId={taskId} />}
@@ -105,12 +105,12 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
       )}
       {!!group?.extraLinks?.length &&
         !isGroupOrMappedTaskSummary &&
-        run?.executionDate && (
+        run?.logicalDate && (
           <ExtraLinks
             taskId={taskId}
             dagId={dagId}
             mapIndex={isMapped && isMapIndexDefined ? mapIndex : undefined}
-            executionDate={run.executionDate}
+            logicalDate={run.logicalDate}
             extraLinks={group.extraLinks}
             tryNumber={taskInstance?.tryNumber || gridInstance?.tryNumber || 1}
           />
