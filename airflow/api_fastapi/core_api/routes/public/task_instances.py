@@ -416,9 +416,7 @@ def get_task_instances_batch(
 
 @task_instances_router.get(
     "/{task_id}/tries/{task_try_number}",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 async def get_task_instance_try_details(
     dag_id: str,
