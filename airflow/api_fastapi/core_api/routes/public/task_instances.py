@@ -415,7 +415,10 @@ def get_task_instances_batch(
 
 
 @task_instances_router.get(
-    "/{task_id}/tries/{task_try_number}", responses=create_openapi_http_exception_doc([401, 403, 404])
+    "/{task_id}/tries/{task_try_number}",
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
+    ),
 )
 async def get_task_instance_try_details(
     dag_id: str,
@@ -442,7 +445,7 @@ async def get_task_instance_try_details(
     result = _query(TI) or _query(TIH)
     if result is None:
         raise HTTPException(
-            404,
+            status.HTTP_404_NOT_FOUND,
             f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}`, try_number: `{task_try_number}` and map_index: `{map_index}` was not found",
         )
     return TaskInstanceHistoryResponse.model_validate(result, from_attributes=True)
