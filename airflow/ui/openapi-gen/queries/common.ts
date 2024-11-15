@@ -1054,6 +1054,9 @@ export type ConnectionServicePostConnectionMutationResult = Awaited<
 export type ConnectionServiceTestConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.testConnection>
 >;
+export type DagRunServiceClearDagRunMutationResult = Awaited<
+  ReturnType<typeof DagRunService.clearDagRun>
+>;
 export type PoolServicePostPoolMutationResult = Awaited<
   ReturnType<typeof PoolService.postPool>
 >;

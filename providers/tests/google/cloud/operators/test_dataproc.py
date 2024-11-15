@@ -1082,7 +1082,6 @@ def test_create_cluster_operator_extra_links(dag_maker, create_task_instance_of_
     ti = create_task_instance_of_operator(
         DataprocCreateClusterOperator,
         dag_id=TEST_DAG_ID,
-        execution_date=DEFAULT_DATE,
         task_id=TASK_ID,
         region=GCP_REGION,
         project_id=GCP_PROJECT,
@@ -1192,7 +1191,6 @@ def test_scale_cluster_operator_extra_links(dag_maker, create_task_instance_of_o
     ti = create_task_instance_of_operator(
         DataprocScaleClusterOperator,
         dag_id=TEST_DAG_ID,
-        execution_date=DEFAULT_DATE,
         task_id=TASK_ID,
         cluster_name=CLUSTER_NAME,
         project_id=GCP_PROJECT,
@@ -1599,7 +1597,6 @@ def test_submit_job_operator_extra_links(mock_hook, dag_maker, create_task_insta
     ti = create_task_instance_of_operator(
         DataprocSubmitJobOperator,
         dag_id=TEST_DAG_ID,
-        execution_date=DEFAULT_DATE,
         task_id=TASK_ID,
         region=GCP_REGION,
         project_id=GCP_PROJECT,
@@ -1807,7 +1804,6 @@ def test_update_cluster_operator_extra_links(dag_maker, create_task_instance_of_
     ti = create_task_instance_of_operator(
         DataprocUpdateClusterOperator,
         dag_id=TEST_DAG_ID,
-        execution_date=DEFAULT_DATE,
         task_id=TASK_ID,
         region=GCP_REGION,
         cluster_name=CLUSTER_NAME,
@@ -2033,7 +2029,6 @@ def test_instantiate_workflow_operator_extra_links(mock_hook, dag_maker, create_
     ti = create_task_instance_of_operator(
         DataprocInstantiateWorkflowTemplateOperator,
         dag_id=TEST_DAG_ID,
-        execution_date=DEFAULT_DATE,
         task_id=TASK_ID,
         region=GCP_REGION,
         project_id=GCP_PROJECT,
@@ -2195,7 +2190,6 @@ def test_instantiate_inline_workflow_operator_extra_links(
     ti = create_task_instance_of_operator(
         DataprocInstantiateInlineWorkflowTemplateOperator,
         dag_id=TEST_DAG_ID,
-        execution_date=DEFAULT_DATE,
         task_id=TASK_ID,
         region=GCP_REGION,
         project_id=GCP_PROJECT,
@@ -2524,7 +2518,6 @@ def test_submit_spark_job_operator_extra_links(mock_hook, dag_maker, create_task
     ti = create_task_instance_of_operator(
         DataprocSubmitSparkJobOperator,
         dag_id=TEST_DAG_ID,
-        execution_date=DEFAULT_DATE,
         task_id=TASK_ID,
         region=GCP_REGION,
         gcp_conn_id=GCP_CONN_ID,

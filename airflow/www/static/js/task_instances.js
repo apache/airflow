@@ -99,8 +99,8 @@ export default function tiTooltip(ti, task, { includeTryNumber = false } = {}) {
   if (ti.task_id !== undefined) {
     tt += `Task_id: ${escapeHtml(ti.task_id)}<br>`;
   }
-  if (ti.execution_date !== undefined) {
-    tt += `Run: ${formatDateTime(ti.execution_date)}<br>`;
+  if (ti.logical_date !== undefined) {
+    tt += `Run: ${formatDateTime(ti.logical_date)}<br>`;
   }
   if (ti.run_id !== undefined) {
     tt += `Run Id: <nobr>${escapeHtml(ti.run_id)}</nobr><br>`;

@@ -26,6 +26,26 @@
 Changelog
 ---------
 
+6.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``Allow Databricks SQL hook to cancel timed out queries (#42668)``
+* ``Added support for job_parameters and dbt_commands in DatabricksRunNowOperator (#43895)``
+* ``Enable workload identity authentication for the Databricks provider (#41639)``
+
+Misc
+~~~~
+
+* ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Start porting DAG definition code to the Task SDK (#43076)``
+
 6.12.0
 ......
 

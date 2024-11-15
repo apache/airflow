@@ -107,7 +107,7 @@ def test_create_backfill_simple(reverse, existing, dag_maker, session):
     for date in existing:
         dag_maker.create_dagrun(
             run_id=f"scheduled_{date}",
-            execution_date=timezone.parse(date),
+            logical_date=timezone.parse(date),
             session=session,
         )
         session.commit()
@@ -186,7 +186,7 @@ def test_reprocess_behavior(reprocess_behavior, run_counts, dag_maker, session):
     We have two modes whereby when there's an existing run(s) in the range
     of the backfill, we will create a new run.
     This test might need to be altered if we change the behavior re multiple
-    runs of same execution date.  But for now, it verifies the current behavior.
+    runs of same logical date.  But for now, it verifies the current behavior.
     """
     dag_id = "backfill-test-reprocess-behavior"
     with dag_maker(schedule="@daily", dag_id=dag_id) as dag:
@@ -212,7 +212,7 @@ def test_reprocess_behavior(reprocess_behavior, run_counts, dag_maker, session):
     ):
         dr = dag_maker.create_dagrun(
             run_id=f"scheduled_{date}-{num}",
-            execution_date=timezone.parse(date),
+            logical_date=timezone.parse(date),
             session=session,
             state=state,
         )
@@ -347,7 +347,7 @@ def create_next_run(
         )
         return next_run
     else:
-        dr = dag_maker.create_dagrun(execution_date=next_date, run_id="second_run")
+        dr = dag_maker.create_dagrun(logical_date=next_date, run_id="second_run")
         return dr
 
 
@@ -361,7 +361,7 @@ def test_ignore_first_depends_on_past(first_run_type, days_between, catchup, is_
     from_date = base_date + timedelta(days=days_between)
     with dag_maker(dag_id="abc123", serialized=True, catchup=catchup) as dag:
         op = PythonOperator(task_id="dep_on_past", python_callable=lambda: print, depends_on_past=True)
-    dr = dag_maker.create_dagrun(execution_date=base_date, run_type=first_run_type)
+    dr = dag_maker.create_dagrun(logical_date=base_date, run_type=first_run_type)
     dr.state = DagRunState.FAILED
     for ti in dr.task_instances:
         ti.state = TaskInstanceState.FAILED
@@ -370,7 +370,7 @@ def test_ignore_first_depends_on_past(first_run_type, days_between, catchup, is_
 
     # let's verify all is as expected
     session.expunge_all()
-    first_run = session.scalar(select(DagRun).order_by(DagRun.execution_date).limit(1))
+    first_run = session.scalar(select(DagRun).order_by(DagRun.logical_date).limit(1))
     assert first_run.state == DagRunState.FAILED
     tis = first_run.get_task_instances(session=session)
     assert len(tis) > 0
@@ -387,11 +387,11 @@ def test_ignore_first_depends_on_past(first_run_type, days_between, catchup, is_
 
     # check that it's immediately after the other dag run
     prior_runs = session.scalars(
-        select(DagRun.execution_date).where(DagRun.execution_date < next_run.execution_date)
+        select(DagRun.logical_date).where(DagRun.logical_date < next_run.logical_date)
     ).all()
     assert len(prior_runs) == 1
-    assert prior_runs[0] == first_run.execution_date
-    assert prior_runs[0] + timedelta(days=days_between) == next_run.execution_date
+    assert prior_runs[0] == first_run.logical_date
+    assert prior_runs[0] + timedelta(days=days_between) == next_run.logical_date
 
     # so now the first backfill dag run follows the other one immediately
 
