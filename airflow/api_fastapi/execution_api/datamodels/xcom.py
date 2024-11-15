@@ -17,16 +17,14 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Any
 
-from fastapi import Depends
-
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from pydantic import BaseModel
 
 
-def get_task_token() -> TIToken:
-    """TODO: Placeholder for task identity authentication. This should be replaced with actual JWT decoding and validation."""
-    return TIToken(ti_key="test_key")
+class XComResponse(BaseModel):
+    """XCom schema for responses with fields that are needed for Runtime."""
 
-
-TokenDep = Annotated[TIToken, Depends(get_task_token)]
+    key: str
+    value: Any
+    """The returned XCom value in a JSON-compatible format."""
