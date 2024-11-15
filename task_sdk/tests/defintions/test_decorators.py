@@ -21,9 +21,9 @@ from unittest.mock import ANY
 
 import pytest
 
-from airflow.assets import Asset
-from airflow.decorators.assets import AssetRef, _AssetMainOperator, asset
 from airflow.models.asset import AssetActive, AssetModel
+from airflow.sdk.definitions.asset import Asset
+from airflow.sdk.definitions.decorators import AssetRef, _AssetMainOperator, asset
 
 pytestmark = pytest.mark.db_test
 
@@ -119,8 +119,8 @@ class TestAssetDefinition:
             "uri": "s3://bucket/object",
         }
 
-    @mock.patch("airflow.decorators.assets._AssetMainOperator")
-    @mock.patch("airflow.decorators.assets.DAG")
+    @mock.patch("airflow.sdk.definitions.decorators._AssetMainOperator")
+    @mock.patch("airflow.sdk.definitions.decorators.DAG")
     def test__attrs_post_init__(
         self, DAG, _AssetMainOperator, example_asset_func_with_valid_arg_as_inlet_asset
     ):
@@ -169,7 +169,10 @@ class Test_AssetMainOperator:
         )
         assert op.determine_kwargs(context={"k": "v"}) == {
             "self": Asset(
-                name="example_asset_func", uri="s3://bucket/object", group="MLModel", extra={"k": "v"}
+                name="example_asset_func",
+                uri="s3://bucket/object",
+                group="MLModel",
+                extra={"k": "v"},
             ),
             "context": {"k": "v"},
             "inlet_asset_1": Asset(name="inlet_asset_1", uri="s3://bucket/object1"),
