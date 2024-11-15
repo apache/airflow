@@ -29,7 +29,7 @@ import structlog
 import structlog.testing
 
 from airflow.sdk.api import client as sdk_client
-from airflow.sdk.api.datamodels.ti import TaskInstance
+from airflow.sdk.api.datamodels._generated import TaskInstance
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.utils import timezone as tz
 

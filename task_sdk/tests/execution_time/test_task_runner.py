@@ -24,7 +24,7 @@ from socket import socketpair
 import pytest
 from uuid6 import uuid7
 
-from airflow.sdk.api.datamodels.ti import TaskInstance
+from airflow.sdk.api.datamodels._generated import TaskInstance
 from airflow.sdk.execution_time.comms import StartupDetails
 from airflow.sdk.execution_time.task_runner import CommsDecoder, parse
 

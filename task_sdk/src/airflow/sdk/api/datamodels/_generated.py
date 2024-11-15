@@ -24,6 +24,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from typing import Annotated, Any, Literal
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -45,10 +46,9 @@ class ConnectionResponse(BaseModel):
 
 class IntermediateTIState(str, Enum):
     """
-    States that a Task Instance can be in that indicate it is not yet in a terminal or running state
+    States that a Task Instance can be in that indicate it is not yet in a terminal or running state.
     """
 
-    REMOVED = "removed"
     SCHEDULED = "scheduled"
     QUEUED = "queued"
     RESTARTING = "restarting"
@@ -89,12 +89,13 @@ class TITargetStatePayload(BaseModel):
 
 class TerminalTIState(str, Enum):
     """
-    States that a Task Instance can be in that indicate it has reached a terminal state
+    States that a Task Instance can be in that indicate it has reached a terminal state.
     """
 
     SUCCESS = "success"
     FAILED = "failed"
     SKIPPED = "skipped"
+    REMOVED = "removed"
 
 
 class ValidationError(BaseModel):
@@ -119,6 +120,15 @@ class XComResponse(BaseModel):
 
     key: Annotated[str, Field(title="Key")]
     value: Annotated[Any, Field(title="Value")]
+
+
+class TaskInstance(BaseModel):
+    id: Annotated[UUID, Field(title="Id")]
+    task_id: Annotated[str, Field(title="Task Id")]
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    run_id: Annotated[str, Field(title="Run Id")]
+    try_number: Annotated[int, Field(title="Try Number")]
+    map_index: Annotated[int | None, Field(title="Map Index")] = None
 
 
 class HTTPValidationError(BaseModel):

@@ -29,7 +29,8 @@ import structlog
 from pydantic import ConfigDict, TypeAdapter
 
 from airflow.sdk import BaseOperator
-from airflow.sdk.execution_time.comms import StartupDetails, TaskInstance, ToSupervisor, ToTask
+from airflow.sdk.api.datamodels._generated import TaskInstance
+from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor, ToTask
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
