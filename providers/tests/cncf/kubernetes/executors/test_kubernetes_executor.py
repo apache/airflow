@@ -1313,7 +1313,6 @@ class TestKubernetesExecutor:
         executor.kube_client = mock_kube_client
         executor.kube_scheduler = mock.MagicMock()
         ti.refresh_from_db()
-        executor.queue_task_instance()
         executor.running.add(ti.key)  # so we can verify it gets removed after revoke
         assert executor.has_task(task_instance=ti)
         executor.revoke_task(ti=ti)
