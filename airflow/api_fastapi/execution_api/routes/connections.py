@@ -22,7 +22,9 @@ import logging
 from fastapi import HTTPException, status
 
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.execution_api import datamodels, deps
+from airflow.api_fastapi.execution_api import deps
+from airflow.api_fastapi.execution_api.datamodels.connection import ConnectionResponse
+from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 from airflow.exceptions import AirflowNotFoundException
 from airflow.models.connection import Connection
 
@@ -44,7 +46,7 @@ log = logging.getLogger(__name__)
 def get_connection(
     connection_id: str,
     token: deps.TokenDep,
-) -> datamodels.ConnectionResponse:
+) -> ConnectionResponse:
     """Get an Airflow connection."""
     if not has_connection_access(connection_id, token):
         raise HTTPException(
@@ -64,10 +66,10 @@ def get_connection(
                 "message": f"Connection with ID {connection_id} not found",
             },
         )
-    return datamodels.ConnectionResponse.model_validate(connection, from_attributes=True)
+    return ConnectionResponse.model_validate(connection, from_attributes=True)
 
 
-def has_connection_access(connection_id: str, token: datamodels.TIToken) -> bool:
+def has_connection_access(connection_id: str, token: TIToken) -> bool:
     """Check if the task has access to the connection."""
     # TODO: Placeholder for actual implementation
 
