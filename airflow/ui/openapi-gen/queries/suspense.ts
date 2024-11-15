@@ -196,6 +196,39 @@ export const useAssetServiceGetAssetSuspense = <
     ...options,
   });
 /**
+ * Get Dag Asset Queued Events
+ * Get queued asset events for a DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.before
+ * @returns QueuedEventCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceGetDagAssetQueuedEventsSuspense = <
+  TData = Common.AssetServiceGetDagAssetQueuedEventsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    before,
+    dagId,
+  }: {
+    before?: string;
+    dagId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseAssetServiceGetDagAssetQueuedEventsKeyFn(
+      { before, dagId },
+      queryKey,
+    ),
+    queryFn: () =>
+      AssetService.getDagAssetQueuedEvents({ before, dagId }) as TData,
+    ...options,
+  });
+/**
  * Historical Metrics
  * Return cluster activity historical metrics.
  * @param data The data for the request.
@@ -749,39 +782,6 @@ export const useDagServiceGetDagDetailsSuspense = <
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseDagServiceGetDagDetailsKeyFn({ dagId }, queryKey),
     queryFn: () => DagService.getDagDetails({ dagId }) as TData,
-    ...options,
-  });
-/**
- * Get Dag Asset Queued Events
- * Get queued asset events for a DAG.
- * @param data The data for the request.
- * @param data.dagId
- * @param data.before
- * @returns QueuedEventCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useDagServiceGetDagAssetQueuedEventsSuspense = <
-  TData = Common.DagServiceGetDagAssetQueuedEventsDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    before,
-    dagId,
-  }: {
-    before?: string;
-    dagId: string;
-  },
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseDagServiceGetDagAssetQueuedEventsKeyFn(
-      { before, dagId },
-      queryKey,
-    ),
-    queryFn: () =>
-      DagService.getDagAssetQueuedEvents({ before, dagId }) as TData,
     ...options,
   });
 /**

@@ -129,6 +129,28 @@ export const UseAssetServiceGetAssetKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useAssetServiceGetAssetKey, ...(queryKey ?? [{ uri }])];
+export type AssetServiceGetDagAssetQueuedEventsDefaultResponse = Awaited<
+  ReturnType<typeof AssetService.getDagAssetQueuedEvents>
+>;
+export type AssetServiceGetDagAssetQueuedEventsQueryResult<
+  TData = AssetServiceGetDagAssetQueuedEventsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useAssetServiceGetDagAssetQueuedEventsKey =
+  "AssetServiceGetDagAssetQueuedEvents";
+export const UseAssetServiceGetDagAssetQueuedEventsKeyFn = (
+  {
+    before,
+    dagId,
+  }: {
+    before?: string;
+    dagId: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useAssetServiceGetDagAssetQueuedEventsKey,
+  ...(queryKey ?? [{ before, dagId }]),
+];
 export type DashboardServiceHistoricalMetricsDefaultResponse = Awaited<
   ReturnType<typeof DashboardService.historicalMetrics>
 >;
@@ -478,28 +500,6 @@ export const UseDagServiceGetDagDetailsKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useDagServiceGetDagDetailsKey, ...(queryKey ?? [{ dagId }])];
-export type DagServiceGetDagAssetQueuedEventsDefaultResponse = Awaited<
-  ReturnType<typeof DagService.getDagAssetQueuedEvents>
->;
-export type DagServiceGetDagAssetQueuedEventsQueryResult<
-  TData = DagServiceGetDagAssetQueuedEventsDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useDagServiceGetDagAssetQueuedEventsKey =
-  "DagServiceGetDagAssetQueuedEvents";
-export const UseDagServiceGetDagAssetQueuedEventsKeyFn = (
-  {
-    before,
-    dagId,
-  }: {
-    before?: string;
-    dagId: string;
-  },
-  queryKey?: Array<unknown>,
-) => [
-  useDagServiceGetDagAssetQueuedEventsKey,
-  ...(queryKey ?? [{ before, dagId }]),
-];
 export type EventLogServiceGetEventLogDefaultResponse = Awaited<
   ReturnType<typeof EventLogService.getEventLog>
 >;
