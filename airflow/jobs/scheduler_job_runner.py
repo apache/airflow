@@ -1782,19 +1782,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @provide_session
     def _handle_tasks_stuck_in_queued(self, session: Session = NEW_SESSION) -> None:
         """
-
         Handle the scenario where a task is queued for longer than `task_queued_timeout`.
 
         Tasks can get stuck in queued for a wide variety of reasons (e.g. celery loses
         track of a task, a cluster can't further scale up its workers, etc.), but tasks
         should not be stuck in queued for a long time.
 
-        Originally, we simply marked a task as failed when it was stuck in queued for
-        too long. We found that this led to suboptimal outcomes as ideally we would like "failed"
-        to mean that a task was unable to run, instead of it meaning that we were unable to run the task.
-
-        As a compromise between always failing a stuck task and always rescheduling a stuck task (which could
-        lead to tasks being stuck in queued forever without informing the user).
+        We will attempt to requeue the task (by revoking it from executor and setting to
+        scheduled) up to 2 times before failing the task.
         """
         tasks_stuck_in_queued = self._get_tis_stuck_in_queued(session)
         for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued).items():
@@ -1876,7 +1871,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         with suppress(NotImplementedError):
             for ti_repr in executor.cleanup_stuck_queued_tasks(tis=stuck_tis):
                 self.log.warning(
-                    "Task instance %s stuck in queued.  May be set to failed.",
+                    "Task instance %s stuck in queued. Will be set to failed.",
                     ti_repr,
                 )
 
