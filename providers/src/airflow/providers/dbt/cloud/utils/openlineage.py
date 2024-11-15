@@ -21,20 +21,32 @@ import re
 from contextlib import suppress
 from typing import TYPE_CHECKING
 
+from packaging.version import parse
+
 from airflow import __version__ as airflow_version
 
 if TYPE_CHECKING:
+    from packaging.version import Version
+
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.dbt.cloud.operators.dbt import DbtCloudRunJobOperator
     from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunSensor
     from airflow.providers.openlineage.extractors.base import OperatorLineage
 
 
+_AIRFLOW_VERSION: Version = parse(parse(airflow_version).base_version)
+
+
+def _get_logical_date(task_instance):
+    # todo: remove when min airflow version >= 3.0
+    if _AIRFLOW_VERSION < parse("3"):
+        return task_instance.execution_date
+    return task_instance.logical_date
+
+
 def _get_try_number(val):
     # todo: remove when min airflow version >= 2.10.0
-    from packaging.version import parse
-
-    if parse(parse(airflow_version).base_version) < parse("2.10.0"):
+    if _AIRFLOW_VERSION < parse("2.10.0"):
         return val.try_number - 1
     else:
         return val.try_number
@@ -142,7 +154,7 @@ def generate_openlineage_events_from_dbt_cloud_run(
         parent_run_id = OpenLineageAdapter.build_task_instance_run_id(
             dag_id=task_instance.dag_id,
             task_id=operator.task_id,
-            logical_date=task_instance.logical_date,
+            logical_date=_get_logical_date(task_instance),
             try_number=_get_try_number(task_instance),
         )
 
