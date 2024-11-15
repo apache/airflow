@@ -113,7 +113,7 @@ def provide_gcs_bucket(bucket_name: str):
     GoogleSystemTest.delete_gcs_bucket(bucket_name)
 
 
-@pytest.mark.system("google")
+@pytest.mark.system
 class GoogleSystemTest(SystemTest):
     """Base class for Google system tests."""
 

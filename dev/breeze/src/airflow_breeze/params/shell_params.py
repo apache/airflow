@@ -25,7 +25,8 @@ from pathlib import Path
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
-    ALL_INTEGRATIONS,
+    ALL_CORE_INTEGRATIONS,
+    ALL_PROVIDERS_INTEGRATIONS,
     ALLOWED_BACKENDS,
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_DOCKER_COMPOSE_PROJECTS,
@@ -56,10 +57,12 @@ from airflow_breeze.global_constants import (
     REDIS_HOST_PORT,
     SSH_PORT,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
-    TESTABLE_INTEGRATIONS,
+    TESTABLE_CORE_INTEGRATIONS,
+    TESTABLE_PROVIDERS_INTEGRATIONS,
     USE_AIRFLOW_MOUNT_SOURCES,
     WEBSERVER_HOST_PORT,
     GithubEvents,
+    GroupOfTests,
     get_airflow_version,
 )
 from airflow_breeze.utils.console import get_console
@@ -162,7 +165,6 @@ class ShellParams:
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get("GITHUB_TOKEN", "")
-    helm_test_package: str | None = None
     image_tag: str | None = None
     include_mypy_volume: bool = False
     install_airflow_version: str = ""
@@ -194,17 +196,16 @@ class ShellParams:
     remove_arm_packages: bool = False
     restart: bool = False
     run_db_tests_only: bool = False
-    run_system_tests: bool = os.environ.get("RUN_SYSTEM_TESTS", "false") == "true"
     run_tests: bool = False
     skip_db_tests: bool = False
     skip_environment_initialization: bool = False
     skip_image_upgrade_check: bool = False
     skip_provider_dependencies_check: bool = False
-    skip_provider_tests: bool = False
     skip_ssh_setup: bool = os.environ.get("SKIP_SSH_SETUP", "false") == "true"
     standalone_dag_processor: bool = False
     start_airflow: bool = False
     test_type: str | None = None
+    test_group: GroupOfTests | None = None
     tty: str = "auto"
     upgrade_boto: bool = False
     use_airflow_version: str | None = None
@@ -376,9 +377,26 @@ class ShellParams:
         if self.include_mypy_volume:
             compose_file_list.append(DOCKER_COMPOSE_DIR / "mypy.yml")
         if "all-testable" in self.integration:
-            integrations = TESTABLE_INTEGRATIONS
+            if self.test_group == GroupOfTests.CORE:
+                integrations = TESTABLE_CORE_INTEGRATIONS
+            elif self.test_group == GroupOfTests.PROVIDERS:
+                integrations = TESTABLE_PROVIDERS_INTEGRATIONS
+            else:
+                get_console().print(
+                    "[error]You can only use `core` or `providers` test "
+                    "group with `all-testable` integration."
+                )
+                sys.exit(1)
         elif "all" in self.integration:
-            integrations = ALL_INTEGRATIONS
+            if self.test_group == GroupOfTests.CORE:
+                integrations = ALL_CORE_INTEGRATIONS
+            elif self.test_group == GroupOfTests.PROVIDERS:
+                integrations = ALL_PROVIDERS_INTEGRATIONS
+            else:
+                get_console().print(
+                    "[error]You can only use `core` or `providers` test group with `all` integration."
+                )
+                sys.exit(1)
         else:
             integrations = self.integration
         for integration in integrations:
@@ -529,14 +547,12 @@ class ShellParams:
         _set_var(_env, "DOWNGRADE_SQLALCHEMY", self.downgrade_sqlalchemy)
         _set_var(_env, "DOWNGRADE_PENDULUM", self.downgrade_pendulum)
         _set_var(_env, "DRILL_HOST_PORT", None, DRILL_HOST_PORT)
-        _set_var(_env, "ENABLED_SYSTEMS", None, "")
         _set_var(_env, "ENABLE_COVERAGE", self.enable_coverage)
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
         _set_var(_env, "EXCLUDED_PROVIDERS", self.excluded_providers)
         _set_var(_env, "FORCE_LOWEST_DEPENDENCIES", self.force_lowest_dependencies)
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
-        _set_var(_env, "HELM_TEST_PACKAGE", self.helm_test_package, "")
         _set_var(_env, "HOST_GROUP_ID", self.host_group_id)
         _set_var(_env, "HOST_OS", self.host_os)
         _set_var(_env, "HOST_USER_ID", self.host_user_id)
@@ -567,7 +583,6 @@ class ShellParams:
         _set_var(_env, "REDIS_HOST_PORT", None, REDIS_HOST_PORT)
         _set_var(_env, "REGENERATE_MISSING_DOCS", self.regenerate_missing_docs)
         _set_var(_env, "REMOVE_ARM_PACKAGES", self.remove_arm_packages)
-        _set_var(_env, "RUN_SYSTEM_TESTS", self.run_system_tests)
         _set_var(_env, "RUN_TESTS", self.run_tests)
         _set_var(_env, "SKIP_ENVIRONMENT_INITIALIZATION", self.skip_environment_initialization)
         _set_var(_env, "SKIP_SSH_SETUP", self.skip_ssh_setup)
@@ -578,6 +593,7 @@ class ShellParams:
         _set_var(_env, "SUSPENDED_PROVIDERS_FOLDERS", self.suspended_providers_folders)
         _set_var(_env, "SYSTEM_TESTS_ENV_ID", None, "")
         _set_var(_env, "TEST_TYPE", self.test_type, "")
+        _set_var(_env, "TEST_GROUP", str(self.test_group.value) if self.test_group else "")
         _set_var(_env, "UPGRADE_BOTO", self.upgrade_boto)
         _set_var(_env, "USE_AIRFLOW_VERSION", self.use_airflow_version, "")
         _set_var(_env, "USE_PACKAGES_FROM_DIST", self.use_packages_from_dist)

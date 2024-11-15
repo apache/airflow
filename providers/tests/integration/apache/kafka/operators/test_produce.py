@@ -65,7 +65,7 @@ class TestProduceToTopic:
             kafka_config_id="kafka_default",
             task_id="produce_to_topic",
             topic=TOPIC,
-            producer_function="tests.integration.providers.apache.kafka.operators.test_produce._producer_function",
+            producer_function="providers.tests.integration.apache.kafka.operators.test_produce._producer_function",
         )
 
         t.execute(context={})

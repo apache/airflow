@@ -166,14 +166,6 @@ console = Console(width=400, color_system="standard")
             {},
             {},
             {
-                "ENABLED_SYSTEMS": "",
-            },
-            id="ENABLED_SYSTEMS empty by default even if they are None in ShellParams",
-        ),
-        pytest.param(
-            {},
-            {},
-            {
                 "PYTHONWARNINGS": None,
             },
             id="PYTHONWARNINGS should not be set by default",

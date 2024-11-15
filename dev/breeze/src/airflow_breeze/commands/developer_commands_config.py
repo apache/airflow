@@ -158,7 +158,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--providers-constraints-mode",
                 "--providers-constraints-reference",
                 "--providers-skip-constraints",
-                "--test-type",
                 "--use-airflow-version",
                 "--use-packages-from-dist",
             ],

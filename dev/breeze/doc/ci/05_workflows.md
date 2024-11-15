@@ -269,7 +269,7 @@ Providers are skipped via selective checks (`skip-pre-commits` check).
 selective checks removing the "Providers" test type.
 
 `(9)` On non-main builds the integration tests for providers are skipped
-via `skip-provider-tests` selective check output.
+via `skip-providers-tests` selective check output.
 
 `(10)` Only run the builds in case PR is run by a committer from
 "apache" repository and in scheduled build.

@@ -67,7 +67,7 @@ def provide_facebook_connection(key_file_path: str):
 
 @pytest.mark.credential_file(FACEBOOK_KEY)
 @pytest.mark.credential_file(GCP_BIGQUERY_KEY)
-@pytest.mark.system("google.cloud")
+@pytest.mark.system
 class TestFacebookAdsToGcsExampleDagsSystem(GoogleSystemTest):
     @provide_gcp_context(GCP_BIGQUERY_KEY)
     @provide_facebook_connection(FACEBOOK_CREDENTIALS_PATH)

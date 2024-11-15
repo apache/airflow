@@ -48,7 +48,7 @@ def helper_two_versions():
     GoogleSystemTest.delete_secret(TEST_SECRET_ID)
 
 
-@pytest.mark.system("google.secret_manager")
+@pytest.mark.system
 @pytest.mark.credential_file(GCP_SECRET_MANAGER_KEY)
 class TestSecretsManagerSystem(GoogleSystemTest):
     @pytest.mark.usefixtures("helper_one_version")

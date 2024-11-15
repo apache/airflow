@@ -276,10 +276,9 @@ def pytest_addoption(parser: pytest.Parser):
     )
     group.addoption(
         "--system",
-        action="append",
+        action="store_true",
         dest="system",
-        metavar="SYSTEMS",
-        help="only run tests matching the system specified [google.cloud, google.marketing_platform]",
+        help="run system tests",
     )
     group.addoption(
         "--include-long-running",
@@ -292,18 +291,6 @@ def pytest_addoption(parser: pytest.Parser):
         action="store_true",
         dest="include_quarantined",
         help="Includes quarantined tests (marked with quarantined marker). They are skipped by default.",
-    )
-    group.addoption(
-        "--exclude-virtualenv-operator",
-        action="store_true",
-        dest="exclude_virtualenv_operator",
-        help="Excludes virtualenv operators tests (marked with virtualenv_test marker).",
-    )
-    group.addoption(
-        "--exclude-external-python-operator",
-        action="store_true",
-        dest="exclude_external_python_operator",
-        help="Excludes external python operator tests (marked with external_python_test marker).",
     )
     allowed_trace_sql_columns_list = ",".join(ALLOWED_TRACE_SQL_COLUMNS)
     group.addoption(
@@ -422,7 +409,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
     config.addinivalue_line("markers", "integration(name): mark test to run with named integration")
     config.addinivalue_line("markers", "backend(name): mark test to run with named backend")
-    config.addinivalue_line("markers", "system(name): mark test to run with named system")
+    config.addinivalue_line("markers", "system: mark test to run as system test")
     config.addinivalue_line("markers", "platform(name): mark test to run with specific platform/environment")
     config.addinivalue_line("markers", "long_running: mark test that run for a long time (many minutes)")
     config.addinivalue_line(
@@ -538,23 +525,19 @@ def skip_if_platform_doesnt_match(marker):
             )
 
 
-def skip_if_not_marked_with_system(selected_systems, item):
-    for marker in item.iter_markers(name="system"):
-        systems_name = marker.args[0]
-        if systems_name in selected_systems or "all" in selected_systems:
-            return
-    pytest.skip(
-        f"The test is skipped because it does not have the right system marker. "
-        f"Only tests marked with pytest.mark.system(SYSTEM) are run with SYSTEM "
-        f"being one of {selected_systems}. {item}"
-    )
+def skip_if_not_marked_with_system(item):
+    if not next(item.iter_markers(name="system"), None):
+        pytest.skip(
+            f"The test is skipped because it does not have the system marker. "
+            f"Only tests marked with pytest.mark.system are run.{item}"
+        )
 
 
 def skip_system_test(item):
-    for marker in item.iter_markers(name="system"):
+    if next(item.iter_markers(name="system"), None):
         pytest.skip(
             f"The test is skipped because it has system marker. System tests are only run when "
-            f"--system flag with the right system ({marker.args[0]}) is passed to pytest. {item}"
+            f"--system flag is passed to pytest. {item}"
         )
 
 
@@ -571,22 +554,6 @@ def skip_quarantined_test(item):
         pytest.skip(
             f"The test is skipped because it has quarantined marker. "
             f"And --include-quarantined flag is not passed to pytest. {item}"
-        )
-
-
-def skip_virtualenv_operator_test(item):
-    for _ in item.iter_markers(name="virtualenv_operator"):
-        pytest.skip(
-            f"The test is skipped because it has virtualenv_operator marker. "
-            f"And --exclude-virtualenv-operator flag is not passed to pytest. {item}"
-        )
-
-
-def skip_external_python_operator_test(item):
-    for _ in item.iter_markers(name="external_python_operator"):
-        pytest.skip(
-            f"The test is skipped because it has external_python_operator marker. "
-            f"And --exclude-external-python-operator flag is not passed to pytest. {item}"
         )
 
 
@@ -673,19 +640,16 @@ def skip_if_credential_file_missing(item):
 
 def pytest_runtest_setup(item):
     selected_integrations_list = item.config.option.integration
-    selected_systems_list = item.config.option.system
 
     include_long_running = item.config.option.include_long_running
     include_quarantined = item.config.option.include_quarantined
-    exclude_virtualenv_operator = item.config.option.exclude_virtualenv_operator
-    exclude_external_python_operator = item.config.option.exclude_external_python_operator
 
     for marker in item.iter_markers(name="integration"):
         skip_if_integration_disabled(marker, item)
     if selected_integrations_list:
         skip_if_not_marked_with_integration(selected_integrations_list, item)
-    if selected_systems_list:
-        skip_if_not_marked_with_system(selected_systems_list, item)
+    if item.config.option.system:
+        skip_if_not_marked_with_system(item)
     else:
         skip_system_test(item)
     for marker in item.iter_markers(name="platform"):
@@ -700,10 +664,6 @@ def pytest_runtest_setup(item):
         skip_long_running_test(item)
     if not include_quarantined:
         skip_quarantined_test(item)
-    if exclude_virtualenv_operator:
-        skip_virtualenv_operator_test(item)
-    if exclude_external_python_operator:
-        skip_external_python_operator_test(item)
     if skip_db_tests:
         skip_db_test(item)
     if run_db_tests_only:
