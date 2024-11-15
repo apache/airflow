@@ -32,6 +32,7 @@ import {
 import {
   BackfillPostBody,
   ConnectionBody,
+  CreateAssetEventsBody,
   DAGPatchBody,
   DAGRunClearBody,
   DAGRunPatchBody,
@@ -1755,6 +1756,45 @@ export const useVersionServiceGetVersion = <
   useQuery<TData, TError>({
     queryKey: Common.UseVersionServiceGetVersionKeyFn(queryKey),
     queryFn: () => VersionService.getVersion() as TData,
+    ...options,
+  });
+/**
+ * Create Asset Event
+ * Create asset events.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns AssetEventResponse Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceCreateAssetEvent = <
+  TData = Common.AssetServiceCreateAssetEventMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: CreateAssetEventsBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: CreateAssetEventsBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      AssetService.createAssetEvent({
+        requestBody,
+      }) as unknown as Promise<TData>,
     ...options,
   });
 /**

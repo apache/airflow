@@ -17,8 +17,11 @@
 from __future__ import annotations
 
 import urllib
+from typing import Generator
+from unittest import mock
 
 import pytest
+import time_machine
 
 from airflow.models import DagModel
 from airflow.models.asset import AssetEvent, AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
@@ -459,3 +462,40 @@ class TestGetAssetEndpoint(TestAssets):
         )
         assert response.status_code == 404
         assert response.json()["detail"] == "The Asset with uri: `s3://bucket/key` was not found"
+
+
+class TestPostAssetEvents(TestAssets):
+    @pytest.fixture
+    def time_freezer(self) -> Generator:
+        freezer = time_machine.travel(self.default_time, tick=False)
+        freezer.start()
+
+        yield
+
+        freezer.stop()
+
+    @pytest.mark.usefixtures("time_freezer")
+    def test_should_respond_200(self, test_client, session):
+        self.create_assets()
+        event_payload = {"uri": "s3://bucket/key/1", "extra": {"foo": "bar"}}
+        response = test_client.post("/public/assets/events", json=event_payload)
+        assert response.status_code == 200
+        assert response.json() == {
+            "id": mock.ANY,
+            "asset_id": 1,
+            "uri": "s3://bucket/key/1",
+            "extra": {"foo": "bar", "from_rest_api": True},
+            "source_task_id": None,
+            "source_dag_id": None,
+            "source_run_id": None,
+            "source_map_index": -1,
+            "created_dagruns": [],
+            "timestamp": self.default_time.replace("+00:00", "Z"),
+        }
+
+    def test_invalid_attr_not_allowed(self, test_client, session):
+        self.create_assets()
+        event_invalid_payload = {"asset_uri": "s3://bucket/key/1", "extra": {"foo": "bar"}, "fake": {}}
+        response = test_client.post("/public/assets/events", json=event_invalid_payload)
+
+        assert response.status_code == 422
