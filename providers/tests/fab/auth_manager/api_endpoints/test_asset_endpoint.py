@@ -168,9 +168,7 @@ class TestDeleteDagAssetQueuedEvent(TestAssetEndpoint):
         assert response.status_code == 204
         conn = session.query(AssetDagRunQueue).all()
         assert len(conn) == 0
-        _check_last_log(
-            session, dag_id=dag_id, event="api.delete_dag_asset_queued_event", execution_date=None
-        )
+        _check_last_log(session, dag_id=dag_id, event="api.delete_dag_asset_queued_event", logical_date=None)
 
     def test_should_respond_404(self):
         dag_id = "not_exists"
@@ -309,7 +307,7 @@ class TestDeleteDatasetQueuedEvents(TestQueuedEventEndpoint):
         assert response.status_code == 204
         conn = session.query(AssetDagRunQueue).all()
         assert len(conn) == 0
-        _check_last_log(session, dag_id=None, event="api.delete_asset_queued_events", execution_date=None)
+        _check_last_log(session, dag_id=None, event="api.delete_asset_queued_events", logical_date=None)
 
     def test_should_respond_404(self):
         asset_uri = "not_exists"

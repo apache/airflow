@@ -27,6 +27,36 @@
 Changelog
 ---------
 
+10.26.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Add support for IAM database authentication for CloudSQL connection (#43631)``
+* ``Provide option to 'force_delete' for 'GCSToBigQueryOperator' (#43785)``
+* ``Unify reattach_states parameter logic across BigQuery operators (#43259)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove non-existing field  from the ListCustomTrainingJobOperator's template_fields (#43924)``
+* ``Fix validating 'parent_model' parameter in 'UploadModelOperator' (#43473)``
+
+Misc
+~~~~
+
+* ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+* ``Remove Airflow 2.1 compat code in Google provider (#43952)``
+* ``Explain how to use uv with airflow virtualenv and make it works (#43604)``
+* ``Move python operator to Standard provider (#42081)``
+* ``Update version of Google ADS (#43474)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix CI ruff format static checks (#43908)``
+
 10.25.0
 .......
 

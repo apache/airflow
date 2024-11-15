@@ -1164,6 +1164,65 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/clear:
+    post:
+      tags:
+      - DagRun
+      summary: Clear Dag Run
+      operationId: clear_dag_run
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGRunClearBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/TaskInstanceCollectionResponse'
+                - $ref: '#/components/schemas/DAGRunResponse'
+                title: Response Clear Dag Run
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dagSources/{file_token}:
     get:
       tags:
@@ -2265,31 +2324,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/monitor/health:
-    get:
-      tags:
-      - Monitor
-      summary: Get Health
-      operationId: get_health
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HealthInfoSchema'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
   /public/plugins/:
     get:
       tags:
@@ -3578,32 +3612,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/version/:
-    get:
-      tags:
-      - Version
-      summary: Get Version
-      description: Get version information.
-      operationId: get_version
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/VersionInfo'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-        '403':
-          description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
   /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}:
     get:
       tags:
@@ -3698,6 +3706,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/monitor/health:
+    get:
+      tags:
+      - Monitor
+      summary: Get Health
+      operationId: get_health
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthInfoSchema'
+  /public/version/:
+    get:
+      tags:
+      - Version
+      summary: Get Version
+      description: Get version information.
+      operationId: get_version
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionInfo'
 components:
   schemas:
     AppBuilderMenuItemResponse:
@@ -3760,7 +3795,7 @@ components:
       - id
       - name
       title: AssetAliasSchema
-      description: Serializable version of the AssetAliasSchema ORM SqlAlchemyModel.
+      description: Asset alias serializer for assets.
     AssetCollectionResponse:
       properties:
         assets:
@@ -4517,6 +4552,15 @@ components:
       - file_token
       title: DAGResponse
       description: DAG serializer for responses.
+    DAGRunClearBody:
+      properties:
+        dry_run:
+          type: boolean
+          title: Dry Run
+          default: true
+      type: object
+      title: DAGRunClearBody
+      description: DAG Run serializer for clear endpoint body.
     DAGRunPatchBody:
       properties:
         state:
@@ -5010,7 +5054,7 @@ components:
       - created_at
       - updated_at
       title: DagScheduleAssetReference
-      description: Serializable version of the DagScheduleAssetReference ORM SqlAlchemyModel.
+      description: DAG schedule reference serializer for assets.
     DagStatsCollectionResponse:
       properties:
         dags:
@@ -5945,7 +5989,7 @@ components:
       - created_at
       - updated_at
       title: TaskOutletAssetReference
-      description: Serializable version of the TaskOutletAssetReference ORM SqlAlchemyModel.
+      description: Task outlet reference serializer for assets.
     TaskResponse:
       properties:
         task_id:
@@ -6288,10 +6332,10 @@ components:
           type: string
           format: date-time
           title: Timestamp
-        execution_date:
+        logical_date:
           type: string
           format: date-time
-          title: Execution Date
+          title: Logical Date
         map_index:
           type: integer
           title: Map Index
@@ -6307,7 +6351,7 @@ components:
       required:
       - key
       - timestamp
-      - execution_date
+      - logical_date
       - map_index
       - task_id
       - dag_id
@@ -6323,10 +6367,10 @@ components:
           type: string
           format: date-time
           title: Timestamp
-        execution_date:
+        logical_date:
           type: string
           format: date-time
-          title: Execution Date
+          title: Logical Date
         map_index:
           type: integer
           title: Map Index
@@ -6345,7 +6389,7 @@ components:
       required:
       - key
       - timestamp
-      - execution_date
+      - logical_date
       - map_index
       - task_id
       - dag_id
