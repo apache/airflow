@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.bigquery_datatransfer_v1 import StartManualTransferRunsResponse, TransferConfig, TransferRun
 
@@ -58,20 +57,17 @@ class TestBigQueryCreateDataTransferOperator:
         ti.next_kwargs = next_kwargs
         session.flush()
 
-    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.bigquery_dts.BiqQueryDataTransferServiceHook",
         **{"return_value.create_transfer_config.return_value": transfer_config},
     )
-    def test_execute(self, mock_hook, create_task_instance_of_operator, session):
-        ti = create_task_instance_of_operator(
-            transfer_config=TRANSFER_CONFIG,
-            project_id=PROJECT_ID,
-            task_id="id",
-            operator_class=BigQueryCreateDataTransferOperator,
-            dag_id="create_data_transfer",
+    def test_execute(self, mock_hook):
+        op = BigQueryCreateDataTransferOperator(
+            transfer_config=TRANSFER_CONFIG, project_id=PROJECT_ID, task_id="id"
         )
-        return_value = ti.task.execute({"ti": ti})
+        ti = mock.MagicMock()
+
+        return_value = op.execute({"ti": ti})
 
         mock_hook.return_value.create_transfer_config.assert_called_once_with(
             authorization_code=None,
@@ -82,7 +78,7 @@ class TestBigQueryCreateDataTransferOperator:
             timeout=None,
         )
         if AIRFLOW_V_3_0_PLUS:
-            ti.xcom_push.assert_called_with(key="transfer_config_id", value="1a2b3c", logical_date=None)
+            ti.xcom_push.assert_called_with(key="transfer_config_id", value="1a2b3c")
         else:
             ti.xcom_push.assert_called_with(key="transfer_config_id", value="1a2b3c", execution_date=None)
 
