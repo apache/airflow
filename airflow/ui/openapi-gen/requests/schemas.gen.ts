@@ -2861,7 +2861,7 @@ export const $QueuedEventCollectionResponse = {
   type: "object",
   required: ["queued_events", "total_entries"],
   title: "QueuedEventCollectionResponse",
-  description: "QueuedEventCollection serializer for responses.",
+  description: "Queued Event Collection serializer for responses.",
 } as const;
 
 export const $QueuedEventResponse = {
@@ -2883,7 +2883,7 @@ export const $QueuedEventResponse = {
   type: "object",
   required: ["uri", "dag_id", "created_at"],
   title: "QueuedEventResponse",
-  description: "QueuedEvent serializer for responses..",
+  description: "Queued Event serializer for responses..",
 } as const;
 
 export const $ReprocessBehavior = {

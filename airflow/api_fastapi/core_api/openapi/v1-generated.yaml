@@ -5539,7 +5539,7 @@ components:
       - queued_events
       - total_entries
       title: QueuedEventCollectionResponse
-      description: QueuedEventCollection serializer for responses.
+      description: Queued Event Collection serializer for responses.
     QueuedEventResponse:
       properties:
         uri:
@@ -5558,7 +5558,7 @@ components:
       - dag_id
       - created_at
       title: QueuedEventResponse
-      description: QueuedEvent serializer for responses..
+      description: Queued Event serializer for responses..
     ReprocessBehavior:
       type: string
       enum:

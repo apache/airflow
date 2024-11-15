@@ -696,7 +696,7 @@ export type ProviderResponse = {
 };
 
 /**
- * QueuedEventCollection serializer for responses.
+ * Queued Event Collection serializer for responses.
  */
 export type QueuedEventCollectionResponse = {
   queued_events: Array<QueuedEventResponse>;
@@ -704,7 +704,7 @@ export type QueuedEventCollectionResponse = {
 };
 
 /**
- * QueuedEvent serializer for responses..
+ * Queued Event serializer for responses..
  */
 export type QueuedEventResponse = {
   uri: string;

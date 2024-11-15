@@ -162,7 +162,7 @@ class DAGTagCollectionResponse(BaseModel):
 
 
 class QueuedEventResponse(BaseModel):
-    """QueuedEvent serializer for responses.."""
+    """Queued Event serializer for responses.."""
 
     uri: str
     dag_id: str
@@ -170,7 +170,7 @@ class QueuedEventResponse(BaseModel):
 
 
 class QueuedEventCollectionResponse(BaseModel):
-    """QueuedEventCollection serializer for responses."""
+    """Queued Event Collection serializer for responses."""
 
     queued_events: list[QueuedEventResponse]
     total_entries: int
