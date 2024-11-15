@@ -16,7 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Badge, Text, Button, useDisclosure } from "@chakra-ui/react";
+import {
+  Box,
+  Badge,
+  Text,
+  Button,
+  useDisclosure,
+  Skeleton,
+} from "@chakra-ui/react";
 import { FiChevronRight } from "react-icons/fi";
 
 import { useImportErrorServiceGetImportErrors } from "openapi/queries";
@@ -26,9 +33,14 @@ import { DAGImportErrorsModal } from "./DAGImportErrorsModal";
 export const DAGImportErrors = () => {
   const { onClose, onOpen, open } = useDisclosure();
 
-  const { data } = useImportErrorServiceGetImportErrors();
+  const { data, error, isFetching, isLoading } =
+    useImportErrorServiceGetImportErrors();
   const importErrorsCount = data?.total_entries ?? 0;
   const importErrors = data?.import_errors ?? [];
+
+  if (isFetching || isLoading) {
+    return <Skeleton height="9" width="225px" />;
+  }
 
   return (
     importErrorsCount > 0 && (
@@ -41,7 +53,12 @@ export const DAGImportErrors = () => {
           onClick={onOpen}
           variant="outline"
         >
-          <Badge background="red" borderRadius="full" color="white" px={2}>
+          <Badge
+            background="red.solid"
+            borderRadius="full"
+            color="red.contrast"
+            px={2}
+          >
             {importErrorsCount}
           </Badge>
           <Box alignItems="center" display="flex" gap={1}>
