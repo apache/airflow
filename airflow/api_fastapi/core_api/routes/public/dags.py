@@ -44,14 +44,13 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.assets import QueuedEventCollectionResponse, QueuedEventResponse
 from airflow.api_fastapi.core_api.datamodels.dags import (
     DAGCollectionResponse,
     DAGDetailsResponse,
     DAGPatchBody,
     DAGResponse,
     DAGTagCollectionResponse,
-    QueuedEventCollectionResponse,
-    QueuedEventResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.routes.public.assets import _generate_queued_event_where_clause
