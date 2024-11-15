@@ -17,22 +17,18 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Generator
 
 import pendulum
 import pytest
-import time_machine
 
-from airflow.models.asset import AssetDagRunQueue, AssetModel
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.operators.empty import EmptyOperator
-from airflow.utils import timezone as tz
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from tests_common.test_utils.db import clear_db_assets, clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
 
@@ -561,101 +557,3 @@ class TestDeleteDAG(TestDagEndpoint):
 
         details_response = test_client.get(f"{API_PREFIX}/{dag_id}/details")
         assert details_response.status_code == status_code_details
-
-
-class TestQueuedEventEndpoint:
-    default_time = "2020-06-11T18:00:00+00:00"
-
-    @pytest.fixture(autouse=True)
-    def setup(self) -> None:
-        clear_db_assets()
-
-    def teardown_method(self) -> None:
-        clear_db_assets()
-
-    @pytest.fixture
-    def time_freezer(self) -> Generator:
-        freezer = time_machine.travel(self.default_time, tick=False)
-        freezer.start()
-
-        yield
-
-        freezer.stop()
-
-    def _create_asset_dag_run_queues(self, dag_id, asset_id, session):
-        adrq = AssetDagRunQueue(target_dag_id=dag_id, asset_id=asset_id)
-        session.add(adrq)
-        session.commit()
-        return adrq
-
-    def _create_asset(self, session):
-        asset_model = AssetModel(
-            id=1,
-            uri="s3://bucket/key",
-            extra={"foo": "bar"},
-            created_at=tz.parse(self.default_time),
-            updated_at=tz.parse(self.default_time),
-        )
-        session.add(asset_model)
-        session.commit()
-        return asset_model
-
-
-class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
-    @pytest.mark.usefixtures("time_freezer")
-    def test_should_respond_200(self, test_client, session, create_dummy_dag):
-        dag, _ = create_dummy_dag()
-        dag_id = dag.dag_id
-        asset_id = self._create_asset(session).id
-        self._create_asset_dag_run_queues(dag_id, asset_id, session)
-
-        response = test_client.get(
-            f"/public/dags/{dag_id}/assets/queuedEvent",
-        )
-
-        assert response.status_code == 200
-        assert response.json() == {
-            "queued_events": [
-                {
-                    "created_at": self.default_time.replace("+00:00", "Z"),
-                    "uri": "s3://bucket/key",
-                    "dag_id": "dag",
-                }
-            ],
-            "total_entries": 1,
-        }
-
-    def test_should_respond_404(self, test_client):
-        dag_id = "not_exists"
-
-        response = test_client.get(
-            f"/public/dags/{dag_id}/assets/queuedEvent",
-        )
-
-        assert response.status_code == 404
-        assert response.json()["detail"] == "Queue event with dag_id: `not_exists` was not found"
-
-
-class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
-    @pytest.mark.usefixtures("time_freezer")
-    def test_should_respond_200(self, test_client, session, create_dummy_dag):
-        dag, _ = create_dummy_dag()
-        dag_id = dag.dag_id
-        asset_id = self._create_asset(session).id
-        self._create_asset_dag_run_queues(dag_id, asset_id, session)
-
-        response = test_client.delete(
-            f"/public/dags/{dag_id}/assets/queuedEvent",
-        )
-
-        assert response.status_code == 204
-
-    def test_should_respond_404(self, test_client):
-        dag_id = "not_exists"
-
-        response = test_client.delete(
-            f"/public/dags/{dag_id}/assets/queuedEvent",
-        )
-
-        assert response.status_code == 404
-        assert response.json()["detail"] == "Queue event with dag_id: `not_exists` was not found"
