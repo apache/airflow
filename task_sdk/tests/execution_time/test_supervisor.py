@@ -50,6 +50,9 @@ class TestWatchedSubprocess:
         def subprocess_main():
             # This is run in the subprocess!
 
+            # Ensure we follow the "protocol" and get the startup message before we do anything
+            sys.stdin.readline()
+
             # Flush calls are to ensure ordering of output for predictable tests
             import logging
             import warnings
@@ -118,7 +121,7 @@ class TestWatchedSubprocess:
                 "event": "Warning should be captured too",
                 "filename": __file__,
                 "level": "warning",
-                "lineno": line + 19,
+                "lineno": line + 22,
                 "logger": "py.warnings",
                 "timestamp": instant.replace(tzinfo=None),
             },
@@ -128,7 +131,9 @@ class TestWatchedSubprocess:
         main_pid = os.getpid()
 
         def subprocess_main():
-            # This is run in the subprocess!
+            # Ensure we follow the "protocol" and get the startup message before we do anything
+            sys.stdin.readline()
+
             assert os.getpid() != main_pid
             os.kill(os.getpid(), signal.SIGKILL)
 
