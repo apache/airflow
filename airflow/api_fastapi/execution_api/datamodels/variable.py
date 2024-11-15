@@ -17,16 +17,13 @@
 
 from __future__ import annotations
 
-from typing import Annotated
-
-from fastapi import Depends
-
-from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from pydantic import BaseModel, ConfigDict, Field
 
 
-def get_task_token() -> TIToken:
-    """TODO: Placeholder for task identity authentication. This should be replaced with actual JWT decoding and validation."""
-    return TIToken(ti_key="test_key")
+class VariableResponse(BaseModel):
+    """Variable schema for responses with fields that are needed for Runtime."""
 
+    model_config = ConfigDict(from_attributes=True)
 
-TokenDep = Annotated[TIToken, Depends(get_task_token)]
+    key: str
+    val: str | None = Field(alias="value")
