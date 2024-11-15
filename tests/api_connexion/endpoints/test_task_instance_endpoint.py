@@ -1721,7 +1721,6 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
     @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
     def test_should_assert_call_mocked_api(self, mock_set_task_instance_state, session):
         self.create_task_instances(session)
-        run_id = "TEST_DAG_RUN_ID"
         mock_set_task_instance_state.return_value = (
             session.query(TaskInstance)
             .join(TaskInstance.dag_run)
@@ -1735,7 +1734,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             json={
                 "dry_run": True,
                 "task_id": "print_the_context",
-                "dag_run_id": run_id,
+                "logical_date": DEFAULT_DATETIME_1.isoformat(),
                 "include_upstream": True,
                 "include_downstream": True,
                 "include_future": True,
