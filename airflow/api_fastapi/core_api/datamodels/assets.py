@@ -110,7 +110,7 @@ class CreateAssetEventsBody(BaseModel):
     @field_validator("extra", mode="after")
     def set_from_rest_api(cls, v: dict) -> dict:
         v["from_rest_api"] = True
-            return v
+        return v
 
     class Config:
         """Pydantic config."""
