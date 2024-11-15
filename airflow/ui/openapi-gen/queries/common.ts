@@ -129,6 +129,28 @@ export const UseAssetServiceGetAssetKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useAssetServiceGetAssetKey, ...(queryKey ?? [{ uri }])];
+export type AssetServiceGetAssetQueuedEventsDefaultResponse = Awaited<
+  ReturnType<typeof AssetService.getAssetQueuedEvents>
+>;
+export type AssetServiceGetAssetQueuedEventsQueryResult<
+  TData = AssetServiceGetAssetQueuedEventsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useAssetServiceGetAssetQueuedEventsKey =
+  "AssetServiceGetAssetQueuedEvents";
+export const UseAssetServiceGetAssetQueuedEventsKeyFn = (
+  {
+    before,
+    uri,
+  }: {
+    before?: string;
+    uri: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useAssetServiceGetAssetQueuedEventsKey,
+  ...(queryKey ?? [{ before, uri }]),
+];
 export type DashboardServiceHistoricalMetricsDefaultResponse = Awaited<
   ReturnType<typeof DashboardService.historicalMetrics>
 >;

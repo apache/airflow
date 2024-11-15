@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload, subqueryload
 
@@ -43,6 +43,8 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
     AssetEventCollectionResponse,
     AssetEventResponse,
     AssetResponse,
+    QueuedEventCollectionResponse,
+    QueuedEventResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
@@ -175,3 +177,47 @@ def get_asset(
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with uri: `{uri}` was not found")
 
     return AssetResponse.model_validate(asset, from_attributes=True)
+
+
+@assets_router.get(
+    "/assets/queuedEvent/{uri:path}",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
+def get_asset_queued_events(
+    uri: str,
+    session: Annotated[Session, Depends(get_session)],
+    before: str = Query(None),
+) -> QueuedEventCollectionResponse:
+    """Get queued asset events for an asset."""
+    where_clause = _generate_queued_event_where_clause(uri=uri, before=before)
+    query = (
+        select(AssetDagRunQueue, AssetModel.uri)
+        .join(AssetModel, AssetDagRunQueue.asset_id == AssetModel.id)
+        .where(*where_clause)
+    )
+
+    dag_asset_queued_events_select, total_entries = paginated_select(
+        query,
+        [],
+    )
+    adrqs = session.execute(dag_asset_queued_events_select).all()
+
+    if not adrqs:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with uri: `{uri}` was not found")
+
+    queued_events = [
+        QueuedEventResponse(created_at=adrq.created_at, dag_id=adrq.target_dag_id, uri=uri)
+        for adrq, uri in adrqs
+    ]
+
+    return QueuedEventCollectionResponse(
+        queued_events=[
+            QueuedEventResponse.model_validate(queued_event, from_attributes=True)
+            for queued_event in queued_events
+        ],
+        total_entries=total_entries,
+    )
