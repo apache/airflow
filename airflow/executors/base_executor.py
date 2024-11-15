@@ -576,10 +576,10 @@ class BaseExecutor(LoggingMixin):
         """
         Attempt to remove task from executor.
 
-        It should attempt to ensure that the task is no longer running on the worker.
+        It should attempt to ensure that the task is no longer running on the worker,
+        and ensure that it is cleared out from internal data structures.
 
-        It should *not* change the state of the task in airflow, nor mess with the
-        internal data structures that record which tasks the executor "has".
+        It should *not* change the state of the task in airflow.
 
         It should not raise any error.
 
