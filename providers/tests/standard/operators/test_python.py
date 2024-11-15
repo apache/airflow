@@ -915,21 +915,19 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         # These are intentionally NOT serialized into the virtual environment:
         # * Variables pointing to the task instance itself.
         # * Variables that are accessor instances.
-        intentionally_excluded_context_keys = [
+        intentionally_excluded_context_keys = {
             "task_instance",
             "ti",
             "var",  # Accessor for Variable; var->json and var->value.
             "conn",  # Accessor for Connection.
-        ]
+        }
         if AIRFLOW_V_2_9_PLUS:
-            intentionally_excluded_context_keys.extend(
-                ["map_index_template"],
-            )
+            intentionally_excluded_context_keys.add("map_index_template")
         if AIRFLOW_V_2_10_PLUS:
-            intentionally_excluded_context_keys.extend(
-                # Accessors for inlet_events and outlet_events
-                ["inlet_events", "outlet_events"],
-            )
+            intentionally_excluded_context_keys |= {
+                "inlet_events",
+                "outlet_events",
+            }
 
         ti = create_task_instance(dag_id=self.dag_id, task_id=self.task_id, schedule=None)
         context = ti.get_template_context()
@@ -940,21 +938,25 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             *PythonVirtualenvOperator.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS,
             *intentionally_excluded_context_keys,
         }
-        if not AIRFLOW_V_3_0_PLUS:
-            additional_keys = {
+        if AIRFLOW_V_3_0_PLUS:
+            declared_keys -= {
+                "execution_date",
                 "next_ds",
                 "next_ds_nodash",
                 "prev_ds",
                 "prev_ds_nodash",
                 "tomorrow_ds",
                 "tomorrow_ds_nodash",
+                "triggering_dataset_events",
                 "yesterday_ds",
                 "yesterday_ds_nodash",
                 "next_execution_date",
                 "prev_execution_date",
                 "prev_execution_date_success",
             }
-            declared_keys.update(additional_keys)
+        else:
+            declared_keys.remove("triggering_asset_events")
+
         assert set(context) == declared_keys
 
     @pytest.mark.parametrize(
