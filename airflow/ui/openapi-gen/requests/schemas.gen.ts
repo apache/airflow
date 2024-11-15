@@ -694,6 +694,24 @@ export const $ConnectionTestResponse = {
   description: "Connection Test serializer for responses.",
 } as const;
 
+export const $CreateAssetEventsBody = {
+  properties: {
+    uri: {
+      type: "string",
+      title: "Uri",
+    },
+    extra: {
+      type: "object",
+      title: "Extra",
+    },
+  },
+  additionalProperties: false,
+  type: "object",
+  required: ["uri"],
+  title: "CreateAssetEventsBody",
+  description: "Create asset events request.",
+} as const;
+
 export const $DAGCollectionResponse = {
   properties: {
     dags: {

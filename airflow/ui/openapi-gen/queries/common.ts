@@ -1085,6 +1085,9 @@ export const UseVersionServiceGetVersionKeyFn = (queryKey?: Array<unknown>) => [
   useVersionServiceGetVersionKey,
   ...(queryKey ?? []),
 ];
+export type AssetServiceCreateAssetEventMutationResult = Awaited<
+  ReturnType<typeof AssetService.createAssetEvent>
+>;
 export type BackfillServiceCreateBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.createBackfill>
 >;

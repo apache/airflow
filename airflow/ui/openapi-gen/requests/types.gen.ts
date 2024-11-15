@@ -175,6 +175,16 @@ export type ConnectionTestResponse = {
 };
 
 /**
+ * Create asset events request.
+ */
+export type CreateAssetEventsBody = {
+  uri: string;
+  extra?: {
+    [key: string]: unknown;
+  };
+};
+
+/**
  * DAG Collection serializer for responses.
  */
 export type DAGCollectionResponse = {
@@ -999,6 +1009,12 @@ export type GetAssetEventsData = {
 
 export type GetAssetEventsResponse = AssetEventCollectionResponse;
 
+export type CreateAssetEventData = {
+  requestBody: CreateAssetEventsBody;
+};
+
+export type CreateAssetEventResponse = AssetEventResponse;
+
 export type GetAssetData = {
   uri: string;
 };
@@ -1524,6 +1540,31 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: AssetEventCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    post: {
+      req: CreateAssetEventData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: AssetEventResponse;
         /**
          * Unauthorized
          */

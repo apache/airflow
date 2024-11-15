@@ -9,6 +9,8 @@ import type {
   GetAssetsResponse,
   GetAssetEventsData,
   GetAssetEventsResponse,
+  CreateAssetEventData,
+  CreateAssetEventResponse,
   GetAssetData,
   GetAssetResponse,
   HistoricalMetricsData,
@@ -211,6 +213,31 @@ export class AssetService {
         source_run_id: data.sourceRunId,
         source_map_index: data.sourceMapIndex,
       },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Create Asset Event
+   * Create asset events.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns AssetEventResponse Successful Response
+   * @throws ApiError
+   */
+  public static createAssetEvent(
+    data: CreateAssetEventData,
+  ): CancelablePromise<CreateAssetEventResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/assets/events",
+      body: data.requestBody,
+      mediaType: "application/json",
       errors: {
         401: "Unauthorized",
         403: "Forbidden",
