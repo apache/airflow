@@ -26,7 +26,9 @@ from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.execution_api import datamodels, deps
+from airflow.api_fastapi.execution_api import deps
+from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.models.xcom import BaseXCom
 
 # TODO: Add dependency on JWT token
@@ -52,7 +54,7 @@ def get_xcom(
     token: deps.TokenDep,
     session: Annotated[Session, Depends(get_session)],
     map_index: Annotated[int, Query()] = -1,
-) -> datamodels.XComResponse:
+) -> XComResponse:
     """Get an Airflow XCom from database - not other XCom Backends."""
     if not has_xcom_access(key, token):
         raise HTTPException(
@@ -100,10 +102,10 @@ def get_xcom(
             },
         )
 
-    return datamodels.XComResponse(key=key, value=xcom_value)
+    return XComResponse(key=key, value=xcom_value)
 
 
-def has_xcom_access(xcom_key: str, token: datamodels.TIToken) -> bool:
+def has_xcom_access(xcom_key: str, token: TIToken) -> bool:
     """Check if the task has access to the XCom."""
     # TODO: Placeholder for actual implementation
 

@@ -57,6 +57,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.8.0
+  - aiosqlite>=0.20.0
   - apache-airflow-providers-common-sql>=1.20.0
 
 integrations:

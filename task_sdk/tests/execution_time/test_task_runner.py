@@ -18,12 +18,15 @@
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
 from socket import socketpair
 
 import pytest
+from uuid6 import uuid7
 
+from airflow.sdk.api.datamodels.ti import TaskInstance
 from airflow.sdk.execution_time.comms import StartupDetails
-from airflow.sdk.execution_time.task_runner import CommsDecoder
+from airflow.sdk.execution_time.task_runner import CommsDecoder, parse
 
 
 class TestCommsDecoder:
@@ -54,3 +57,16 @@ class TestCommsDecoder:
         assert decoder.request_socket is not None
         assert decoder.request_socket.writable()
         assert decoder.request_socket.fileno() == w2.fileno()
+
+
+def test_parse(test_dags_dir: Path):
+    what = StartupDetails(
+        ti=TaskInstance(id=uuid7(), task_id="a", dag_id="super_basic", run_id="c", try_number=1),
+        file=str(test_dags_dir / "super_basic.py"),
+        requests_fd=0,
+    )
+
+    ti = parse(what)
+
+    assert ti.task
+    assert ti.task.dag

@@ -90,7 +90,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     map_index: int
     start_date: Optional[datetime]
     end_date: Optional[datetime]
-    execution_date: Optional[datetime]
+    logical_date: Optional[datetime]
     duration: Optional[float]
     state: Optional[str]
     try_number: int
@@ -180,7 +180,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         :param task_ids: task id or list of task ids, if None, the task_id of the current task is used
         :param dag_id: dag id, if None, the dag_id of the current task is used
         :param key: the key to identify the XCom value
-        :param include_prior_dates: whether to include prior execution dates
+        :param include_prior_dates: whether to include prior logical dates
         :param session: the sqlalchemy session
         :param map_indexes: map index or list of map indexes, if None, the map_index of the current task
             is used
@@ -367,20 +367,20 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         return _get_previous_dagrun(task_instance=self, state=state, session=session)
 
-    def get_previous_execution_date(
+    def get_previous_logical_date(
         self,
         state: DagRunState | None = None,
         session: Session | None = None,
     ) -> pendulum.DateTime | None:
         """
-        Return the execution date from property previous_ti_success.
+        Return the logical date from property previous_ti_success.
 
         :param state: If passed, it only take into account instances of a specific state.
         :param session: SQLAlchemy ORM Session
         """
-        from airflow.models.taskinstance import _get_previous_execution_date
+        from airflow.models.taskinstance import _get_previous_logical_date
 
-        return _get_previous_execution_date(task_instance=self, state=state, session=session)
+        return _get_previous_logical_date(task_instance=self, state=state, session=session)
 
     def get_previous_start_date(
         self,
@@ -388,7 +388,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         session: Session | None = None,
     ) -> pendulum.DateTime | None:
         """
-        Return the execution date from property previous_ti_success.
+        Return the logical date from property previous_ti_success.
 
         :param state: If passed, it only take into account instances of a specific state.
         :param session: SQLAlchemy ORM Session

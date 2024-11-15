@@ -28,6 +28,7 @@ from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
 
+from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
@@ -65,6 +66,11 @@ from tests_common.test_utils.compat import BashOperator
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.skip_if_database_isolation_mode
+
+if __version__.startswith("2."):
+    LOGICAL_DATE_KEY = "execution_date"
+else:
+    LOGICAL_DATE_KEY = "logical_date"
 
 
 class TestAirflowKubernetesScheduler:
@@ -1818,7 +1824,7 @@ class TestKubernetesJobWatcher:
             "task_id": "task",
             "run_id": "run_id",
             "try_number": "1",
-            "execution_date": None,
+            LOGICAL_DATE_KEY: None,
         }
         self.pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(

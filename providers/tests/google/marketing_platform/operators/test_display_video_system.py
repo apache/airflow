@@ -41,7 +41,7 @@ SCOPES = [
 ]
 
 
-@pytest.mark.system("google.marketing_platform")
+@pytest.mark.system
 @pytest.mark.credential_file(GMP_KEY)
 class TestDisplayVideoSystem(GoogleSystemTest):
     def setup_method(self):

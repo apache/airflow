@@ -124,8 +124,8 @@ const useGridData = () => {
           const selectedRun = await axios.get<AxiosResponse, API.DAGRun>(
             dagRunUrl
           );
-          if (selectedRun?.executionDate) {
-            onBaseDateChange(selectedRun.executionDate);
+          if (selectedRun?.logicalDate) {
+            onBaseDateChange(selectedRun.logicalDate);
           }
           // otherwise the run_id isn't valid and we should unselect it
         } catch (e) {

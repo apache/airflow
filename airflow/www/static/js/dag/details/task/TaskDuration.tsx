@@ -30,7 +30,7 @@ import type { TaskInstance } from "src/types";
 import { getTask } from "src/utils";
 
 interface TaskInstanceDuration extends TaskInstance {
-  executionDate?: string | null;
+  logicalDate?: string | null;
   dataIntervalStart?: string | null;
   dataIntervalEnd?: string | null;
   runDuration: moment.Duration;

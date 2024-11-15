@@ -17,19 +17,12 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal, Union
+from typing import Annotated, Literal, Union
 
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Discriminator,
-    Field,
-    Tag,
-    WithJsonSchema,
-)
+from pydantic import BaseModel, ConfigDict, Discriminator, Tag, WithJsonSchema
 
 from airflow.api_fastapi.common.types import UtcDateTime
-from airflow.utils.state import State, TaskInstanceState as TIState
+from airflow.utils.state import IntermediateTIState, TaskInstanceState as TIState, TerminalTIState
 
 
 class TIEnterRunningPayload(BaseModel):
@@ -40,7 +33,7 @@ class TIEnterRunningPayload(BaseModel):
     state: Annotated[
         Literal[TIState.RUNNING],
         # Specify a default in the schema, but not in code, so Pydantic marks it as required.
-        WithJsonSchema({"enum": [TIState.RUNNING], "default": TIState.RUNNING}),
+        WithJsonSchema({"type": "string", "enum": [TIState.RUNNING], "default": TIState.RUNNING}),
     ]
     hostname: str
     """Hostname where this task has started"""
@@ -55,11 +48,7 @@ class TIEnterRunningPayload(BaseModel):
 class TITerminalStatePayload(BaseModel):
     """Schema for updating TaskInstance to a terminal state (e.g., SUCCESS or FAILED)."""
 
-    state: Annotated[
-        Literal[TIState.SUCCESS, TIState.FAILED, TIState.SKIPPED],
-        Field(title="TerminalState"),
-        WithJsonSchema({"enum": list(State.ran_and_finished_states)}),
-    ]
+    state: TerminalTIState
 
     end_date: UtcDateTime
     """When the task completed executing"""
@@ -68,18 +57,7 @@ class TITerminalStatePayload(BaseModel):
 class TITargetStatePayload(BaseModel):
     """Schema for updating TaskInstance to a target state, excluding terminal and running states."""
 
-    state: Annotated[
-        TIState,
-        # For the OpenAPI schema generation,
-        #   make sure we do not include RUNNING as a valid state here
-        WithJsonSchema(
-            {
-                "enum": [
-                    state for state in TIState if state not in (State.ran_and_finished_states | {State.NONE})
-                ]
-            }
-        ),
-    ]
+    state: IntermediateTIState
 
 
 def ti_state_discriminator(v: dict[str, str] | BaseModel) -> str:
@@ -97,7 +75,7 @@ def ti_state_discriminator(v: dict[str, str] | BaseModel) -> str:
         state = getattr(v, "state", None)
     if state == TIState.RUNNING:
         return str(state)
-    elif state in State.ran_and_finished_states:
+    elif state in set(TerminalTIState):
         return "_terminal_"
     return "_other_"
 
@@ -119,40 +97,3 @@ class TIHeartbeatInfo(BaseModel):
 
     hostname: str
     pid: int
-
-
-class ConnectionResponse(BaseModel):
-    """Connection schema for responses with fields that are needed for Runtime."""
-
-    conn_id: str
-    conn_type: str
-    host: str | None
-    schema_: str | None = Field(alias="schema")
-    login: str | None
-    password: str | None
-    port: int | None
-    extra: str | None
-
-
-class VariableResponse(BaseModel):
-    """Variable schema for responses with fields that are needed for Runtime."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    key: str
-    val: str | None = Field(alias="value")
-
-
-class XComResponse(BaseModel):
-    """XCom schema for responses with fields that are needed for Runtime."""
-
-    key: str
-    value: Any
-    """The returned XCom value in a JSON-compatible format."""
-
-
-# TODO: This is a placeholder for Task Identity Token schema.
-class TIToken(BaseModel):
-    """Task Identity Token."""
-
-    ti_key: str

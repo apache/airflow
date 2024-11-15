@@ -608,7 +608,7 @@ class DagFileProcessor(LoggingMixin):
         dag = dagbag.dags[request.dag_id]
         callbacks, context = DAG.fetch_callback(
             dag=dag,
-            dag_run_id=request.run_id,
+            run_id=request.run_id,
             success=not request.is_failure_callback,
             reason=request.msg,
             session=session,
