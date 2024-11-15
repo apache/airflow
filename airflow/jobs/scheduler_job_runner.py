@@ -189,8 +189,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
         self._task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
-
         self._enable_tracemalloc = conf.getboolean("scheduler", "enable_tracemalloc")
+
+        # this param is intentionally undocumented
+        self._num_stuck_queued_retries = conf.getint("scheduler", "num_stuck_in_queued_retries")
+
         if self._enable_tracemalloc:
             import tracemalloc
 
@@ -1787,9 +1790,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         to mean that a task was unable to run, instead of it meaning that we were unable to run the task.
 
         As a compromise between always failing a stuck task and always rescheduling a stuck task (which could
-        lead to tasks being stuck in queued forever without informing the user), we have creating the config
-        ``[scheduler] num_stuck_in_queued_retries``. With this new configuration, an airflow admin can decide how
-        sensitive they would like their airflow to be WRT failing stuck tasks.
+        lead to tasks being stuck in queued forever without informing the user).
         """
         tasks_stuck_in_queued = self._get_tis_stuck_in_queued(session)
         for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued).items():
@@ -1825,9 +1826,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         Otherwise, fail it.
         """
-        num_allowed_retries = conf.getint("scheduler", "num_stuck_in_queued_retries")
         num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
-        if num_times_stuck < num_allowed_retries:
+        if num_times_stuck < self._num_stuck_queued_retries:
             self.log.info("Task stuck in queued; will try to requeue. task_id=%s", ti.task_id)
             session.add(
                 Log(
@@ -1849,7 +1849,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Log(
                     event="stuck in queued tries exceeded",
                     task_instance=ti.key,
-                    extra=f"Task was requeued more than {num_allowed_retries} times and will be failed.",
+                    extra=f"Task was requeued more than {self._num_stuck_queued_retries} times and will be failed.",
                 )
             )
             ti.set_state(TaskInstanceState.FAILED, session=session)
