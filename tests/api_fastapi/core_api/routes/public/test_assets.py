@@ -469,16 +469,7 @@ class TestGetAssetEndpoint(TestAssets):
         assert response.json()["detail"] == "The Asset with uri: `s3://bucket/key` was not found"
 
 
-class TestQueuedEventEndpoint:
-    default_time = "2020-06-11T18:00:00+00:00"
-
-    @pytest.fixture(autouse=True)
-    def setup(self) -> None:
-        clear_db_assets()
-
-    def teardown_method(self) -> None:
-        clear_db_assets()
-
+class TestQueuedEventEndpoint(TestAssets):
     @pytest.fixture
     def time_freezer(self) -> Generator:
         freezer = time_machine.travel(self.default_time, tick=False)
@@ -494,25 +485,14 @@ class TestQueuedEventEndpoint:
         session.commit()
         return adrq
 
-    def _create_asset(self, session):
-        asset_model = AssetModel(
-            id=1,
-            uri="s3://bucket/key",
-            extra={"foo": "bar"},
-            created_at=timezone.parse(self.default_time),
-            updated_at=timezone.parse(self.default_time),
-        )
-        session.add(asset_model)
-        session.commit()
-        return asset_model
-
 
 class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
     @pytest.mark.usefixtures("time_freezer")
     def test_should_respond_200(self, test_client, session, create_dummy_dag):
         dag, _ = create_dummy_dag()
         dag_id = dag.dag_id
-        asset_id = self._create_asset(session).id
+        self.create_assets(session=session, num=1)
+        asset_id = 1
         self._create_asset_dag_run_queues(dag_id, asset_id, session)
 
         response = test_client.get(
@@ -524,7 +504,7 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
             "queued_events": [
                 {
                     "created_at": self.default_time.replace("+00:00", "Z"),
-                    "uri": "s3://bucket/key",
+                    "uri": "s3://bucket/key/1",
                     "dag_id": "dag",
                 }
             ],
