@@ -293,9 +293,13 @@ def _run_tests_in_pool(
     # tests are still running. We are only adding here test types that take more than 2 minutes to run
     # on a fast machine in parallel
     sorting_order = [
+        "Providers[standard]",
+        "Providers[amazon]",
+        "Providers[google]",
+        "API",
         "Other",
-        "Core",
         "WWW",
+        "Core",
         "CLI",
         "Serialization",
         "Always",
