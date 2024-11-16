@@ -70,7 +70,9 @@ def create_avp_policy_store(env_id):
     schema_path = (
         Path(__file__)
         .parents[6]
-        .joinpath("airflow", "providers", "amazon", "aws", "auth_manager", "avp", "schema.json")
+        .joinpath(
+            "providers", "src", "airflow", "providers", "amazon", "aws", "auth_manager", "avp", "schema.json"
+        )
         .resolve()
     )
     with open(schema_path) as schema_file:

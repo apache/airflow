@@ -17,16 +17,10 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal, Union
+import uuid
+from typing import Annotated, Literal, Union
 
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Discriminator,
-    Field,
-    Tag,
-    WithJsonSchema,
-)
+from pydantic import BaseModel, ConfigDict, Discriminator, Tag, WithJsonSchema
 
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.utils.state import IntermediateTIState, TaskInstanceState as TIState, TerminalTIState
@@ -106,38 +100,15 @@ class TIHeartbeatInfo(BaseModel):
     pid: int
 
 
-class ConnectionResponse(BaseModel):
-    """Connection schema for responses with fields that are needed for Runtime."""
+# This model is not used in the API, but it is included in generated OpenAPI schema
+# for use in the client SDKs.
+class TaskInstance(BaseModel):
+    """Schema for TaskInstance model with minimal required fields needed for Runtime."""
 
-    conn_id: str
-    conn_type: str
-    host: str | None
-    schema_: str | None = Field(alias="schema")
-    login: str | None
-    password: str | None
-    port: int | None
-    extra: str | None
+    id: uuid.UUID
 
-
-class VariableResponse(BaseModel):
-    """Variable schema for responses with fields that are needed for Runtime."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    key: str
-    val: str | None = Field(alias="value")
-
-
-class XComResponse(BaseModel):
-    """XCom schema for responses with fields that are needed for Runtime."""
-
-    key: str
-    value: Any
-    """The returned XCom value in a JSON-compatible format."""
-
-
-# TODO: This is a placeholder for Task Identity Token schema.
-class TIToken(BaseModel):
-    """Task Identity Token."""
-
-    ti_key: str
+    task_id: str
+    dag_id: str
+    run_id: str
+    try_number: int
+    map_index: int | None = None

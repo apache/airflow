@@ -14,19 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-import uuid
-
-from pydantic import BaseModel
-
-
-class TaskInstance(BaseModel):
-    id: uuid.UUID
-
-    task_id: str
-    dag_id: str
-    run_id: str
-    try_number: int
-    map_index: int | None = None

@@ -57,7 +57,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-snowflake/|version|/providers/tests/system/snowflake>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-snowflake/|version|/tests/system/providers/snowflake>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-snowflake/>
     Installing from sources <installing-providers-from-sources>
 

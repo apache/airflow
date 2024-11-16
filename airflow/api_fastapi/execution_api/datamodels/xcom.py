@@ -17,15 +17,14 @@
 
 from __future__ import annotations
 
-import os
+from typing import Any
 
 from pydantic import BaseModel
 
-from airflow.sdk.api.datamodels._generated import TaskInstance
 
+class XComResponse(BaseModel):
+    """XCom schema for responses with fields that are needed for Runtime."""
 
-class ExecuteTaskActivity(BaseModel):
-    ti: TaskInstance
-    path: os.PathLike[str]
-    token: str
-    """The identity token for this workload"""
+    key: str
+    value: Any
+    """The returned XCom value in a JSON-compatible format."""

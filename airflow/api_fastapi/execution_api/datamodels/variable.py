@@ -17,15 +17,13 @@
 
 from __future__ import annotations
 
-import os
-
-from pydantic import BaseModel
-
-from airflow.sdk.api.datamodels._generated import TaskInstance
+from pydantic import BaseModel, ConfigDict, Field
 
 
-class ExecuteTaskActivity(BaseModel):
-    ti: TaskInstance
-    path: os.PathLike[str]
-    token: str
-    """The identity token for this workload"""
+class VariableResponse(BaseModel):
+    """Variable schema for responses with fields that are needed for Runtime."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    key: str
+    val: str | None = Field(alias="value")

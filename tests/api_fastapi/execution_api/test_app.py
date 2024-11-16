@@ -14,18 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-import os
-
-from pydantic import BaseModel
-
-from airflow.sdk.api.datamodels._generated import TaskInstance
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
 
 
-class ExecuteTaskActivity(BaseModel):
-    ti: TaskInstance
-    path: os.PathLike[str]
-    token: str
-    """The identity token for this workload"""
+def test_custom_openapi_includes_extra_schemas(client):
+    """Test to ensure that extra schemas are correctly included in the OpenAPI schema."""
+
+    response = client.get("/execution/openapi.json")
+    assert response.status_code == 200
+
+    openapi_schema = response.json()
+
+    assert "TaskInstance" in openapi_schema["components"]["schemas"]
+    schema = openapi_schema["components"]["schemas"]["TaskInstance"]
+
+    assert schema == TaskInstance.model_json_schema()

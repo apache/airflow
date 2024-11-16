@@ -713,6 +713,23 @@ export type ProviderResponse = {
 };
 
 /**
+ * Queued Event Collection serializer for responses.
+ */
+export type QueuedEventCollectionResponse = {
+  queued_events: Array<QueuedEventResponse>;
+  total_entries: number;
+};
+
+/**
+ * Queued Event serializer for responses..
+ */
+export type QueuedEventResponse = {
+  uri: string;
+  dag_id: string;
+  created_at: string;
+};
+
+/**
  * Internal enum for setting reprocess behavior in a backfill.
  *
  * :meta private:
@@ -831,6 +848,30 @@ export type TaskInstanceStateCount = {
   upstream_failed: number;
   skipped: number;
   deferred: number;
+};
+
+/**
+ * Task Instance body for get batch.
+ */
+export type TaskInstancesBatchBody = {
+  dag_ids?: Array<string> | null;
+  dag_run_ids?: Array<string> | null;
+  task_ids?: Array<string> | null;
+  state?: Array<TaskInstanceState | null> | null;
+  logical_date_gte?: string | null;
+  logical_date_lte?: string | null;
+  start_date_gte?: string | null;
+  start_date_lte?: string | null;
+  end_date_gte?: string | null;
+  end_date_lte?: string | null;
+  duration_gte?: number | null;
+  duration_lte?: number | null;
+  pool?: Array<string> | null;
+  queue?: Array<string> | null;
+  executor?: Array<string> | null;
+  page_offset?: number;
+  page_limit?: number;
+  order_by?: string | null;
 };
 
 /**
@@ -1020,6 +1061,13 @@ export type GetAssetData = {
 };
 
 export type GetAssetResponse = AssetResponse;
+
+export type GetDagAssetQueuedEventsData = {
+  before?: string | null;
+  dagId: string;
+};
+
+export type GetDagAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 
 export type HistoricalMetricsData = {
   endDate: string;
@@ -1423,6 +1471,12 @@ export type GetTaskInstancesData = {
 
 export type GetTaskInstancesResponse = TaskInstanceCollectionResponse;
 
+export type GetTaskInstancesBatchData = {
+  requestBody: TaskInstancesBatchBody;
+};
+
+export type GetTaskInstancesBatchResponse = TaskInstanceCollectionResponse;
+
 export type GetTasksData = {
   dagId: string;
   orderBy?: string;
@@ -1505,7 +1559,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/assets/": {
+  "/public/assets": {
     get: {
       req: GetAssetsData;
       res: {
@@ -1558,6 +1612,8 @@ export type $OpenApiTs = {
         422: HTTPValidationError;
       };
     };
+  };
+  "/public/events": {
     post: {
       req: CreateAssetEventData;
       res: {
@@ -1592,6 +1648,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: AssetResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/assets/queuedEvent": {
+    get: {
+      req: GetDagAssetQueuedEventsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: QueuedEventCollectionResponse;
         /**
          * Unauthorized
          */
@@ -2813,6 +2896,33 @@ export type $OpenApiTs = {
   "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/": {
     get: {
       req: GetTaskInstancesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list": {
+    post: {
+      req: GetTaskInstancesBatchData;
       res: {
         /**
          * Successful Response

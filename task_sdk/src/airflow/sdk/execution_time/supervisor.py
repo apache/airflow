@@ -43,7 +43,7 @@ import structlog
 from pydantic import TypeAdapter
 
 from airflow.sdk.api.client import Client
-from airflow.sdk.api.datamodels._generated import TerminalTIState
+from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
     ConnectionResponse,
     GetConnection,
@@ -55,8 +55,6 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
     from airflow.sdk.api.datamodels.activities import ExecuteTaskActivity
-    from airflow.sdk.api.datamodels.ti import TaskInstance
-
 
 __all__ = ["WatchedSubprocess", "supervise"]
 

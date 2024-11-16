@@ -17,15 +17,17 @@
 
 from __future__ import annotations
 
-import os
-
-from pydantic import BaseModel
-
-from airflow.sdk.api.datamodels._generated import TaskInstance
+from pydantic import BaseModel, Field
 
 
-class ExecuteTaskActivity(BaseModel):
-    ti: TaskInstance
-    path: os.PathLike[str]
-    token: str
-    """The identity token for this workload"""
+class ConnectionResponse(BaseModel):
+    """Connection schema for responses with fields that are needed for Runtime."""
+
+    conn_id: str
+    conn_type: str
+    host: str | None
+    schema_: str | None = Field(alias="schema")
+    login: str | None
+    password: str | None
+    port: int | None
+    extra: str | None

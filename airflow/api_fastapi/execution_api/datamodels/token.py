@@ -17,15 +17,11 @@
 
 from __future__ import annotations
 
-import os
-
 from pydantic import BaseModel
 
-from airflow.sdk.api.datamodels._generated import TaskInstance
 
+# TODO: This is a placeholder for Task Identity Token schema.
+class TIToken(BaseModel):
+    """Task Identity Token."""
 
-class ExecuteTaskActivity(BaseModel):
-    ti: TaskInstance
-    path: os.PathLike[str]
-    token: str
-    """The identity token for this workload"""
+    ti_key: str
