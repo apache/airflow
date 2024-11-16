@@ -54,6 +54,28 @@ class TestPoolsEndpoint:
     def create_pools(self):
         _create_pools()
 
+    def _create_pool_in_test(
+        self,
+        test_client,
+        session,
+        body,
+        expected_status_code,
+        expected_response,
+        create_default=True,
+        check_count=True,
+    ):
+        if create_default:
+            self.create_pools()
+        if check_count:
+            n_pools = session.query(Pool).count()
+        response = test_client.post("/public/pools/", json=body)
+        assert response.status_code == expected_status_code
+
+        body = response.json()
+        assert response.json() == expected_response
+        if check_count:
+            assert session.query(Pool).count() == n_pools + 1
+
 
 class TestDeletePool(TestPoolsEndpoint):
     def test_delete_should_respond_204(self, test_client, session):
@@ -322,11 +344,52 @@ class TestPostPool(TestPoolsEndpoint):
         ],
     )
     def test_should_respond_200(self, test_client, session, body, expected_status_code, expected_response):
-        self.create_pools()
-        n_pools = session.query(Pool).count()
-        response = test_client.post("/public/pools", json=body)
-        assert response.status_code == expected_status_code
+        self._create_pool_in_test(test_client, session, body, expected_status_code, expected_response)
 
-        body = response.json()
-        assert response.json() == expected_response
-        assert session.query(Pool).count() == n_pools + 1
+    @pytest.mark.parametrize(
+        "body,first_expected_status_code, first_expected_response, second_expected_status_code, second_expected_response",
+        [
+            (
+                {"name": "my_pool", "slots": 11},
+                201,
+                {
+                    "name": "my_pool",
+                    "slots": 11,
+                    "description": None,
+                    "include_deferred": False,
+                    "occupied_slots": 0,
+                    "running_slots": 0,
+                    "queued_slots": 0,
+                    "scheduled_slots": 0,
+                    "open_slots": 11,
+                    "deferred_slots": 0,
+                },
+                409,
+                {"detail": "Pool with name: `my_pool` already exists"},
+            ),
+        ],
+    )
+    def test_should_response_409(
+        self,
+        test_client,
+        session,
+        body,
+        first_expected_status_code,
+        first_expected_response,
+        second_expected_status_code,
+        second_expected_response,
+    ):
+        # first request
+        self._create_pool_in_test(
+            test_client, session, body, first_expected_status_code, first_expected_response
+        )
+        # second request
+        self._create_pool_in_test(
+            test_client,
+            session,
+            body,
+            second_expected_status_code,
+            second_expected_response,
+            create_default=False,
+            check_count=False,
+        )
