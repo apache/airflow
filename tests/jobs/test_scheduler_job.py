@@ -2284,7 +2284,7 @@ class TestSchedulerJob:
         assert [x.queued_dttm for x in tis] == [None, None]
 
         _queue_tasks(tis=tis)
-        log_events = [x.event for x in session.scalars(select(Log)).all()]
+        log_events = [x.event for x in session.scalars(select(Log).where(Log.run_id == run_id)).all()]
         assert log_events == [
             "stuck in queued reschedule",
             "stuck in queued reschedule",
