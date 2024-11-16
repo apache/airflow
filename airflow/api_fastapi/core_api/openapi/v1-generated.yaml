@@ -3008,38 +3008,6 @@ paths:
       description: Get all jobs.
       operationId: get_jobs
       parameters:
-      - name: state
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: State
-      - name: job_type
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Job Type
-      - name: hostname
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Hostname
-      - name: executor_class
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Executor Class
       - name: is_alive
         in: query
         required: false
@@ -3107,6 +3075,38 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: job_state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Job State
+      - name: job_type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Job Type
+      - name: hostname
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hostname
+      - name: executor_class
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Executor Class
       responses:
         '200':
           description: Successful Response

@@ -1657,10 +1657,6 @@ export class JobService {
    * Get Jobs
    * Get all jobs.
    * @param data The data for the request.
-   * @param data.state
-   * @param data.jobType
-   * @param data.hostname
-   * @param data.executorClass
    * @param data.isAlive
    * @param data.startDateGte
    * @param data.startDateLte
@@ -1669,6 +1665,10 @@ export class JobService {
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
+   * @param data.jobState
+   * @param data.jobType
+   * @param data.hostname
+   * @param data.executorClass
    * @returns JobCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -1679,10 +1679,6 @@ export class JobService {
       method: "GET",
       url: "/public/jobs/",
       query: {
-        state: data.state,
-        job_type: data.jobType,
-        hostname: data.hostname,
-        executor_class: data.executorClass,
         is_alive: data.isAlive,
         start_date_gte: data.startDateGte,
         start_date_lte: data.startDateLte,
@@ -1691,6 +1687,10 @@ export class JobService {
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,
+        job_state: data.jobState,
+        job_type: data.jobType,
+        hostname: data.hostname,
+        executor_class: data.executorClass,
       },
       errors: {
         400: "Bad Request",

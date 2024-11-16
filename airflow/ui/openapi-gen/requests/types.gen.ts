@@ -1563,13 +1563,13 @@ export type GetJobsData = {
   executorClass?: string | null;
   hostname?: string | null;
   isAlive?: boolean | null;
+  jobState?: string | null;
   jobType?: string | null;
   limit?: number;
   offset?: number;
   orderBy?: string;
   startDateGte?: string | null;
   startDateLte?: string | null;
-  state?: string | null;
 };
 
 export type GetJobsResponse = JobCollectionResponse;

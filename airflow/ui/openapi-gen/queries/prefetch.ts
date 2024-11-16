@@ -1049,10 +1049,6 @@ export const prefetchUseImportErrorServiceGetImportErrors = (
  * Get Jobs
  * Get all jobs.
  * @param data The data for the request.
- * @param data.state
- * @param data.jobType
- * @param data.hostname
- * @param data.executorClass
  * @param data.isAlive
  * @param data.startDateGte
  * @param data.startDateLte
@@ -1061,6 +1057,10 @@ export const prefetchUseImportErrorServiceGetImportErrors = (
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.jobState
+ * @param data.jobType
+ * @param data.hostname
+ * @param data.executorClass
  * @returns JobCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -1072,26 +1072,26 @@ export const prefetchUseJobServiceGetJobs = (
     executorClass,
     hostname,
     isAlive,
+    jobState,
     jobType,
     limit,
     offset,
     orderBy,
     startDateGte,
     startDateLte,
-    state,
   }: {
     endDateGte?: string;
     endDateLte?: string;
     executorClass?: string;
     hostname?: string;
     isAlive?: boolean;
+    jobState?: string;
     jobType?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
     startDateGte?: string;
     startDateLte?: string;
-    state?: string;
   } = {},
 ) =>
   queryClient.prefetchQuery({
@@ -1101,13 +1101,13 @@ export const prefetchUseJobServiceGetJobs = (
       executorClass,
       hostname,
       isAlive,
+      jobState,
       jobType,
       limit,
       offset,
       orderBy,
       startDateGte,
       startDateLte,
-      state,
     }),
     queryFn: () =>
       JobService.getJobs({
@@ -1116,13 +1116,13 @@ export const prefetchUseJobServiceGetJobs = (
         executorClass,
         hostname,
         isAlive,
+        jobState,
         jobType,
         limit,
         offset,
         orderBy,
         startDateGte,
         startDateLte,
-        state,
       }),
   });
 /**

@@ -26,6 +26,10 @@ from airflow.api_fastapi.common.db.common import (
     paginated_select,
 )
 from airflow.api_fastapi.common.parameters import (
+    QueryJobExecutorClassFilter,
+    QueryJobHostnameFilter,
+    QueryJobStateFilter,
+    QueryJobTypeFilter,
     QueryLimit,
     QueryOffset,
     RangeFilter,
@@ -82,29 +86,25 @@ def get_jobs(
         ),
     ],
     session: Annotated[Session, Depends(get_session)],
-    state: str | None = None,
-    job_type: str | None = None,
-    hostname: str | None = None,
-    executor_class: str | None = None,
+    state: QueryJobStateFilter,
+    job_type: QueryJobTypeFilter,
+    hostname: QueryJobHostnameFilter,
+    executor_class: QueryJobExecutorClassFilter,
     is_alive: bool | None = None,
 ) -> JobCollectionResponse:
     """Get all jobs."""
     base_select = select(Job).where(Job.state == JobState.RUNNING).order_by(Job.latest_heartbeat.desc())
     # TODO: Refactor using the `FilterParam` class in commit `574b72e41cc5ed175a2bbf4356522589b836bb11`
-    if state:
-        base_select = base_select.where(Job.state == state)
-    if job_type:
-        base_select = base_select.where(Job.job_type == job_type)
-    if hostname:
-        base_select = base_select.where(Job.hostname == hostname)
-    if executor_class:
-        base_select = base_select.where(Job.executor_class == executor_class)
 
     jobs_select, total_entries = paginated_select(
         base_select,
         [
             start_date_range,
             end_date_range,
+            state,
+            job_type,
+            hostname,
+            executor_class,
         ],
         order_by,
         limit,

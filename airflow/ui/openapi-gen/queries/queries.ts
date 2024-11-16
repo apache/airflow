@@ -1288,10 +1288,6 @@ export const useImportErrorServiceGetImportErrors = <
  * Get Jobs
  * Get all jobs.
  * @param data The data for the request.
- * @param data.state
- * @param data.jobType
- * @param data.hostname
- * @param data.executorClass
  * @param data.isAlive
  * @param data.startDateGte
  * @param data.startDateLte
@@ -1300,6 +1296,10 @@ export const useImportErrorServiceGetImportErrors = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.jobState
+ * @param data.jobType
+ * @param data.hostname
+ * @param data.executorClass
  * @returns JobCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -1314,26 +1314,26 @@ export const useJobServiceGetJobs = <
     executorClass,
     hostname,
     isAlive,
+    jobState,
     jobType,
     limit,
     offset,
     orderBy,
     startDateGte,
     startDateLte,
-    state,
   }: {
     endDateGte?: string;
     endDateLte?: string;
     executorClass?: string;
     hostname?: string;
     isAlive?: boolean;
+    jobState?: string;
     jobType?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
     startDateGte?: string;
     startDateLte?: string;
-    state?: string;
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
@@ -1346,13 +1346,13 @@ export const useJobServiceGetJobs = <
         executorClass,
         hostname,
         isAlive,
+        jobState,
         jobType,
         limit,
         offset,
         orderBy,
         startDateGte,
         startDateLte,
-        state,
       },
       queryKey,
     ),
@@ -1363,13 +1363,13 @@ export const useJobServiceGetJobs = <
         executorClass,
         hostname,
         isAlive,
+        jobState,
         jobType,
         limit,
         offset,
         orderBy,
         startDateGte,
         startDateLte,
-        state,
       }) as TData,
     ...options,
   });

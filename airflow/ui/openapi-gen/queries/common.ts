@@ -821,26 +821,26 @@ export const UseJobServiceGetJobsKeyFn = (
     executorClass,
     hostname,
     isAlive,
+    jobState,
     jobType,
     limit,
     offset,
     orderBy,
     startDateGte,
     startDateLte,
-    state,
   }: {
     endDateGte?: string;
     endDateLte?: string;
     executorClass?: string;
     hostname?: string;
     isAlive?: boolean;
+    jobState?: string;
     jobType?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
     startDateGte?: string;
     startDateLte?: string;
-    state?: string;
   } = {},
   queryKey?: Array<unknown>,
 ) => [
@@ -852,13 +852,13 @@ export const UseJobServiceGetJobsKeyFn = (
       executorClass,
       hostname,
       isAlive,
+      jobState,
       jobType,
       limit,
       offset,
       orderBy,
       startDateGte,
       startDateLte,
-      state,
     },
   ]),
 ];
