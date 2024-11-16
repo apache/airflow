@@ -507,11 +507,7 @@ class DagFileProcessorManager(LoggingMixin):
         stale_dag_threshold: int,
         session: Session = NEW_SESSION,
     ):
-        """
-        Detect DAGs which are no longer present in files.
-
-        Deactivate them and remove them in the serialized_dag table.
-        """
+        """Detect and deactivate DAGs which are no longer present in files."""
         to_deactivate = set()
         query = select(DagModel.dag_id, DagModel.fileloc, DagModel.last_parsed_time).where(DagModel.is_active)
         standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")

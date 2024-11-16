@@ -68,6 +68,10 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to upgrade to newer dependencies or not (true/false)"
         required: true
         type: string
+      include-success-outputs:
+        description: "Whether to include success outputs or not (true/false)"
+        required: true
+        type: string
       debug-resources:
         description: "Whether to debug resources or not (true/false)"
         required: true
@@ -85,7 +89,7 @@ jobs:
       downgrade-sqlalchemy: "true"
       test-name: "MinSQLAlchemy-Postgres"
       test-scope: "DB"
-      test-groups: ${{ needs.build-info.outputs.test-groups }}
+      test-groups: ${{ inputs.test-groups }}
       backend: "postgres"
       image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
@@ -109,7 +113,7 @@ jobs:
       upgrade-boto: "true"
       test-name: "LatestBoto-Postgres"
       test-scope: "All"
-      test-groups: ${{ needs.build-info.outputs.test-groups }}
+      test-groups: ${{ inputs.test-groups }}
       backend: "postgres"
       image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
@@ -118,7 +122,7 @@ jobs:
       excludes: "[]"
       core-test-types-list-as-string: ${{ inputs.core-test-types-list-as-string }}
       providers-test-types-list-as-string: ${{ inputs.providers-test-types-list-as-string }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
 
@@ -134,7 +138,7 @@ jobs:
       downgrade-pendulum: "true"
       test-name: "Pendulum2-Postgres"
       test-scope: "All"
-      test-groups: ${{ needs.build-info.outputs.test-groups }}
+      test-groups: ${{ inputs.test-groups }}
       backend: "postgres"
       image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
@@ -143,7 +147,7 @@ jobs:
       excludes: "[]"
       core-test-types-list-as-string: ${{ inputs.core-test-types-list-as-string }}
       providers-test-types-list-as-string: ${{ inputs.providers-test-types-list-as-string }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
 
@@ -159,7 +163,7 @@ jobs:
       enable-aip-44: "false"
       test-name: "InProgressDisabled-Postgres"
       test-scope: "All"
-      test-groups: ${{ needs.build-info.outputs.test-groups }}
+      test-groups: ${{ inputs.test-groups }}
       backend: "postgres"
       image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
@@ -168,7 +172,7 @@ jobs:
       excludes: "[]"
       core-test-types-list-as-string: ${{ inputs.core-test-types-list-as-string }}
       providers-test-types-list-as-string: ${{ inputs.providers-test-types-list-as-string }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
 
@@ -183,7 +187,7 @@ jobs:
       runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       test-name: "Postgres"
       test-scope: "Quarantined"
-      test-groups: ${{ needs.build-info.outputs.test-groups }}
+      test-groups: ${{ inputs.test-groups }}
       backend: "postgres"
       image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
@@ -192,7 +196,7 @@ jobs:
       excludes: "[]"
       core-test-types-list-as-string: ${{ inputs.core-test-types-list-as-string }}
       providers-test-types-list-as-string: ${{ inputs.providers-test-types-list-as-string }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
 
@@ -207,7 +211,7 @@ jobs:
       runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       test-name: "Postgres"
       test-scope: "ARM collection"
-      test-groups: ${{ needs.build-info.outputs.test-groups }}
+      test-groups: ${{ inputs.test-groups }}
       backend: "postgres"
       image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
@@ -216,7 +220,7 @@ jobs:
       excludes: "[]"
       core-test-types-list-as-string: ${{ inputs.core-test-types-list-as-string }}
       providers-test-types-list-as-string: ${{ inputs.providers-test-types-list-as-string }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
 
@@ -231,7 +235,7 @@ jobs:
       runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       test-name: "SystemTest"
       test-scope: "System"
-      test-groups: ${{ needs.build-info.outputs.test-groups }}
+      test-groups: ${{ inputs.test-groups }}
       backend: "postgres"
       image-tag: ${{ inputs.image-tag }}
       python-versions: "['${{ inputs.default-python-version }}']"
@@ -240,6 +244,6 @@ jobs:
       excludes: "[]"
       core-test-types-list-as-string: ${{ inputs.core-test-types-list-as-string }}
       providers-test-types-list-as-string: ${{ inputs.providers-test-types-list-as-string }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+      include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}

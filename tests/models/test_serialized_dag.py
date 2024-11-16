@@ -109,7 +109,7 @@ class TestSerializedDagModel:
         s_dag_1 = SDM.get(example_bash_op_dag.dag_id)
 
         assert s_dag_1.dag_hash == s_dag.dag_hash
-        assert s_dag.last_updated == s_dag_1.last_updated
+        assert s_dag.created_at == s_dag_1.created_at
         assert dag_updated is False
 
         # Update DAG
@@ -119,7 +119,7 @@ class TestSerializedDagModel:
         dag_updated = SDM.write_dag(dag=example_bash_op_dag)
         s_dag_2 = SDM.get(example_bash_op_dag.dag_id)
 
-        assert s_dag.last_updated != s_dag_2.last_updated
+        assert s_dag.created_at != s_dag_2.created_at
         assert s_dag.dag_hash != s_dag_2.dag_hash
         assert s_dag_2.data["dag"]["tags"] == ["example", "example2", "new_tag"]
         assert dag_updated is True
@@ -141,7 +141,7 @@ class TestSerializedDagModel:
             s_dag_1 = SDM.get(example_bash_op_dag.dag_id)
 
             assert s_dag_1.dag_hash == s_dag.dag_hash
-            assert s_dag.last_updated == s_dag_1.last_updated
+            assert s_dag.created_at == s_dag_1.created_at
             assert dag_updated is False
             session.flush()
 
@@ -176,27 +176,6 @@ class TestSerializedDagModel:
         sdags = session.query(SDM).all()
         # assert only the latest SDM is returned
         assert len(sdags) != len(serialized_dags2)
-
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_remove_dags_by_id(self):
-        """DAGs can be removed from database."""
-        example_dags_list = list(self._write_example_dags().values())
-        # Tests removing by dag_id.
-        dag_removed_by_id = example_dags_list[0]
-        SDM.remove_dag(dag_removed_by_id.dag_id)
-        assert not SDM.has_dag(dag_removed_by_id.dag_id)
-
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_remove_dags_by_filepath(self):
-        """DAGs can be removed from database."""
-        example_dags_list = list(self._write_example_dags().values())
-        # Tests removing by file path.
-        dag_removed_by_file = example_dags_list[0]
-        # remove repeated files for those DAGs that define multiple dags in the same file (set comprehension)
-        example_dag_files = list({dag.fileloc for dag in example_dags_list})
-        example_dag_files.remove(dag_removed_by_file.fileloc)
-        SDM.remove_deleted_dags(example_dag_files, processor_subdir="/tmp/test")
-        assert not SDM.has_dag(dag_removed_by_file.dag_id)
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_bulk_sync_to_db(self):
