@@ -127,18 +127,19 @@ that provider. Remember Provider IDs use a dot ('.') for directory separators so
 Microsoft Azure provider is 'microsoft.azure'. The provider IDs to build can be provided in the PACKAGE_LIST
 environment variable or passed on the command line.
 
-```bash
-export PACKAGE_LIST=microsoft.azure
-```
+.. code-block:: bash
+
+     export PACKAGE_LIST=microsoft.azure
 
 Then build the provider (you don't need to pass the package ID if you set the environment variable above):
 
-```bash
-breeze release-management prepare-provider-packages \
-    --package-format both \
-    --version-suffix-for-local=patch.asb.1 \
-    microsoft.azure
-```
+.. code-block:: bash
+
+    breeze release-management prepare-provider-packages \
+        --package-format both \
+        --version-suffix-for-local=patch.asb.1 \
+        microsoft.azure
+
 
 Finally, copy the wheel file from the dist directory to the a directory your airflow deployment can use.
 If this is ~/airflow/test-airflow/local_providers, you can use the following command:
@@ -148,13 +149,15 @@ If this is ~/airflow/test-airflow/local_providers, you can use the following com
 If you want to build a local version of a version already released to PyPI, such as rc1, then you can combine
 the PyPI suffix flag --version-suffix-for-pypi with the local suffix flag --version-suffix-for-local. For example:
 
-```bash
-breeze release-management prepare-provider-packages \
-    --package-format both \
-    --version-suffix-for-pypi rc1 \
-    --version-suffix-for-local=patch.asb.1 \
-    microsoft.azure
-```
+.. code-block:: bash
+
+    breeze release-management prepare-provider-packages \
+        --package-format both \
+        --version-suffix-for-pypi rc1 \
+        --version-suffix-for-local=patch.asb.1 \
+        microsoft.azure
+
+
 The above would result in a wheel file
 
     apache_airflow_providers_microsoft_azure-10.5.2rc1+patch.asb.1-py3-none-any.whl
@@ -164,11 +167,10 @@ Builds using a local suffix will not check to see if a release has already been 
 Local versions can also be built using the version-suffix-for-pypi flag although using the version-suffix-for-local
 flag is preferred. To build with the version-suffix-for-pypi flag, use the following command:
 
-```bash
-  breeze release-management prepare-provider-packages \
-      --package-format both --version-suffix-for-pypi=dev1 \
-      --skip-tag-check microsoft.azure
-```
+.. code-block:: bash
+    breeze release-management prepare-provider-packages \
+        --package-format both --version-suffix-for-pypi=dev1 \
+        --skip-tag-check microsoft.azure
 
 
 Naming Conventions for provider packages
