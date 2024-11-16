@@ -1117,7 +1117,7 @@ def _run_test_command(
         use_packages_from_dist=use_packages_from_dist,
         use_xdist=use_xdist,
         run_tests=True,
-        db_reset=db_reset,
+        db_reset=db_reset if not skip_db_tests else False,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     fix_ownership_using_docker()
