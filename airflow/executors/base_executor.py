@@ -38,7 +38,6 @@ from airflow.traces.tracer import Trace, add_span, gen_context
 from airflow.traces.utils import gen_span_id_from_ti_key, gen_trace_id
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.thread_safe_dict import ThreadSafeDict
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
@@ -52,6 +51,7 @@ if TYPE_CHECKING:
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.utils.thread_safe_dict import ThreadSafeDict
 
     # Command to execute - list of strings
     # the first element is always "airflow".
@@ -114,7 +114,7 @@ class BaseExecutor(LoggingMixin):
     :param parallelism: how many jobs should run at one time. Set to ``0`` for infinity.
     """
 
-    active_spans = ThreadSafeDict()
+    active_spans = None
 
     supports_ad_hoc_ti_run: bool = False
     supports_sentry: bool = False
@@ -152,6 +152,10 @@ class BaseExecutor(LoggingMixin):
 
     def __repr__(self):
         return f"{self.__class__.__name__}(parallelism={self.parallelism})"
+
+    @classmethod
+    def set_active_spans(cls, active_spans: ThreadSafeDict):
+        cls.active_spans = active_spans
 
     def start(self):  # pragma: no cover
         """Executors may need to get things started."""
@@ -339,7 +343,7 @@ class BaseExecutor(LoggingMixin):
 
             if self.otel_use_context_propagation:
                 # If it's None, then the span for the current TaskInstanceKey hasn't been started.
-                if self.active_spans.get(key) is None:
+                if self.active_spans is not None and self.active_spans.get(key) is None:
                     parent_context = Trace.extract(ti.dag_run.context_carrier)
                     # Start a new span using the context from the parent.
                     # Attributes will be set once the task has finished so that all

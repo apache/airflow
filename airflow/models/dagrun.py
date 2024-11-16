@@ -20,7 +20,18 @@ from __future__ import annotations
 import itertools
 import os
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, NamedTuple, Sequence, TypeVar, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterable,
+    Iterator,
+    NamedTuple,
+    Sequence,
+    TypeVar,
+    Union,
+    overload,
+)
 
 import re2
 from sqlalchemy import (
@@ -69,7 +80,7 @@ from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
 from airflow.traces.otel_tracer import CTX_PROP_SUFFIX
-from airflow.traces.tracer import Trace
+from airflow.traces.tracer import EmptySpan, Trace
 from airflow.utils import timezone
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.helpers import chunks, is_container, prune_dict
@@ -308,6 +319,10 @@ class DagRun(Base, LoggingMixin):
     @property
     def logical_date(self) -> datetime:
         return self.execution_date
+
+    @classmethod
+    def set_active_spans(cls, active_spans: ThreadSafeDict):
+        cls.active_spans = active_spans
 
     def get_state(self):
         return self._state
@@ -872,10 +887,22 @@ class DagRun(Base, LoggingMixin):
         return leaf_tis
 
     @staticmethod
-    def _set_dagrun_span_attrs(span: Span, dag_run: DagRun, dagv: DagVersion):
+    def _set_dagrun_span_attrs(span: Span | EmptySpan, dag_run: DagRun, dagv: DagVersion):
         if dag_run._state is DagRunState.FAILED:
             span.set_attribute("airflow.dag_run.error", True)
-        attributes = {
+
+        AttributeValue = Union[
+            str,
+            bool,
+            int,
+            float,
+            Sequence[str],
+            Sequence[bool],
+            Sequence[int],
+            Sequence[float],
+        ]
+
+        attributes: dict[str, AttributeValue] = {
             "airflow.category": "DAG runs",
             "airflow.dag_run.dag_id": str(dag_run.dag_id),
             "airflow.dag_run.execution_date": str(dag_run.execution_date),
@@ -1040,7 +1067,11 @@ class DagRun(Base, LoggingMixin):
         # finally, if the leaves aren't done, the dag is still running
         else:
             # If there is no value in active_spans, then the span hasn't already been started.
-            if self.otel_use_context_propagation and (self.active_spans.get(self.run_id) is None):
+            if (
+                self.otel_use_context_propagation
+                and self.active_spans is not None
+                and (self.active_spans.get(self.run_id) is None)
+            ):
                 span = Trace.start_root_span(
                     span_name=f"{self.dag_id}{CTX_PROP_SUFFIX}",
                     component=f"dag{CTX_PROP_SUFFIX}",
@@ -1087,27 +1118,28 @@ class DagRun(Base, LoggingMixin):
             )
 
             if self.otel_use_context_propagation:
-                active_span = self.active_spans.get(self.run_id)
-                if active_span is not None:
-                    self.log.debug(
-                        "Found active span with span_id: %s, for dag_id: %s, run_id: %s, state: %s",
-                        active_span.get_span_context().span_id,
-                        self.dag_id,
-                        self.run_id,
-                        self.state,
-                    )
+                if self.active_spans is not None:
+                    active_span = self.active_spans.get(self.run_id)
+                    if active_span is not None:
+                        self.log.debug(
+                            "Found active span with span_id: %s, for dag_id: %s, run_id: %s, state: %s",
+                            active_span.get_span_context().span_id,
+                            self.dag_id,
+                            self.run_id,
+                            self.state,
+                        )
 
-                    self._set_dagrun_span_attrs(span=active_span, dag_run=self, dagv=dagv)
-                    active_span.end()
-                    # Remove the span from the dict.
-                    self.active_spans.delete(self.run_id)
-                else:
-                    self.log.debug(
-                        "No active span has been found for dag_id: %s, run_id: %s, state: %s",
-                        self.dag_id,
-                        self.run_id,
-                        self.state,
-                    )
+                        self._set_dagrun_span_attrs(span=active_span, dag_run=self, dagv=dagv)
+                        active_span.end()
+                        # Remove the span from the dict.
+                        self.active_spans.delete(self.run_id)
+                    else:
+                        self.log.debug(
+                            "No active span has been found for dag_id: %s, run_id: %s, state: %s",
+                            self.dag_id,
+                            self.run_id,
+                            self.state,
+                        )
 
             with Trace.start_span_from_dagrun(dagrun=self) as span:
                 self._set_dagrun_span_attrs(span=span, dag_run=self, dagv=dagv)

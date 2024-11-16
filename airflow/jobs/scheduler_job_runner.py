@@ -77,6 +77,7 @@ from airflow.utils.sqlalchemy import (
     with_row_locks,
 )
 from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
+from airflow.utils.thread_safe_dict import ThreadSafeDict
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
@@ -160,6 +161,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     """
 
     job_type = "SchedulerJob"
+
+    # Dict entries: dag_run.run_id - span
+    active_dagrun_spans = ThreadSafeDict()
+    # Dict entries: ti.key - span
+    active_ti_spans = ThreadSafeDict()
 
     def __init__(
         self,
@@ -797,12 +803,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.pid,
             )
 
-            active_ti_span = executor.active_spans.get(ti.key)
+            active_ti_span = cls.active_ti_spans.get(ti.key)
             if conf.getboolean("traces", "otel_use_context_propagation") and active_ti_span is not None:
                 cls._set_span_attrs__process_executor_events(span=active_ti_span, state=state, ti=ti)
                 # End the span and remove it from the active_spans dict.
                 active_ti_span.end()
-                executor.active_spans.delete(ti.key)
+                cls.active_ti_spans.delete(ti.key)
 
             with Trace.start_span_from_taskinstance(ti=ti) as span:
                 cls._set_span_attrs__process_executor_events(span, state, ti)
@@ -1101,6 +1107,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # is finished to avoid concurrent access to the DB.
                     self.log.debug("Waiting for processors to finish since we're using sqlite")
                     self.processor_agent.wait_until_finished()
+
+                # This is passing a reference to the dictionary, making it shared.
+                # Any changes made by a dag_run instance, will also be reflected to the dictionary of this class.
+                DagRun.set_active_spans(active_spans=self.active_dagrun_spans)
+
+                # local import due to type_checking.
+                from airflow.executors.base_executor import BaseExecutor
+
+                BaseExecutor.set_active_spans(active_spans=self.active_ti_spans)
 
                 with create_session() as session:
                     # This will schedule for as many executors as possible.
