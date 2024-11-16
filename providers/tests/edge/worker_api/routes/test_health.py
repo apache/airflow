@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
+from airflow.providers.edge.worker_api.routes.health import health
 
-def health():
-    return {}
+
+def test_health():
+    assert health() == {"status": "healthy"}

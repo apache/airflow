@@ -21,8 +21,9 @@ from typing import TYPE_CHECKING, Generator
 from unittest import mock
 
 import pytest
+from packaging.version import Version
 
-from airflow.api_connexion.exceptions import PermissionDenied
+from airflow import __version__ as airflow_version
 from airflow.configuration import conf
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
@@ -30,10 +31,10 @@ from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XCom
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.edge.api_endpoints.rpc_api_endpoint import _initialize_method_map
 from airflow.providers.edge.models.edge_job import EdgeJob
 from airflow.providers.edge.models.edge_logs import EdgeLogs
 from airflow.providers.edge.models.edge_worker import EdgeWorker
+from airflow.providers.edge.worker_api.routes.rpc_api import _initialize_method_map
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import _ENABLE_AIP_44
@@ -43,6 +44,9 @@ from airflow.www import app
 
 from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
 from tests_common.test_utils.mock_plugins import mock_plugin_manager
+
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 # Note: Sounds a bit strange to disable internal API tests in isolation mode but...
 # As long as the test is modelled to run its own internal API endpoints, it is conflicting
@@ -90,8 +94,9 @@ def equals(a, b) -> bool:
     return a == b
 
 
+@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Tests are written for Flask endpoints, not for FastAPI")
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
-class TestRpcApiEndpoint:
+class TestRpcApiEndpointV2:
     @pytest.fixture(scope="session")
     def minimal_app_for_edge_api(self) -> Flask:
         @dont_initialize_flask_app_submodules(
@@ -105,7 +110,7 @@ class TestRpcApiEndpoint:
             import airflow.providers.edge.plugins.edge_executor_plugin as plugin_module
 
             class TestingEdgeExecutorPlugin(plugin_module.EdgeExecutorPlugin):
-                flask_blueprints = [plugin_module._get_api_endpoints(), plugin_module.template_bp]
+                flask_blueprints = [plugin_module._get_airflow_2_api_endpoint(), plugin_module.template_bp]
 
             testing_edge_plugin = TestingEdgeExecutorPlugin()
             assert len(testing_edge_plugin.flask_blueprints) > 0
@@ -121,7 +126,7 @@ class TestRpcApiEndpoint:
         mock_test_method.reset_mock()
         mock_test_method.side_effect = None
         with mock.patch(
-            "airflow.providers.edge.api_endpoints.rpc_api_endpoint._initialize_method_map"
+            "airflow.providers.edge.worker_api.routes.rpc_api._initialize_method_map"
         ) as mock_initialize_method_map:
             mock_initialize_method_map.return_value = {
                 TEST_METHOD_NAME: mock_test_method,
@@ -240,12 +245,13 @@ class TestRpcApiEndpoint:
             "method": TEST_METHOD_NAME,
             "params": {},
         }
-        with pytest.raises(PermissionDenied, match="Unable to authenticate API via token."):
-            self.client.post(
-                TEST_API_ENDPOINT,
-                headers={"Content-Type": "application/json", "Accept": "application/json"},
-                data=json.dumps(input_data),
-            )
+        response = self.client.post(
+            TEST_API_ENDPOINT,
+            headers={"Content-Type": "application/json", "Accept": "application/json"},
+            data=json.dumps(input_data),
+        )
+        assert response.status_code == 403
+        assert "Unable to authenticate API via token." in response.text
 
     def test_invalid_token(self, setup_attrs, signer: JWTSigner):
         headers = {
@@ -255,10 +261,9 @@ class TestRpcApiEndpoint:
         }
         data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}}
 
-        with pytest.raises(
-            PermissionDenied, match="Bad Signature. Please use only the tokens provided by the API."
-        ):
-            self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
+        response = self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
+        assert response.status_code == 403
+        assert "Bad Signature. Please use only the tokens provided by the API." in response.text
 
     def test_missing_accept(self, setup_attrs, signer: JWTSigner):
         headers = {
@@ -267,8 +272,9 @@ class TestRpcApiEndpoint:
         }
         data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}}
 
-        with pytest.raises(PermissionDenied, match="Expected Accept: application/json"):
-            self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
+        response = self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
+        assert response.status_code == 403
+        assert "Expected Accept: application/json" in response.text
 
     def test_wrong_accept(self, setup_attrs, signer: JWTSigner):
         headers = {
@@ -278,5 +284,6 @@ class TestRpcApiEndpoint:
         }
         data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}}
 
-        with pytest.raises(PermissionDenied, match="Expected Accept: application/json"):
-            self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
+        response = self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
+        assert response.status_code == 403
+        assert "Expected Accept: application/json" in response.text
