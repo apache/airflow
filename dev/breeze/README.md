@@ -35,7 +35,7 @@ for Airflow Development.
 
 This package should never be installed in "production" mode. The `breeze` entrypoint will actually
 fail if you do so. It is supposed to be installed only in [editable/development mode](https://packaging.python.org/en/latest/guides/distributing-packages-using-setuptools/#working-in-development-mode)
-directly from Airflow sources using `uv tool``or ``pipx` - usually with `--force` flag to account
+directly from Airflow sources using `uv tool` or `pipx` - usually with `--force` flag to account
 for re-installation  that might often be needed if dependencies change during development.
 
 ```shell
