@@ -54,7 +54,7 @@ function core_tests() {
         set +x
     elif [[ "${TEST_SCOPE}" == "ARM collection" ]]; then
         set -x
-        breeze testing core-tests --collect-only --remove-arm-packages --test-type "All"
+        breeze testing core-tests --collect-only --remove-arm-packages --test-type "All" --no-db-reset
         RESULT=$?
         set +x
     elif [[  "${TEST_SCOPE}" == "System" ]]; then
@@ -102,7 +102,7 @@ function providers_tests() {
         set +x
     elif [[ "${TEST_SCOPE}" == "ARM collection" ]]; then
         set -x
-        breeze testing providers-tests --collect-only --remove-arm-packages --test-type "All"
+        breeze testing providers-tests --collect-only --remove-arm-packages --test-type "All" --no-db-reset
         RESULT=$?
         set +x
     elif [[  "${TEST_SCOPE}" == "System" ]]; then
