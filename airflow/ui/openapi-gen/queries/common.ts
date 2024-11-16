@@ -129,28 +129,6 @@ export const UseAssetServiceGetAssetKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [useAssetServiceGetAssetKey, ...(queryKey ?? [{ uri }])];
-export type AssetServiceGetDagAssetQueuedEventsDefaultResponse = Awaited<
-  ReturnType<typeof AssetService.getDagAssetQueuedEvents>
->;
-export type AssetServiceGetDagAssetQueuedEventsQueryResult<
-  TData = AssetServiceGetDagAssetQueuedEventsDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useAssetServiceGetDagAssetQueuedEventsKey =
-  "AssetServiceGetDagAssetQueuedEvents";
-export const UseAssetServiceGetDagAssetQueuedEventsKeyFn = (
-  {
-    before,
-    dagId,
-  }: {
-    before?: string;
-    dagId: string;
-  },
-  queryKey?: Array<unknown>,
-) => [
-  useAssetServiceGetDagAssetQueuedEventsKey,
-  ...(queryKey ?? [{ before, dagId }]),
-];
 export type DashboardServiceHistoricalMetricsDefaultResponse = Awaited<
   ReturnType<typeof DashboardService.historicalMetrics>
 >;

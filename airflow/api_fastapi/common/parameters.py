@@ -29,8 +29,6 @@ from typing import (
     List,
     Optional,
     TypeVar,
-    Union,
-    overload,
 )
 
 from fastapi import Depends, HTTPException, Query
@@ -445,27 +443,6 @@ def _safe_parse_datetime(date_to_check: str) -> datetime:
     """
     if not date_to_check:
         raise ValueError(f"{date_to_check} cannot be None.")
-    return _safe_parse_datetime_optional(date_to_check)
-
-
-@overload
-def _safe_parse_datetime_optional(date_to_check: str) -> datetime: ...
-
-
-@overload
-def _safe_parse_datetime_optional(date_to_check: None) -> None: ...
-
-
-def _safe_parse_datetime_optional(date_to_check: str | None) -> datetime | None:
-    """
-    Parse datetime and raise error for invalid dates.
-
-    Allow None values.
-
-    :param date_to_check: the string value to be parsed
-    """
-    if date_to_check is None:
-        return None
     try:
         return timezone.parse(date_to_check, strict=True)
     except (TypeError, ParserError):
@@ -671,8 +648,7 @@ def float_range_filter_factory(
 
 
 # Common Safe DateTime
-DateTimeQuery = Annotated[datetime, AfterValidator(_safe_parse_datetime)]
-OptionalDateTimeQuery = Annotated[Union[datetime, None], AfterValidator(_safe_parse_datetime_optional)]
+DateTimeQuery = Annotated[str, AfterValidator(_safe_parse_datetime)]
 
 # DAG
 QueryLimit = Annotated[LimitFilter, Depends(LimitFilter().depends)]

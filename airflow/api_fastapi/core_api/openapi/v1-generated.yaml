@@ -47,14 +47,12 @@ paths:
         required: true
         schema:
           type: string
-          format: date-time
           title: Start Date
       - name: end_date
         in: query
         required: true
         schema:
           type: string
-          format: date-time
           title: End Date
       responses:
         '200':
@@ -172,7 +170,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/assets:
+  /public/assets/:
     get:
       tags:
       - Asset
@@ -348,7 +346,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/events:
     post:
       tags:
       - Asset
@@ -356,11 +353,11 @@ paths:
       description: Create asset events.
       operationId: create_asset_event
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateAssetEventsBody'
-        required: true
       responses:
         '200':
           description: Successful Response
@@ -369,23 +366,23 @@ paths:
               schema:
                 $ref: '#/components/schemas/AssetEventResponse'
         '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '404':
-          description: Not Found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -413,60 +410,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AssetResponse'
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/assets/queuedEvent:
-    get:
-      tags:
-      - Asset
-      summary: Get Dag Asset Queued Events
-      description: Get queued asset events for a DAG.
-      operationId: get_dag_asset_queued_events
-      parameters:
-      - name: dag_id
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Dag Id
-      - name: before
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Before
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/QueuedEventCollectionResponse'
         '401':
           content:
             application/json:
@@ -5947,41 +5890,6 @@ components:
       - version
       title: ProviderResponse
       description: Provider serializer for responses.
-    QueuedEventCollectionResponse:
-      properties:
-        queued_events:
-          items:
-            $ref: '#/components/schemas/QueuedEventResponse'
-          type: array
-          title: Queued Events
-        total_entries:
-          type: integer
-          title: Total Entries
-      type: object
-      required:
-      - queued_events
-      - total_entries
-      title: QueuedEventCollectionResponse
-      description: Queued Event Collection serializer for responses.
-    QueuedEventResponse:
-      properties:
-        uri:
-          type: string
-          title: Uri
-        dag_id:
-          type: string
-          title: Dag Id
-        created_at:
-          type: string
-          format: date-time
-          title: Created At
-      type: object
-      required:
-      - uri
-      - dag_id
-      - created_at
-      title: QueuedEventResponse
-      description: Queued Event serializer for responses..
     ReprocessBehavior:
       type: string
       enum:
