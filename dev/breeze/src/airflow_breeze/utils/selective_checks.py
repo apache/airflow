@@ -90,7 +90,9 @@ USE_SELF_HOSTED_RUNNERS_LABEL = "use self-hosted runners"
 
 ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Operators Other Serialization WWW"
 
-ALL_PROVIDERS_SELECTIVE_TEST_TYPES = "Providers[-amazon,google] Providers[amazon] Providers[google]"
+ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
+    "Providers[-amazon,google,standard] Providers[amazon] Providers[google] Providers[standard]"
+)
 
 
 class FileGroupForCi(Enum):
@@ -892,7 +894,7 @@ class SelectiveChecks:
         in case of Providers[list_of_tests] we need to remove the long tests from the list.
 
         """
-        long_tests = ["amazon", "google"]
+        long_tests = ["amazon", "google", "standard"]
         for original_test_type in tuple(current_test_types):
             if original_test_type == "Providers":
                 current_test_types.remove(original_test_type)
