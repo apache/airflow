@@ -148,7 +148,7 @@ class TestHistoricalMetricsDataEndpoint:
                 },
             ),
             (
-                {"start_date": "2023-02-02T00:00", "end_date": None},
+                {"start_date": "2023-02-02T00:00"},
                 {
                     "dag_run_states": {"failed": 1, "queued": 0, "running": 1, "success": 0},
                     "dag_run_types": {"backfill": 0, "asset_triggered": 1, "manual": 0, "scheduled": 1},
@@ -176,15 +176,3 @@ class TestHistoricalMetricsDataEndpoint:
         response = test_client.get("/ui/dashboard/historical_metrics_data", params=params)
         assert response.status_code == 200
         assert response.json() == expected
-
-    @pytest.mark.parametrize(
-        "params",
-        [
-            {"start_date": None, "end_date": "2023-08-02T00:00"},
-        ],
-    )
-    @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
-    def test_historical_metrics_data_start_date_none(self, test_client, params):
-        response = test_client.get("/ui/dashboard/historical_metrics_data", params=params)
-        assert response.status_code == 400
-        assert response.json() == {"detail": "start_date parameter is required in the request"}

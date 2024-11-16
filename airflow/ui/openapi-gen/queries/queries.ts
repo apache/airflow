@@ -264,7 +264,7 @@ export const useDashboardServiceHistoricalMetrics = <
     endDate,
     startDate,
   }: {
-    endDate: string;
+    endDate?: string;
     startDate: string;
   },
   queryKey?: TQueryKey,

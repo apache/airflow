@@ -50,9 +50,11 @@ paths:
           title: Start Date
       - name: end_date
         in: query
-        required: true
+        required: false
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: End Date
       responses:
         '200':

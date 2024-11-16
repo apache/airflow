@@ -1084,7 +1084,7 @@ export type DeleteAssetQueuedEventsData = {
 export type DeleteAssetQueuedEventsResponse = void;
 
 export type HistoricalMetricsData = {
-  endDate: string;
+  endDate?: string | null;
   startDate: string;
 };
 
