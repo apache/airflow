@@ -342,83 +342,21 @@ class FilterParam(BaseParam[T]):
         raise NotImplementedError("Use filter_param_factory instead , depends is not implemented.")
 
 
-def int_filter_param_factory(
+def filter_param_factory(
     attribute: ColumnElement,
+    _type: type,
     filter_option: FilterOptionEnum = FilterOptionEnum.EQUAL,
     filter_name: str | None = None,
     skip_none: bool = True,
-) -> Callable[[int | None], FilterParam[int | None]]:
+) -> Callable[[T | None], FilterParam[T | None]]:
     # if filter_name is not provided, use the attribute name as the default
     filter_name = filter_name or attribute.name
 
-    def depends_filter(value: int | None = Query(alias=filter_name, default=None)) -> FilterParam[int | None]:
+    def depends_filter(value: T | None = Query(alias=filter_name, default=None)) -> FilterParam[T | None]:
         return FilterParam(attribute, value, filter_option, skip_none)
 
-    return depends_filter
-
-
-def str_filter_param_factory(
-    attribute: ColumnElement,
-    filter_option: FilterOptionEnum = FilterOptionEnum.EQUAL,
-    filter_name: str | None = None,
-    skip_none: bool = True,
-) -> Callable[[str | None], FilterParam[str | None]]:
-    # if filter_name is not provided, use the attribute name as the default
-    filter_name = filter_name or attribute.name
-
-    def depends_filter(value: str | None = Query(alias=filter_name, default=None)) -> FilterParam[str | None]:
-        return FilterParam(attribute, value, filter_option, skip_none)
-
-    return depends_filter
-
-
-def datetime_filter_param_factory(
-    attribute: ColumnElement,
-    filter_option: FilterOptionEnum = FilterOptionEnum.EQUAL,
-    filter_name: str | None = None,
-    skip_none: bool = True,
-) -> Callable[[datetime | None], FilterParam[datetime | None]]:
-    # if filter_name is not provided, use the attribute name as the default
-    filter_name = filter_name or attribute.name
-
-    def depends_filter(
-        value: datetime | None = Query(alias=filter_name, default=None),
-    ) -> FilterParam[datetime | None]:
-        return FilterParam(attribute, value, filter_option, skip_none)
-
-    return depends_filter
-
-
-def int_list_filter_param_factory(
-    attribute: ColumnElement,
-    filter_option: FilterOptionEnum = FilterOptionEnum.IN,
-    filter_name: str | None = None,
-    skip_none: bool = True,
-) -> Callable[[list[int] | None], FilterParam[list[int] | None]]:
-    # if filter_name is not provided, use the attribute name as the default
-    filter_name = filter_name or attribute.name
-
-    def depends_filter(
-        value: list[int] | None = Query(alias=filter_name, default=None),
-    ) -> FilterParam[list[int] | None]:
-        return FilterParam(attribute, value, filter_option, skip_none)
-
-    return depends_filter
-
-
-def str_list_filter_param_factory(
-    attribute: ColumnElement,
-    filter_option: FilterOptionEnum = FilterOptionEnum.IN,
-    filter_name: str | None = None,
-    skip_none: bool = True,
-) -> Callable[[list[str] | None], FilterParam[list[str] | None]]:
-    # if filter_name is not provided, use the attribute name as the default
-    filter_name = filter_name or attribute.name
-
-    def depends_filter(
-        value: list[str] | None = Query(alias=filter_name, default=None),
-    ) -> FilterParam[list[str] | None]:
-        return FilterParam(attribute, value, filter_option, skip_none)
+    # add type hint to value at runtime
+    depends_filter.__annotations__["value"] = _type
 
     return depends_filter
 

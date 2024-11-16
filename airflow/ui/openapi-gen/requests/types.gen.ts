@@ -1678,20 +1678,20 @@ export type GetEventLogData = {
 export type GetEventLogResponse = EventLogResponse;
 
 export type GetEventLogsData = {
-  after?: string | null;
-  before?: string | null;
-  dagId?: string | null;
-  event?: string | null;
-  excludedEvents?: Array<string> | null;
-  includedEvents?: Array<string> | null;
+  after?: string;
+  before?: string;
+  dagId?: string;
+  event?: string;
+  excludedEvents?: Array<string>;
+  includedEvents?: Array<string>;
   limit?: number;
-  mapIndex?: number | null;
+  mapIndex?: number;
   offset?: number;
   orderBy?: string;
-  owner?: string | null;
-  runId?: string | null;
-  taskId?: string | null;
-  tryNumber?: number | null;
+  owner?: string;
+  runId?: string;
+  taskId?: string;
+  tryNumber?: number;
 };
 
 export type GetEventLogsResponse = EventLogCollectionResponse;

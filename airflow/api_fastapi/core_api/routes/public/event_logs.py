@@ -32,10 +32,7 @@ from airflow.api_fastapi.common.parameters import (
     QueryLimit,
     QueryOffset,
     SortParam,
-    datetime_filter_param_factory,
-    int_filter_param_factory,
-    str_filter_param_factory,
-    str_list_filter_param_factory,
+    filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.event_logs import (
@@ -89,28 +86,28 @@ def get_event_logs(
             ).dynamic_depends()
         ),
     ],
-    dag_id: Annotated[FilterParam[str | None], Depends(str_filter_param_factory(Log.dag_id))],
-    task_id: Annotated[FilterParam[str | None], Depends(str_filter_param_factory(Log.task_id))],
-    run_id: Annotated[FilterParam[str | None], Depends(str_filter_param_factory(Log.run_id))],
-    map_index: Annotated[FilterParam[int | None], Depends(int_filter_param_factory(Log.map_index))],
-    try_number: Annotated[FilterParam[int | None], Depends(int_filter_param_factory(Log.try_number))],
-    owner: Annotated[FilterParam[str | None], Depends(str_filter_param_factory(Log.owner))],
-    event: Annotated[FilterParam[str | None], Depends(str_filter_param_factory(Log.event))],
+    dag_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.dag_id, str))],
+    task_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.task_id, str))],
+    run_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.run_id, str))],
+    map_index: Annotated[FilterParam[int | None], Depends(filter_param_factory(Log.map_index, int))],
+    try_number: Annotated[FilterParam[int | None], Depends(filter_param_factory(Log.try_number, int))],
+    owner: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.owner, str))],
+    event: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.event, str))],
     excluded_events: Annotated[
         FilterParam[list[str] | None],
-        Depends(str_list_filter_param_factory(Log.event, FilterOptionEnum.NOT_IN, "excluded_events")),
+        Depends(filter_param_factory(Log.event, list[str], FilterOptionEnum.NOT_IN, "excluded_events")),
     ],
     included_events: Annotated[
         FilterParam[list[str] | None],
-        Depends(str_list_filter_param_factory(Log.event, FilterOptionEnum.IN, "included_events")),
+        Depends(filter_param_factory(Log.event, list[str], FilterOptionEnum.IN, "included_events")),
     ],
     before: Annotated[
         FilterParam[datetime | None],
-        Depends(datetime_filter_param_factory(Log.dttm, FilterOptionEnum.LESS_THAN, "before")),
+        Depends(filter_param_factory(Log.dttm, datetime, FilterOptionEnum.LESS_THAN, "before")),
     ],
     after: Annotated[
         FilterParam[datetime | None],
-        Depends(datetime_filter_param_factory(Log.dttm, FilterOptionEnum.GREATER_THAN, "after")),
+        Depends(filter_param_factory(Log.dttm, datetime, FilterOptionEnum.GREATER_THAN, "after")),
     ],
 ) -> EventLogCollectionResponse:
     """Get all Event Logs."""
