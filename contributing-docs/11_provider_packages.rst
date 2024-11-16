@@ -168,6 +168,7 @@ Local versions can also be built using the version-suffix-for-pypi flag although
 flag is preferred. To build with the version-suffix-for-pypi flag, use the following command:
 
 .. code-block:: bash
+
     breeze release-management prepare-provider-packages \
         --package-format both --version-suffix-for-pypi=dev1 \
         --skip-tag-check microsoft.azure
