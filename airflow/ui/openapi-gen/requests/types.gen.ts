@@ -291,6 +291,14 @@ export type DAGRunClearBody = {
 };
 
 /**
+ * DAG Run Collection serializer for responses.
+ */
+export type DAGRunCollectionResponse = {
+  dag_runs: Array<DAGRunResponse>;
+  total_entries: number;
+};
+
+/**
  * DAG Run Serializer for PATCH requests.
  */
 export type DAGRunPatchBody = {
@@ -1209,6 +1217,24 @@ export type ClearDagRunData = {
 export type ClearDagRunResponse =
   | TaskInstanceCollectionResponse
   | DAGRunResponse;
+
+export type GetDagRunsData = {
+  dagId: string;
+  endDateGte?: string | null;
+  endDateLte?: string | null;
+  limit?: number;
+  logicalDateGte?: string | null;
+  logicalDateLte?: string | null;
+  offset?: number;
+  orderBy?: string;
+  startDateGte?: string | null;
+  startDateLte?: string | null;
+  state?: Array<string>;
+  updatedAtGte?: string | null;
+  updatedAtLte?: string | null;
+};
+
+export type GetDagRunsResponse = DAGRunCollectionResponse;
 
 export type GetDagSourceData = {
   accept?: string;
@@ -2188,6 +2214,29 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/": {
+    get: {
+      req: GetDagRunsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGRunCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */

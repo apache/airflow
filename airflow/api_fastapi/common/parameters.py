@@ -19,7 +19,19 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Any, Callable, Generic, List, Optional, TypeVar, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    Callable,
+    Generic,
+    Iterable,
+    List,
+    Optional,
+    TypeVar,
+    Union,
+    overload,
+)
 
 from fastapi import Depends, HTTPException, Query
 from pendulum.parsing.exceptions import ParserError
@@ -307,6 +319,30 @@ class _OwnersFilter(BaseParam[List[str]]):
 
     def depends(self, owners: list[str] = Query(default_factory=list)) -> _OwnersFilter:
         return self.set_value(owners)
+
+
+class DagRunStateFilter(BaseParam[List[Optional[DagRunState]]]):
+    """Filter on Dag Run state."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+
+        if not self.value:
+            return select
+
+        conditions = [DagRun.state == state for state in self.value]
+        return select.where(or_(*conditions))
+
+    @staticmethod
+    def _convert_dag_run_states(states: Iterable[str] | None) -> list[DagRunState | None] | None:
+        if not states:
+            return None
+        return [None if s in ("none", None) else DagRunState(s) for s in states]
+
+    def depends(self, state: list[str] = Query(default_factory=list)) -> DagRunStateFilter:
+        states = self._convert_dag_run_states(state)
+        return self.set_value(states)
 
 
 class TIStateFilter(BaseParam[List[Optional[TaskInstanceState]]]):
@@ -656,6 +692,7 @@ QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter().depends)]
 # DagRun
 QueryLastDagRunStateFilter = Annotated[_LastDagRunStateFilter, Depends(_LastDagRunStateFilter().depends)]
 QueryDagIdsFilter = Annotated[DagIdsFilter, Depends(DagIdsFilter(DagRun).depends)]
+QueryDagRunStateFilter = Annotated[DagRunStateFilter, Depends(DagRunStateFilter().depends)]
 
 # DAGWarning
 QueryDagIdInDagWarningFilter = Annotated[_DagIdFilter, Depends(_DagIdFilter(DagWarning.dag_id).depends)]
