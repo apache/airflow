@@ -32,6 +32,7 @@ from airflow.api_fastapi.core_api.datamodels.pools import (
     PoolCollectionResponse,
     PoolPatchBody,
     PoolPostBody,
+    PoolPostBulkBody,
     PoolResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -160,14 +161,55 @@ def patch_pool(
 @pools_router.post(
     "",
     status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
 )
 def post_pool(
     post_body: PoolPostBody,
     session: Annotated[Session, Depends(get_session)],
 ) -> PoolResponse:
     """Create a Pool."""
+    pool = session.scalar(select(Pool).where(Pool.pool == post_body.pool))
+    if pool is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"Pool with name: `{post_body.pool}` already exists")
     pool = Pool(**post_body.model_dump())
 
     session.add(pool)
 
     return PoolResponse.model_validate(pool, from_attributes=True)
+
+
+@pools_router.post(
+    "/bulk",
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        status.HTTP_400_BAD_REQUEST: {"description": "Validation error", "example": {}},
+        **create_openapi_http_exception_doc(
+            [
+                status.HTTP_401_UNAUTHORIZED,
+                status.HTTP_403_FORBIDDEN,
+                status.HTTP_409_CONFLICT,
+            ]
+        ),
+    },
+)
+def post_pools(
+    post_bulk_body: PoolPostBulkBody,
+    session: Annotated[Session, Depends(get_session)],
+) -> PoolCollectionResponse:
+    """Create multiple pools."""
+    # Check if any of the pools already exists
+    pools_names = [pool.pool for pool in post_bulk_body.pools]
+    existing_pools = session.scalars(select(Pool.pool).where(Pool.pool.in_(pools_names))).all()
+    if existing_pools:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail=f"Pools with names: `{existing_pools}` already exist",
+        )
+
+    pools = [Pool(**post_body.model_dump()) for post_body in post_bulk_body.pools]
+    session.add_all(pools)
+
+    return PoolCollectionResponse(
+        pools=[PoolResponse.model_validate(pool, from_attributes=True) for pool in pools],
+        total_entries=len(pools),
+    )

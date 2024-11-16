@@ -109,6 +109,8 @@ import type {
   GetPoolsResponse,
   PostPoolData,
   PostPoolResponse,
+  PostPoolsData,
+  PostPoolsResponse,
   GetProvidersData,
   GetProvidersResponse,
   GetTaskInstanceData,
@@ -1790,6 +1792,33 @@ export class PoolService {
       errors: {
         401: "Unauthorized",
         403: "Forbidden",
+        409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Post Pools
+   * Create multiple pools.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns PoolCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static postPools(
+    data: PostPoolsData,
+  ): CancelablePromise<PostPoolsResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/pools/bulk",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Validation error",
+        401: "Unauthorized",
+        403: "Forbidden",
+        409: "Conflict",
         422: "Validation Error",
       },
     });
