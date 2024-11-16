@@ -22,11 +22,11 @@ from __future__ import annotations
 import logging
 import zlib
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Collection
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy_jsonfield
 import uuid6
-from sqlalchemy import Column, ForeignKey, LargeBinary, String, exc, or_, select
+from sqlalchemy import Column, ForeignKey, LargeBinary, String, exc, select
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 from sqlalchemy_utils import UUIDType
@@ -83,7 +83,7 @@ class SerializedDagModel(Base):
     dag_id = Column(String(ID_LEN), nullable=False)
     _data = Column("data", sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     _data_compressed = Column("data_compressed", LargeBinary, nullable=True)
-    last_updated = Column(UtcDateTime, nullable=False)
+    created_at = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
     dag_hash = Column(String(32), nullable=False)
     processor_subdir = Column(String(2000), nullable=True)
 
@@ -110,7 +110,6 @@ class SerializedDagModel(Base):
 
     def __init__(self, dag: DAG, processor_subdir: str | None = None) -> None:
         self.dag_id = dag.dag_id
-        self.last_updated = timezone.utcnow()
         self.processor_subdir = processor_subdir
 
         dag_data = SerializedDAG.to_dict(dag)
@@ -186,7 +185,7 @@ class SerializedDagModel(Base):
             if session.scalar(
                 select(literal(True)).where(
                     cls.dag_id == dag.dag_id,
-                    (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.last_updated,
+                    (timezone.utcnow() - timedelta(seconds=min_update_interval)) < cls.created_at,
                 )
             ):
                 return False
@@ -196,7 +195,7 @@ class SerializedDagModel(Base):
         serialized_dag_db = session.execute(
             select(cls.dag_hash, cls.processor_subdir)
             .where(cls.dag_id == dag.dag_id)
-            .order_by(cls.last_updated.desc())
+            .order_by(cls.created_at.desc())
         ).first()
 
         if (
@@ -215,13 +214,12 @@ class SerializedDagModel(Base):
         new_serialized_dag.dag_version = dagv
         session.add(new_serialized_dag)
         log.debug("DAG: %s written to the DB", dag.dag_id)
-
-        DagCode.write_dag(dagv, dag.fileloc, session=session)
+        DagCode.write_code(dagv, dag.fileloc, session=session)
         return True
 
     @classmethod
     def latest_item_select_object(cls, dag_id):
-        return select(cls).where(cls.dag_id == dag_id).order_by(cls.last_updated.desc()).limit(1)
+        return select(cls).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
 
     @classmethod
     @provide_session
@@ -237,7 +235,7 @@ class SerializedDagModel(Base):
         """
         # Subquery to get the latest serdag per dag_id
         latest_serdag_subquery = (
-            session.query(cls.dag_id, func.max(cls.last_updated).label("last_updated"))
+            session.query(cls.dag_id, func.max(cls.created_at).label("created_at"))
             .filter(cls.dag_id.in_(dag_ids))
             .group_by(cls.dag_id)
             .subquery()
@@ -246,7 +244,7 @@ class SerializedDagModel(Base):
             select(cls)
             .join(
                 latest_serdag_subquery,
-                cls.last_updated == latest_serdag_subquery.c.last_updated,
+                cls.created_at == latest_serdag_subquery.c.created_at,
             )
             .where(cls.dag_id.in_(dag_ids))
         ).all()
@@ -262,7 +260,7 @@ class SerializedDagModel(Base):
         :returns: a dict of DAGs read from database
         """
         latest_serialized_dag_subquery = (
-            session.query(cls.dag_id, func.max(cls.last_updated).label("max_updated"))
+            session.query(cls.dag_id, func.max(cls.created_at).label("max_created"))
             .group_by(cls.dag_id)
             .subquery()
         )
@@ -270,7 +268,7 @@ class SerializedDagModel(Base):
             select(cls).join(
                 latest_serialized_dag_subquery,
                 (cls.dag_id == latest_serialized_dag_subquery.c.dag_id)
-                and (cls.last_updated == latest_serialized_dag_subquery.c.max_updated),
+                and (cls.created_at == latest_serialized_dag_subquery.c.max_created),
             )
         )
 
@@ -312,47 +310,6 @@ class SerializedDagModel(Base):
         else:
             raise ValueError("invalid or missing serialized DAG data")
         return SerializedDAG.from_dict(data)
-
-    @classmethod
-    @provide_session
-    def remove_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> None:
-        """
-        Delete a DAG with given dag_id.
-
-        :param dag_id: dag_id to be deleted
-        :param session: ORM Session.
-        """
-        session.execute(cls.__table__.delete().where(cls.dag_id == dag_id))
-
-    @classmethod
-    @internal_api_call
-    @provide_session
-    def remove_deleted_dags(
-        cls,
-        alive_dag_filelocs: Collection[str],
-        processor_subdir: str | None = None,
-        session: Session = NEW_SESSION,
-    ) -> None:
-        """
-        Delete DAGs not included in alive_dag_filelocs.
-
-        :param alive_dag_filelocs: file paths of alive DAGs
-        :param processor_subdir: dag processor subdir
-        :param session: ORM Session
-        """
-        log.debug(
-            "Deleting Serialized DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__
-        )
-        # Deleting the DagModel cascade deletes the serialized Dag through the dag version relationship
-        session.execute(
-            DagModel.__table__.delete().where(
-                DagModel.fileloc.notin_(alive_dag_filelocs),
-                or_(
-                    DagModel.processor_subdir.is_(None),
-                    DagModel.processor_subdir == processor_subdir,
-                ),
-            )
-        )
 
     @classmethod
     @provide_session
@@ -418,7 +375,7 @@ class SerializedDagModel(Base):
         :param session: ORM Session
         """
         return session.scalar(
-            select(cls.last_updated).where(cls.dag_id == dag_id).order_by(cls.last_updated.desc()).limit(1)
+            select(cls.created_at).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
         )
 
     @classmethod
@@ -429,7 +386,7 @@ class SerializedDagModel(Base):
 
         :param session: ORM Session
         """
-        return session.scalar(select(func.max(cls.last_updated)))
+        return session.scalar(select(func.max(cls.created_at)))
 
     @classmethod
     @provide_session
@@ -442,7 +399,7 @@ class SerializedDagModel(Base):
         :return: DAG Hash, or None if the DAG is not found
         """
         return session.scalar(
-            select(cls.dag_hash).where(cls.dag_id == dag_id).order_by(cls.last_updated.desc()).limit(1)
+            select(cls.dag_hash).where(cls.dag_id == dag_id).order_by(cls.created_at.desc()).limit(1)
         )
 
     @classmethod
@@ -461,9 +418,9 @@ class SerializedDagModel(Base):
         :return: A tuple of DAG Hash and last updated datetime, or None if the DAG is not found
         """
         return session.execute(
-            select(cls.dag_hash, cls.last_updated)
+            select(cls.dag_hash, cls.created_at)
             .where(cls.dag_id == dag_id)
-            .order_by(cls.last_updated.desc())
+            .order_by(cls.created_at.desc())
             .limit(1)
         ).one_or_none()
 
@@ -476,7 +433,7 @@ class SerializedDagModel(Base):
         :param session: ORM Session
         """
         latest_sdag_subquery = (
-            session.query(cls.dag_id, func.max(cls.last_updated).label("max_updated"))
+            session.query(cls.dag_id, func.max(cls.created_at).label("max_created"))
             .group_by(cls.dag_id)
             .subquery()
         )
@@ -485,7 +442,7 @@ class SerializedDagModel(Base):
                 select(cls.dag_id, func.json_extract(cls._data, "$.dag.dag_dependencies")).join(
                     latest_sdag_subquery,
                     (cls.dag_id == latest_sdag_subquery.c.dag_id)
-                    and (cls.last_updated == latest_sdag_subquery.c.max_updated),
+                    and (cls.created_at == latest_sdag_subquery.c.max_created),
                 )
             )
             iterator = ((dag_id, json.loads(deps_data) if deps_data else []) for dag_id, deps_data in query)
@@ -494,7 +451,7 @@ class SerializedDagModel(Base):
                 select(cls.dag_id, func.json_extract_path(cls._data, "dag", "dag_dependencies")).join(
                     latest_sdag_subquery,
                     (cls.dag_id == latest_sdag_subquery.c.dag_id)
-                    and (cls.last_updated == latest_sdag_subquery.c.max_updated),
+                    and (cls.created_at == latest_sdag_subquery.c.max_created),
                 )
             )
         return {dag_id: [DagDependency(**d) for d in (deps_data or [])] for dag_id, deps_data in iterator}
