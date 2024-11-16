@@ -48,11 +48,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        id: checkout-for-backport
         uses: actions/checkout@v4
         with:
+          persist-credentials: true
           fetch-depth: 0
-          persist-credentials: false
 
       - name: Install Python dependencies
         run: |
@@ -100,8 +101,8 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
         run: |
-          COMMIT_INFO_URL="https://api.github.com/repos/${{ github.repository }}/commits/" \
-                          "${{ inputs.commit-sha }}/pulls"
+          COMMIT_INFO_URL="https://api.github.com/repos/${{ github.repository }}/commits/"
+          COMMIT_INFO_URL="${COMMIT_INFO_URL}${{ inputs.commit-sha }}/pulls"
 
           PR_NUMBER=$(gh api \
               -H "Accept: application/vnd.github+json" \
