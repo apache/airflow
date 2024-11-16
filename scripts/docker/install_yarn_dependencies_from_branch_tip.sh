@@ -29,7 +29,6 @@
 
 : "${AIRFLOW_REPO:?Should be set}"
 : "${AIRFLOW_BRANCH:?Should be set}"
-: "${AIRFLOW_SOURCES:?Should be set}"
 
 function install_yarn_dependencies_from_branch_tip() {
     echo

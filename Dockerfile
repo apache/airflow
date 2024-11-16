@@ -1403,7 +1403,6 @@ COPY <<"EOF" /install_yarn_dependencies_from_branch_tip.sh
 
 : "${AIRFLOW_REPO:?Should be set}"
 : "${AIRFLOW_BRANCH:?Should be set}"
-: "${AIRFLOW_SOURCES:?Should be set}"
 
 function install_yarn_dependencies_from_branch_tip() {
     echo
@@ -1621,7 +1620,7 @@ RUN bash /scripts/docker/install_packaging_tools.sh; \
 
 # We are installing Yarn dependencies here to make sure they are cached in the layer
 RUN if [[ ${AIRFLOW_PRE_CACHED_YARN_PACKAGES} == "true" ]]; then \
-        bash /install_yarn_dependencies_from_branch_tip.sh; \
+        bash /scripts/docker/install_yarn_dependencies_from_branch_tip.sh; \
     fi
 
 
