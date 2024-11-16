@@ -70,10 +70,6 @@ async def mock_awaitable(*args, **kwargs):
 
 
 class TestDataprocHook:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            DataprocHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
-
     def setup_method(self):
         with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = DataprocHook(gcp_conn_id="test")
@@ -550,10 +546,6 @@ class TestDataprocHook:
 
 
 class TestDataprocAsyncHook:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            DataprocAsyncHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
-
     def setup_method(self):
         with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = DataprocAsyncHook(gcp_conn_id="test")

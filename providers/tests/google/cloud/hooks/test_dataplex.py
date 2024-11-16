@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.providers.google.cloud.operators.dataplex import DataplexHook
@@ -54,10 +53,6 @@ DATASCAN_PARENT = f"projects/{PROJECT_ID}/locations/{REGION}"
 
 
 class TestDataplexHook:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            DataplexHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
-
     def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"),

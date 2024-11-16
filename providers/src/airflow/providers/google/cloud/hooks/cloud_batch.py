@@ -60,8 +60,9 @@ class CloudBatchHook(GoogleBaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
+        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
         self._client: BatchServiceClient | None = None
 
     def get_conn(self):
@@ -183,9 +184,10 @@ class CloudBatchAsyncHook(GoogleBaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ):
         self._client: BatchServiceAsyncClient | None = None
-        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
+        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
 
     def get_conn(self):
         if self._client is None:

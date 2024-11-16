@@ -31,83 +31,12 @@ from google.cloud.secretmanager_v1 import (
     SecretVersion,
 )
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.deprecated import deprecated
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.cloud.secretmanager_v1.services.secret_manager_service.pagers import ListSecretsPager
-
-
-@deprecated(
-    planned_removal_date="November 01, 2024",
-    use_instead="GoogleCloudSecretManagerHook",
-    category=AirflowProviderDeprecationWarning,
-)
-class SecretsManagerHook(GoogleBaseHook):
-    """
-    Hook for the Google Secret Manager API.
-
-    See https://cloud.google.com/secret-manager
-
-    All the methods in the hook where project_id is used must be called with
-    keyword arguments rather than positional.
-
-    :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account.
-    """
-
-    def __init__(
-        self,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
-        super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            impersonation_chain=impersonation_chain,
-        )
-        self.client = _SecretManagerClient(credentials=self.get_credentials())
-
-    def get_conn(self) -> _SecretManagerClient:
-        """
-        Retrieve the connection to Secret Manager.
-
-        :return: Secret Manager client.
-        """
-        return self.client
-
-    @GoogleBaseHook.fallback_to_default_project_id
-    def get_secret(
-        self, secret_id: str, secret_version: str = "latest", project_id: str = PROVIDE_PROJECT_ID
-    ) -> str | None:
-        """
-        Get secret value from the Secret Manager.
-
-        :param secret_id: Secret Key
-        :param secret_version: version of the secret (default is 'latest')
-        :param project_id: Project id (if you want to override the project_id from credentials)
-        """
-        return self.get_conn().get_secret(
-            secret_id=secret_id,
-            secret_version=secret_version,
-            project_id=project_id,  # type: ignore
-        )
 
 
 class GoogleCloudSecretManagerHook(GoogleBaseHook):

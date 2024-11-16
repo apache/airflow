@@ -62,6 +62,7 @@ class PipelineJobHook(GoogleBaseHook):
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
+            **kwargs,
         )
         self._pipeline_job: PipelineJob | None = None
 

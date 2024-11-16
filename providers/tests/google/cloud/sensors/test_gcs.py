@@ -23,13 +23,9 @@ from unittest import mock
 import pytest
 from google.cloud.storage.retry import DEFAULT_RETRY
 
-from airflow.exceptions import (
-    AirflowProviderDeprecationWarning,
-    TaskDeferred,
-)
+from airflow.exceptions import TaskDeferred
 from airflow.models.dag import DAG, AirflowException
 from airflow.providers.google.cloud.sensors.gcs import (
-    GCSObjectExistenceAsyncSensor,
     GCSObjectExistenceSensor,
     GCSObjectsWithPrefixExistenceSensor,
     GCSObjectUpdateSensor,
@@ -203,51 +199,6 @@ class TestGoogleCloudStorageObjectSensor:
             )
         mock_log_info.assert_called_with("File %s was found in bucket %s.", TEST_OBJECT, TEST_BUCKET)
         assert return_value, True
-
-
-class TestGoogleCloudStorageObjectAsyncSensor:
-    @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
-    def test_gcs_object_existence_async_sensor(self, mock_hook):
-        """
-        Asserts that a task is deferred and a GCSBlobTrigger will be fired
-        when the GCSObjectExistenceAsyncSensor is executed.
-        """
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            task = GCSObjectExistenceAsyncSensor(
-                task_id="task-id",
-                bucket=TEST_BUCKET,
-                object=TEST_OBJECT,
-                google_cloud_conn_id=TEST_GCP_CONN_ID,
-            )
-        mock_hook.return_value.exists.return_value = False
-        with pytest.raises(TaskDeferred) as exc:
-            task.execute({})
-        assert isinstance(exc.value.trigger, GCSBlobTrigger), "Trigger is not a GCSBlobTrigger"
-
-    def test_gcs_object_existence_async_sensor_execute_failure(self):
-        """Tests that an AirflowException is raised in case of error event"""
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            task = GCSObjectExistenceAsyncSensor(
-                task_id="task-id",
-                bucket=TEST_BUCKET,
-                object=TEST_OBJECT,
-                google_cloud_conn_id=TEST_GCP_CONN_ID,
-            )
-        with pytest.raises(AirflowException):
-            task.execute_complete(context=None, event={"status": "error", "message": "test failure message"})
-
-    def test_gcs_object_existence_async_sensor_execute_complete(self):
-        """Asserts that logging occurs as expected"""
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            task = GCSObjectExistenceAsyncSensor(
-                task_id="task-id",
-                bucket=TEST_BUCKET,
-                object=TEST_OBJECT,
-                google_cloud_conn_id=TEST_GCP_CONN_ID,
-            )
-        with mock.patch.object(task.log, "info") as mock_log_info:
-            task.execute_complete(context=None, event={"status": "success", "message": "Job completed"})
-        mock_log_info.assert_called_with("File %s was found in bucket %s.", TEST_OBJECT, TEST_BUCKET)
 
 
 class TestGoogleCloudStorageObjectUpdatedSensor:

@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import time
 from datetime import timedelta
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 import vertexai
 from vertexai.generative_models import GenerativeModel, Part
@@ -42,19 +42,6 @@ if TYPE_CHECKING:
 
 class GenerativeModelHook(GoogleBaseHook):
     """Hook for Google Cloud Vertex AI Generative Model APIs."""
-
-    def __init__(
-        self,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ):
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
-        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
 
     def get_text_generation_model(self, pretrained_model: str):
         """Return a Model Garden Model object based on Text Generation."""

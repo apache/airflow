@@ -74,10 +74,6 @@ def session():
 
 
 class TestGcpSqlHookDefaultProjectId:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            CloudSQLHook(api_version="v1", gcp_conn_id="test", delegate_to="delegate_to")
-
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",

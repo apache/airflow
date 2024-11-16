@@ -172,10 +172,6 @@ class TestFallbackObjectUrlToObjectNameAndBucketName:
 
 
 class TestGCSHook:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            gcs.GCSHook(api_version="v1", gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
-
     def setup_method(self):
         with mock.patch(
             GCS_STRING.format("GoogleBaseHook.__init__"),
@@ -1129,7 +1125,8 @@ class TestGCSHook:
 
 class TestGCSHookUpload:
     def setup_method(self):
-        with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__")):
+        with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__")) as mock_init:
+            mock_init.return_value = None
             self.gcs_hook = gcs.GCSHook(gcp_conn_id="test")
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))

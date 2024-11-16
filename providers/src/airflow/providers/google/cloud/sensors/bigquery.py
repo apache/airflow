@@ -30,7 +30,6 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryTableExistenceTrigger,
     BigQueryTablePartitionExistenceTrigger,
 )
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -257,82 +256,3 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
 
         message = "No event received in trigger callback"
         raise AirflowException(message)
-
-
-@deprecated(
-    planned_removal_date="November 01, 2024",
-    use_instead="BigQueryTableExistenceSensor",
-    instructions="Please use BigQueryTableExistenceSensor and set deferrable attribute to True.",
-    category=AirflowProviderDeprecationWarning,
-)
-class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
-    """
-    Checks for the existence of a table in Google Big Query.
-
-    This class is deprecated and will be removed in a future release.
-
-    Please use :class:`airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceSensor`
-    and set *deferrable* attribute to *True* instead.
-
-    :param project_id: The Google cloud project in which to look for the table.
-       The connection supplied to the hook must provide
-       access to the specified project.
-    :param dataset_id: The name of the dataset in which to look for the table.
-       storage bucket.
-    :param table_id: The name of the table to check the existence of.
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-       This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-       credentials, or chained list of accounts required to get the access_token
-       of the last account in the list, which will be impersonated in the request.
-       If set as a string, the account must grant the originating account
-       the Service Account Token Creator IAM role.
-       If set as a sequence, the identities from the list must grant
-       Service Account Token Creator IAM role to the directly preceding identity, with first
-       account from the list granting this role to the originating account (templated).
-    :param polling_interval: The interval in seconds to wait between checks table existence.
-    """
-
-    def __init__(self, **kwargs):
-        super().__init__(deferrable=True, **kwargs)
-
-
-@deprecated(
-    planned_removal_date="November 01, 2024",
-    use_instead="BigQueryTablePartitionExistenceSensor",
-    instructions="Please use BigQueryTablePartitionExistenceSensor and set deferrable attribute to True.",
-    category=AirflowProviderDeprecationWarning,
-)
-class BigQueryTableExistencePartitionAsyncSensor(BigQueryTablePartitionExistenceSensor):
-    """
-    Checks for the existence of a partition within a table in Google BigQuery.
-
-    This class is deprecated and will be removed in a future release.
-
-    Please use :class:`airflow.providers.google.cloud.sensors.bigquery.BigQueryTablePartitionExistenceSensor`
-    and set *deferrable* attribute to *True* instead.
-
-    :param project_id: The Google cloud project in which to look for the table.
-       The connection supplied to the hook must provide
-       access to the specified project.
-    :param dataset_id: The name of the dataset in which to look for the table.
-       storage bucket.
-    :param partition_id: The name of the partition to check the existence of.
-    :param table_id: The name of the table to check the existence of.
-    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-       This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-       credentials, or chained list of accounts required to get the access_token
-       of the last account in the list, which will be impersonated in the request.
-       If set as a string, the account must grant the originating account
-       the Service Account Token Creator IAM role.
-       If set as a sequence, the identities from the list must grant
-       Service Account Token Creator IAM role to the directly preceding identity, with first
-       account from the list granting this role to the originating account (templated).
-    :param poke_interval: The interval in seconds to wait between checks table existence.
-    """
-
-    def __init__(self, **kwargs):
-        super().__init__(deferrable=True, **kwargs)

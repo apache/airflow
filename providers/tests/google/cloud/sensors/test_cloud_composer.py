@@ -21,20 +21,7 @@ import json
 from datetime import datetime
 from unittest import mock
 
-import pytest
-
-from airflow.exceptions import (
-    AirflowException,
-    AirflowProviderDeprecationWarning,
-    TaskDeferred,
-)
-from airflow.providers.google.cloud.sensors.cloud_composer import (
-    CloudComposerDAGRunSensor,
-    CloudComposerEnvironmentSensor,
-)
-from airflow.providers.google.cloud.triggers.cloud_composer import (
-    CloudComposerExecutionTrigger,
-)
+from airflow.providers.google.cloud.sensors.cloud_composer import CloudComposerDAGRunSensor
 
 TEST_PROJECT_ID = "test_project_id"
 TEST_OPERATION_NAME = "test_operation_name"
@@ -57,55 +44,6 @@ TEST_EXEC_RESULT = lambda state: {
     "output_end": True,
     "exit_info": {"exit_code": 0, "error": ""},
 }
-
-
-class TestCloudComposerEnvironmentSensor:
-    @pytest.mark.db_test
-    def test_cloud_composer_existence_sensor_async(self):
-        """
-        Asserts that a task is deferred and a CloudComposerExecutionTrigger will be fired
-        when the CloudComposerEnvironmentSensor is executed.
-        """
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            task = CloudComposerEnvironmentSensor(
-                task_id="task_id",
-                project_id=TEST_PROJECT_ID,
-                region=TEST_REGION,
-                operation_name=TEST_OPERATION_NAME,
-            )
-        with pytest.raises(TaskDeferred) as exc:
-            task.execute(context={})
-        assert isinstance(
-            exc.value.trigger, CloudComposerExecutionTrigger
-        ), "Trigger is not a CloudComposerExecutionTrigger"
-
-    def test_cloud_composer_existence_sensor_async_execute_failure(
-        self,
-    ):
-        """Tests that an expected exception is raised in case of error event."""
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            task = CloudComposerEnvironmentSensor(
-                task_id="task_id",
-                project_id=TEST_PROJECT_ID,
-                region=TEST_REGION,
-                operation_name=TEST_OPERATION_NAME,
-            )
-        with pytest.raises(AirflowException, match="No event received in trigger callback"):
-            task.execute_complete(context={}, event=None)
-
-    def test_cloud_composer_existence_sensor_async_execute_complete(self):
-        """Asserts that logging occurs as expected"""
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            task = CloudComposerEnvironmentSensor(
-                task_id="task_id",
-                project_id=TEST_PROJECT_ID,
-                region=TEST_REGION,
-                operation_name=TEST_OPERATION_NAME,
-            )
-        with mock.patch.object(task.log, "info"):
-            task.execute_complete(
-                context={}, event={"operation_done": True, "operation_name": TEST_OPERATION_NAME}
-            )
 
 
 class TestCloudComposerDAGRunSensor:

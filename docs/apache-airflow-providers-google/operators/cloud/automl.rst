@@ -105,7 +105,7 @@ returns the id of model in :ref:`XCom <concepts:xcom>` under ``model_id`` key.
 This operator is deprecated when running for text, video and vision prediction and will be removed soon.
 All the functionality of legacy AutoML Natural Language, Vision, Video Intelligence and new features are
 available on the Vertex AI platform. Please use
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`,
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`,
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLImageTrainingJobOperator` or
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`.
 

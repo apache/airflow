@@ -35,13 +35,13 @@ class GoogleDisplayVideo360Hook(GoogleBaseHook):
         self,
         api_version: str = "v2",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
+            **kwargs,
         )
         self.api_version = api_version
 

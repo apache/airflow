@@ -164,10 +164,6 @@ READY_DEPLOYMENT = V1Deployment(
 
 @pytest.mark.db_test
 class TestGKEHookClient:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            GKEHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
-
     def setup_method(self):
         self.gke_hook = GKEHook(location=GKE_ZONE)
 
@@ -422,7 +418,7 @@ class TestGKEHook:
         assert result == expected_result
 
 
-class TestGKEDeploymentHook:
+class TestGKEKubernetesHookDeployments:
     def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
@@ -487,7 +483,7 @@ class TestGKEDeploymentHook:
         assert "Exception occurred while checking for Deployment status." in caplog.text
 
 
-class TestGKEPodAsyncHook:
+class TestGKEKubernetesAsyncHook:
     @staticmethod
     def make_mock_awaitable(mock_obj, result=None):
         f = Future()
@@ -587,7 +583,7 @@ class TestGKEAsyncHook:
         )
 
 
-class TestGKEPodHook:
+class TestGKEKubernetesHookPod:
     def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
@@ -668,7 +664,7 @@ class TestGKEPodHook:
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
 
-class TestGKEJobHook:
+class TestGKEKubernetesHookJob:
     def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
@@ -713,7 +709,7 @@ class TestGKEJobHook:
         return self.credentials
 
 
-class TestGKECustomResourceHook:
+class TestGKEKubernetesHookCustomResources:
     def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
