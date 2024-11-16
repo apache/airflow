@@ -26,11 +26,12 @@ def create_edge_worker_api_app() -> FastAPI:
     """Create FastAPI app for edge worker API."""
     edge_worker_api_app = FastAPI(
         title="Airflow Edge Worker API",
-        description="This is Airflow Edge Worker API - which is a the access endpoint for workers running on "
-        "remote sites serving for Apache Airflow jobs. It also proxies internal API to edge endpoints. "
-        "It is not intended to be used by any external code. "
-        "You can find more information in AIP-69 "
-        "https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=301795932",
+        description=(
+            "This is Airflow Edge Worker API - which is a the access endpoint for workers running on remote "
+            "sites serving for Apache Airflow jobs. It also proxies internal API to edge endpoints. It is "
+            "not intended to be used by any external code. You can find more information in AIP-69 "
+            "https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=301795932"
+        ),
     )
 
     edge_worker_api_app.include_router(health_router)
