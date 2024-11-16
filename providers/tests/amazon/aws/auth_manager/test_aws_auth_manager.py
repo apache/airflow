@@ -57,23 +57,8 @@ if TYPE_CHECKING:
     from airflow.auth.managers.models.resource_details import AssetDetails
     from airflow.security.permissions import RESOURCE_ASSET
 else:
+    from airflow.providers.common.compat.assets import AssetDetails
     from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
-
-    # TODO: Remove this try-exception block after bumping common provider to 1.3.0
-    # This is due to common provider AssetDetails import error handling
-    try:
-        from airflow.auth.managers.models.resource_details import AssetDetails
-    except ModuleNotFoundError:
-        # 2.7.x
-        pass
-    except ImportError:
-        from packaging.version import Version
-
-        from airflow import __version__ as AIRFLOW_VERSION
-
-        _IS_AIRFLOW_2_8_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.8.0")
-        if _IS_AIRFLOW_2_8_OR_HIGHER:
-            from airflow.auth.managers.models.resource_details import DatasetDetails as AssetDetails
 
 
 pytestmark = [
