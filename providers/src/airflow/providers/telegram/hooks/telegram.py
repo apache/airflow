@@ -164,7 +164,7 @@ class TelegramHook(BaseHook):
         stop=tenacity.stop_after_attempt(5),
         wait=tenacity.wait_fixed(1),
     )
-    def send_file(self, file: str, **api_params) -> None:
+    def send_file(self, api_params: dict) -> None:
         """
         Send the file to a telegram channel or chat.
 
@@ -176,7 +176,13 @@ class TelegramHook(BaseHook):
             kwargs["chat_id"] = self.chat_id
         kwargs.update(api_params)
 
-        kwargs["document"] = file
+        if "file" not in kwargs or kwargs["file"] is None:
+            raise AirflowException("'file' must be provided for telegram document message")
+
+        kwargs["document"] = kwargs.pop("file")  # rename 'file' to 'document'
+
+        if kwargs.get("chat_id") is None:
+            raise AirflowException("'chat_id' must be provided for telegram document message")
 
         response = asyncio.run(self.connection.send_document(**kwargs))
         self.log.debug(response)
