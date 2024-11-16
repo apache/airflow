@@ -28,12 +28,15 @@ from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api import deps
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
-from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
+from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse, XComValuePayload
 from airflow.models.xcom import BaseXCom
 
 # TODO: Add dependency on JWT token
 router = AirflowRouter(
-    responses={status.HTTP_404_NOT_FOUND: {"description": "XCom not found"}},
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
+        status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the XCom"},
+    },
 )
 
 log = logging.getLogger(__name__)
@@ -41,10 +44,7 @@ log = logging.getLogger(__name__)
 
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key}",
-    responses={
-        status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
-        status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the XCom"},
-    },
+    responses={status.HTTP_404_NOT_FOUND: {"description": "XCom not found"}},
 )
 def get_xcom(
     dag_id: str,
@@ -103,6 +103,56 @@ def get_xcom(
         )
 
     return XComResponse(key=key, value=xcom_value)
+
+
+@router.post(
+    "/{dag_id}/{run_id}/{task_id}/{key}",
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        status.HTTP_400_BAD_REQUEST: {"description": "Invalid request body"},
+    },
+)
+def set_xcom(
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    key: str,
+    body: XComValuePayload,
+    token: deps.TokenDep,
+    session: Annotated[Session, Depends(get_session)],
+    map_index: Annotated[int, Query()] = -1,
+):
+    """Set an Airflow XCom."""
+    if not has_xcom_access(key, token):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "reason": "access_denied",
+                "message": f"Task does not have access to set XCom key '{key}'",
+            },
+        )
+
+    # We use `BaseXCom.set` to set XComs directly to the database, bypassing the XCom Backend.
+    try:
+        BaseXCom.set(
+            key=key,
+            value=body.value,
+            dag_id=dag_id,
+            task_id=task_id,
+            run_id=run_id,
+            session=session,
+            map_index=map_index,
+        )
+    except TypeError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "reason": "invalid_format",
+                "message": f"XCom value is not a valid JSON: {e}",
+            },
+        )
+
+    return {"message": "XCom successfully set"}
 
 
 def has_xcom_access(xcom_key: str, token: TIToken) -> bool:

@@ -122,7 +122,19 @@ class XComResponse(BaseModel):
     value: Annotated[Any, Field(title="Value")]
 
 
+class XComValuePayload(BaseModel):
+    """
+    The request model for setting an XCom value.
+    """
+
+    value: Annotated[str, Field(title="Value")]
+
+
 class TaskInstance(BaseModel):
+    """
+    Schema for TaskInstance model with minimal required fields needed for Runtime.
+    """
+
     id: Annotated[UUID, Field(title="Id")]
     task_id: Annotated[str, Field(title="Task Id")]
     dag_id: Annotated[str, Field(title="Dag Id")]

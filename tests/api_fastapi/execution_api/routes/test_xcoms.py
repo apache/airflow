@@ -73,11 +73,58 @@ class TestXComsGetEndpoint:
         with mock.patch("airflow.api_fastapi.execution_api.routes.xcoms.has_xcom_access", return_value=False):
             response = client.get("/execution/xcoms/dag/runid/task/xcom_perms")
 
-        # Assert response status code and detail for access denied
         assert response.status_code == 403
         assert response.json() == {
             "detail": {
                 "reason": "access_denied",
                 "message": "Task does not have access to XCom key 'xcom_perms'",
+            }
+        }
+
+
+class TestXComsSetEndpoint:
+    @pytest.mark.parametrize(
+        ("value", "expected_value"),
+        [
+            ('"value1"', "value1"),
+            ('{"key2": "value2"}', {"key2": "value2"}),
+            ('{"key2": "value2", "key3": ["value3"]}', {"key2": "value2", "key3": ["value3"]}),
+            ('["value1"]', ["value1"]),
+        ],
+    )
+    def test_xcom_set(self, client, create_task_instance, session, value, expected_value):
+        """
+        Test that XCom value is set correctly. The value is passed as a JSON string in the request body.
+        This is then validated via Pydantic.Json type in the request body and converted to
+        a Python object before being sent to XCom.set. XCom.set then uses json.dumps to
+        serialize it and store the value in the database. This is done so that Task SDK in multiple
+        languages can use the same API to set XCom values.
+        """
+        ti = create_task_instance()
+        session.commit()
+
+        response = client.post(
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
+            json={"value": value},
+        )
+
+        assert response.status_code == 201
+        assert response.json() == {"message": "XCom successfully set"}
+
+        xcom = session.query(XCom).filter_by(task_id=ti.task_id, dag_id=ti.dag_id, key="xcom_1").first()
+        assert xcom.value == expected_value
+
+    def test_xcom_access_denied(self, client):
+        with mock.patch("airflow.api_fastapi.execution_api.routes.xcoms.has_xcom_access", return_value=False):
+            response = client.post(
+                "/execution/xcoms/dag/runid/task/xcom_perms",
+                json={"value": '"value1"'},
+            )
+
+        assert response.status_code == 403
+        assert response.json() == {
+            "detail": {
+                "reason": "access_denied",
+                "message": "Task does not have access to set XCom key 'xcom_perms'",
             }
         }
