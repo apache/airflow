@@ -156,7 +156,7 @@ def json_rpc_version(body: JsonRpcRequest):
         ]
     ),
 )
-def rpcapi(body: JsonRpcRequest) -> dict | None:
+def rpcapi(body: JsonRpcRequest) -> Any | None:
     """Handle Edge Worker API calls as JSON-RPC."""
     log.debug("Got request for %s", body.method)
     methods_map = _initialize_method_map()
