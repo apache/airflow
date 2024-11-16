@@ -365,7 +365,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 # Calculate the jitter
                 run_hash = int(
                     hashlib.sha1(
-                        f"{self.dag_id}#{self.task_id}#{started_at}#{estimated_poke_count}".encode()
+                        f"{self.dag_id}#{self.task_id}#{started_at}#{estimated_poke_count}".encode(),
+                        usedforsecurity=False,
                     ).hexdigest(),
                     16,
                 )
@@ -384,7 +385,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         min_backoff = max(int(self.poke_interval * (2 ** (poke_count - 2))), 1)
 
         run_hash = int(
-            hashlib.sha1(f"{self.dag_id}#{self.task_id}#{started_at}#{poke_count}".encode()).hexdigest(),
+            hashlib.sha1(
+                f"{self.dag_id}#{self.task_id}#{started_at}#{poke_count}".encode(), usedforsecurity=False
+            ).hexdigest(),
             16,
         )
         modded_hash = min_backoff + run_hash % min_backoff
