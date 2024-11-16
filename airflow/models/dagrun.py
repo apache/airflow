@@ -891,7 +891,7 @@ class DagRun(Base, LoggingMixin):
         if dag_run._state is DagRunState.FAILED:
             span.set_attribute("airflow.dag_run.error", True)
 
-        AttributeValue = Union[
+        attribute_value_type = Union[
             str,
             bool,
             int,
@@ -902,7 +902,8 @@ class DagRun(Base, LoggingMixin):
             Sequence[float],
         ]
 
-        attributes: dict[str, AttributeValue] = {
+        # Explicitly set the value type to Union[...] to avoid a mypy error.
+        attributes: dict[str, attribute_value_type] = {
             "airflow.category": "DAG runs",
             "airflow.dag_run.dag_id": str(dag_run.dag_id),
             "airflow.dag_run.execution_date": str(dag_run.execution_date),
