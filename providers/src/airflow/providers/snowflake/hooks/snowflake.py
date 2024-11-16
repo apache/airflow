@@ -279,6 +279,14 @@ class SnowflakeHook(DbApiHook):
             conn_config.pop("login", None)
             conn_config.pop("password", None)
 
+        # configure custom target hostname and port, if specified
+        snowflake_host = extra_dict.get("host")
+        snowflake_port = extra_dict.get("port")
+        if snowflake_host:
+            conn_config["host"] = snowflake_host
+        if snowflake_port:
+            conn_config["port"] = snowflake_port
+
         return conn_config
 
     def get_uri(self) -> str:
