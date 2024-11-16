@@ -101,6 +101,21 @@ class AssetEventCollectionResponse(BaseModel):
     total_entries: int
 
 
+class QueuedEventResponse(BaseModel):
+    """Queued Event serializer for responses.."""
+
+    uri: str
+    dag_id: str
+    created_at: datetime
+
+
+class QueuedEventCollectionResponse(BaseModel):
+    """Queued Event Collection serializer for responses."""
+
+    queued_events: list[QueuedEventResponse]
+    total_entries: int
+
+
 class CreateAssetEventsBody(BaseModel):
     """Create asset events request."""
 
