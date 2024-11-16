@@ -25,9 +25,11 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
 
 import pendulum
+from deprecated import deprecated
 
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
 from airflow.stats import Stats
@@ -552,7 +554,12 @@ class BaseExecutor(LoggingMixin):
         """Get called when the daemon receives a SIGTERM."""
         raise NotImplementedError
 
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:  # pragma: no cover
+    @deprecated(
+        reason="Replaced by function `revoke_task`.",
+        category=RemovedInAirflow3Warning,
+        action="ignore",
+    )
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
 
@@ -563,7 +570,23 @@ class BaseExecutor(LoggingMixin):
         :param tis: List of Task Instances to clean up
         :return: List of readable task instances for a warning message
         """
-        raise NotImplementedError()
+        raise NotImplementedError
+
+    def revoke_task(self, *, ti: TaskInstance):
+        """
+        Attempt to remove task from executor.
+
+        It should attempt to ensure that the task is no longer running on the worker,
+        and ensure that it is cleared out from internal data structures.
+
+        It should *not* change the state of the task in airflow, or add any events
+        to the event buffer.
+
+        It should not raise any error.
+
+        :param ti: Task instance to remove
+        """
+        raise NotImplementedError
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """
