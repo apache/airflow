@@ -29,6 +29,7 @@ import re2
 import requests
 import requests.exceptions
 from requests.adapters import HTTPAdapter
+from requests.exceptions import RetryError
 from urllib3.exceptions import MaxRetryError
 from urllib3.util.retry import Retry
 
@@ -228,13 +229,13 @@ class BaseK8STest:
         result = {}
         # This loop retries until the DAG parser finishes with max_attempts and the DAG is available for execution.
         # Keep the try/catch block, as the session object has a default retry configuration.
-        # If a MaxRetryError is raised, it can be safely ignored, indicating that the DAG is not yet parsed.
+        # If a MaxRetryError, RetryError is raised, it can be safely ignored, indicating that the DAG is not yet parsed.
         while max_attempts:
             try:
                 result = self.session.patch(patch_string, json={"is_paused": False})
                 if result.status_code == 200:
                     break
-            except MaxRetryError:
+            except (MaxRetryError, RetryError):
                 pass
 
             time.sleep(30)
