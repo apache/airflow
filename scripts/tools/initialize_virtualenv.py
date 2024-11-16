@@ -55,7 +55,7 @@ def check_for_package_extras() -> str:
     return "devel"
 
 
-def pip_install_requirements() -> int:
+def uv_install_requirements() -> int:
     """
     install the requirements of the current python version.
     return 0 if success, anything else is an error.
@@ -88,16 +88,12 @@ system packages. It's easier to install extras one-by-one as needed.
 
 """
     )
-    version = get_python_version()
-    constraint = (
-        f"https://raw.githubusercontent.com/apache/airflow/constraints-main/"
-        f"constraints-source-providers-{version}.txt"
-    )
-    pip_install_command = ["pip", "install", "-e", f".[{extras}]", "--constraint", constraint]
-    quoted_command = " ".join([shlex.quote(parameter) for parameter in pip_install_command])
+    extra_param = [x for extra in extras.split(",") for x in ("--extra", extra)]
+    uv_install_command = ["uv", "sync"] + extra_param
+    quoted_command = " ".join([shlex.quote(parameter) for parameter in uv_install_command])
     print()
     print(f"Running command: \n   {quoted_command}\n")
-    e = subprocess.run(pip_install_command)
+    e = subprocess.run(uv_install_command)
     return e.returncode
 
 
@@ -107,7 +103,8 @@ def get_python_version() -> str:
     """
     major = sys.version_info[0]
     minor = sys.version_info[1]
-    return f"{major}.{minor}"
+    micro = sys.version_info[2]
+    return f"{major}.{minor}.{micro}"
 
 
 def main():
@@ -118,11 +115,10 @@ def main():
     airflow_sources = Path(__file__).resolve().parents[2]
 
     if not check_if_in_virtualenv():
-        print(
-            "Local virtual environment not activated.\nPlease create and activate it "
-            "first. (for example using 'python3 -m venv venv && source venv/bin/activate')"
-        )
-        sys.exit(1)
+        version = get_python_version()
+        e = subprocess.run(["uv", "venv", "--python", version])
+        if e.returncode != 0:
+            print(f"There was a problem with 'uv venv'. Error code: {e.returncode}")
 
     print("Initializing environment...")
     print(f"This will remove the folder {airflow_home_dir} and reset all the databases!")
@@ -144,7 +140,7 @@ def main():
 
     clean_up_airflow_home(airflow_home_dir)
 
-    return_code = pip_install_requirements()
+    return_code = uv_install_requirements()
 
     if return_code != 0:
         print(
