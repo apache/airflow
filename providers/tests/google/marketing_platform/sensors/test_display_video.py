@@ -43,7 +43,6 @@ class TestGoogleDisplayVideo360RunQuerySensor:
         op.poke(context=None)
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=None,
             api_version="v2",
             impersonation_chain=None,
         )
@@ -63,7 +62,6 @@ class TestGoogleDisplayVideo360Sensor:
         op.poke(context=None)
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=None,
             api_version=API_VERSION,
             impersonation_chain=None,
         )

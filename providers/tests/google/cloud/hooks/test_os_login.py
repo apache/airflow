@@ -48,10 +48,6 @@ TEST_PARENT: str = "users/test-user"
 
 
 class TestOSLoginHook:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            OSLoginHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
-
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.os_login.OSLoginHook.__init__",
