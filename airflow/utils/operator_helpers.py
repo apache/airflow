@@ -23,7 +23,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Collection, Mapping, Protocol, TypeVar
 
 from airflow import settings
-from airflow.sdk.definitions.asset import Metadata
+from airflow.sdk.definitions.asset.metadata import Metadata
 from airflow.typing_compat import ParamSpec
 from airflow.utils.context import Context, lazy_mapping_from_context
 from airflow.utils.types import NOTSET

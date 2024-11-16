@@ -47,8 +47,8 @@ from airflow.sdk.definitions.asset import (
     AssetAlias,
     AssetAliasEvent,
     AssetRef,
-    extract_event_key,
 )
+from airflow.sdk.definitions.asset.metadata import extract_event_key
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.types import NOTSET
 

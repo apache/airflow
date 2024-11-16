@@ -17,12 +17,11 @@
 
 from __future__ import annotations
 
-import inspect
 import logging
 import os
 import urllib.parse
 import warnings
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Iterable, Iterator
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -36,21 +35,26 @@ import attrs
 from sqlalchemy import select
 
 from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.models.asset import _fetch_active_assets_by_name
-from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk.definitions.dag import DAG, ScheduleArg
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.typing_compat import TypedDict
-from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
     from sqlalchemy.orm.session import Session
 
-    from airflow.io.path import ObjectStoragePath
 
-__all__ = ["Asset", "AssetAll", "AssetAny", "Dataset", "Model", "AssetRef", "asset"]
+__all__ = [
+    "Asset",
+    "Dataset",
+    "Model",
+    "AssetRef",
+    "AssetAlias",
+    "AssetAliasCondition",
+    "AssetAll",
+    "AssetAny",
+]
 
 
 log = logging.getLogger(__name__)
@@ -150,41 +154,6 @@ def _validate_asset_name(instance, attribute, value):
     return value
 
 
-def extract_event_key(value: str | Asset | AssetAlias) -> str:
-    """
-    Extract the key of an inlet or an outlet event.
-
-    If the input value is a string, it is treated as a URI and sanitized. If the
-    input is a :class:`Asset`, the URI it contains is considered sanitized and
-    returned directly. If the input is a :class:`AssetAlias`, the name it contains
-    will be returned directly.
-
-    :meta private:
-    """
-    if isinstance(value, AssetAlias):
-        return value.name
-
-    if isinstance(value, Asset):
-        return value.uri
-    return _sanitize_uri(str(value))
-
-
-@internal_api_call
-@provide_session
-def expand_alias_to_assets(alias: str | AssetAlias, *, session: Session = NEW_SESSION) -> list[BaseAsset]:
-    """Expand asset alias to resolved assets."""
-    from airflow.models.asset import AssetAliasModel
-
-    alias_name = alias.name if isinstance(alias, AssetAlias) else alias
-
-    asset_alias_obj = session.scalar(
-        select(AssetAliasModel).where(AssetAliasModel.name == alias_name).limit(1)
-    )
-    if asset_alias_obj:
-        return [asset.to_public() for asset in asset_alias_obj.assets]
-    return []
-
-
 def _set_extra_default(extra: dict | None) -> dict:
     """
     Automatically convert None to an empty dict.
@@ -244,41 +213,6 @@ class BaseAsset:
         :meta private:
         """
         raise NotImplementedError
-
-
-@attrs.define(unsafe_hash=False)
-class AssetAlias(BaseAsset):
-    """A represeation of asset alias which is used to create asset during the runtime."""
-
-    name: str = attrs.field(validator=_validate_non_empty_identifier)
-    group: str = attrs.field(kw_only=True, default="", validator=_validate_identifier)
-
-    def iter_assets(self) -> Iterator[tuple[str, Asset]]:
-        return iter(())
-
-    def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
-        yield self.name, self
-
-    def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
-        """
-        Iterate an asset alias as dag dependency.
-
-        :meta private:
-        """
-        yield DagDependency(
-            source=source or "asset-alias",
-            target=target or "asset-alias",
-            dependency_type="asset-alias",
-            dependency_id=self.name,
-        )
-
-
-class AssetAliasEvent(TypedDict):
-    """A represeation of asset event to be triggered by an asset alias."""
-
-    source_alias_name: str
-    dest_asset_uri: str
-    extra: dict[str, Any]
 
 
 @attrs.define(init=False, unsafe_hash=False)
@@ -381,6 +315,13 @@ class Asset(os.PathLike, BaseAsset):
         )
 
 
+@attrs.define(kw_only=True)
+class AssetRef:
+    """Reference to an asset."""
+
+    name: str
+
+
 class Dataset(Asset):
     """A representation of dataset dependencies between workflows."""
 
@@ -391,6 +332,41 @@ class Model(Asset):
     """A representation of model dependencies between workflows."""
 
     asset_type: ClassVar[str] = "model"
+
+
+@attrs.define(unsafe_hash=False)
+class AssetAlias(BaseAsset):
+    """A represeation of asset alias which is used to create asset during the runtime."""
+
+    name: str = attrs.field(validator=_validate_non_empty_identifier)
+    group: str = attrs.field(kw_only=True, default="", validator=_validate_identifier)
+
+    def iter_assets(self) -> Iterator[tuple[str, Asset]]:
+        return iter(())
+
+    def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
+        yield self.name, self
+
+    def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
+        """
+        Iterate an asset alias as dag dependency.
+
+        :meta private:
+        """
+        yield DagDependency(
+            source=source or "asset-alias",
+            target=target or "asset-alias",
+            dependency_type="asset-alias",
+            dependency_id=self.name,
+        )
+
+
+class AssetAliasEvent(TypedDict):
+    """A represeation of asset event to be triggered by an asset alias."""
+
+    source_alias_name: str
+    dest_asset_uri: str
+    extra: dict[str, Any]
 
 
 class _AssetBooleanCondition(BaseAsset):
@@ -454,6 +430,22 @@ class AssetAny(_AssetBooleanCondition):
         :meta private:
         """
         return {"any": [o.as_expression() for o in self.objects]}
+
+
+@internal_api_call
+@provide_session
+def expand_alias_to_assets(alias: str | AssetAlias, *, session: Session = NEW_SESSION) -> list[BaseAsset]:
+    """Expand asset alias to resolved assets."""
+    from airflow.models.asset import AssetAliasModel
+
+    alias_name = alias.name if isinstance(alias, AssetAlias) else alias
+
+    asset_alias_obj = session.scalar(
+        select(AssetAliasModel).where(AssetAliasModel.name == alias_name).limit(1)
+    )
+    if asset_alias_obj:
+        return [asset.to_public() for asset in asset_alias_obj.assets]
+    return []
 
 
 class AssetAliasCondition(AssetAny):
@@ -535,131 +527,3 @@ class AssetAll(_AssetBooleanCondition):
         :meta private:
         """
         return {"all": [o.as_expression() for o in self.objects]}
-
-
-@attrs.define(init=False)
-class Metadata:
-    """Metadata to attach to an AssetEvent."""
-
-    uri: str
-    extra: dict[str, Any]
-    alias_name: str | None = None
-
-    def __init__(
-        self,
-        target: str | Asset,
-        extra: dict[str, Any],
-        alias: AssetAlias | str | None = None,
-    ) -> None:
-        self.uri = extract_event_key(target)
-        self.extra = extra
-        if isinstance(alias, AssetAlias):
-            self.alias_name = alias.name
-        else:
-            self.alias_name = alias
-
-
-@attrs.define(kw_only=True)
-class AssetRef:
-    """Reference to an asset."""
-
-    name: str
-
-
-class _AssetMainOperator(PythonOperator):
-    def __init__(self, *, definition_name: str, uri: str | None = None, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self._definition_name = definition_name
-        self._uri = uri
-
-    def _iter_kwargs(
-        self, context: Mapping[str, Any], active_assets: dict[str, Asset]
-    ) -> Iterator[tuple[str, Any]]:
-        value: Any
-        for key in inspect.signature(self.python_callable).parameters:
-            if key == "self":
-                value = active_assets.get(self._definition_name)
-            elif key == "context":
-                value = context
-            else:
-                value = active_assets.get(key, Asset(name=key))
-            yield key, value
-
-    def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
-        active_assets: dict[str, Asset] = {}
-        asset_names = [asset_ref.name for asset_ref in self.inlets if isinstance(asset_ref, AssetRef)]
-        if "self" in inspect.signature(self.python_callable).parameters:
-            asset_names.append(self._definition_name)
-
-        if asset_names:
-            with create_session() as session:
-                active_assets = _fetch_active_assets_by_name(asset_names, session)
-        return dict(self._iter_kwargs(context, active_assets))
-
-
-@attrs.define(kw_only=True)
-class AssetDefinition(Asset):
-    """
-    Asset representation from decorating a function with ``@asset``.
-
-    :meta private:
-    """
-
-    function: Callable
-    schedule: ScheduleArg
-
-    def __attrs_post_init__(self) -> None:
-        parameters = inspect.signature(self.function).parameters
-
-        with DAG(dag_id=self.name, schedule=self.schedule, auto_register=True):
-            _AssetMainOperator(
-                task_id="__main__",
-                inlets=[
-                    AssetRef(name=inlet_asset_name)
-                    for inlet_asset_name in parameters
-                    if inlet_asset_name not in ("self", "context")
-                ],
-                outlets=[self.to_asset()],
-                python_callable=self.function,
-                definition_name=self.name,
-                uri=self.uri,
-            )
-
-    def to_asset(self) -> Asset:
-        return Asset(
-            name=self.name,
-            uri=self.uri,
-            group=self.group,
-            extra=self.extra,
-        )
-
-    def serialize(self):
-        return {
-            "uri": self.uri,
-            "name": self.name,
-            "group": self.group,
-            "extra": self.extra,
-        }
-
-
-@attrs.define(kw_only=True)
-class asset:
-    """Create an asset by decorating a materialization function."""
-
-    schedule: ScheduleArg
-    uri: str | ObjectStoragePath | None = None
-    group: str = ""
-    extra: dict[str, Any] = attrs.field(factory=dict)
-
-    def __call__(self, f: Callable) -> AssetDefinition:
-        if (name := f.__name__) != f.__qualname__:
-            raise ValueError("nested function not supported")
-
-        return AssetDefinition(
-            name=name,
-            uri=name if self.uri is None else str(self.uri),
-            group=self.group,
-            extra=self.extra,
-            function=f,
-            schedule=self.schedule,
-        )

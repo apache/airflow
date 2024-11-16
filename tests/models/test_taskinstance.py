@@ -2505,7 +2505,8 @@ class TestTaskInstance:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_asset_extra_yield(self, dag_maker, session):
-        from airflow.sdk.definitions.asset import Asset, Metadata
+        from airflow.sdk.definitions.asset import Asset
+        from airflow.sdk.definitions.asset.metadata import Metadata
 
         with dag_maker(schedule=None, session=session) as dag:
 
@@ -2677,7 +2678,8 @@ class TestTaskInstance:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_asset_alias_through_metadata(self, dag_maker, session):
-        from airflow.sdk.definitions.asset import AssetAlias, Metadata
+        from airflow.sdk.definitions.asset import AssetAlias
+        from airflow.sdk.definitions.asset.metadata import Metadata
 
         asset_uri = "test_outlet_asset_alias_through_metadata_ds"
         asset_alias_name = "test_outlet_asset_alias_through_metadata_asset_alias"
