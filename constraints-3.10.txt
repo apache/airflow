@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-16T07:50:03.908691
+# This constraints file was automatically generated on 2024-11-16T13:50:32.703100
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -463,7 +463,7 @@ microsoft-kiota-http==1.3.3
 microsoft-kiota-serialization-json==1.0.0
 microsoft-kiota-serialization-text==1.0.0
 mmh3==4.1.0
-mongomock==4.2.0.post1
+mongomock==4.3.0
 more-itertools==10.5.0
 moto==5.0.20
 mpmath==1.3.0
