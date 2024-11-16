@@ -501,6 +501,7 @@ jobs:
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
   tests-integration-system:
