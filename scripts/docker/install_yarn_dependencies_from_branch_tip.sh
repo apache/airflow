@@ -38,6 +38,7 @@ function install_yarn_dependencies_from_branch_tip() {
     local TEMP_AIRFLOW_DIR
     TEMP_AIRFLOW_DIR=$(mktemp -d)
     # Download the source code from the specified branch
+    set +e
     set -x
     curl -fsSL "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz" | \
         tar xz -C "${TEMP_AIRFLOW_DIR}" --strip 1
@@ -45,6 +46,7 @@ function install_yarn_dependencies_from_branch_tip() {
     cd "${TEMP_AIRFLOW_DIR}/airflow/www"
     yarn install --frozen-lockfile
     set +x
+    set -e
     echo "${COLOR_BLUE}Yarn dependencies installed successfully${COLOR_RESET}"
     # Clean up
     rm -rf "${TEMP_AIRFLOW_DIR}"
