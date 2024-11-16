@@ -94,196 +94,204 @@ def equals(a, b) -> bool:
     return a == b
 
 
-@pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Tests are written for Flask endpoints, not for FastAPI")
-@pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
-class TestRpcApiEndpointV2:
-    @pytest.fixture(scope="session")
-    def minimal_app_for_edge_api(self) -> Flask:
-        @dont_initialize_flask_app_submodules(
-            skip_all_except=[
-                "init_api_auth",  # This is needed for Airflow 2.10 compat tests
-                "init_appbuilder",
-                "init_plugins",
-            ]
+# Tests are written for Airflow 2.10, so we skip them for Airflow 3.0+
+# Unfortunately pytest fails in collection, therefore need a hard switch
+if not AIRFLOW_V_3_0_PLUS:
+
+    @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
+    class TestRpcApiEndpointV2:
+        @pytest.fixture(scope="session")
+        def minimal_app_for_edge_api(self) -> Flask:
+            @dont_initialize_flask_app_submodules(
+                skip_all_except=[
+                    "init_api_auth",  # This is needed for Airflow 2.10 compat tests
+                    "init_appbuilder",
+                    "init_plugins",
+                ]
+            )
+            def factory() -> Flask:
+                import airflow.providers.edge.plugins.edge_executor_plugin as plugin_module
+
+                class TestingEdgeExecutorPlugin(plugin_module.EdgeExecutorPlugin):
+                    flask_blueprints = [
+                        plugin_module._get_airflow_2_api_endpoint(),
+                        plugin_module.template_bp,
+                    ]
+
+                testing_edge_plugin = TestingEdgeExecutorPlugin()
+                assert len(testing_edge_plugin.flask_blueprints) > 0
+                with mock_plugin_manager(plugins=[testing_edge_plugin]):
+                    return app.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
+
+            return factory()
+
+        @pytest.fixture
+        def setup_attrs(self, minimal_app_for_edge_api: Flask) -> Generator:
+            self.app = minimal_app_for_edge_api
+            self.client = self.app.test_client()  # type:ignore
+            mock_test_method.reset_mock()
+            mock_test_method.side_effect = None
+            with mock.patch(
+                "airflow.providers.edge.worker_api.routes.rpc_api._initialize_method_map"
+            ) as mock_initialize_method_map:
+                mock_initialize_method_map.return_value = {
+                    TEST_METHOD_NAME: mock_test_method,
+                }
+                yield mock_initialize_method_map
+
+        @pytest.fixture
+        def signer(self) -> JWTSigner:
+            return JWTSigner(
+                secret_key=conf.get("core", "internal_api_secret_key"),
+                expiration_time_in_seconds=conf.getint("core", "internal_api_clock_grace", fallback=30),
+                audience="api",
+            )
+
+        @pytest.mark.parametrize(
+            "input_params, method_result, result_cmp_func, method_params",
+            [
+                ({}, None, lambda got, _: got == b"", {}),
+                ({}, "test_me", equals, {}),
+                (
+                    BaseSerialization.serialize({"dag_id": 15, "task_id": "fake-task"}),
+                    ("dag_id_15", "fake-task", 1),
+                    equals,
+                    {"dag_id": 15, "task_id": "fake-task"},
+                ),
+                (
+                    {},
+                    TaskInstance(task=EmptyOperator(task_id="task"), run_id="run_id", state=State.RUNNING),
+                    lambda a, b: a.model_dump() == TaskInstancePydantic.model_validate(b).model_dump()
+                    and isinstance(a.task, BaseOperator),
+                    {},
+                ),
+                (
+                    {},
+                    Connection(conn_id="test_conn", conn_type="http", host="", password=""),
+                    lambda a, b: a.get_uri() == b.get_uri() and a.conn_id == b.conn_id,
+                    {},
+                ),
+            ],
         )
-        def factory() -> Flask:
-            import airflow.providers.edge.plugins.edge_executor_plugin as plugin_module
-
-            class TestingEdgeExecutorPlugin(plugin_module.EdgeExecutorPlugin):
-                flask_blueprints = [plugin_module._get_airflow_2_api_endpoint(), plugin_module.template_bp]
-
-            testing_edge_plugin = TestingEdgeExecutorPlugin()
-            assert len(testing_edge_plugin.flask_blueprints) > 0
-            with mock_plugin_manager(plugins=[testing_edge_plugin]):
-                return app.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
-
-        return factory()
-
-    @pytest.fixture
-    def setup_attrs(self, minimal_app_for_edge_api: Flask) -> Generator:
-        self.app = minimal_app_for_edge_api
-        self.client = self.app.test_client()  # type:ignore
-        mock_test_method.reset_mock()
-        mock_test_method.side_effect = None
-        with mock.patch(
-            "airflow.providers.edge.worker_api.routes.rpc_api._initialize_method_map"
-        ) as mock_initialize_method_map:
-            mock_initialize_method_map.return_value = {
-                TEST_METHOD_NAME: mock_test_method,
+        def test_method(
+            self, input_params, method_result, result_cmp_func, method_params, setup_attrs, signer: JWTSigner
+        ):
+            mock_test_method.return_value = method_result
+            headers = {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Authorization": signer.generate_signed_token({"method": TEST_METHOD_NAME}),
             }
-            yield mock_initialize_method_map
+            input_data = {
+                "jsonrpc": "2.0",
+                "method": TEST_METHOD_NAME,
+                "params": input_params,
+            }
+            response = self.client.post(
+                TEST_API_ENDPOINT,
+                headers=headers,
+                data=json.dumps(input_data),
+            )
+            assert response.status_code == 200
+            if method_result:
+                response_data = BaseSerialization.deserialize(
+                    json.loads(response.data), use_pydantic_models=True
+                )
+            else:
+                response_data = response.data
 
-    @pytest.fixture
-    def signer(self) -> JWTSigner:
-        return JWTSigner(
-            secret_key=conf.get("core", "internal_api_secret_key"),
-            expiration_time_in_seconds=conf.getint("core", "internal_api_clock_grace", fallback=30),
-            audience="api",
-        )
+            assert result_cmp_func(response_data, method_result)
 
-    @pytest.mark.parametrize(
-        "input_params, method_result, result_cmp_func, method_params",
-        [
-            ({}, None, lambda got, _: got == b"", {}),
-            ({}, "test_me", equals, {}),
-            (
-                BaseSerialization.serialize({"dag_id": 15, "task_id": "fake-task"}),
-                ("dag_id_15", "fake-task", 1),
-                equals,
-                {"dag_id": 15, "task_id": "fake-task"},
-            ),
-            (
-                {},
-                TaskInstance(task=EmptyOperator(task_id="task"), run_id="run_id", state=State.RUNNING),
-                lambda a, b: a.model_dump() == TaskInstancePydantic.model_validate(b).model_dump()
-                and isinstance(a.task, BaseOperator),
-                {},
-            ),
-            (
-                {},
-                Connection(conn_id="test_conn", conn_type="http", host="", password=""),
-                lambda a, b: a.get_uri() == b.get_uri() and a.conn_id == b.conn_id,
-                {},
-            ),
-        ],
-    )
-    def test_method(
-        self, input_params, method_result, result_cmp_func, method_params, setup_attrs, signer: JWTSigner
-    ):
-        mock_test_method.return_value = method_result
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "Authorization": signer.generate_signed_token({"method": TEST_METHOD_NAME}),
-        }
-        input_data = {
-            "jsonrpc": "2.0",
-            "method": TEST_METHOD_NAME,
-            "params": input_params,
-        }
-        response = self.client.post(
-            TEST_API_ENDPOINT,
-            headers=headers,
-            data=json.dumps(input_data),
-        )
-        assert response.status_code == 200
-        if method_result:
-            response_data = BaseSerialization.deserialize(json.loads(response.data), use_pydantic_models=True)
-        else:
-            response_data = response.data
+            mock_test_method.assert_called_once_with(**method_params, session=mock.ANY)
 
-        assert result_cmp_func(response_data, method_result)
+        def test_method_with_exception(self, setup_attrs, signer: JWTSigner):
+            headers = {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Authorization": signer.generate_signed_token({"method": TEST_METHOD_NAME}),
+            }
+            mock_test_method.side_effect = ValueError("Error!!!")
+            data = {"jsonrpc": "2.0", "method": TEST_METHOD_NAME, "params": {}}
 
-        mock_test_method.assert_called_once_with(**method_params, session=mock.ANY)
+            response = self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
+            assert response.status_code == 500
+            assert response.data, b"Error executing method: test_method."
+            mock_test_method.assert_called_once()
 
-    def test_method_with_exception(self, setup_attrs, signer: JWTSigner):
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "Authorization": signer.generate_signed_token({"method": TEST_METHOD_NAME}),
-        }
-        mock_test_method.side_effect = ValueError("Error!!!")
-        data = {"jsonrpc": "2.0", "method": TEST_METHOD_NAME, "params": {}}
+        def test_unknown_method(self, setup_attrs, signer: JWTSigner):
+            UNKNOWN_METHOD = "i-bet-it-does-not-exist"
+            headers = {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Authorization": signer.generate_signed_token({"method": UNKNOWN_METHOD}),
+            }
+            data = {"jsonrpc": "2.0", "method": UNKNOWN_METHOD, "params": {}}
 
-        response = self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
-        assert response.status_code == 500
-        assert response.data, b"Error executing method: test_method."
-        mock_test_method.assert_called_once()
+            response = self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
+            assert response.status_code == 400
+            assert response.data.startswith(b"Unrecognized method: i-bet-it-does-not-exist.")
+            mock_test_method.assert_not_called()
 
-    def test_unknown_method(self, setup_attrs, signer: JWTSigner):
-        UNKNOWN_METHOD = "i-bet-it-does-not-exist"
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "Authorization": signer.generate_signed_token({"method": UNKNOWN_METHOD}),
-        }
-        data = {"jsonrpc": "2.0", "method": UNKNOWN_METHOD, "params": {}}
+        def test_invalid_jsonrpc(self, setup_attrs, signer: JWTSigner):
+            headers = {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Authorization": signer.generate_signed_token({"method": TEST_METHOD_NAME}),
+            }
+            data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}}
 
-        response = self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
-        assert response.status_code == 400
-        assert response.data.startswith(b"Unrecognized method: i-bet-it-does-not-exist.")
-        mock_test_method.assert_not_called()
+            response = self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
+            assert response.status_code == 400
+            assert response.data.startswith(b"Expected jsonrpc 2.0 request.")
+            mock_test_method.assert_not_called()
 
-    def test_invalid_jsonrpc(self, setup_attrs, signer: JWTSigner):
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "Authorization": signer.generate_signed_token({"method": TEST_METHOD_NAME}),
-        }
-        data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}}
+        def test_missing_token(self, setup_attrs):
+            mock_test_method.return_value = None
 
-        response = self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
-        assert response.status_code == 400
-        assert response.data.startswith(b"Expected jsonrpc 2.0 request.")
-        mock_test_method.assert_not_called()
+            input_data = {
+                "jsonrpc": "2.0",
+                "method": TEST_METHOD_NAME,
+                "params": {},
+            }
+            response = self.client.post(
+                TEST_API_ENDPOINT,
+                headers={"Content-Type": "application/json", "Accept": "application/json"},
+                data=json.dumps(input_data),
+            )
+            assert response.status_code == 403
+            assert "Unable to authenticate API via token." in response.text
 
-    def test_missing_token(self, setup_attrs):
-        mock_test_method.return_value = None
+        def test_invalid_token(self, setup_attrs, signer: JWTSigner):
+            headers = {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Authorization": signer.generate_signed_token({"method": "WRONG_METHOD_NAME"}),
+            }
+            data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}}
 
-        input_data = {
-            "jsonrpc": "2.0",
-            "method": TEST_METHOD_NAME,
-            "params": {},
-        }
-        response = self.client.post(
-            TEST_API_ENDPOINT,
-            headers={"Content-Type": "application/json", "Accept": "application/json"},
-            data=json.dumps(input_data),
-        )
-        assert response.status_code == 403
-        assert "Unable to authenticate API via token." in response.text
+            response = self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
+            assert response.status_code == 403
+            assert "Bad Signature. Please use only the tokens provided by the API." in response.text
 
-    def test_invalid_token(self, setup_attrs, signer: JWTSigner):
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "Authorization": signer.generate_signed_token({"method": "WRONG_METHOD_NAME"}),
-        }
-        data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}}
+        def test_missing_accept(self, setup_attrs, signer: JWTSigner):
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": signer.generate_signed_token({"method": "WRONG_METHOD_NAME"}),
+            }
+            data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}}
 
-        response = self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
-        assert response.status_code == 403
-        assert "Bad Signature. Please use only the tokens provided by the API." in response.text
+            response = self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
+            assert response.status_code == 403
+            assert "Expected Accept: application/json" in response.text
 
-    def test_missing_accept(self, setup_attrs, signer: JWTSigner):
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": signer.generate_signed_token({"method": "WRONG_METHOD_NAME"}),
-        }
-        data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}}
+        def test_wrong_accept(self, setup_attrs, signer: JWTSigner):
+            headers = {
+                "Content-Type": "application/json",
+                "Accept": "application/html",
+                "Authorization": signer.generate_signed_token({"method": "WRONG_METHOD_NAME"}),
+            }
+            data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}}
 
-        response = self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
-        assert response.status_code == 403
-        assert "Expected Accept: application/json" in response.text
-
-    def test_wrong_accept(self, setup_attrs, signer: JWTSigner):
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/html",
-            "Authorization": signer.generate_signed_token({"method": "WRONG_METHOD_NAME"}),
-        }
-        data = {"jsonrpc": "1.0", "method": TEST_METHOD_NAME, "params": {}}
-
-        response = self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
-        assert response.status_code == 403
-        assert "Expected Accept: application/json" in response.text
+            response = self.client.post(TEST_API_ENDPOINT, headers=headers, data=json.dumps(data))
+            assert response.status_code == 403
+            assert "Expected Accept: application/json" in response.text
