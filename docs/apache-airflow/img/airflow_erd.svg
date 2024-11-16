@@ -1539,6 +1539,7 @@
 <text text-anchor="start" x="539.5" y="-1856.8" font-family="Helvetica,sans-Serif" font-size="14.00">created_at</text>
 <text text-anchor="start" x="612.5" y="-1856.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
 <text text-anchor="start" x="617.5" y="-1856.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
+<text text-anchor="start" x="713.5" y="-1856.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 <polygon fill="none" stroke="black" points="534.5,-1822 534.5,-1847 815.5,-1847 815.5,-1822 534.5,-1822"/>
 <text text-anchor="start" x="539.5" y="-1831.8" font-family="Helvetica,sans-Serif" font-size="14.00">dag_id</text>
 <text text-anchor="start" x="585.5" y="-1831.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
@@ -1758,94 +1759,94 @@
 <!-- dag_code -->
 <g id="node29" class="node">
 <title>dag_code</title>
-<polygon fill="none" stroke="black" points="940.5,-2025 940.5,-2053 1217.5,-2053 1217.5,-2025 940.5,-2025"/>
-<text text-anchor="start" x="1036.5" y="-2036.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">dag_code</text>
-<polygon fill="none" stroke="black" points="940.5,-2000 940.5,-2025 1217.5,-2025 1217.5,-2000 940.5,-2000"/>
-<text text-anchor="start" x="945.5" y="-2009.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">id</text>
-<text text-anchor="start" x="958.5" y="-2009.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="963.5" y="-2009.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [UUID]</text>
-<text text-anchor="start" x="1015.5" y="-2009.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="940.5,-1975 940.5,-2000 1217.5,-2000 1217.5,-1975 940.5,-1975"/>
-<text text-anchor="start" x="945.5" y="-1984.8" font-family="Helvetica,sans-Serif" font-size="14.00">dag_version_id</text>
-<text text-anchor="start" x="1049.5" y="-1984.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1054.5" y="-1984.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [UUID]</text>
-<text text-anchor="start" x="1106.5" y="-1984.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="940.5,-1950 940.5,-1975 1217.5,-1975 1217.5,-1950 940.5,-1950"/>
-<text text-anchor="start" x="945.5" y="-1959.8" font-family="Helvetica,sans-Serif" font-size="14.00">fileloc</text>
-<text text-anchor="start" x="986.5" y="-1959.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="991.5" y="-1959.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(2000)]</text>
-<text text-anchor="start" x="1121.5" y="-1959.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="940.5,-1925 940.5,-1950 1217.5,-1950 1217.5,-1925 940.5,-1925"/>
-<text text-anchor="start" x="945.5" y="-1934.8" font-family="Helvetica,sans-Serif" font-size="14.00">fileloc_hash</text>
-<text text-anchor="start" x="1027.5" y="-1934.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1032.5" y="-1934.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [BIGINT]</text>
-<text text-anchor="start" x="1096.5" y="-1934.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="940.5,-1900 940.5,-1925 1217.5,-1925 1217.5,-1900 940.5,-1900"/>
-<text text-anchor="start" x="945.5" y="-1909.8" font-family="Helvetica,sans-Serif" font-size="14.00">last_updated</text>
-<text text-anchor="start" x="1035.5" y="-1909.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1040.5" y="-1909.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
-<text text-anchor="start" x="1136.5" y="-1909.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="940.5,-1875 940.5,-1900 1217.5,-1900 1217.5,-1875 940.5,-1875"/>
-<text text-anchor="start" x="945.5" y="-1884.8" font-family="Helvetica,sans-Serif" font-size="14.00">source_code</text>
-<text text-anchor="start" x="1031.5" y="-1884.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1036.5" y="-1884.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TEXT]</text>
-<text text-anchor="start" x="1086.5" y="-1884.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="947.5,-2025 947.5,-2053 1209.5,-2053 1209.5,-2025 947.5,-2025"/>
+<text text-anchor="start" x="1036" y="-2036.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">dag_code</text>
+<polygon fill="none" stroke="black" points="947.5,-2000 947.5,-2025 1209.5,-2025 1209.5,-2000 947.5,-2000"/>
+<text text-anchor="start" x="952.5" y="-2009.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">id</text>
+<text text-anchor="start" x="965.5" y="-2009.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="970.5" y="-2009.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [UUID]</text>
+<text text-anchor="start" x="1022.5" y="-2009.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="947.5,-1975 947.5,-2000 1209.5,-2000 1209.5,-1975 947.5,-1975"/>
+<text text-anchor="start" x="952.5" y="-1984.8" font-family="Helvetica,sans-Serif" font-size="14.00">created_at</text>
+<text text-anchor="start" x="1025.5" y="-1984.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1030.5" y="-1984.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
+<text text-anchor="start" x="1126.5" y="-1984.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="947.5,-1950 947.5,-1975 1209.5,-1975 1209.5,-1950 947.5,-1950"/>
+<text text-anchor="start" x="952.5" y="-1959.8" font-family="Helvetica,sans-Serif" font-size="14.00">dag_version_id</text>
+<text text-anchor="start" x="1056.5" y="-1959.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1061.5" y="-1959.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [UUID]</text>
+<text text-anchor="start" x="1113.5" y="-1959.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="947.5,-1925 947.5,-1950 1209.5,-1950 1209.5,-1925 947.5,-1925"/>
+<text text-anchor="start" x="952.5" y="-1934.8" font-family="Helvetica,sans-Serif" font-size="14.00">fileloc</text>
+<text text-anchor="start" x="993.5" y="-1934.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="998.5" y="-1934.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(2000)]</text>
+<text text-anchor="start" x="1128.5" y="-1934.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="947.5,-1900 947.5,-1925 1209.5,-1925 1209.5,-1900 947.5,-1900"/>
+<text text-anchor="start" x="952.5" y="-1909.8" font-family="Helvetica,sans-Serif" font-size="14.00">fileloc_hash</text>
+<text text-anchor="start" x="1034.5" y="-1909.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1039.5" y="-1909.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [BIGINT]</text>
+<text text-anchor="start" x="1103.5" y="-1909.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="947.5,-1875 947.5,-1900 1209.5,-1900 1209.5,-1875 947.5,-1875"/>
+<text text-anchor="start" x="952.5" y="-1884.8" font-family="Helvetica,sans-Serif" font-size="14.00">source_code</text>
+<text text-anchor="start" x="1038.5" y="-1884.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1043.5" y="-1884.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TEXT]</text>
+<text text-anchor="start" x="1093.5" y="-1884.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 </g>
 <!-- dag_version&#45;&#45;dag_code -->
 <g id="edge24" class="edge">
 <title>dag_version&#45;&#45;dag_code</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M823.19,-1891.25C858.69,-1901.41 896.58,-1912.25 931.99,-1922.37"/>
-<text text-anchor="start" x="900.99" y="-1911.17" font-family="Times,serif" font-size="14.00">0..N</text>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M823.19,-1891.25C861.16,-1902.11 901.86,-1913.75 939.32,-1924.47"/>
+<text text-anchor="start" x="908.32" y="-1913.27" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="823.19" y="-1880.05" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- serialized_dag -->
 <g id="node30" class="node">
 <title>serialized_dag</title>
-<polygon fill="none" stroke="black" points="940.5,-1821 940.5,-1849 1217.5,-1849 1217.5,-1821 940.5,-1821"/>
-<text text-anchor="start" x="1015.5" y="-1832.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">serialized_dag</text>
-<polygon fill="none" stroke="black" points="940.5,-1796 940.5,-1821 1217.5,-1821 1217.5,-1796 940.5,-1796"/>
-<text text-anchor="start" x="945.5" y="-1805.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">id</text>
-<text text-anchor="start" x="958.5" y="-1805.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="963.5" y="-1805.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [UUID]</text>
-<text text-anchor="start" x="1015.5" y="-1805.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="940.5,-1771 940.5,-1796 1217.5,-1796 1217.5,-1771 940.5,-1771"/>
-<text text-anchor="start" x="945.5" y="-1780.8" font-family="Helvetica,sans-Serif" font-size="14.00">dag_hash</text>
-<text text-anchor="start" x="1012.5" y="-1780.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1017.5" y="-1780.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(32)]</text>
-<text text-anchor="start" x="1129.5" y="-1780.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="940.5,-1746 940.5,-1771 1217.5,-1771 1217.5,-1746 940.5,-1746"/>
-<text text-anchor="start" x="945.5" y="-1755.8" font-family="Helvetica,sans-Serif" font-size="14.00">dag_id</text>
-<text text-anchor="start" x="991.5" y="-1755.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="996.5" y="-1755.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
-<text text-anchor="start" x="1117.5" y="-1755.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="940.5,-1721 940.5,-1746 1217.5,-1746 1217.5,-1721 940.5,-1721"/>
-<text text-anchor="start" x="945.5" y="-1730.8" font-family="Helvetica,sans-Serif" font-size="14.00">dag_version_id</text>
-<text text-anchor="start" x="1049.5" y="-1730.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1054.5" y="-1730.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [UUID]</text>
-<text text-anchor="start" x="1106.5" y="-1730.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="940.5,-1696 940.5,-1721 1217.5,-1721 1217.5,-1696 940.5,-1696"/>
-<text text-anchor="start" x="945.5" y="-1705.8" font-family="Helvetica,sans-Serif" font-size="14.00">data</text>
-<text text-anchor="start" x="976.5" y="-1705.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="981.5" y="-1705.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
-<polygon fill="none" stroke="black" points="940.5,-1671 940.5,-1696 1217.5,-1696 1217.5,-1671 940.5,-1671"/>
-<text text-anchor="start" x="945.5" y="-1680.8" font-family="Helvetica,sans-Serif" font-size="14.00">data_compressed</text>
-<text text-anchor="start" x="1067.5" y="-1680.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1072.5" y="-1680.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [BYTEA]</text>
-<polygon fill="none" stroke="black" points="940.5,-1646 940.5,-1671 1217.5,-1671 1217.5,-1646 940.5,-1646"/>
-<text text-anchor="start" x="945.5" y="-1655.8" font-family="Helvetica,sans-Serif" font-size="14.00">last_updated</text>
-<text text-anchor="start" x="1035.5" y="-1655.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1040.5" y="-1655.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
-<text text-anchor="start" x="1136.5" y="-1655.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
-<polygon fill="none" stroke="black" points="940.5,-1621 940.5,-1646 1217.5,-1646 1217.5,-1621 940.5,-1621"/>
-<text text-anchor="start" x="945.5" y="-1630.8" font-family="Helvetica,sans-Serif" font-size="14.00">processor_subdir</text>
-<text text-anchor="start" x="1064.5" y="-1630.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1069.5" y="-1630.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(2000)]</text>
+<polygon fill="none" stroke="black" points="943.5,-1821 943.5,-1849 1213.5,-1849 1213.5,-1821 943.5,-1821"/>
+<text text-anchor="start" x="1015" y="-1832.2" font-family="Helvetica,sans-Serif" font-weight="bold" font-size="16.00">serialized_dag</text>
+<polygon fill="none" stroke="black" points="943.5,-1796 943.5,-1821 1213.5,-1821 1213.5,-1796 943.5,-1796"/>
+<text text-anchor="start" x="948.5" y="-1805.8" font-family="Helvetica,sans-Serif" text-decoration="underline" font-size="14.00">id</text>
+<text text-anchor="start" x="961.5" y="-1805.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="966.5" y="-1805.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [UUID]</text>
+<text text-anchor="start" x="1018.5" y="-1805.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="943.5,-1771 943.5,-1796 1213.5,-1796 1213.5,-1771 943.5,-1771"/>
+<text text-anchor="start" x="948.5" y="-1780.8" font-family="Helvetica,sans-Serif" font-size="14.00">created_at</text>
+<text text-anchor="start" x="1021.5" y="-1780.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1026.5" y="-1780.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [TIMESTAMP]</text>
+<text text-anchor="start" x="1122.5" y="-1780.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="943.5,-1746 943.5,-1771 1213.5,-1771 1213.5,-1746 943.5,-1746"/>
+<text text-anchor="start" x="948.5" y="-1755.8" font-family="Helvetica,sans-Serif" font-size="14.00">dag_hash</text>
+<text text-anchor="start" x="1015.5" y="-1755.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1020.5" y="-1755.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(32)]</text>
+<text text-anchor="start" x="1132.5" y="-1755.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="943.5,-1721 943.5,-1746 1213.5,-1746 1213.5,-1721 943.5,-1721"/>
+<text text-anchor="start" x="948.5" y="-1730.8" font-family="Helvetica,sans-Serif" font-size="14.00">dag_id</text>
+<text text-anchor="start" x="994.5" y="-1730.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="999.5" y="-1730.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(250)]</text>
+<text text-anchor="start" x="1120.5" y="-1730.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="943.5,-1696 943.5,-1721 1213.5,-1721 1213.5,-1696 943.5,-1696"/>
+<text text-anchor="start" x="948.5" y="-1705.8" font-family="Helvetica,sans-Serif" font-size="14.00">dag_version_id</text>
+<text text-anchor="start" x="1052.5" y="-1705.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1057.5" y="-1705.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [UUID]</text>
+<text text-anchor="start" x="1109.5" y="-1705.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
+<polygon fill="none" stroke="black" points="943.5,-1671 943.5,-1696 1213.5,-1696 1213.5,-1671 943.5,-1671"/>
+<text text-anchor="start" x="948.5" y="-1680.8" font-family="Helvetica,sans-Serif" font-size="14.00">data</text>
+<text text-anchor="start" x="979.5" y="-1680.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="984.5" y="-1680.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
+<polygon fill="none" stroke="black" points="943.5,-1646 943.5,-1671 1213.5,-1671 1213.5,-1646 943.5,-1646"/>
+<text text-anchor="start" x="948.5" y="-1655.8" font-family="Helvetica,sans-Serif" font-size="14.00">data_compressed</text>
+<text text-anchor="start" x="1070.5" y="-1655.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1075.5" y="-1655.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [BYTEA]</text>
+<polygon fill="none" stroke="black" points="943.5,-1621 943.5,-1646 1213.5,-1646 1213.5,-1621 943.5,-1621"/>
+<text text-anchor="start" x="948.5" y="-1630.8" font-family="Helvetica,sans-Serif" font-size="14.00">processor_subdir</text>
+<text text-anchor="start" x="1067.5" y="-1630.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
+<text text-anchor="start" x="1072.5" y="-1630.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(2000)]</text>
 </g>
 <!-- dag_version&#45;&#45;serialized_dag -->
 <g id="edge25" class="edge">
 <title>dag_version&#45;&#45;serialized_dag</title>
-<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M823.19,-1807.12C858.69,-1797.05 896.58,-1786.3 931.99,-1776.27"/>
-<text text-anchor="start" x="900.99" y="-1765.07" font-family="Times,serif" font-size="14.00">0..N</text>
+<path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M823.19,-1807.12C859.81,-1796.73 898.98,-1785.63 935.33,-1775.32"/>
+<text text-anchor="start" x="904.33" y="-1764.12" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="823.19" y="-1795.92" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- dag_run&#45;&#45;dagrun_asset_event -->
