@@ -244,9 +244,7 @@ async def get_dag_runs(
     dag_id: str,
     limit: QueryLimit,
     offset: QueryOffset,
-    logical_date: Annotated[
-        RangeFilter, Depends(datetime_range_filter_factory("logical_date", DagRun, "execution_date"))
-    ],
+    logical_date: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", DagRun))],
     start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", DagRun))],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", DagRun))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", DagRun))],
@@ -259,7 +257,7 @@ async def get_dag_runs(
                     "id",
                     "state",
                     "dag_id",
-                    "execution_date",
+                    "logical_date",
                     "dag_run_id",
                     "start_date",
                     "end_date",
