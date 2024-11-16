@@ -1411,7 +1411,7 @@ function install_yarn_dependencies_from_branch_tip() {
     local TEMP_AIRFLOW_DIR
     TEMP_AIRFLOW_DIR=$(mktemp -d)
     # Download the source code from the specified branch
-    set +e
+    set -e
     set -x
     curl -fsSL "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz" | \
         tar xz -C "${TEMP_AIRFLOW_DIR}" --strip 1
@@ -1419,14 +1419,59 @@ function install_yarn_dependencies_from_branch_tip() {
     cd "${TEMP_AIRFLOW_DIR}/airflow/www"
     yarn install --frozen-lockfile
     set +x
-    set -e
+    set +e
     echo "${COLOR_BLUE}Yarn dependencies installed successfully${COLOR_RESET}"
+
+    # Copy Yarn packages to the .yarn-cache directory
+    echo
+    echo "${COLOR_BLUE}Copying Yarn packages to the ${YARN_CACHE_DIR} directory${COLOR_RESET}"
+    echo
+    set -e
+    set -x
+    cp -r ./node_modules $YARN_CACHE_DIR/
+    echo "${COLOR_BLUE}Yarn packages copied successfully${COLOR_RESET}"
+    set +x
     # Clean up
+    remove_npm_and_yarn
     rm -rf "${TEMP_AIRFLOW_DIR}"
+    set +e
+}
+
+function install_npm_and_yarn() {
+    echo
+    echo "${COLOR_BLUE}Installing npm and yarn${COLOR_RESET}"
+    echo
+    set -e
+    set -x
+    # Install npm
+    apt-get update
+    apt-get install -y npm
+    # Install yarn
+    npm install -g yarn
+    echo "${COLOR_BLUE}npm and yarn installed successfully${COLOR_RESET}"
+    set +x
+    set +e
+}
+
+function remove_npm_and_yarn() {
+    echo
+    echo "${COLOR_BLUE}Removing npm and yarn${COLOR_RESET}"
+    echo
+    set +e
+    set -x
+    # Remove yarn
+    npm cache clean --force
+    npm uninstall -g yarn
+    # Remove npm
+    apt-get remove -y npm
+    echo "${COLOR_BLUE}npm and yarn removed successfully${COLOR_RESET}"
+    set +x
+    set -e
 }
 
 common::get_colors
 
+install_npm_and_yarn
 install_yarn_dependencies_from_branch_tip
 EOF
 
@@ -1488,12 +1533,27 @@ ARG DOCKER_CONTEXT_FILES="Dockerfile"
 ARG AIRFLOW_HOME
 ARG AIRFLOW_USER_HOME_DIR
 ARG AIRFLOW_UID
+ARG AIRFLOW_REPO=apache/airflow
+ARG AIRFLOW_BRANCH=main
 
 RUN adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
        --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" && \
     mkdir -p ${AIRFLOW_HOME} && chown -R "airflow:0" "${AIRFLOW_USER_HOME_DIR}" ${AIRFLOW_HOME}
 
 COPY --chown=${AIRFLOW_UID}:0 ${DOCKER_CONTEXT_FILES} /docker-context-files
+
+# Yarn cache
+ARG AIRFLOW_PRE_CACHED_YARN_PACKAGES="true"
+ENV AIRFLOW_PRE_CACHED_YARN_PACKAGES=${AIRFLOW_PRE_CACHED_YARN_PACKAGES}
+COPY --from=scripts install_yarn_dependencies_from_branch_tip.sh /scripts/docker/
+
+ENV YARN_CACHE_DIR="${AIRFLOW_USER_HOME_DIR}/.yarn-cache"
+RUN mkdir -p "${YARN_CACHE_DIR}" && \
+    chown -R "airflow:0" "${YARN_CACHE_DIR}"
+# We are installing Yarn dependencies here to make sure they are cached in the layer
+RUN if [[ ${AIRFLOW_PRE_CACHED_YARN_PACKAGES} == "true" ]]; then \
+        bash /scripts/docker/install_yarn_dependencies_from_branch_tip.sh; \
+    fi
 
 USER airflow
 
@@ -1513,8 +1573,6 @@ ARG PIP_PROGRESS_BAR
 # By default we do not use pre-cached packages, but in CI/Breeze environment we override this to speed up
 # builds in case pyproject.toml changed. This is pure optimisation of CI/Breeze builds.
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="false"
-# By default we do not use pre-cached yarn packages, but in CI/Breeze environment we override this to speed up
-ARG AIRFLOW_PRE_CACHED_YARN_PACKAGES="true"
 # This is airflow version that is put in the label of the image build
 ARG AIRFLOW_VERSION
 # By default latest released version of airflow is installed (when empty) but this value can be overridden
@@ -1553,7 +1611,6 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT} \
     AIRFLOW_USE_UV=${AIRFLOW_USE_UV} \
     AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
-    AIRFLOW_PRE_CACHED_YARN_PACKAGES=${AIRFLOW_PRE_CACHED_YARN_PACKAGES} \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD} \
     AIRFLOW_VERSION_SPECIFICATION=${AIRFLOW_VERSION_SPECIFICATION} \
@@ -1579,8 +1636,7 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
 # Copy all scripts required for installation - changing any of those should lead to
 # rebuilding from here
 COPY --from=scripts common.sh install_packaging_tools.sh \
-     install_airflow_dependencies_from_branch_tip.sh create_prod_venv.sh \
-     install_yarn_dependencies_from_branch_tip.sh /scripts/docker/
+     install_airflow_dependencies_from_branch_tip.sh create_prod_venv.sh /scripts/docker/
 
 # We can set this value to true in case we want to install .whl/.tar.gz packages placed in the
 # docker-context-files folder. This can be done for both additional packages you want to install
@@ -1617,12 +1673,6 @@ RUN bash /scripts/docker/install_packaging_tools.sh; \
         ${UPGRADE_INVALIDATION_STRING} == "" ]]; then \
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
-
-# We are installing Yarn dependencies here to make sure they are cached in the layer
-RUN if [[ ${AIRFLOW_PRE_CACHED_YARN_PACKAGES} == "true" ]]; then \
-        bash /scripts/docker/install_yarn_dependencies_from_branch_tip.sh; \
-    fi
-
 
 COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
 

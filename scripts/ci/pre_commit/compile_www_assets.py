@@ -56,6 +56,7 @@ if __name__ == "__main__":
     www_directory = AIRFLOW_SOURCES_PATH / "airflow" / "www"
     node_modules_directory = www_directory / "node_modules"
     dist_directory = www_directory / "static" / "dist"
+    YARN_CACHE_DIR = os.getenv("YARN_CACHE_DIR", f"{Path.home()}/.yarn-cache")
     WWW_HASH_FILE.parent.mkdir(exist_ok=True, parents=True)
     if node_modules_directory.exists() and dist_directory.exists():
         old_hash = WWW_HASH_FILE.read_text() if WWW_HASH_FILE.exists() else ""
@@ -68,7 +69,12 @@ if __name__ == "__main__":
         shutil.rmtree(dist_directory, ignore_errors=True)
     env = os.environ.copy()
     env["FORCE_COLOR"] = "true"
-    if os.getenv("AIRFLOW_PRE_CACHED_YARN_PACKAGES") != "true":
+    if os.getenv("AIRFLOW_PRE_CACHED_YARN_PACKAGES") == "true":
+        # Copy yarn-cache to node_modules from yarn-cache
+        shutil.copytree(YARN_CACHE_DIR, www_directory)
+        # Remove the yarn-cache directory to reduce the size of the docker image and prevent duplication
+        shutil.rmtree(YARN_CACHE_DIR, ignore_errors=True)
+    else:
         subprocess.check_call(["yarn", "install", "--frozen-lockfile"], cwd=os.fspath(www_directory))
     subprocess.check_call(["yarn", "run", "build"], cwd=os.fspath(www_directory), env=env)
     new_hash = get_directory_hash(www_directory, skip_path_regexp=r".*node_modules.*")
