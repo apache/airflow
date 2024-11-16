@@ -29,6 +29,7 @@ import re2
 import requests
 import requests.exceptions
 from requests.adapters import HTTPAdapter
+from requests.exceptions import RetryError
 from urllib3.exceptions import MaxRetryError
 from urllib3.util.retry import Retry
 
@@ -234,7 +235,7 @@ class BaseK8STest:
                 result = self.session.patch(patch_string, json={"is_paused": False})
                 if result.status_code == 200:
                     break
-            except MaxRetryError:
+            except (MaxRetryError, RetryError):
                 pass
 
             time.sleep(30)
