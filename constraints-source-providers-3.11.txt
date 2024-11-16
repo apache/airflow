@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-15T19:40:15.840337
+# This constraints file was automatically generated on 2024-11-16T07:42:32.912812
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -189,7 +189,7 @@ eval_type_backport==0.2.0
 eventlet==0.37.0
 execnet==2.1.1
 executing==2.1.0
-facebook_business==21.0.3
+facebook_business==21.0.5
 fastapi-cli==0.0.5
 fastapi==0.115.5
 fastavro==1.9.7
@@ -268,7 +268,7 @@ grpcio-gcp==0.2.2
 grpcio-health-checking==1.62.3
 grpcio-status==1.62.3
 grpcio-tools==1.62.3
-grpcio==1.67.1
+grpcio==1.68.0
 gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.14.0
@@ -608,7 +608,7 @@ types-python-slugify==8.0.2.20240310
 types-pytz==2024.2.0.20241003
 types-redis==4.6.0.20241004
 types-requests==2.32.0.20241016
-types-setuptools==75.4.0.20241115
+types-setuptools==75.5.0.20241116
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
