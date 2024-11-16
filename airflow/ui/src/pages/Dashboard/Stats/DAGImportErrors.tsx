@@ -34,22 +34,17 @@ import { DAGImportErrorsModal } from "./DAGImportErrorsModal";
 export const DAGImportErrors = () => {
   const { onClose, onOpen, open } = useDisclosure();
 
-  const {
-    data,
-    error: DagImportErrorFailure,
-    isFetching,
-    isLoading,
-  } = useImportErrorServiceGetImportErrors();
+  const { data, error, isLoading } = useImportErrorServiceGetImportErrors();
   const importErrorsCount = data?.total_entries ?? 0;
   const importErrors = data?.import_errors ?? [];
 
-  if (isFetching || isLoading) {
+  if (isLoading) {
     return <Skeleton height="9" width="225px" />;
   }
 
   return (
     <Box alignItems="center" display="flex" gap={2}>
-      <ErrorAlert error={DagImportErrorFailure} />
+      <ErrorAlert error={error} />
       {importErrorsCount > 0 && (
         <Button
           alignItems="center"

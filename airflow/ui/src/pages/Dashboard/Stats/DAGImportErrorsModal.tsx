@@ -31,7 +31,7 @@ type ImportDAGErrorModalProps = {
   open: boolean;
 };
 
-const PAGE_LIMIT = 5;
+const PAGE_LIMIT = 15;
 
 export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({
   importErrors,
@@ -74,7 +74,7 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({
           <Heading size="xl">Dag Import Errors</Heading>
           <Input
             mt={4}
-            onChange={(letters) => setSearchQuery(letters.target.value)}
+            onChange={(event) => setSearchQuery(event.target.value)}
             placeholder="Search by file"
             value={searchQuery}
           />
@@ -108,7 +108,7 @@ export const DAGImportErrorsModal: React.FC<ImportDAGErrorModalProps> = ({
 
         <Pagination.Root
           count={filteredErrors.length}
-          onPageChange={(each) => setPage(each.page)}
+          onPageChange={(event) => setPage(event.page)}
           p={4}
           page={page}
           pageSize={PAGE_LIMIT}
