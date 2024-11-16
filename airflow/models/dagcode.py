@@ -223,4 +223,9 @@ class DagCode(Base):
         import hashlib
 
         # Only 7 bytes because MySQL BigInteger can hold only 8 bytes (signed).
-        return struct.unpack(">Q", hashlib.sha1(full_filepath.encode("utf-8")).digest()[-8:])[0] >> 8
+        return (
+            struct.unpack(
+                ">Q", hashlib.sha1(full_filepath.encode("utf-8"), usedforsecurity=False).digest()[-8:]
+            )[0]
+            >> 8
+        )
