@@ -177,7 +177,7 @@ class TelegramHook(BaseHook):
         kwargs.update(api_params)
 
         if "file" not in kwargs or kwargs["file"] is None:
-            raise AirflowException("'file' must be provided for telegram document message")
+            raise AirflowException("'file' parameter must be provided for sending a Telegram document message")
 
         kwargs["document"] = kwargs.pop("file")  # rename 'file' to 'document'
 
