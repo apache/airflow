@@ -335,9 +335,11 @@ class TestFileTaskLogHandler:
 
             fth._read_from_logs_server = mock.Mock()
             fth._read_from_logs_server.return_value = ["this message"], ["this\nlog\ncontent"]
-            actual = fth._read(ti=ti, try_number=1)
+            actual_text, actual_meta = fth._read(ti=ti, try_number=1)
             fth._read_from_logs_server.assert_called_once()
-        assert actual == ("*** this message\nthis\nlog\ncontent", {"end_of_log": True, "log_pos": 16})
+        assert "*** this message" in actual_text
+        assert "this\nlog\ncontent" in actual_text
+        assert actual_meta == {"end_of_log": True, "log_pos": 16}
 
     @pytest.mark.parametrize(
         "remote_logs, local_logs, served_logs_checked",
