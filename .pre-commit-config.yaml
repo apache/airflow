@@ -450,6 +450,7 @@ repos:
         language: python
         entry: uv lock
         args:
+          - -v
           - --directory
           - ./dev/breeze
         pass_filenames: false
