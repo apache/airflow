@@ -19,12 +19,12 @@ from __future__ import annotations
 
 from typing import Callable, Sequence
 
-from airflow.providers.sftp.sensors.sftp import SFTPSensor
-from airflow.providers.standard.decorators.base import (
+from airflow.decorators.base import (
     TaskDecorator,
     get_unique_task_id,
     task_decorator_factory,
 )
+from airflow.providers.sftp.sensors.sftp import SFTPSensor
 
 
 class _DecoratedSFTPSensor(SFTPSensor):

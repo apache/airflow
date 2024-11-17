@@ -27,14 +27,14 @@ from typing import TYPE_CHECKING, Callable, Sequence
 import dill
 from kubernetes.client import models as k8s
 
-from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
-from airflow.providers.cncf.kubernetes.python_kubernetes_script import (
-    write_python_script,
-)
-from airflow.providers.standard.decorators.base import (
+from airflow.decorators.base import (
     DecoratedOperator,
     TaskDecorator,
     task_decorator_factory,
+)
+from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+from airflow.providers.cncf.kubernetes.python_kubernetes_script import (
+    write_python_script,
 )
 
 if TYPE_CHECKING:

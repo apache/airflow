@@ -19,8 +19,8 @@ from __future__ import annotations
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
+from airflow.decorators.base import Task, _TaskDecorator
 from airflow.exceptions import AirflowSkipException
-from airflow.providers.standard.decorators.base import Task, _TaskDecorator
 
 if TYPE_CHECKING:
     from typing_extensions import TypeAlias

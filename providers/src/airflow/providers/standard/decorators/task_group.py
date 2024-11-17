@@ -32,13 +32,13 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, Generic, Mapping, Seq
 
 import attr
 
+from airflow.decorators.base import ExpandableFactory
 from airflow.models.expandinput import (
     DictOfListsExpandInput,
     ListOfDictsExpandInput,
     MappedArgument,
 )
 from airflow.models.xcom_arg import XComArg
-from airflow.providers.standard.decorators.base import ExpandableFactory
 from airflow.sdk.definitions.node import DAGNode
 from airflow.typing_compat import ParamSpec
 from airflow.utils.helpers import prevent_duplicates

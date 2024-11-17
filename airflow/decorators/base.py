@@ -39,7 +39,6 @@ from typing import (
 import attr
 import re2
 import typing_extensions
-from providers.src.airflow.providers.standard.utils.decorators import remove_task_decorator
 
 from airflow.assets import Asset
 from airflow.models.baseoperator import (
@@ -65,6 +64,7 @@ from airflow.utils.context import KNOWN_CONTEXT_KEYS
 from airflow.utils.helpers import prevent_duplicates
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
+from providers.src.airflow.providers.standard.utils.decorators import remove_task_decorator
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session

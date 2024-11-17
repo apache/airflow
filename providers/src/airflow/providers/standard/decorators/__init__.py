@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from airflow.decorators.base import TaskDecorator
 from airflow.models.dag import dag
-from airflow.providers.standard.decorators.base import TaskDecorator
 from airflow.providers.standard.decorators.bash import bash_task
 from airflow.providers.standard.decorators.branch_external_python import branch_external_python_task
 from airflow.providers.standard.decorators.branch_python import branch_task

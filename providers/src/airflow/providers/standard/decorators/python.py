@@ -18,11 +18,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable, Sequence
 
-from airflow.providers.standard.decorators.base import DecoratedOperator, task_decorator_factory
+from airflow.decorators.base import DecoratedOperator, task_decorator_factory
 from airflow.providers.standard.operators.python import PythonOperator
 
 if TYPE_CHECKING:
-    from airflow.providers.standard.decorators.base import TaskDecorator
+    from airflow.decorators.base import TaskDecorator
 
 
 class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):

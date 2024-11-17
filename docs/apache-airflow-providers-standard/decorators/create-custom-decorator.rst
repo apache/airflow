@@ -96,11 +96,11 @@ tasks. The steps to create and register ``@task.foo`` are:
 For better or worse, Python IDEs can not auto-complete dynamically
 generated methods (see `JetBrain's write up on the subject <https://intellij-support.jetbrains.com/hc/en-us/community/posts/115000665110-auto-completion-for-dynamic-module-attributes-in-python>`_).
 
-To hack around this problem, a type stub ``airflow/providers/standard/decorators/__init__.pyi`` is provided to statically declare
+To hack around this problem, a type stub ``airflow/decorators/__init__.pyi`` is provided to statically declare
 the type signature of each task decorator. A newly added task decorator should declare its signature stub
 like this:
 
-.. exampleinclude:: ../../airflow/providers/standard/decorators/__init__.pyi
+.. exampleinclude:: ../../providers/src/airflow/providers/standard/decorators/__init__.pyi
     :language: python
     :start-after: [START decorator_signature]
     :end-before: [END decorator_signature]
@@ -114,7 +114,7 @@ If the new decorator can be used without arguments (e.g. ``@task.python`` instea
 You should also add an overload that takes a single callable immediately after the "real" definition so mypy
 can recognize the function as a "bare decorator":
 
-.. exampleinclude:: ../../airflow/providers/standard/decorators/__init__.pyi
+.. exampleinclude:: ../../providers/src/airflow/providers/standard/decorators/__init__.pyi
     :language: python
     :start-after: [START mixin_for_typing]
     :end-before: [END mixin_for_typing]

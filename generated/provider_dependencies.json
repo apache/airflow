@@ -287,8 +287,7 @@
     "plugins": [],
     "cross-providers-deps": [
       "cncf.kubernetes",
-      "common.compat",
-      "standard"
+      "common.compat"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -377,9 +376,7 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [
-      "standard"
-    ],
+    "cross-providers-deps": [],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -523,8 +520,7 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "common.compat",
-      "standard"
+      "common.compat"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -1202,8 +1198,7 @@
     "cross-providers-deps": [
       "common.compat",
       "openlineage",
-      "ssh",
-      "standard"
+      "ssh"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -1260,8 +1255,7 @@
     "cross-providers-deps": [
       "common.compat",
       "common.sql",
-      "openlineage",
-      "standard"
+      "openlineage"
     ],
     "excluded-python-versions": [],
     "state": "ready"

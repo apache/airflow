@@ -26,9 +26,9 @@ from typing import Any, Callable, Collection, Container, Iterable, Mapping, Type
 from docker.types import Mount
 from kubernetes.client import models as k8s
 
+from airflow.decorators.base import FParams, FReturn, Task, TaskDecorator, _TaskDecorator
 from airflow.models.dag import dag
 from airflow.providers.cncf.kubernetes.secret import Secret
-from airflow.providers.standard.decorators.base import FParams, FReturn, Task, TaskDecorator, _TaskDecorator
 from airflow.providers.standard.decorators.bash import bash_task
 from airflow.providers.standard.decorators.branch_external_python import branch_external_python_task
 from airflow.providers.standard.decorators.branch_python import branch_task

@@ -20,7 +20,7 @@ from __future__ import annotations
 import warnings
 from typing import Any, Callable, ClassVar, Collection, Mapping, Sequence
 
-from airflow.providers.standard.decorators.base import (
+from airflow.decorators.base import (
     DecoratedOperator,
     TaskDecorator,
     task_decorator_factory,
