@@ -448,7 +448,10 @@ repos:
         name: Check breeze uv.lock
         description: Breeze uv.lock should be in sync with pyproject.toml
         language: python
-        entry: uv sync --directory dev/breeze/
+        entry: uv lock
+        args:
+          - --directory
+          - ./dev/breeze
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['uv']
