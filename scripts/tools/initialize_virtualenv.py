@@ -168,7 +168,7 @@ def main():
     env["AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_ENABLED"] = "False"
     env["AIRFLOW__CORE__DAGS_FOLDER"] = f"{airflow_sources}/empty"
     env["AIRFLOW__CORE__PLUGINS_FOLDER"] = f"{airflow_sources}/empty"
-    subprocess.run(["airflow", "db", "reset", "--yes"], env=env)
+    subprocess.run(["uv", "run", "airflow", "db", "reset", "--yes"], env=env)
 
     print("\nResetting AIRFLOW sqlite unit test database...")
     env = os.environ.copy()
@@ -177,7 +177,7 @@ def main():
     env["AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_ENABLED"] = "False"
     env["AIRFLOW__CORE__DAGS_FOLDER"] = f"{airflow_sources}/empty"
     env["AIRFLOW__CORE__PLUGINS_FOLDER"] = f"{airflow_sources}/empty"
-    subprocess.run(["airflow", "db", "reset", "--yes"], env=env)
+    subprocess.run(["uv", "run", "airflow", "db", "reset", "--yes"], env=env)
 
     print("\nInitialization of environment complete! Go ahead and develop Airflow!")
 
