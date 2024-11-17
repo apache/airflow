@@ -182,6 +182,8 @@ To set GH_AUTH run this:
 
 ```bash
 export GH_AUTH={token}
+```
+
 Sometimes it might result with conflict. In such case, you should manually resolve the conflicts.
 Some IDEs like IntelliJ has a fantastic conflict resolution tool - just follow `Git -> Resolve conflicts`
 menu after you get the conflict. But you can also resolve the conflicts manually (git adds `<<<<<<<`, `=======` and
