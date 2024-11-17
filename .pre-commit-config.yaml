@@ -446,10 +446,9 @@ repos:
         additional_dependencies: ['rich>=12.4.4']
       - id: check-breeze-uv-lock-consistent
         name: Check breeze uv.lock
-        description: Ensure Breeze uv.lock is in sync with pyproject.toml
+        description: Breeze uv.lock should be in sync with pyproject.toml
         language: python
-        entry: uv sync
-        files: ^dev/breeze/.*$
+        entry: uv sync --directory dev/breeze/
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['uv']

@@ -140,6 +140,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-breeze-top-dependencies-limited                     | Check top-level breeze deps                            |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
+| check-breeze-uv-lock-consistent                           | Check breeze uv.lock                                   |         |
++-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-builtin-literals                                    | Require literal syntax when initializing builtins      |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-changelog-format                                    | Check changelog format                                 |         |
