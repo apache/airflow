@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-16T13:43:17.653151
+# This constraints file was automatically generated on 2024-11-17T07:42:05.615672
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -581,7 +581,7 @@ traitlets==5.14.3
 trino==0.330.0
 twine==5.1.1
 typer==0.13.0
-types-Deprecated==1.2.9.20240311
+types-Deprecated==1.2.15.20241117
 types-Markdown==3.7.0.20240822
 types-PyMySQL==1.1.0.20241103
 types-PyYAML==6.0.12.20240917
