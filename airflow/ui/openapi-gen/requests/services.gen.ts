@@ -858,7 +858,7 @@ export class DagRunService {
   ): CancelablePromise<GetDagRunsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/",
+      url: "/public/dags/{dag_id}/dagRuns",
       path: {
         dag_id: data.dagId,
       },

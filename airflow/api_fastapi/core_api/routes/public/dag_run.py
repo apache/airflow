@@ -239,7 +239,7 @@ def clear_dag_run(
         return DAGRunResponse.model_validate(dag_run_cleared, from_attributes=True)
 
 
-@dag_run_router.get("/")
+@dag_run_router.get("")
 async def get_dag_runs(
     dag_id: str,
     limit: QueryLimit,

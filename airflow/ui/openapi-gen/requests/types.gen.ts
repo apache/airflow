@@ -2168,7 +2168,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/": {
+  "/public/dags/{dag_id}/dagRuns": {
     get: {
       req: GetDagRunsData;
       res: {

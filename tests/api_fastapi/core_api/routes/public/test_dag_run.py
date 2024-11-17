@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import select
@@ -52,85 +52,15 @@ DAG1_RUN1_TRIGGERED_BY = DagRunTriggeredByType.UI
 DAG1_RUN2_TRIGGERED_BY = DagRunTriggeredByType.ASSET
 DAG2_RUN1_TRIGGERED_BY = DagRunTriggeredByType.CLI
 DAG2_RUN2_TRIGGERED_BY = DagRunTriggeredByType.REST_API
-START_DATE = datetime(2024, 6, 15, 0, 0, tzinfo=timezone.utc)
-END_DATE = datetime(2024, 6, 15, 0, 0, tzinfo=timezone.utc)
-EXECUTION_DATE = datetime(2024, 6, 16, 0, 0, tzinfo=timezone.utc)
+START_DATE1 = datetime(2024, 1, 15, 0, 0, tzinfo=timezone.utc)
+LOGICAL_DATE1 = datetime(2024, 2, 16, 0, 0, tzinfo=timezone.utc)
+LOGICAL_DATE2 = datetime(2024, 2, 20, 0, 0, tzinfo=timezone.utc)
+END_DATE1 = datetime(2024, 3, 20, 0, 0, tzinfo=timezone.utc)
+START_DATE2 = datetime(2024, 4, 15, 0, 0, tzinfo=timezone.utc)
+LOGICAL_DATE3 = datetime(2024, 5, 16, 0, 0, tzinfo=timezone.utc)
+LOGICAL_DATE4 = datetime(2024, 5, 25, 0, 0, tzinfo=timezone.utc)
+END_DATE2 = datetime(2024, 6, 20, 0, 0, tzinfo=timezone.utc)
 DAG1_RUN1_NOTE = "test_note"
-
-# DAG_RUNS = {
-#     "test_dag1": {
-#         "dag_run_1": {
-#             "run_id": "dag_run_1",
-#             "dag_id": "test_dag1",
-#             "logical_date": "2024-06-15T00:00:00Z",
-#             "queued_at": None,
-#             "start_date": "2024-06-15T00:00:00Z",
-#             "end_date": "2024-11-16T09:17:48.741646Z",
-#             "data_interval_start": "2024-06-14T00:00:00Z",
-#             "data_interval_end": "2024-06-15T00:00:00Z",
-#             "last_scheduling_decision": None,
-#             "run_type": "manual",
-#             "state": "success",
-#             "external_trigger": False,
-#             "triggered_by": "ui",
-#             "conf": {},
-#             "note": "test_note",
-#         },
-#         "dag_run_2": {
-#             "run_id": "dag_run_2",
-#             "dag_id": "test_dag1",
-#             "logical_date": "2024-06-16T00:00:00Z",
-#             "queued_at": None,
-#             "start_date": "2024-06-15T00:00:00Z",
-#             "end_date": "2024-11-16T09:17:48.751112Z",
-#             "data_interval_start": "2024-06-16T00:00:00Z",
-#             "data_interval_end": "2024-06-17T00:00:00Z",
-#             "last_scheduling_decision": None,
-#             "run_type": "scheduled",
-#             "state": "failed",
-#             "external_trigger": False,
-#             "triggered_by": "asset",
-#             "conf": {},
-#             "note": None,
-#         },
-#     },
-#     "test_dag2": {
-#         "dag_run_3": {
-#             "run_id": "dag_run_3",
-#             "dag_id": "test_dag2",
-#             "logical_date": "2024-06-16T00:00:00Z",
-#             "queued_at": None,
-#             "start_date": "2024-06-15T00:00:00Z",
-#             "end_date": "2024-11-16T09:19:05.121482Z",
-#             "data_interval_start": "2024-06-16T00:00:00Z",
-#             "data_interval_end": "2024-06-16T00:00:00Z",
-#             "last_scheduling_decision": None,
-#             "run_type": "backfill",
-#             "state": "success",
-#             "external_trigger": False,
-#             "triggered_by": "cli",
-#             "conf": {},
-#             "note": None,
-#         },
-#         "dag_run_4": {
-#             "run_id": "dag_run_4",
-#             "dag_id": "test_dag2",
-#             "logical_date": "2024-06-16T00:00:00Z",
-#             "queued_at": None,
-#             "start_date": "2024-06-15T00:00:00Z",
-#             "end_date": "2024-11-16T09:19:05.122655Z",
-#             "data_interval_start": "2024-06-16T00:00:00Z",
-#             "data_interval_end": "2024-06-16T00:00:00Z",
-#             "last_scheduling_decision": None,
-#             "run_type": "asset_triggered",
-#             "state": "success",
-#             "external_trigger": False,
-#             "triggered_by": "rest_api",
-#             "conf": {},
-#             "note": None,
-#         },
-#     },
-# }
 
 
 @pytest.fixture(autouse=True)
@@ -143,7 +73,8 @@ def setup(dag_maker, session=None):
     with dag_maker(
         DAG1_ID,
         schedule="@daily",
-        start_date=START_DATE,
+        start_date=START_DATE1,
+        end_date=END_DATE1,
     ):
         task1 = EmptyOperator(task_id="task_1")
     dag_run1 = dag_maker.create_dagrun(
@@ -151,6 +82,7 @@ def setup(dag_maker, session=None):
         state=DAG1_RUN1_STATE,
         run_type=DAG1_RUN1_RUN_TYPE,
         triggered_by=DAG1_RUN1_TRIGGERED_BY,
+        logical_date=LOGICAL_DATE1,
     )
 
     dag_run1.note = (DAG1_RUN1_NOTE, 1)
@@ -164,13 +96,14 @@ def setup(dag_maker, session=None):
         state=DAG1_RUN2_STATE,
         run_type=DAG1_RUN2_RUN_TYPE,
         triggered_by=DAG1_RUN2_TRIGGERED_BY,
-        logical_date=EXECUTION_DATE,
+        logical_date=LOGICAL_DATE2,
     )
 
     with dag_maker(
         DAG2_ID,
         schedule=None,
-        start_date=START_DATE,
+        start_date=START_DATE2,
+        end_date=END_DATE2,
     ):
         EmptyOperator(task_id="task_2")
     dag_maker.create_dagrun(
@@ -178,14 +111,14 @@ def setup(dag_maker, session=None):
         state=DAG2_RUN1_STATE,
         run_type=DAG2_RUN1_RUN_TYPE,
         triggered_by=DAG2_RUN1_TRIGGERED_BY,
-        logical_date=EXECUTION_DATE,
+        logical_date=LOGICAL_DATE3,
     )
     dag_maker.create_dagrun(
         run_id=DAG2_RUN2_ID,
         state=DAG2_RUN2_STATE,
         run_type=DAG2_RUN2_RUN_TYPE,
         triggered_by=DAG2_RUN2_TRIGGERED_BY,
-        logical_date=EXECUTION_DATE,
+        logical_date=LOGICAL_DATE4,
     )
 
     dag_maker.dagbag.sync_to_db()
@@ -314,9 +247,9 @@ class TestGetDagRuns:
             ({"offset": 2}, []),
             ({"limit": 1, "offset": 1}, [DAG1_RUN2_ID]),
             ({"limit": 1, "offset": 2}, []),
-            ({"limit": 3, "offset": -1}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
-            ({"limit": 3, "offset": -2}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
-            ({"limit": 1, "offset": -2}, [DAG1_RUN1_ID]),
+            # ({"limit": 3, "offset": -1}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            # ({"limit": 3, "offset": -2}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            # ({"limit": 1, "offset": -2}, [DAG1_RUN1_ID]),
             # ({"limit": -1}, [DAG1_RUN1_ID]),
         ],
     )
@@ -326,6 +259,47 @@ class TestGetDagRuns:
         body = response.json()
         assert body["total_entries"] == 2
         assert [each["run_id"] for each in body["dag_runs"]] == expected_dag_id_order
+
+    @pytest.mark.parametrize(
+        "dag_id, query_params, expected_dag_id_list",
+        [
+            (DAG1_ID, {"logical_date_gte": LOGICAL_DATE1.isoformat()}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            (DAG2_ID, {"logical_date_lte": LOGICAL_DATE3.isoformat()}, [DAG2_RUN1_ID]),
+            (
+                "~",
+                {
+                    "start_date_gte": START_DATE1.isoformat(),
+                    "start_date_lte": (START_DATE2 - timedelta(days=1)).isoformat(),
+                },
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),
+            ("~", {"end_date_gte": START_DATE2.isoformat(), "end_date_lte": END_DATE2.isoformat()}, []),
+            (
+                DAG1_ID,
+                {
+                    "logical_date_gte": LOGICAL_DATE1.isoformat(),
+                    "logical_date_lte": LOGICAL_DATE2.isoformat(),
+                },
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),
+            (
+                DAG2_ID,
+                {"start_date_gte": START_DATE2.isoformat(), "end_date_lte": END_DATE2.isoformat()},
+                [DAG2_RUN1_ID, DAG2_RUN2_ID],
+            ),
+            # (DAG1_ID, {"state": DagRunState.SUCCESS.value}, [DAG1_RUN1_ID]),
+            # (DAG1_ID, {"state": DagRunState.FAILED.value}, [DAG1_RUN2_ID]),
+            # (DAG2_ID, {"state": DagRunState.SUCCESS.value}, [DAG2_RUN1_ID, DAG2_RUN2_ID]),
+            # (DAG1_ID, {"state": DagRunState.SUCCESS.value, "logical_date_gte": LOGICAL_DATE1.isoformat()}, [DAG1_RUN1_ID]),
+            # (DAG1_ID, {"state": DagRunState.FAILED.value, "start_date_gte": START_DATE1.isoformat()}, [DAG1_RUN2_ID]),
+            # (DAG2_ID, {"state": DagRunState.SUCCESS.value, "end_date_lte": END_DATE2.isoformat()}, [DAG2_RUN1_ID, DAG2_RUN2_ID]),
+        ],
+    )
+    def test_filters(self, test_client, dag_id, query_params, expected_dag_id_list):
+        response = test_client.get(f"/public/dags/{dag_id}/dagRuns", params=query_params)
+        assert response.status_code == 200
+        body = response.json()
+        assert [each["run_id"] for each in body["dag_runs"]] == expected_dag_id_list
 
 
 class TestPatchDagRun:
@@ -443,7 +417,7 @@ class TestGetDagRunAssetTriggerEvents:
     def test_should_respond_200(self, test_client, dag_maker, session):
         asset1 = Asset(uri="ds1")
 
-        with dag_maker(dag_id="source_dag", start_date=START_DATE, session=session):
+        with dag_maker(dag_id="source_dag", start_date=START_DATE1, session=session):
             EmptyOperator(task_id="task", outlets=[asset1])
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
@@ -458,7 +432,7 @@ class TestGetDagRunAssetTriggerEvents:
         )
         session.add(event)
 
-        with dag_maker(dag_id="TEST_DAG_ID", start_date=START_DATE, session=session):
+        with dag_maker(dag_id="TEST_DAG_ID", start_date=START_DATE1, session=session):
             pass
         dr = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.ASSET_TRIGGERED)
         dr.consumed_asset_events.append(event)

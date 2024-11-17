@@ -1318,7 +1318,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/:
+  /public/dags/{dag_id}/dagRuns:
     get:
       tags:
       - DagRun
