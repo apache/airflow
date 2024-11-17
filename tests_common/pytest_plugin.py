@@ -50,6 +50,23 @@ if TYPE_CHECKING:
 
     Op = TypeVar("Op", bound=BaseOperator)
 
+# NOTE: DO NOT IMPORT AIRFLOW THINGS HERE!
+#
+# This plugin is responsible for configuring Airflow correctly to run tests.
+# Importing Airflow here loads Airflow too eagerly and break the configurations.
+# Instead, import what you want lazily inside a fixture function.
+#
+# Be aware that many things in tests_common also indirectly imports Airflow, so
+# those modules also should not be imported globally.
+#
+# (Things in the TYPE_CHECKING block are fine because they are not actually
+# imported at runtime; those imports are only hints to the type checker.)
+
+assert "airflow" not in sys.modules, (
+    "Airflow SHOULD NOT have been imported at this point! "
+    "Read comments in pytest_plugin.py to understand more."
+)
+
 # https://docs.pytest.org/en/stable/reference/reference.html#stash
 capture_warnings_key = pytest.StashKey["CaptureWarningsPlugin"]()
 forbidden_warnings_key = pytest.StashKey["ForbiddenWarningsPlugin"]()
@@ -259,10 +276,9 @@ def pytest_addoption(parser: pytest.Parser):
     )
     group.addoption(
         "--system",
-        action="append",
+        action="store_true",
         dest="system",
-        metavar="SYSTEMS",
-        help="only run tests matching the system specified [google.cloud, google.marketing_platform]",
+        help="run system tests",
     )
     group.addoption(
         "--include-long-running",
@@ -275,18 +291,6 @@ def pytest_addoption(parser: pytest.Parser):
         action="store_true",
         dest="include_quarantined",
         help="Includes quarantined tests (marked with quarantined marker). They are skipped by default.",
-    )
-    group.addoption(
-        "--exclude-virtualenv-operator",
-        action="store_true",
-        dest="exclude_virtualenv_operator",
-        help="Excludes virtualenv operators tests (marked with virtualenv_test marker).",
-    )
-    group.addoption(
-        "--exclude-external-python-operator",
-        action="store_true",
-        dest="exclude_external_python_operator",
-        help="Excludes external python operator tests (marked with external_python_test marker).",
     )
     allowed_trace_sql_columns_list = ",".join(ALLOWED_TRACE_SQL_COLUMNS)
     group.addoption(
@@ -405,7 +409,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
     config.addinivalue_line("markers", "integration(name): mark test to run with named integration")
     config.addinivalue_line("markers", "backend(name): mark test to run with named backend")
-    config.addinivalue_line("markers", "system(name): mark test to run with named system")
+    config.addinivalue_line("markers", "system: mark test to run as system test")
     config.addinivalue_line("markers", "platform(name): mark test to run with specific platform/environment")
     config.addinivalue_line("markers", "long_running: mark test that run for a long time (many minutes)")
     config.addinivalue_line(
@@ -521,23 +525,19 @@ def skip_if_platform_doesnt_match(marker):
             )
 
 
-def skip_if_not_marked_with_system(selected_systems, item):
-    for marker in item.iter_markers(name="system"):
-        systems_name = marker.args[0]
-        if systems_name in selected_systems or "all" in selected_systems:
-            return
-    pytest.skip(
-        f"The test is skipped because it does not have the right system marker. "
-        f"Only tests marked with pytest.mark.system(SYSTEM) are run with SYSTEM "
-        f"being one of {selected_systems}. {item}"
-    )
+def skip_if_not_marked_with_system(item):
+    if not next(item.iter_markers(name="system"), None):
+        pytest.skip(
+            f"The test is skipped because it does not have the system marker. "
+            f"Only tests marked with pytest.mark.system are run.{item}"
+        )
 
 
 def skip_system_test(item):
-    for marker in item.iter_markers(name="system"):
+    if next(item.iter_markers(name="system"), None):
         pytest.skip(
             f"The test is skipped because it has system marker. System tests are only run when "
-            f"--system flag with the right system ({marker.args[0]}) is passed to pytest. {item}"
+            f"--system flag is passed to pytest. {item}"
         )
 
 
@@ -554,22 +554,6 @@ def skip_quarantined_test(item):
         pytest.skip(
             f"The test is skipped because it has quarantined marker. "
             f"And --include-quarantined flag is not passed to pytest. {item}"
-        )
-
-
-def skip_virtualenv_operator_test(item):
-    for _ in item.iter_markers(name="virtualenv_operator"):
-        pytest.skip(
-            f"The test is skipped because it has virtualenv_operator marker. "
-            f"And --exclude-virtualenv-operator flag is not passed to pytest. {item}"
-        )
-
-
-def skip_external_python_operator_test(item):
-    for _ in item.iter_markers(name="external_python_operator"):
-        pytest.skip(
-            f"The test is skipped because it has external_python_operator marker. "
-            f"And --exclude-external-python-operator flag is not passed to pytest. {item}"
         )
 
 
@@ -656,19 +640,16 @@ def skip_if_credential_file_missing(item):
 
 def pytest_runtest_setup(item):
     selected_integrations_list = item.config.option.integration
-    selected_systems_list = item.config.option.system
 
     include_long_running = item.config.option.include_long_running
     include_quarantined = item.config.option.include_quarantined
-    exclude_virtualenv_operator = item.config.option.exclude_virtualenv_operator
-    exclude_external_python_operator = item.config.option.exclude_external_python_operator
 
     for marker in item.iter_markers(name="integration"):
         skip_if_integration_disabled(marker, item)
     if selected_integrations_list:
         skip_if_not_marked_with_integration(selected_integrations_list, item)
-    if selected_systems_list:
-        skip_if_not_marked_with_system(selected_systems_list, item)
+    if item.config.option.system:
+        skip_if_not_marked_with_system(item)
     else:
         skip_system_test(item)
     for marker in item.iter_markers(name="platform"):
@@ -683,10 +664,6 @@ def pytest_runtest_setup(item):
         skip_long_running_test(item)
     if not include_quarantined:
         skip_quarantined_test(item)
-    if exclude_virtualenv_operator:
-        skip_virtualenv_operator_test(item)
-    if exclude_external_python_operator:
-        skip_external_python_operator_test(item)
     if skip_db_tests:
         skip_db_test(item)
     if run_db_tests_only:
@@ -817,6 +794,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
     from airflow.utils.log.logging_mixin import LoggingMixin
 
+    from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
     class DagFactory(LoggingMixin, DagMaker):
         _own_session = False
 
@@ -869,8 +848,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             from airflow.models import DagModel
             from airflow.models.serialized_dag import SerializedDagModel
 
-            from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-
             dag = self.dag
             dag.__exit__(type, value, traceback)
             if type is not None:
@@ -885,7 +862,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     dag, processor_subdir=self.dag_model.processor_subdir
                 )
                 sdm = SerializedDagModel.get(dag.dag_id, session=self.session)
-                from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
                 if AIRFLOW_V_3_0_PLUS and not sdm:
                     from airflow.models.dag_version import DagVersion
@@ -896,6 +872,8 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                         session=self.session,
                         version_name=dag.version_name,
                     )
+                    self.session.add(dagv)
+                    self.session.flush()
                     dag_code = DagCode(dagv, dag.fileloc, "Source")
                     self.session.merge(dag_code)
                     self.serialized_model.dag_version = dagv
@@ -917,8 +895,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             from airflow.utils.state import State
             from airflow.utils.types import DagRunType
 
-            from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-
             if AIRFLOW_V_3_0_PLUS:
                 from airflow.utils.types import DagRunTriggeredByType
 
@@ -936,13 +912,24 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
 
             if "run_type" not in kwargs:
                 kwargs["run_type"] = DagRunType.from_run_id(kwargs["run_id"])
-            if kwargs.get("execution_date") is None:
-                if kwargs["run_type"] == DagRunType.MANUAL:
-                    kwargs["execution_date"] = self.start_date
-                else:
-                    kwargs["execution_date"] = dag.next_dagrun_info(None).logical_date
+            if AIRFLOW_V_3_0_PLUS:
+                if kwargs.get("logical_date") is None:
+                    if kwargs["run_type"] == DagRunType.MANUAL:
+                        kwargs["logical_date"] = self.start_date
+                    else:
+                        kwargs["logical_date"] = dag.next_dagrun_info(None).logical_date
+            else:
+                if kwargs.get("execution_date") is None:
+                    if kwargs["run_type"] == DagRunType.MANUAL:
+                        kwargs["execution_date"] = self.start_date
+                    else:
+                        kwargs["execution_date"] = dag.next_dagrun_info(None).logical_date
             if "data_interval" not in kwargs:
-                logical_date = timezone.coerce_datetime(kwargs["execution_date"])
+                logical_date = (
+                    timezone.coerce_datetime(kwargs["logical_date"])
+                    if AIRFLOW_V_3_0_PLUS
+                    else timezone.coerce_datetime(kwargs["execution_date"])
+                )
                 if kwargs["run_type"] == DagRunType.MANUAL:
                     data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
                 else:
@@ -962,10 +949,18 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             next_info = self.dag.next_dagrun_info(self.dag.get_run_data_interval(dagrun))
             if next_info is None:
                 raise ValueError(f"cannot create run after {dagrun}")
-            return self.create_dagrun(
-                execution_date=next_info.logical_date,
-                data_interval=next_info.data_interval,
-                **kwargs,
+            return (
+                self.create_dagrun(
+                    logical_date=next_info.logical_date,
+                    data_interval=next_info.data_interval,
+                    **kwargs,
+                )
+                if AIRFLOW_V_3_0_PLUS
+                else self.create_dagrun(
+                    execution_date=next_info.logical_date,
+                    data_interval=next_info.data_interval,
+                    **kwargs,
+                )
             )
 
         def __call__(
@@ -1026,7 +1021,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                         return
                     # To isolate problems here with problems from elsewhere on the session object
                     self.session.rollback()
-                    from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
                     if AIRFLOW_V_3_0_PLUS:
                         from airflow.models.dag_version import DagVersion
@@ -1171,7 +1165,7 @@ class CreateTaskInstance(Protocol):
     def __call__(
         self,
         *,
-        execution_date: datetime = ...,
+        logical_date: datetime = ...,
         dagrun_state: DagRunState = ...,
         state: TaskInstanceState = ...,
         run_id: str = ...,
@@ -1205,8 +1199,10 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
     """
     from airflow.operators.empty import EmptyOperator
 
+    from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
     def maker(
-        execution_date=None,
+        logical_date=None,
         dagrun_state=None,
         state=None,
         run_id=None,
@@ -1227,17 +1223,18 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
         on_retry_callback=None,
         email=None,
         map_index=-1,
+        hostname=None,
+        pid=None,
+        last_heartbeat_at=None,
         **kwargs,
     ) -> TaskInstance:
-        from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-
         if AIRFLOW_V_3_0_PLUS:
             from airflow.utils.types import DagRunTriggeredByType
 
-        if execution_date is None:
+        if logical_date is None:
             from airflow.utils import timezone
 
-            execution_date = timezone.utcnow()
+            logical_date = timezone.utcnow()
         with dag_maker(dag_id, **kwargs):
             op_kwargs = {}
             from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS
@@ -1258,9 +1255,9 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
                 trigger_rule=trigger_rule,
                 **op_kwargs,
             )
-
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         dagrun_kwargs = {
-            "execution_date": execution_date,
+            date_key: logical_date,
             "state": dagrun_state,
         }
         dagrun_kwargs.update({"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {})
@@ -1276,7 +1273,9 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
         ti.state = state
         ti.external_executor_id = external_executor_id
         ti.map_index = map_index
-
+        ti.hostname = hostname or ""
+        ti.pid = pid
+        ti.last_heartbeat_at = last_heartbeat_at
         dag_maker.session.flush()
         return ti
 
@@ -1285,20 +1284,22 @@ def create_task_instance(dag_maker: DagMaker, create_dummy_dag: CreateDummyDAG) 
 
 @pytest.fixture
 def create_serialized_task_instance_of_operator(dag_maker: DagMaker):
+    from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
     def _create_task_instance(
         operator_class,
         *,
         dag_id,
-        execution_date=None,
+        logical_date=None,
         session=None,
         **operator_kwargs,
     ) -> TaskInstance:
         with dag_maker(dag_id=dag_id, serialized=True, session=session):
             operator_class(**operator_kwargs)
-        if execution_date is None:
+        if logical_date is None:
             dagrun_kwargs = {}
         else:
-            dagrun_kwargs = {"execution_date": execution_date}
+            dagrun_kwargs = {"logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date": logical_date}
         (ti,) = dag_maker.create_dagrun(**dagrun_kwargs).task_instances
         return ti
 
@@ -1313,20 +1314,22 @@ class CreateTaskInstanceOfOperator(Protocol):
 
 @pytest.fixture
 def create_task_instance_of_operator(dag_maker: DagMaker) -> CreateTaskInstanceOfOperator:
+    from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
     def _create_task_instance(
         operator_class,
         *,
         dag_id,
-        execution_date=None,
+        logical_date=None,
         session=None,
         **operator_kwargs,
     ) -> TaskInstance:
         with dag_maker(dag_id=dag_id, session=session, serialized=True):
             operator_class(**operator_kwargs)
-        if execution_date is None:
+        if logical_date is None:
             dagrun_kwargs = {}
         else:
-            dagrun_kwargs = {"execution_date": execution_date}
+            dagrun_kwargs = {"logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date": logical_date}
         (ti,) = dag_maker.create_dagrun(**dagrun_kwargs).task_instances
         return ti
 

@@ -17,11 +17,11 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import (
     get_session,
@@ -33,11 +33,11 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.event_logs import (
+from airflow.api_fastapi.core_api.datamodels.event_logs import (
     EventLogCollectionResponse,
     EventLogResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models import Log
 
 event_logs_router = AirflowRouter(tags=["Event Log"], prefix="/eventLogs")
@@ -45,11 +45,9 @@ event_logs_router = AirflowRouter(tags=["Event Log"], prefix="/eventLogs")
 
 @event_logs_router.get(
     "/{event_log_id}",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
-async def get_event_log(
+def get_event_log(
     event_log_id: int,
     session: Annotated[Session, Depends(get_session)],
 ) -> EventLogResponse:
@@ -66,7 +64,7 @@ async def get_event_log(
     "/",
     responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
-async def get_event_logs(
+def get_event_logs(
     limit: QueryLimit,
     offset: QueryOffset,
     session: Annotated[Session, Depends(get_session)],
@@ -81,11 +79,12 @@ async def get_event_logs(
                     "task_id",
                     "run_id",
                     "event",
-                    "execution_date",  # logical_date
+                    "logical_date",
                     "owner",
                     "extra",
                 ],
                 Log,
+                to_replace={"when": "dttm", "event_log_id": "id"},
             ).dynamic_depends()
         ),
     ],

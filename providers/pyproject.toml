@@ -39,6 +39,7 @@ exclude = [
   ".latest-doc-only-change.txt",
   "CHANGELOG.rst",
   "MANAGING_PROVIDERS_LIFECYCLE.rst",
+  "src/airflow/__init__.py" # This file only exists to make pyright/VSCode happy, don't ship it
 ]
 
 [tool.ruff]
@@ -55,9 +56,6 @@ extend-exclude = [
 
 # Ignore Doc rules et al for anything outside of tests
 "!src/*" = ["D", "TID253", "S101", "TRY002"]
-
-# https://github.com/apache/airflow/issues/39252
-"src/airflow/providers/amazon/aws/hooks/eks.py" = ["W605"]
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
@@ -93,6 +91,3 @@ extend-exclude = [
 "tests/qdrant/operators/test_qdrant.py" = ["E402"]
 "tests/snowflake/operators/test_snowflake_sql.py" = ["E402"]
 "tests/yandex/**/*.py" = ["E402"]
-
-# https://github.com/apache/airflow/issues/39252
-"airflow/providers/amazon/aws/hooks/eks.py" = ["W605"]

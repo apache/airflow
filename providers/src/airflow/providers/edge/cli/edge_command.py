@@ -77,8 +77,6 @@ def force_use_internal_api_on_edge_worker():
         os.environ["AIRFLOW_ENABLE_AIP_44"] = "True"
         os.environ["AIRFLOW__CORE__INTERNAL_API_URL"] = api_url
         InternalApiConfig.set_use_internal_api("edge-worker")
-        # Disable mini-scheduler post task execution and leave next task schedule to core scheduler
-        os.environ["AIRFLOW__SCHEDULER__SCHEDULE_AFTER_TASK_EXECUTION"] = "False"
 
 
 force_use_internal_api_on_edge_worker()
@@ -161,6 +159,12 @@ class _EdgeWorkerCli:
         logger.info("Request to show down Edge Worker received, waiting for jobs to complete.")
         _EdgeWorkerCli.drain = True
 
+    def shutdown_handler(self, sig, frame):
+        logger.info("SIGTERM received. Terminating all jobs and quit")
+        for job in self.jobs:
+            os.killpg(job.process.pid, signal.SIGTERM)
+        _EdgeWorkerCli.drain = True
+
     def _get_sysinfo(self) -> dict:
         """Produce the sysinfo from worker to post to central site."""
         return {
@@ -184,6 +188,7 @@ class _EdgeWorkerCli:
             raise SystemExit(str(e))
         _write_pid_to_pidfile(self.pid_file_path)
         signal.signal(signal.SIGINT, _EdgeWorkerCli.signal_handler)
+        signal.signal(signal.SIGTERM, self.shutdown_handler)
         try:
             while not _EdgeWorkerCli.drain or self.jobs:
                 self.loop()
@@ -220,7 +225,7 @@ class _EdgeWorkerCli:
             env["AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION"] = "True"
             env["AIRFLOW__CORE__INTERNAL_API_URL"] = conf.get("edge", "api_url")
             env["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
-            process = Popen(edge_job.command, close_fds=True, env=env)
+            process = Popen(edge_job.command, close_fds=True, env=env, start_new_session=True)
             logfile = EdgeLogs.logfile_path(edge_job.key)
             self.jobs.append(_Job(edge_job, process, logfile, 0))
             EdgeJob.set_state(edge_job.key, TaskInstanceState.RUNNING)
@@ -243,19 +248,24 @@ class _EdgeWorkerCli:
                     logger.error("Job failed: %s", job.edge_job)
                     EdgeJob.set_state(job.edge_job.key, TaskInstanceState.FAILED)
             if job.logfile.exists() and job.logfile.stat().st_size > job.logsize:
-                with job.logfile.open("r") as logfile:
+                with job.logfile.open("rb") as logfile:
                     push_log_chunk_size = conf.getint("edge", "push_log_chunk_size")
                     logfile.seek(job.logsize, os.SEEK_SET)
+                    read_data = logfile.read()
+                    job.logsize += len(read_data)
+                    # backslashreplace to keep not decoded characters and not raising exception
+                    log_data = read_data.decode(errors="backslashreplace")
                     while True:
-                        logdata = logfile.read(push_log_chunk_size)
-                        if not logdata:
+                        chunk_data = log_data[:push_log_chunk_size]
+                        log_data = log_data[push_log_chunk_size:]
+                        if not chunk_data:
                             break
+
                         EdgeLogs.push_logs(
                             task=job.edge_job.key,
                             log_chunk_time=datetime.now(),
-                            log_chunk_data=logdata,
+                            log_chunk_data=chunk_data,
                         )
-                        job.logsize += len(logdata)
 
     def heartbeat(self) -> None:
         """Report liveness state of worker to central site with stats."""

@@ -53,7 +53,6 @@ class TestSQLToGoogleSheets:
 
         mock_sheet_hook.assert_called_once_with(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=None,
             impersonation_chain=None,
         )
 

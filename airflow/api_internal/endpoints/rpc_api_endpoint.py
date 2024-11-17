@@ -37,7 +37,6 @@ from airflow.api_connexion.exceptions import PermissionDenied
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job, most_recent_job
-from airflow.models.dagcode import DagCode
 from airflow.models.taskinstance import _record_task_map_for_downstreams
 from airflow.models.xcom_arg import _get_task_map_length
 from airflow.sensors.base import _orig_start_date
@@ -94,7 +93,6 @@ def initialize_method_map() -> dict[str, Callable]:
         _xcom_pull,
         _record_task_map_for_downstreams,
         trigger_dag,
-        DagCode.remove_deleted_code,
         DagModel.deactivate_deleted_dags,
         DagModel.get_paused_dag_ids,
         DagModel.get_current,
@@ -138,7 +136,6 @@ def initialize_method_map() -> dict[str, Callable]:
         DagRun._get_log_template,
         RenderedTaskInstanceFields._update_runtime_evaluated_template_fields,
         SerializedDagModel.get_serialized_dag,
-        SerializedDagModel.remove_deleted_dags,
         SkipMixin._skip,
         SkipMixin._skip_all_except,
         TaskInstance._check_and_change_state_before_execution,

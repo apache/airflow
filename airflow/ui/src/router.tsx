@@ -23,7 +23,9 @@ import { Dashboard } from "src/pages/Dashboard";
 
 import { BaseLayout } from "./layouts/BaseLayout";
 import { Dag } from "./pages/DagsList/Dag";
+import { Code } from "./pages/DagsList/Dag/Code";
 import { ErrorPage } from "./pages/Error";
+import { Events } from "./pages/Events";
 
 export const router = createBrowserRouter(
   [
@@ -37,7 +39,21 @@ export const router = createBrowserRouter(
           element: <DagsList />,
           path: "dags",
         },
-        { element: <Dag />, path: "dags/:dagId" },
+        {
+          element: <Events />,
+          path: "events",
+        },
+        {
+          children: [
+            { element: <div>Overview</div>, path: "" },
+            { element: <div>Runs</div>, path: "runs" },
+            { element: <div>Tasks</div>, path: "tasks" },
+            { element: <Events />, path: "events" },
+            { element: <Code />, path: "code" },
+          ],
+          element: <Dag />,
+          path: "dags/:dagId",
+        },
       ],
       element: <BaseLayout />,
       errorElement: (

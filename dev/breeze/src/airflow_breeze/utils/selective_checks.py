@@ -48,12 +48,15 @@ from airflow_breeze.global_constants import (
     RUNS_ON_PUBLIC_RUNNER,
     RUNS_ON_SELF_HOSTED_ASF_RUNNER,
     RUNS_ON_SELF_HOSTED_RUNNER,
-    TESTABLE_INTEGRATIONS,
+    TESTABLE_CORE_INTEGRATIONS,
+    TESTABLE_PROVIDERS_INTEGRATIONS,
     GithubEvents,
-    SelectiveUnitTestTypes,
+    SelectiveCoreTestType,
+    SelectiveProvidersTestType,
+    SelectiveTaskSdkTestType,
     all_helm_test_packages,
-    all_selective_test_types,
-    all_selective_test_types_except_providers,
+    all_selective_core_test_types,
+    providers_test_type,
 )
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
@@ -85,18 +88,11 @@ UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 USE_SELF_HOSTED_RUNNERS_LABEL = "use self-hosted runners"
 
-ALL_CI_SELECTIVE_TEST_TYPES = (
-    "API Always BranchExternalPython BranchPythonVenv "
-    "CLI Core ExternalPython Operators Other PlainAsserts "
-    "Providers[-amazon,google] Providers[amazon] Providers[google] "
-    "PythonVenv Serialization WWW"
-)
+ALL_CI_SELECTIVE_TEST_TYPES = "API Always CLI Core Operators Other Serialization WWW"
 
-ALL_CI_SELECTIVE_TEST_TYPES_WITHOUT_PROVIDERS = (
-    "API Always BranchExternalPython BranchPythonVenv CLI Core "
-    "ExternalPython Operators Other PlainAsserts PythonVenv Serialization WWW"
+ALL_PROVIDERS_SELECTIVE_TEST_TYPES = (
+    "Providers[-amazon,google,standard] Providers[amazon] Providers[google] Providers[standard]"
 )
-ALL_PROVIDERS_SELECTIVE_TEST_TYPES = "Providers[-amazon,google] Providers[amazon] Providers[google]"
 
 
 class FileGroupForCi(Enum):
@@ -125,7 +121,13 @@ class FileGroupForCi(Enum):
     TESTS_UTILS_FILES = "test_utils_files"
 
 
-T = TypeVar("T", FileGroupForCi, SelectiveUnitTestTypes)
+class AllProvidersSentinel:
+    pass
+
+
+ALL_PROVIDERS_SENTINEL = AllProvidersSentinel()
+
+T = TypeVar("T", FileGroupForCi, SelectiveCoreTestType)
 
 
 class HashableDict(dict[T, list[str]]):
@@ -154,6 +156,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.JAVASCRIPT_PRODUCTION_FILES: [
             r"^airflow/.*\.[jt]sx?",
             r"^airflow/.*\.lock",
+            r"^airflow/ui/.*\.yaml$",
         ],
         FileGroupForCi.API_TEST_FILES: [
             r"^airflow/api/",
@@ -161,6 +164,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.API_CODEGEN_FILES: [
             r"^airflow/api_connexion/openapi/v1\.yaml",
+            r"^airflow/api_fastapi/core_api/openapi/v1-generated\.yaml",
             r"^clients/gen",
         ],
         FileGroupForCi.LEGACY_API_FILES: [
@@ -189,12 +193,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/values\.schema\.json",
             r"^chart/values\.json",
         ],
-        FileGroupForCi.UI_FILES: [
-            r"^airflow/ui/.*\.ts[x]?$",
-            r"^airflow/ui/.*\.js[x]?$",
-            r"^airflow/ui/[^/]+\.json$",
-            r"^airflow/ui/.*\.lock$",
-        ],
+        FileGroupForCi.UI_FILES: [r"^airflow/ui/"],
         FileGroupForCi.LEGACY_WWW_FILES: [
             r"^airflow/www/.*\.ts[x]?$",
             r"^airflow/www/.*\.js[x]?$",
@@ -282,7 +281,7 @@ PYTHON_OPERATOR_FILES = [
 
 TEST_TYPE_MATCHES = HashableDict(
     {
-        SelectiveUnitTestTypes.API: [
+        SelectiveCoreTestType.API: [
             r"^airflow/api/",
             r"^airflow/api_connexion/",
             r"^airflow/api_internal/",
@@ -292,28 +291,28 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^tests/api_internal/",
             r"^tests/api_fastapi/",
         ],
-        SelectiveUnitTestTypes.CLI: [
+        SelectiveCoreTestType.CLI: [
             r"^airflow/cli/",
             r"^tests/cli/",
         ],
-        SelectiveUnitTestTypes.OPERATORS: [
+        SelectiveCoreTestType.OPERATORS: [
             r"^airflow/operators/",
             r"^tests/operators/",
         ],
-        SelectiveUnitTestTypes.PROVIDERS: [
+        SelectiveProvidersTestType.PROVIDERS: [
             r"^providers/src/airflow/providers/",
             r"^providers/tests/system/",
             r"^providers/tests/",
         ],
-        SelectiveUnitTestTypes.SERIALIZATION: [
+        SelectiveTaskSdkTestType.TASK_SDK: [
+            r"^task_sdk/src/",
+            r"^task_sdk/tests/",
+        ],
+        SelectiveCoreTestType.SERIALIZATION: [
             r"^airflow/serialization/",
             r"^tests/serialization/",
         ],
-        SelectiveUnitTestTypes.PYTHON_VENV: PYTHON_OPERATOR_FILES,
-        SelectiveUnitTestTypes.BRANCH_PYTHON_VENV: PYTHON_OPERATOR_FILES,
-        SelectiveUnitTestTypes.EXTERNAL_PYTHON: PYTHON_OPERATOR_FILES,
-        SelectiveUnitTestTypes.EXTERNAL_BRANCH_PYTHON: PYTHON_OPERATOR_FILES,
-        SelectiveUnitTestTypes.WWW: [r"^airflow/www", r"^tests/www"],
+        SelectiveCoreTestType.WWW: [r"^airflow/www", r"^tests/www"],
     }
 )
 
@@ -711,11 +710,11 @@ class SelectiveChecks:
 
     @cached_property
     def run_amazon_tests(self) -> bool:
-        if self.parallel_test_types_list_as_string is None:
+        if self.providers_test_types_list_as_string is None:
             return False
         return (
-            "amazon" in self.parallel_test_types_list_as_string
-            or "Providers" in self.parallel_test_types_list_as_string.split(" ")
+            "amazon" in self.providers_test_types_list_as_string
+            or "Providers" in self.providers_test_types_list_as_string.split(" ")
         )
 
     @cached_property
@@ -736,8 +735,14 @@ class SelectiveChecks:
 
     @cached_property
     def run_tests(self) -> bool:
+        if self.only_new_ui_files:
+            return False
         # we should run all test
         return self._should_be_run(FileGroupForCi.ALL_SOURCE_FILES)
+
+    @cached_property
+    def run_system_tests(self) -> bool:
+        return self.run_tests
 
     @cached_property
     def ci_image_build(self) -> bool:
@@ -757,7 +762,7 @@ class SelectiveChecks:
         return self.run_kubernetes_tests or self.needs_helm_tests
 
     def _select_test_type_if_matching(
-        self, test_types: set[str], test_type: SelectiveUnitTestTypes
+        self, test_types: set[str], test_type: SelectiveCoreTestType
     ) -> list[str]:
         matched_files = self._matching_files(test_type, TEST_TYPE_MATCHES, TEST_TYPE_EXCLUDES)
         count = len(matched_files)
@@ -769,23 +774,22 @@ class SelectiveChecks:
     def _are_all_providers_affected(self) -> bool:
         # if "Providers" test is present in the list of tests, it means that we should run all providers tests
         # prepare all providers packages and build all providers documentation
-        return "Providers" in self._get_test_types_to_run()
+        return "Providers" in self._get_providers_test_types_to_run()
 
     def _fail_if_suspended_providers_affected(self) -> bool:
         return "allow suspended provider changes" not in self._pr_labels
 
-    def _get_test_types_to_run(self, split_to_individual_providers: bool = False) -> list[str]:
+    def _get_core_test_types_to_run(self) -> list[str]:
         if self.full_tests_needed:
-            return list(all_selective_test_types())
+            return list(all_selective_core_test_types())
 
         candidate_test_types: set[str] = {"Always"}
         matched_files: set[str] = set()
-        for test_type in SelectiveUnitTestTypes:
+        for test_type in SelectiveCoreTestType:
             if test_type not in [
-                SelectiveUnitTestTypes.ALWAYS,
-                SelectiveUnitTestTypes.CORE,
-                SelectiveUnitTestTypes.OTHER,
-                SelectiveUnitTestTypes.PLAIN_ASSERTS,
+                SelectiveCoreTestType.ALWAYS,
+                SelectiveCoreTestType.CORE,
+                SelectiveCoreTestType.OTHER,
             ]:
                 matched_files.update(self._select_test_type_if_matching(candidate_test_types, test_type))
 
@@ -798,6 +802,9 @@ class SelectiveChecks:
         all_source_files = self._matching_files(
             FileGroupForCi.ALL_SOURCE_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
         )
+        all_providers_source_files = self._matching_files(
+            FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+        )
         test_always_files = self._matching_files(
             FileGroupForCi.ALWAYS_TESTS_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
         )
@@ -807,6 +814,7 @@ class SelectiveChecks:
 
         remaining_files = (
             set(all_source_files)
+            - set(all_providers_source_files)
             - set(matched_files)
             - set(kubernetes_files)
             - set(system_test_files)
@@ -828,29 +836,48 @@ class SelectiveChecks:
                 f"into Core/Other category[/]"
             )
             get_console().print(remaining_files)
-            if self.run_task_sdk_tests:
-                candidate_test_types.add("PythonVenv")
-            candidate_test_types.update(all_selective_test_types_except_providers())
+            candidate_test_types.update(all_selective_core_test_types())
         else:
-            if "Providers" in candidate_test_types or "API" in candidate_test_types:
-                affected_providers = self._find_all_providers_affected(
-                    include_docs=False,
-                )
-                if affected_providers != "ALL_PROVIDERS" and affected_providers is not None:
-                    candidate_test_types.discard("Providers")
-                    if split_to_individual_providers:
-                        for provider in affected_providers:
-                            candidate_test_types.add(f"Providers[{provider}]")
-                    else:
-                        candidate_test_types.add(f"Providers[{','.join(sorted(affected_providers))}]")
-                elif split_to_individual_providers and "Providers" in candidate_test_types:
-                    candidate_test_types.discard("Providers")
-                    for provider in get_available_packages():
-                        candidate_test_types.add(f"Providers[{provider}]")
             get_console().print(
                 "[warning]There are no core/other files. Only tests relevant to the changed files are run.[/]"
             )
         # sort according to predefined order
+        sorted_candidate_test_types = sorted(candidate_test_types)
+        get_console().print("[warning]Selected test type candidates to run:[/]")
+        get_console().print(sorted_candidate_test_types)
+        return sorted_candidate_test_types
+
+    def _get_providers_test_types_to_run(self, split_to_individual_providers: bool = False) -> list[str]:
+        if self._default_branch != "main":
+            return []
+        affected_providers: AllProvidersSentinel | list[str] | None = ALL_PROVIDERS_SENTINEL
+        if self.full_tests_needed:
+            if split_to_individual_providers:
+                return list(providers_test_type())
+            else:
+                return ["Providers"]
+        else:
+            all_providers_source_files = self._matching_files(
+                FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+            if len(all_providers_source_files) == 0 and not self.needs_api_tests:
+                # IF API tests are needed, that will trigger extra provider checks
+                return []
+            else:
+                affected_providers = self._find_all_providers_affected(
+                    include_docs=False,
+                )
+        candidate_test_types: set[str] = set()
+        if affected_providers and not isinstance(affected_providers, AllProvidersSentinel):
+            if split_to_individual_providers:
+                for provider in affected_providers:
+                    candidate_test_types.add(f"Providers[{provider}]")
+            else:
+                candidate_test_types.add(f"Providers[{','.join(sorted(affected_providers))}]")
+        elif split_to_individual_providers:
+            candidate_test_types.discard("Providers")
+            for provider in get_available_packages():
+                candidate_test_types.add(f"Providers[{provider}]")
         sorted_candidate_test_types = sorted(candidate_test_types)
         get_console().print("[warning]Selected test type candidates to run:[/]")
         get_console().print(sorted_candidate_test_types)
@@ -867,7 +894,7 @@ class SelectiveChecks:
         in case of Providers[list_of_tests] we need to remove the long tests from the list.
 
         """
-        long_tests = ["amazon", "google"]
+        long_tests = ["amazon", "google", "standard"]
         for original_test_type in tuple(current_test_types):
             if original_test_type == "Providers":
                 current_test_types.remove(original_test_type)
@@ -887,10 +914,17 @@ class SelectiveChecks:
                     current_test_types.add(f"Providers[{','.join(provider_tests_to_run)}]")
 
     @cached_property
-    def parallel_test_types_list_as_string(self) -> str | None:
+    def core_test_types_list_as_string(self) -> str | None:
         if not self.run_tests:
             return None
-        current_test_types = set(self._get_test_types_to_run())
+        current_test_types = set(self._get_core_test_types_to_run())
+        return " ".join(sorted(current_test_types))
+
+    @cached_property
+    def providers_test_types_list_as_string(self) -> str | None:
+        if not self.run_tests:
+            return None
+        current_test_types = set(self._get_providers_test_types_to_run())
         if self._default_branch != "main":
             test_types_to_remove: set[str] = set()
             for test_type in current_test_types:
@@ -901,33 +935,19 @@ class SelectiveChecks:
                     )
                     test_types_to_remove.add(test_type)
             current_test_types = current_test_types - test_types_to_remove
-
         self._extract_long_provider_tests(current_test_types)
         return " ".join(sorted(current_test_types))
 
     @cached_property
-    def providers_test_types_list_as_string(self) -> str | None:
-        all_test_types = self.parallel_test_types_list_as_string
-        if all_test_types is None:
-            return None
-        return " ".join(
-            test_type for test_type in all_test_types.split(" ") if test_type.startswith("Providers")
-        )
-
-    @cached_property
-    def separate_test_types_list_as_string(self) -> str | None:
+    def individual_providers_test_types_list_as_string(self) -> str | None:
         if not self.run_tests:
             return None
-        current_test_types = set(self._get_test_types_to_run(split_to_individual_providers=True))
+        current_test_types = set(self._get_providers_test_types_to_run(split_to_individual_providers=True))
         if "Providers" in current_test_types:
             current_test_types.remove("Providers")
             current_test_types.update(
                 {f"Providers[{provider}]" for provider in get_available_packages(include_not_ready=True)}
             )
-        if self.skip_provider_tests:
-            current_test_types = {
-                test_type for test_type in current_test_types if not test_type.startswith("Providers")
-            }
         return " ".join(sorted(current_test_types))
 
     @cached_property
@@ -1057,7 +1077,7 @@ class SelectiveChecks:
             include_docs=True,
         )
         if (
-            providers_affected == "ALL_PROVIDERS"
+            isinstance(providers_affected, AllProvidersSentinel)
             or "docs/conf.py" in self._files
             or "docs/build_docs.py" in self._files
             or self._are_all_providers_affected()
@@ -1111,7 +1131,12 @@ class SelectiveChecks:
             FileGroupForCi.LEGACY_WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
         ):
             pre_commits_to_skip.add("ts-compile-format-lint-www")
-        if not self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES):
+        if not (
+            self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES)
+            or self._matching_files(
+                FileGroupForCi.API_CODEGEN_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+        ):
             pre_commits_to_skip.add("ts-compile-format-lint-ui")
         if not self._matching_files(
             FileGroupForCi.ALL_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
@@ -1137,14 +1162,24 @@ class SelectiveChecks:
         return ",".join(sorted(pre_commits_to_skip))
 
     @cached_property
-    def skip_provider_tests(self) -> bool:
+    def skip_providers_tests(self) -> bool:
         if self._default_branch != "main":
             return True
         if self.full_tests_needed:
             return False
-        if any(test_type.startswith("Providers") for test_type in self._get_test_types_to_run()):
+        if self._get_providers_test_types_to_run():
             return False
         return True
+
+    @cached_property
+    def test_groups(self):
+        if self.skip_providers_tests:
+            if self.run_tests:
+                return "['core']"
+        else:
+            if self.run_tests:
+                return "['core', 'providers']"
+        return "[]"
 
     @cached_property
     def docker_cache(self) -> str:
@@ -1167,17 +1202,18 @@ class SelectiveChecks:
         return json.dumps(all_helm_test_packages())
 
     @cached_property
-    def affected_providers_list_as_string(self) -> str | None:
-        _ALL_PROVIDERS_LIST = ""
+    def selected_providers_list_as_string(self) -> str | None:
+        if self._default_branch != "main":
+            return None
         if self.full_tests_needed:
-            return _ALL_PROVIDERS_LIST
+            return ""
         if self._are_all_providers_affected():
-            return _ALL_PROVIDERS_LIST
+            return ""
         affected_providers = self._find_all_providers_affected(include_docs=True)
         if not affected_providers:
             return None
-        if affected_providers == "ALL_PROVIDERS":
-            return _ALL_PROVIDERS_LIST
+        if isinstance(affected_providers, AllProvidersSentinel):
+            return ""
         return " ".join(sorted(affected_providers))
 
     @cached_property
@@ -1361,13 +1397,24 @@ class SelectiveChecks:
             return False
 
     @cached_property
-    def testable_integrations(self) -> list[str]:
-        if self.only_new_ui_files:
+    def testable_core_integrations(self) -> list[str]:
+        if not self.run_tests:
             return []
         else:
             return [
                 integration
-                for integration in TESTABLE_INTEGRATIONS
+                for integration in TESTABLE_CORE_INTEGRATIONS
+                if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+            ]
+
+    @cached_property
+    def testable_providers_integrations(self) -> list[str]:
+        if not self.run_tests:
+            return []
+        else:
+            return [
+                integration
+                for integration in TESTABLE_PROVIDERS_INTEGRATIONS
                 if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
             ]
 
@@ -1377,7 +1424,7 @@ class SelectiveChecks:
             return False
         return self._github_actor in COMMITTERS
 
-    def _find_all_providers_affected(self, include_docs: bool) -> list[str] | str | None:
+    def _find_all_providers_affected(self, include_docs: bool) -> list[str] | AllProvidersSentinel | None:
         all_providers: set[str] = set()
 
         all_providers_affected = False
@@ -1394,7 +1441,7 @@ class SelectiveChecks:
         if self.needs_api_tests:
             all_providers.add("fab")
         if all_providers_affected:
-            return "ALL_PROVIDERS"
+            return ALL_PROVIDERS_SENTINEL
         if suspended_providers:
             # We check for suspended providers only after we have checked if all providers are affected.
             # No matter if we found that we are modifying a suspended provider individually,

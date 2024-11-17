@@ -1016,12 +1016,6 @@ export interface components {
        */
       last_expired?: string | null;
       /**
-       * @description Foreign key to the latest pickle_id
-       *
-       * *New in version 2.3.0*
-       */
-      pickle_id?: string | null;
-      /**
        * @description Default view of the DAG inside the webserver
        *
        * *New in version 2.3.0*
@@ -1122,7 +1116,7 @@ export interface components {
        * The value of this field can be set only when creating the object. If you try to modify the
        * field of an existing object, the request fails with an BAD_REQUEST error.
        *
-       * If not provided, a value will be generated based on execution_date.
+       * If not provided, a value will be generated based on logical_date.
        *
        * If the specified dag_run_id is in use, the creation request fails with an ALREADY_EXISTS error.
        *
@@ -1143,18 +1137,6 @@ export interface components {
        * *New in version 2.2.0*
        */
       logical_date?: string | null;
-      /**
-       * Format: date-time
-       * @deprecated
-       * @description The execution date. This is the same as logical_date, kept for backwards compatibility.
-       * If both this field and logical_date are provided but with different values, the request
-       * will fail with an BAD_REQUEST error.
-       *
-       * *Changed in version 2.2.0*&#58; Field becomes nullable.
-       *
-       * *Deprecated since version 2.2.0*&#58; Use 'logical_date' instead.
-       */
-      execution_date?: string | null;
       /**
        * Format: date-time
        * @description The start time. The time when DAG run was actually created.
@@ -1486,7 +1468,7 @@ export interface components {
        */
       dag_run_id?: string;
       /** Format: datetime */
-      execution_date?: string;
+      logical_date?: string;
       /** Format: datetime */
       start_date?: string | null;
       /** Format: datetime */
@@ -1550,7 +1532,7 @@ export interface components {
       /** @description The DAG ID. */
       dag_id?: string;
       /** Format: datetime */
-      execution_date?: string;
+      logical_date?: string;
       /** @description The DAG run ID. */
       dag_run_id?: string;
     };
@@ -1592,7 +1574,7 @@ export interface components {
       /** Format: datetime */
       timestamp?: string;
       /** Format: datetime */
-      execution_date?: string;
+      logical_date?: string;
       map_index?: number;
       task_id?: string;
       dag_id?: string;
@@ -2105,11 +2087,11 @@ export interface components {
       task_id?: string;
       /**
        * Format: datetime
-       * @description The execution date. Either set this or dag_run_id but not both.
+       * @description The logical date. Either set this or dag_run_id but not both.
        */
-      execution_date?: string;
+      logical_date?: string;
       /**
-       * @description The task instance's DAG run ID. Either set this or execution_date but not both.
+       * @description The task instance's DAG run ID. Either set this or logical_date but not both.
        *
        * *New in version 2.3.0*
        */
@@ -4931,7 +4913,7 @@ export interface operations {
           "application/json": {
             content?: string;
           };
-          "plain/text": string;
+          "text/plain": string;
         };
       };
       401: components["responses"]["Unauthenticated"];

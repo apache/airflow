@@ -28,6 +28,7 @@ from airflow.exceptions import AirflowException, DagRunAlreadyExists, TaskDeferr
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
+from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.settings import TracebackSessionForTests
@@ -36,8 +37,6 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
-
-from tests_common.test_utils.db import clear_db_dags, clear_db_logs, clear_db_runs
 
 pytestmark = pytest.mark.db_test
 
@@ -82,9 +81,12 @@ class TestDagRunOperator:
 
     def teardown_method(self):
         """Cleanup state after testing in DB."""
-        clear_db_logs()
-        clear_db_runs()
-        clear_db_dags()
+        with create_session() as session:
+            session.query(Log).filter(Log.dag_id == TEST_DAG_ID).delete(synchronize_session=False)
+            for dbmodel in [DagModel, DagRun, TaskInstance]:
+                session.query(dbmodel).filter(dbmodel.dag_id.in_([TRIGGERED_DAG_ID, TEST_DAG_ID])).delete(
+                    synchronize_session=False
+                )
 
         # pathlib.Path(self._tmpfile).unlink()
 
@@ -191,7 +193,7 @@ class TestDagRunOperator:
         dag_maker.create_dagrun()
         dag_run = DagRun(
             dag_id=TRIGGERED_DAG_ID,
-            execution_date=utc_now,
+            logical_date=utc_now,
             state=State.SUCCESS,
             run_type="manual",
             run_id=run_id,
@@ -227,7 +229,7 @@ class TestDagRunOperator:
         run_id = f"scheduled__{utc_now.isoformat()}"
         dag_run = DagRun(
             dag_id=TRIGGERED_DAG_ID,
-            execution_date=utc_now,
+            logical_date=utc_now,
             state=State.SUCCESS,
             run_type="scheduled",
             run_id=run_id,
@@ -372,7 +374,7 @@ class TestDagRunOperator:
 
     def test_trigger_dagrun_with_skip_when_already_exists(self, dag_maker):
         """Test TriggerDagRunOperator with skip_when_already_exists."""
-        execution_date = DEFAULT_DATE
+        logical_date = DEFAULT_DATE
         with dag_maker(
             TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
         ) as dag:
@@ -385,9 +387,9 @@ class TestDagRunOperator:
             )
         self.re_sync_triggered_dag_to_db(dag, dag_maker)
         dr: DagRun = dag_maker.create_dagrun()
-        task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
+        task.run(start_date=logical_date, end_date=logical_date, ignore_ti_state=True)
         assert dr.get_task_instance("test_task").state == TaskInstanceState.SUCCESS
-        task.run(start_date=execution_date, end_date=execution_date, ignore_ti_state=True)
+        task.run(start_date=logical_date, end_date=logical_date, ignore_ti_state=True)
         assert dr.get_task_instance("test_task").state == TaskInstanceState.SKIPPED
 
     @pytest.mark.skip_if_database_isolation_mode  # Known to be broken in db isolation mode
@@ -485,7 +487,7 @@ class TestDagRunOperator:
         dagruns = (
             dag_maker.session.query(DagRun)
             .filter(DagRun.dag_id == TEST_DAG_ID)
-            .order_by(DagRun.execution_date)
+            .order_by(DagRun.logical_date)
             .all()
         )
         assert len(dagruns) == 2
@@ -559,7 +561,7 @@ class TestDagRunOperator:
             assert len(dagruns) == 1
         trigger = DagStateTrigger(
             dag_id="down_stream",
-            execution_dates=[DEFAULT_DATE],
+            logical_dates=[DEFAULT_DATE],
             poll_interval=20,
             states=["success", "failed"],
         )
@@ -593,7 +595,7 @@ class TestDagRunOperator:
 
         trigger = DagStateTrigger(
             dag_id="down_stream",
-            execution_dates=[DEFAULT_DATE],
+            logical_dates=[DEFAULT_DATE],
             poll_interval=20,
             states=["success", "failed"],
         )
@@ -631,7 +633,7 @@ class TestDagRunOperator:
 
         trigger = DagStateTrigger(
             dag_id="down_stream",
-            execution_dates=[DEFAULT_DATE],
+            logical_dates=[DEFAULT_DATE],
             poll_interval=20,
             states=["success", "failed"],
         )
@@ -647,7 +649,7 @@ class TestDagRunOperator:
             pytest.param(None, id="logical_date=None"),
         ],
     )
-    def test_dagstatetrigger_execution_dates(self, trigger_logical_date, dag_maker):
+    def test_dagstatetrigger_logical_dates(self, trigger_logical_date, dag_maker):
         """Ensure that the DagStateTrigger is called with the triggered DAG's logical date."""
         with dag_maker(
             TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
@@ -672,12 +674,12 @@ class TestDagRunOperator:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
             assert len(dagruns) == 1
 
-        assert mock_task_defer.call_args_list[0].kwargs["trigger"].execution_dates == [
+        assert mock_task_defer.call_args_list[0].kwargs["trigger"].logical_dates == [
             pendulum.instance(dagruns[0].logical_date)
         ]
 
     @pytest.mark.skip_if_database_isolation_mode  # Known to be broken in db isolation mode
-    def test_dagstatetrigger_execution_dates_with_clear_and_reset(self, dag_maker):
+    def test_dagstatetrigger_logical_dates_with_clear_and_reset(self, dag_maker):
         """Check DagStateTrigger is called with the triggered DAG's logical date on subsequent defers."""
         with dag_maker(
             TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
@@ -704,7 +706,7 @@ class TestDagRunOperator:
             triggered_logical_date = dagruns[0].logical_date
             assert len(dagruns) == 1
 
-        assert mock_task_defer.call_args_list[0].kwargs["trigger"].execution_dates == [
+        assert mock_task_defer.call_args_list[0].kwargs["trigger"].logical_dates == [
             pendulum.instance(triggered_logical_date)
         ]
 
@@ -722,7 +724,7 @@ class TestDagRunOperator:
             assert len(dagruns) == 1
 
         # The second DagStateTrigger call should still use the original `logical_date` value.
-        assert mock_task_defer.call_args_list[1].kwargs["trigger"].execution_dates == [
+        assert mock_task_defer.call_args_list[1].kwargs["trigger"].logical_dates == [
             pendulum.instance(triggered_logical_date)
         ]
 

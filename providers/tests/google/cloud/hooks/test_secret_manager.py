@@ -20,68 +20,15 @@ from __future__ import annotations
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
-from google.api_core.exceptions import NotFound
-from google.cloud.secretmanager_v1.types.service import AccessSecretVersionResponse
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.google.cloud.hooks.secret_manager import (
-    GoogleCloudSecretManagerHook,
-    SecretsManagerHook,
-)
+from airflow.providers.google.cloud.hooks.secret_manager import GoogleCloudSecretManagerHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 
-from providers.tests.google.cloud.utils.base_gcp_mock import (
-    GCP_PROJECT_ID_HOOK_UNIT_TEST,
-    mock_base_gcp_hook_default_project_id,
-)
+from providers.tests.google.cloud.utils.base_gcp_mock import GCP_PROJECT_ID_HOOK_UNIT_TEST
 
 BASE_PACKAGE = "airflow.providers.google.common.hooks.base_google."
 SECRETS_HOOK_PACKAGE = "airflow.providers.google.cloud.hooks.secret_manager."
-INTERNAL_CLIENT_PACKAGE = "airflow.providers.google.cloud._internal_client.secret_manager_client"
 SECRET_ID = "test-secret-id"
-
-
-class TestSecretsManagerHook:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            with pytest.warns(AirflowProviderDeprecationWarning):
-                SecretsManagerHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
-
-    @patch(INTERNAL_CLIENT_PACKAGE + "._SecretManagerClient.client", return_value=MagicMock())
-    @patch(
-        SECRETS_HOOK_PACKAGE + "SecretsManagerHook.get_credentials_and_project_id",
-        return_value=(MagicMock(), GCP_PROJECT_ID_HOOK_UNIT_TEST),
-    )
-    @patch(BASE_PACKAGE + "GoogleBaseHook.__init__", new=mock_base_gcp_hook_default_project_id)
-    def test_get_missing_key(self, mock_get_credentials, mock_client):
-        mock_client.secret_version_path.return_value = "full-path"
-        mock_client.access_secret_version.side_effect = NotFound("test-msg")
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            secrets_manager_hook = SecretsManagerHook(gcp_conn_id="test")
-        mock_get_credentials.assert_called_once_with()
-        secret = secrets_manager_hook.get_secret(secret_id="secret")
-        mock_client.secret_version_path.assert_called_once_with("example-project", "secret", "latest")
-        mock_client.access_secret_version.assert_called_once_with(request={"name": "full-path"})
-        assert secret is None
-
-    @patch(INTERNAL_CLIENT_PACKAGE + "._SecretManagerClient.client", return_value=MagicMock())
-    @patch(
-        SECRETS_HOOK_PACKAGE + "SecretsManagerHook.get_credentials_and_project_id",
-        return_value=(MagicMock(), GCP_PROJECT_ID_HOOK_UNIT_TEST),
-    )
-    @patch(BASE_PACKAGE + "GoogleBaseHook.__init__", new=mock_base_gcp_hook_default_project_id)
-    def test_get_existing_key(self, mock_get_credentials, mock_client):
-        mock_client.secret_version_path.return_value = "full-path"
-        test_response = AccessSecretVersionResponse()
-        test_response.payload.data = b"result"
-        mock_client.access_secret_version.return_value = test_response
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            secrets_manager_hook = SecretsManagerHook(gcp_conn_id="test")
-        mock_get_credentials.assert_called_once_with()
-        secret = secrets_manager_hook.get_secret(secret_id="secret")
-        mock_client.secret_version_path.assert_called_once_with("example-project", "secret", "latest")
-        mock_client.access_secret_version.assert_called_once_with(request={"name": "full-path"})
-        assert "result" == secret
 
 
 class TestGoogleCloudSecretManagerHook:

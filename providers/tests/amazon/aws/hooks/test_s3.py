@@ -1160,6 +1160,12 @@ class TestAwsS3Hook:
             test_bucket_name = fake_s3_hook.test_function(bucket_name="bucket")
             assert test_bucket_name == "bucket"
 
+            # Test: `bucket_name` should use the explicitly provided value over `service_config`
+            test_bucket_name = fake_s3_hook.test_function(bucket_name="some_custom_bucket")
+            assert (
+                test_bucket_name == "some_custom_bucket"
+            ), "Expected provided bucket_name to take precedence over fallback"
+
     def test_delete_objects_key_does_not_exist(self, s3_bucket):
         # The behaviour of delete changed in recent version of s3 mock libraries.
         # It will succeed idempotently

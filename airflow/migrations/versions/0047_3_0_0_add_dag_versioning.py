@@ -44,8 +44,15 @@ depends_on = None
 airflow_version = "3.0.0"
 
 
+def _delete_serdag_and_code():
+    op.execute(sa.text("DELETE FROM serialized_dag"))
+    op.execute(sa.text("DELETE FROM dag_code"))
+
+
 def upgrade():
     """Apply add dag versioning."""
+    # Before creating the dag_version table, we need to delete the existing serialized_dag and dag_code tables
+    _delete_serdag_and_code()
     op.create_table(
         "dag_version",
         sa.Column("id", UUIDType(binary=False), nullable=False),
@@ -74,6 +81,8 @@ def upgrade():
             ondelete="CASCADE",
         )
         batch_op.create_unique_constraint("dag_code_dag_version_id_uq", ["dag_version_id"])
+        batch_op.drop_column("last_updated")
+        batch_op.add_column(sa.Column("created_at", UtcDateTime(), nullable=False, default=timezone.utcnow))
 
     with op.batch_alter_table(
         "serialized_dag", recreate="always", naming_convention=naming_convention
@@ -93,6 +102,8 @@ def upgrade():
             ondelete="CASCADE",
         )
         batch_op.create_unique_constraint("serialized_dag_dag_version_id_uq", ["dag_version_id"])
+        batch_op.drop_column("last_updated")
+        batch_op.add_column(sa.Column("created_at", UtcDateTime(), nullable=False, default=timezone.utcnow))
 
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.add_column(sa.Column("dag_version_id", UUIDType(binary=False)))
@@ -133,6 +144,8 @@ def downgrade():
         batch_op.drop_constraint(batch_op.f("dag_code_dag_version_id_fkey"), type_="foreignkey")
         batch_op.drop_column("dag_version_id")
         batch_op.create_primary_key("dag_code_pkey", ["fileloc_hash"])
+        batch_op.drop_column("created_at")
+        batch_op.add_column(sa.Column("last_updated", UtcDateTime(), nullable=False))
 
     with op.batch_alter_table("serialized_dag", schema=None, naming_convention=naming_convention) as batch_op:
         batch_op.drop_column("id")
@@ -142,6 +155,8 @@ def downgrade():
         batch_op.create_primary_key("serialized_dag_pkey", ["dag_id"])
         batch_op.drop_constraint(batch_op.f("serialized_dag_dag_version_id_fkey"), type_="foreignkey")
         batch_op.drop_column("dag_version_id")
+        batch_op.drop_column("created_at")
+        batch_op.add_column(sa.Column("last_updated", UtcDateTime(), nullable=False))
 
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.add_column(sa.Column("dag_hash", sa.String(length=32), autoincrement=False, nullable=True))

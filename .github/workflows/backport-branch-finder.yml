@@ -1,0 +1,77 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Backport branch finder
+on:  # yamllint disable-line rule:truthy
+  push:
+    branches:
+      - main
+
+jobs:
+  get-pr-info:
+    name: "Get PR information"
+    runs-on: ubuntu-latest
+    outputs:
+      branches: ${{ steps.pr-info.outputs.branches }}
+      commit-sha: ${{ github.sha }}
+    steps:
+      - name: Get commit SHA
+        id: get-sha
+        run: echo "COMMIT_SHA=${GITHUB_SHA}" >> $GITHUB_ENV
+
+      - name: Find PR information
+        id: pr-info
+        uses: actions/github-script@v7
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          script: |
+            const { data: pullRequest } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                commit_sha: process.env.GITHUB_SHA
+            });
+            if (pullRequest.length > 0) {
+                const pr = pullRequest[0];
+                const backportBranches = pr.labels
+                      .filter(label => label.name.startsWith('backport-to-'))
+                      .map(label => label.name.replace('backport-to-', ''));
+
+                console.log(`Commit ${process.env.GITHUB_SHA} is associated with PR ${pr.number}`);
+                console.log(`Backport branches: ${backportBranches}`);
+                core.setOutput('branches', JSON.stringify(backportBranches));
+            } else {
+                console.log('No pull request found for this commit.');
+                core.setOutput('branches', '[]');
+            }
+
+  trigger-backport:
+    name: "Trigger Backport"
+    uses: ./.github/workflows/backport-cli.yml
+    needs: get-pr-info
+    if: ${{ needs.get-pr-info.outputs.branches != '[]' }}
+    strategy:
+      matrix:
+        branch: ${{ fromJSON(needs.get-pr-info.outputs.branches) }}
+      fail-fast: false
+    permissions:
+      contents: write
+      pull-requests: write
+    with:
+      target-branch: ${{ matrix.branch }}
+      commit-sha: ${{ needs.get-pr-info.outputs.commit-sha }}

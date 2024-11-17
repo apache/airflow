@@ -35,12 +35,18 @@ from datetime import datetime
 from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, Sequence
 
+from deprecated import deprecated
 from kubernetes.dynamic import DynamicClient
 from sqlalchemy import or_, select, update
 
+try:
+    from airflow.cli.cli_config import ARG_LOGICAL_DATE
+except ImportError:  # 2.x compatibility.
+    from airflow.cli.cli_config import (  # type: ignore[attr-defined, no-redef]
+        ARG_EXECUTION_DATE as ARG_LOGICAL_DATE,
+    )
 from airflow.cli.cli_config import (
     ARG_DAG_ID,
-    ARG_EXECUTION_DATE,
     ARG_OUTPUT_PATH,
     ARG_SUBDIR,
     ARG_VERBOSE,
@@ -51,6 +57,7 @@ from airflow.cli.cli_config import (
     positive_int,
 )
 from airflow.configuration import conf
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import KUBERNETES_EXECUTOR
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
@@ -118,7 +125,7 @@ KUBERNETES_COMMANDS = (
         help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
         "launching into a cluster",
         func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.generate_pod_yaml"),
-        args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_LOGICAL_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH, ARG_VERBOSE),
     ),
 )
 
@@ -605,6 +612,10 @@ class KubernetesExecutor(BaseExecutor):
             tis_to_flush.extend(_iter_tis_to_flush())
             return tis_to_flush
 
+    @deprecated(
+        reason="Replaced by function `revoke_task`. Upgrade airflow core to make this go away.",
+        category=AirflowProviderDeprecationWarning,
+    )
     def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
@@ -616,28 +627,39 @@ class KubernetesExecutor(BaseExecutor):
         :param tis: List of Task Instances to clean up
         :return: List of readable task instances for a warning message
         """
+        reprs = []
+        for ti in tis:
+            reprs.append(repr(ti))
+            self.revoke_task(ti=ti)
+            self.fail(ti.key)
+        return reprs
+
+    def revoke_task(self, *, ti: TaskInstance):
+        """
+        Revoke task that may be running.
+
+        :param ti: task instance to revoke
+        """
         if TYPE_CHECKING:
             assert self.kube_client
             assert self.kube_scheduler
-        readable_tis: list[str] = []
-        if not tis:
-            return readable_tis
+        self.running.discard(ti.key)
+        self.queued_tasks.pop(ti.key, None)
         pod_combined_search_str_to_pod_map = self.get_pod_combined_search_str_to_pod_map()
-        for ti in tis:
-            # Build the pod selector
-            base_label_selector = f"dag_id={ti.dag_id},task_id={ti.task_id}"
-            if ti.map_index >= 0:
-                # Old tasks _couldn't_ be mapped, so we don't have to worry about compat
-                base_label_selector += f",map_index={ti.map_index}"
+        # Build the pod selector
+        base_label_selector = f"dag_id={ti.dag_id},task_id={ti.task_id}"
+        if ti.map_index >= 0:
+            # Old tasks _couldn't_ be mapped, so we don't have to worry about compat
+            base_label_selector += f",map_index={ti.map_index}"
 
-            search_str = f"{base_label_selector},run_id={ti.run_id}"
-            pod = pod_combined_search_str_to_pod_map.get(search_str, None)
-            if not pod:
-                self.log.warning("Cannot find pod for ti %s", ti)
-                continue
-            readable_tis.append(repr(ti))
-            self.kube_scheduler.delete_pod(pod_name=pod.metadata.name, namespace=pod.metadata.namespace)
-        return readable_tis
+        search_str = f"{base_label_selector},run_id={ti.run_id}"
+        pod = pod_combined_search_str_to_pod_map.get(search_str, None)
+        if not pod:
+            self.log.warning("Cannot find pod for ti %s", ti)
+            return
+
+        self.kube_scheduler.patch_pod_revoked(pod_name=pod.metadata.name, namespace=pod.metadata.namespace)
+        self.kube_scheduler.delete_pod(pod_name=pod.metadata.name, namespace=pod.metadata.namespace)
 
     def adopt_launched_task(
         self,
@@ -768,8 +790,13 @@ class KubernetesExecutor(BaseExecutor):
             self.result_queue.join()
         except ConnectionResetError:
             self.log.exception("Connection Reset error while flushing task_queue and result_queue.")
+        except Exception:
+            self.log.exception("Unknown error while flushing task queue and result queue.")
         if self.kube_scheduler:
-            self.kube_scheduler.terminate()
+            try:
+                self.kube_scheduler.terminate()
+            except Exception:
+                self.log.exception("Unknown error while flushing task queue and result queue.")
         self._manager.shutdown()
 
     def terminate(self):

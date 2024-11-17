@@ -62,7 +62,7 @@ class DagVersion(Base):
     )
     dag_runs = relationship("DagRun", back_populates="dag_version", cascade="all, delete, delete-orphan")
     task_instances = relationship("TaskInstance", back_populates="dag_version")
-    created_at = Column(UtcDateTime, default=timezone.utcnow)
+    created_at = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
 
     __table_args__ = (
         UniqueConstraint("dag_id", "version_number", name="dag_id_v_name_v_number_unique_constraint"),
@@ -106,8 +106,6 @@ class DagVersion(Base):
         )
         log.debug("Writing DagVersion %s to the DB", dag_version)
         session.add(dag_version)
-        # Flush is necessary here due to the unique constraint and other linked tables
-        session.flush()
         log.debug("DagVersion %s written to the DB", dag_version)
         return dag_version
 

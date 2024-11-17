@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import os
 from typing import TYPE_CHECKING, Any, cast
 
 from packaging.version import Version
@@ -39,10 +40,14 @@ except ImportError:
 from airflow import __version__ as airflow_version
 
 AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_2_8_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.8.0")
 AIRFLOW_V_2_9_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.9.0")
 AIRFLOW_V_2_10_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.10.0")
 AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+
+if AIRFLOW_V_3_0_PLUS:
+    os.environ["AIRFLOW_ENABLE_AIP_44"] = os.environ.get("AIRFLOW_ENABLE_AIP_44", "true")
+else:
+    os.environ["AIRFLOW_ENABLE_AIP_44"] = "false"
 
 try:
     from airflow.models.baseoperatorlink import BaseOperatorLink

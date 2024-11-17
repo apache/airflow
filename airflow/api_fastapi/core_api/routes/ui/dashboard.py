@@ -16,16 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
-from fastapi import Depends
+from fastapi import Depends, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.parameters import DateTimeQuery
+from airflow.api_fastapi.core_api.datamodels.ui.dashboard import HistoricalMetricDataResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.ui.dashboard import HistoricalMetricDataResponse
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -42,9 +41,9 @@ dashboard_router = AirflowRouter(tags=["Dashboard"])
 @dashboard_router.get(
     "/dashboard/historical_metrics_data",
     include_in_schema=False,
-    responses=create_openapi_http_exception_doc([400]),
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]),
 )
-async def historical_metrics(
+def historical_metrics(
     start_date: DateTimeQuery,
     end_date: DateTimeQuery,
     session: Annotated[Session, Depends(get_session)],

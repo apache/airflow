@@ -17,10 +17,11 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
 from airflow.api.common import delete_dag as delete_dag_module
 from airflow.api_fastapi.common.db.common import (
@@ -43,14 +44,14 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.dags import (
+from airflow.api_fastapi.core_api.datamodels.dags import (
     DAGCollectionResponse,
     DAGDetailsResponse,
     DAGPatchBody,
     DAGResponse,
     DAGTagCollectionResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DAG, DagModel, DagTag
 
@@ -58,7 +59,7 @@ dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
 
 @dags_router.get("/")
-async def get_dags(
+def get_dags(
     limit: QueryLimit,
     offset: QueryOffset,
     tags: QueryTagsFilter,
@@ -99,9 +100,8 @@ async def get_dags(
 
 @dags_router.get(
     "/tags",
-    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
-async def get_dag_tags(
+def get_dag_tags(
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -135,16 +135,12 @@ async def get_dag_tags(
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_422_UNPROCESSABLE_ENTITY,
         ]
     ),
 )
-async def get_dag(
-    dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request
-) -> DAGResponse:
+def get_dag(dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request) -> DAGResponse:
     """Get basic information about a DAG."""
     dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
     if not dag:
@@ -161,8 +157,16 @@ async def get_dag(
     return DAGResponse.model_validate(dag_model, from_attributes=True)
 
 
-@dags_router.get("/{dag_id}/details", responses=create_openapi_http_exception_doc([400, 401, 403, 404, 422]))
-async def get_dag_details(
+@dags_router.get(
+    "/{dag_id}/details",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
+def get_dag_details(
     dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request
 ) -> DAGDetailsResponse:
     """Get details of DAG."""
@@ -186,13 +190,11 @@ async def get_dag_details(
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
         ]
     ),
 )
-async def patch_dag(
+def patch_dag(
     dag_id: str,
     patch_body: DAGPatchBody,
     session: Annotated[Session, Depends(get_session)],
@@ -210,12 +212,12 @@ async def patch_dag(
                 status.HTTP_400_BAD_REQUEST, "Only `is_paused` field can be updated through the REST API"
             )
 
+        data = patch_body.model_dump(include=set(update_mask))
     else:
-        update_mask = ["is_paused"]
+        data = patch_body.model_dump()
 
-    for attr_name in update_mask:
-        attr_value = getattr(patch_body, attr_name)
-        setattr(dag, attr_name, attr_value)
+    for key, val in data.items():
+        setattr(dag, key, val)
 
     return DAGResponse.model_validate(dag, from_attributes=True)
 
@@ -225,13 +227,11 @@ async def patch_dag(
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
         ]
     ),
 )
-async def patch_dags(
+def patch_dags(
     patch_body: DAGPatchBody,
     limit: QueryLimit,
     offset: QueryOffset,
@@ -284,14 +284,12 @@ async def patch_dags(
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_422_UNPROCESSABLE_ENTITY,
         ]
     ),
 )
-async def delete_dag(
+def delete_dag(
     dag_id: str,
     session: Annotated[Session, Depends(get_session)],
 ) -> Response:
