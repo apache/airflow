@@ -655,11 +655,13 @@ class DAG:
 
     @property
     def allow_future_exec_dates(self) -> bool:
-        return settings.ALLOW_FUTURE_EXEC_DATES and not self.timetable.can_be_scheduled
+        return settings.ALLOW_FUTURE_LOGICAL_DATES and not self.timetable.can_be_scheduled
 
     def resolve_template_files(self):
         for t in self.tasks:
-            t.resolve_template_files()
+            # TODO: TaskSDK: move this on to BaseOperator and remove the check?
+            if hasattr(t, "resolve_template_files"):
+                t.resolve_template_files()
 
     def get_template_env(self, *, force_sandboxed: bool = False) -> jinja2.Environment:
         """Build a Jinja2 environment."""
@@ -979,7 +981,6 @@ class DAG:
                 "user_defined_macros",
                 "partial",
                 "params",
-                "_pickle_id",
                 "_log",
                 "task_dict",
                 "template_searchpath",

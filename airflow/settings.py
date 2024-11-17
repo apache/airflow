@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import pluggy
 from packaging.version import Version
 from sqlalchemy import create_engine, exc, text
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -95,8 +96,17 @@ LOGGING_CLASS_PATH: str | None = None
 DONOT_MODIFY_HANDLERS: bool | None = None
 DAGS_FOLDER: str = os.path.expanduser(conf.get_mandatory_value("core", "DAGS_FOLDER"))
 
+AIO_LIBS_MAPPING = {"sqlite": "aiosqlite", "postgresql": "asyncpg", "mysql": "aiomysql"}
+"""
+Mapping of sync scheme to async scheme.
+
+:meta private:
+"""
+
 engine: Engine
 Session: Callable[..., SASession]
+async_engine: AsyncEngine
+create_async_session: Callable[..., AsyncSession]
 
 # The JSON library to use for DAG Serialization and De-Serialization
 json = json
@@ -199,13 +209,25 @@ def load_policy_plugins(pm: pluggy.PluginManager):
     pm.load_setuptools_entrypoints("airflow.policy")
 
 
+def _get_async_conn_uri_from_sync(sync_uri):
+    scheme, rest = sync_uri.split(":", maxsplit=1)
+    scheme = scheme.split("+", maxsplit=1)[0]
+    aiolib = AIO_LIBS_MAPPING.get(scheme)
+    if aiolib:
+        return f"{scheme}+{aiolib}:{rest}"
+    else:
+        return sync_uri
+
+
 def configure_vars():
     """Configure Global Variables from airflow.cfg."""
     global SQL_ALCHEMY_CONN
+    global SQL_ALCHEMY_CONN_ASYNC
     global DAGS_FOLDER
     global PLUGINS_FOLDER
     global DONOT_MODIFY_HANDLERS
     SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN")
+    SQL_ALCHEMY_CONN_ASYNC = _get_async_conn_uri_from_sync(sync_uri=SQL_ALCHEMY_CONN)
 
     DAGS_FOLDER = os.path.expanduser(conf.get("core", "DAGS_FOLDER"))
 
@@ -441,6 +463,9 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
     global Session
     global engine
+    global async_engine
+    global create_async_session
+
     if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Skip DB initialization in unit tests, if DB tests are skipped
         Session = SkipDBTestsSession
@@ -459,14 +484,21 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     else:
         connect_args = {}
 
-    if os.environ.get("AIRFLOW__CORE__UNIT_TEST_MODE") == "True" and os.environ.get("BACKEND") == "sqlite":
-        # FastAPI runs sync endpoints in a separate thread. SQLite does note allow
+    if os.environ.get("AIRFLOW__CORE__UNIT_TEST_MODE") == "True" and SQL_ALCHEMY_CONN.startswith("sqlite"):
+        # FastAPI runs sync endpoints in a separate thread. SQLite does not allow
         # to use objects created in another threads by default. Allowing that in test
         # to so the `test` thread and the tested endpoints can use common objects.
         connect_args["check_same_thread"] = False
 
     engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args, future=True)
-
+    async_engine = create_async_engine(SQL_ALCHEMY_CONN_ASYNC, future=True)
+    create_async_session = sessionmaker(
+        bind=async_engine,
+        autocommit=False,
+        autoflush=False,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
     mask_secret(engine.url.password)
 
     setup_event_handlers(engine)
@@ -797,7 +829,7 @@ EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not CAN_FORK or conf.getboolean(
     fallback=False,
 )
 
-ALLOW_FUTURE_EXEC_DATES = conf.getboolean("scheduler", "allow_trigger_in_future", fallback=False)
+ALLOW_FUTURE_LOGICAL_DATES = conf.getboolean("scheduler", "allow_trigger_in_future", fallback=False)
 
 USE_JOB_SCHEDULE = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
 

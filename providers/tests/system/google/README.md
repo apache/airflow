@@ -31,19 +31,19 @@ is anything more needed for the test to be executed, it should be documented in 
 Example files structure:
 
 ```
-tests/system/providers/google
-├── bigquery
-│   ├── resources
-│   │   ├── example_bigquery_query.sql
-│   │   └── us-states.csv
-│   ├── example_bigquery_queries.py
-│   ├── example_bigquery_operations.py
-.   .
-│   └── example_bigquery_*.py
-├── dataflow
-├── gcs
-.
-└── *
+providers/tests/system/google
+                            ├── bigquery
+                            │   ├── resources
+                            │   │   ├── example_bigquery_query.sql
+                            │   │   └── us-states.csv
+                            │   ├── example_bigquery_queries.py
+                            │   ├── example_bigquery_operations.py
+                            .   .
+                            │   └── example_bigquery_*.py
+                            ├── dataflow
+                            ├── gcs
+                            .
+                            └── *
 ```
 
 ## Initial configuration
@@ -91,7 +91,6 @@ gcloud config set project <project-id>
 ```
 
 Keep in mind that some additional commands may be required.
-
 
 ## Settings for specific tests
 

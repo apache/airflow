@@ -42,7 +42,7 @@ def test_render_k8s_pod_yaml(pod_mutation_hook, create_task_instance):
         dag_id="test_render_k8s_pod_yaml",
         run_id="test_run_id",
         task_id="op1",
-        execution_date=DEFAULT_DATE,
+        logical_date=DEFAULT_DATE,
     )
 
     expected_pod_spec = {

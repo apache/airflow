@@ -77,8 +77,8 @@ jobs:
           breeze release-management prepare-task-sdk-package --package-format wheel
       - name: "Verify wheel packages with twine"
         run: |
-          pipx uninstall twine || true
-          pipx install twine && twine check dist/*.whl
+          uv tool uninstall twine || true
+          uv tool install twine && twine check dist/*.whl
       - name: >
           Run unit tests for Airflow Task SDK:Python ${{ matrix.python-version }}
         run: >

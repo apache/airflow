@@ -53,7 +53,6 @@ if AIRFLOW_V_3_0_PLUS:
 
 pytestmark = [
     pytest.mark.db_test,
-    pytest.mark.skipif(reason="Tests for Airflow 2.8.0+ only"),
     pytest.mark.skip_if_database_isolation_mode,
 ]
 
@@ -1145,14 +1144,24 @@ class TestSqlBranch:
         self.dag.clear()
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
 
-        dr = self.dag.create_dagrun(
-            run_id="manual__",
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            **triggered_by_kwargs,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dr = self.dag.create_dagrun(
+                run_id="manual__",
+                start_date=timezone.utcnow(),
+                logical_date=DEFAULT_DATE,
+                state=State.RUNNING,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                **triggered_by_kwargs,
+            )
+        else:
+            dr = self.dag.create_dagrun(
+                run_id="manual__",
+                start_date=timezone.utcnow(),
+                execution_date=DEFAULT_DATE,
+                state=State.RUNNING,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                **triggered_by_kwargs,
+            )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
 
@@ -1187,15 +1196,24 @@ class TestSqlBranch:
         self.branch_2.set_upstream(branch_op)
         self.dag.clear()
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-
-        dr = self.dag.create_dagrun(
-            run_id="manual__",
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            **triggered_by_kwargs,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dr = self.dag.create_dagrun(
+                run_id="manual__",
+                start_date=timezone.utcnow(),
+                logical_date=DEFAULT_DATE,
+                state=State.RUNNING,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                **triggered_by_kwargs,
+            )
+        else:
+            dr = self.dag.create_dagrun(
+                run_id="manual__",
+                start_date=timezone.utcnow(),
+                execution_date=DEFAULT_DATE,
+                state=State.RUNNING,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                **triggered_by_kwargs,
+            )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
 
@@ -1232,14 +1250,24 @@ class TestSqlBranch:
         self.dag.clear()
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
 
-        dr = self.dag.create_dagrun(
-            run_id="manual__",
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            **triggered_by_kwargs,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dr = self.dag.create_dagrun(
+                run_id="manual__",
+                start_date=timezone.utcnow(),
+                logical_date=DEFAULT_DATE,
+                state=State.RUNNING,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                **triggered_by_kwargs,
+            )
+        else:
+            dr = self.dag.create_dagrun(
+                run_id="manual__",
+                start_date=timezone.utcnow(),
+                execution_date=DEFAULT_DATE,
+                state=State.RUNNING,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                **triggered_by_kwargs,
+            )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
 
@@ -1277,14 +1305,24 @@ class TestSqlBranch:
         self.dag.clear()
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
 
-        dr = self.dag.create_dagrun(
-            run_id="manual__",
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            **triggered_by_kwargs,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dr = self.dag.create_dagrun(
+                run_id="manual__",
+                start_date=timezone.utcnow(),
+                logical_date=DEFAULT_DATE,
+                state=State.RUNNING,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                **triggered_by_kwargs,
+            )
+        else:
+            dr = self.dag.create_dagrun(
+                run_id="manual__",
+                start_date=timezone.utcnow(),
+                execution_date=DEFAULT_DATE,
+                state=State.RUNNING,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                **triggered_by_kwargs,
+            )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
         mock_get_records.return_value = [["1"]]
@@ -1319,14 +1357,24 @@ class TestSqlBranch:
         self.dag.clear()
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
 
-        self.dag.create_dagrun(
-            run_id="manual__",
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            **triggered_by_kwargs,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            self.dag.create_dagrun(
+                run_id="manual__",
+                start_date=timezone.utcnow(),
+                logical_date=DEFAULT_DATE,
+                state=State.RUNNING,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                **triggered_by_kwargs,
+            )
+        else:
+            self.dag.create_dagrun(
+                run_id="manual__",
+                start_date=timezone.utcnow(),
+                execution_date=DEFAULT_DATE,
+                state=State.RUNNING,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                **triggered_by_kwargs,
+            )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
 
@@ -1351,15 +1399,24 @@ class TestSqlBranch:
         branch_op >> self.branch_2
         self.dag.clear()
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-
-        dr = self.dag.create_dagrun(
-            run_id="manual__",
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            **triggered_by_kwargs,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dr = self.dag.create_dagrun(
+                run_id="manual__",
+                start_date=timezone.utcnow(),
+                logical_date=DEFAULT_DATE,
+                state=State.RUNNING,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                **triggered_by_kwargs,
+            )
+        else:
+            dr = self.dag.create_dagrun(
+                run_id="manual__",
+                start_date=timezone.utcnow(),
+                execution_date=DEFAULT_DATE,
+                state=State.RUNNING,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                **triggered_by_kwargs,
+            )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
 
@@ -1393,15 +1450,24 @@ class TestSqlBranch:
         branch_op >> self.branch_2
         self.dag.clear()
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-
-        dr = self.dag.create_dagrun(
-            run_id="manual__",
-            start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
-            state=State.RUNNING,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            **triggered_by_kwargs,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dr = self.dag.create_dagrun(
+                run_id="manual__",
+                start_date=timezone.utcnow(),
+                logical_date=DEFAULT_DATE,
+                state=State.RUNNING,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                **triggered_by_kwargs,
+            )
+        else:
+            dr = self.dag.create_dagrun(
+                run_id="manual__",
+                start_date=timezone.utcnow(),
+                execution_date=DEFAULT_DATE,
+                state=State.RUNNING,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                **triggered_by_kwargs,
+            )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
 

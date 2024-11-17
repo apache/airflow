@@ -23,7 +23,7 @@ import urllib.parse
 import warnings
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Iterator, cast, overload
 
-import attr
+import attrs
 from sqlalchemy import select
 
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -35,9 +35,6 @@ if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
     from sqlalchemy.orm.session import Session
-
-
-from airflow.configuration import conf
 
 __all__ = ["Asset", "AssetAll", "AssetAny", "Dataset"]
 
@@ -104,19 +101,7 @@ def _sanitize_uri(uri: str) -> str:
         fragment="",  # Ignore any fragments.
     )
     if (normalizer := _get_uri_normalizer(normalized_scheme)) is not None:
-        try:
-            parsed = normalizer(parsed)
-        except ValueError as exception:
-            if conf.getboolean("core", "strict_asset_uri_validation", fallback=True):
-                log.error(
-                    (
-                        "The Asset URI %s is not AIP-60 compliant: %s. "
-                        "Please check https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/assets.html"
-                    ),
-                    uri,
-                    exception,
-                )
-                raise
+        parsed = normalizer(parsed)
     return urllib.parse.urlunsplit(parsed)
 
 
@@ -135,6 +120,13 @@ def _validate_identifier(instance, attribute, value):
 def _validate_non_empty_identifier(instance, attribute, value):
     if not _validate_identifier(instance, attribute, value):
         raise ValueError(f"{type(instance).__name__} {attribute.name} cannot be empty")
+    return value
+
+
+def _validate_asset_name(instance, attribute, value):
+    _validate_non_empty_identifier(instance, attribute, value)
+    if value == "self" or value == "context":
+        raise ValueError(f"prohibited name for asset: {value}")
     return value
 
 
@@ -171,6 +163,13 @@ def expand_alias_to_assets(alias: str | AssetAlias, *, session: Session = NEW_SE
     if asset_alias_obj:
         return [asset.to_public() for asset in asset_alias_obj.assets]
     return []
+
+
+@attrs.define(kw_only=True)
+class AssetRef:
+    """Reference to an asset."""
+
+    name: str
 
 
 class BaseAsset:
@@ -222,16 +221,12 @@ class BaseAsset:
         raise NotImplementedError
 
 
-@attr.define(unsafe_hash=False)
+@attrs.define(unsafe_hash=False)
 class AssetAlias(BaseAsset):
     """A represeation of asset alias which is used to create asset during the runtime."""
 
-    name: str = attr.field(validator=_validate_non_empty_identifier)
-    group: str = attr.field(
-        kw_only=True,
-        default="",
-        validator=[attr.validators.max_len(1500), _validate_identifier],
-    )
+    name: str = attrs.field(validator=_validate_non_empty_identifier)
+    group: str = attrs.field(kw_only=True, default="", validator=_validate_identifier)
 
     def iter_assets(self) -> Iterator[tuple[str, Asset]]:
         return iter(())
@@ -273,7 +268,7 @@ def _set_extra_default(extra: dict | None) -> dict:
     return extra
 
 
-@attr.define(init=False, unsafe_hash=False)
+@attrs.define(init=False, unsafe_hash=False)
 class Asset(os.PathLike, BaseAsset):
     """A representation of data asset dependencies between workflows."""
 
@@ -282,7 +277,7 @@ class Asset(os.PathLike, BaseAsset):
     group: str
     extra: dict[str, Any]
 
-    asset_type: ClassVar[str] = ""
+    asset_type: ClassVar[str] = "asset"
     __version__: ClassVar[int] = 1
 
     @overload
@@ -311,8 +306,8 @@ class Asset(os.PathLike, BaseAsset):
             name = uri
         elif uri is None:
             uri = name
-        fields = attr.fields_dict(Asset)
-        self.name = _validate_non_empty_identifier(self, fields["name"], name)
+        fields = attrs.fields_dict(Asset)
+        self.name = _validate_asset_name(self, fields["name"], name)
         self.uri = _sanitize_uri(_validate_non_empty_identifier(self, fields["uri"], uri))
         self.group = _validate_identifier(self, fields["group"], group) if group else self.asset_type
         self.extra = _set_extra_default(extra)

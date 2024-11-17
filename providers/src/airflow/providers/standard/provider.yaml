@@ -29,14 +29,16 @@ versions:
 
 dependencies:
   - apache-airflow>=2.8.0
-  - apache-airflow-providers-common-sql>=1.18.0
+  - apache-airflow-providers-common-sql>=1.20.0
 
 integrations:
   - integration-name: Standard
     external-doc-url: https://airflow.apache.org/
     tags: [apache]
     how-to-guide:
-      - /docs/apache-airflow-providers-standard/operators.rst
+      - /docs/apache-airflow-providers-standard/operators/bash.rst
+      - /docs/apache-airflow-providers-standard/operators/python.rst
+      - /docs/apache-airflow-providers-standard/operators/datetime.rst
 
 operators:
   - integration-name: Standard
@@ -56,6 +58,7 @@ sensors:
       - airflow.providers.standard.sensors.weekday
       - airflow.providers.standard.sensors.bash
       - airflow.providers.standard.sensors.python
+      - airflow.providers.standard.sensors.filesystem
 hooks:
   - integration-name: Standard
     python-modules:

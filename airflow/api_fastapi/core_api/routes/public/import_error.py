@@ -16,10 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import (
     get_session,
@@ -43,9 +44,7 @@ import_error_router = AirflowRouter(tags=["Import Error"], prefix="/importErrors
 
 @import_error_router.get(
     "/{import_error_id}",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_import_error(
     import_error_id: int,
@@ -64,7 +63,6 @@ def get_import_error(
 
 @import_error_router.get(
     "/",
-    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
 def get_import_errors(
     limit: QueryLimit,

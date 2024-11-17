@@ -77,7 +77,6 @@ class TestGoogleCampaignManagerDeleteReportOperator:
         op.execute(context=None)
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=None,
             api_version=API_VERSION,
             impersonation_chain=None,
         )
@@ -134,7 +133,6 @@ class TestGoogleCampaignManagerDownloadReportOperator:
         op.execute(context=None)
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=None,
             api_version=API_VERSION,
             impersonation_chain=None,
         )
@@ -143,7 +141,6 @@ class TestGoogleCampaignManagerDownloadReportOperator:
         )
         gcs_hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=None,
             impersonation_chain=None,
         )
         gcs_hook_mock.return_value.upload.assert_called_once_with(
@@ -239,7 +236,6 @@ class TestGoogleCampaignManagerInsertReportOperator:
         op.execute(context=None)
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=None,
             api_version=API_VERSION,
             impersonation_chain=None,
         )
@@ -287,7 +283,6 @@ class TestGoogleCampaignManagerRunReportOperator:
         op.execute(context=None)
         hook_mock.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=None,
             api_version=API_VERSION,
             impersonation_chain=None,
         )

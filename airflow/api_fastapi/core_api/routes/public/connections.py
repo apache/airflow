@@ -16,10 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import os
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
@@ -28,10 +30,14 @@ from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionBody,
     ConnectionCollectionResponse,
     ConnectionResponse,
+    ConnectionTestResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.configuration import conf
 from airflow.models import Connection
+from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils import helpers
+from airflow.utils.strings import get_random_string
 
 connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
 
@@ -39,9 +45,7 @@ connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
 @connections_router.delete(
     "/{connection_id}",
     status_code=204,
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def delete_connection(
     connection_id: str,
@@ -60,9 +64,7 @@ def delete_connection(
 
 @connections_router.get(
     "/{connection_id}",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_connection(
     connection_id: str,
@@ -81,9 +83,7 @@ def get_connection(
 
 @connections_router.get(
     "/",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_connections(
     limit: QueryLimit,
@@ -121,9 +121,7 @@ def get_connections(
 @connections_router.post(
     "/",
     status_code=201,
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_409_CONFLICT]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
 )
 def post_connection(
     post_body: ConnectionBody,
@@ -150,8 +148,6 @@ def post_connection(
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
         ]
     ),
@@ -180,3 +176,44 @@ def patch_connection(
     for key, val in data.items():
         setattr(connection, key, val)
     return ConnectionResponse.model_validate(connection, from_attributes=True)
+
+
+@connections_router.post(
+    "/test",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_401_UNAUTHORIZED,
+            status.HTTP_403_FORBIDDEN,
+        ]
+    ),
+)
+def test_connection(
+    test_body: ConnectionBody,
+) -> ConnectionTestResponse:
+    """
+    Test an API connection.
+
+    This method first creates an in-memory transient conn_id & exports that to an env var,
+    as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
+    It also deletes the conn id env variable after the test.
+    """
+    if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
+        raise HTTPException(
+            403,
+            "Testing connections is disabled in Airflow configuration. "
+            "Contact your deployment admin to enable it.",
+        )
+
+    transient_conn_id = get_random_string()
+    conn_env_var = f"{CONN_ENV_PREFIX}{transient_conn_id.upper()}"
+    try:
+        data = test_body.model_dump(by_alias=True)
+        data["conn_id"] = transient_conn_id
+        conn = Connection(**data)
+        os.environ[conn_env_var] = conn.get_uri()
+        test_status, test_message = conn.test_connection()
+        return ConnectionTestResponse.model_validate(
+            {"status": test_status, "message": test_message}, from_attributes=True
+        )
+    finally:
+        os.environ.pop(conn_env_var, None)

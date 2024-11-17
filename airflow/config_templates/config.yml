@@ -482,13 +482,6 @@ core:
       sensitive: true
       default: ~
       example: '{"some_param": "some_value"}'
-    strict_asset_uri_validation:
-      description: |
-        Asset URI validation should raise an exception if it is not compliant with AIP-60.
-      default: "True"
-      example: ~
-      version_added: 2.9.2
-      type: boolean
     database_access_isolation:
       description: (experimental) Whether components should use Airflow Internal API for DB connectivity.
       version_added: 2.6.0
@@ -1071,17 +1064,6 @@ metrics:
       example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
         or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
-    metrics_consistency_on:
-      description: |
-        Enables metrics consistency across all metrics loggers (ex: timer and timing metrics).
-
-        .. warning::
-
-          It is enabled by default from Airflow 3.
-      version_added: 2.10.0
-      type: string
-      example: ~
-      default: "True"
     statsd_on:
       description: |
         Enables sending metrics to StatsD.
@@ -1286,14 +1268,6 @@ traces:
         To establish an HTTPS connection to the OpenTelemetry collector,
         you need to configure the SSL certificate and key within the OpenTelemetry collector's
         config.yml file.
-      version_added: 2.10.0
-      type: string
-      example: ~
-      default: "False"
-    otel_task_log_event:
-      description: |
-        If True, after the task is complete, the full task log messages will be added as the
-        span events, chunked by 64k size. defaults to False.
       version_added: 2.10.0
       type: string
       example: ~

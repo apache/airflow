@@ -35,26 +35,18 @@ for Airflow Development.
 
 This package should never be installed in "production" mode. The `breeze` entrypoint will actually
 fail if you do so. It is supposed to be installed only in [editable/development mode](https://packaging.python.org/en/latest/guides/distributing-packages-using-setuptools/#working-in-development-mode)
-directly from Airflow sources using `pipx` - usually with `--force` flag to account for re-installation
-that might often be needed if dependencies change during development.
+directly from Airflow sources using `uv tool` or `pipx` - usually with `--force` flag to account
+for re-installation  that might often be needed if dependencies change during development.
+
+```shell
+uv tool install -e ./dev/breeze --force
+```
+
+or
 
 ```shell
 pipx install -e ./dev/breeze --force
 ```
-
-NOTE! If you see below warning - it means that you hit [known issue](https://github.com/pypa/pipx/issues/1092)
-with `packaging` version 23.2
-⚠️ Ignoring --editable install option. pipx disallows it for anything but a local path,
-to avoid having to create a new src/ directory.
-
-The workaround is to downgrade packaging to 23.1 and re-running the `pipx install` command, for example
-by running `pip install "packaging<23.2"`.
-
-```shell
-pip install "packaging<23.2"
-pipx install -e ./dev/breeze --force
-```
-
 
 You can read more about Breeze in the [documentation](https://github.com/apache/airflow/blob/main/dev/breeze/doc/README.rst)
 
@@ -136,6 +128,6 @@ PLEASE DO NOT MODIFY THE HASH BELOW! IT IS AUTOMATICALLY UPDATED BY PRE-COMMIT.
 
 ---------------------------------------------------------------------------------------------------------
 
-Package config hash: 5d32e2c150de1cc22d522f94d86500c739f434439ae064e35791ac795932a1f21509c3d0fcf9f2351e7901a32601190bd4cb640799620a44d0ff6d9244aef57c
+Package config hash: 1a6bdff24f910175038dbd62c1c18dd091958ee2ffbb55ac7d5c93cc43f8f9ad5176093c135ac72031574292397164402a2c17a7c4f7f5fdb3c02e3d576109bf
 
 ---------------------------------------------------------------------------------------------------------

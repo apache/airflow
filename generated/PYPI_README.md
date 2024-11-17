@@ -59,7 +59,7 @@ Apache Airflow is tested with:
 | Python     | 3.9, 3.10, 3.11, 3.12      | 3.8, 3.9, 3.10, 3.11, 3.12 |
 | Platform   | AMD64/ARM64(\*)            | AMD64/ARM64(\*)            |
 | Kubernetes | 1.28, 1.29, 1.30, 1.31     | 1.27, 1.28, 1.29, 1.30     |
-| PostgreSQL | 12, 13, 14, 15, 16, 17     | 12, 13, 14, 15, 16         |
+| PostgreSQL | 13, 14, 15, 16, 17         | 12, 13, 14, 15, 16         |
 | MySQL      | 8.0, 8.4, Innovation       | 8.0, 8.4, Innovation       |
 | SQLite     | 3.15.0+                    | 3.15.0+                    |
 
@@ -159,7 +159,9 @@ release provided they have access to the appropriate platform and tools.
 
 ## Contributing
 
-Want to help build Apache Airflow? Check out our [contributing documentation](https://github.com/apache/airflow/blob/main/contributing-docs/README.rst).
+Want to help build Apache Airflow? Check out our [contributors' guide](https://github.com/apache/airflow/blob/main/contributing-docs/README.rst) for a comprehensive overview of how to contribute, including setup instructions, coding standards, and pull request guidelines.
+
+If you can't wait to contribute, and want to get started asap, check out the [contribution quickstart](https://github.com/apache/airflow/blob/main/contributing-docs/03_contributors_quick_start.rst) here!
 
 Official Docker (container) images for Apache Airflow are described in [images](dev/breeze/doc/ci/02_images.md).
 

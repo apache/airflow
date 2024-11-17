@@ -49,7 +49,7 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-docker/|version|/providers/tests/system/docker>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-docker/|version|/tests/system/providers/docker>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-docker/>
     Installing from sources <installing-providers-from-sources>
 
@@ -70,7 +70,7 @@ apache-airflow-providers-docker package
 `Docker <https://www.docker.com/>`__
 
 
-Release: 3.14.0
+Release: 3.14.1
 
 Provider package
 ----------------
@@ -97,3 +97,31 @@ PIP package         Version required
 ``docker``          ``>=7.1.0``
 ``python-dotenv``   ``>=0.21.0``
 ==================  ==================
+
+Cross provider package dependencies
+-----------------------------------
+
+Those are dependencies that might be needed in order to use all the features of the package.
+You need to install the specified provider packages in order to use them.
+
+You can install such cross-provider dependencies when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-docker[common.compat]
+
+
+==================================================================================================================  =================
+Dependent package                                                                                                   Extra
+==================================================================================================================  =================
+`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
+==================================================================================================================  =================
+
+Downloading official packages
+-----------------------------
+
+You can download officially released packages and verify their checksums and signatures from the
+`Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
+
+* `The apache-airflow-providers-docker 3.14.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_docker-3.14.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_docker-3.14.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_docker-3.14.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-docker 3.14.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_docker-3.14.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_docker-3.14.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_docker-3.14.1-py3-none-any.whl.sha512>`__)

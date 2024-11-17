@@ -83,10 +83,6 @@ TEST_NOTIFICATION_CHANNEL_2 = {
 
 @pytest.mark.db_test
 class TestStackdriverHookMethods:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            stackdriver.StackdriverHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
-
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.get_credentials_and_project_id",
         return_value=(CREDENTIALS, PROJECT_ID),

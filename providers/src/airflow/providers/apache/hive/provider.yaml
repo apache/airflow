@@ -22,9 +22,10 @@ description: |
   `Apache Hive <https://hive.apache.org/>`__
 
 state: ready
-source-date-epoch: 1723969208
+source-date-epoch: 1731569312
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 8.2.1
   - 8.2.0
   - 8.1.2
   - 8.1.1
@@ -73,7 +74,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.8.0
-  - apache-airflow-providers-common-sql>=1.3.1
+  - apache-airflow-providers-common-sql>=1.20.0
   - hmsclient>=0.1.0
   # In pandas 2.2 minimal version of the sqlalchemy is 2.0
   # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies

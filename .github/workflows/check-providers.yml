@@ -40,7 +40,7 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to upgrade to newer dependencies"
         required: true
         type: string
-      affected-providers-list-as-string:
+      selected-providers-list-as-string:
         description: "List of affected providers as string"
         required: false
         type: string
@@ -54,7 +54,7 @@ on:  # yamllint disable-line rule:truthy
         description: "List of parallel provider test types as string"
         required: true
         type: string
-      skip-provider-tests:
+      skip-providers-tests:
         description: "Whether to skip provider tests (true/false)"
         required: true
         type: string
@@ -102,8 +102,8 @@ jobs:
         run: breeze release-management prepare-airflow-package --version-suffix-for-pypi dev0
       - name: "Verify wheel packages with twine"
         run: |
-          pipx uninstall twine || true
-          pipx install twine && twine check dist/*.whl
+          uv tool uninstall twine || true
+          uv tool install twine && twine check dist/*.whl
       - name: "Test providers issue generation automatically"
         run: >
           breeze release-management generate-issue-content-providers
@@ -163,15 +163,15 @@ jobs:
         run: >
           breeze release-management prepare-provider-packages --include-not-ready-providers
           --version-suffix-for-pypi dev0 --package-format sdist
-          ${{ inputs.affected-providers-list-as-string }}
+          ${{ inputs.selected-providers-list-as-string }}
       - name: "Prepare airflow package: sdist"
         run: >
           breeze release-management prepare-airflow-package
           --version-suffix-for-pypi dev0 --package-format sdist
       - name: "Verify sdist packages with twine"
         run: |
-          pipx uninstall twine || true
-          pipx install twine && twine check dist/*.tar.gz
+          uv tool uninstall twine || true
+          uv tool install twine && twine check dist/*.tar.gz
       - name: "Generate source constraints from CI image"
         shell: bash
         run: >
@@ -187,7 +187,7 @@ jobs:
           --providers-constraints-location
           /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
           --run-in-parallel
-        if: inputs.affected-providers-list-as-string == ''
+        if: inputs.selected-providers-list-as-string == ''
       - name: "Install affected provider packages and airflow via sdist files"
         run: >
           breeze release-management install-provider-packages
@@ -198,7 +198,7 @@ jobs:
           --providers-constraints-location
           /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
           --run-in-parallel
-        if: inputs.affected-providers-list-as-string != ''
+        if: inputs.selected-providers-list-as-string != ''
 
   providers-compatibility-checks:
     timeout-minutes: 80
@@ -218,7 +218,7 @@ jobs:
       VERSION_SUFFIX_FOR_PYPI: "dev0"
       VERBOSE: "true"
       CLEAN_AIRFLOW_INSTALLATION: "${{ inputs.canary-run }}"
-    if: inputs.skip-provider-tests != 'true'
+    if: inputs.skip-providers-tests != 'true'
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -268,7 +268,7 @@ jobs:
           Airflow ${{ matrix.airflow-version }}:Python ${{ matrix.python-version }}
         if: matrix.run-tests == 'true'
         run: >
-          breeze testing tests --run-in-parallel
+          breeze testing providers-tests --run-in-parallel
           --parallel-test-types "${{ inputs.providers-test-types-list-as-string }}"
           --use-packages-from-dist
           --package-format wheel

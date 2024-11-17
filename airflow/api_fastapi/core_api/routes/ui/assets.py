@@ -17,10 +17,11 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -70,8 +71,8 @@ def next_run_assets(
                 and_(
                     AssetEvent.asset_id == AssetModel.id,
                     (
-                        AssetEvent.timestamp >= latest_run.execution_date
-                        if latest_run and latest_run.execution_date
+                        AssetEvent.timestamp >= latest_run.logical_date
+                        if latest_run and latest_run.logical_date
                         else True
                     ),
                 ),
