@@ -22,7 +22,7 @@
 FileSensor
 ==========
 
-Use the :class:`~airflow.sensors.filesystem.FileSensor` to detect files appearing in your local
+Use the :class:`~airflow.providers.standard.sensors.filesystem.FileSensor` to detect files appearing in your local
 filesystem. You need to have connection defined to use it (pass connection id via ``fs_conn_id``).
 Default connection is ``fs_default``.
 
