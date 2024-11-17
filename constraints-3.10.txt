@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-17T13:50:28.354027
+# This constraints file was automatically generated on 2024-11-17T19:47:55.156228
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -465,7 +465,7 @@ microsoft-kiota-serialization-text==1.0.0
 mmh3==4.1.0
 mongomock==4.3.0
 more-itertools==10.5.0
-moto==5.0.20
+moto==5.0.21
 mpmath==1.3.0
 msal-extensions==1.2.0
 msal==1.31.0
@@ -751,7 +751,7 @@ xmltodict==0.14.2
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.324.0
-yarl==1.17.1
+yarl==1.17.2
 ydb-dbapi==0.1.2
 ydb==3.18.8
 zeep==4.3.1
