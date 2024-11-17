@@ -176,6 +176,12 @@ cherry-picker COMMIT_SHA BRANCH_NAME1 [BRANCH_NAME2 ...]
 This will create a new branch with the cherry-picked commit and open a PR against the target branch in
 your browser.
 
+If the GH_AUTH environment variable is set in your command line, the cherry-picker automatically creates a new pull request when there are no conflicts. To set GH_AUTH, use the token from your GitHub repository.
+
+To set GH_AUTH run this:
+
+```bash
+export GH_AUTH={token}
 Sometimes it might result with conflict. In such case, you should manually resolve the conflicts.
 Some IDEs like IntelliJ has a fantastic conflict resolution tool - just follow `Git -> Resolve conflicts`
 menu after you get the conflict. But you can also resolve the conflicts manually (git adds `<<<<<<<`, `=======` and
