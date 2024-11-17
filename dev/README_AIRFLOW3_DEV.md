@@ -126,7 +126,7 @@ This way release manager can verify (as usual) if all the "expected" PRs have be
 
 
 We are using `cherry-picker` - a [tool](https://github.com/python/cherry-picker) that has been developed by
-Python developers. It allows to easily cherry-pock PRs from one branch to another. It works both - via
+Python developers. It allows to easily cherry-pick PRs from one branch to another. It works both - via
 command line and via GitHub Actions interface.
 
 ## How to backport PR with GitHub Actions
