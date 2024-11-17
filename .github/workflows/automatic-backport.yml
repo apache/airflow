@@ -16,7 +16,7 @@
 # under the License.
 #
 ---
-name: Backport branch finder
+name: Automatic Backport
 on:  # yamllint disable-line rule:truthy
   push:
     branches:
