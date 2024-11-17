@@ -31,68 +31,98 @@ TEST_SCOPE=${2}
 
 function core_tests() {
     echo "${COLOR_BLUE}Running core tests${COLOR_RESET}"
+    set +e
     if [[ "${TEST_SCOPE}" == "DB" ]]; then
         set -x
         breeze testing core-tests --run-in-parallel --run-db-tests-only
+        RESULT=$?
         set +x
     elif [[ "${TEST_SCOPE}" == "Non-DB" ]]; then
         set -x
         breeze testing core-tests --use-xdist --skip-db-tests --no-db-cleanup --backend none
+        RESULT=$?
         set +x
     elif [[ "${TEST_SCOPE}" == "All" ]]; then
         set -x
         breeze testing core-tests --run-in-parallel
+        RESULT=$?
         set +x
     elif [[ "${TEST_SCOPE}" == "Quarantined" ]]; then
         set -x
-        breeze testing core-tests --test-type "All-Quarantined"
+        breeze testing core-tests --test-type "All-Quarantined" || true
+        RESULT=$?
         set +x
     elif [[ "${TEST_SCOPE}" == "ARM collection" ]]; then
         set -x
-        breeze testing core-tests --collect-only --remove-arm-packages --test-type "All"
+        breeze testing core-tests --collect-only --remove-arm-packages --test-type "All" --no-db-reset
+        RESULT=$?
         set +x
     elif [[  "${TEST_SCOPE}" == "System" ]]; then
         set -x
         breeze testing system-tests tests/system/example_empty.py
+        RESULT=$?
         set +x
     else
         echo "Unknown test scope: ${TEST_SCOPE}"
+        set -e
         exit 1
     fi
-    echo "${COLOR_BLUE}Core tests completed${COLOR_RESET}"
+    set -e
+    if [[ ${RESULT} != "0" ]]; then
+        echo
+        echo "${COLOR_RED}The ${TEST_GROUP} test ${TEST_SCOPE} failed! Giving up${COLOR_RESET}"
+        echo
+        exit "${RESULT}"
+    fi
+    echo "${COLOR_GREEN}Core tests completed successfully${COLOR_RESET}"
 }
 
 function providers_tests() {
     echo "${COLOR_BLUE}Running providers tests${COLOR_RESET}"
+    set +e
     if [[ "${TEST_SCOPE}" == "DB" ]]; then
         set -x
         breeze testing providers-tests --run-in-parallel --run-db-tests-only
+        RESULT=$?
         set +x
     elif [[ "${TEST_SCOPE}" == "Non-DB" ]]; then
         set -x
         breeze testing providers-tests --use-xdist --skip-db-tests --no-db-cleanup --backend none
+        RESULT=$?
         set +x
     elif [[ "${TEST_SCOPE}" == "All" ]]; then
         set -x
         breeze testing providers-tests --run-in-parallel
+        RESULT=$?
         set +x
     elif [[ "${TEST_SCOPE}" == "Quarantined" ]]; then
         set -x
-        breeze testing providers-tests --test-type "All-Quarantined"
+        breeze testing providers-tests --test-type "All-Quarantined" || true
+        RESULT=$?
         set +x
     elif [[ "${TEST_SCOPE}" == "ARM collection" ]]; then
         set -x
-        breeze testing providers-tests --collect-only --remove-arm-packages --test-type "All"
+        breeze testing providers-tests --collect-only --remove-arm-packages --test-type "All" --no-db-reset
+        RESULT=$?
         set +x
     elif [[  "${TEST_SCOPE}" == "System" ]]; then
         set -x
         breeze testing system-tests providers/tests/system/example_empty.py
+        RESULT=$?
         set +x
     else
         echo "Unknown test scope: ${TEST_SCOPE}"
+        set -e
         exit 1
     fi
-    echo "${COLOR_BLUE}Providers tests completed${COLOR_RESET}"
+    set -e
+    if [[ ${RESULT} != "0" ]]; then
+        echo
+        echo "${COLOR_RED}The ${TEST_GROUP} test ${TEST_SCOPE} failed! Giving up${COLOR_RESET}"
+        echo
+        exit "${RESULT}"
+    fi
+    echo "${COLOR_GREEB}Providers tests completed successfully${COLOR_RESET}"
 }
 
 

@@ -132,9 +132,11 @@ option_commit_sha = click.option(
 )
 option_db_reset = click.option(
     "-d",
-    "--db-reset",
+    "--db-reset/--no-db-reset",
     help="Reset DB when entering the container.",
     is_flag=True,
+    default=False,
+    show_default=True,
     envvar="DB_RESET",
 )
 option_debug_resources = click.option(

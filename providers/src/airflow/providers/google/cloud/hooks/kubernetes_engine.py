@@ -29,7 +29,7 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.auth.transport import requests as google_requests
 
 # not sure why but mypy complains on missing `container_v1` but it is clearly there and is importable
-from google.cloud import container_v1, exceptions  # type: ignore[attr-defined]
+from google.cloud import exceptions  # type: ignore[attr-defined]
 from google.cloud.container_v1 import ClusterManagerAsyncClient, ClusterManagerClient
 from google.cloud.container_v1.types import Cluster, Operation
 from kubernetes import client, utils
@@ -38,11 +38,10 @@ from kubernetes_asyncio import client as async_client
 from kubernetes_asyncio.config.kube_config import FileOrData
 
 from airflow import version
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
 from airflow.providers.cncf.kubernetes.kube_client import _enable_tcp_keepalive
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
     GoogleBaseAsyncHook,
@@ -118,14 +117,10 @@ class GKEHook(GoogleBaseHook):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
+            **kwargs,
         )
         self._client: ClusterManagerClient | None = None
         self.location = location
@@ -135,26 +130,6 @@ class GKEHook(GoogleBaseHook):
         if self._client is None:
             self._client = ClusterManagerClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
         return self._client
-
-    # To preserve backward compatibility
-    # TODO: remove one day
-    @deprecated(
-        planned_removal_date="November 01, 2024",
-        use_instead="get_cluster_manager_client",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def get_conn(self) -> container_v1.ClusterManagerClient:
-        return self.get_cluster_manager_client()
-
-    # To preserve backward compatibility
-    # TODO: remove one day
-    @deprecated(
-        planned_removal_date="November 01, 2024",
-        use_instead="get_cluster_manager_client",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def get_client(self) -> ClusterManagerClient:
-        return self.get_conn()
 
     def wait_for_operation(self, operation: Operation, project_id: str = PROVIDE_PROJECT_ID) -> Operation:
         """
@@ -388,10 +363,12 @@ class GKEAsyncHook(GoogleBaseAsyncHook):
         gcp_conn_id: str = "google_cloud_default",
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
+            **kwargs,
         )
         self._client: ClusterManagerAsyncClient | None = None
         self.location = location
@@ -576,71 +553,3 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
             ).as_file(),
         )
         return configuration
-
-
-@deprecated(
-    planned_removal_date="October 01, 2024",
-    use_instead="GKEKubernetesHook",
-    category=AirflowProviderDeprecationWarning,
-)
-class GKEDeploymentHook(GKEKubernetesHook):
-    """Google Kubernetes Engine Deployment APIs."""
-
-
-@deprecated(
-    planned_removal_date="October 01, 2024",
-    use_instead="GKEKubernetesHook",
-    category=AirflowProviderDeprecationWarning,
-)
-class GKECustomResourceHook(GKEKubernetesHook):
-    """Google Kubernetes Engine Custom Resource APIs."""
-
-
-@deprecated(
-    planned_removal_date="October 01, 2024",
-    use_instead="GKEKubernetesHook",
-    category=AirflowProviderDeprecationWarning,
-)
-class GKEPodHook(GKEKubernetesHook):
-    """Google Kubernetes Engine pod APIs."""
-
-    def __init__(
-        self,
-        cluster_url: str,
-        ssl_ca_cert: str,
-        disable_tcp_keepalive: bool | None = None,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ):
-        super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            impersonation_chain=impersonation_chain,
-            cluster_url=cluster_url,
-            ssl_ca_cert=ssl_ca_cert,
-            **kwargs,
-        )
-        self.enable_tcp_keepalive = not bool(disable_tcp_keepalive)
-
-
-@deprecated(
-    planned_removal_date="October 01, 2024",
-    use_instead="GKEKubernetesHook",
-    category=AirflowProviderDeprecationWarning,
-)
-class GKEJobHook(GKEKubernetesHook):
-    """Google Kubernetes Engine Job APIs."""
-
-
-@deprecated(
-    planned_removal_date="October 01, 2024",
-    use_instead="GKEKubernetesAsyncHook",
-    category=AirflowProviderDeprecationWarning,
-)
-class GKEPodAsyncHook(GKEKubernetesAsyncHook):
-    """
-    Google Kubernetes Engine pods APIs asynchronously.
-
-    :param cluster_url: The URL pointed to the cluster.
-    :param ssl_ca_cert: SSL certificate used for authentication to the pod.
-    """

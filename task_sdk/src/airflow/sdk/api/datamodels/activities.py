@@ -21,7 +21,7 @@ import os
 
 from pydantic import BaseModel
 
-from airflow.sdk.api.datamodels.ti import TaskInstance
+from airflow.sdk.api.datamodels._generated import TaskInstance
 
 
 class ExecuteTaskActivity(BaseModel):
