@@ -57,6 +57,81 @@ END_DATE = datetime(2024, 6, 15, 0, 0, tzinfo=timezone.utc)
 EXECUTION_DATE = datetime(2024, 6, 16, 0, 0, tzinfo=timezone.utc)
 DAG1_RUN1_NOTE = "test_note"
 
+# DAG_RUNS = {
+#     "test_dag1": {
+#         "dag_run_1": {
+#             "run_id": "dag_run_1",
+#             "dag_id": "test_dag1",
+#             "logical_date": "2024-06-15T00:00:00Z",
+#             "queued_at": None,
+#             "start_date": "2024-06-15T00:00:00Z",
+#             "end_date": "2024-11-16T09:17:48.741646Z",
+#             "data_interval_start": "2024-06-14T00:00:00Z",
+#             "data_interval_end": "2024-06-15T00:00:00Z",
+#             "last_scheduling_decision": None,
+#             "run_type": "manual",
+#             "state": "success",
+#             "external_trigger": False,
+#             "triggered_by": "ui",
+#             "conf": {},
+#             "note": "test_note",
+#         },
+#         "dag_run_2": {
+#             "run_id": "dag_run_2",
+#             "dag_id": "test_dag1",
+#             "logical_date": "2024-06-16T00:00:00Z",
+#             "queued_at": None,
+#             "start_date": "2024-06-15T00:00:00Z",
+#             "end_date": "2024-11-16T09:17:48.751112Z",
+#             "data_interval_start": "2024-06-16T00:00:00Z",
+#             "data_interval_end": "2024-06-17T00:00:00Z",
+#             "last_scheduling_decision": None,
+#             "run_type": "scheduled",
+#             "state": "failed",
+#             "external_trigger": False,
+#             "triggered_by": "asset",
+#             "conf": {},
+#             "note": None,
+#         },
+#     },
+#     "test_dag2": {
+#         "dag_run_3": {
+#             "run_id": "dag_run_3",
+#             "dag_id": "test_dag2",
+#             "logical_date": "2024-06-16T00:00:00Z",
+#             "queued_at": None,
+#             "start_date": "2024-06-15T00:00:00Z",
+#             "end_date": "2024-11-16T09:19:05.121482Z",
+#             "data_interval_start": "2024-06-16T00:00:00Z",
+#             "data_interval_end": "2024-06-16T00:00:00Z",
+#             "last_scheduling_decision": None,
+#             "run_type": "backfill",
+#             "state": "success",
+#             "external_trigger": False,
+#             "triggered_by": "cli",
+#             "conf": {},
+#             "note": None,
+#         },
+#         "dag_run_4": {
+#             "run_id": "dag_run_4",
+#             "dag_id": "test_dag2",
+#             "logical_date": "2024-06-16T00:00:00Z",
+#             "queued_at": None,
+#             "start_date": "2024-06-15T00:00:00Z",
+#             "end_date": "2024-11-16T09:19:05.122655Z",
+#             "data_interval_start": "2024-06-16T00:00:00Z",
+#             "data_interval_end": "2024-06-16T00:00:00Z",
+#             "last_scheduling_decision": None,
+#             "run_type": "asset_triggered",
+#             "state": "success",
+#             "external_trigger": False,
+#             "triggered_by": "rest_api",
+#             "conf": {},
+#             "note": None,
+#         },
+#     },
+# }
+
 
 @pytest.fixture(autouse=True)
 @provide_session
@@ -154,6 +229,103 @@ class TestGetDagRun:
         assert response.status_code == 404
         body = response.json()
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
+
+
+class TestGetDagRuns:
+    @staticmethod
+    def parse_datetime(datetime_str):
+        return datetime_str.isoformat().replace("+00:00", "Z") if datetime_str else None
+
+    @staticmethod
+    def get_dag_run_dict(run: DagRun):
+        return {
+            "run_id": run.run_id,
+            "dag_id": run.dag_id,
+            "logical_date": TestGetDagRuns.parse_datetime(run.logical_date),
+            "queued_at": TestGetDagRuns.parse_datetime(run.queued_at),
+            "start_date": TestGetDagRuns.parse_datetime(run.start_date),
+            "end_date": TestGetDagRuns.parse_datetime(run.end_date),
+            "data_interval_start": TestGetDagRuns.parse_datetime(run.data_interval_start),
+            "data_interval_end": TestGetDagRuns.parse_datetime(run.data_interval_end),
+            "last_scheduling_decision": TestGetDagRuns.parse_datetime(run.last_scheduling_decision),
+            "run_type": run.run_type,
+            "state": run.state,
+            "external_trigger": run.external_trigger,
+            "triggered_by": run.triggered_by.value,
+            "conf": run.conf,
+            "note": run.note,
+        }
+
+    @pytest.mark.parametrize("dag_id, total_entries", [(DAG1_ID, 2), (DAG2_ID, 2), ("~", 4), ("invalid", 0)])
+    def test_get_dag_runs(self, test_client, session, dag_id, total_entries):
+        response = test_client.get(f"/public/dags/{dag_id}/dagRuns")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == total_entries
+        for each in body["dag_runs"]:
+            run = (
+                session.query(DagRun)
+                .where(DagRun.dag_id == each["dag_id"], DagRun.run_id == each["run_id"])
+                .one()
+            )
+            expected = self.get_dag_run_dict(run)
+            assert each == expected
+
+    def test_invalid_order_by_raises_400(self, test_client):
+        response = test_client.get("/public/dags/DAG1_ID/dagRuns?order_by=invalid")
+        assert response.status_code == 400
+        body = response.json()
+        assert (
+            body["detail"]
+            == "Ordering with 'invalid' is disallowed or the attribute does not exist on the model"
+        )
+
+    @pytest.mark.parametrize(
+        "order_by, expected_dag_id_order",
+        [
+            ("id", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("state", [DAG1_RUN2_ID, DAG1_RUN1_ID]),
+            ("dag_id", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("logical_date", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("dag_run_id", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("start_date", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("end_date", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("updated_at", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("external_trigger", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("conf", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+        ],
+    )
+    def test_return_correct_results_with_order_by(
+        self, test_client, session, order_by, expected_dag_id_order
+    ):
+        response = test_client.get("/public/dags/test_dag1/dagRuns", params={"order_by": order_by})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 2
+        assert [each["run_id"] for each in body["dag_runs"]] == expected_dag_id_order
+
+    @pytest.mark.parametrize(
+        "query_params, expected_dag_id_order",
+        [
+            ({}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ({"limit": 1}, [DAG1_RUN1_ID]),
+            ({"limit": 3}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ({"offset": 1}, [DAG1_RUN2_ID]),
+            ({"offset": 2}, []),
+            ({"limit": 1, "offset": 1}, [DAG1_RUN2_ID]),
+            ({"limit": 1, "offset": 2}, []),
+            ({"limit": 3, "offset": -1}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ({"limit": 3, "offset": -2}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ({"limit": 1, "offset": -2}, [DAG1_RUN1_ID]),
+            # ({"limit": -1}, [DAG1_RUN1_ID]),
+        ],
+    )
+    def test_limit_and_offset(self, test_client, query_params, expected_dag_id_order):
+        response = test_client.get("/public/dags/test_dag1/dagRuns", params=query_params)
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 2
+        assert [each["run_id"] for each in body["dag_runs"]] == expected_dag_id_order
 
 
 class TestPatchDagRun:
