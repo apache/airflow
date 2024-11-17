@@ -76,6 +76,8 @@ class LimitFilter(BaseParam[int]):
         return select.limit(self.value)
 
     def depends(self, limit: int = 100) -> LimitFilter:
+        if limit < 0:
+            raise HTTPException(400, "Limit cannot be negative.")
         return self.set_value(limit)
 
 
@@ -88,6 +90,8 @@ class OffsetFilter(BaseParam[int]):
         return select.offset(self.value)
 
     def depends(self, offset: int = 0) -> OffsetFilter:
+        if offset < 0:
+            raise HTTPException(400, "Offset cannot be negative.")
         return self.set_value(offset)
 
 
