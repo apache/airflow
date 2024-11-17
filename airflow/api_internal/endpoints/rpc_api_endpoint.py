@@ -73,6 +73,7 @@ def initialize_method_map() -> dict[str, Callable]:
         _handle_failure,
         _handle_reschedule,
         _update_rtif,
+        _update_ti_heartbeat,
         _xcom_pull,
     )
     from airflow.secrets.metastore import MetastoreBackend
@@ -86,6 +87,7 @@ def initialize_method_map() -> dict[str, Callable]:
         _get_ti_db_access,
         _get_task_map_length,
         _update_rtif,
+        _update_ti_heartbeat,
         _orig_start_date,
         _handle_failure,
         _handle_reschedule,
@@ -144,6 +146,7 @@ def initialize_method_map() -> dict[str, Callable]:
         TaskInstance._set_state,
         TaskInstance.save_to_db,
         TaskInstance._clear_xcom_data,
+        TaskInstance._register_asset_changes_int,
         Trigger.from_object,
         Trigger.bulk_fetch,
         Trigger.clean_unused,

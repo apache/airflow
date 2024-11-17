@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Any, Iterable, Optional
+from uuid import UUID
 
 from pydantic import (
     BaseModel as BaseModelPydantic,
@@ -116,6 +117,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
     trigger_timeout: Optional[datetime]
     next_method: Optional[str]
     next_kwargs: Optional[dict]
+    dag_version_id: Optional[UUID]
     run_as_user: Optional[str]
     task: Optional[PydanticOperator]
     test_mode: bool

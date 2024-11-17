@@ -92,6 +92,7 @@ def mock_task_instance():
         trigger_timeout=datetime.now(),
         next_method="bla",
         next_kwargs=None,
+        dag_version_id=None,
         run_as_user=None,
         task=None,
         test_mode=False,
