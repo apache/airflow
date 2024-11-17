@@ -450,9 +450,8 @@ repos:
         language: python
         entry: uv lock
         args:
-          - -v
-          - --directory
-          - ./dev/breeze
+          - --project
+          - dev/breeze
         pass_filenames: false
         require_serial: true
         additional_dependencies: ['uv']
