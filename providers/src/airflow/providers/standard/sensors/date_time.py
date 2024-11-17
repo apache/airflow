@@ -22,8 +22,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, NoReturn
 
-from airflow.providers.standard.utils.version_references import AIRFLOW_V_3_0_PLUS
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
+from airflow.providers.standard.utils.version_references import AIRFLOW_V_3_0_PLUS
 from airflow.sensors.base import BaseSensorOperator
 
 try:
@@ -39,7 +39,6 @@ except ImportError:
         trigger_kwargs: dict[str, Any] | None = None
         next_kwargs: dict[str, Any] | None = None
         timeout: datetime.timedelta | None = None
-
 
 
 from airflow.utils import timezone
