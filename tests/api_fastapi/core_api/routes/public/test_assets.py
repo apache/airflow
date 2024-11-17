@@ -310,6 +310,20 @@ class TestGetAssetsEndpointPagination(TestAssets):
         assert response.status_code == 200
         assert len(response.json()["assets"]) == 100
 
+    @pytest.mark.parametrize(
+        "query_params, expected_error",
+        [
+            ({"limit": 1, "offset": -1}, "Offset"),
+            ({"limit": -1, "offset": 1}, "Limit"),
+            ({"limit": -1, "offset": -1}, "Limit"),
+            ({"offset": -1, "limit": -1}, "Limit"),
+        ],
+    )
+    def test_bad_limit_and_offset(self, test_client, query_params, expected_error):
+        response = test_client.get("/public/assets", params=query_params)
+        assert response.status_code == 400
+        assert response.json()["detail"] == f"{expected_error} cannot be negative."
+
 
 class TestGetAssetEvents(TestAssets):
     def test_should_respond_200(self, test_client, session):
