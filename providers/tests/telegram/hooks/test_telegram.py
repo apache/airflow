@@ -210,7 +210,7 @@ class TestTelegramHook:
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
     def test_should_raise_exception_if_file_path_is_not_provided_when_sending_file(self, mock_get_conn):
         hook = TelegramHook(telegram_conn_id="telegram_default")
-        error_message = "'file' must be provided for telegram document message"
+        error_message = "'file' parameter must be provided for sending a Telegram document message"
         with pytest.raises(airflow.exceptions.AirflowException, match=error_message):
             hook.send_file({"chat_id": "-420913222"})
 
