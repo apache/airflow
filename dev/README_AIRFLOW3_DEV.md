@@ -136,7 +136,7 @@ should use "Backport commit" action. You need to know the commit hash of the com
 You can pin the workflow from the list of workflows for easy access to it.
 
 [!NOTE]
-It should be the commit hash of the commit in the `main` branch, not in the original PR - you can fint it
+It should be the commit hash of the commit in the `main` branch, not in the original PR - you can find it
 via `git log` or looking up main History.
 
 ![Backport commit](images/backport_commit_action.png)
