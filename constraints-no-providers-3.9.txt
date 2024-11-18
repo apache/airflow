@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-05T18:26:49.814420
+# This constraints file was automatically generated on 2024-11-18T06:02:31.851850
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -10,7 +10,7 @@
 #
 Authlib==1.3.2
 ConfigUpdater==3.2
-Deprecated==1.2.14
+Deprecated==1.2.15
 Flask-AppBuilder==4.5.2
 Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
@@ -25,7 +25,7 @@ Flask==2.2.5
 Jinja2==3.1.4
 Mako==1.3.6
 MarkupSafe==3.0.2
-PyJWT==2.9.0
+PyJWT==2.10.0
 PyYAML==6.0.2
 Pygments==2.18.0
 SQLAlchemy-JSONField==1.0.2
@@ -35,23 +35,22 @@ WTForms==3.2.1
 Werkzeug==2.2.3
 aiobotocore==2.15.2
 aiohappyeyeballs==2.4.3
-aiohttp==3.10.10
+aiohttp==3.11.2
 aioitertools==0.12.0
 aiosignal==1.3.1
 alembic==1.14.0
-amqp==5.2.0
+amqp==5.3.1
 annotated-types==0.7.0
 anyio==4.6.2.post1
 apispec==6.7.1
 argcomplete==3.5.1
 asgiref==3.8.1
-async-timeout==4.0.3
+async-timeout==5.0.1
 atlasclient==1.0.0
 attrs==24.2.0
 babel==2.16.0
-backoff==2.2.1
 bcrypt==4.2.0
-blinker==1.8.2
+blinker==1.9.0
 botocore==1.35.36
 cachelib==0.9.0
 certifi==2024.8.30
@@ -79,17 +78,17 @@ fastavro==1.9.7
 filelock==3.16.1
 frozenlist==1.5.0
 fsspec==2024.10.0
-gevent==24.10.3
+gevent==24.11.1
 google-re2==1.1.20240702
-googleapis-common-protos==1.65.0
+googleapis-common-protos==1.66.0
 graphviz==0.20.3
 greenlet==3.1.1
-grpcio==1.67.1
+grpcio==1.68.0
 gssapi==1.9.0
 gunicorn==23.0.0
 h11==0.14.0
 hdfs==2.7.3
-httpcore==1.0.6
+httpcore==1.0.7
 httpx==0.27.2
 idna==3.10
 importlib_metadata==8.5.0
@@ -117,16 +116,17 @@ methodtools==0.4.7
 more-itertools==10.5.0
 multidict==6.1.0
 numpy==1.26.4
-opentelemetry-api==1.16.0
-opentelemetry-exporter-otlp-proto-grpc==1.16.0
-opentelemetry-exporter-otlp-proto-http==1.16.0
-opentelemetry-exporter-otlp==1.16.0
-opentelemetry-exporter-prometheus==0.41b0
-opentelemetry-proto==1.16.0
-opentelemetry-sdk==1.16.0
-opentelemetry-semantic-conventions==0.37b0
+opentelemetry-api==1.28.1
+opentelemetry-exporter-otlp-proto-common==1.28.1
+opentelemetry-exporter-otlp-proto-grpc==1.28.1
+opentelemetry-exporter-otlp-proto-http==1.28.1
+opentelemetry-exporter-otlp==1.28.1
+opentelemetry-exporter-prometheus==0.49b1
+opentelemetry-proto==1.28.1
+opentelemetry-sdk==1.28.1
+opentelemetry-semantic-conventions==0.49b1
 ordered-set==4.1.0
-packaging==24.1
+packaging==24.2
 pandas==2.1.4
 pathspec==0.12.1
 pendulum==3.0.0
@@ -136,7 +136,7 @@ plyvel==1.5.1
 prison==0.2.1
 prometheus_client==0.21.0
 propcache==0.2.0
-protobuf==4.25.5
+protobuf==5.28.3
 psutil==6.1.0
 pure-sasl==0.6.2
 pyasn1==0.6.1
@@ -145,7 +145,7 @@ pycparser==2.22
 pydantic==2.9.2
 pydantic_core==2.23.4
 pykerberos==1.2.4
-pyspnego==0.11.1
+pyspnego==0.11.2
 python-daemon==3.1.0
 python-dateutil==2.9.0.post0
 python-ldap==3.4.4
@@ -160,13 +160,13 @@ requests==2.32.3
 rfc3339-validator==0.1.4
 rich-argparse==1.6.0
 rich==13.9.4
-rpds-py==0.20.1
+rpds-py==0.21.0
 s3fs==2024.10.0
 sentry-sdk==2.18.0
-setproctitle==1.3.3
+setproctitle==1.3.4
 six==1.16.0
 sniffio==1.3.1
-sqlparse==0.5.1
+sqlparse==0.5.2
 statsd==4.0.1
 tabulate==0.9.0
 tenacity==9.0.0
@@ -183,10 +183,10 @@ urllib3==1.26.20
 uv==0.4.29
 vine==5.1.0
 virtualenv==20.27.1
-wirerope==0.4.7
+wirerope==0.4.8
 wrapt==1.16.0
 xmlsec==1.3.14
-yarl==1.17.1
-zipp==3.20.2
+yarl==1.17.2
+zipp==3.21.0
 zope.event==5.0
 zope.interface==7.1.1
