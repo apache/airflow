@@ -367,6 +367,59 @@ class TestGetAssetsEndpointPagination(TestAssets):
         assert response.status_code == 200
         assert len(response.json()["assets"]) == 100
 
+    @pytest.mark.parametrize(
+        "query_params, expected_detail",
+        [
+            (
+                {"limit": 1, "offset": -1},
+                [
+                    {
+                        "type": "greater_than_equal",
+                        "loc": ["query", "offset"],
+                        "msg": "Input should be greater than or equal to 0",
+                        "input": "-1",
+                        "ctx": {"ge": 0},
+                    }
+                ],
+            ),
+            (
+                {"limit": -1, "offset": 1},
+                [
+                    {
+                        "type": "greater_than_equal",
+                        "loc": ["query", "limit"],
+                        "msg": "Input should be greater than or equal to 0",
+                        "input": "-1",
+                        "ctx": {"ge": 0},
+                    }
+                ],
+            ),
+            (
+                {"limit": -1, "offset": -1},
+                [
+                    {
+                        "type": "greater_than_equal",
+                        "loc": ["query", "limit"],
+                        "msg": "Input should be greater than or equal to 0",
+                        "input": "-1",
+                        "ctx": {"ge": 0},
+                    },
+                    {
+                        "type": "greater_than_equal",
+                        "loc": ["query", "offset"],
+                        "msg": "Input should be greater than or equal to 0",
+                        "input": "-1",
+                        "ctx": {"ge": 0},
+                    },
+                ],
+            ),
+        ],
+    )
+    def test_bad_limit_and_offset(self, test_client, query_params, expected_detail):
+        response = test_client.get("/public/assets", params=query_params)
+        assert response.status_code == 422
+        assert response.json()["detail"] == expected_detail
+
 
 class TestGetAssetEvents(TestAssets):
     def test_should_respond_200(self, test_client, session):
