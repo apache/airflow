@@ -47,14 +47,12 @@ paths:
         required: true
         schema:
           type: string
-          format: date-time
           title: Start Date
       - name: end_date
         in: query
         required: true
         schema:
           type: string
-          format: date-time
           title: End Date
       responses:
         '200':
@@ -456,7 +454,6 @@ paths:
         schema:
           anyOf:
           - type: string
-            format: date-time
           - type: 'null'
           title: Before
       responses:
