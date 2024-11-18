@@ -17,7 +17,7 @@
 # under the License.
 # shellcheck shell=bash disable=SC2086
 
-# Installs Yarn dependencies from $AIRFLOW_BRANCH tip. This is pure optimization. It is done because we do not want
+# Installs pnpm dependencies from $AIRFLOW_BRANCH tip. This is pure optimization. It is done because we do not want
 # to reinstall all dependencies from scratch when package.json changes. Problem with Docker caching is that
 # when a file is changed, when added to docker context, it invalidates the cache and it causes Docker
 # build to reinstall all dependencies from scratch. This can take a loooooot of time. Therefore we install
@@ -30,9 +30,9 @@
 : "${AIRFLOW_REPO:?Should be set}"
 : "${AIRFLOW_BRANCH:?Should be set}"
 
-function install_yarn_dependencies_from_branch_tip() {
+function install_pnpm_dependencies_from_branch_tip() {
     echo
-    echo "${COLOR_BLUE}Installing Yarn dependencies from ${AIRFLOW_BRANCH}. It is used to cache dependencies${COLOR_RESET}"
+    echo "${COLOR_BLUE}Installing pnpm dependencies from ${AIRFLOW_BRANCH}. It is used to cache dependencies${COLOR_RESET}"
     echo
     local TEMP_AIRFLOW_DIR
     TEMP_AIRFLOW_DIR=$(mktemp -d)
@@ -43,21 +43,21 @@ function install_yarn_dependencies_from_branch_tip() {
     curl -fsSL "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz" | \
         tar xz -C "${TEMP_AIRFLOW_DIR}" --strip 1
 
-    # Install Yarn dependencies
-    cd "${TEMP_AIRFLOW_DIR}/airflow/www"
-    yarn install --frozen-lockfile
+    # Install pnpm dependencies
+    cd "${TEMP_AIRFLOW_DIR}/airflow/ui"
+    pnpm install --frozen-lockfile --config.confirmModulesPurge=false
     set +x
     set +e
-    echo "${COLOR_BLUE}Yarn dependencies installed successfully${COLOR_RESET}"
+    echo "${COLOR_BLUE}pnpm dependencies installed successfully${COLOR_RESET}"
 
-    # Copy Yarn packages to the .yarn-cache directory
+    # Copy pnpm packages to the .pnpm-cache directory
     echo
-    echo "${COLOR_BLUE}Copying Yarn packages to the ${YARN_CACHE_DIR} directory${COLOR_RESET}"
+    echo "${COLOR_BLUE}Copying pnpm packages to the ${PNPM_CACHE_DIR} directory${COLOR_RESET}"
     echo
     set -e
     set -x
-    cp -r ./node_modules $YARN_CACHE_DIR/
-    echo "${COLOR_BLUE}Yarn packages copied successfully${COLOR_RESET}"
+    cp -r ./node_modules $PNPM_CACHE_DIR/
+    echo "${COLOR_BLUE}pnpm packages copied successfully${COLOR_RESET}"
     set +x
 
     # Clean up
@@ -67,4 +67,4 @@ function install_yarn_dependencies_from_branch_tip() {
 
 common::get_colors
 
-install_yarn_dependencies_from_branch_tip
+install_pnpm_dependencies_from_branch_tip

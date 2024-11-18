@@ -56,6 +56,7 @@ if __name__ == "__main__":
     ui_directory = AIRFLOW_SOURCES_PATH / "airflow" / "ui"
     node_modules_directory = ui_directory / "node_modules"
     dist_directory = ui_directory / "dist"
+    PNPM_CACHE_DIR = os.getenv("PNPM_CACHE_DIR", f"{Path.home()}/.pnpm-cache")
     UI_HASH_FILE.parent.mkdir(exist_ok=True, parents=True)
     if node_modules_directory.exists() and dist_directory.exists():
         old_hash = UI_HASH_FILE.read_text() if UI_HASH_FILE.exists() else ""
@@ -68,10 +69,16 @@ if __name__ == "__main__":
         shutil.rmtree(dist_directory, ignore_errors=True)
     env = os.environ.copy()
     env["FORCE_COLOR"] = "true"
-    subprocess.check_call(
-        ["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"],
-        cwd=os.fspath(ui_directory),
-    )
+    if os.getenv("AIRFLOW_PRE_CACHED_PNPM_PACKAGES", "false") == "true":
+        # Copy pnpm-cache to node_modules from pnpm-cache
+        shutil.copytree(PNPM_CACHE_DIR, ui_directory)
+        # Remove the pnpm-cache directory to reduce the size of the docker image and prevent duplication
+        shutil.rmtree(PNPM_CACHE_DIR, ignore_errors=True)
+    else:
+        subprocess.check_call(
+            ["pnpm", "install", "--frozen-lockfile", "--config.confirmModulesPurge=false"],
+            cwd=os.fspath(ui_directory),
+        )
     subprocess.check_call(["pnpm", "run", "build"], cwd=os.fspath(ui_directory), env=env)
     new_hash = get_directory_hash(ui_directory, skip_path_regexp=r".*node_modules.*")
     UI_HASH_FILE.write_text(new_hash)

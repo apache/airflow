@@ -69,7 +69,7 @@ if __name__ == "__main__":
         shutil.rmtree(dist_directory, ignore_errors=True)
     env = os.environ.copy()
     env["FORCE_COLOR"] = "true"
-    if os.getenv("AIRFLOW_PRE_CACHED_YARN_PACKAGES") == "true":
+    if os.getenv("AIRFLOW_PRE_CACHED_YARN_PACKAGES", "false") == "true":
         # Copy yarn-cache to node_modules from yarn-cache
         shutil.copytree(YARN_CACHE_DIR, www_directory)
         # Remove the yarn-cache directory to reduce the size of the docker image and prevent duplication

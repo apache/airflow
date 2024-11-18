@@ -1394,88 +1394,6 @@ while echo "Running"; do
 done
 EOF
 
-
-# The content below is automatically copied from scripts/docker/install_yarn_dependencies_from_branch_tip.sh
-COPY <<"EOF" /install_yarn_dependencies_from_branch_tip.sh
-#!/usr/bin/env bash
-
-. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
-
-: "${AIRFLOW_REPO:?Should be set}"
-: "${AIRFLOW_BRANCH:?Should be set}"
-
-function install_yarn_dependencies_from_branch_tip() {
-    echo
-    echo "${COLOR_BLUE}Installing Yarn dependencies from ${AIRFLOW_BRANCH}. It is used to cache dependencies${COLOR_RESET}"
-    echo
-    local TEMP_AIRFLOW_DIR
-    TEMP_AIRFLOW_DIR=$(mktemp -d)
-    # Download the source code from the specified branch
-    set -e
-    set -x
-    curl -fsSL "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz" | \
-        tar xz -C "${TEMP_AIRFLOW_DIR}" --strip 1
-    # Install Yarn dependencies
-    cd "${TEMP_AIRFLOW_DIR}/airflow/www"
-    yarn install --frozen-lockfile
-    set +x
-    set +e
-    echo "${COLOR_BLUE}Yarn dependencies installed successfully${COLOR_RESET}"
-
-    # Copy Yarn packages to the .yarn-cache directory
-    echo
-    echo "${COLOR_BLUE}Copying Yarn packages to the ${YARN_CACHE_DIR} directory${COLOR_RESET}"
-    echo
-    set -e
-    set -x
-    cp -r ./node_modules $YARN_CACHE_DIR/
-    echo "${COLOR_BLUE}Yarn packages copied successfully${COLOR_RESET}"
-    set +x
-    # Clean up
-    remove_npm_and_yarn
-    rm -rf "${TEMP_AIRFLOW_DIR}"
-    set +e
-}
-
-function install_npm_and_yarn() {
-    echo
-    echo "${COLOR_BLUE}Installing npm and yarn${COLOR_RESET}"
-    echo
-    set -e
-    set -x
-    # Install npm
-    apt-get update
-    apt-get install -y npm
-    # Install yarn
-    npm install -g yarn
-    echo "${COLOR_BLUE}npm and yarn installed successfully${COLOR_RESET}"
-    set +x
-    set +e
-}
-
-function remove_npm_and_yarn() {
-    echo
-    echo "${COLOR_BLUE}Removing npm and yarn${COLOR_RESET}"
-    echo
-    set +e
-    set -x
-    # Remove yarn
-    npm cache clean --force
-    npm uninstall -g yarn
-    # Remove npm
-    apt-get remove -y npm
-    echo "${COLOR_BLUE}npm and yarn removed successfully${COLOR_RESET}"
-    set +x
-    set -e
-}
-
-common::get_colors
-
-install_npm_and_yarn
-install_yarn_dependencies_from_branch_tip
-EOF
-
-
 ##############################################################################################
 # This is the build image where we build all dependencies
 ##############################################################################################
@@ -1533,8 +1451,6 @@ ARG DOCKER_CONTEXT_FILES="Dockerfile"
 ARG AIRFLOW_HOME
 ARG AIRFLOW_USER_HOME_DIR
 ARG AIRFLOW_UID
-ARG AIRFLOW_REPO=apache/airflow
-ARG AIRFLOW_BRANCH=main
 
 RUN adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
        --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" && \
@@ -1542,21 +1458,10 @@ RUN adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-passw
 
 COPY --chown=${AIRFLOW_UID}:0 ${DOCKER_CONTEXT_FILES} /docker-context-files
 
-# Yarn cache
-ARG AIRFLOW_PRE_CACHED_YARN_PACKAGES="true"
-ENV AIRFLOW_PRE_CACHED_YARN_PACKAGES=${AIRFLOW_PRE_CACHED_YARN_PACKAGES}
-COPY --from=scripts install_yarn_dependencies_from_branch_tip.sh /scripts/docker/
-
-ENV YARN_CACHE_DIR="${AIRFLOW_USER_HOME_DIR}/.yarn-cache"
-RUN mkdir -p "${YARN_CACHE_DIR}" && \
-    chown -R "airflow:0" "${YARN_CACHE_DIR}"
-# We are installing Yarn dependencies here to make sure they are cached in the layer
-RUN if [[ ${AIRFLOW_PRE_CACHED_YARN_PACKAGES} == "true" ]]; then \
-        bash /scripts/docker/install_yarn_dependencies_from_branch_tip.sh; \
-    fi
-
 USER airflow
 
+ARG AIRFLOW_REPO=apache/airflow
+ARG AIRFLOW_BRANCH=main
 ARG AIRFLOW_EXTRAS
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 # Allows to override constraints source
