@@ -279,7 +279,7 @@ def delete_dag_asset_queued_events(
 
 
 @assets_router.get(
-    "/assets/queuedEvents/{uri:path}",
+    "/assets/queuedEvent/{uri:path}",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_404_NOT_FOUND,
