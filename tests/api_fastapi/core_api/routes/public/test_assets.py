@@ -531,12 +531,16 @@ class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
         self.create_assets(session=session, num=1)
         asset_id = 1
         self._create_asset_dag_run_queues(dag_id, asset_id, session)
+        adrqs = session.query(AssetDagRunQueue).all()
+        assert len(adrqs) == 1
 
         response = test_client.delete(
             f"/public/dags/{dag_id}/assets/queuedEvent",
         )
 
         assert response.status_code == 204
+        adrqs = session.query(AssetDagRunQueue).all()
+        assert len(adrqs) == 0
 
     def test_should_respond_404(self, test_client):
         dag_id = "not_exists"
