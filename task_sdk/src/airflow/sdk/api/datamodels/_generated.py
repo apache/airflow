@@ -122,14 +122,6 @@ class XComResponse(BaseModel):
     value: Annotated[Any, Field(title="Value")]
 
 
-class XComValuePayload(BaseModel):
-    """
-    The request model for setting an XCom value.
-    """
-
-    value: Annotated[str, Field(title="Value")]
-
-
 class TaskInstance(BaseModel):
     """
     Schema for TaskInstance model with minimal required fields needed for Runtime.

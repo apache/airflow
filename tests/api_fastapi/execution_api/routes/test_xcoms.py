@@ -105,7 +105,7 @@ class TestXComsSetEndpoint:
 
         response = client.post(
             f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
-            json={"value": value},
+            json=value,
         )
 
         assert response.status_code == 201
@@ -118,7 +118,7 @@ class TestXComsSetEndpoint:
         with mock.patch("airflow.api_fastapi.execution_api.routes.xcoms.has_xcom_access", return_value=False):
             response = client.post(
                 "/execution/xcoms/dag/runid/task/xcom_perms",
-                json={"value": '"value1"'},
+                json='"value1"',
             )
 
         assert response.status_code == 403

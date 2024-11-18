@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Json
+from pydantic import BaseModel
 
 
 class XComResponse(BaseModel):
@@ -28,10 +28,3 @@ class XComResponse(BaseModel):
     key: str
     value: Any
     """The returned XCom value in a JSON-compatible format."""
-
-
-class XComValuePayload(BaseModel):
-    """The request model for setting an XCom value."""
-
-    value: Json
-    """A JSON-formatted string representing the value to set for the XCom."""

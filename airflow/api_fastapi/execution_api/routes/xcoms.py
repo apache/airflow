@@ -21,14 +21,15 @@ import json
 import logging
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, status
+from fastapi import Body, Depends, HTTPException, Query, status
+from pydantic import Json
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api import deps
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
-from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse, XComValuePayload
+from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.models.xcom import BaseXCom
 
 # TODO: Add dependency on JWT token
@@ -117,7 +118,26 @@ def set_xcom(
     run_id: str,
     task_id: str,
     key: str,
-    body: XComValuePayload,
+    value: Annotated[
+        Json,
+        Body(
+            description="A JSON-formatted string representing the value to set for the XCom.",
+            openapi_examples={
+                "simple_value": {
+                    "summary": "Simple value",
+                    "value": '"value1"',
+                },
+                "dict_value": {
+                    "summary": "Dictionary value",
+                    "value": '{"key2": "value2"}',
+                },
+                "list_value": {
+                    "summary": "List value",
+                    "value": '["value1"]',
+                },
+            },
+        ),
+    ],
     token: deps.TokenDep,
     session: Annotated[Session, Depends(get_session)],
     map_index: Annotated[int, Query()] = -1,
@@ -136,7 +156,7 @@ def set_xcom(
     try:
         BaseXCom.set(
             key=key,
-            value=body.value,
+            value=value,
             dag_id=dag_id,
             task_id=task_id,
             run_id=run_id,
