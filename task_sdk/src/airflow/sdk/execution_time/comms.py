@@ -47,8 +47,7 @@ from typing import Annotated, Any, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from airflow.sdk.api.datamodels._generated import TaskInstanceState  # noqa: TCH001
-from airflow.sdk.api.datamodels.ti import TaskInstance  # noqa: TCH001
+from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState  # noqa: TCH001
 
 
 class StartupDetails(BaseModel):
@@ -95,7 +94,7 @@ class TaskState(BaseModel):
     - anything else = FAILED
     """
 
-    state: TaskInstanceState
+    state: TerminalTIState
     type: Literal["TaskState"] = "TaskState"
 
 

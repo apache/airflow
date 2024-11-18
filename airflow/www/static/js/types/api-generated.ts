@@ -1116,7 +1116,7 @@ export interface components {
        * The value of this field can be set only when creating the object. If you try to modify the
        * field of an existing object, the request fails with an BAD_REQUEST error.
        *
-       * If not provided, a value will be generated based on execution_date.
+       * If not provided, a value will be generated based on logical_date.
        *
        * If the specified dag_run_id is in use, the creation request fails with an ALREADY_EXISTS error.
        *
@@ -1137,18 +1137,6 @@ export interface components {
        * *New in version 2.2.0*
        */
       logical_date?: string | null;
-      /**
-       * Format: date-time
-       * @deprecated
-       * @description The execution date. This is the same as logical_date, kept for backwards compatibility.
-       * If both this field and logical_date are provided but with different values, the request
-       * will fail with an BAD_REQUEST error.
-       *
-       * *Changed in version 2.2.0*&#58; Field becomes nullable.
-       *
-       * *Deprecated since version 2.2.0*&#58; Use 'logical_date' instead.
-       */
-      execution_date?: string | null;
       /**
        * Format: date-time
        * @description The start time. The time when DAG run was actually created.
@@ -1480,7 +1468,7 @@ export interface components {
        */
       dag_run_id?: string;
       /** Format: datetime */
-      execution_date?: string;
+      logical_date?: string;
       /** Format: datetime */
       start_date?: string | null;
       /** Format: datetime */
@@ -1538,13 +1526,64 @@ export interface components {
     TaskInstanceCollection: {
       task_instances?: components["schemas"]["TaskInstance"][];
     } & components["schemas"]["CollectionInfo"];
+    TaskInstanceHistory: {
+      task_id?: string;
+      /**
+       * @description Human centric display text for the task.
+       *
+       * *New in version 2.9.0*
+       */
+      task_display_name?: string;
+      dag_id?: string;
+      /**
+       * @description The DagRun ID for this task instance
+       *
+       * *New in version 2.3.0*
+       */
+      dag_run_id?: string;
+      /** Format: datetime */
+      start_date?: string | null;
+      /** Format: datetime */
+      end_date?: string | null;
+      duration?: number | null;
+      state?: components["schemas"]["TaskState"];
+      try_number?: number;
+      map_index?: number;
+      max_tries?: number;
+      hostname?: string;
+      unixname?: string;
+      pool?: string;
+      pool_slots?: number;
+      queue?: string | null;
+      priority_weight?: number | null;
+      /** @description *Changed in version 2.1.1*&#58; Field becomes nullable. */
+      operator?: string | null;
+      /** @description The datetime that the task enter the state QUEUE, also known as queue_at */
+      queued_when?: string | null;
+      pid?: number | null;
+      /**
+       * @description Executor the task is configured to run on or None (which indicates the default executor)
+       *
+       * *New in version 2.10.0*
+       */
+      executor?: string | null;
+      executor_config?: string;
+    };
+    /**
+     * @description Collection of task instances .
+     *
+     * *Changed in version 2.1.0*&#58; 'total_entries' field is added.
+     */
+    TaskInstanceHistoryCollection: {
+      task_instances_history?: components["schemas"]["TaskInstanceHistory"][];
+    } & components["schemas"]["CollectionInfo"];
     TaskInstanceReference: {
       /** @description The task ID. */
       task_id?: string;
       /** @description The DAG ID. */
       dag_id?: string;
       /** Format: datetime */
-      execution_date?: string;
+      logical_date?: string;
       /** @description The DAG run ID. */
       dag_run_id?: string;
     };
@@ -1586,7 +1625,7 @@ export interface components {
       /** Format: datetime */
       timestamp?: string;
       /** Format: datetime */
-      execution_date?: string;
+      logical_date?: string;
       map_index?: number;
       task_id?: string;
       dag_id?: string;
@@ -2099,11 +2138,11 @@ export interface components {
       task_id?: string;
       /**
        * Format: datetime
-       * @description The execution date. Either set this or dag_run_id but not both.
+       * @description The logical date. Either set this or dag_run_id but not both.
        */
-      execution_date?: string;
+      logical_date?: string;
       /**
-       * @description The task instance's DAG run ID. Either set this or execution_date but not both.
+       * @description The task instance's DAG run ID. Either set this or logical_date but not both.
        *
        * *New in version 2.3.0*
        */
@@ -4390,7 +4429,7 @@ export interface operations {
       /** Success. */
       200: {
         content: {
-          "application/json": components["schemas"]["TaskInstance"];
+          "application/json": components["schemas"]["TaskInstanceHistory"];
         };
       };
       401: components["responses"]["Unauthenticated"];
@@ -4431,7 +4470,7 @@ export interface operations {
       /** Success. */
       200: {
         content: {
-          "application/json": components["schemas"]["TaskInstanceCollection"];
+          "application/json": components["schemas"]["TaskInstanceHistoryCollection"];
         };
       };
       401: components["responses"]["Unauthenticated"];
@@ -4474,7 +4513,7 @@ export interface operations {
       /** Success. */
       200: {
         content: {
-          "application/json": components["schemas"]["TaskInstanceCollection"];
+          "application/json": components["schemas"]["TaskInstanceHistoryCollection"];
         };
       };
       401: components["responses"]["Unauthenticated"];
@@ -4506,7 +4545,7 @@ export interface operations {
       /** Success. */
       200: {
         content: {
-          "application/json": components["schemas"]["TaskInstance"];
+          "application/json": components["schemas"]["TaskInstanceHistory"];
         };
       };
       401: components["responses"]["Unauthenticated"];
@@ -5307,6 +5346,12 @@ export type TaskInstance = CamelCasedPropertiesDeep<
 >;
 export type TaskInstanceCollection = CamelCasedPropertiesDeep<
   components["schemas"]["TaskInstanceCollection"]
+>;
+export type TaskInstanceHistory = CamelCasedPropertiesDeep<
+  components["schemas"]["TaskInstanceHistory"]
+>;
+export type TaskInstanceHistoryCollection = CamelCasedPropertiesDeep<
+  components["schemas"]["TaskInstanceHistoryCollection"]
 >;
 export type TaskInstanceReference = CamelCasedPropertiesDeep<
   components["schemas"]["TaskInstanceReference"]

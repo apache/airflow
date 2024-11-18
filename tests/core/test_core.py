@@ -86,33 +86,6 @@ class TestCore:
         with pytest.raises(AirflowTaskTimeout):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    def test_externally_triggered_dagrun(self, dag_maker):
-        TI = TaskInstance
-
-        # Create the dagrun between two "scheduled" execution dates of the DAG
-        execution_date = DEFAULT_DATE + timedelta(days=2)
-        execution_ds = execution_date.strftime("%Y-%m-%d")
-        execution_ds_nodash = execution_ds.replace("-", "")
-
-        with dag_maker(schedule=timedelta(weeks=1), serialized=True):
-            task = EmptyOperator(task_id="test_externally_triggered_dag_context")
-        dr = dag_maker.create_dagrun(
-            run_type=DagRunType.SCHEDULED,
-            execution_date=execution_date,
-            external_trigger=True,
-        )
-        task.run(start_date=execution_date, end_date=execution_date)
-
-        ti = TI(task=task, run_id=dr.run_id)
-        ti.refresh_from_db()
-        context = ti.get_template_context()
-
-        # next_ds should be the execution date for manually triggered runs
-        with pytest.deprecated_call():
-            assert context["next_ds"] == execution_ds
-        with pytest.deprecated_call():
-            assert context["next_ds_nodash"] == execution_ds_nodash
-
     def test_dag_params_and_task_params(self, dag_maker):
         # This test case guards how params of DAG and Operator work together.
         # - If any key exists in either DAG's or Operator's params,

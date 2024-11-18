@@ -43,7 +43,7 @@ import structlog
 from pydantic import TypeAdapter
 
 from airflow.sdk.api.client import Client
-from airflow.sdk.api.datamodels._generated import TaskInstanceState
+from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
     ConnectionResponse,
     GetConnection,
@@ -55,8 +55,6 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
     from airflow.sdk.api.datamodels.activities import ExecuteTaskActivity
-    from airflow.sdk.api.datamodels.ti import TaskInstance
-
 
 __all__ = ["WatchedSubprocess", "supervise"]
 
@@ -431,8 +429,8 @@ class WatchedSubprocess:
         Not valid before the process has finished.
         """
         if self._exit_code == 0:
-            return self._terminal_state or TaskInstanceState.SUCCESS
-        return TaskInstanceState.FAILED
+            return self._terminal_state or TerminalTIState.SUCCESS
+        return TerminalTIState.FAILED
 
     def __rich_repr__(self):
         yield "pid", self.pid

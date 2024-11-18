@@ -156,7 +156,6 @@ class TestSparkJDBCOperator:
             # Other parameters
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         session.add(ti)
         session.commit()

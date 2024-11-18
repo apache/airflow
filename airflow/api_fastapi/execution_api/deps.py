@@ -21,12 +21,12 @@ from typing import Annotated
 
 from fastapi import Depends
 
-from airflow.api_fastapi.execution_api import datamodels
+from airflow.api_fastapi.execution_api.datamodels.token import TIToken
 
 
-def get_task_token() -> datamodels.TIToken:
+def get_task_token() -> TIToken:
     """TODO: Placeholder for task identity authentication. This should be replaced with actual JWT decoding and validation."""
-    return datamodels.TIToken(ti_key="test_key")
+    return TIToken(ti_key="test_key")
 
 
-TokenDep = Annotated[datamodels.TIToken, Depends(get_task_token)]
+TokenDep = Annotated[TIToken, Depends(get_task_token)]

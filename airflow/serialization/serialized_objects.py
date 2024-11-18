@@ -1547,7 +1547,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         Store the import path of the OperatorLink and the arguments passed to it.
         For example:
-        ``[{'airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink': {}}]``
+        ``[{'airflow.providers.google.cloud.links.bigquery.BigQueryDatasetLink': {}}]``
 
         :param operator_extra_links: Operator Link
         :return: Serialized Operator Link
