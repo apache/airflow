@@ -635,8 +635,8 @@ def float_range_filter_factory(
 
 
 # Common Safe DateTime
-DateTimeQuery = Annotated[datetime, AfterValidator(_safe_parse_datetime)]
-OptionalDateTimeQuery = Annotated[Union[datetime, None], AfterValidator(_safe_parse_datetime_optional)]
+DateTimeQuery = Annotated[str, AfterValidator(_safe_parse_datetime)]
+OptionalDateTimeQuery = Annotated[Union[str, None], AfterValidator(_safe_parse_datetime_optional)]
 
 # DAG
 QueryLimit = Annotated[LimitFilter, Depends(LimitFilter().depends)]
