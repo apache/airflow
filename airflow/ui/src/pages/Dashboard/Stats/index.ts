@@ -16,23 +16,5 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading } from "@chakra-ui/react";
 
-import { Health } from "./Health";
-import { HistoricalMetrics } from "./HistoricalMetrics";
-import { Stats } from "./Stats";
-
-export const Dashboard = () => (
-  <Box>
-    <Heading mb={4}>Welcome</Heading>
-    <Box>
-      <Health />
-    </Box>
-    <Box mt={5}>
-      <Stats />
-    </Box>
-    <Box mt={5}>
-      <HistoricalMetrics />
-    </Box>
-  </Box>
-);
+export { Stats } from "./Stats";
