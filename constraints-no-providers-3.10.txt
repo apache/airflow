@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-18T13:46:37.632785
+# This constraints file was automatically generated on 2024-11-18T19:40:47.456033
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -15,7 +15,7 @@ Flask-AppBuilder==4.5.2
 Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
 Flask-Caching==2.3.0
-Flask-JWT-Extended==4.6.0
+Flask-JWT-Extended==4.7.0
 Flask-Limiter==3.8.0
 Flask-Login==0.6.3
 Flask-SQLAlchemy==2.5.1
@@ -119,15 +119,15 @@ methodtools==0.4.7
 more-itertools==10.5.0
 multidict==6.1.0
 numpy==1.26.4
-opentelemetry-api==1.28.1
-opentelemetry-exporter-otlp-proto-common==1.28.1
-opentelemetry-exporter-otlp-proto-grpc==1.28.1
-opentelemetry-exporter-otlp-proto-http==1.28.1
-opentelemetry-exporter-otlp==1.28.1
-opentelemetry-exporter-prometheus==0.49b1
-opentelemetry-proto==1.28.1
-opentelemetry-sdk==1.28.1
-opentelemetry-semantic-conventions==0.49b1
+opentelemetry-api==1.28.2
+opentelemetry-exporter-otlp-proto-common==1.28.2
+opentelemetry-exporter-otlp-proto-grpc==1.28.2
+opentelemetry-exporter-otlp-proto-http==1.28.2
+opentelemetry-exporter-otlp==1.28.2
+opentelemetry-exporter-prometheus==0.49b2
+opentelemetry-proto==1.28.2
+opentelemetry-sdk==1.28.2
+opentelemetry-semantic-conventions==0.49b2
 ordered-set==4.1.0
 packaging==24.2
 pandas==2.1.4
