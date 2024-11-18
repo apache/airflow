@@ -239,7 +239,7 @@ def clear_dag_run(
         return DAGRunResponse.model_validate(dag_run_cleared, from_attributes=True)
 
 
-@dag_run_router.get("")
+@dag_run_router.get("", responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]))
 def get_dag_runs(
     dag_id: str,
     limit: QueryLimit,
