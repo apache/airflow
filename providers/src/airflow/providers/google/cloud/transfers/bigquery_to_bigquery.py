@@ -232,10 +232,4 @@ class BigQueryToBigQueryOperator(BaseOperator):
             field_names=[field.name for field in dest_table_object.schema], input_datasets=[input_dataset]
         )
 
-        run_facets = {}
-        if self.job_id:
-            run_facets = {
-                "externalQuery": ExternalQueryRunFacet(externalQueryId=self.job_id, source="bigquery"),
-            }
-
-        return OperatorLineage(inputs=[input_dataset], outputs=[output_dataset], run_facets=run_facets)
+        return OperatorLineage(inputs=[input_dataset], outputs=[output_dataset])
