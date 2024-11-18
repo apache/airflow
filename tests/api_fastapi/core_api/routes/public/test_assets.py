@@ -120,6 +120,15 @@ def _create_asset_dag_run(session, num: int = 2):
 class TestAssets:
     default_time = "2020-06-11T18:00:00+00:00"
 
+    @pytest.fixture
+    def time_freezer(self) -> Generator:
+        freezer = time_machine.travel(self.default_time, tick=False)
+        freezer.start()
+
+        yield
+
+        freezer.stop()
+
     @pytest.fixture(autouse=True)
     def setup(self) -> None:
         clear_db_assets()
@@ -471,15 +480,6 @@ class TestGetAssetEndpoint(TestAssets):
 
 
 class TestQueuedEventEndpoint(TestAssets):
-    @pytest.fixture
-    def time_freezer(self) -> Generator:
-        freezer = time_machine.travel(self.default_time, tick=False)
-        freezer.start()
-
-        yield
-
-        freezer.stop()
-
     def _create_asset_dag_run_queues(self, dag_id, asset_id, session):
         adrq = AssetDagRunQueue(target_dag_id=dag_id, asset_id=asset_id)
         session.add(adrq)

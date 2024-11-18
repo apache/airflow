@@ -239,7 +239,7 @@ export class AssetService {
   ): CancelablePromise<CreateAssetEventResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/public/events",
+      url: "/public/assets/events",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {

@@ -164,7 +164,7 @@ def get_asset_events(
 
 
 @assets_router.post(
-    "/events",
+    "/assets/events",
     responses=create_openapi_http_exception_doc([404]),
 )
 def create_asset_event(
