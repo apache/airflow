@@ -1568,9 +1568,8 @@ ARG AIRFLOW_PRE_CACHED_YARN_PACKAGES="true"
 ENV AIRFLOW_PRE_CACHED_YARN_PACKAGES=${AIRFLOW_PRE_CACHED_YARN_PACKAGES}
 COPY --from=scripts install_yarn_dependencies_from_branch_tip.sh /scripts/docker/
 
-ENV YARN_CACHE_DIR="${AIRFLOW_USER_HOME_DIR}/.yarn-cache"
-RUN mkdir -p "${YARN_CACHE_DIR}" && \
-    chown -R "airflow:0" "${YARN_CACHE_DIR}"
+ENV YARN_CACHE_DIR="${AIRFLOW_SOURCES}/.yarn-cache"
+RUN mkdir -p "${YARN_CACHE_DIR}"
 # We are installing Yarn dependencies here to make sure they are cached in the layer
 RUN if [[ ${AIRFLOW_PRE_CACHED_YARN_PACKAGES} == "true" ]]; then \
         bash /scripts/docker/install_yarn_dependencies_from_branch_tip.sh; \
@@ -1581,17 +1580,12 @@ ARG AIRFLOW_PRE_CACHED_PNPM_PACKAGES="true"
 ENV AIRFLOW_PRE_CACHED_PNPM_PACKAGES=${AIRFLOW_PRE_CACHED_PNPM_PACKAGES}
 COPY --from=scripts install_pnpm_dependencies_from_branch_tip.sh /scripts/docker/
 
-ENV PNPM_CACHE_DIR="${AIRFLOW_USER_HOME_DIR}/.pnpm-cache"
-RUN mkdir -p "${PNPM_CACHE_DIR}" && \
-    chown -R "airflow:0" "${PNPM_CACHE_DIR}"
+ENV PNPM_CACHE_DIR="${AIRFLOW_SOURCES}/.pnpm-cache"
+RUN mkdir -p "${PNPM_CACHE_DIR}"
 # We are installing pnpm dependencies here to make sure they are cached in the layer
 RUN if [[ ${AIRFLOW_PRE_CACHED_PNPM_PACKAGES} == "true" ]]; then \
         bash /scripts/docker/install_pnpm_dependencies_from_branch_tip.sh; \
     fi
-
-# Remove npm, pnpm and yarn
-COPY --from=scripts remove_npm_pnpm_yarn.sh /scripts/docker/
-RUN bash /scripts/docker/remove_npm_pnpm_yarn.sh
 
 # Here we fix the versions so all subsequent commands will use the versions
 # from the sources
