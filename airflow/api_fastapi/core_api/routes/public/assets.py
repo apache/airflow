@@ -282,6 +282,4 @@ def get_dag_asset_queued_event(
             f"Queued event with dag_id: `{dag_id}` and asset uri: `{uri}` was not found",
         )
 
-    queued_event = QueuedEventResponse(created_at=adrq.created_at, dag_id=adrq.target_dag_id, uri=uri)
-
-    return QueuedEventResponse.model_validate(queued_event, from_attributes=True)
+    return QueuedEventResponse(created_at=adrq.created_at, dag_id=adrq.target_dag_id, uri=uri)
