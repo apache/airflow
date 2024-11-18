@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
@@ -25,6 +26,7 @@ from sqlalchemy.orm import Session, joinedload, subqueryload
 
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
 from airflow.api_fastapi.common.parameters import (
+    OptionalDateTimeQuery,
     QueryAssetDagIdPatternSearch,
     QueryAssetIdFilter,
     QueryLimit,
@@ -43,18 +45,41 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
     AssetEventResponse,
     AssetResponse,
     CreateAssetEventsBody,
+    QueuedEventCollectionResponse,
+    QueuedEventResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.assets import Asset
 from airflow.assets.manager import asset_manager
-from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.utils import timezone
 
-assets_router = AirflowRouter(tags=["Asset"], prefix="/assets")
+assets_router = AirflowRouter(tags=["Asset"])
+
+
+def _generate_queued_event_where_clause(
+    *,
+    dag_id: str | None = None,
+    uri: str | None = None,
+    before: datetime | None = None,
+) -> list:
+    """Get AssetDagRunQueue where clause."""
+    where_clause = []
+    if dag_id is not None:
+        where_clause.append(AssetDagRunQueue.target_dag_id == dag_id)
+    if uri is not None:
+        where_clause.append(
+            AssetDagRunQueue.asset_id.in_(
+                select(AssetModel.id).where(AssetModel.uri == uri),
+            ),
+        )
+    if before is not None:
+        where_clause.append(AssetDagRunQueue.created_at < before)
+    return where_clause
 
 
 @assets_router.get(
-    "/",
+    "/assets",
     responses=create_openapi_http_exception_doc([401, 403, 404]),
 )
 def get_assets(
@@ -89,7 +114,7 @@ def get_assets(
 
 
 @assets_router.get(
-    "/events",
+    "/assets/events",
     responses=create_openapi_http_exception_doc([404]),
 )
 def get_asset_events(
@@ -165,7 +190,7 @@ def create_asset_event(
 
 
 @assets_router.get(
-    "/{uri:path}",
+    "/assets/{uri:path}",
     responses=create_openapi_http_exception_doc([401, 403, 404]),
 )
 def get_asset(
@@ -183,3 +208,47 @@ def get_asset(
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with uri: `{uri}` was not found")
 
     return AssetResponse.model_validate(asset, from_attributes=True)
+
+
+@assets_router.get(
+    "/dags/{dag_id}/assets/queuedEvent",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
+def get_dag_asset_queued_events(
+    dag_id: str,
+    session: Annotated[Session, Depends(get_session)],
+    before: OptionalDateTimeQuery = None,
+) -> QueuedEventCollectionResponse:
+    """Get queued asset events for a DAG."""
+    where_clause = _generate_queued_event_where_clause(dag_id=dag_id, before=before)
+    query = (
+        select(AssetDagRunQueue, AssetModel.uri)
+        .join(AssetModel, AssetDagRunQueue.asset_id == AssetModel.id)
+        .where(*where_clause)
+    )
+
+    dag_asset_queued_events_select, total_entries = paginated_select(
+        query,
+        [],
+    )
+    adrqs = session.execute(dag_asset_queued_events_select).all()
+
+    if not adrqs:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with dag_id: `{dag_id}` was not found")
+
+    queued_events = [
+        QueuedEventResponse(created_at=adrq.created_at, dag_id=adrq.target_dag_id, uri=uri)
+        for adrq, uri in adrqs
+    ]
+
+    return QueuedEventCollectionResponse(
+        queued_events=[
+            QueuedEventResponse.model_validate(queued_event, from_attributes=True)
+            for queued_event in queued_events
+        ],
+        total_entries=total_entries,
+    )
