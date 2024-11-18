@@ -168,9 +168,7 @@ class TestGetEventLog(TestEventLogsEndpoint):
             "map_index": event_log.map_index,
             "try_number": event_log.try_number,
             "event": expected_body.get("event"),
-            "logical_date": datetime_zulu_format(event_log.logical_date)
-            if event_log.logical_date
-            else None,
+            "logical_date": datetime_zulu_format(event_log.logical_date) if event_log.logical_date else None,
             "owner": expected_body.get("owner"),
             "extra": expected_body.get("extra"),
         }
