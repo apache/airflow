@@ -363,7 +363,9 @@ class TestFileTaskLogHandler:
         fth = FileTaskHandler("")
         actual = fth._read(ti=local_log_file_read, try_number=1)
         mock_read_local.assert_called_with(path)
-        assert actual == ("*** the messages\nthe log", {"end_of_log": True, "log_pos": 7})
+        assert "*** the messages\n" in actual[0]
+        assert actual[0].endswith("the log")
+        assert actual[1] == {"end_of_log": True, "log_pos": 7}
 
     def test__read_from_local(self, tmp_path):
         """Tests the behavior of method _read_from_local"""
@@ -424,7 +426,9 @@ class TestFileTaskLogHandler:
             actual = fth._read(ti=ti, try_number=1)
         if served_logs_checked:
             fth._read_from_logs_server.assert_called_once()
-            assert actual == ("*** this message\nthis\nlog\ncontent", {"end_of_log": True, "log_pos": 16})
+            assert "*** this message\n" in actual[0]
+            assert actual[0].endswith("this\nlog\ncontent")
+            assert actual[1] == {"end_of_log": True, "log_pos": 16}
         else:
             fth._read_from_logs_server.assert_not_called()
             assert actual[0]

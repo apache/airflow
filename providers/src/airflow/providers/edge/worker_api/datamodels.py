@@ -14,19 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-import uuid
+from typing import Any, Dict, Optional
 
 from pydantic import BaseModel
 
 
-class TaskInstance(BaseModel):
-    id: uuid.UUID
+class JsonRpcRequest(BaseModel):
+    """JSON RPC request model."""
 
-    task_id: str
-    dag_id: str
-    run_id: str
-    try_number: int
-    map_index: int | None = None
+    method: str
+    """Fully qualified python module method name that is called via JSON RPC."""
+    jsonrpc: str
+    """JSON RPC version."""
+    params: Optional[Dict[str, Any]] = None  # noqa: UP006, UP007 - prevent pytest failing in back-compat
+    """Parameters passed to the method."""

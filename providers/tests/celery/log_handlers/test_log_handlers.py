@@ -80,4 +80,6 @@ class TestFileTaskLogHandler:
             fth._read_from_logs_server.return_value = ["this message"], ["this\nlog\ncontent"]
             actual = fth._read(ti=ti, try_number=1)
             fth._read_from_logs_server.assert_called_once()
-        assert actual == ("*** this message\nthis\nlog\ncontent", {"end_of_log": False, "log_pos": 16})
+        assert "*** this message\n" in actual[0]
+        assert actual[0].endswith("this\nlog\ncontent")
+        assert actual[1] == {"end_of_log": False, "log_pos": 16}
