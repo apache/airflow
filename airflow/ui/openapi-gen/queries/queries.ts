@@ -2594,6 +2594,49 @@ export const useAssetServiceDeleteDagAssetQueuedEvents = <
     ...options,
   });
 /**
+ * Delete Asset Queued Events
+ * Delete queued asset events for an asset.
+ * @param data The data for the request.
+ * @param data.uri
+ * @param data.before
+ * @returns void Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceDeleteAssetQueuedEvents = <
+  TData = Common.AssetServiceDeleteAssetQueuedEventsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        before?: string;
+        uri: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      before?: string;
+      uri: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ before, uri }) =>
+      AssetService.deleteAssetQueuedEvents({
+        before,
+        uri,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Delete Connection
  * Delete a connection entry.
  * @param data The data for the request.
