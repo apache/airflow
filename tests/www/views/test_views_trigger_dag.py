@@ -143,25 +143,25 @@ def test_trigger_dag_conf_not_dict(admin_client):
     assert run is None
 
 
-def test_trigger_dag_wrong_execution_date(admin_client):
+def test_trigger_dag_wrong_logical_date(admin_client):
     test_dag_id = "example_bash_operator"
 
     response = admin_client.post(
-        f"dags/{test_dag_id}/trigger", data={"conf": "{}", "execution_date": "not_a_date"}
+        f"dags/{test_dag_id}/trigger", data={"conf": "{}", "logical_date": "not_a_date"}
     )
-    check_content_in_response("Invalid execution date", response)
+    check_content_in_response("Invalid logical date", response)
 
     with create_session() as session:
         run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
     assert run is None
 
 
-def test_trigger_dag_execution_date_data_interval(admin_client):
+def test_trigger_dag_logical_date_data_interval(admin_client):
     test_dag_id = "example_bash_operator"
     exec_date = timezone.utcnow()
 
     admin_client.post(
-        f"dags/{test_dag_id}/trigger", data={"conf": "{}", "execution_date": exec_date.isoformat()}
+        f"dags/{test_dag_id}/trigger", data={"conf": "{}", "logical_date": exec_date.isoformat()}
     )
 
     with create_session() as session:
@@ -169,7 +169,7 @@ def test_trigger_dag_execution_date_data_interval(admin_client):
     assert run is not None
     assert DagRunType.MANUAL in run.run_id
     assert run.run_type == DagRunType.MANUAL
-    assert run.execution_date == exec_date
+    assert run.logical_date == exec_date
 
     # Since example_bash_operator runs once per day, the data interval should be
     # between midnight yesterday and midnight today.

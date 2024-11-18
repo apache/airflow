@@ -19,13 +19,14 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from connexion import FlaskApi
 from flask import Blueprint
 from flask_appbuilder import BaseView, expose
+from packaging.version import Version
 from sqlalchemy import select
 
+from airflow import __version__ as airflow_version
 from airflow.auth.managers.models.resource_details import AccessView
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -41,11 +42,16 @@ from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
-def _get_api_endpoints() -> Blueprint:
+
+def _get_airflow_2_api_endpoint() -> Blueprint:
     folder = Path(__file__).parents[1].resolve()  # this is airflow/providers/edge/
     with folder.joinpath("openapi", "edge_worker_api_v1.yaml").open() as f:
         specification = safe_load(f)
+    from connexion import FlaskApi
+
     bp = FlaskApi(
         specification=specification,
         resolver=_LazyResolver(),
@@ -60,6 +66,16 @@ def _get_api_endpoints() -> Blueprint:
 
     csrf.exempt(bp)
     return bp
+
+
+def _get_api_endpoint() -> dict[str, Any]:
+    from airflow.providers.edge.worker_api.app import create_edge_worker_api_app
+
+    return {
+        "app": create_edge_worker_api_app(),
+        "url_prefix": "/edge_worker/v1",
+        "name": "Airflow Edge Worker API",
+    }
 
 
 # registers airflow/providers/edge/plugins/templates as a Jinja template folder
@@ -115,9 +131,8 @@ class EdgeExecutorPlugin(AirflowPlugin):
     """EdgeExecutor Plugin - provides API endpoints for Edge Workers in Webserver."""
 
     name = "edge_executor"
-    flask_blueprints = [_get_api_endpoints(), template_bp] if EDGE_EXECUTOR_ACTIVE else []
-    appbuilder_views = (
-        [
+    if EDGE_EXECUTOR_ACTIVE:
+        appbuilder_views = [
             {
                 "name": "Edge Worker Jobs",
                 "category": "Admin",
@@ -129,6 +144,9 @@ class EdgeExecutorPlugin(AirflowPlugin):
                 "view": EdgeWorkerHosts(),
             },
         ]
-        if EDGE_EXECUTOR_ACTIVE
-        else []
-    )
+
+        if AIRFLOW_V_3_0_PLUS:
+            fastapi_apps = [_get_api_endpoint()]
+            flask_blueprints = [template_bp]
+        else:
+            flask_blueprints = [_get_airflow_2_api_endpoint(), template_bp]

@@ -26,7 +26,6 @@ from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler, fetch_one_handler
 from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
-from airflow.utils import timezone
 
 
 @pytest.mark.db_test
@@ -38,7 +37,6 @@ def test_sql_templating(create_task_instance_of_operator):
         ydb_conn_id="ydb_default1",
         dag_id="test_template_body_templating_dag",
         task_id="test_template_body_templating_task",
-        execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
     )
     ti.render_templates()
     task: YDBExecuteQueryOperator = ti.task

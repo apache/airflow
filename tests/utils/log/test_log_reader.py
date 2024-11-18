@@ -109,7 +109,7 @@ class TestLogView:
             task_id=self.TASK_ID,
             start_date=self.DEFAULT_DATE,
             run_type=DagRunType.SCHEDULED,
-            execution_date=self.DEFAULT_DATE,
+            logical_date=self.DEFAULT_DATE,
             state=TaskInstanceState.RUNNING,
         )
         ti.try_number = 3
@@ -129,8 +129,10 @@ class TestLogView:
         assert logs[0] == [
             (
                 "localhost",
+                " INFO - ::group::Log message source details\n"
                 "*** Found local files:\n"
                 f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
+                " INFO - ::endgroup::\n"
                 "try_number=1.",
             )
         ]
@@ -142,32 +144,13 @@ class TestLogView:
         ti.state = TaskInstanceState.SUCCESS
         logs, metadatas = task_log_reader.read_log_chunks(ti=ti, try_number=None, metadata={})
 
-        assert logs == [
-            [
-                (
-                    "localhost",
-                    "*** Found local files:\n"
-                    f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-                    "try_number=1.",
-                )
-            ],
-            [
-                (
-                    "localhost",
-                    "*** Found local files:\n"
-                    f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
-                    f"try_number=2.",
-                )
-            ],
-            [
-                (
-                    "localhost",
-                    "*** Found local files:\n"
-                    f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
-                    f"try_number=3.",
-                )
-            ],
-        ]
+        for i in range(0, 3):
+            assert logs[i][0][0] == "localhost"
+            assert (
+                "*** Found local files:\n"
+                f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/{i + 1}.log\n"
+            ) in logs[i][0][1]
+            assert f"try_number={i + 1}." in logs[i][0][1]
         assert metadatas == {"end_of_log": True, "log_pos": 13}
 
     def test_test_test_read_log_stream_should_read_one_try(self):
@@ -176,9 +159,9 @@ class TestLogView:
         ti.state = TaskInstanceState.SUCCESS
         stream = task_log_reader.read_log_stream(ti=ti, try_number=1, metadata={})
         assert list(stream) == [
-            "localhost\n*** Found local files:\n"
+            "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-            "try_number=1.\n"
+            " INFO - ::endgroup::\ntry_number=1.\n"
         ]
 
     def test_test_test_read_log_stream_should_read_all_logs(self):
@@ -186,17 +169,17 @@ class TestLogView:
         self.ti.state = TaskInstanceState.SUCCESS  # Ensure mocked instance is completed to return stream
         stream = task_log_reader.read_log_stream(ti=self.ti, try_number=None, metadata={})
         assert list(stream) == [
-            "localhost\n*** Found local files:\n"
+            "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-            "try_number=1."
+            " INFO - ::endgroup::\ntry_number=1."
             "\n",
-            "localhost\n*** Found local files:\n"
+            "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
-            "try_number=2."
+            " INFO - ::endgroup::\ntry_number=2."
             "\n",
-            "localhost\n*** Found local files:\n"
+            "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
-            "try_number=3."
+            " INFO - ::endgroup::\ntry_number=3."
             "\n",
         ]
 
@@ -287,15 +270,15 @@ class TestLogView:
         trigger_time = end + datetime.timedelta(hours=4, minutes=29)  # Arbitrary.
 
         # Create two DAG runs that have the same data interval, but not the same
-        # execution date, to check if they correctly use different log files.
+        # logical date, to check if they correctly use different log files.
         scheduled_dagrun: DagRun = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
-            execution_date=start,
+            logical_date=start,
             data_interval=DataInterval(start, end),
         )
         manual_dagrun: DagRun = dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
-            execution_date=trigger_time,
+            logical_date=trigger_time,
             data_interval=DataInterval(start, end),
         )
 

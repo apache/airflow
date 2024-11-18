@@ -315,7 +315,7 @@ class FileTaskHandler(logging.Handler):
                 run_id=ti.run_id,
                 data_interval_start=data_interval_start,
                 data_interval_end=data_interval_end,
-                execution_date=ti.get_dagrun().logical_date.isoformat(),
+                logical_date=ti.get_dagrun().logical_date.isoformat(),
                 try_number=try_number,
             )
         else:
@@ -400,7 +400,11 @@ class FileTaskHandler(logging.Handler):
             )
         )
         log_pos = len(logs)
-        messages = "".join([f"*** {x}\n" for x in messages_list])
+        # Log message source details are grouped: they are not relevant for most users and can
+        # distract them from finding the root cause of their errors
+        messages = " INFO - ::group::Log message source details\n"
+        messages += "".join([f"*** {x}\n" for x in messages_list])
+        messages += " INFO - ::endgroup::\n"
         end_of_log = ti.try_number != try_number or ti.state not in (
             TaskInstanceState.RUNNING,
             TaskInstanceState.DEFERRED,
