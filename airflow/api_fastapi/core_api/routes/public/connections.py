@@ -180,12 +180,6 @@ def patch_connection(
 
 @connections_router.post(
     "/test",
-    responses=create_openapi_http_exception_doc(
-        [
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
-        ]
-    ),
 )
 def test_connection(
     test_body: ConnectionBody,

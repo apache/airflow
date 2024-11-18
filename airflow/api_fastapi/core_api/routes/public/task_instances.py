@@ -97,9 +97,7 @@ def get_task_instance(
 
 @task_instances_router.get(
     "/{task_id}/listMapped",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_mapped_task_instances(
     dag_id: str,
@@ -182,15 +180,11 @@ def get_mapped_task_instances(
 
 @task_instances_router.get(
     "/{task_id}/dependencies",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 @task_instances_router.get(
     "/{task_id}/{map_index}/dependencies",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_task_instance_dependencies(
     dag_id: str,
@@ -240,9 +234,7 @@ def get_task_instance_dependencies(
 
 @task_instances_router.get(
     "/{task_id}/{map_index}",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_mapped_task_instance(
     dag_id: str,
@@ -271,9 +263,7 @@ def get_mapped_task_instance(
 
 @task_instances_router.get(
     "/",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_task_instances(
     dag_id: str,

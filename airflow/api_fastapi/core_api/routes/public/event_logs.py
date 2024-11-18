@@ -62,7 +62,6 @@ def get_event_log(
 
 @event_logs_router.get(
     "/",
-    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
 def get_event_logs(
     limit: QueryLimit,
