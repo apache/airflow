@@ -549,3 +549,30 @@ class TestPostAssetEvents(TestAssets):
         response = test_client.post("/public/assets/events", json=event_invalid_payload)
 
         assert response.status_code == 422
+
+
+class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
+    @pytest.mark.usefixtures("time_freezer")
+    def test_should_respond_204(self, test_client, session, create_dummy_dag):
+        dag, _ = create_dummy_dag()
+        dag_id = dag.dag_id
+        uri = "s3://bucket/key/1"
+        self.create_assets(session=session, num=1)
+        asset_id = 1
+        self._create_asset_dag_run_queues(dag_id, asset_id, session)
+
+        response = test_client.delete(
+            f"/public/assets/queuedEvent/{uri}",
+        )
+        assert response.status_code == 204
+        assert session.query(AssetDagRunQueue).filter_by(asset_id=1).first() is None
+
+    def test_should_respond_404(self, test_client):
+        uri = "not_exists"
+
+        response = test_client.delete(
+            f"/public/assets/queuedEvent/{uri}",
+        )
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Queue event with uri: `not_exists` was not found"
