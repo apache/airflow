@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-18T02:14:56.214566
+# This constraints file was automatically generated on 2024-11-18T13:46:30.039270
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -358,7 +358,7 @@ more-itertools==10.5.0
 moto==5.0.21
 mpmath==1.3.0
 msal-extensions==1.2.0
-msal==1.31.0
+msal==1.31.1
 msgraph-core==1.1.6
 msgspec==0.18.6
 msrest==0.7.1
@@ -640,7 +640,7 @@ xmlsec==1.3.14
 xmltodict==0.14.2
 yamllint==1.35.1
 yandex-query-client==0.1.4
-yandexcloud==0.324.0
+yandexcloud==0.325.0
 yarl==1.17.2
 ydb-dbapi==0.1.2
 ydb==3.18.8
