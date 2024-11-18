@@ -2552,6 +2552,48 @@ export const useVariableServicePatchVariable = <
     ...options,
   });
 /**
+ * Delete Dag Asset Queued Events
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.before
+ * @returns void Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceDeleteDagAssetQueuedEvents = <
+  TData = Common.AssetServiceDeleteDagAssetQueuedEventsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        before?: string;
+        dagId: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      before?: string;
+      dagId: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ before, dagId }) =>
+      AssetService.deleteDagAssetQueuedEvents({
+        before,
+        dagId,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Delete Asset Queued Events
  * Delete queued asset events for an asset.
  * @param data The data for the request.
