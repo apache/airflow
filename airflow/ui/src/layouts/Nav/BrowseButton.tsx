@@ -16,26 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Text } from "@chakra-ui/react";
+import { Link } from "@chakra-ui/react";
+import { FiGlobe } from "react-icons/fi";
 
-import type { DAGRunResponse } from "openapi/requests/types.gen";
-import Time from "src/components/Time";
-import { stateColor } from "src/utils/stateColor";
+import { Menu } from "src/components/ui";
 
-type Props = {
-  readonly latestRun?: DAGRunResponse;
-};
+import { NavButton } from "./NavButton";
 
-export const LatestRun = ({ latestRun }: Props) =>
-  latestRun ? (
-    <HStack fontSize="sm">
-      <Time datetime={latestRun.logical_date} />
-      <Box
-        bg={stateColor[latestRun.state]}
-        borderRadius="50%"
-        height={2}
-        width={2}
-      />
-      <Text color={stateColor[latestRun.state]}>{latestRun.state}</Text>
-    </HStack>
-  ) : undefined;
+const links = [
+  {
+    href: `/webapp/events`,
+    title: "Events",
+  },
+];
+
+export const BrowseButton = () => (
+  <Menu.Root positioning={{ placement: "right" }}>
+    <Menu.Trigger asChild>
+      <NavButton icon={<FiGlobe size="1.75rem" />} title="Browse" />
+    </Menu.Trigger>
+    <Menu.Content>
+      {links.map((link) => (
+        <Menu.Item asChild key={link.title} value={link.title}>
+          <Link aria-label={link.title} href={link.href}>
+            {link.title}
+          </Link>
+        </Menu.Item>
+      ))}
+    </Menu.Content>
+  </Menu.Root>
+);

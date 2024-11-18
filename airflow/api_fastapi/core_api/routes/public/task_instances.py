@@ -17,10 +17,11 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.sql import select
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
 from airflow.api_fastapi.common.parameters import (
@@ -56,9 +57,7 @@ task_instances_router = AirflowRouter(
 
 @task_instances_router.get(
     "/{task_id}",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_task_instance(
     dag_id: str, dag_run_id: str, task_id: str, session: Annotated[Session, Depends(get_session)]

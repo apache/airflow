@@ -187,7 +187,7 @@
 
     * Rename function ``has_access_dataset`` as ``has_access_asset``
 
-* Rename configuration ``core.strict_dataset_uri_validation`` as ``core.strict_asset_uri_validation``, ``core.dataset_manager_class`` as ``core.asset_manager_class`` and ``core.dataset_manager_class`` as ``core.asset_manager_class``
+* Rename configuration ``core.dataset_manager_class`` as ``core.asset_manager_class`` and ``core.dataset_manager_class`` as ``core.asset_manager_class``
 * Rename example dags  ``example_dataset_alias.py``, ``example_dataset_alias_with_no_taskflow.py``, ``example_datasets.py`` as ``example_asset_alias.py``, ``example_asset_alias_with_no_taskflow.py``, ``example_assets.py``
 * Rename DagDependency name ``dataset-alias``, ``dataset`` as ``asset-alias``, ``asset``
 * Rename context key ``triggering_dataset_events`` as ``triggering_asset_events``

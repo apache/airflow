@@ -16,10 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
@@ -38,9 +39,7 @@ variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
 @variables_router.delete(
     "/{variable_key}",
     status_code=204,
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def delete_variable(
     variable_key: str,
@@ -55,9 +54,7 @@ def delete_variable(
 
 @variables_router.get(
     "/{variable_key}",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_variable(
     variable_key: str,
@@ -76,7 +73,6 @@ def get_variable(
 
 @variables_router.get(
     "/",
-    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
 def get_variables(
     limit: QueryLimit,
@@ -115,8 +111,6 @@ def get_variables(
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
         ]
     ),
@@ -152,7 +146,6 @@ def patch_variable(
 @variables_router.post(
     "/",
     status_code=status.HTTP_201_CREATED,
-    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
 def post_variable(
     post_body: VariableBody,
