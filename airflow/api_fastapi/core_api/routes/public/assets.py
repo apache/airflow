@@ -279,7 +279,7 @@ def get_dag_asset_queued_event(
     if not adrq:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            f"Queue event with dag_id: `{dag_id}` and asset uri: `{uri}` was not found",
+            f"Queued event with dag_id: `{dag_id}` and asset uri: `{uri}` was not found",
         )
 
     queued_event = QueuedEventResponse(created_at=adrq.created_at, dag_id=adrq.target_dag_id, uri=uri)
