@@ -821,6 +821,8 @@ class MappedOperator(AbstractOperator):
         from airflow.serialization.serialized_objects import SerializedBaseOperator
 
         op = SerializedBaseOperator(task_id=self.task_id, params=self.params, _airflow_from_mapped=True)
+        for partial_attr, value in self.partial_kwargs.items():
+            setattr(op, partial_attr, value)
         SerializedBaseOperator.populate_operator(op, self.operator_class)
         if self.dag is not None:  # For Mypy; we only serialize tasks in a DAG so the check always satisfies.
             SerializedBaseOperator.set_task_dag_references(op, self.dag)
