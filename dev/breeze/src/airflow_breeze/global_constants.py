@@ -545,9 +545,11 @@ FILES_FOR_REBUILD_CHECK = [
     "scripts/docker/install_additional_dependencies.sh",
     "scripts/docker/install_airflow.sh",
     "scripts/docker/install_airflow_dependencies_from_branch_tip.sh",
-    "scripts/docker/install_yarn_dependencies_from_branch_tip.sh",
     "scripts/docker/install_from_docker_context_files.sh",
     "scripts/docker/install_mysql.sh",
+    "scripts/docker/install_npm_pnpm_yarn.sh",
+    "scripts/docker/install_pnpm_dependencies_from_branch_tip.sh",
+    "scripts/docker/install_yarn_dependencies_from_branch_tip.sh",
 ]
 
 CURRENT_KUBERNETES_VERSIONS = ALLOWED_KUBERNETES_VERSIONS
