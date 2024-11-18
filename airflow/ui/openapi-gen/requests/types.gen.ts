@@ -713,6 +713,23 @@ export type ProviderResponse = {
 };
 
 /**
+ * Queued Event Collection serializer for responses.
+ */
+export type QueuedEventCollectionResponse = {
+  queued_events: Array<QueuedEventResponse>;
+  total_entries: number;
+};
+
+/**
+ * Queued Event serializer for responses..
+ */
+export type QueuedEventResponse = {
+  uri: string;
+  dag_id: string;
+  created_at: string;
+};
+
+/**
  * Internal enum for setting reprocess behavior in a backfill.
  *
  * :meta private:
@@ -1044,6 +1061,20 @@ export type GetAssetData = {
 };
 
 export type GetAssetResponse = AssetResponse;
+
+export type GetDagAssetQueuedEventsData = {
+  before?: string | null;
+  dagId: string;
+};
+
+export type GetDagAssetQueuedEventsResponse = QueuedEventCollectionResponse;
+
+export type DeleteDagAssetQueuedEventsData = {
+  before?: string | null;
+  dagId: string;
+};
+
+export type DeleteDagAssetQueuedEventsResponse = void;
 
 export type HistoricalMetricsData = {
   endDate: string;
@@ -1535,7 +1566,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/assets/": {
+  "/public/assets": {
     get: {
       req: GetAssetsData;
       res: {
@@ -1622,6 +1653,62 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: AssetResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/assets/queuedEvent": {
+    get: {
+      req: GetDagAssetQueuedEventsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: QueuedEventCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    delete: {
+      req: DeleteDagAssetQueuedEventsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
         /**
          * Unauthorized
          */

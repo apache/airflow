@@ -16,23 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Heading } from "@chakra-ui/react";
+import { Box, Flex, Heading } from "@chakra-ui/react";
+import { FiClipboard } from "react-icons/fi";
 
-import { Health } from "./Health";
-import { HistoricalMetrics } from "./HistoricalMetrics";
-import { Stats } from "./Stats";
+import { DAGImportErrors } from "./DAGImportErrors";
 
-export const Dashboard = () => (
+export const Stats = () => (
   <Box>
-    <Heading mb={4}>Welcome</Heading>
-    <Box>
-      <Health />
-    </Box>
-    <Box mt={5}>
-      <Stats />
-    </Box>
-    <Box mt={5}>
-      <HistoricalMetrics />
-    </Box>
+    <Flex color="fg.muted" my={2}>
+      <FiClipboard />
+      <Heading ml={1} size="xs">
+        Stats
+      </Heading>
+    </Flex>
+    <DAGImportErrors />
   </Box>
 );

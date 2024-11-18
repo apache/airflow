@@ -70,8 +70,7 @@ jobs:
           set +e
           {
           echo 'cherry_picker_output<<EOF'
-          cherry_picker --config-path dev/backport/.cherry_picker.toml \
-            ${{ inputs.commit-sha }} ${{ inputs.target-branch }}
+          cherry_picker ${{ inputs.commit-sha }} ${{ inputs.target-branch }}
           echo EOF
           } >> "${GITHUB_OUTPUT}"
         continue-on-error: true
