@@ -17,3 +17,13 @@ As part of this change the following breaking changes have occurred:
 - Shipping DAGs via pickle is no longer supported
 
   This was a feature that was not widely used and was a security risk. It has been removed.
+
+- Pickling is no longer supported for XCom serialization.
+
+  XCom data will no longer support pickling. This change is intended to improve security and simplify data
+  handling by supporting JSON-only serialization. DAGs that depend on XCom pickling must update to use JSON-serializable data.
+
+  As part of that change, ``[core] enable_xcom_pickling`` configuration option has been removed.
+
+  If you still need to use pickling, you can use a custom XCom backend that stores references in the metadata DB and
+  the pickled data can be stored in a separate storage like S3.

@@ -127,7 +127,7 @@ def get_xcom_entry(
         stub.value = XCom.deserialize_value(stub)
         item = stub
 
-    if stringify or conf.getboolean("core", "enable_xcom_pickling"):
+    if stringify:
         return xcom_schema_string.dump(item)
 
     return xcom_schema_native.dump(item)

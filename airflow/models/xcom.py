@@ -20,7 +20,6 @@ from __future__ import annotations
 import inspect
 import json
 import logging
-import pickle
 from typing import TYPE_CHECKING, Any, Iterable, cast
 
 from sqlalchemy import (
@@ -455,21 +454,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         run_id: str | None = None,
         map_index: int | None = None,
     ) -> Any:
-        """Serialize XCom value to str or pickled object."""
-        if conf.getboolean("core", "enable_xcom_pickling"):
-            return pickle.dumps(value)
-        try:
-            return json.dumps(value, cls=XComEncoder).encode("UTF-8")
-        except (ValueError, TypeError) as ex:
-            log.error(
-                "%s."
-                " If you are using pickle instead of JSON for XCom,"
-                " then you need to enable pickle support for XCom"
-                " in your airflow config or make sure to decorate your"
-                " object with attr.",
-                ex,
-            )
-            raise
+        """Serialize XCom value to JSON str."""
+        return json.dumps(value, cls=XComEncoder).encode("UTF-8")
 
     @staticmethod
     def _deserialize_value(result: XCom, orm: bool) -> Any:
@@ -479,14 +465,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
         if result.value is None:
             return None
-        if conf.getboolean("core", "enable_xcom_pickling"):
-            try:
-                return pickle.loads(result.value)
-            except pickle.UnpicklingError:
-                return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
-        else:
-            # Since xcom_pickling is disabled, we should only try to deserialize with JSON
-            return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
+
+        return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
 
     @staticmethod
     def deserialize_value(result: XCom) -> Any:

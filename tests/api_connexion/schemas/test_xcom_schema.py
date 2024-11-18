@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import pickle
-
 import pytest
 from sqlalchemy import or_, select
 
@@ -25,13 +23,10 @@ from airflow.api_connexion.schemas.xcom_schema import (
     XComCollection,
     xcom_collection_item_schema,
     xcom_collection_schema,
-    xcom_schema_string,
 )
 from airflow.models import DagRun, XCom
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-
-from tests_common.test_utils.config import conf_vars
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -184,49 +179,3 @@ class TestXComCollectionSchema:
                 "total_entries": 2,
             },
         )
-
-
-class TestXComSchema:
-    default_time = "2016-04-02T21:00:00+00:00"
-    default_time_parsed = timezone.parse(default_time)
-
-    @conf_vars({("core", "enable_xcom_pickling"): "True"})
-    def test_serialize(self, create_xcom, session):
-        create_xcom(
-            dag_id="test_dag",
-            task_id="test_task_id",
-            logical_date=self.default_time_parsed,
-            key="test_key",
-            value=pickle.dumps(b"test_binary"),
-        )
-        xcom_model = session.query(XCom).first()
-        deserialized_xcom = xcom_schema_string.dump(xcom_model)
-        assert deserialized_xcom == {
-            "key": "test_key",
-            "timestamp": self.default_time,
-            "logical_date": self.default_time,
-            "task_id": "test_task_id",
-            "dag_id": "test_dag",
-            "value": "test_binary",
-            "map_index": -1,
-        }
-
-    @conf_vars({("core", "enable_xcom_pickling"): "True"})
-    def test_deserialize(self):
-        xcom_dump = {
-            "key": "test_key",
-            "timestamp": self.default_time,
-            "logical_date": self.default_time,
-            "task_id": "test_task_id",
-            "dag_id": "test_dag",
-            "value": b"test_binary",
-        }
-        result = xcom_schema_string.load(xcom_dump)
-        assert result == {
-            "key": "test_key",
-            "timestamp": self.default_time_parsed,
-            "logical_date": self.default_time_parsed,
-            "task_id": "test_task_id",
-            "dag_id": "test_dag",
-            "value": "test_binary",
-        }
