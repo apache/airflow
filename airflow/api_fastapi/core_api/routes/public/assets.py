@@ -61,7 +61,7 @@ def _generate_queued_event_where_clause(
     *,
     dag_id: str | None = None,
     uri: str | None = None,
-    before: datetime | None = None,
+    before: datetime | str | None = None,
 ) -> list:
     """Get AssetDagRunQueue where clause."""
     where_clause = []
