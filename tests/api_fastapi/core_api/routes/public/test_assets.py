@@ -59,6 +59,22 @@ def _create_assets(session, num: int = 2) -> None:
     session.commit()
 
 
+def _create_assets_with_sensitive_extra(session, num: int = 2) -> None:
+    default_time = "2020-06-11T18:00:00+00:00"
+    assets = [
+        AssetModel(
+            id=i,
+            uri=f"s3://bucket/key/{i}",
+            extra={"password": "bar"},
+            created_at=timezone.parse(default_time),
+            updated_at=timezone.parse(default_time),
+        )
+        for i in range(1, 1 + num)
+    ]
+    session.add_all(assets)
+    session.commit()
+
+
 def _create_provided_asset(session, asset: AssetModel) -> None:
     session.add(asset)
     session.commit()
@@ -71,6 +87,24 @@ def _create_assets_events(session, num: int = 2) -> None:
             id=i,
             asset_id=i,
             extra={"foo": "bar"},
+            source_task_id="source_task_id",
+            source_dag_id="source_dag_id",
+            source_run_id=f"source_run_id_{i}",
+            timestamp=timezone.parse(default_time),
+        )
+        for i in range(1, 1 + num)
+    ]
+    session.add_all(assets_events)
+    session.commit()
+
+
+def _create_assets_events_with_sensitive_extra(session, num: int = 2) -> None:
+    default_time = "2020-06-11T18:00:00+00:00"
+    assets_events = [
+        AssetEvent(
+            id=i,
+            asset_id=i,
+            extra={"password": "bar"},
             source_task_id="source_task_id",
             source_dag_id="source_dag_id",
             source_run_id=f"source_run_id_{i}",
@@ -143,12 +177,20 @@ class TestAssets:
         _create_assets(session=session, num=num)
 
     @provide_session
+    def create_assets_with_sensitive_extra(self, session, num: int = 2):
+        _create_assets_with_sensitive_extra(session=session, num=num)
+
+    @provide_session
     def create_provided_asset(self, session, asset: AssetModel):
         _create_provided_asset(session=session, asset=asset)
 
     @provide_session
     def create_assets_events(self, session, num: int = 2):
         _create_assets_events(session=session, num=num)
+
+    @provide_session
+    def create_assets_events_with_sensitive_extra(self, session, num: int = 2):
+        _create_assets_events_with_sensitive_extra(session=session, num=num)
 
     @provide_session
     def create_provided_asset_event(self, session, asset_event: AssetEvent):
@@ -439,6 +481,68 @@ class TestGetAssetEvents(TestAssets):
         asset_uris = [asset["uri"] for asset in response.json()["asset_events"]]
         assert asset_uris == expected_asset_uris
 
+    @pytest.mark.usefixtures("time_freezer")
+    @pytest.mark.enable_redact
+    def test_should_mask_sensitive_extra(self, test_client, session):
+        self.create_assets_with_sensitive_extra()
+        self.create_assets_events_with_sensitive_extra()
+        self.create_dag_run()
+        self.create_asset_dag_run()
+        response = test_client.get("/public/assets/events")
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data == {
+            "asset_events": [
+                {
+                    "id": 1,
+                    "asset_id": 1,
+                    "uri": "s3://bucket/key/1",
+                    "extra": {"password": "***"},
+                    "source_task_id": "source_task_id",
+                    "source_dag_id": "source_dag_id",
+                    "source_run_id": "source_run_id_1",
+                    "source_map_index": -1,
+                    "created_dagruns": [
+                        {
+                            "run_id": "source_run_id_1",
+                            "dag_id": "source_dag_id",
+                            "logical_date": "2020-06-11T18:00:00Z",
+                            "start_date": "2020-06-11T18:00:00Z",
+                            "end_date": "2020-06-11T18:00:00Z",
+                            "state": "success",
+                            "data_interval_start": "2020-06-11T18:00:00Z",
+                            "data_interval_end": "2020-06-11T18:00:00Z",
+                        }
+                    ],
+                    "timestamp": "2020-06-11T18:00:00Z",
+                },
+                {
+                    "id": 2,
+                    "asset_id": 2,
+                    "uri": "s3://bucket/key/2",
+                    "extra": {"password": "***"},
+                    "source_task_id": "source_task_id",
+                    "source_dag_id": "source_dag_id",
+                    "source_run_id": "source_run_id_2",
+                    "source_map_index": -1,
+                    "created_dagruns": [
+                        {
+                            "run_id": "source_run_id_2",
+                            "dag_id": "source_dag_id",
+                            "logical_date": "2020-06-11T18:00:00Z",
+                            "start_date": "2020-06-11T18:00:00Z",
+                            "end_date": "2020-06-11T18:00:00Z",
+                            "state": "success",
+                            "data_interval_start": "2020-06-11T18:00:00Z",
+                            "data_interval_end": "2020-06-11T18:00:00Z",
+                        }
+                    ],
+                    "timestamp": "2020-06-11T18:00:00Z",
+                },
+            ],
+            "total_entries": 2,
+        }
+
 
 class TestGetAssetEndpoint(TestAssets):
     @pytest.mark.parametrize(
@@ -477,6 +581,27 @@ class TestGetAssetEndpoint(TestAssets):
         )
         assert response.status_code == 404
         assert response.json()["detail"] == "The Asset with uri: `s3://bucket/key` was not found"
+
+    @pytest.mark.usefixtures("time_freezer")
+    @pytest.mark.enable_redact
+    def test_should_mask_sensitive_extra(self, test_client, session):
+        self.create_assets_with_sensitive_extra()
+        tz_datetime_format = self.default_time.replace("+00:00", "Z")
+        uri = "s3://bucket/key/1"
+        response = test_client.get(
+            f"/public/assets/{uri}",
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "id": 1,
+            "uri": "s3://bucket/key/1",
+            "extra": {"password": "***"},
+            "created_at": tz_datetime_format,
+            "updated_at": tz_datetime_format,
+            "consuming_dags": [],
+            "producing_tasks": [],
+            "aliases": [],
+        }
 
 
 class TestQueuedEventEndpoint(TestAssets):
@@ -593,3 +718,23 @@ class TestPostAssetEvents(TestAssets):
         response = test_client.post("/public/assets/events", json=event_invalid_payload)
 
         assert response.status_code == 422
+
+    @pytest.mark.usefixtures("time_freezer")
+    @pytest.mark.enable_redact
+    def test_should_mask_sensitive_extra(self, test_client, session):
+        self.create_assets()
+        event_payload = {"uri": "s3://bucket/key/1", "extra": {"password": "bar"}}
+        response = test_client.post("/public/assets/events", json=event_payload)
+        assert response.status_code == 200
+        assert response.json() == {
+            "id": mock.ANY,
+            "asset_id": 1,
+            "uri": "s3://bucket/key/1",
+            "extra": {"password": "***", "from_rest_api": True},
+            "source_task_id": None,
+            "source_dag_id": None,
+            "source_run_id": None,
+            "source_map_index": -1,
+            "created_dagruns": [],
+            "timestamp": self.default_time.replace("+00:00", "Z"),
+        }
