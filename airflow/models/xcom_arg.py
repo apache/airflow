@@ -41,7 +41,6 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    # from airflow.models.dag import DAG
     from airflow.models.operator import Operator
     from airflow.sdk import DAG, BaseOperator
     from airflow.utils.context import Context

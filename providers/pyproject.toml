@@ -39,6 +39,7 @@ exclude = [
   ".latest-doc-only-change.txt",
   "CHANGELOG.rst",
   "MANAGING_PROVIDERS_LIFECYCLE.rst",
+  "src/airflow/__init__.py" # This file only exists to make pyright/VSCode happy, don't ship it
 ]
 
 [tool.ruff]

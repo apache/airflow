@@ -2456,7 +2456,8 @@ class TaskInstance(Base, LoggingMixin):
             # deterministic per task instance
             ti_hash = int(
                 hashlib.sha1(
-                    f"{self.dag_id}#{self.task_id}#{self.logical_date}#{self.try_number}".encode()
+                    f"{self.dag_id}#{self.task_id}#{self.logical_date}#{self.try_number}".encode(),
+                    usedforsecurity=False,
                 ).hexdigest(),
                 16,
             )
@@ -2795,20 +2796,33 @@ class TaskInstance(Base, LoggingMixin):
             session=session,
         )
 
-    def _register_asset_changes(self, *, events: OutletEventAccessors, session: Session) -> None:
+    def _register_asset_changes(
+        self, *, events: OutletEventAccessors, session: Session | None = None
+    ) -> None:
+        if session:
+            TaskInstance._register_asset_changes_int(ti=self, events=events, session=session)
+        else:
+            TaskInstance._register_asset_changes_int(ti=self, events=events)
+
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def _register_asset_changes_int(
+        ti: TaskInstance, *, events: OutletEventAccessors, session: Session = NEW_SESSION
+    ) -> None:
         if TYPE_CHECKING:
-            assert self.task
+            assert ti.task
 
         # One task only triggers one asset event for each asset with the same extra.
         # This tuple[asset uri, extra] to sets alias names mapping is used to find whether
         # there're assets with same uri but different extra that we need to emit more than one asset events.
         asset_alias_names: dict[tuple[str, frozenset], set[str]] = defaultdict(set)
-        for obj in self.task.outlets or []:
-            self.log.debug("outlet obj %s", obj)
+        for obj in ti.task.outlets or []:
+            ti.log.debug("outlet obj %s", obj)
             # Lineage can have other types of objects besides assets
             if isinstance(obj, Asset):
                 asset_manager.register_asset_change(
-                    task_instance=self,
+                    task_instance=ti,
                     asset=obj,
                     extra=events[obj].extra,
                     session=session,
@@ -2831,18 +2845,18 @@ class TaskInstance(Base, LoggingMixin):
                 (asset_obj.uri, asset_obj)
                 for asset_obj in asset_manager.create_assets(missing_assets, session=session)
             )
-            self.log.warning("Created new assets for alias reference: %s", missing_assets)
+            ti.log.warning("Created new assets for alias reference: %s", missing_assets)
             session.flush()  # Needed because we need the id for fk.
 
         for (uri, extra_items), alias_names in asset_alias_names.items():
             asset_obj = asset_models[uri]
-            self.log.info(
+            ti.log.info(
                 'Creating event for %r through aliases "%s"',
                 asset_obj,
                 ", ".join(alias_names),
             )
             asset_manager.register_asset_change(
-                task_instance=self,
+                task_instance=ti,
                 asset=asset_obj,
                 aliases=[AssetAlias(name=name) for name in alias_names],
                 extra=dict(extra_items),

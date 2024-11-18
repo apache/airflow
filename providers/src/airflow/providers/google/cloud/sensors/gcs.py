@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.triggers.gcs import (
     GCSBlobTrigger,
@@ -35,7 +35,6 @@ from airflow.providers.google.cloud.triggers.gcs import (
     GCSPrefixBlobTrigger,
     GCSUploadSessionTrigger,
 )
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 
 if TYPE_CHECKING:
@@ -140,38 +139,6 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
             raise AirflowException(event["message"])
         self.log.info("File %s was found in bucket %s.", self.object, self.bucket)
         return True
-
-
-@deprecated(
-    planned_removal_date="November 01, 2024",
-    use_instead="GCSObjectExistenceSensor",
-    instructions="Please use GCSObjectExistenceSensor and set deferrable attribute to True.",
-    category=AirflowProviderDeprecationWarning,
-)
-class GCSObjectExistenceAsyncSensor(GCSObjectExistenceSensor):
-    """
-    Checks for the existence of a file in Google Cloud Storage.
-
-    This class is deprecated and will be removed in a future release.
-
-    Please use :class:`airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor`
-    and set *deferrable* attribute to *True* instead.
-
-    :param bucket: The Google Cloud Storage bucket where the object is.
-    :param object: The name of the object to check in the Google cloud storage bucket.
-    :param google_cloud_conn_id: The connection ID to use when connecting to Google Cloud Storage.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    """
-
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(deferrable=True, **kwargs)
 
 
 def ts_function(context):

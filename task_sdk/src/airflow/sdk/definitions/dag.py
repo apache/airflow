@@ -659,7 +659,9 @@ class DAG:
 
     def resolve_template_files(self):
         for t in self.tasks:
-            t.resolve_template_files()
+            # TODO: TaskSDK: move this on to BaseOperator and remove the check?
+            if hasattr(t, "resolve_template_files"):
+                t.resolve_template_files()
 
     def get_template_env(self, *, force_sandboxed: bool = False) -> jinja2.Environment:
         """Build a Jinja2 environment."""

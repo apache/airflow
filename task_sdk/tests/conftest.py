@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
 
 import pytest
@@ -43,6 +44,9 @@ def pytest_addhooks(pluginmanager: pytest.PytestPluginManager):
 def pytest_configure(config: pytest.Config) -> None:
     config.inicfg["airflow_deprecations_ignore"] = []
 
+    # Always skip looking for tests in these folders!
+    config.addinivalue_line("norecursedirs", "tests/test_dags")
+
 
 class LogCapture:
     # Like structlog.typing.LogCapture, but that doesn't add log_level in to the event dict
@@ -60,6 +64,11 @@ class LogCapture:
         self.entries.append(event_dict)
 
         raise DropEvent
+
+
+@pytest.fixture
+def test_dags_dir():
+    return Path(__file__).parent.joinpath("dags")
 
 
 @pytest.fixture

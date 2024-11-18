@@ -694,6 +694,24 @@ export const $ConnectionTestResponse = {
   description: "Connection Test serializer for responses.",
 } as const;
 
+export const $CreateAssetEventsBody = {
+  properties: {
+    uri: {
+      type: "string",
+      title: "Uri",
+    },
+    extra: {
+      type: "object",
+      title: "Extra",
+    },
+  },
+  additionalProperties: false,
+  type: "object",
+  required: ["uri"],
+  title: "CreateAssetEventsBody",
+  description: "Create asset events request.",
+} as const;
+
 export const $DAGCollectionResponse = {
   properties: {
     dags: {
@@ -1936,8 +1954,15 @@ export const $DagRunAssetReference = {
       title: "Start Date",
     },
     end_date: {
-      type: "string",
-      format: "date-time",
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "End Date",
     },
     state: {
@@ -2855,6 +2880,48 @@ export const $ProviderResponse = {
   description: "Provider serializer for responses.",
 } as const;
 
+export const $QueuedEventCollectionResponse = {
+  properties: {
+    queued_events: {
+      items: {
+        $ref: "#/components/schemas/QueuedEventResponse",
+      },
+      type: "array",
+      title: "Queued Events",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["queued_events", "total_entries"],
+  title: "QueuedEventCollectionResponse",
+  description: "Queued Event Collection serializer for responses.",
+} as const;
+
+export const $QueuedEventResponse = {
+  properties: {
+    uri: {
+      type: "string",
+      title: "Uri",
+    },
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      title: "Created At",
+    },
+  },
+  type: "object",
+  required: ["uri", "dag_id", "created_at"],
+  title: "QueuedEventResponse",
+  description: "Queued Event serializer for responses..",
+} as const;
+
 export const $ReprocessBehavior = {
   type: "string",
   enum: ["failed", "completed", "none"],
@@ -2893,6 +2960,26 @@ export const $SchedulerInfoSchema = {
   required: ["status", "latest_scheduler_heartbeat"],
   title: "SchedulerInfoSchema",
   description: "Schema for Scheduler info.",
+} as const;
+
+export const $TaskCollectionResponse = {
+  properties: {
+    tasks: {
+      items: {
+        $ref: "#/components/schemas/TaskResponse",
+      },
+      type: "array",
+      title: "Tasks",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["tasks", "total_entries"],
+  title: "TaskCollectionResponse",
+  description: "Task collection serializer for responses.",
 } as const;
 
 export const $TaskDependencyCollectionResponse = {
@@ -3312,6 +3399,236 @@ export const $TaskInstanceStateCount = {
   ],
   title: "TaskInstanceStateCount",
   description: "TaskInstance serializer for responses.",
+} as const;
+
+export const $TaskInstancesBatchBody = {
+  properties: {
+    dag_ids: {
+      anyOf: [
+        {
+          items: {
+            type: "string",
+          },
+          type: "array",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Dag Ids",
+    },
+    dag_run_ids: {
+      anyOf: [
+        {
+          items: {
+            type: "string",
+          },
+          type: "array",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Dag Run Ids",
+    },
+    task_ids: {
+      anyOf: [
+        {
+          items: {
+            type: "string",
+          },
+          type: "array",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Task Ids",
+    },
+    state: {
+      anyOf: [
+        {
+          items: {
+            anyOf: [
+              {
+                $ref: "#/components/schemas/TaskInstanceState",
+              },
+              {
+                type: "null",
+              },
+            ],
+          },
+          type: "array",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "State",
+    },
+    logical_date_gte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Logical Date Gte",
+    },
+    logical_date_lte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Logical Date Lte",
+    },
+    start_date_gte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Start Date Gte",
+    },
+    start_date_lte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Start Date Lte",
+    },
+    end_date_gte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "End Date Gte",
+    },
+    end_date_lte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "End Date Lte",
+    },
+    duration_gte: {
+      anyOf: [
+        {
+          type: "number",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Duration Gte",
+    },
+    duration_lte: {
+      anyOf: [
+        {
+          type: "number",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Duration Lte",
+    },
+    pool: {
+      anyOf: [
+        {
+          items: {
+            type: "string",
+          },
+          type: "array",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Pool",
+    },
+    queue: {
+      anyOf: [
+        {
+          items: {
+            type: "string",
+          },
+          type: "array",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Queue",
+    },
+    executor: {
+      anyOf: [
+        {
+          items: {
+            type: "string",
+          },
+          type: "array",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Executor",
+    },
+    page_offset: {
+      type: "integer",
+      minimum: 0,
+      title: "Page Offset",
+      default: 0,
+    },
+    page_limit: {
+      type: "integer",
+      minimum: 0,
+      title: "Page Limit",
+      default: 100,
+    },
+    order_by: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Order By",
+    },
+  },
+  type: "object",
+  title: "TaskInstancesBatchBody",
+  description: "Task Instance body for get batch.",
 } as const;
 
 export const $TaskOutletAssetReference = {
