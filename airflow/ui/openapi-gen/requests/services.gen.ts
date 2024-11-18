@@ -323,7 +323,7 @@ export class AssetService {
   ): CancelablePromise<DeleteAssetQueuedEventsResponse> {
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/public/queuedEvent/{uri}",
+      url: "/public/assets/queuedEvent/{uri}",
       path: {
         uri: data.uri,
       },

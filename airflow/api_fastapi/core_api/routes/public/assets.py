@@ -255,7 +255,7 @@ def get_dag_asset_queued_events(
 
 
 @assets_router.delete(
-    "/queuedEvent/{uri:path}",
+    "/assets/queuedEvent/{uri:path}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc(
         [

@@ -1699,7 +1699,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/queuedEvent/{uri}": {
+  "/public/assets/queuedEvent/{uri}": {
     delete: {
       req: DeleteAssetQueuedEventsData;
       res: {
