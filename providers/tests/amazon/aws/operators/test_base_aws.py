@@ -25,8 +25,6 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.utils import timezone
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-
 TEST_CONN = "aws_test_conn"
 
 
@@ -118,10 +116,7 @@ class TestAwsBaseOperator:
         with dag_maker("test_aws_base_operator", serialized=True):
             FakeS3Operator(task_id="fake-task-id", **op_kwargs)
 
-        if AIRFLOW_V_3_0_PLUS:
-            dagrun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
-        else:
-            dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        dagrun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
         tis = {ti.task_id: ti for ti in dagrun.task_instances}
         tis["fake-task-id"].run()
 

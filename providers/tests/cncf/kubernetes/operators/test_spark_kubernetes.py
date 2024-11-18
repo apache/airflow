@@ -733,10 +733,7 @@ def test_resolve_application_file_template_file(dag_maker, tmp_path, session):
             kubernetes_conn_id="kubernetes_default_kube_config",
             task_id="test_template_body_templating_task",
         )
-    if AIRFLOW_V_3_0_PLUS:
-        ti = dag_maker.create_dagrun(logical_date=logical_date).task_instances[0]
-    else:
-        ti = dag_maker.create_dagrun(execution_date=logical_date).task_instances[0]
+    ti = dag_maker.create_dagrun(logical_date=logical_date).task_instances[0]
     session.add(ti)
     session.commit()
     ti.render_templates()
@@ -776,10 +773,7 @@ def test_resolve_application_file_template_non_dictionary(dag_maker, tmp_path, b
             kubernetes_conn_id="kubernetes_default_kube_config",
             task_id="test_template_body_templating_task",
         )
-    if AIRFLOW_V_3_0_PLUS:
-        ti = dag_maker.create_dagrun(logical_date=logical_date).task_instances[0]
-    else:
-        ti = dag_maker.create_dagrun(execution_date=logical_date).task_instances[0]
+    ti = dag_maker.create_dagrun(logical_date=logical_date).task_instances[0]
     session.add(ti)
     session.commit()
     ti.render_templates()

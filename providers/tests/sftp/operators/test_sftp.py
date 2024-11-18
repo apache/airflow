@@ -36,7 +36,6 @@ from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
@@ -184,10 +183,7 @@ class TestSFTPOperator:
                 command=f"cat {self.test_remote_filepath_int_dir}",
                 do_xcom_push=True,
             )
-        if AIRFLOW_V_3_0_PLUS:
-            dagrun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
-        else:
-            dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        dagrun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
         tis = {ti.task_id: ti for ti in dagrun.task_instances}
         with pytest.warns(AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"):
             tis["test_sftp"].run()
@@ -220,10 +216,7 @@ class TestSFTPOperator:
                 command=f"cat {self.test_remote_filepath}",
                 do_xcom_push=True,
             )
-        if AIRFLOW_V_3_0_PLUS:
-            dagrun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
-        else:
-            dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        dagrun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
         tis = {ti.task_id: ti for ti in dagrun.task_instances}
         with pytest.warns(AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"):
             tis["put_test_task"].run()
@@ -249,18 +242,11 @@ class TestSFTPOperator:
                 remote_filepath=self.test_remote_filepath,
                 operation=SFTPOperation.GET,
             )
-        if AIRFLOW_V_3_0_PLUS:
-            for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
-                with pytest.warns(
-                    AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
-                ):
-                    ti.run()
-        else:
-            for ti in dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances:
-                with pytest.warns(
-                    AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
-                ):
-                    ti.run()
+        for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
+            ):
+                ti.run()
 
         # Test the received content.
         with open(self.test_local_filepath, "rb") as file:
@@ -277,18 +263,11 @@ class TestSFTPOperator:
                 remote_filepath=self.test_remote_filepath,
                 operation=SFTPOperation.GET,
             )
-        if AIRFLOW_V_3_0_PLUS:
-            for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
-                with pytest.warns(
-                    AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
-                ):
-                    ti.run()
-        else:
-            for ti in dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances:
-                with pytest.warns(
-                    AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
-                ):
-                    ti.run()
+        for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
+            ):
+                ti.run()
 
         # Test the received content.
         content_received = None
@@ -307,30 +286,17 @@ class TestSFTPOperator:
                 operation=SFTPOperation.GET,
             )
 
-        if AIRFLOW_V_3_0_PLUS:
-            for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
-                # This should raise an error with "No such file" as the directory
-                # does not exist.
-                with (
-                    pytest.raises(AirflowException) as ctx,
-                    pytest.warns(
-                        AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
-                    ),
-                ):
-                    ti.run()
-                assert "No such file" in str(ctx.value)
-        else:
-            for ti in dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances:
-                # This should raise an error with "No such file" as the directory
-                # does not exist.
-                with (
-                    pytest.raises(AirflowException) as ctx,
-                    pytest.warns(
-                        AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
-                    ),
-                ):
-                    ti.run()
-                assert "No such file" in str(ctx.value)
+        for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
+            # This should raise an error with "No such file" as the directory
+            # does not exist.
+            with (
+                pytest.raises(AirflowException) as ctx,
+                pytest.warns(
+                    AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
+                ),
+            ):
+                ti.run()
+            assert "No such file" in str(ctx.value)
 
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_file_transfer_with_intermediate_dir_error_get(self, dag_maker, create_remote_file_and_cleanup):
@@ -344,18 +310,11 @@ class TestSFTPOperator:
                 create_intermediate_dirs=True,
             )
 
-        if AIRFLOW_V_3_0_PLUS:
-            for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
-                with pytest.warns(
-                    AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
-                ):
-                    ti.run()
-        else:
-            for ti in dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances:
-                with pytest.warns(
-                    AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
-                ):
-                    ti.run()
+        for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
+            ):
+                ti.run()
 
         # Test the received content.
         content_received = None
