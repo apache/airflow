@@ -32,6 +32,7 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     TerminalTIState,
     TIEnterRunningPayload,
+    TIHeartbeatInfo,
     TITerminalStatePayload,
     ValidationError as RemoteValidationError,
 )
@@ -109,16 +110,17 @@ class TaskInstanceOperations:
         """Tell the API server that this TI has started running."""
         body = TIEnterRunningPayload(pid=pid, hostname=get_hostname(), unixname=getuser(), start_date=when)
 
-        self.client.patch(f"task-instance/{id}/state", content=body.model_dump_json())
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
     def finish(self, id: uuid.UUID, state: TerminalTIState, when: datetime):
         """Tell the API server that this TI has reached a terminal state."""
         body = TITerminalStatePayload(end_date=when, state=TerminalTIState(state))
 
-        self.client.patch(f"task-instance/{id}/state", content=body.model_dump_json())
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
-    def heartbeat(self, id: uuid.UUID):
-        self.client.put(f"task-instance/{id}/heartbeat")
+    def heartbeat(self, id: uuid.UUID, pid: int):
+        body = TIHeartbeatInfo(pid=pid, hostname=get_hostname())
+        self.client.put(f"task-instances/{id}/heartbeat", content=body.model_dump_json())
 
 
 class ConnectionOperations:
