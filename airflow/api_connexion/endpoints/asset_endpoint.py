@@ -303,6 +303,7 @@ def get_asset_queued_events(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("DELETE")
 @action_logging
 @provide_session

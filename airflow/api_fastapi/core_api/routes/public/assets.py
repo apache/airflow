@@ -255,6 +255,28 @@ def get_dag_asset_queued_events(
 
 
 @assets_router.delete(
+    "/assets/queuedEvent/{uri:path}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
+def delete_asset_queued_events(
+    uri: str,
+    session: Annotated[Session, Depends(get_session)],
+    before: OptionalDateTimeQuery = None,
+):
+    """Delete queued asset events for an asset."""
+    where_clause = _generate_queued_event_where_clause(uri=uri, before=before)
+    delete_stmt = delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
+    result = session.execute(delete_stmt)
+    if result.rowcount == 0:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Queue event with uri: `{uri}` was not found")
+
+
+@assets_router.delete(
     "/dags/{dag_id}/assets/queuedEvent",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc(
