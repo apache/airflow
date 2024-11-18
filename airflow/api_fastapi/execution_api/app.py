@@ -58,6 +58,7 @@ def create_task_execution_api_app(app: FastAPI) -> FastAPI:
             description=app.description,
             version=app.version,
             routes=app.routes,
+            servers=app.servers,
         )
 
         extra_schemas = get_extra_schemas()
