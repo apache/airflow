@@ -74,14 +74,15 @@ from airflow.models.base import _sentinel
 from airflow.models.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DependencyMixin
-
-# Keeping this file at all is a temp thing as we migrate the repo to the task sdk as the base, but to keep
-# main working and useful for others to develop against we use the TaskSDK here but keep this file around
-from airflow.sdk import DAG, BaseOperator as TaskSDKBaseOperator, EdgeModifier as TaskSDKEdgeModifier
 from airflow.sdk.definitions.baseoperator import (
     BaseOperatorMeta as TaskSDKBaseOperatorMeta,
     get_merged_defaults,
 )
+
+# Keeping this file at all is a temp thing as we migrate the repo to the task sdk as the base, but to keep
+# main working and useful for others to develop against we use the TaskSDK here but keep this file around
+from airflow.sdk.definitions.dag import DAG, BaseOperator as TaskSDKBaseOperator
+from airflow.sdk.definitions.edges import EdgeModifier as TaskSDKEdgeModifier
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.mapped_task_upstream_dep import MappedTaskUpstreamDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep

@@ -42,7 +42,8 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.operator import Operator
-    from airflow.sdk import DAG, BaseOperator
+    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.definitions.dag import DAG
     from airflow.utils.context import Context
     from airflow.utils.edgemodifier import EdgeModifier
 
