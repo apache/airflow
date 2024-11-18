@@ -477,7 +477,7 @@ class TestGetAssetEvents(TestAssets):
 
     @pytest.mark.usefixtures("time_freezer")
     @pytest.mark.enable_redact
-    def test_should_mask_sensitive_extra_logs(self, test_client, session):
+    def test_should_mask_sensitive_extra(self, test_client, session):
         self.create_assets_with_sensitive_extra()
         self.create_assets_events_with_sensitive_extra()
         self.create_dag_run()
@@ -578,7 +578,7 @@ class TestGetAssetEndpoint(TestAssets):
 
     @pytest.mark.usefixtures("time_freezer")
     @pytest.mark.enable_redact
-    def test_should_mask_sensitive_extra_logs(self, test_client, session):
+    def test_should_mask_sensitive_extra(self, test_client, session):
         self.create_assets_with_sensitive_extra()
         tz_datetime_format = self.default_time.replace("+00:00", "Z")
         uri = "s3://bucket/key/1"
@@ -627,7 +627,7 @@ class TestPostAssetEvents(TestAssets):
 
     @pytest.mark.usefixtures("time_freezer")
     @pytest.mark.enable_redact
-    def test_should_mask_sensitive_extra_logs(self, test_client, session):
+    def test_should_mask_sensitive_extra(self, test_client, session):
         self.create_assets()
         event_payload = {"uri": "s3://bucket/key/1", "extra": {"password": "bar"}}
         response = test_client.post("/public/assets/events", json=event_payload)
