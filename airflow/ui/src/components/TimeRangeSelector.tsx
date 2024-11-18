@@ -16,12 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { HStack, Text, type SelectValueChangeDetails } from "@chakra-ui/react";
 import {
-  HStack,
-  Text,
-  type SelectValueChangeDetails,
+  createListCollection,
   type ListCollection,
-} from "@chakra-ui/react";
+} from "@chakra-ui/react/collection";
 import dayjs from "dayjs";
 import { FiCalendar } from "react-icons/fi";
 
@@ -34,8 +33,18 @@ type Props = {
   readonly setEndDate: (startDate: string) => void;
   readonly setStartDate: (startDate: string) => void;
   readonly startDate: string;
-  readonly timeOptions: ListCollection<{ label: string; value: string }>;
+  readonly timeOptions?: ListCollection<{ label: string; value: string }>;
 };
+
+const defaultTimeOptions = createListCollection({
+  items: [
+    { label: "Last 1 hour", value: "1" },
+    { label: "Last 8 hours", value: "8" },
+    { label: "Last 12 hours", value: "12" },
+    { label: "Last 24 hours", value: "24" },
+    { label: "Last week", value: "168" },
+  ],
+});
 
 const TimeRangeSelector = ({
   defaultValue,
@@ -43,7 +52,7 @@ const TimeRangeSelector = ({
   setEndDate,
   setStartDate,
   startDate,
-  timeOptions,
+  timeOptions = defaultTimeOptions,
 }: Props) => {
   const handleTimeChange = ({
     value,
