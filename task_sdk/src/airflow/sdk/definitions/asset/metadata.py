@@ -25,7 +25,7 @@ import attrs
 
 from airflow.sdk.definitions.asset import Asset, AssetAlias, _sanitize_uri
 
-__all__ = ["Metadata"]
+__all__ = ["Metadata", "extract_event_key"]
 
 
 def extract_event_key(value: str | Asset | AssetAlias) -> str:
