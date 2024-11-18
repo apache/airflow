@@ -393,3 +393,103 @@ class TestPostPool(TestPoolsEndpoint):
             create_default=False,
             check_count=False,
         )
+
+
+class TestPostPools(TestPoolsEndpoint):
+    @pytest.mark.parametrize(
+        "body, expected_status_code, expected_response",
+        [
+            (
+                {
+                    "pools": [
+                        {"name": "my_pool", "slots": 11},
+                        {"name": "my_pool2", "slots": 12},
+                    ]
+                },
+                201,
+                {
+                    "pools": [
+                        {
+                            "name": "my_pool",
+                            "slots": 11,
+                            "description": None,
+                            "include_deferred": False,
+                            "occupied_slots": 0,
+                            "running_slots": 0,
+                            "queued_slots": 0,
+                            "scheduled_slots": 0,
+                            "open_slots": 11,
+                            "deferred_slots": 0,
+                        },
+                        {
+                            "name": "my_pool2",
+                            "slots": 12,
+                            "description": None,
+                            "include_deferred": False,
+                            "occupied_slots": 0,
+                            "running_slots": 0,
+                            "queued_slots": 0,
+                            "scheduled_slots": 0,
+                            "open_slots": 12,
+                            "deferred_slots": 0,
+                        },
+                    ],
+                    "total_entries": 2,
+                },
+            ),
+            (
+                {
+                    "pools": [
+                        {"name": "my_pool", "slots": 11},
+                        {"name": POOL1_NAME, "slots": 12},
+                    ]
+                },
+                409,
+                {},
+            ),
+            (
+                {
+                    "pools": [
+                        {"name": POOL1_NAME, "slots": 11},
+                        {"name": POOL2_NAME, "slots": 12},
+                    ]
+                },
+                409,
+                {},
+            ),
+            (
+                {
+                    "pools": [
+                        {"name": "my_pool", "slots": 11},
+                        {"name": "my_pool", "slots": 12},
+                    ]
+                },
+                422,
+                {
+                    "detail": [
+                        {
+                            "loc": ["body", "pools"],
+                            "msg": "Value error, Pool name should be unique, found duplicates: ['my_pool']",
+                            "type": "value_error",
+                        }
+                    ]
+                },
+            ),
+        ],
+    )
+    def test_post_pools(self, test_client, session, body, expected_status_code, expected_response):
+        self.create_pools()
+        n_pools = session.query(Pool).count()
+        response = test_client.post("/public/pools/bulk", json=body)
+        assert response.status_code == expected_status_code
+        response_json = response.json()
+        if expected_status_code == 201:
+            assert response_json == expected_response
+        elif expected_status_code == 422:
+            assert response_json["detail"][0]["loc"] == expected_response["detail"][0]["loc"]
+            assert response_json["detail"][0]["msg"] == expected_response["detail"][0]["msg"]
+            assert response_json["detail"][0]["type"] == expected_response["detail"][0]["type"]
+        if expected_status_code == 201:
+            assert session.query(Pool).count() == n_pools + 2
+        else:
+            assert session.query(Pool).count() == n_pools
