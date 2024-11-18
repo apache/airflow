@@ -178,7 +178,6 @@ class TestGetDags(TestDagEndpoint):
     )
     def test_get_dags(self, test_client, query_params, expected_total_entries, expected_ids):
         response = test_client.get("/public/dags", params=query_params)
-        print("Response JSON:", response.json())
 
         assert response.status_code == 200
         body = response.json()

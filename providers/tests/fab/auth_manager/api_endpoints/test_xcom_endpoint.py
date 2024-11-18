@@ -34,11 +34,6 @@ from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import c
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
 
-if AIRFLOW_V_3_0_PLUS:
-    pass
-else:
-    pass
-
 pytestmark = [
     pytest.mark.db_test,
     pytest.mark.skip_if_database_isolation_mode,

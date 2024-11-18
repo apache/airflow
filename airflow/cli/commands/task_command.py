@@ -96,7 +96,7 @@ def _fetch_dag_run_from_run_id_or_logical_date_string(
     dag_id: str,
     value: str,
     session: Session,
-) -> tuple[DagRun | DagRunPydantic | None, pendulum.DateTime | None]:
+) -> tuple[DagRun | DagRunPydantic, pendulum.DateTime | None]:
     """
     Try to find a DAG run with a given string value.
 
@@ -116,7 +116,7 @@ def _fetch_dag_run_from_run_id_or_logical_date_string(
     try:
         logical_date = timezone.parse(value)
     except (ParserError, TypeError):
-        return None, None
+        return dag_run, None
     dag_run = session.scalar(
         select(DagRun)
         .where(DagRun.dag_id == dag_id, DagRun.logical_date == logical_date)

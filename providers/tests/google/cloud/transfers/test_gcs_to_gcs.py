@@ -495,9 +495,10 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         with mock.patch.object(operator.log, "warning") as mock_warn:
             operator.execute(None)
-            mock_warn.assert_any_call(
+            mock_warn.assert_called_once_with(
                 "destination_bucket is None. Defaulting it to source_bucket (%s)", TEST_BUCKET
             )
+            assert operator.destination_bucket == operator.source_bucket
 
     # Tests the use of delimiter and source object as list
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")

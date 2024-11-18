@@ -951,8 +951,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
             return self.dag_run
 
         def create_dagrun_after(self, dagrun, **kwargs):
-            from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-
             next_info = self.dag.next_dagrun_info(self.dag.get_run_data_interval(dagrun))
             if next_info is None:
                 raise ValueError(f"cannot create run after {dagrun}")
@@ -1298,8 +1296,6 @@ def create_serialized_task_instance_of_operator(dag_maker: DagMaker) -> CreateTa
         session=None,
         **operator_kwargs,
     ) -> TaskInstance:
-        from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-
         with dag_maker(dag_id=dag_id, serialized=True, session=session):
             operator_class(**operator_kwargs)
         (ti,) = dag_maker.create_dagrun(logical_date=logical_date).task_instances
@@ -1318,8 +1314,6 @@ def create_task_instance_of_operator(dag_maker: DagMaker) -> CreateTaskInstanceO
         session=None,
         **operator_kwargs,
     ) -> TaskInstance:
-        from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-
         with dag_maker(dag_id=dag_id, session=session, serialized=True):
             operator_class(**operator_kwargs)
         (ti,) = dag_maker.create_dagrun(logical_date=logical_date).task_instances

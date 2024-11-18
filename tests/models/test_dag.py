@@ -320,7 +320,7 @@ class TestDag:
         dr3 = test_dag.create_dagrun(
             state=None,
             run_id="test3",
-            execution_date=DEFAULT_DATE + datetime.timedelta(days=2),
+            logical_date=DEFAULT_DATE + datetime.timedelta(days=2),
             data_interval=(
                 DEFAULT_DATE + datetime.timedelta(days=2),
                 DEFAULT_DATE + datetime.timedelta(days=2),

@@ -1374,9 +1374,17 @@ def test_external_task_marker_clear_activate(dag_bag_parent_child, session):
     run_tasks(dag_bag, logical_date=day_1)
     run_tasks(dag_bag, logical_date=day_2)
 
+    from sqlalchemy import select
+
     # Assert that dagruns of all the affected dags are set to SUCCESS before tasks are cleared.
     for dag, logical_date in itertools.product(dag_bag.dags.values(), [day_1, day_2]):
-        dagrun = dag.get_dagrun(session=session)
+        dagrun = dag.get_dagrun(
+            run_id=select(DagRun.run_id)
+            .where(DagRun.logical_date == logical_date)
+            .order_by(DagRun.id.desc())
+            .limit(1),
+            session=session,
+        )
         dagrun.set_state(State.SUCCESS)
     session.flush()
 

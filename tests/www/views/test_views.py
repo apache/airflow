@@ -401,6 +401,8 @@ def test_mark_task_instance_state(test_app):
         # task_5 remains as SKIPPED
         assert get_task_instance(session, task_5).state == State.SKIPPED
         dagrun.refresh_from_db(session=session)
+        # dagrun should be set to QUEUED
+        assert dagrun.get_state() == State.QUEUED
 
 
 def test_mark_task_group_state(test_app):
