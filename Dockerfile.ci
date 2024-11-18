@@ -1348,36 +1348,6 @@ common::get_colors
 install_npm_pnpm_yarn
 EOF
 
-
-# The content below is automatically copied from scripts/docker/remove_npm_pnpm_yarn.sh
-COPY <<"EOF" /remove_npm_pnpm_yarn.sh
-#!/usr/bin/env bash
-. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
-
-function remove_npm_pnpm_yarn() {
-    echo
-    echo "${COLOR_BLUE}Removing npm, pnpm and yarn${COLOR_RESET}"
-    echo
-    set +e
-    set -x
-    npm cache clean --force
-    # Remove pnpm
-    npm uninstall -g pnpm
-    # Remove yarn
-    npm uninstall -g yarn
-    # Remove npm
-    apt-get remove -y npm
-    echo "${COLOR_BLUE}npm, pnpm and yarn removed successfully${COLOR_RESET}"
-    set +x
-    set -e
-}
-
-common::get_colors
-
-remove_npm_pnpm_yarn
-EOF
-
-
 ##############################################################################################
 # This is the build image
 ##############################################################################################
