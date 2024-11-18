@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import datetime
 import operator
-import os
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock
@@ -28,7 +27,6 @@ import pytest
 from airflow.configuration import conf
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.xcom import BaseXCom, XCom, resolve_xcom_backend
 from airflow.operators.empty import EmptyOperator
 from airflow.settings import json
@@ -109,76 +107,18 @@ class TestXCom:
         cls = resolve_xcom_backend()
         assert issubclass(cls, CustomXCom)
 
-    @conf_vars({("core", "xcom_backend"): "", ("core", "enable_xcom_pickling"): "False"})
+    @conf_vars({("core", "xcom_backend"): ""})
     def test_resolve_xcom_class_fallback_to_basexcom(self):
         cls = resolve_xcom_backend()
         assert issubclass(cls, BaseXCom)
         assert cls.serialize_value([1]) == b"[1]"
 
-    @conf_vars({("core", "enable_xcom_pickling"): "False"})
     @conf_vars({("core", "xcom_backend"): "to be removed"})
     def test_resolve_xcom_class_fallback_to_basexcom_no_config(self):
         conf.remove_option("core", "xcom_backend")
         cls = resolve_xcom_backend()
         assert issubclass(cls, BaseXCom)
         assert cls.serialize_value([1]) == b"[1]"
-
-    def test_xcom_deserialize_with_json_to_pickle_switch(self, task_instance, session):
-        ti_key = TaskInstanceKey(
-            dag_id=task_instance.dag_id,
-            task_id=task_instance.task_id,
-            run_id=task_instance.run_id,
-        )
-        with conf_vars({("core", "enable_xcom_pickling"): "False"}):
-            XCom.set(
-                key="xcom_test3",
-                value={"key": "value"},
-                dag_id=task_instance.dag_id,
-                task_id=task_instance.task_id,
-                run_id=task_instance.run_id,
-                session=session,
-            )
-        with conf_vars({("core", "enable_xcom_pickling"): "True"}):
-            ret_value = XCom.get_value(key="xcom_test3", ti_key=ti_key, session=session)
-        assert ret_value == {"key": "value"}
-
-    @pytest.mark.skip_if_database_isolation_mode
-    def test_xcom_deserialize_pickle_when_xcom_pickling_is_disabled(self, task_instance, session):
-        with conf_vars({("core", "enable_xcom_pickling"): "True"}):
-            XCom.set(
-                key="xcom_test3",
-                value={"key": "value"},
-                dag_id=task_instance.dag_id,
-                task_id=task_instance.task_id,
-                run_id=task_instance.run_id,
-                session=session,
-            )
-        with conf_vars({("core", "enable_xcom_pickling"): "False"}):
-            with pytest.raises(UnicodeDecodeError):
-                XCom.get_one(
-                    key="xcom_test3",
-                    dag_id=task_instance.dag_id,
-                    task_id=task_instance.task_id,
-                    run_id=task_instance.run_id,
-                    session=session,
-                )
-
-    @pytest.mark.skip_if_database_isolation_mode
-    @conf_vars({("core", "xcom_enable_pickling"): "False"})
-    def test_xcom_disable_pickle_type_fail_on_non_json(self, task_instance, session):
-        class PickleRce:
-            def __reduce__(self):
-                return os.system, ("ls -alt",)
-
-        with pytest.raises(TypeError):
-            XCom.set(
-                key="xcom_test3",
-                value=PickleRce(),
-                dag_id=task_instance.dag_id,
-                task_id=task_instance.task_id,
-                run_id=task_instance.run_id,
-                session=session,
-            )
 
     @mock.patch("airflow.models.xcom.XCom.orm_deserialize_value")
     def test_xcom_init_on_load_uses_orm_deserialize_value(self, mock_orm_deserialize):
@@ -216,7 +156,6 @@ class TestXCom:
         XCom.orm_deserialize_value.assert_not_called()
 
     @pytest.mark.skip_if_database_isolation_mode
-    @conf_vars({("core", "enable_xcom_pickling"): "False"})
     @mock.patch("airflow.models.xcom.conf.getimport")
     def test_set_serialize_call_current_signature(self, get_import, task_instance):
         """
@@ -266,17 +205,6 @@ class TestXCom:
         )
 
 
-@pytest.fixture(
-    params=[
-        pytest.param("true", id="enable_xcom_pickling=true"),
-        pytest.param("false", id="enable_xcom_pickling=false"),
-    ],
-)
-def setup_xcom_pickling(request):
-    with conf_vars({("core", "enable_xcom_pickling"): str(request.param)}):
-        yield
-
-
 @pytest.fixture
 def push_simple_json_xcom(session):
     def func(*, ti: TaskInstance, key: str, value):
@@ -292,7 +220,6 @@ def push_simple_json_xcom(session):
     return func
 
 
-@pytest.mark.usefixtures("setup_xcom_pickling")
 class TestXComGet:
     @pytest.fixture
     def setup_for_xcom_get_one(self, task_instance, push_simple_json_xcom):
@@ -403,7 +330,6 @@ class TestXComGet:
         assert [x.logical_date for x in stored_xcoms] == [ti2.logical_date, ti1.logical_date]
 
 
-@pytest.mark.usefixtures("setup_xcom_pickling")
 class TestXComSet:
     def test_xcom_set(self, session, task_instance):
         XCom.set(
@@ -439,7 +365,6 @@ class TestXComSet:
         assert session.query(XCom).one().value == {"key2": "value2"}
 
 
-@pytest.mark.usefixtures("setup_xcom_pickling")
 class TestXComClear:
     @pytest.fixture
     def setup_for_xcom_clear(self, task_instance, push_simple_json_xcom):
