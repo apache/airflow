@@ -61,7 +61,6 @@ from airflow.utils.types import DagRunType
 from tests.models import TEST_DAGS_FOLDER
 from tests_common.test_utils.compat import (
     AIRFLOW_V_2_10_PLUS,
-    AIRFLOW_V_3_0_PLUS,
     ignore_provider_compatibility_error,
 )
 from tests_common.test_utils.db import clear_db_runs
