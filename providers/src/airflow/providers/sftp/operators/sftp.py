@@ -179,14 +179,22 @@ class SFTPOperator(BaseOperator):
                         Path(local_folder).mkdir(parents=True, exist_ok=True)
                     file_msg = f"from {_remote_filepath} to {_local_filepath}"
                     self.log.info("Starting to transfer %s", file_msg)
-                    self.sftp_hook.retrieve_file(_remote_filepath, _local_filepath)
+                    if self.sftp_hook.isdir(_remote_filepath):
+                        self.sftp_hook.retrieve_directory(_remote_filepath, _local_filepath)
+                    else:
+                        self.sftp_hook.retrieve_file(_remote_filepath, _local_filepath)
                 else:
                     remote_folder = os.path.dirname(_remote_filepath)
                     if self.create_intermediate_dirs:
                         self.sftp_hook.create_directory(remote_folder)
                     file_msg = f"from {_local_filepath} to {_remote_filepath}"
                     self.log.info("Starting to transfer file %s", file_msg)
-                    self.sftp_hook.store_file(_remote_filepath, _local_filepath, confirm=self.confirm)
+                    if os.path.isdir(_local_filepath):
+                        self.sftp_hook.store_directory(
+                            _remote_filepath, _local_filepath, confirm=self.confirm
+                        )
+                    else:
+                        self.sftp_hook.store_file(_remote_filepath, _local_filepath, confirm=self.confirm)
 
         except Exception as e:
             raise AirflowException(f"Error while transferring {file_msg}, error: {e}")

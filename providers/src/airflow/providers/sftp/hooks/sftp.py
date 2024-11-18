@@ -24,6 +24,7 @@ import os
 import stat
 import warnings
 from fnmatch import fnmatch
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 import asyncssh
@@ -274,6 +275,47 @@ class SFTPHook(SSHHook):
         """
         conn = self.get_conn()
         conn.remove(path)
+
+    def retrieve_directory(self, remote_full_path: str, local_full_path: str, prefetch: bool = True) -> None:
+        """
+        Transfer the remote directory to a local location.
+
+        If local_full_path is a string path, the directory will be put
+        at that location.
+
+        :param remote_full_path: full path to the remote directory
+        :param local_full_path: full path to the local directory
+        :param prefetch: controls whether prefetch is performed (default: True)
+        """
+        os.mkdir(local_full_path)
+        files, dirs, _ = self.get_tree_map(remote_full_path)
+        for dir_path in dirs:
+            new_local_path = os.path.join(local_full_path, os.path.relpath(dir_path, remote_full_path))
+            Path(new_local_path).mkdir(parents=True, exist_ok=True)
+        for file_path in files:
+            new_local_path = os.path.join(local_full_path, os.path.relpath(file_path, remote_full_path))
+            self.retrieve_file(file_path, new_local_path, prefetch)
+
+    def store_directory(self, remote_full_path: str, local_full_path: str, confirm: bool = True) -> None:
+        """
+        Transfer a local directory to the remote location.
+
+        If local_full_path is a string path, the directory will be read
+        from that location.
+
+        :param remote_full_path: full path to the remote directory
+        :param local_full_path: full path to the local directory
+        """
+        self.create_directory(remote_full_path)
+        for root, dirs, files in os.walk(local_full_path):
+            for dir_name in dirs:
+                dir_path = os.path.join(root, dir_name)
+                new_remote_path = os.path.join(remote_full_path, os.path.relpath(dir_path, local_full_path))
+                self.create_directory(new_remote_path)
+            for file_name in files:
+                file_path = os.path.join(root, file_name)
+                new_remote_path = os.path.join(remote_full_path, os.path.relpath(file_path, local_full_path))
+                self.store_file(new_remote_path, file_path, confirm)
 
     def get_mod_time(self, path: str) -> str:
         """
