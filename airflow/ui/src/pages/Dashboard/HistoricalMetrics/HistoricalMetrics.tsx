@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, VStack, createListCollection } from "@chakra-ui/react";
+import { Box, VStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import { useState } from "react";
 
@@ -28,17 +28,9 @@ import { DagRunMetrics } from "./DagRunMetrics";
 import { MetricSectionSkeleton } from "./MetricSectionSkeleton";
 import { TaskInstanceMetrics } from "./TaskInstanceMetrics";
 
-const timeOptions = createListCollection({
-  items: [
-    { label: "Last 1 hour", value: "1" },
-    { label: "Last 8 hours", value: "8" },
-    { label: "Last 12 hours", value: "12" },
-    { label: "Last 24 hours", value: "24" },
-  ],
-});
+const defaultHour = "8";
 
 export const HistoricalMetrics = () => {
-  const defaultHour = "8";
   const now = dayjs();
   const [startDate, setStartDate] = useState(
     now.subtract(Number(defaultHour), "hour").toISOString(),
@@ -74,7 +66,6 @@ export const HistoricalMetrics = () => {
           setEndDate={setEndDate}
           setStartDate={setStartDate}
           startDate={startDate}
-          timeOptions={timeOptions}
         />
         {isLoading ? <MetricSectionSkeleton /> : undefined}
         {!isLoading && data !== undefined && (
