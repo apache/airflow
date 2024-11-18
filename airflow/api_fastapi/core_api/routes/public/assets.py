@@ -80,7 +80,7 @@ def _generate_queued_event_where_clause(
 
 @assets_router.get(
     "/assets",
-    responses=create_openapi_http_exception_doc([401, 403, 404]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_assets(
     limit: QueryLimit,
@@ -115,7 +115,7 @@ def get_assets(
 
 @assets_router.get(
     "/assets/events",
-    responses=create_openapi_http_exception_doc([404]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_asset_events(
     limit: QueryLimit,
@@ -165,7 +165,7 @@ def get_asset_events(
 
 @assets_router.post(
     "/assets/events",
-    responses=create_openapi_http_exception_doc([404]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def create_asset_event(
     body: CreateAssetEventsBody,
@@ -174,7 +174,7 @@ def create_asset_event(
     """Create asset events."""
     asset = session.scalar(select(AssetModel).where(AssetModel.uri == body.uri).limit(1))
     if not asset:
-        raise HTTPException(404, f"Asset with uri: `{body.uri}` was not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with uri: `{body.uri}` was not found")
     timestamp = timezone.utcnow()
 
     assets_event = asset_manager.register_asset_change(
@@ -185,13 +185,13 @@ def create_asset_event(
     )
 
     if not assets_event:
-        raise HTTPException(404, f"Asset with uri: `{body.uri}` was not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with uri: `{body.uri}` was not found")
     return AssetEventResponse.model_validate(assets_event, from_attributes=True)
 
 
 @assets_router.get(
     "/assets/{uri:path}",
-    responses=create_openapi_http_exception_doc([401, 403, 404]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_asset(
     uri: str,
