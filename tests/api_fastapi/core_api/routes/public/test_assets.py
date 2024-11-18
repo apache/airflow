@@ -168,15 +168,6 @@ class TestAssets:
         clear_db_assets()
         clear_db_runs()
 
-    @pytest.fixture
-    def time_freezer(self) -> Generator:
-        freezer = time_machine.travel(self.default_time, tick=False)
-        freezer.start()
-
-        yield
-
-        freezer.stop()
-
     def teardown_method(self) -> None:
         clear_db_assets()
         clear_db_runs()
