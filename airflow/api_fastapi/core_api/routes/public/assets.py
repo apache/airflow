@@ -255,7 +255,7 @@ def get_dag_asset_queued_events(
 
 
 @assets_router.get(
-    "/assets/queuedEvent/{uri:path}",
+    "/assets/queuedEvents/{uri:path}",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_404_NOT_FOUND,
@@ -290,9 +290,6 @@ def get_asset_queued_events(
     ]
 
     return QueuedEventCollectionResponse(
-        queued_events=[
-            QueuedEventResponse.model_validate(queued_event, from_attributes=True)
-            for queued_event in queued_events
-        ],
+        queued_events=queued_events,
         total_entries=total_entries,
     )
