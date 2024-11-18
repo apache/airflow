@@ -686,13 +686,10 @@ class TestKubernetesJobOperator:
 
     @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.job_client"))
-    @patch(HOOK_CLASS)
-    def test_on_kill(self, mock_hook, mock_client):
+    def test_on_kill(self, mock_client):
         mock_job = mock.MagicMock()
         mock_job.metadata.name = JOB_NAME
         mock_job.metadata.namespace = JOB_NAMESPACE
-        mock_serialize = mock_hook.return_value.batch_v1_client.api_client.sanitize_for_serialization
-        mock_serialized_job = mock_serialize.return_value
 
         op = KubernetesJobOperator(task_id="test_task_id")
         op.job = mock_job
@@ -701,19 +698,14 @@ class TestKubernetesJobOperator:
         mock_client.delete_namespaced_job.assert_called_once_with(
             name=JOB_NAME,
             namespace=JOB_NAMESPACE,
-            job=mock_serialized_job,
         )
-        mock_serialize.assert_called_once_with(mock_job)
 
     @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.job_client"))
-    @patch(HOOK_CLASS)
-    def test_on_kill_termination_grace_period(self, mock_hook, mock_client):
+    def test_on_kill_termination_grace_period(self, mock_client):
         mock_job = mock.MagicMock()
         mock_job.metadata.name = JOB_NAME
         mock_job.metadata.namespace = JOB_NAMESPACE
-        mock_serialize = mock_hook.return_value.batch_v1_client.api_client.sanitize_for_serialization
-        mock_serialized_job = mock_serialize.return_value
         mock_termination_grace_period = mock.MagicMock()
 
         op = KubernetesJobOperator(
@@ -725,10 +717,8 @@ class TestKubernetesJobOperator:
         mock_client.delete_namespaced_job.assert_called_once_with(
             name=JOB_NAME,
             namespace=JOB_NAMESPACE,
-            job=mock_serialized_job,
             grace_period_seconds=mock_termination_grace_period,
         )
-        mock_serialize.assert_called_once_with(mock_job)
 
     @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.client"))
