@@ -36,7 +36,7 @@ from google.cloud import exceptions, storage  # type: ignore[attr-defined]
 from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.assets.gcs import Asset
+from airflow.providers.common.compat.assets import Asset
 from airflow.providers.google.cloud.hooks import gcs
 from airflow.providers.google.cloud.hooks.gcs import _fallback_object_url_to_object_name_and_bucket_name
 from airflow.providers.google.common.consts import CLIENT_INFO
