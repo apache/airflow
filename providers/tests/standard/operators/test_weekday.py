@@ -33,11 +33,6 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.weekday import WeekDay
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
-
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2020, 2, 5)  # Wednesday
@@ -105,25 +100,13 @@ class TestBranchDayOfWeekOperator:
             branch_2.set_upstream(branch_op)
             branch_3.set_upstream(branch_op)
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        if AIRFLOW_V_3_0_PLUS:
-            dr = dag_maker.create_dagrun(
-                run_id="manual__",
-                start_date=timezone.utcnow(),
-                logical_date=DEFAULT_DATE,
-                state=State.RUNNING,
-                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-                **triggered_by_kwargs,
-            )
-        else:
-            dr = dag_maker.create_dagrun(
-                run_id="manual__",
-                start_date=timezone.utcnow(),
-                execution_date=DEFAULT_DATE,
-                state=State.RUNNING,
-                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-                **triggered_by_kwargs,
-            )
+        dr = dag_maker.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            logical_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        )
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -155,26 +138,13 @@ class TestBranchDayOfWeekOperator:
             branch_1.set_upstream(branch_op)
             branch_2.set_upstream(branch_op)
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-
-        if AIRFLOW_V_3_0_PLUS:
-            dr = dag_maker.create_dagrun(
-                run_id="manual__",
-                start_date=timezone.utcnow(),
-                logical_date=DEFAULT_DATE,
-                state=State.RUNNING,
-                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-                **triggered_by_kwargs,
-            )
-        else:
-            dr = dag_maker.create_dagrun(
-                run_id="manual__",
-                start_date=timezone.utcnow(),
-                execution_date=DEFAULT_DATE,
-                state=State.RUNNING,
-                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-                **triggered_by_kwargs,
-            )
+        dr = dag_maker.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            logical_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        )
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -204,26 +174,13 @@ class TestBranchDayOfWeekOperator:
             branch_1.set_upstream(branch_op)
             branch_2.set_upstream(branch_op)
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-
-        if AIRFLOW_V_3_0_PLUS:
-            dr = dag_maker.create_dagrun(
-                run_id="manual__",
-                start_date=timezone.utcnow(),
-                logical_date=DEFAULT_DATE,
-                state=State.RUNNING,
-                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-                **triggered_by_kwargs,
-            )
-        else:
-            dr = dag_maker.create_dagrun(
-                run_id="manual__",
-                start_date=timezone.utcnow(),
-                execution_date=DEFAULT_DATE,
-                state=State.RUNNING,
-                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-                **triggered_by_kwargs,
-            )
+        dr = dag_maker.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            logical_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        )
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -314,25 +271,13 @@ class TestBranchDayOfWeekOperator:
             branch_1.set_upstream(branch_op)
             branch_2.set_upstream(branch_op)
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        if AIRFLOW_V_3_0_PLUS:
-            dr = dag_maker.create_dagrun(
-                run_id="manual__",
-                start_date=timezone.utcnow(),
-                logical_date=DEFAULT_DATE,
-                state=State.RUNNING,
-                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-                **triggered_by_kwargs,
-            )
-        else:
-            dr = dag_maker.create_dagrun(
-                run_id="manual__",
-                start_date=timezone.utcnow(),
-                execution_date=DEFAULT_DATE,
-                state=State.RUNNING,
-                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-                **triggered_by_kwargs,
-            )
+        dr = dag_maker.create_dagrun(
+            run_id="manual__",
+            start_date=timezone.utcnow(),
+            logical_date=DEFAULT_DATE,
+            state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+        )
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
