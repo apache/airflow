@@ -3140,10 +3140,6 @@ export type $OpenApiTs = {
          */
         201: PoolCollectionResponse;
         /**
-         * Validation error
-         */
-        400: unknown;
-        /**
          * Unauthorized
          */
         401: HTTPExceptionResponse;

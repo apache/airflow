@@ -1815,7 +1815,6 @@ export class PoolService {
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
-        400: "Validation error",
         401: "Unauthorized",
         403: "Forbidden",
         409: "Conflict",

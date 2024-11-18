@@ -3322,9 +3322,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-        '400':
-          description: Validation error
-          example: {}
         '409':
           description: Conflict
           content:
