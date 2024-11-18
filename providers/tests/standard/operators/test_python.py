@@ -75,10 +75,6 @@ from tests_common.test_utils import AIRFLOW_MAIN_FOLDER
 from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS, AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_runs
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
-
-
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
 
@@ -148,27 +144,14 @@ class BasePythonTest:
         return kwargs
 
     def create_dag_run(self) -> DagRun:
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        if AIRFLOW_V_3_0_PLUS:
-            return self.dag_maker.create_dagrun(
-                state=DagRunState.RUNNING,
-                start_date=self.dag_maker.start_date,
-                session=self.dag_maker.session,
-                logical_date=self.default_date,
-                run_type=DagRunType.MANUAL,
-                data_interval=(self.default_date, self.default_date),
-                **triggered_by_kwargs,  # type: ignore
-            )
-        else:
-            return self.dag_maker.create_dagrun(
-                state=DagRunState.RUNNING,
-                start_date=self.dag_maker.start_date,
-                session=self.dag_maker.session,
-                execution_date=self.default_date,
-                run_type=DagRunType.MANUAL,
-                data_interval=(self.default_date, self.default_date),
-                **triggered_by_kwargs,  # type: ignore
-            )
+        return self.dag_maker.create_dagrun(
+            state=DagRunState.RUNNING,
+            start_date=self.dag_maker.start_date,
+            session=self.dag_maker.session,
+            logical_date=self.default_date,
+            run_type=DagRunType.MANUAL,
+            data_interval=(self.default_date, self.default_date),
+        )
 
     def create_ti(self, fn, **kwargs) -> TI:
         """Create TaskInstance for class defined Operator."""
