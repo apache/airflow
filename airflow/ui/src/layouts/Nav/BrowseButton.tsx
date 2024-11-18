@@ -16,8 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Link } from "@chakra-ui/react";
 import { FiGlobe } from "react-icons/fi";
+import { Link } from "react-router-dom";
 
 import { Menu } from "src/components/ui";
 
@@ -25,7 +25,7 @@ import { NavButton } from "./NavButton";
 
 const links = [
   {
-    href: `/webapp/events`,
+    href: "/events",
     title: "Events",
   },
 ];
@@ -38,7 +38,7 @@ export const BrowseButton = () => (
     <Menu.Content>
       {links.map((link) => (
         <Menu.Item asChild key={link.title} value={link.title}>
-          <Link aria-label={link.title} href={link.href}>
+          <Link aria-label={link.title} to={link.href}>
             {link.title}
           </Link>
         </Menu.Item>
