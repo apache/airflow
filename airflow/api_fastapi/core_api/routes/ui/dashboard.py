@@ -46,7 +46,7 @@ dashboard_router = AirflowRouter(tags=["Dashboard"])
 def historical_metrics(
     session: Annotated[Session, Depends(get_session)],
     start_date: DateTimeQuery,
-    end_date: OptionalDateTimeQuery | None = None,
+    end_date: OptionalDateTimeQuery = None,
 ) -> HistoricalMetricDataResponse:
     """Return cluster activity historical metrics."""
     current_time = timezone.utcnow()
