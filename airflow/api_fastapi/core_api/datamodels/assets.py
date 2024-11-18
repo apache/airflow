@@ -21,6 +21,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
 
+from airflow.utils.log.secrets_masker import redact
+
 
 class DagScheduleAssetReference(BaseModel):
     """DAG schedule reference serializer for assets."""
@@ -58,6 +60,11 @@ class AssetResponse(BaseModel):
     producing_tasks: list[TaskOutletAssetReference]
     aliases: list[AssetAliasSchema]
 
+    @field_validator("extra", mode="after")
+    @classmethod
+    def redact_extra(cls, v: dict):
+        return redact(v)
+
 
 class AssetCollectionResponse(BaseModel):
     """Asset collection response."""
@@ -92,6 +99,11 @@ class AssetEventResponse(BaseModel):
     source_map_index: int
     created_dagruns: list[DagRunAssetReference]
     timestamp: datetime
+
+    @field_validator("extra", mode="after")
+    @classmethod
+    def redact_extra(cls, v: dict):
+        return redact(v)
 
 
 class AssetEventCollectionResponse(BaseModel):
