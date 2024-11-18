@@ -39,6 +39,10 @@ class AsyncMock(mock.MagicMock):
         return super().__call__(*args, **kwargs)
 
 
+def telegram_error_side_effect(*args, **kwargs):
+    raise telegram.error.TelegramError("cosmic rays caused bit flips")
+
+
 class TestTelegramHook:
     def setup_method(self):
         db.merge_conn(
@@ -157,10 +161,7 @@ class TestTelegramHook:
         excepted_retry_count = 5
         mock_get_conn.return_value = AsyncMock(password="some_token")
 
-        def side_effect(*args, **kwargs):
-            raise telegram.error.TelegramError("cosmic rays caused bit flips")
-
-        mock_get_conn.return_value.send_message.side_effect = side_effect
+        mock_get_conn.return_value.send_message.side_effect = telegram_error_side_effect
 
         hook = TelegramHook(telegram_conn_id="telegram-webhook-with-chat_id")
         with pytest.raises(tenacity.RetryError) as ctx:
@@ -194,5 +195,110 @@ class TestTelegramHook:
                 "parse_mode": "HTML",
                 "disable_web_page_preview": True,
                 "text": "test telegram message",
+            }
+        )
+
+    @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
+    def test_should_raise_exception_if_chat_id_is_not_provided_anywhere_when_sending_file(
+        self, mock_get_conn
+    ):
+        hook = TelegramHook(telegram_conn_id="telegram_default")
+        error_message = "'chat_id' must be provided for telegram document message"
+        with pytest.raises(airflow.exceptions.AirflowException, match=error_message):
+            hook.send_file({"file": "/file/to/path"})
+
+    @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
+    def test_should_raise_exception_if_file_path_is_not_provided_when_sending_file(self, mock_get_conn):
+        hook = TelegramHook(telegram_conn_id="telegram_default")
+        error_message = "'file' parameter must be provided for sending a Telegram document message"
+        with pytest.raises(airflow.exceptions.AirflowException, match=error_message):
+            hook.send_file({"chat_id": "-420913222"})
+
+    @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
+    def test_should_send_file_if_all_parameters_are_correctly_provided(self, mock_get_conn):
+        mock_get_conn.return_value = AsyncMock(password="some_token")
+
+        hook = TelegramHook(telegram_conn_id="telegram_default")
+        hook.send_file({"chat_id": "-420913222", "file": "/file/to/path"})
+
+        mock_get_conn.return_value.send_document.return_value = "OK."
+
+        mock_get_conn.assert_called_once()
+        mock_get_conn.return_value.send_document.assert_called_once_with(
+            **{
+                "chat_id": "-420913222",
+                "document": "/file/to/path",
+            }
+        )
+
+    @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
+    def test_should_send_file_if_chat_id_is_provided_through_constructor(self, mock_get_conn):
+        mock_get_conn.return_value = AsyncMock(password="some_token")
+
+        hook = TelegramHook(telegram_conn_id="telegram_default", chat_id="-420913222")
+        hook.send_file({"file": "/file/to/path"})
+
+        mock_get_conn.return_value.send_document.return_value = "OK."
+
+        mock_get_conn.assert_called_once()
+        mock_get_conn.return_value.send_document.assert_called_once_with(
+            **{
+                "chat_id": "-420913222",
+                "document": "/file/to/path",
+            }
+        )
+
+    @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
+    def test_should_send_file_if_chat_id_is_provided_in_connection(self, mock_get_conn):
+        mock_get_conn.return_value = AsyncMock(password="some_token")
+
+        hook = TelegramHook(telegram_conn_id="telegram-webhook-with-chat_id")
+        hook.send_file({"file": "/file/to/path"})
+
+        mock_get_conn.return_value.send_document.return_value = "OK."
+
+        mock_get_conn.assert_called_once()
+        mock_get_conn.return_value.send_document.assert_called_once_with(
+            **{
+                "chat_id": "-420913222",
+                "document": "/file/to/path",
+            }
+        )
+
+    @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
+    def test_should_retry_on_telegram_error_when_sending_file(self, mock_get_conn):
+        excepted_retry_count = 5
+        mock_get_conn.return_value = AsyncMock(password="some_token")
+
+        mock_get_conn.return_value.send_document.side_effect = telegram_error_side_effect
+
+        hook = TelegramHook(telegram_conn_id="telegram-webhook-with-chat_id")
+        with pytest.raises(tenacity.RetryError) as ctx:
+            hook.send_file({"file": "/file/to/path"})
+        assert "state=finished raised TelegramError" in str(ctx.value)
+
+        mock_get_conn.assert_called_once()
+        mock_get_conn.return_value.send_document.assert_called_with(
+            **{
+                "chat_id": "-420913222",
+                "document": "/file/to/path",
+            }
+        )
+        assert excepted_retry_count == mock_get_conn.return_value.send_document.call_count
+
+    @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
+    def test_should_send_file_if_token_is_provided(self, mock_get_conn):
+        mock_get_conn.return_value = AsyncMock(password="some_token")
+
+        hook = TelegramHook(token=TELEGRAM_TOKEN, chat_id="-420913222")
+        hook.send_file({"file": "/file/to/path"})
+
+        mock_get_conn.return_value.send_document.return_value = "OK."
+
+        mock_get_conn.assert_called_once()
+        mock_get_conn.return_value.send_document.assert_called_once_with(
+            **{
+                "chat_id": "-420913222",
+                "document": "/file/to/path",
             }
         )

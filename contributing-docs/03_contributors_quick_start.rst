@@ -478,7 +478,7 @@ or
 
     pipx install pre-commit
 
-You can add ````uv`` support for ``pre-commit`` even you install it with ``pipx`` using the commands
+You can add ``uv`` support for ``pre-commit`` even you install it with ``pipx`` using the commands
 (then pre-commit will use ``uv`` to create virtualenvs for the hooks):
 
 .. code-block:: bash

@@ -30,6 +30,8 @@
 - [Committers / PMCs](#committers--pmcs)
   - [Merging PRs for providers and Helm chart](#merging-prs-for-providers-and-helm-chart)
   - [Merging PR for Airflow 3 and 2.10.x / 2.11.x](#merging-pr-for-airflow-3-and-210x--211x)
+  - [How to backport PR with GitHub Actions](#how-to-backport-pr-with-github-actions)
+  - [How to backport PR with `cherry-picker` CLI](#how-to-backport-pr-with-cherry-picker-cli)
   - [Merging PRs 2.10.x](#merging-prs-210x)
   - [Merging PRs for Airflow 3](#merging-prs-for-airflow-3)
   - [Merging PRs for Airflow 2.11](#merging-prs-for-airflow-211)
@@ -121,6 +123,88 @@ Committer may also request from PR author to raise 2 PRs one against `main` bran
 Mistakes happen, and such backport PR work might fall through cracks. Therefore, if the committer thinks that certain PRs should be backported, they should set 2.10.x milestone for them.
 
 This way release manager can verify (as usual) if all the "expected" PRs have been backported and cherry-pick remaining PRS.
+
+
+We are using `cherry-picker` - a [tool](https://github.com/python/cherry-picker) that has been developed by
+Python developers. It allows to easily cherry-pick PRs from one branch to another. It works both - via
+command line and via GitHub Actions interface.
+
+## How to backport PR with GitHub Actions
+
+When you want to backport commit via GitHub actions (you need to be a committer), you
+should use "Backport commit" action. You need to know the commit hash of the commit you want to backport.
+You can pin the workflow from the list of workflows for easy access to it.
+
+[!NOTE]
+It should be the commit hash of the commit in the `main` branch, not in the original PR - you can find it
+via `git log` or looking up main History.
+
+![Backport commit](images/backport_commit_action.png)
+
+Use `main` as source of the workflow and copy the commit hash and enter the target branch name
+(e.g. `v2-10-test`).
+
+The action should create a new PR with the cherry-picked commit and add a comment in the PR when it is
+successful (or when it fails). If automatic backporting fails because of conflicts, you have to revert to
+manual backporting using `cherry-picker` CLI.
+
+## How to backport PR with `cherry-picker` CLI
+
+Backporting via CLI might be more convenient for some users. Also it is necessary if you want to backport
+PR that has conflicts. It also allows to backport commit to multiple branches in the same command.
+
+To backport PRs to any branch (for example v2-10-test), you can use the following command:
+
+It's easiest to install it (and keep cherry-picker up-to-date) using `uv tool`:
+
+```bash
+uv tool install cherry-picker
+````
+
+And upgrade it with:
+
+```bash
+uv tool upgrade cherry-picker
+```
+
+Then, in order to backport a commit to a branch, you can use the following command:
+
+```bash
+cherry-picker COMMIT_SHA BRANCH_NAME1 [BRANCH_NAME2 ...]
+```
+
+This will create a new branch with the cherry-picked commit and open a PR against the target branch in
+your browser.
+
+If the GH_AUTH environment variable is set in your command line, the cherry-picker automatically creates a new pull request when there are no conflicts. To set GH_AUTH, use the token from your GitHub repository.
+
+To set GH_AUTH run this:
+
+```bash
+export GH_AUTH={token}
+```
+
+Sometimes it might result with conflict. In such case, you should manually resolve the conflicts.
+Some IDEs like IntelliJ has a fantastic conflict resolution tool - just follow `Git -> Resolve conflicts`
+menu after you get the conflict. But you can also resolve the conflicts manually (git adds `<<<<<<<`, `=======` and
+`>>>>>>>` markers to the files with conflicts).
+
+```bash
+cherry_picker --status  # Should show if all conflicts are resolved
+cherry_picker --continue  # Should continue cherry-picking process
+```
+
+> [!WARNING]
+> Sometimes, when you stop cherry-picking process in the middle, you might end up with your repo in a bad
+> state and cherry-picker might print this message:
+>
+> > 🐍 🍒 ⛏
+> >
+> > You're not inside a cpython repo right now! 🙅
+>
+> You should then run `cherry-picker --abort` to clean up the mess and start over. If that does not work
+> you might need to run `git config --local --remove-section cherry-picker` to clean up the configuration
+> stored in `.git/config`.
 
 ## Merging PRs 2.10.x
 

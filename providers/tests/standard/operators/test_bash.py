@@ -36,9 +36,6 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
-
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
 
@@ -111,27 +108,14 @@ class TestBashOperator:
             )
 
         logical_date = utc_now
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
-        if AIRFLOW_V_3_0_PLUS:
-            dag_maker.create_dagrun(
-                run_type=DagRunType.MANUAL,
-                logical_date=logical_date,
-                start_date=utc_now,
-                state=State.RUNNING,
-                external_trigger=False,
-                data_interval=(logical_date, logical_date),
-                **triggered_by_kwargs,
-            )
-        else:
-            dag_maker.create_dagrun(
-                run_type=DagRunType.MANUAL,
-                execution_date=logical_date,
-                start_date=utc_now,
-                state=State.RUNNING,
-                external_trigger=False,
-                data_interval=(logical_date, logical_date),
-                **triggered_by_kwargs,
-            )
+        dag_maker.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            logical_date=logical_date,
+            start_date=utc_now,
+            state=State.RUNNING,
+            external_trigger=False,
+            data_interval=(logical_date, logical_date),
+        )
 
         with mock.patch.dict(
             "os.environ", {"AIRFLOW_HOME": "MY_PATH_TO_AIRFLOW_HOME", "PYTHONPATH": "AWESOME_PYTHONPATH"}

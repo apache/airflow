@@ -214,6 +214,39 @@ export const useAssetServiceGetAsset = <
     ...options,
   });
 /**
+ * Get Dag Asset Queued Events
+ * Get queued asset events for a DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.before
+ * @returns QueuedEventCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceGetDagAssetQueuedEvents = <
+  TData = Common.AssetServiceGetDagAssetQueuedEventsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    before,
+    dagId,
+  }: {
+    before?: string;
+    dagId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseAssetServiceGetDagAssetQueuedEventsKeyFn(
+      { before, dagId },
+      queryKey,
+    ),
+    queryFn: () =>
+      AssetService.getDagAssetQueuedEvents({ before, dagId }) as TData,
+    ...options,
+  });
+/**
  * Historical Metrics
  * Return cluster activity historical metrics.
  * @param data The data for the request.
@@ -2611,6 +2644,48 @@ export const useVariableServicePatchVariable = <
         requestBody,
         updateMask,
         variableKey,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Delete Dag Asset Queued Events
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.before
+ * @returns void Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceDeleteDagAssetQueuedEvents = <
+  TData = Common.AssetServiceDeleteDagAssetQueuedEventsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        before?: string;
+        dagId: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      before?: string;
+      dagId: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ before, dagId }) =>
+      AssetService.deleteDagAssetQueuedEvents({
+        before,
+        dagId,
       }) as unknown as Promise<TData>,
     ...options,
   });
