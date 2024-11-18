@@ -463,6 +463,23 @@ class TestSFTPHook:
         output = self.hook.get_files_by_pattern(self.temp_dir, "*_file_*.txt")
         assert output == [ANOTHER_FILE_FOR_TESTS]
 
+    def test_store_and_retrieve_directory(self):
+        stored_dir_name = "stored_dir"
+        self.hook.store_directory(
+            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, stored_dir_name),
+            local_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR),
+        )
+        output = self.hook.list_directory(
+            path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, stored_dir_name)
+        )
+        assert output == [TMP_FILE_FOR_TESTS]
+        retrieved_dir_name = "retrieved_dir"
+        self.hook.retrieve_directory(
+            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, stored_dir_name),
+            local_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, retrieved_dir_name),
+        )
+        assert retrieved_dir_name in os.listdir(os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+
 
 class MockSFTPClient:
     def __init__(self):

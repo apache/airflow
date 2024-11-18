@@ -470,6 +470,21 @@ class TestSFTPOperator:
         assert args0 == (remote_filepath[0], local_filepath[0])
         assert args1 == (remote_filepath[1], local_filepath[1])
 
+    @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.retrieve_directory")
+    def test_str_dirpaths_get(self, mock_get):
+        local_dirpath = "/tmp_local"
+        remote_dirpath = "/tmp"
+        SFTPOperator(
+            task_id="test_str_to_list",
+            sftp_hook=self.sftp_hook,
+            local_filepath=local_dirpath,
+            remote_filepath=remote_dirpath,
+            operation=SFTPOperation.GET,
+        ).execute(None)
+        assert mock_get.call_count == 1
+        args, _ = mock_get.call_args_list[0]
+        assert args == (remote_dirpath, local_dirpath)
+
     @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.store_file")
     def test_str_filepaths_put(self, mock_get):
         local_filepath = "/tmp/test"
@@ -502,6 +517,21 @@ class TestSFTPOperator:
         args1, _ = mock_put.call_args_list[1]
         assert args0 == (remote_filepath[0], local_filepath[0])
         assert args1 == (remote_filepath[1], local_filepath[1])
+
+    @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.store_directory")
+    def test_str_dirpaths_put(self, mock_get):
+        local_dirpath = "/tmp"
+        remote_dirpath = "/tmp_remote"
+        SFTPOperator(
+            task_id="test_str_dirpaths_put",
+            sftp_hook=self.sftp_hook,
+            local_filepath=local_dirpath,
+            remote_filepath=remote_dirpath,
+            operation=SFTPOperation.PUT,
+        ).execute(None)
+        assert mock_get.call_count == 1
+        args, _ = mock_get.call_args_list[0]
+        assert args == (remote_dirpath, local_dirpath)
 
     @mock.patch("airflow.providers.sftp.operators.sftp.SFTPHook.retrieve_file")
     def test_return_str_when_local_filepath_was_str(self, mock_get):
