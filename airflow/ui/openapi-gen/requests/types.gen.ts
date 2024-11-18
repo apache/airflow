@@ -1612,8 +1612,6 @@ export type $OpenApiTs = {
         422: HTTPValidationError;
       };
     };
-  };
-  "/public/events": {
     post: {
       req: CreateAssetEventData;
       res: {
