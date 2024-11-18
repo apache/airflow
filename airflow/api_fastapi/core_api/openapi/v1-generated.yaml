@@ -93,6 +93,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -100,6 +101,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: tags
@@ -183,6 +185,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -190,6 +193,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: uri_pattern
@@ -259,6 +263,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -266,6 +271,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -452,6 +458,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -459,6 +466,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -896,6 +904,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -903,6 +912,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -1468,6 +1478,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -1475,6 +1486,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -1522,6 +1534,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -1529,6 +1542,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: tags
@@ -1640,6 +1654,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -1647,6 +1662,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: tags
@@ -1752,6 +1768,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -1759,6 +1776,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -2169,6 +2187,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -2176,6 +2195,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -2268,6 +2288,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -2275,6 +2296,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -2321,6 +2343,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -2328,6 +2351,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       responses:
@@ -2525,6 +2549,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -2532,6 +2557,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -2622,6 +2648,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -2629,6 +2656,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       responses:
@@ -2864,6 +2892,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -2871,6 +2900,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -3252,6 +3282,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -3259,6 +3290,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -3621,6 +3653,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -3628,6 +3661,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by

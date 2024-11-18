@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Annotated, Any, Callable, Generic, List, Optio
 
 from fastapi import Depends, HTTPException, Query
 from pendulum.parsing.exceptions import ParserError
-from pydantic import AfterValidator, BaseModel
+from pydantic import AfterValidator, BaseModel, NonNegativeInt
 from sqlalchemy import Column, case, or_
 from sqlalchemy.inspection import inspect
 
@@ -66,7 +66,7 @@ class BaseParam(Generic[T], ABC):
         pass
 
 
-class LimitFilter(BaseParam[int]):
+class LimitFilter(BaseParam[NonNegativeInt]):
     """Filter on the limit."""
 
     def to_orm(self, select: Select) -> Select:
@@ -75,13 +75,11 @@ class LimitFilter(BaseParam[int]):
 
         return select.limit(self.value)
 
-    def depends(self, limit: int = 100) -> LimitFilter:
-        if limit < 0:
-            raise HTTPException(400, "Limit cannot be negative.")
+    def depends(self, limit: NonNegativeInt = 100) -> LimitFilter:
         return self.set_value(limit)
 
 
-class OffsetFilter(BaseParam[int]):
+class OffsetFilter(BaseParam[NonNegativeInt]):
     """Filter on offset."""
 
     def to_orm(self, select: Select) -> Select:
@@ -89,9 +87,7 @@ class OffsetFilter(BaseParam[int]):
             return select
         return select.offset(self.value)
 
-    def depends(self, offset: int = 0) -> OffsetFilter:
-        if offset < 0:
-            raise HTTPException(400, "Offset cannot be negative.")
+    def depends(self, offset: NonNegativeInt = 0) -> OffsetFilter:
         return self.set_value(offset)
 
 
