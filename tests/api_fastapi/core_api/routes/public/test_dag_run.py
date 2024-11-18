@@ -55,11 +55,9 @@ DAG2_RUN2_TRIGGERED_BY = DagRunTriggeredByType.REST_API
 START_DATE1 = datetime(2024, 1, 15, 0, 0, tzinfo=timezone.utc)
 LOGICAL_DATE1 = datetime(2024, 2, 16, 0, 0, tzinfo=timezone.utc)
 LOGICAL_DATE2 = datetime(2024, 2, 20, 0, 0, tzinfo=timezone.utc)
-END_DATE1 = datetime(2024, 3, 20, 0, 0, tzinfo=timezone.utc)
 START_DATE2 = datetime(2024, 4, 15, 0, 0, tzinfo=timezone.utc)
 LOGICAL_DATE3 = datetime(2024, 5, 16, 0, 0, tzinfo=timezone.utc)
 LOGICAL_DATE4 = datetime(2024, 5, 25, 0, 0, tzinfo=timezone.utc)
-END_DATE2 = datetime(2024, 6, 20, 0, 0, tzinfo=timezone.utc)
 DAG1_RUN1_NOTE = "test_note"
 
 
@@ -74,7 +72,6 @@ def setup(dag_maker, session=None):
         DAG1_ID,
         schedule="@daily",
         start_date=START_DATE1,
-        end_date=END_DATE1,
     ):
         task1 = EmptyOperator(task_id="task_1")
     dag_run1 = dag_maker.create_dagrun(
@@ -103,7 +100,6 @@ def setup(dag_maker, session=None):
         DAG2_ID,
         schedule=None,
         start_date=START_DATE2,
-        end_date=END_DATE2,
     ):
         EmptyOperator(task_id="task_2")
     dag_maker.create_dagrun(
