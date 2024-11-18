@@ -23,8 +23,8 @@ from typing import Any
 from asgiref.sync import sync_to_async
 from sqlalchemy import func
 
-from airflow.sensors.base import FailPolicy
 from airflow.models import DagRun
+from airflow.sensors.base import FailPolicy
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.sensor_helper import _get_count
 from airflow.utils.session import NEW_SESSION, provide_session
