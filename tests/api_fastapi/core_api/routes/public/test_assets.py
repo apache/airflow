@@ -554,7 +554,7 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
         assert response.status_code == 404
         assert (
             response.json()["detail"]
-            == "Queue event with dag_id: `not_exists` and asset uri: `not_exists` was not found"
+            == "Queued event with dag_id: `not_exists` and asset uri: `not_exists` was not found"
         )
 
 
