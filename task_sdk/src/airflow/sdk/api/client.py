@@ -19,10 +19,9 @@ from __future__ import annotations
 
 import sys
 import uuid
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import httpx
-import methodtools
 import msgspec
 import structlog
 from pydantic import BaseModel
@@ -42,6 +41,19 @@ from airflow.utils.platform import getuser
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from airflow.typing_compat import ParamSpec
+
+    P = ParamSpec("P")
+    T = TypeVar("T")
+
+    # # methodtools doesn't have typestubs, so give a stub
+    def lru_cache(maxsize: int | None = 128):
+        def wrapper(f):
+            return f
+
+        return wrapper
+else:
+    from methodtools import lru_cache
 
 log = structlog.get_logger(logger_name=__name__)
 
@@ -163,13 +175,13 @@ class Client(httpx.Client):
     # methods on one object prefixed with the object type (`.task_instances.update` rather than
     # `task_instance_update` etc.)
 
-    @methodtools.lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[misc]
     @property
     def task_instances(self) -> TaskInstanceOperations:
         """Operations related to TaskInstances."""
         return TaskInstanceOperations(self)
 
-    @methodtools.lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[misc]
     @property
     def connections(self) -> ConnectionOperations:
         """Operations related to TaskInstances."""
