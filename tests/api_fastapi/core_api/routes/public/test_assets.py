@@ -523,6 +523,42 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
         assert response.json()["detail"] == "Queue event with dag_id: `not_exists` was not found"
 
 
+class TestGetDagAssetQueuedEvent(TestQueuedEventEndpoint):
+    @pytest.mark.usefixtures("time_freezer")
+    def test_should_respond_200(self, test_client, session, create_dummy_dag):
+        dag, _ = create_dummy_dag()
+        dag_id = dag.dag_id
+        self.create_assets(session=session, num=1)
+        asset_id = 1
+        self._create_asset_dag_run_queues(dag_id, asset_id, session)
+        asset_uri = "s3://bucket/key/1"
+
+        response = test_client.get(
+            f"/public/dags/{dag_id}/assets/queuedEvent/{asset_uri}",
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "created_at": self.default_time.replace("+00:00", "Z"),
+            "uri": "s3://bucket/key/1",
+            "dag_id": "dag",
+        }
+
+    def test_should_respond_404(self, test_client):
+        dag_id = "not_exists"
+        asset_uri = "not_exists"
+
+        response = test_client.get(
+            f"/public/dags/{dag_id}/assets/queuedEvent/{asset_uri}",
+        )
+
+        assert response.status_code == 404
+        assert (
+            response.json()["detail"]
+            == "Queue event with dag_id: `not_exists` and asset uri: `not_exists` was not found"
+        )
+
+
 class TestPostAssetEvents(TestAssets):
     @pytest.mark.usefixtures("time_freezer")
     def test_should_respond_200(self, test_client, session):
