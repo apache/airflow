@@ -24,7 +24,13 @@ import pytest
 import time_machine
 
 from airflow.models import DagModel
-from airflow.models.asset import AssetEvent, AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
+from airflow.models.asset import (
+    AssetDagRunQueue,
+    AssetEvent,
+    AssetModel,
+    DagScheduleAssetReference,
+    TaskOutletAssetReference,
+)
 from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
@@ -113,6 +119,15 @@ def _create_asset_dag_run(session, num: int = 2):
 
 class TestAssets:
     default_time = "2020-06-11T18:00:00+00:00"
+
+    @pytest.fixture
+    def time_freezer(self) -> Generator:
+        freezer = time_machine.travel(self.default_time, tick=False)
+        freezer.start()
+
+        yield
+
+        freezer.stop()
 
     @pytest.fixture(autouse=True)
     def setup(self) -> None:
@@ -464,16 +479,51 @@ class TestGetAssetEndpoint(TestAssets):
         assert response.json()["detail"] == "The Asset with uri: `s3://bucket/key` was not found"
 
 
+class TestQueuedEventEndpoint(TestAssets):
+    def _create_asset_dag_run_queues(self, dag_id, asset_id, session):
+        adrq = AssetDagRunQueue(target_dag_id=dag_id, asset_id=asset_id)
+        session.add(adrq)
+        session.commit()
+        return adrq
+
+
+class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
+    @pytest.mark.usefixtures("time_freezer")
+    def test_should_respond_200(self, test_client, session, create_dummy_dag):
+        dag, _ = create_dummy_dag()
+        dag_id = dag.dag_id
+        self.create_assets(session=session, num=1)
+        asset_id = 1
+        self._create_asset_dag_run_queues(dag_id, asset_id, session)
+
+        response = test_client.get(
+            f"/public/dags/{dag_id}/assets/queuedEvent",
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "queued_events": [
+                {
+                    "created_at": self.default_time.replace("+00:00", "Z"),
+                    "uri": "s3://bucket/key/1",
+                    "dag_id": "dag",
+                }
+            ],
+            "total_entries": 1,
+        }
+
+    def test_should_respond_404(self, test_client):
+        dag_id = "not_exists"
+
+        response = test_client.get(
+            f"/public/dags/{dag_id}/assets/queuedEvent",
+        )
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Queue event with dag_id: `not_exists` was not found"
+
+
 class TestPostAssetEvents(TestAssets):
-    @pytest.fixture
-    def time_freezer(self) -> Generator:
-        freezer = time_machine.travel(self.default_time, tick=False)
-        freezer.start()
-
-        yield
-
-        freezer.stop()
-
     @pytest.mark.usefixtures("time_freezer")
     def test_should_respond_200(self, test_client, session):
         self.create_assets()
