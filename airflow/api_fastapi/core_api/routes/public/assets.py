@@ -279,5 +279,5 @@ def delete_dag_asset_queued_event(
     if result.rowcount == 0:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail=f"Queue event with dag_id: `{dag_id}` and asset uri: `{uri}` was not found",
+            detail=f"Queued event with dag_id: `{dag_id}` and asset uri: `{uri}` was not found",
         )
