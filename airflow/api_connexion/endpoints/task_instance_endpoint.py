@@ -453,6 +453,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     ti_query = base_query.options(
         joinedload(TI.rendered_task_instance_fields), joinedload(TI.task_instance_note)
     )
+    ti_query = ti_query.offset(data["page_offset"]).limit(data["page_limit"])
     # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
     task_instances = session.execute(ti_query).all()
 
@@ -839,7 +840,12 @@ def get_task_instance_tries(
         )
         return query
 
-    task_instances = session.scalars(_query(TIH)).all() + session.scalars(_query(TI)).all()
+    # Exclude TaskInstance with state UP_FOR_RETRY since they have been recorded in TaskInstanceHistory
+    tis = session.scalars(
+        _query(TI).where(or_(TI.state != TaskInstanceState.UP_FOR_RETRY, TI.state.is_(None)))
+    ).all()
+
+    task_instances = session.scalars(_query(TIH)).all() + tis
     return task_instance_history_collection_schema.dump(
         TaskInstanceHistoryCollection(task_instances=task_instances, total_entries=len(task_instances))
     )

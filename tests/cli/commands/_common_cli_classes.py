@@ -146,3 +146,13 @@ class _ComonCLIGunicornTestClass:
                     console.print(proc.as_dict(attrs=["pid", "name", "cmdline"]))
                 pids.append(proc.pid)
         return pids
+
+    def _terminate_multiple_process(self, pid_list):
+        process = []
+        for pid in pid_list:
+            proc = psutil.Process(pid)
+            proc.terminate()
+            process.append(proc)
+        gone, alive = psutil.wait_procs(process, timeout=120)
+        for p in alive:
+            p.kill()

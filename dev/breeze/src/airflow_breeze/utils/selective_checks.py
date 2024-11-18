@@ -41,6 +41,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_MYSQL_VERSION,
     DEFAULT_POSTGRES_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
     KIND_VERSION,
     RUNS_ON_PUBLIC_RUNNER,
@@ -72,6 +73,7 @@ CANARY_LABEL = "canary"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
 DEFAULT_VERSIONS_ONLY_LABEL = "default versions only"
 DISABLE_IMAGE_CACHE_LABEL = "disable image cache"
+FORCE_PIP_LABEL = "force pip"
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 INCLUDE_SUCCESS_OUTPUTS_LABEL = "include success outputs"
 LATEST_VERSIONS_ONLY_LABEL = "latest versions only"
@@ -613,41 +615,41 @@ class SelectiveChecks:
             return False
 
     @cached_property
-    def mypy_folders(self) -> list[str]:
-        folders_to_check: list[str] = []
+    def mypy_checks(self) -> list[str]:
+        checks_to_run: list[str] = []
         if (
             self._matching_files(
                 FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
             or self.full_tests_needed
         ):
-            folders_to_check.append("airflow")
+            checks_to_run.append("mypy-airflow")
         if (
             self._matching_files(
                 FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
             or self._are_all_providers_affected()
         ) and self._default_branch == "main":
-            folders_to_check.append("providers")
+            checks_to_run.append("mypy-providers")
         if (
             self._matching_files(
                 FileGroupForCi.ALL_DOCS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
             or self.full_tests_needed
         ):
-            folders_to_check.append("docs")
+            checks_to_run.append("mypy-docs")
         if (
             self._matching_files(
                 FileGroupForCi.ALL_DEV_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
             or self.full_tests_needed
         ):
-            folders_to_check.append("dev")
-        return folders_to_check
+            checks_to_run.append("mypy-dev")
+        return checks_to_run
 
     @cached_property
     def needs_mypy(self) -> bool:
-        return self.mypy_folders != []
+        return self.mypy_checks != []
 
     @cached_property
     def needs_python_scans(self) -> bool:
@@ -696,7 +698,16 @@ class SelectiveChecks:
 
     @cached_property
     def ci_image_build(self) -> bool:
-        return self.run_tests or self.docs_build or self.run_kubernetes_tests or self.needs_helm_tests
+        # in case pyproject.toml changed, CI image should be built - even if no build dependencies
+        # changes because some of our tests - those that need CI image might need to be run depending on
+        # changed rules for static checks that are part of the pyproject.toml file
+        return (
+            self.run_tests
+            or self.docs_build
+            or self.run_kubernetes_tests
+            or self.needs_helm_tests
+            or self.pyproject_toml_changed
+        )
 
     @cached_property
     def prod_image_build(self) -> bool:
@@ -860,7 +871,9 @@ class SelectiveChecks:
         current_test_types = set(self._get_test_types_to_run(split_to_individual_providers=True))
         if "Providers" in current_test_types:
             current_test_types.remove("Providers")
-            current_test_types.update({f"Providers[{provider}]" for provider in get_available_packages()})
+            current_test_types.update(
+                {f"Providers[{provider}]" for provider in get_available_packages(include_not_ready=True)}
+            )
         if self.skip_provider_tests:
             current_test_types = {
                 test_type for test_type in current_test_types if not test_type.startswith("Providers")
@@ -894,6 +907,8 @@ class SelectiveChecks:
     def pyproject_toml_changed(self) -> bool:
         if not self._commit_ref:
             get_console().print("[warning]Cannot determine pyproject.toml changes as commit is missing[/]")
+            return False
+        if "pyproject.toml" not in self._files:
             return False
         new_result = run_command(
             ["git", "show", f"{self._commit_ref}:pyproject.toml"],
@@ -1153,10 +1168,11 @@ class SelectiveChecks:
 
     @cached_property
     def runs_on_as_json_docs_build(self) -> str:
-        if self._is_canary_run():
-            return RUNS_ON_SELF_HOSTED_ASF_RUNNER
-        else:
-            return RUNS_ON_PUBLIC_RUNNER
+        # We used to run docs build on self-hosted runners because they had more space, but
+        # It turned out that public runners have a lot of space in /mnt folder that we can utilise
+        # but in the future we might want to switch back to self-hosted runners so we have this
+        # separate property to determine that and place to implement different logic if needed
+        return RUNS_ON_PUBLIC_RUNNER
 
     @cached_property
     def runs_on_as_json_public(self) -> str:
@@ -1257,7 +1273,11 @@ class SelectiveChecks:
 
     @cached_property
     def testable_integrations(self) -> list[str]:
-        return TESTABLE_INTEGRATIONS
+        return [
+            integration
+            for integration in TESTABLE_INTEGRATIONS
+            if integration not in DISABLE_TESTABLE_INTEGRATIONS_FROM_CI
+        ]
 
     @cached_property
     def is_committer_build(self):

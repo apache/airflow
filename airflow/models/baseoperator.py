@@ -34,6 +34,7 @@ import sys
 import warnings
 from datetime import datetime, timedelta
 from functools import total_ordering, wraps
+from threading import local
 from types import FunctionType
 from typing import (
     TYPE_CHECKING,
@@ -131,7 +132,9 @@ logger = logging.getLogger("airflow.models.baseoperator.BaseOperator")
 
 
 def parse_retries(retries: Any) -> int | None:
-    if retries is None or type(retries) == int:  # noqa: E721
+    if retries is None:
+        return 0
+    elif type(retries) == int:  # noqa: E721
         return retries
     try:
         parsed_retries = int(retries)
@@ -394,6 +397,8 @@ class ExecutorSafeguard:
     """
 
     test_mode = conf.getboolean("core", "unit_test_mode")
+    _sentinel = local()
+    _sentinel.callers = {}
 
     @classmethod
     def decorator(cls, func):
@@ -401,7 +406,13 @@ class ExecutorSafeguard:
         def wrapper(self, *args, **kwargs):
             from airflow.decorators.base import DecoratedOperator
 
-            sentinel = kwargs.pop(f"{self.__class__.__name__}__sentinel", None)
+            sentinel_key = f"{self.__class__.__name__}__sentinel"
+            sentinel = kwargs.pop(sentinel_key, None)
+
+            if sentinel:
+                cls._sentinel.callers[sentinel_key] = sentinel
+            else:
+                sentinel = cls._sentinel.callers.pop(f"{func.__qualname__.split('.')[0]}__sentinel", None)
 
             if not cls.test_mode and not sentinel == _sentinel and not isinstance(self, DecoratedOperator):
                 message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside TaskInstance!"
@@ -650,6 +661,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         This allows the executor to trigger higher priority tasks before
         others when things get backed up. Set priority_weight as a higher
         number for more important tasks.
+        As not all database engines support 64-bit integers, values are capped with 32-bit.
+        Valid range is from -2,147,483,648 to 2,147,483,647.
     :param weight_rule: weighting method used for the effective total
         priority weight of the task. Options are:
         ``{ downstream | upstream | absolute }`` default is ``downstream``
@@ -671,7 +684,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         Additionally, when set to ``absolute``, there is bonus effect of
         significantly speeding up the task creation process as for very large
         DAGs. Options can be set as string or using the constants defined in
-        the static class ``airflow.utils.WeightRule``
+        the static class ``airflow.utils.WeightRule``.
+        Irrespective of the weight rule, resulting priority values are capped with 32-bit.
         |experimental|
         Since 2.9.0, Airflow allows to define custom priority weight strategy,
         by creating a subclass of

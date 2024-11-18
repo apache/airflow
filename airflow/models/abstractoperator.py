@@ -40,7 +40,7 @@ from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, ArgNotSet
-from airflow.utils.weight_rule import WeightRule
+from airflow.utils.weight_rule import WeightRule, db_safe_priority
 
 TaskStateChangeCallback = Callable[[Context], None]
 
@@ -467,7 +467,7 @@ class AbstractOperator(Templater, DAGNode):
         )
 
         if isinstance(self.weight_rule, _AbsolutePriorityWeightStrategy):
-            return self.priority_weight
+            return db_safe_priority(self.priority_weight)
         elif isinstance(self.weight_rule, _DownstreamPriorityWeightStrategy):
             upstream = False
         elif isinstance(self.weight_rule, _UpstreamPriorityWeightStrategy):
@@ -476,10 +476,13 @@ class AbstractOperator(Templater, DAGNode):
             upstream = False
         dag = self.get_dag()
         if dag is None:
-            return self.priority_weight
-        return self.priority_weight + sum(
-            dag.task_dict[task_id].priority_weight
-            for task_id in self.get_flat_relative_ids(upstream=upstream)
+            return db_safe_priority(self.priority_weight)
+        return db_safe_priority(
+            self.priority_weight
+            + sum(
+                dag.task_dict[task_id].priority_weight
+                for task_id in self.get_flat_relative_ids(upstream=upstream)
+            )
         )
 
     @cached_property
@@ -654,6 +657,8 @@ class AbstractOperator(Templater, DAGNode):
                     unmapped_ti.map_index = 0
                     self.log.debug("Updated in place to become %s", unmapped_ti)
                     all_expanded_tis.append(unmapped_ti)
+                    # execute hook for task instance map index 0
+                    task_instance_mutation_hook(unmapped_ti)
                     session.flush()
                 else:
                     self.log.debug("Deleting the original task instance: %s", unmapped_ti)

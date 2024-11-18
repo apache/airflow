@@ -246,3 +246,6 @@ licenses/LICENSES-ui.txt
 
 # airflow-build-dockerfile and correconding ignore file
 airflow-build-dockerfile*
+
+# Temporary ignore uv.lock until we integrate it fully in our constraint preparation mechanism
+/uv.lock

@@ -20,7 +20,7 @@
 /* global describe, test, expect */
 
 import React from "react";
-import { render } from "@testing-library/react";
+import { fireEvent, render } from "@testing-library/react";
 
 import { Wrapper } from "src/utils/testUtils";
 
@@ -123,5 +123,17 @@ describe("Test Graph Node", () => {
     );
 
     expect(getByTestId("node")).toHaveStyle("opacity: 0.3");
+  });
+
+  test("Clicks on taskName", async () => {
+    const { getByText } = render(<DagNode {...mockNode} />, {
+      wrapper: Wrapper,
+    });
+
+    const taskName = getByText("task_id");
+
+    fireEvent.click(taskName);
+
+    expect(taskName).toBeInTheDocument();
   });
 });

@@ -1634,11 +1634,12 @@ def _get_previous_ti(
 
 @internal_api_call
 @provide_session
-def _update_rtif(ti, rendered_fields, session: Session | None = None):
+def _update_rtif(ti, rendered_fields, session: Session = NEW_SESSION):
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
     rtif = RenderedTaskInstanceFields(ti=ti, render_templates=False, rendered_fields=rendered_fields)
     RenderedTaskInstanceFields.write(rtif, session=session)
+    session.flush()
     RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id, session=session)
 
 
@@ -3864,21 +3865,15 @@ class TaskInstance(Base, LoggingMixin):
                 assert task
                 assert task.dag
 
-            # Get a partial DAG with just the specific tasks we want to examine.
-            # In order for dep checks to work correctly, we include ourself (so
-            # TriggerRuleDep can check the state of the task we just executed).
-            partial_dag = task.dag.partial_subset(
-                task.downstream_task_ids,
-                include_downstream=True,
-                include_upstream=False,
-                include_direct_upstream=True,
-            )
-
-            dag_run.dag = partial_dag
+            # Previously, this section used task.dag.partial_subset to retrieve a partial DAG.
+            # However, this approach is unsafe as it can result in incomplete or incorrect task execution,
+            # leading to potential bad cases. As a result, the operation has been removed.
+            # For more details, refer to the discussion in PR #[https://github.com/apache/airflow/pull/42582].
+            dag_run.dag = task.dag
             info = dag_run.task_instance_scheduling_decisions(session)
 
             skippable_task_ids = {
-                task_id for task_id in partial_dag.task_ids if task_id not in task.downstream_task_ids
+                task_id for task_id in task.dag.task_ids if task_id not in task.downstream_task_ids
             }
 
             schedulable_tis = [
@@ -4115,7 +4110,11 @@ class SimpleTaskInstance:
         self.queue = queue
         self.key = key
 
-    def __eq__(self, other):
+    def __repr__(self) -> str:
+        attrs = ", ".join(f"{k}={v!r}" for k, v in self.__dict__.items())
+        return f"SimpleTaskInstance({attrs})"
+
+    def __eq__(self, other) -> bool:
         if isinstance(other, self.__class__):
             return self.__dict__ == other.__dict__
         return NotImplemented

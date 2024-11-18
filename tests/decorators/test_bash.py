@@ -20,6 +20,8 @@ import os
 import stat
 import warnings
 from contextlib import nullcontext as no_raise
+from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
@@ -30,6 +32,10 @@ from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.utils import timezone
 from airflow.utils.types import NOTSET
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
+
+if TYPE_CHECKING:
+    from airflow.models import TaskInstance
+    from airflow.operators.bash import BashOperator
 
 DEFAULT_DATE = timezone.datetime(2023, 1, 1)
 
@@ -502,3 +508,32 @@ class TestBashDecorator:
         with pytest.raises(AirflowException):
             ti.run()
         assert ti.task.bash_command == f"{DEFAULT_DATE.date()}; exit 1;"
+
+    def test_templated_bash_script(self, dag_maker, tmp_path, session):
+        """
+        Creates a .sh script with Jinja template.
+        Pass it to the BashOperator and ensure it gets correctly rendered and executed.
+        """
+        bash_script: str = "sample.sh"
+        path: Path = tmp_path / bash_script
+        path.write_text('echo "{{ ti.task_id }}"')
+
+        with dag_maker(
+            dag_id="test_templated_bash_script", session=session, template_searchpath=os.fspath(path.parent)
+        ):
+
+            @task.bash
+            def test_templated_fields_task():
+                return bash_script
+
+            test_templated_fields_task()
+
+        ti: TaskInstance = dag_maker.create_dagrun().task_instances[0]
+        session.add(ti)
+        session.commit()
+        context = ti.get_template_context(session=session)
+        ti.render_templates(context=context)
+
+        op: BashOperator = ti.task
+        result = op.execute(context=context)
+        assert result == "test_templated_fields_task"

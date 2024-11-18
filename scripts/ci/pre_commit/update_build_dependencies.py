@@ -17,12 +17,17 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
+
+COMMON_PRECOMMIT_PATH = Path(__file__).parent.resolve()
+sys.path.insert(0, COMMON_PRECOMMIT_PATH.as_posix())  # make sure common_precommit_utils is imported
+from common_precommit_utils import console
 
 AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
 PYPROJECT_TOML_FILE = AIRFLOW_SOURCES / "pyproject.toml"
@@ -72,6 +77,18 @@ if __name__ == "__main__":
         result.append("")
         new_pyproject_toml_file_content = "\n".join(result)
         if new_pyproject_toml_file_content != pyproject_toml_content:
+            if os.environ.get("SKIP_TROVE_CLASSIFIERS_ONLY", "false").lower() == "true":
+                diff = set(new_pyproject_toml_file_content.splitlines()) - (
+                    set(pyproject_toml_content.splitlines())
+                )
+                if len(diff) == 1 and "trove-classifiers" in next(iter(diff)):
+                    console.print("\n[yellow]Trove classifiers were changed. Please update them manually.\n")
+                    console.print(
+                        "\n[blue]Please run:[/blue]\n\n"
+                        "pre-commit run --hook-stage manual update-build-dependencies --all-files\n"
+                    )
+                    console.print("\n[blue]Then commit the resulting files.\n")
+                    sys.exit(0)
             files_changed = True
             PYPROJECT_TOML_FILE.write_text(new_pyproject_toml_file_content)
         for file_to_replace_hatchling in FILES_TO_REPLACE_HATCHLING_IN:
@@ -84,5 +101,10 @@ if __name__ == "__main__":
         shutil.rmtree(temp_dir)
 
     if files_changed:
-        print("Some files changed. Please commit the changes.")
+        console.print("\n[red]Build dependencies have changed. Please update them manually.\n")
+        console.print(
+            "\n[blue]Please run:[/blue]\n\n"
+            "pre-commit run --hook-stage manual update-build-dependencies --all-files\n"
+        )
+        console.print("\n[blue]Then commit the resulting files.\n")
         sys.exit(1)

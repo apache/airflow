@@ -103,7 +103,10 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "python-ldap",
     ],
     "leveldb": [
-        "plyvel",
+        # The plyvel package is a huge pain when installing on MacOS - especially when Apple releases new
+        # OS version. It's usually next to impossible to install it at least for a few months after the new
+        # MacOS version is released. We can skip it on MacOS as this is an optional feature anyway.
+        "plyvel>=1.5.1; sys_platform != 'darwin'",
     ],
     "otel": [
         "opentelemetry-exporter-prometheus",
@@ -435,7 +438,7 @@ DEPENDENCIES = [
     "dill>=0.2.2",
     "flask-caching>=2.0.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
-    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incopatible with this version.
+    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incompatible with this version.
     "flask-session>=0.4.0,<0.6",
     "flask-wtf>=1.1.0",
     # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking
@@ -462,8 +465,8 @@ DEPENDENCIES = [
     "marshmallow-oneofschema>=2.0.1",
     "mdit-py-plugins>=0.3.0",
     "methodtools>=0.4.7",
-    "opentelemetry-api>=1.15.0",
-    "opentelemetry-exporter-otlp>=1.15.0",
+    "opentelemetry-api>=1.24.0",
+    "opentelemetry-exporter-otlp>=1.24.0",
     "packaging>=23.0",
     "pathspec>=0.9.0",
     'pendulum>=2.1.2,<4.0;python_version<"3.12"',
@@ -492,11 +495,6 @@ DEPENDENCIES = [
     "tabulate>=0.7.5",
     "tenacity>=8.0.0,!=8.2.0",
     "termcolor>=1.1.0",
-    # We should remove this dependency when Providers are limited to Airflow 2.7+
-    # as we replaced the usage of unicodecsv with csv in Airflow 2.7
-    # See https://github.com/apache/airflow/pull/31693
-    # We should also remove "3rd-party-licenses/LICENSE-unicodecsv.txt" file when we remove this dependency
-    "unicodecsv>=0.14.1",
     # Universal Pathlib 0.2.4 adds extra validation for Paths and our integration with local file paths
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",
