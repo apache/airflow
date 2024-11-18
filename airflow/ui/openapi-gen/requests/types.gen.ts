@@ -1069,6 +1069,13 @@ export type GetDagAssetQueuedEventsData = {
 
 export type GetDagAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 
+export type GetAssetQueuedEventsData = {
+  before?: string | null;
+  uri: string;
+};
+
+export type GetAssetQueuedEventsResponse = QueuedEventCollectionResponse;
+
 export type HistoricalMetricsData = {
   endDate: string;
   startDate: string;
@@ -1668,6 +1675,33 @@ export type $OpenApiTs = {
   "/public/dags/{dag_id}/assets/queuedEvent": {
     get: {
       req: GetDagAssetQueuedEventsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: QueuedEventCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/assets/queuedEvent/{uri}": {
+    get: {
+      req: GetAssetQueuedEventsData;
       res: {
         /**
          * Successful Response

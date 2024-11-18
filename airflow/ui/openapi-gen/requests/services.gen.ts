@@ -15,6 +15,8 @@ import type {
   GetAssetResponse,
   GetDagAssetQueuedEventsData,
   GetDagAssetQueuedEventsResponse,
+  GetAssetQueuedEventsData,
+  GetAssetQueuedEventsResponse,
   HistoricalMetricsData,
   HistoricalMetricsResponse,
   RecentDagRunsData,
@@ -294,6 +296,36 @@ export class AssetService {
       url: "/public/dags/{dag_id}/assets/queuedEvent",
       path: {
         dag_id: data.dagId,
+      },
+      query: {
+        before: data.before,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Asset Queued Events
+   * Get queued asset events for an asset.
+   * @param data The data for the request.
+   * @param data.uri
+   * @param data.before
+   * @returns QueuedEventCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getAssetQueuedEvents(
+    data: GetAssetQueuedEventsData,
+  ): CancelablePromise<GetAssetQueuedEventsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/assets/queuedEvent/{uri}",
+      path: {
+        uri: data.uri,
       },
       query: {
         before: data.before,
