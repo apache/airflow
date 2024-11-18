@@ -2529,7 +2529,11 @@ def test_operator_expand_deserialized_unmap():
     ser_normal = BaseSerialization.serialize(normal)
     deser_normal = BaseSerialization.deserialize(ser_normal)
     deser_normal.dag = None
-    assert deser_mapped.unmap(None) == deser_normal
+    unmapped_deser_mapped = deser_mapped.unmap(None)
+
+    assert type(unmapped_deser_mapped) is type(deser_normal) is SerializedBaseOperator
+    assert unmapped_deser_mapped.task_id == deser_normal.task_id == "a"
+    assert unmapped_deser_mapped.executor_config == deser_normal.executor_config == {"a": "b"}
 
 
 @pytest.mark.db_test
