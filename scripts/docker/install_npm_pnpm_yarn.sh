@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # shellcheck shell=bash disable=SC2086
+
 # shellcheck source=scripts/docker/common.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
