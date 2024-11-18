@@ -75,9 +75,7 @@ def test_timedelta_trigger_serialization():
     assert -2 < (kwargs["moment"] - expected_moment).total_seconds() < 2
 
 
-pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Only for Airflow 2.10+")
-
-
+@pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Only for Airflow 2.10+")
 @pytest.mark.parametrize(
     "tz, end_from_trigger",
     [
@@ -117,9 +115,7 @@ async def test_datetime_trigger_timing_airflow_2_10_plus(tz, end_from_trigger):
     assert result.payload == expected_payload
 
 
-pytest.mark.skipif(AIRFLOW_V_2_10_PLUS, reason="Only for Airflow < 2.10+")
-
-
+@pytest.mark.skipif(AIRFLOW_V_2_10_PLUS, reason="Only for Airflow < 2.10+")
 @pytest.mark.parametrize(
     "tz",
     [
