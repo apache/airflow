@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+3.8.4
+.....
+
+Misc
+~~~~
+
+* ``AIP-72: Remove DAG pickling (#43667)``
+* ``Move python operator to Standard provider (#42081)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 3.8.3
 .....
 

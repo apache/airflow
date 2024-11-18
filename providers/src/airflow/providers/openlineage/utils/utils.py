@@ -38,7 +38,7 @@ from airflow.exceptions import (
 # TODO: move this maybe to Airflow's logic?
 from airflow.models import DAG, BaseOperator, DagRun, MappedOperator
 from airflow.providers.common.compat.assets import Asset
-from airflow.providers.openlineage import conf
+from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
 from airflow.providers.openlineage.plugins.facets import (
     AirflowDagRunFacet,
     AirflowDebugRunFacet,
@@ -65,7 +65,7 @@ from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
     from openlineage.client.event_v2 import Dataset as OpenLineageDataset
-    from openlineage.client.facet_v2 import RunFacet
+    from openlineage.client.facet_v2 import RunFacet, processing_engine_run
 
     from airflow.models import TaskInstance
     from airflow.utils.state import DagRunState, TaskInstanceState
@@ -426,6 +426,18 @@ def _get_all_packages_installed() -> dict[str, str]:
     It is recommended to cache the result to avoid repeated, expensive lookups.
     """
     return {dist.metadata["Name"]: dist.version for dist in metadata.distributions()}
+
+
+def get_processing_engine_facet() -> dict[str, processing_engine_run.ProcessingEngineRunFacet]:
+    from openlineage.client.facet_v2 import processing_engine_run
+
+    return {
+        "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
+            version=AIRFLOW_VERSION,
+            name="Airflow",
+            openlineageAdapterVersion=OPENLINEAGE_PROVIDER_VERSION,
+        )
+    }
 
 
 def get_airflow_debug_facet() -> dict[str, AirflowDebugRunFacet]:

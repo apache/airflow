@@ -45,10 +45,6 @@ IMPERSONATION_CHAIN = "SERVICE_ACCOUNT"
 
 
 class TestComputeEngineHookWithPassedProjectId:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            ComputeEngineSSHHook(gcp_conn_id="gcpssh", delegate_to="delegate_to")
-
     def test_os_login_hook(self, mocker):
         mock_os_login_hook = mocker.patch.object(OSLoginHook, "__init__", return_value=None, spec=OSLoginHook)
 

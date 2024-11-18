@@ -27,6 +27,182 @@
 Changelog
 ---------
 
+11.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  Deprecated classes, parameters and features have been removed from the Google provider package.
+  The following breaking changes were introduced:
+
+  * Operators
+
+    * Removed ``CreateAutoMLTextTrainingJobOperator``. Use ``SupervisedFineTuningTrainOperator`` instead
+    * Removed ``BigQueryExecuteQueryOperator``. Use ``BigQueryInsertJobOperator`` instead
+    * Removed ``BigQueryPatchDatasetOperator``. Use ``BigQueryUpdateDatasetOperator`` instead
+    * Removed ``DataflowCreateJavaJobOperator``. Use ``BeamRunJavaPipelineOperator`` instead
+    * Removed ``DataflowCreatePythonJobOperator``. Use ``BeamRunPythonPipelineOperator`` instead
+    * Removed ``DataprocSubmitPigJobOperator``. Use ``DataprocSubmitJobOperator`` instead
+    * Removed ``DataprocSubmitHiveJobOperator``. Use ``DataprocSubmitJobOperator`` instead
+    * Removed ``DataprocSubmitSparkSqlJobOperator``. Use ``DataprocSubmitJobOperator`` instead
+    * Removed ``DataprocSubmitSparkJobOperator``. Use ``DataprocSubmitJobOperator`` instead
+    * Removed ``DataprocSubmitHadoopJobOperator``. Use ``DataprocSubmitJobOperator`` instead
+    * Removed ``DataprocSubmitPySparkJobOperator``. Use ``DataprocSubmitJobOperator`` instead
+    * Removed ``GoogleAnalyticsListAccountsOperator``. Use ``GoogleAnalyticsAdminListAccountsOperator`` instead
+    * Removed ``GoogleAnalyticsGetAdsLinkOperator``. Use ``GoogleAnalyticsAdminGetGoogleAdsLinkOperator`` instead
+    * Removed ``GoogleAnalyticsRetrieveAdsLinksListOperator``. Use ``GoogleAnalyticsAdminListGoogleAdsLinksOperator`` instead
+    * Removed ``GoogleAnalyticsDataImportUploadOperator``. Use ``GoogleAnalyticsAdminCreateDataStreamOperator`` instead
+    * Removed ``GoogleAnalyticsDeletePreviousDataUploadsOperator``. Use ``GoogleAnalyticsAdminDeleteDataStreamOperator`` instead
+    * Removed ``GoogleAnalyticsModifyFileHeadersDataImportOperator``. The class is no longer in actual use due to
+      Google Analytics API v3 has reached sunset, and thus the covered use case is no longer relevant
+    * Removed ``GoogleCampaignManagerDeleteReportOperator.delegate_to``. Use ``GoogleCampaignManagerDeleteReportOperator.impersonation_chain`` instead
+    * Removed ``GoogleCampaignManagerDownloadReportOperator.delegate_to``. Use ``GoogleCampaignManagerDownloadReportOperator.impersonation_chain`` instead
+    * Removed ``GoogleCampaignManagerInsertReportOperator.delegate_to``. Use ``GoogleCampaignManagerInsertReportOperator.impersonation_chain`` instead
+    * Removed ``GoogleCampaignManagerRunReportOperator.delegate_to``. Use ``GoogleCampaignManagerRunReportOperator.impersonation_chain`` instead
+    * Removed ``GoogleCampaignManagerBatchInsertConversionsOperator.delegate_to``. Use ``GoogleCampaignManagerBatchInsertConversionsOperator.impersonation_chain`` instead
+    * Removed ``GoogleCampaignManagerBatchUpdateConversionsOperator.delegate_to``. Use ``GoogleCampaignManagerBatchUpdateConversionsOperator.impersonation_chain`` instead
+    * Removed ``GoogleDisplayVideo360CreateQueryOperator.delegate_to``. Use ``GoogleDisplayVideo360CreateQueryOperator.impersonation_chain`` instead
+    * Removed ``GoogleDisplayVideo360DeleteReportOperator.delegate_to``. Use ``GoogleDisplayVideo360DeleteReportOperator.impersonation_chain`` instead
+    * Removed ``GoogleDisplayVideo360DownloadReportV2Operator.delegate_to``. Use ``GoogleDisplayVideo360DownloadReportV2Operator.impersonation_chain`` instead
+    * Removed ``GoogleDisplayVideo360RunQueryOperator.delegate_to``. Use ``GoogleDisplayVideo360RunQueryOperator.impersonation_chain`` instead
+    * Removed ``GoogleDisplayVideo360DownloadLineItemsOperator.delegate_to``. Use ``GoogleDisplayVideo360DownloadLineItemsOperator.impersonation_chain`` instead
+    * Removed ``GoogleDisplayVideo360UploadLineItemsOperator.delegate_to``. Use ``GoogleDisplayVideo360UploadLineItemsOperator.impersonation_chain`` instead
+    * Removed ``GoogleDisplayVideo360CreateSDFDownloadTaskOperator.delegate_to``. Use ``GoogleDisplayVideo360CreateSDFDownloadTaskOperator.impersonation_chain`` instead
+    * Removed ``GoogleDisplayVideo360SDFtoGCSOperator.delegate_to``. Use ``GoogleDisplayVideo360SDFtoGCSOperator.impersonation_chain`` instead
+    * Removed ``GoogleSheetsCreateSpreadsheetOperator.delegate_to``. Use ``GoogleSheetsCreateSpreadsheetOperator.impersonation_chain`` instead
+    * Removed ``GCSToGoogleDriveOperator.delegate_to``. Use ``GCSToGoogleDriveOperator.impersonation_chain`` instead
+    * Removed ``GCSToGoogleSheetsOperator.delegate_to``. Use ``GCSToGoogleSheetsOperator.impersonation_chain`` instead
+    * Removed ``LocalFilesystemToGoogleDriveOperator.delegate_to``. Use ``LocalFilesystemToGoogleDriveOperator.impersonation_chain`` instead
+    * Removed ``SQLToGoogleSheetsOperator.delegate_to``. Use ``SQLToGoogleSheetsOperator.impersonation_chain`` instead
+    * Removed ``CreateBatchPredictionJobOperator.sync``. This parameter is not in actual use
+    * Removed ``CreateHyperparameterTuningJobOperator.sync``. This parameter is not in actual use
+    * Removed ``CustomTrainingJobBaseOperator.sync``. This parameter is not in actual use
+    * Removed ``GKEStartPodOperator.get_gke_config_file()``. Please use ``GKEStartPodOperator.fetch_cluster_info()`` instead
+
+  * Triggers
+
+    * Removed support of ``delegate_to`` field in the ``GCSCheckBlobUpdateTimeTrigger.hook_params`` parameter
+
+  * Sensors
+
+    * Removed ``BigQueryTableExistenceAsyncSensor``. Use ``BigQueryTableExistenceSensor``  and set deferrable attribute
+      to True instead
+    * Removed ``BigQueryTableExistencePartitionAsyncSensor``. Use ``BigQueryTablePartitionExistenceSensor`` and set
+      deferrable attribute to True instead
+    * Removed ``CloudComposerEnvironmentSensor``. Use ``CloudComposerCreateEnvironmentOperator``,
+      ``CloudComposerUpdateEnvironmentOperator``, or ``CloudComposerDeleteEnvironmentOperator`` instead
+    * Removed ``GCSObjectExistenceAsyncSensor``. Use ``GCSObjectExistenceSensor``  and set deferrable attribute
+      to True instead
+    * Removed ``GoogleCampaignManagerReportSensor.delegate_to``. Use ``GoogleCampaignManagerReportSensor.impersonation_chain`` instead
+    * Removed ``GoogleDisplayVideo360GetSDFDownloadOperationSensor.delegate_to``. Use ``GoogleDisplayVideo360GetSDFDownloadOperationSensor.impersonation_chain`` instead
+    * Removed ``GoogleDisplayVideo360RunQuerySensor.delegate_to``. Use ``GoogleDisplayVideo360RunQuerySensor.impersonation_chain`` instead
+    * Removed ``GoogleDriveFileExistenceSensor.delegate_to``. Use ``GoogleDriveFileExistenceSensor.impersonation_chain`` instead
+
+  * Links
+
+    * Removed ``BigQueryConsoleIndexableLink``. This property is no longer in actual use
+    * Removed ``BigQueryConsoleLink``. This property is no longer in actual use
+
+  * Hooks
+
+    * Removed ``GKEDeploymentHook``. Use ``GKEKubernetesHook`` instead
+    * Removed ``GKECustomResourceHook``. Use ``GKEKubernetesHook`` instead
+    * Removed ``GKEPodHook``. Use ``GKEKubernetesHook`` instead
+    * Removed ``GKEJobHook``. Use ``GKEKubernetesHook`` instead
+    * Removed ``GKEPodAsyncHook``. Use ``GKEKubernetesAsyncHook`` instead
+    * Removed ``SecretsManagerHook``. Use ``GoogleCloudSecretManagerHook`` instead
+    * Removed ``GoogleAnalyticsHook``. The class is no longer in actual use due to Google Analytics API v3 has reached
+      sunset
+    * Removed ``GoogleBaseHook.delegate_to``. Please use ``GoogleBaseHook.impersonation_chain``. Please note that
+      the ``delegate_to`` parameter used to be inherited in all Google hooks, and from now its support is removed
+      everywhere within the Google provider
+    * Removed ``GoogleDiscoveryApiHook.delegate_to``. Please use ``GoogleDiscoveryApiHook.impersonation_chain`` instead
+    * Removed ``GoogleCampaignManagerHook.delegate_to``. Please use ``GoogleCampaignManagerHook.impersonation_chain`` instead
+    * Removed ``GoogleDisplayVideo360Hook.delegate_to``. Please use ``GoogleDisplayVideo360Hook.impersonation_chain`` instead
+    * Removed ``GoogleSearchAdsHook.delegate_to``. Please use ``GoogleSearchAdsHook.impersonation_chain`` instead
+    * Removed ``GoogleCalendarHook.delegate_to``. Please use ``GoogleCalendarHook.impersonation_chain`` instead
+    * Removed ``GoogleDriveHook.delegate_to``. Please use ``GoogleDriveHook.impersonation_chain`` instead
+    * Removed ``GSheetsHook.delegate_to``. Please use ``GSheetsHook.impersonation_chain`` instead
+    * Removed ``BigQueryHook.credentials_path``. This property is no longer in actual use
+    * Removed ``GKEHook.get_conn()``. Please use ``GKEHook.get_cluster_manager_client()`` instead
+    * Removed ``GKEHook.get_client()``. Please use ``GKEHook.get_cluster_manager_client()`` instead
+    * Removed ``BigQueryHook.patch_table()``. Please use ``BigQueryHook.update_table()`` instead
+    * Removed ``BigQueryHook.patch_dataset()``. Please use ``BigQueryHook.update_dataset()`` instead
+    * Removed ``BigQueryHook.get_dataset_tables_list()``. Please use ``BigQueryHook.get_dataset_tables()`` instead
+    * Removed ``BigQueryHook.run_table_delete()``. Please use ``BigQueryHook.delete_table()`` instead
+    * Removed ``BigQueryHook.get_tabledata()``. Please use ``BigQueryHook.list_rows()`` instead
+    * Removed ``BigQueryHook.cancel_query()``. Please use ``BigQueryHook.cancel_job()`` instead
+    * Removed ``BigQueryHook.run_with_configuration()``. Please use ``BigQueryHook.insert_job()`` instead
+    * Removed ``BigQueryHook.run_load()``. Please use ``BigQueryHook.insert_job()`` instead
+    * Removed ``BigQueryHook.run_copy()``. Please use ``BigQueryHook.insert_job()`` instead
+    * Removed ``BigQueryHook.run_extract()``. Please use ``BigQueryHook.insert_job()`` instead
+    * Removed ``BigQueryHook.run_query()``. Please use ``BigQueryHook.insert_job()`` instead
+    * Removed ``BigQueryHook.create_external_table()``. Please use ``BigQueryHook.create_empty_table()`` instead
+    * Removed ``BigQueryHook.get_service()``. Please use ``BigQueryHook.get_client()`` instead
+
+  * Backends
+
+    * Removed ``CloudSecretManagerBackend.get_conn_uri()``. Please use ``CloudSecretManagerBackend.get_conn_value()`` instead
+
+  * Other deprecations
+
+    * Removed ``BigQueryBaseCursor.create_empty_table()``. Please use ``BigQueryHook.create_empty_table()`` instead
+    * Removed ``BigQueryBaseCursor.create_empty_dataset()``. Please use ``BigQueryHook.create_empty_dataset()`` instead
+    * Removed ``BigQueryBaseCursor.get_dataset_tables()``. Please use ``BigQueryHook.get_dataset_tables()`` instead
+    * Removed ``BigQueryBaseCursor.delete_dataset()``. Please use ``BigQueryHook.delete_dataset()`` instead
+    * Removed ``BigQueryBaseCursor.create_external_table()``. Please use ``BigQueryHook.create_empty_table()`` instead
+    * Removed ``BigQueryBaseCursor.patch_table()``. Please use ``BigQueryHook.update_table()`` instead
+    * Removed ``BigQueryBaseCursor.insert_all()``. Please use ``BigQueryHook.insert_all()`` instead
+    * Removed ``BigQueryBaseCursor.update_dataset()``. Please use ``BigQueryHook.update_dataset()`` instead
+    * Removed ``BigQueryBaseCursor.patch_dataset()``. Please use ``BigQueryHook.update_dataset()`` instead
+    * Removed ``BigQueryBaseCursor.get_dataset_tables_list()``. Please use ``BigQueryHook.get_dataset_tables()`` instead
+    * Removed ``BigQueryBaseCursor.get_datasets_list()``. Please use ``BigQueryHook.get_datasets_list()`` instead
+    * Removed ``BigQueryBaseCursor.get_dataset()``. Please use ``BigQueryHook.get_dataset()`` instead
+    * Removed ``BigQueryBaseCursor.run_grant_dataset_view_access()``. Please use ``BigQueryHook.run_grant_dataset_view_access()`` instead
+    * Removed ``BigQueryBaseCursor.run_table_upsert()``. Please use ``BigQueryHook.run_table_upsert()`` instead
+    * Removed ``BigQueryBaseCursor.run_table_delete()``. Please use ``BigQueryHook.delete_table()`` instead
+    * Removed ``BigQueryBaseCursor.get_tabledata()``. Please use ``BigQueryHook.list_rows()`` instead
+    * Removed ``BigQueryBaseCursor.get_schema()``. Please use ``BigQueryHook.get_schema()`` instead
+    * Removed ``BigQueryBaseCursor.poll_job_complete()``. Please use ``BigQueryHook.poll_job_complete()`` instead
+    * Removed ``BigQueryBaseCursor.cancel_query()``. Please use ``BigQueryHook.cancel_job()`` instead
+    * Removed ``BigQueryBaseCursor.run_with_configuration()``. Please use ``BigQueryHook.insert_job()`` instead
+    * Removed ``BigQueryBaseCursor.run_load()``. Please use ``BigQueryHook.insert_job()`` instead
+    * Removed ``BigQueryBaseCursor.run_copy()``. Please use ``BigQueryHook.insert_job()`` instead
+    * Removed ``BigQueryBaseCursor.run_extract()``. Please use ``BigQueryHook.insert_job()`` instead
+    * Removed ``BigQueryBaseCursor.run_query()``. Please use ``BigQueryHook.insert_job()`` instead
+
+10.26.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Add support for IAM database authentication for CloudSQL connection (#43631)``
+* ``Provide option to 'force_delete' for 'GCSToBigQueryOperator' (#43785)``
+* ``Unify reattach_states parameter logic across BigQuery operators (#43259)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove non-existing field  from the ListCustomTrainingJobOperator's template_fields (#43924)``
+* ``Fix validating 'parent_model' parameter in 'UploadModelOperator' (#43473)``
+
+Misc
+~~~~
+
+* ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+* ``Remove Airflow 2.1 compat code in Google provider (#43952)``
+* ``Explain how to use uv with airflow virtualenv and make it works (#43604)``
+* ``Move python operator to Standard provider (#42081)``
+* ``Update version of Google ADS (#43474)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix CI ruff format static checks (#43908)``
+
 10.25.0
 .......
 

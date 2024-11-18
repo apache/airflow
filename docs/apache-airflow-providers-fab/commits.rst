@@ -35,14 +35,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.5.1
+.....
+
+Latest change: 2024-11-12
+
+=================================================================================================  ===========  ==================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================================
+`c047c87aed <https://github.com/apache/airflow/commit/c047c87aed0ba191ada035c47ed9f6de9756b4e3>`_  2024-11-12   ``Expand and improve the kerberos api authentication documentation (#43682)``
+`d536ec4bd1 <https://github.com/apache/airflow/commit/d536ec4bd1da958d2f2e5822a6fec647baa12ba9>`_  2024-11-05   ``fab_auth_manager: allow get_user method to return the user authenticated via Kerberos (#43662)``
+=================================================================================================  ===========  ==================================================================================================
+
 1.5.0
 .....
 
-Latest change: 2024-10-31
+Latest change: 2024-11-03
 
 =================================================================================================  ===========  =============================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================================
+`45b0b2f15c <https://github.com/apache/airflow/commit/45b0b2f15c57dae4f2331a66a9a921cb17385220>`_  2024-11-03   ``Prepare docs for Oct 2nd wave of providers rc3 (#43613)``
 `22d2aebe6a <https://github.com/apache/airflow/commit/22d2aebe6a54859be4dc3c959ed0264fe15fe7c9>`_  2024-10-31   ``Add logging to the migration commands (#43516)``
 `5886016243 <https://github.com/apache/airflow/commit/5886016243d73cc34e2a212de8fc2f4042e123ca>`_  2024-10-31   ``Prepare docs for Oct 2nd wave of providers RC2 (#43540)``
 `db4afd793a <https://github.com/apache/airflow/commit/db4afd793a632bfbebd77e495a0c5d0f9b59f366>`_  2024-10-31   ``DOC fix documentation error in 'apache-airflow-providers-fab/access-control.rst' (#43495)``

@@ -171,7 +171,7 @@ def _create_backfill_dag_run(
         dr = session.scalar(
             with_row_locks(
                 select(DagRun)
-                .where(DagRun.execution_date == info.logical_date)
+                .where(DagRun.logical_date == info.logical_date)
                 .order_by(nulls_first(desc(DagRun.start_date), session=session))
                 .limit(1),
                 session=session,
@@ -204,7 +204,7 @@ def _create_backfill_dag_run(
         dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
         dr = dag.create_dagrun(
             triggered_by=DagRunTriggeredByType.BACKFILL,
-            execution_date=info.logical_date,
+            logical_date=info.logical_date,
             data_interval=info.data_interval,
             start_date=timezone.utcnow(),
             state=DagRunState.QUEUED,
