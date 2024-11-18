@@ -975,6 +975,7 @@ export class DagRunService {
       errors: {
         401: "Unauthorized",
         403: "Forbidden",
+        404: "Not Found",
         422: "Validation Error",
       },
     });
