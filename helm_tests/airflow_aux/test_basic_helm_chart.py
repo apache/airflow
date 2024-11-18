@@ -538,6 +538,7 @@ class TestBaseChartTest:
             "CeleryKubernetesExecutor",
             "airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor",
             "airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor",
+            "CeleryExecutor,KubernetesExecutor",
         ],
     )
     def test_supported_executor(self, executor):
@@ -556,14 +557,6 @@ class TestBaseChartTest:
                     "executor": "SequentialExecutor",
                 },
             )
-
-    def test_support_multiple_executors(self):
-        render_chart(
-            "test-basic",
-            {
-                "executor": "CeleryExecutor,KubernetesExecutor",
-            },
-        )
 
     @pytest.mark.parametrize(
         "image",
