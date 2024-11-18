@@ -189,7 +189,7 @@ class TestGetDagRuns:
             "note": run.note,
         }
 
-    @pytest.mark.parametrize("dag_id, total_entries", [(DAG1_ID, 2), (DAG2_ID, 2), ("~", 4), ("invalid", 0)])
+    @pytest.mark.parametrize("dag_id, total_entries", [(DAG1_ID, 2), (DAG2_ID, 2), ("~", 4)])
     def test_get_dag_runs(self, test_client, session, dag_id, total_entries):
         response = test_client.get(f"/public/dags/{dag_id}/dagRuns")
         assert response.status_code == 200
@@ -204,8 +204,14 @@ class TestGetDagRuns:
             expected = self.get_dag_run_dict(run)
             assert each == expected
 
+    def test_get_dag_runs_not_found(self, test_client):
+        response = test_client.get("/public/dags/invalid/dagRuns")
+        assert response.status_code == 404
+        body = response.json()
+        assert body["detail"] == "The DAG with dag_id: `invalid` was not found"
+
     def test_invalid_order_by_raises_400(self, test_client):
-        response = test_client.get("/public/dags/DAG1_ID/dagRuns?order_by=invalid")
+        response = test_client.get("/public/dags/test_dag1/dagRuns?order_by=invalid")
         assert response.status_code == 400
         body = response.json()
         assert (
@@ -228,9 +234,7 @@ class TestGetDagRuns:
             ("conf", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
         ],
     )
-    def test_return_correct_results_with_order_by(
-        self, test_client, session, order_by, expected_dag_id_order
-    ):
+    def test_return_correct_results_with_order_by(self, test_client, order_by, expected_dag_id_order):
         response = test_client.get("/public/dags/test_dag1/dagRuns", params={"order_by": order_by})
         assert response.status_code == 200
         body = response.json()
@@ -247,10 +251,6 @@ class TestGetDagRuns:
             ({"offset": 2}, []),
             ({"limit": 1, "offset": 1}, [DAG1_RUN2_ID]),
             ({"limit": 1, "offset": 2}, []),
-            # ({"limit": 3, "offset": -1}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
-            # ({"limit": 3, "offset": -2}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
-            # ({"limit": 1, "offset": -2}, [DAG1_RUN1_ID]),
-            # ({"limit": -1}, [DAG1_RUN1_ID]),
         ],
     )
     def test_limit_and_offset(self, test_client, query_params, expected_dag_id_order):
@@ -259,6 +259,59 @@ class TestGetDagRuns:
         body = response.json()
         assert body["total_entries"] == 2
         assert [each["run_id"] for each in body["dag_runs"]] == expected_dag_id_order
+
+    @pytest.mark.parametrize(
+        "query_params, expected_detail",
+        [
+            (
+                {"limit": 1, "offset": -1},
+                [
+                    {
+                        "type": "greater_than_equal",
+                        "loc": ["query", "offset"],
+                        "msg": "Input should be greater than or equal to 0",
+                        "input": "-1",
+                        "ctx": {"ge": 0},
+                    }
+                ],
+            ),
+            (
+                {"limit": -1, "offset": 1},
+                [
+                    {
+                        "type": "greater_than_equal",
+                        "loc": ["query", "limit"],
+                        "msg": "Input should be greater than or equal to 0",
+                        "input": "-1",
+                        "ctx": {"ge": 0},
+                    }
+                ],
+            ),
+            (
+                {"limit": -1, "offset": -1},
+                [
+                    {
+                        "type": "greater_than_equal",
+                        "loc": ["query", "limit"],
+                        "msg": "Input should be greater than or equal to 0",
+                        "input": "-1",
+                        "ctx": {"ge": 0},
+                    },
+                    {
+                        "type": "greater_than_equal",
+                        "loc": ["query", "offset"],
+                        "msg": "Input should be greater than or equal to 0",
+                        "input": "-1",
+                        "ctx": {"ge": 0},
+                    },
+                ],
+            ),
+        ],
+    )
+    def test_bad_limit_and_offset(self, test_client, query_params, expected_detail):
+        response = test_client.get("/public/dags/test_dag1/dagRuns", params=query_params)
+        assert response.status_code == 422
+        assert response.json()["detail"] == expected_detail
 
     @pytest.mark.parametrize(
         "dag_id, query_params, expected_dag_id_list",
@@ -273,7 +326,14 @@ class TestGetDagRuns:
                 },
                 [DAG1_RUN1_ID, DAG1_RUN2_ID],
             ),
-            ("~", {"end_date_gte": START_DATE2.isoformat(), "end_date_lte": END_DATE2.isoformat()}, []),
+            (
+                DAG1_ID,
+                {
+                    "end_date_gte": START_DATE2.isoformat(),
+                    "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                },
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),
             (
                 DAG1_ID,
                 {
@@ -284,15 +344,24 @@ class TestGetDagRuns:
             ),
             (
                 DAG2_ID,
-                {"start_date_gte": START_DATE2.isoformat(), "end_date_lte": END_DATE2.isoformat()},
+                {
+                    "start_date_gte": START_DATE2.isoformat(),
+                    "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                },
                 [DAG2_RUN1_ID, DAG2_RUN2_ID],
             ),
-            # (DAG1_ID, {"state": DagRunState.SUCCESS.value}, [DAG1_RUN1_ID]),
-            # (DAG1_ID, {"state": DagRunState.FAILED.value}, [DAG1_RUN2_ID]),
-            # (DAG2_ID, {"state": DagRunState.SUCCESS.value}, [DAG2_RUN1_ID, DAG2_RUN2_ID]),
-            # (DAG1_ID, {"state": DagRunState.SUCCESS.value, "logical_date_gte": LOGICAL_DATE1.isoformat()}, [DAG1_RUN1_ID]),
-            # (DAG1_ID, {"state": DagRunState.FAILED.value, "start_date_gte": START_DATE1.isoformat()}, [DAG1_RUN2_ID]),
-            # (DAG2_ID, {"state": DagRunState.SUCCESS.value, "end_date_lte": END_DATE2.isoformat()}, [DAG2_RUN1_ID, DAG2_RUN2_ID]),
+            (DAG1_ID, {"state": DagRunState.SUCCESS.value}, [DAG1_RUN1_ID]),
+            (DAG2_ID, {"state": DagRunState.FAILED.value}, []),
+            (
+                DAG1_ID,
+                {"state": DagRunState.SUCCESS.value, "logical_date_gte": LOGICAL_DATE1.isoformat()},
+                [DAG1_RUN1_ID],
+            ),
+            (
+                DAG1_ID,
+                {"state": DagRunState.FAILED.value, "start_date_gte": START_DATE1.isoformat()},
+                [DAG1_RUN2_ID],
+            ),
         ],
     )
     def test_filters(self, test_client, dag_id, query_params, expected_dag_id_list):
@@ -300,6 +369,68 @@ class TestGetDagRuns:
         assert response.status_code == 200
         body = response.json()
         assert [each["run_id"] for each in body["dag_runs"]] == expected_dag_id_list
+
+    def test_bad_filters(self, test_client):
+        query_params = {
+            "logical_date_gte": "invalid",
+            "start_date_gte": "invalid",
+            "end_date_gte": "invalid",
+            "logical_date_lte": "invalid",
+            "start_date_lte": "invalid",
+            "end_date_lte": "invalid",
+        }
+        expected_detail = [
+            {
+                "type": "datetime_from_date_parsing",
+                "loc": ["query", "logical_date_gte"],
+                "msg": "Input should be a valid datetime or date, input is too short",
+                "input": "invalid",
+                "ctx": {"error": "input is too short"},
+            },
+            {
+                "type": "datetime_from_date_parsing",
+                "loc": ["query", "logical_date_lte"],
+                "msg": "Input should be a valid datetime or date, input is too short",
+                "input": "invalid",
+                "ctx": {"error": "input is too short"},
+            },
+            {
+                "type": "datetime_from_date_parsing",
+                "loc": ["query", "start_date_gte"],
+                "msg": "Input should be a valid datetime or date, input is too short",
+                "input": "invalid",
+                "ctx": {"error": "input is too short"},
+            },
+            {
+                "type": "datetime_from_date_parsing",
+                "loc": ["query", "start_date_lte"],
+                "msg": "Input should be a valid datetime or date, input is too short",
+                "input": "invalid",
+                "ctx": {"error": "input is too short"},
+            },
+            {
+                "type": "datetime_from_date_parsing",
+                "loc": ["query", "end_date_gte"],
+                "msg": "Input should be a valid datetime or date, input is too short",
+                "input": "invalid",
+                "ctx": {"error": "input is too short"},
+            },
+            {
+                "type": "datetime_from_date_parsing",
+                "loc": ["query", "end_date_lte"],
+                "msg": "Input should be a valid datetime or date, input is too short",
+                "input": "invalid",
+                "ctx": {"error": "input is too short"},
+            },
+        ]
+        response = test_client.get(f"/public/dags/{DAG1_ID}/dagRuns", params=query_params)
+        assert response.status_code == 422
+        body = response.json()
+        assert body["detail"] == expected_detail
+
+    def test_invalid_state(self, test_client):
+        with pytest.raises(ValueError, match="'invalid' is not a valid DagRunState"):
+            test_client.get(f"/public/dags/{DAG1_ID}/dagRuns", params={"state": "invalid"})
 
 
 class TestPatchDagRun:

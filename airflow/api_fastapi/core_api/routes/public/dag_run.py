@@ -240,7 +240,7 @@ def clear_dag_run(
 
 
 @dag_run_router.get("")
-async def get_dag_runs(
+def get_dag_runs(
     dag_id: str,
     limit: QueryLimit,
     offset: QueryOffset,
@@ -270,12 +270,17 @@ async def get_dag_runs(
         ),
     ],
     session: Annotated[Session, Depends(get_session)],
+    request: Request,
 ) -> DAGRunCollectionResponse:
     """
     Get all DAG Runs.
 
     This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
     """
+    if dag_id != "~":
+        dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+        if not dag:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, f"The DAG with dag_id: `{dag_id}` was not found")
     base_query = select(DagRun)
 
     if dag_id != "~":
