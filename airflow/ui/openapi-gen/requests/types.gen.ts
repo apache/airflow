@@ -1069,6 +1069,14 @@ export type GetDagAssetQueuedEventsData = {
 
 export type GetDagAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 
+export type DeleteDagAssetQueuedEventData = {
+  before?: string | null;
+  dagId: string;
+  uri: string;
+};
+
+export type DeleteDagAssetQueuedEventResponse = void;
+
 export type HistoricalMetricsData = {
   endDate: string;
   startDate: string;
@@ -1673,6 +1681,37 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: QueuedEventCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/assets/queuedEvent/{uri}": {
+    delete: {
+      req: DeleteDagAssetQueuedEventData;
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
         /**
          * Unauthorized
          */
