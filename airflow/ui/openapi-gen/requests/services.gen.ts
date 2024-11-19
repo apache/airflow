@@ -57,6 +57,8 @@ import type {
   GetUpstreamAssetEventsResponse,
   ClearDagRunData,
   ClearDagRunResponse,
+  GetDagRunsBatchData,
+  GetDagRunsBatchResponse,
   GetDagSourceData,
   GetDagSourceResponse,
   GetDagStatsData,
@@ -914,6 +916,31 @@ export class DagRunService {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
       },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Dag Runs Batch
+   * Get a list of DAG Runs.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getDagRunsBatch(
+    data: GetDagRunsBatchData,
+  ): CancelablePromise<GetDagRunsBatchResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/dags/{dag_id}/dagRuns/list",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {

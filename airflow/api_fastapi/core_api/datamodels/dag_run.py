@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field, NonNegativeInt
 
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -65,3 +65,19 @@ class DAGRunResponse(BaseModel):
     triggered_by: DagRunTriggeredByType
     conf: dict
     note: str | None
+
+
+class DAGRunsBatchBody(BaseModel):
+    """List DAG Runs body for batch endpoint."""
+
+    order_by: str | None = None
+    page_offset: NonNegativeInt = 0
+    page_limit: NonNegativeInt = 100
+    dag_ids: list[str] | None = None
+    states: list[DagRunState | None] | None = None
+    logical_date_gte: AwareDatetime | None = None
+    logical_date_lte: AwareDatetime | None = None
+    start_date_gte: AwareDatetime | None = None
+    start_date_lte: AwareDatetime | None = None
+    end_date_gte: AwareDatetime | None = None
+    end_date_lte: AwareDatetime | None = None

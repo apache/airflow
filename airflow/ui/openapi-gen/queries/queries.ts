@@ -36,6 +36,7 @@ import {
   DAGPatchBody,
   DAGRunClearBody,
   DAGRunPatchBody,
+  DAGRunsBatchBody,
   DagRunState,
   DagWarningType,
   PoolPatchBody,
@@ -1993,6 +1994,45 @@ export const useDagRunServiceClearDagRun = <
       DagRunService.clearDagRun({
         dagId,
         dagRunId,
+        requestBody,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Get Dag Runs Batch
+ * Get a list of DAG Runs.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useDagRunServiceGetDagRunsBatch = <
+  TData = Common.DagRunServiceGetDagRunsBatchMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: DAGRunsBatchBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: DAGRunsBatchBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      DagRunService.getDagRunsBatch({
         requestBody,
       }) as unknown as Promise<TData>,
     ...options,

@@ -28,7 +28,15 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_queued,
     set_dag_run_state_to_success,
 )
-from airflow.api_fastapi.common.db.common import get_session
+from airflow.api_fastapi.common.db.common import get_session, paginated_select
+from airflow.api_fastapi.common.parameters import (
+    DagIdsFilter,
+    LimitFilter,
+    OffsetFilter,
+    Range,
+    RangeFilter,
+    SortParam,
+)
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.assets import AssetEventCollectionResponse, AssetEventResponse
 from airflow.api_fastapi.core_api.datamodels.dag_run import (
@@ -36,6 +44,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import (
     DAGRunPatchBody,
     DAGRunPatchStates,
     DAGRunResponse,
+    DAGRunsBatchBody,
 )
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskInstanceCollectionResponse,
@@ -228,3 +237,66 @@ def clear_dag_run(
         )
         dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
         return DAGRunResponse.model_validate(dag_run_cleared, from_attributes=True)
+
+
+@dag_run_router.post("/list", responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]))
+def get_dag_runs_batch(body: DAGRunsBatchBody, session: Annotated[Session, Depends(get_session)]):
+    """Get a list of DAG Runs."""
+    dag_ids = DagIdsFilter(body.dag_ids)
+    logical_date = RangeFilter(
+        Range(lower_bound=body.logical_date_gte, upper_bound=body.logical_date_lte),
+        attribute=DagRun.logical_date,
+    )
+    start_date = RangeFilter(
+        Range(lower_bound=body.start_date_gte, upper_bound=body.start_date_lte),
+        attribute=DagRun.start_date,
+    )
+    end_date = RangeFilter(
+        Range(lower_bound=body.end_date_gte, upper_bound=body.end_date_lte),
+        attribute=DagRun.end_date,
+    )
+    # include state once list dag runs is merged
+
+    offset = OffsetFilter(body.page_offset)
+    limit = LimitFilter(body.page_limit)
+
+    order_by = SortParam(
+        [
+            "id",
+            "state",
+            "dag_id",
+            "logical_date",
+            "dag_run_id",
+            "start_date",
+            "end_date",
+            "updated_at",
+            "external_trigger",
+            "conf",
+        ],
+        DagRun,
+    ).set_value(body.order_by)
+    # Should we need a default order by?
+
+    base_query = select(DagRun)
+    dag_runs_select, total_entries = paginated_select(
+        base_query,
+        [
+            dag_ids,
+            logical_date,
+            start_date,
+            end_date,
+            # state
+        ],
+        order_by,
+        offset,
+        limit,
+        session,
+    )
+
+    dag_runs = session.scalars(dag_runs_select).all()
+    return dag_runs
+
+    # update once list dag runs is merged
+    # return DagRunCollectionResponse(dag_runs=[
+    #     DagRunResponse.model_validate(dag_run, from_attributes=True) for dag_run in dag_runs
+    # ], total_entries=total_entries)

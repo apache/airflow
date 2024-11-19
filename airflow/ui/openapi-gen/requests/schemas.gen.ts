@@ -1573,6 +1573,144 @@ export const $DAGRunTypes = {
   description: "DAG Run Types for responses.",
 } as const;
 
+export const $DAGRunsBatchBody = {
+  properties: {
+    order_by: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Order By",
+    },
+    page_offset: {
+      type: "integer",
+      minimum: 0,
+      title: "Page Offset",
+      default: 0,
+    },
+    page_limit: {
+      type: "integer",
+      minimum: 0,
+      title: "Page Limit",
+      default: 100,
+    },
+    dag_ids: {
+      anyOf: [
+        {
+          items: {
+            type: "string",
+          },
+          type: "array",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Dag Ids",
+    },
+    states: {
+      anyOf: [
+        {
+          items: {
+            anyOf: [
+              {
+                $ref: "#/components/schemas/DagRunState",
+              },
+              {
+                type: "null",
+              },
+            ],
+          },
+          type: "array",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "States",
+    },
+    logical_date_gte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Logical Date Gte",
+    },
+    logical_date_lte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Logical Date Lte",
+    },
+    start_date_gte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Start Date Gte",
+    },
+    start_date_lte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Start Date Lte",
+    },
+    end_date_gte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "End Date Gte",
+    },
+    end_date_lte: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "End Date Lte",
+    },
+  },
+  type: "object",
+  title: "DAGRunsBatchBody",
+  description: "List DAG Runs body for batch endpoint.",
+} as const;
+
 export const $DAGSourceResponse = {
   properties: {
     content: {
