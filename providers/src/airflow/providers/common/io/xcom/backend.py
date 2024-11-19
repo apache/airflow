@@ -109,7 +109,7 @@ class XComObjectStorageBackend(BaseXCom):
         raise ValueError(f"Not a valid url: {data}")
 
     @staticmethod
-    def serialize_value(
+    def serialize_value(  # type: ignore[override]
         value: T,
         *,
         key: str | None = None,

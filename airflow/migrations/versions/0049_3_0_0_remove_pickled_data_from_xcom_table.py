@@ -69,7 +69,7 @@ def upgrade():
     # Condition to detect pickled data for different databases
     condition_templates = {
         "postgresql": "get_byte(value, 0) = 128",
-        "mysql": "HEX(value) LIKE '80%'",
+        "mysql": "HEX(SUBSTRING(value, 1, 1)) = '80'",
         "sqlite": "substr(value, 1, 1) = char(128)",
     }
 
@@ -78,7 +78,7 @@ def upgrade():
         raise RuntimeError(f"Unsupported dialect: {dialect}")
 
     # Key is a reserved keyword in MySQL, so we need to quote it
-    quoted_key = "`key`" if dialect == "mysql" else '"key"'
+    quoted_key = conn.dialect.identifier_preparer.quote("key")
 
     # Archive pickled data using the condition
     conn.execute(
@@ -149,7 +149,7 @@ def downgrade():
             ALTER TABLE xcom
             ALTER COLUMN value TYPE BYTEA
             USING CASE
-                WHEN value IS NOT NULL THEN ENCODE(CAST(value::JSONB::TEXT)::BYTEA, 'escape')
+                WHEN value IS NOT NULL THEN ENCODE(CAST(value AS TEXT), 'escape')
                 ELSE NULL
             END
             """
