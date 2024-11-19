@@ -1285,8 +1285,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
 
         for k, v in encoded_op.items():
-            # python_callable_name only serves to detect function name
-            # changes
+            # python_callable_name only serves to detect function name changes
             if k == "python_callable_name":
                 continue
             if k in ("_outlets", "_inlets"):
