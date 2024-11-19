@@ -19,11 +19,12 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from functools import cached_property
-from typing import TYPE_CHECKING, Container, Literal, Sequence
+from typing import TYPE_CHECKING, Any, Container, Generic, Literal, Sequence, TypeVar
 
 from flask_appbuilder.menu import MenuItem
 from sqlalchemy import select
 
+from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_details import (
     DagDetails,
 )
@@ -37,7 +38,6 @@ if TYPE_CHECKING:
     from flask import Blueprint
     from sqlalchemy.orm import Session
 
-    from airflow.auth.managers.models.base_user import BaseUser
     from airflow.auth.managers.models.batch_apis import (
         IsAuthorizedConnectionRequest,
         IsAuthorizedDagRequest,
@@ -59,8 +59,10 @@ if TYPE_CHECKING:
 
 ResourceMethod = Literal["GET", "POST", "PUT", "DELETE", "MENU"]
 
+T = TypeVar("T", bound=BaseUser)
 
-class BaseAuthManager(LoggingMixin):
+
+class BaseAuthManager(Generic[T], LoggingMixin):
     """
     Class to derive in order to implement concrete auth managers.
 
@@ -69,7 +71,7 @@ class BaseAuthManager(LoggingMixin):
     :param appbuilder: the flask app builder
     """
 
-    def __init__(self, appbuilder: AirflowAppBuilder) -> None:
+    def __init__(self, appbuilder: AirflowAppBuilder | None = None) -> None:
         super().__init__()
         self.appbuilder = appbuilder
 
@@ -93,8 +95,16 @@ class BaseAuthManager(LoggingMixin):
         return self.get_user_name()
 
     @abstractmethod
-    def get_user(self) -> BaseUser | None:
+    def get_user(self) -> T | None:
         """Return the user associated to the user in session."""
+
+    @abstractmethod
+    def deserialize_user(self, token: dict[str, Any]) -> T:
+        """Create a user object from dict."""
+
+    @abstractmethod
+    def serialize_user(self, user: T) -> dict[str, Any]:
+        """Create a dict from a user object."""
 
     def get_user_id(self) -> str | None:
         """Return the user ID associated to the user in session."""
@@ -132,7 +142,7 @@ class BaseAuthManager(LoggingMixin):
         *,
         method: ResourceMethod,
         details: ConfigurationDetails | None = None,
-        user: BaseUser | None = None,
+        user: T | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to perform a given action on configuration.
@@ -148,7 +158,7 @@ class BaseAuthManager(LoggingMixin):
         *,
         method: ResourceMethod,
         details: ConnectionDetails | None = None,
-        user: BaseUser | None = None,
+        user: T | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to perform a given action on a connection.
@@ -165,7 +175,7 @@ class BaseAuthManager(LoggingMixin):
         method: ResourceMethod,
         access_entity: DagAccessEntity | None = None,
         details: DagDetails | None = None,
-        user: BaseUser | None = None,
+        user: T | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to perform a given action on a DAG.
@@ -183,7 +193,7 @@ class BaseAuthManager(LoggingMixin):
         *,
         method: ResourceMethod,
         details: AssetDetails | None = None,
-        user: BaseUser | None = None,
+        user: T | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to perform a given action on an asset.
@@ -199,7 +209,7 @@ class BaseAuthManager(LoggingMixin):
         *,
         method: ResourceMethod,
         details: PoolDetails | None = None,
-        user: BaseUser | None = None,
+        user: T | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to perform a given action on a pool.
@@ -215,7 +225,7 @@ class BaseAuthManager(LoggingMixin):
         *,
         method: ResourceMethod,
         details: VariableDetails | None = None,
-        user: BaseUser | None = None,
+        user: T | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to perform a given action on a variable.
@@ -230,7 +240,7 @@ class BaseAuthManager(LoggingMixin):
         self,
         *,
         access_view: AccessView,
-        user: BaseUser | None = None,
+        user: T | None = None,
     ) -> bool:
         """
         Return whether the user is authorized to access a read-only state of the installation.
@@ -241,7 +251,7 @@ class BaseAuthManager(LoggingMixin):
 
     @abstractmethod
     def is_authorized_custom_view(
-        self, *, method: ResourceMethod | str, resource_name: str, user: BaseUser | None = None
+        self, *, method: ResourceMethod | str, resource_name: str, user: T | None = None
     ):
         """
         Return whether the user is authorized to perform a given action on a custom view.

@@ -27,6 +27,8 @@ from flask import Flask, g
 
 from airflow.exceptions import AirflowConfigException, AirflowException
 
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user
+
 try:
     from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
 except ImportError:
@@ -140,6 +142,16 @@ class TestFabAuthManager:
         with minimal_app_for_auth_api.app_context():
             with user_set(minimal_app_for_auth_api, flask_g_user):
                 assert auth_manager.get_user() == flask_g_user
+
+    def test_deserialize_user(self, flask_app, auth_manager_with_appbuilder):
+        user = create_user(flask_app, "test")
+        result = auth_manager_with_appbuilder.deserialize_user({"id": user.id})
+        assert user == result
+
+    def test_serialize_user(self, flask_app, auth_manager_with_appbuilder):
+        user = create_user(flask_app, "test")
+        result = auth_manager_with_appbuilder.serialize_user(user)
+        assert result == {"id": user.id}
 
     @pytest.mark.db_test
     @mock.patch.object(FabAuthManager, "get_user")
@@ -338,11 +350,17 @@ class TestFabAuthManager:
         ],
     )
     def test_is_authorized_dag(
-        self, method, dag_access_entity, dag_details, user_permissions, expected_result, auth_manager
+        self,
+        method,
+        dag_access_entity,
+        dag_details,
+        user_permissions,
+        expected_result,
+        auth_manager_with_appbuilder,
     ):
         user = Mock()
         user.perms = user_permissions
-        result = auth_manager.is_authorized_dag(
+        result = auth_manager_with_appbuilder.is_authorized_dag(
             method=method, access_entity=dag_access_entity, details=dag_details, user=user
         )
         assert result == expected_result
