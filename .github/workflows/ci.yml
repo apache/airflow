@@ -735,6 +735,7 @@ jobs:
       - additional-prod-image-tests
       - tests-kubernetes
       - finalize-tests
+      - tests-task-sdk
     if: github.event_name == 'schedule' && failure()
     runs-on: ["ubuntu-22.04"]
     steps:
