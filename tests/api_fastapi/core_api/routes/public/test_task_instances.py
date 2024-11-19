@@ -1341,6 +1341,19 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
             },
         ]
 
+    def test_should_respond_422_for_non_wildcard_path_parameters(self, test_client):
+        response = test_client.post(
+            "/public/dags/non_wildcard/dagRuns/~/taskInstances/list",
+        )
+        assert response.status_code == 422
+        assert "Input should be '~'" in str(response.json()["detail"])
+
+        response = test_client.post(
+            "/public/dags/~/dagRuns/non_wildcard/taskInstances/list",
+        )
+        assert response.status_code == 422
+        assert "Input should be '~'" in str(response.json()["detail"])
+
     @pytest.mark.parametrize(
         "payload, expected",
         [
