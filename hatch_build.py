@@ -141,7 +141,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "statsd>=3.3.0",
     ],
     "uv": [
-        "uv>=0.5.1",
+        "uv>=0.5.3",
     ],
 }
 
