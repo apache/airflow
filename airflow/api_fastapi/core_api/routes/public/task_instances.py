@@ -262,7 +262,7 @@ def get_mapped_task_instance(
 
 
 @task_instances_router.get(
-    "/",
+    "",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_task_instances(

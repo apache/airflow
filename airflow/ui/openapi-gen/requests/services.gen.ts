@@ -1821,7 +1821,7 @@ export class TaskInstanceService {
   ): CancelablePromise<GetTaskInstancesResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
