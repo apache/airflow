@@ -2592,11 +2592,6 @@
                     "description": "Create ServiceAccount.",
                     "type": "object",
                     "properties": {
-                        "automountServiceAccountToken": {
-                            "description": "Specifies if ServiceAccount's API credentials should be mounted onto Pods",
-                            "type": "boolean",
-                            "default": true
-                        },
                         "create": {
                             "description": "Specifies whether a ServiceAccount should be created.",
                             "type": "boolean",
