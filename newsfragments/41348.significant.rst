@@ -84,7 +84,7 @@
     * Rename class ``DatasetPydantic`` as ``AssetPydantic``
     * Rename class ``DatasetEventPydantic`` as ``AssetEventPydantic``
 
-* Rename module ``airflow.datasets.metadata`` as ``airflow.assets.metadata``
+* Rename module ``airflow.datasets.metadata`` as ``airflow.sdk.definitions.asset.metadata``
 
 * In module ``airflow.jobs.scheduler_job_runner``
 
