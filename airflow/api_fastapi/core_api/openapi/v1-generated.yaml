@@ -93,6 +93,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -100,6 +101,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: tags
@@ -183,6 +185,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -190,6 +193,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: uri_pattern
@@ -259,6 +263,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -266,6 +271,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -540,6 +546,174 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/assets/queuedEvent/{uri}:
+    get:
+      tags:
+      - Asset
+      summary: Get Dag Asset Queued Event
+      description: Get a queued asset event for a DAG.
+      operationId: get_dag_asset_queued_event
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: uri
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Uri
+      - name: before
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Before
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueuedEventResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Asset
+      summary: Delete Dag Asset Queued Event
+      description: Delete a queued asset event for a DAG.
+      operationId: delete_dag_asset_queued_event
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: uri
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Uri
+      - name: before
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Before
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/assets/queuedEvent/{uri}:
+    delete:
+      tags:
+      - Asset
+      summary: Delete Asset Queued Events
+      description: Delete queued asset events for an asset.
+      operationId: delete_asset_queued_events
+      parameters:
+      - name: uri
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Uri
+      - name: before
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Before
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/backfills/:
     get:
       tags:
@@ -558,6 +732,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -565,6 +740,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -1002,6 +1178,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -1009,6 +1186,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -1424,7 +1602,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dagSources/{file_token}:
+  /public/dagSources/{dag_id}:
     get:
       tags:
       - DagSource
@@ -1432,12 +1610,20 @@ paths:
       description: Get source code using file token.
       operationId: get_dag_source
       parameters:
-      - name: file_token
+      - name: dag_id
         in: path
         required: true
         schema:
           type: string
-          title: File Token
+          title: Dag Id
+      - name: version_number
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Version Number
       - name: accept
         in: header
         required: false
@@ -1574,6 +1760,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -1581,6 +1768,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -1628,6 +1816,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -1635,6 +1824,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: tags
@@ -1746,6 +1936,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -1753,6 +1944,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: tags
@@ -1858,6 +2050,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -1865,6 +2058,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -2275,6 +2469,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -2282,6 +2477,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -2374,6 +2570,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -2381,6 +2578,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -2427,6 +2625,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -2434,6 +2633,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       responses:
@@ -2631,6 +2831,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -2638,6 +2839,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -2728,6 +2930,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -2735,6 +2938,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       responses:
@@ -2970,6 +3174,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -2977,6 +3182,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -3207,7 +3413,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/:
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances:
     get:
       tags:
       - Task Instance
@@ -3358,6 +3564,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -3365,6 +3572,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -3412,12 +3620,31 @@ paths:
       summary: Get Task Instances Batch
       description: Get list of task instances.
       operationId: get_task_instances_batch
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          enum:
+          - '~'
+          const: '~'
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          enum:
+          - '~'
+          const: '~'
+          type: string
+          title: Dag Run Id
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/TaskInstancesBatchBody'
-        required: true
       responses:
         '200':
           description: Successful Response
@@ -3426,23 +3653,93 @@ paths:
               schema:
                 $ref: '#/components/schemas/TaskInstanceCollectionResponse'
         '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '404':
-          description: Not Found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}:
+    get:
+      tags:
+      - Task Instance
+      summary: Get Task Instance Try Details
+      description: Get task instance details by try number.
+      operationId: get_task_instance_try_details
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: task_try_number
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Task Try Number
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceHistoryResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -3727,6 +4024,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -3734,6 +4032,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -4930,9 +5229,19 @@ components:
           - type: string
           - type: 'null'
           title: Content
+        dag_id:
+          type: string
+          title: Dag Id
+        version_number:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Version Number
       type: object
       required:
       - content
+      - dag_id
+      - version_number
       title: DAGSourceResponse
       description: DAG Source serializer for responses.
     DAGTagCollectionResponse:
@@ -5958,6 +6267,126 @@ components:
       - total_entries
       title: TaskInstanceCollectionResponse
       description: Task Instance Collection serializer for responses.
+    TaskInstanceHistoryResponse:
+      properties:
+        task_id:
+          type: string
+          title: Task Id
+        dag_id:
+          type: string
+          title: Dag Id
+        dag_run_id:
+          type: string
+          title: Dag Run Id
+        map_index:
+          type: integer
+          title: Map Index
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration
+        state:
+          anyOf:
+          - $ref: '#/components/schemas/TaskInstanceState'
+          - type: 'null'
+        try_number:
+          type: integer
+          title: Try Number
+        max_tries:
+          type: integer
+          title: Max Tries
+        task_display_name:
+          type: string
+          title: Task Display Name
+        hostname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hostname
+        unixname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Unixname
+        pool:
+          type: string
+          title: Pool
+        pool_slots:
+          type: integer
+          title: Pool Slots
+        queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue
+        priority_weight:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Priority Weight
+        operator:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Operator
+        queued_when:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Queued When
+        pid:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Pid
+        executor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Executor
+        executor_config:
+          type: string
+          title: Executor Config
+      type: object
+      required:
+      - task_id
+      - dag_id
+      - dag_run_id
+      - map_index
+      - start_date
+      - end_date
+      - duration
+      - state
+      - try_number
+      - max_tries
+      - task_display_name
+      - hostname
+      - unixname
+      - pool
+      - pool_slots
+      - queue
+      - priority_weight
+      - operator
+      - queued_when
+      - pid
+      - executor
+      - executor_config
+      title: TaskInstanceHistoryResponse
+      description: TaskInstanceHistory serializer for responses.
     TaskInstanceResponse:
       properties:
         id:

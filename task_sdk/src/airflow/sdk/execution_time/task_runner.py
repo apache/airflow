@@ -28,8 +28,8 @@ import attrs
 import structlog
 from pydantic import ConfigDict, TypeAdapter
 
-from airflow.sdk import BaseOperator
 from airflow.sdk.api.datamodels._generated import TaskInstance
+from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor, ToTask
 
 if TYPE_CHECKING:

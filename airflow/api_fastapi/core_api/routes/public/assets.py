@@ -80,7 +80,7 @@ def _generate_queued_event_where_clause(
 
 @assets_router.get(
     "/assets",
-    responses=create_openapi_http_exception_doc([401, 403, 404]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_assets(
     limit: QueryLimit,
@@ -115,7 +115,7 @@ def get_assets(
 
 @assets_router.get(
     "/assets/events",
-    responses=create_openapi_http_exception_doc([404]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_asset_events(
     limit: QueryLimit,
@@ -165,7 +165,7 @@ def get_asset_events(
 
 @assets_router.post(
     "/assets/events",
-    responses=create_openapi_http_exception_doc([404]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def create_asset_event(
     body: CreateAssetEventsBody,
@@ -174,7 +174,7 @@ def create_asset_event(
     """Create asset events."""
     asset = session.scalar(select(AssetModel).where(AssetModel.uri == body.uri).limit(1))
     if not asset:
-        raise HTTPException(404, f"Asset with uri: `{body.uri}` was not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with uri: `{body.uri}` was not found")
     timestamp = timezone.utcnow()
 
     assets_event = asset_manager.register_asset_change(
@@ -185,13 +185,13 @@ def create_asset_event(
     )
 
     if not assets_event:
-        raise HTTPException(404, f"Asset with uri: `{body.uri}` was not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with uri: `{body.uri}` was not found")
     return AssetEventResponse.model_validate(assets_event, from_attributes=True)
 
 
 @assets_router.get(
     "/assets/{uri:path}",
-    responses=create_openapi_http_exception_doc([401, 403, 404]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_asset(
     uri: str,
@@ -254,6 +254,59 @@ def get_dag_asset_queued_events(
     )
 
 
+@assets_router.get(
+    "/dags/{dag_id}/assets/queuedEvent/{uri:path}",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
+def get_dag_asset_queued_event(
+    dag_id: str,
+    uri: str,
+    session: Annotated[Session, Depends(get_session)],
+    before: OptionalDateTimeQuery = None,
+) -> QueuedEventResponse:
+    """Get a queued asset event for a DAG."""
+    where_clause = _generate_queued_event_where_clause(dag_id=dag_id, uri=uri, before=before)
+    query = (
+        select(AssetDagRunQueue)
+        .join(AssetModel, AssetDagRunQueue.asset_id == AssetModel.id)
+        .where(*where_clause)
+    )
+    adrq = session.scalar(query)
+    if not adrq:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"Queued event with dag_id: `{dag_id}` and asset uri: `{uri}` was not found",
+        )
+
+    return QueuedEventResponse(created_at=adrq.created_at, dag_id=adrq.target_dag_id, uri=uri)
+
+
+@assets_router.delete(
+    "/assets/queuedEvent/{uri:path}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
+def delete_asset_queued_events(
+    uri: str,
+    session: Annotated[Session, Depends(get_session)],
+    before: OptionalDateTimeQuery = None,
+):
+    """Delete queued asset events for an asset."""
+    where_clause = _generate_queued_event_where_clause(uri=uri, before=before)
+    delete_stmt = delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
+    result = session.execute(delete_stmt)
+    if result.rowcount == 0:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=f"Queue event with uri: `{uri}` was not found")
+
+
 @assets_router.delete(
     "/dags/{dag_id}/assets/queuedEvent",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -276,3 +329,32 @@ def delete_dag_asset_queued_events(
 
     if result.rowcount == 0:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with dag_id: `{dag_id}` was not found")
+
+
+@assets_router.delete(
+    "/dags/{dag_id}/assets/queuedEvent/{uri:path}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
+def delete_dag_asset_queued_event(
+    dag_id: str,
+    uri: str,
+    session: Annotated[Session, Depends(get_session)],
+    before: OptionalDateTimeQuery = None,
+):
+    """Delete a queued asset event for a DAG."""
+    where_clause = _generate_queued_event_where_clause(dag_id=dag_id, before=before, uri=uri)
+    delete_statement = (
+        delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
+    )
+    result = session.execute(delete_statement)
+    if result.rowcount == 0:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            detail=f"Queued event with dag_id: `{dag_id}` and asset uri: `{uri}` was not found",
+        )
