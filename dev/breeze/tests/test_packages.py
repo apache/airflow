@@ -209,8 +209,9 @@ def test_get_documentation_package_path():
             "postgres",
             "beta0",
             """
-    "apache-airflow-providers-common-sql>=1.17.1b0",
+    "apache-airflow-providers-common-sql>=1.20.0b0",
     "apache-airflow>=2.8.0b0",
+    "asyncpg>=0.30.0",
     "psycopg2-binary>=2.9.4",
     """,
             id="beta0 suffix postgres",
@@ -219,8 +220,9 @@ def test_get_documentation_package_path():
             "postgres",
             "",
             """
-    "apache-airflow-providers-common-sql>=1.17.1",
+    "apache-airflow-providers-common-sql>=1.20.0",
     "apache-airflow>=2.8.0",
+    "asyncpg>=0.30.0",
     "psycopg2-binary>=2.9.4",
     """,
             id="No suffix postgres",

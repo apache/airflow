@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+5.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Start porting DAG definition code to the Task SDK (#43076)``
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 5.8.1
 .....
 

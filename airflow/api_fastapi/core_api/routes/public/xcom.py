@@ -43,8 +43,6 @@ xcom_router = AirflowRouter(
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
         ]
     ),
@@ -90,7 +88,7 @@ def get_xcom_entry(
         xcom_stub.value = XCom.deserialize_value(xcom_stub)
         item = xcom_stub
 
-    if stringify or conf.getboolean("core", "enable_xcom_pickling"):
+    if stringify:
         return XComResponseString.model_validate(item, from_attributes=True)
 
     return XComResponseNative.model_validate(item, from_attributes=True)

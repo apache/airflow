@@ -18,16 +18,15 @@ from __future__ import annotations
 
 import logging
 import struct
-from typing import TYPE_CHECKING, Collection
+from typing import TYPE_CHECKING
 
 import uuid6
-from sqlalchemy import BigInteger, Column, ForeignKey, String, Text, delete, select
+from sqlalchemy import BigInteger, Column, ForeignKey, String, Text, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import literal
 from sqlalchemy_utils import UUIDType
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.exceptions import DagCodeNotFound
 from airflow.models.base import Base
@@ -58,7 +57,7 @@ class DagCode(Base):
     fileloc_hash = Column(BigInteger, nullable=False)
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
-    last_updated = Column(UtcDateTime, nullable=False)
+    created_at = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
     source_code = Column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)
     dag_version_id = Column(
         UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"), nullable=False, unique=True
@@ -74,7 +73,7 @@ class DagCode(Base):
 
     @classmethod
     @provide_session
-    def write_dag(cls, dag_version: DagVersion, fileloc: str, session: Session = NEW_SESSION) -> DagCode:
+    def write_code(cls, dag_version: DagVersion, fileloc: str, session: Session = NEW_SESSION) -> DagCode:
         """
         Write code into database.
 
@@ -86,36 +85,6 @@ class DagCode(Base):
         session.add(dag_code)
         log.debug("DAG file %s written into DagCode table", fileloc)
         return dag_code
-
-    @classmethod
-    @internal_api_call
-    @provide_session
-    def remove_deleted_code(
-        cls,
-        alive_dag_filelocs: Collection[str],
-        processor_subdir: str,
-        session: Session = NEW_SESSION,
-    ) -> None:
-        """
-        Delete code not included in alive_dag_filelocs.
-
-        :param alive_dag_filelocs: file paths of alive DAGs
-        :param processor_subdir: dag processor subdir
-        :param session: ORM Session
-        """
-        alive_fileloc_hashes = [cls.dag_fileloc_hash(fileloc) for fileloc in alive_dag_filelocs]
-
-        log.debug("Deleting code from %s table ", cls.__tablename__)
-
-        session.execute(
-            delete(cls)
-            .where(
-                cls.fileloc_hash.notin_(alive_fileloc_hashes),
-                cls.fileloc.notin_(alive_dag_filelocs),
-                cls.fileloc.contains(processor_subdir),
-            )
-            .execution_options(synchronize_session="fetch")
-        )
 
     @classmethod
     @provide_session
@@ -172,7 +141,7 @@ class DagCode(Base):
         dag_code = session.scalar(
             select(cls)
             .where(cls.fileloc_hash == cls.dag_fileloc_hash(fileloc))
-            .order_by(cls.last_updated.desc())
+            .order_by(cls.created_at.desc())
             .limit(1)
         )
         if not dag_code:
@@ -194,4 +163,9 @@ class DagCode(Base):
         import hashlib
 
         # Only 7 bytes because MySQL BigInteger can hold only 8 bytes (signed).
-        return struct.unpack(">Q", hashlib.sha1(full_filepath.encode("utf-8")).digest()[-8:])[0] >> 8
+        return (
+            struct.unpack(
+                ">Q", hashlib.sha1(full_filepath.encode("utf-8"), usedforsecurity=False).digest()[-8:]
+            )[0]
+            >> 8
+        )

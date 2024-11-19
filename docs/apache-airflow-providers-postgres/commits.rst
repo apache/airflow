@@ -35,16 +35,34 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.14.0
+......
+
+Latest change: 2024-11-13
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`e7194dff6a <https://github.com/apache/airflow/commit/e7194dff6a816bf3a721cbf579ceac19c11cd111>`_  2024-11-13   ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+`1363cc5f8c <https://github.com/apache/airflow/commit/1363cc5f8c11a3fbcd41e2da3ed6fbb7f257a14f>`_  2024-11-08   ``Fix PostgresHook bug when getting AWS Redshift Serverless credentials (#43807)``
+`43f3c31d28 <https://github.com/apache/airflow/commit/43f3c31d28dd8ebd8dcc8a42bd17f642e94313b3>`_  2024-11-06   ``Add AWS Redshift Serverless support to PostgresHook (#43669)``
+`d8c7d28411 <https://github.com/apache/airflow/commit/d8c7d28411bea04ae5771fc1e2973d92eb0a144e>`_  2024-10-30   ``Start porting DAG definition code to the Task SDK (#43076)``
+`b540eb0bfa <https://github.com/apache/airflow/commit/b540eb0bfa10309d3b57462223ae30331de6ce2c>`_  2024-10-18   ``Add docs about 'cursor' extra param in Postgres Connection (#43134)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ========================================================================================
+
 5.13.1
 ......
 
-Latest change: 2024-09-30
+Latest change: 2024-10-09
 
-=================================================================================================  ===========  ==================================================================
+=================================================================================================  ===========  ===================================================================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ==================================================================
+=================================================================================================  ===========  ===================================================================================================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
 `ede7cb27fd <https://github.com/apache/airflow/commit/ede7cb27fd39e233889d127490a2255df8c5d27d>`_  2024-09-30   ``Rename dataset related python variable names to asset (#41348)``
-=================================================================================================  ===========  ==================================================================
+`6f986d2b6c <https://github.com/apache/airflow/commit/6f986d2b6c518f60eab175afb4c360aea9984d50>`_  2024-09-29   ``Documentation change to highlight difference in usage between params and parameters attributes in SQLExecuteQueryOperator for Postgres (#42564)``
+=================================================================================================  ===========  ===================================================================================================================================================
 
 5.13.0
 ......
@@ -106,6 +124,7 @@ Latest change: 2024-05-26
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
 `34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`cb57a677be <https://github.com/apache/airflow/commit/cb57a677be8e189ad3c4a077c0d476cb9f250df2>`_  2024-05-22   ``removing deprecation postgres (#39706)``
 `2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
 `2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
 `4ada175e3d <https://github.com/apache/airflow/commit/4ada175e3dc75b92dd13840d449917772a9b7c89>`_  2024-05-09   ``fix: use 'sqlalchemy_url' property in 'get_uri' for postgresql provider (#38831)``
@@ -199,6 +218,8 @@ Commit                                                                          
 =================================================================================================  ===========  ==================================================================
 `1b059c57d6 <https://github.com/apache/airflow/commit/1b059c57d6d57d198463e5388138bee8a08591b1>`_  2023-11-08   ``Prepare docs 1st wave of Providers November 2023 (#35537)``
 `a777bf89e2 <https://github.com/apache/airflow/commit/a777bf89e2a1a3a19fbb5e8c879fa26697efc38a>`_  2023-11-07   ``Refactor cursor retrieval in PostgresHook. (#35498)``
+`706878ec35 <https://github.com/apache/airflow/commit/706878ec354cf867440c367a95c85753c19e54de>`_  2023-11-04   ``Remove empty lines in generated changelog (#35436)``
+`052e26ad47 <https://github.com/apache/airflow/commit/052e26ad473a9d50f0b96456ed094f2087ee4434>`_  2023-11-04   ``Change security.rst to use includes in providers (#35435)``
 `d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
 `3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
 `dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
@@ -253,6 +274,7 @@ Commit                                                                          
 =================================================================================================  ===========  ================================================================================
 `d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
 `6b113816f5 <https://github.com/apache/airflow/commit/6b113816f509980ce5cd9389305a66b4203d8018>`_  2023-07-26   ``openlineage, postgres: add OpenLineage support for Postgres (#31617)``
+`73b90c48b1 <https://github.com/apache/airflow/commit/73b90c48b1933b49086d34176527947bd727ec85>`_  2023-07-21   ``Allow configuration to be contributed by providers (#32604)``
 `e01323635a <https://github.com/apache/airflow/commit/e01323635a88ecf313a415ea41d32d6d28fa0794>`_  2023-07-13   ``Add deprecation info to the providers modules and classes docstring (#32536)``
 =================================================================================================  ===========  ================================================================================
 
@@ -296,11 +318,13 @@ Commit                                                                          
 `45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
 `abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
 `f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`7ebda3898d <https://github.com/apache/airflow/commit/7ebda3898db2eee72d043a9565a674dea72cd8fa>`_  2023-05-17   ``Fix missing line in index.rst for provider documentation (#31343)``
 `d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
 `0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
 `eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
 `a7eb32a5b2 <https://github.com/apache/airflow/commit/a7eb32a5b222e236454d3e474eec478ded7c368d>`_  2023-04-30   ``Bump minimum Airflow version in providers (#30917)``
 `d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``
+`2b92c3c74d <https://github.com/apache/airflow/commit/2b92c3c74d3259ebac714f157c525836f0af50f0>`_  2023-01-05   ``Fix providers documentation formatting (#28754)``
 =================================================================================================  ===========  ======================================================================================
 
 5.4.0
@@ -313,6 +337,7 @@ Commit                                                                          
 =================================================================================================  ===========  ========================================================================
 `5246c009c5 <https://github.com/apache/airflow/commit/5246c009c557b4f6bdf1cd62bf9b89a2da63f630>`_  2023-01-02   ``Prepare docs for Jan 2023 wave of Providers (#28651)``
 `cfd8bd9344 <https://github.com/apache/airflow/commit/cfd8bd9344a6ed17614a0da5453a0ae39a1d49dc>`_  2022-12-12   ``Bring back psycopg2-binary as dependency instead of psycopg (#28316)``
+`c8e348dcb0 <https://github.com/apache/airflow/commit/c8e348dcb0bae27e98d68545b59388c9f91fc382>`_  2022-12-05   ``Add automated version replacement in example dag indexes (#28090)``
 =================================================================================================  ===========  ========================================================================
 
 5.3.1
@@ -398,6 +423,7 @@ Commit                                                                          
 `46bbfdade0 <https://github.com/apache/airflow/commit/46bbfdade0638cb8a5d187e47034b84e68ddf762>`_  2022-07-07   ``Move all SQL classes to common-sql provider (#24836)``
 `0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
 `510a6bab45 <https://github.com/apache/airflow/commit/510a6bab4595cce8bd5b1447db957309d70f35d9>`_  2022-06-28   ``Remove 'hook-class-names' from provider.yaml (#24702)``
+`08b675cf66 <https://github.com/apache/airflow/commit/08b675cf6642171cb1c5ddfb09607b541db70b29>`_  2022-06-13   ``Fix links to sources for examples (#24386)``
 =================================================================================================  ===========  ==================================================================
 
 5.0.0
@@ -413,6 +439,7 @@ Commit                                                                          
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
 `c60bb9edc0 <https://github.com/apache/airflow/commit/c60bb9edc0c9b55a2824eae879af8a4a90ccdd2d>`_  2022-06-03   ``Migrate Postgres example DAGs to new design #22458 (#24148)``
+`b2c31ee3fa <https://github.com/apache/airflow/commit/b2c31ee3fab437bfbe543c7fe742b9e6c38ffb2a>`_  2022-05-19   ``postgres_operator_howto_guide.rst (#23789)``
 =================================================================================================  ===========  ==================================================================================
 
 4.1.0
@@ -448,6 +475,7 @@ Commit                                                                          
 =================================================================================================  ===========  ========================================================
 `f5b96315fe <https://github.com/apache/airflow/commit/f5b96315fe65b99c0e2542831ff73a3406c4232d>`_  2022-03-07   ``Add documentation for Feb Providers release (#22056)``
 `59c450ee54 <https://github.com/apache/airflow/commit/59c450ee5425a2d23ef813dbf219cde14df7c85c>`_  2022-02-25   ``Make DbApiHook use get_uri from Connection (#21764)``
+`fd1bb36a49 <https://github.com/apache/airflow/commit/fd1bb36a49e05622d8ed0b20281aa2b5275c32af>`_  2022-02-10   ``Update link in Postgres connection doc (#21490)``
 =================================================================================================  ===========  ========================================================
 
 3.0.0
@@ -471,6 +499,8 @@ Commit                                                                          
 `d56e7b56bb <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
 `a0821235fb <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
 `dad2f8103b <https://github.com/apache/airflow/commit/dad2f8103be954afaedf15e9d098ee417b0d5d02>`_  2021-12-15   ``Fix mypy providers (#20190)``
+`43de625d42 <https://github.com/apache/airflow/commit/43de625d4246af7014f64941f8effb09997731cb>`_  2021-12-01   ``Correctly capitalize names and abbreviations in docs (#19908)``
+`9a469d813f <https://github.com/apache/airflow/commit/9a469d813fc083a7a5f402727e93df3e3f9c9118>`_  2021-11-30   ``Capitalize names in docs (#19893)``
 =================================================================================================  ===========  =================================================================================
 
 2.4.0
@@ -488,6 +518,7 @@ Commit                                                                          
 `4be04143a5 <https://github.com/apache/airflow/commit/4be04143a5f7e246127e942bf1d73abcd22ce189>`_  2021-11-24   ``Adjust built-in base_aws methods to avoid Deprecation warnings (#19725)``
 `355dec8fea <https://github.com/apache/airflow/commit/355dec8fea5e2ef1a9b88363f201fce4f022fef3>`_  2021-11-17   ``Misc. documentation typos and language improvements (#19599)``
 `d9567eb106 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
+`33a52fa3de <https://github.com/apache/airflow/commit/33a52fa3de083384cb597800a9f31418389d86c1>`_  2021-10-25   ``Update to correctly resolve 'PostgresOperator' (#19212)``
 `86a2a19ad2 <https://github.com/apache/airflow/commit/86a2a19ad2bdc87a9ad14bb7fde9313b2d7489bb>`_  2021-10-17   ``More f-strings (#18855)``
 =================================================================================================  ===========  =============================================================================================
 
@@ -503,6 +534,8 @@ Commit                                                                          
 `ef037e7021 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
 `778be7993d <https://github.com/apache/airflow/commit/778be7993d4a8d752680d04db4edeb793386fa0c>`_  2021-09-14   ``Fix example dag of PostgresOperator (#18236)``
 `81ebd78db4 <https://github.com/apache/airflow/commit/81ebd78db48a4876377dc20d361a7938be11373a>`_  2021-09-12   ``Added upsert method on S3ToRedshift operator (#18027)``
+`1cb456cba1 <https://github.com/apache/airflow/commit/1cb456cba1099198bbdba50c2d1ad79664be8ce6>`_  2021-09-12   ``Add official download page for providers (#18187)``
+`046f02e5a7 <https://github.com/apache/airflow/commit/046f02e5a7097a6e6c928c28196b38b37e776916>`_  2021-09-09   ``fix misspelling (#18121)``
 =================================================================================================  ===========  ======================================================================================
 
 2.2.0
@@ -550,6 +583,8 @@ Commit                                                                          
 `1fba5402bb <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
 `d99afc3c21 <https://github.com/apache/airflow/commit/d99afc3c21020e78fa3c5d2c80efce818ad2870c>`_  2021-06-13   ``postgres_hook_aws_conn_id (#16100)``
 `9c94b72d44 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
+`1e647029e4 <https://github.com/apache/airflow/commit/1e647029e469c1bb17e9ad051d0184f3357644c3>`_  2021-06-01   ``Rename the main branch of the Airflow repo to be 'main' (#16149)``
+`904709d34f <https://github.com/apache/airflow/commit/904709d34fbe0b6062d72932b72954afe13ec148>`_  2021-05-27   ``Check synctatic correctness for code-snippets (#16005)``
 `9c8391a13f <https://github.com/apache/airflow/commit/9c8391a13f6ba29749675cf23f2f874f96b0cc8c>`_  2021-05-10   ``Fix spelling (#15699)``
 `37681bca00 <https://github.com/apache/airflow/commit/37681bca0081dd228ac4047c17631867bba7a66f>`_  2021-05-07   ``Auto-apply apply_default decorator (#15667)``
 `fc845caf78 <https://github.com/apache/airflow/commit/fc845caf785d2fe3f943a1120c743c983130ec27>`_  2021-05-02   ``PostgresHook: deepcopy connection to avoid mutating connection obj (#15412)``
@@ -575,9 +610,9 @@ Commit                                                                          
 
 Latest change: 2021-02-04
 
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  =========================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  =========================================================
 `88bdcfa0df <https://github.com/apache/airflow/commit/88bdcfa0df5bcb4c489486e05826544b428c8f43>`_  2021-02-04   ``Prepare to release a new wave of providers. (#14013)``
 `ac2f72c98d <https://github.com/apache/airflow/commit/ac2f72c98dc0821b33721054588adbf2bb53bb0b>`_  2021-02-01   ``Implement provider versioning tools (#13767)``
 `a9ac2b040b <https://github.com/apache/airflow/commit/a9ac2b040b64de1aa5d9c2b9def33334e36a8d22>`_  2021-01-23   ``Switch to f-strings using flynt. (#13732)``
@@ -585,7 +620,8 @@ Commit                                                                          
 `9c75ea3c14 <https://github.com/apache/airflow/commit/9c75ea3c14b71d2f96d997aeef68c764c7d2984c>`_  2021-01-06   ``Add How-To guide for PostgresOperator (#13281)``
 `295d66f914 <https://github.com/apache/airflow/commit/295d66f91446a69610576d040ba687b38f1c5d0a>`_  2020-12-30   ``Fix Grammar in PIP warning (#13380)``
 `6cf76d7ac0 <https://github.com/apache/airflow/commit/6cf76d7ac01270930de7f105fb26428763ee1d4e>`_  2020-12-18   ``Fix typo in pip upgrade command :( (#13148)``
-=================================================================================================  ===========  ========================================================
+`f6448b4e48 <https://github.com/apache/airflow/commit/f6448b4e482fd96339ae65c26d08e6a2bdb51aaf>`_  2020-12-15   ``Add link to PyPI Repository to provider docs (#13064)``
+=================================================================================================  ===========  =========================================================
 
 1.0.0
 .....
@@ -599,6 +635,7 @@ Commit                                                                          
 `b40dffa085 <https://github.com/apache/airflow/commit/b40dffa08547b610162f8cacfa75847f3c4ca364>`_  2020-12-08   ``Rename remaing modules to match AIP-21 (#12917)``
 `9b39f24780 <https://github.com/apache/airflow/commit/9b39f24780e85f859236672e9060b2fbeee81b36>`_  2020-12-08   ``Add support for dynamic connection form fields per provider (#12558)``
 `2037303eef <https://github.com/apache/airflow/commit/2037303eef93fd36ab13746b045d1c1fee6aa143>`_  2020-11-29   ``Adds support for Connection/Hook discovery from providers (#12466)``
+`de3b1e687b <https://github.com/apache/airflow/commit/de3b1e687b26c524c6909b7b4dfbb60d25019751>`_  2020-11-28   ``Move connection guides to provider documentation packages (#12653)``
 `c34ef853c8 <https://github.com/apache/airflow/commit/c34ef853c890e08f5468183c03dc8f3f3ce84af2>`_  2020-11-20   ``Separate out documentation building per provider  (#12444)``
 `0080354502 <https://github.com/apache/airflow/commit/00803545023b096b8db4fbd6eb473843096d7ce4>`_  2020-11-18   ``Update provider READMEs for 1.0.0b2 batch release (#12449)``
 `ae7cb4a1e2 <https://github.com/apache/airflow/commit/ae7cb4a1e2a96351f1976cf5832615e24863e05d>`_  2020-11-17   ``Update wrong commit hash in backport provider changes (#12390)``

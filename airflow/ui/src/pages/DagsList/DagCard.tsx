@@ -30,6 +30,7 @@ import { Link as RouterLink } from "react-router-dom";
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import DagRunInfo from "src/components/DagRunInfo";
 import { TogglePause } from "src/components/TogglePause";
+import TriggerDAGIconButton from "src/components/TriggerDag/TriggerDAGIconButton";
 import { Tooltip } from "src/components/ui";
 
 import { DagTags } from "./DagTags";
@@ -73,17 +74,18 @@ export const DagCard = ({ dag }: Props) => {
         </HStack>
         <HStack>
           <TogglePause dagId={dag.dag_id} isPaused={dag.is_paused} />
+          <TriggerDAGIconButton dag={dag} />
         </HStack>
       </Flex>
       <SimpleGrid columns={4} gap={4} height={20} px={3} py={2}>
         <VStack align="flex-start" gap={1}>
-          <Heading color="gray.500" fontSize="xs">
+          <Heading color="fg.muted" fontSize="xs">
             Schedule
           </Heading>
           <Schedule dag={dag} />
         </VStack>
         <VStack align="flex-start" gap={1}>
-          <Heading color="gray.500" fontSize="xs">
+          <Heading color="fg.muted" fontSize="xs">
             Latest Run
           </Heading>
           {latestRun ? (
@@ -91,13 +93,13 @@ export const DagCard = ({ dag }: Props) => {
               dataIntervalEnd={latestRun.data_interval_end}
               dataIntervalStart={latestRun.data_interval_start}
               endDate={latestRun.end_date}
-              logicalDate={latestRun.logical_date}
               startDate={latestRun.start_date}
+              state={latestRun.state}
             />
           ) : undefined}
         </VStack>
         <VStack align="flex-start" gap={1}>
-          <Heading color="gray.500" fontSize="xs">
+          <Heading color="fg.muted" fontSize="xs">
             Next Run
           </Heading>
           {Boolean(dag.next_dagrun) ? (

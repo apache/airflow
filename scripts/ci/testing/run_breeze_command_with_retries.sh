@@ -28,6 +28,7 @@ for i in $(seq 1 "$NUMBER_OF_ATTEMPT") ; do
     breeze down
     set +e
     if breeze "$@"; then
+        set -e
         exit 0
     else
         echo

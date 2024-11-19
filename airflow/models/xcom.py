@@ -20,7 +20,6 @@ from __future__ import annotations
 import inspect
 import json
 import logging
-import pickle
 from typing import TYPE_CHECKING, Any, Iterable, cast
 
 from sqlalchemy import (
@@ -111,7 +110,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         lazy="joined",
         passive_deletes="all",
     )
-    execution_date = association_proxy("dag_run", "execution_date")
+    logical_date = association_proxy("dag_run", "logical_date")
 
     @reconstructor
     def init_on_load(self):
@@ -374,12 +373,12 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             query = query.filter(BaseXCom.map_index == map_indexes)
 
         if include_prior_dates:
-            dr = session.query(DagRun.execution_date).filter(DagRun.run_id == run_id).subquery()
-            query = query.filter(BaseXCom.execution_date <= dr.c.execution_date)
+            dr = session.query(DagRun.logical_date).filter(DagRun.run_id == run_id).subquery()
+            query = query.filter(BaseXCom.logical_date <= dr.c.logical_date)
         else:
             query = query.filter(BaseXCom.run_id == run_id)
 
-        query = query.order_by(DagRun.execution_date.desc(), BaseXCom.timestamp.desc())
+        query = query.order_by(DagRun.logical_date.desc(), BaseXCom.timestamp.desc())
         if limit:
             return query.limit(limit)
         return query
@@ -424,7 +423,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
-        # Given the historic order of this function (execution_date was first argument) to add a new optional
+        # Given the historic order of this function (logical_date was first argument) to add a new optional
         # param we need to add default values for everything :(
         if dag_id is None:
             raise TypeError("clear() missing required argument: dag_id")
@@ -455,21 +454,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         run_id: str | None = None,
         map_index: int | None = None,
     ) -> Any:
-        """Serialize XCom value to str or pickled object."""
-        if conf.getboolean("core", "enable_xcom_pickling"):
-            return pickle.dumps(value)
-        try:
-            return json.dumps(value, cls=XComEncoder).encode("UTF-8")
-        except (ValueError, TypeError) as ex:
-            log.error(
-                "%s."
-                " If you are using pickle instead of JSON for XCom,"
-                " then you need to enable pickle support for XCom"
-                " in your airflow config or make sure to decorate your"
-                " object with attr.",
-                ex,
-            )
-            raise
+        """Serialize XCom value to JSON str."""
+        return json.dumps(value, cls=XComEncoder).encode("UTF-8")
 
     @staticmethod
     def _deserialize_value(result: XCom, orm: bool) -> Any:
@@ -479,14 +465,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
         if result.value is None:
             return None
-        if conf.getboolean("core", "enable_xcom_pickling"):
-            try:
-                return pickle.loads(result.value)
-            except pickle.UnpicklingError:
-                return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
-        else:
-            # Since xcom_pickling is disabled, we should only try to deserialize with JSON
-            return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
+
+        return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
 
     @staticmethod
     def deserialize_value(result: XCom) -> Any:

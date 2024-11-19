@@ -68,7 +68,7 @@ def make_dag_runs(dag_maker, session, time_machine):
         run_id="run_1",
         state=DagRunState.SUCCESS,
         run_type=DagRunType.SCHEDULED,
-        execution_date=date,
+        logical_date=date,
         start_date=date,
     )
 
@@ -76,7 +76,7 @@ def make_dag_runs(dag_maker, session, time_machine):
         run_id="run_2",
         state=DagRunState.FAILED,
         run_type=DagRunType.ASSET_TRIGGERED,
-        execution_date=date + timedelta(days=1),
+        logical_date=date + timedelta(days=1),
         start_date=date + timedelta(days=1),
     )
 
@@ -84,7 +84,7 @@ def make_dag_runs(dag_maker, session, time_machine):
         run_id="run_3",
         state=DagRunState.RUNNING,
         run_type=DagRunType.SCHEDULED,
-        execution_date=pendulum.DateTime(2023, 2, 3, 0, 0, 0, tzinfo=pendulum.UTC),
+        logical_date=pendulum.DateTime(2023, 2, 3, 0, 0, 0, tzinfo=pendulum.UTC),
         start_date=pendulum.DateTime(2023, 2, 3, 0, 0, 0, tzinfo=pendulum.UTC),
     )
     run3.end_date = None

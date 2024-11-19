@@ -158,6 +158,8 @@ class DbApiHook(BaseHook):
     conn_name_attr: str
     # Override to have a default connection id for a particular dbHook
     default_conn_name = "default_conn_id"
+    # Override if this db doesn't support semicolons in SQL queries
+    strip_semicolon = False
     # Override if this db supports autocommit.
     supports_autocommit = False
     # Override if this db supports executemany.
@@ -432,14 +434,18 @@ class DbApiHook(BaseHook):
         return sql.strip().rstrip(";")
 
     @staticmethod
-    def split_sql_string(sql: str) -> list[str]:
+    def split_sql_string(sql: str, strip_semicolon: bool = False) -> list[str]:
         """
         Split string into multiple SQL expressions.
 
         :param sql: SQL string potentially consisting of multiple expressions
+        :param strip_semicolon: whether to strip semicolon from SQL string
         :return: list of individual expressions
         """
-        splits = sqlparse.split(sqlparse.format(sql, strip_comments=True))
+        splits = sqlparse.split(
+            sql=sqlparse.format(sql, strip_comments=True),
+            strip_semicolon=strip_semicolon,
+        )
         return [s for s in splits if s]
 
     @property
@@ -534,7 +540,10 @@ class DbApiHook(BaseHook):
 
         if isinstance(sql, str):
             if split_statements:
-                sql_list: Iterable[str] = self.split_sql_string(sql)
+                sql_list: Iterable[str] = self.split_sql_string(
+                    sql=sql,
+                    strip_semicolon=self.strip_semicolon,
+                )
             else:
                 sql_list = [sql] if sql.strip() else []
         else:

@@ -40,6 +40,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_airflow_debug_facet,
     get_airflow_run_facet,
     get_fully_qualified_class_name,
+    get_processing_engine_facet,
     is_operator_disabled,
 )
 from airflow.serialization.enums import DagAttributeTypes
@@ -346,14 +347,14 @@ def test_serialize_timetable():
         "asset_condition": {
             "__type": DagAttributeTypes.ASSET_ANY,
             "objects": [
-                {"__type": DagAttributeTypes.ASSET, "extra": {}, "uri": "2"},
+                {"__type": DagAttributeTypes.ASSET, "extra": {}, "name": "2", "uri": "2"},
                 {"__type": DagAttributeTypes.ASSET_ANY, "objects": []},
-                {"__type": DagAttributeTypes.ASSET, "extra": {}, "uri": "3"},
+                {"__type": DagAttributeTypes.ASSET, "extra": {}, "name": "3", "uri": "3"},
                 {
                     "__type": DagAttributeTypes.ASSET_ALL,
                     "objects": [
                         {"__type": DagAttributeTypes.ASSET_ANY, "objects": []},
-                        {"__type": DagAttributeTypes.ASSET, "extra": {}, "uri": "4"},
+                        {"__type": DagAttributeTypes.ASSET, "extra": {}, "name": "4", "uri": "4"},
                     ],
                 },
             ],
@@ -438,3 +439,19 @@ def test_serialize_timetable_2_8():
             ],
         }
     }
+
+
+@pytest.mark.parametrize(
+    ("airflow_version", "ol_version"),
+    [
+        ("2.9.3", "1.12.2"),
+        ("2.10.1", "1.13.0"),
+        ("3.0.0", "1.14.0"),
+    ],
+)
+def test_get_processing_engine_facet(airflow_version, ol_version):
+    with patch("airflow.providers.openlineage.utils.utils.AIRFLOW_VERSION", airflow_version):
+        with patch("airflow.providers.openlineage.utils.utils.OPENLINEAGE_PROVIDER_VERSION", ol_version):
+            result = get_processing_engine_facet()
+            assert result["processing_engine"].version == airflow_version
+            assert result["processing_engine"].openlineageAdapterVersion == ol_version

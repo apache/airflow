@@ -217,19 +217,6 @@ class DataprocHook(GoogleBaseHook):
     keyword arguments rather than positional.
     """
 
-    def __init__(
-        self,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
-        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
-
     def get_cluster_client(self, region: str | None = None) -> ClusterControllerClient:
         """Create a ClusterControllerClient."""
         client_options = None
@@ -1219,12 +1206,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
-        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
+        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
         self._cached_client: JobControllerAsyncClient | None = None
 
     def get_cluster_client(self, region: str | None = None) -> ClusterControllerAsyncClient:

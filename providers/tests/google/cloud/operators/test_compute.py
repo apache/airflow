@@ -229,7 +229,7 @@ class TestGceInstanceInsert:
             get_instance_obj_mock,
         ]
         body_with_templated_name = deepcopy(GCE_INSTANCE_BODY_API_CALL)
-        body_with_templated_name["name"] = "{{ execution_date }}"
+        body_with_templated_name["name"] = "{{ logical_date }}"
         op = ComputeEngineInsertInstanceOperator(
             project_id=GCP_PROJECT_ID,
             resource_id=GCE_RESOURCE_ID,

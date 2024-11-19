@@ -35,8 +35,11 @@
 Changelog
 ---------
 
-1.0.0
+0.0.1
 .....
+
+.. note::
+   This provider created by migrating operators/sensors/hooks from Airflow 2 core.
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
@@ -44,3 +47,5 @@ Breaking changes
 * ``In BranchDayOfWeekOperator, DayOfWeekSensor, BranchDateTimeOperator parameter use_task_execution_date has been removed. Please use use_task_logical_date.``
 * ``PythonVirtualenvOperator uses built-in venv instead of virtualenv package.``
 * ``is_venv_installed method has been removed from PythonVirtualenvOperator as venv is built-in.``
+
+* ``Initial version of the provider. (#41564)``
