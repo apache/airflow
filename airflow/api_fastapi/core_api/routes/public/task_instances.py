@@ -56,7 +56,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.exceptions import TaskNotFound
-from airflow.models import Base
+from airflow.models import Base, DagRun
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.ti_deps.dep_context import DepContext
@@ -303,8 +303,18 @@ def get_task_instances(
     base_query = select(TI).join(TI.dag_run)
 
     if dag_id != "~":
+        dag = request.app.state.dag_bag.get_dag(dag_id)
+        if not dag:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with dag_id: `{dag_id}` was not found")
         base_query = base_query.where(TI.dag_id == dag_id)
+
     if dag_run_id != "~":
+        dag_run = session.scalar(select(DagRun).filter_by(run_id=dag_run_id))
+        if not dag_run:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                f"DagRun with run_id: `{dag_run_id}` was not found",
+            )
         base_query = base_query.where(TI.run_id == dag_run_id)
 
     task_instance_select, total_entries = paginated_select(

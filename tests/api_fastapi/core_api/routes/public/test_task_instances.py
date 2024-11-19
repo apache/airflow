@@ -947,6 +947,15 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert response.json()["total_entries"] == expected_ti
         assert len(response.json()["task_instances"]) == expected_ti
 
+    def test_not_found(self, test_client):
+        response = test_client.get("/public/dags/invalid/dagRuns/~/taskInstances")
+        assert response.status_code == 404
+        assert response.json() == {"detail": "DAG with dag_id: `invalid` was not found"}
+
+        response = test_client.get("/public/dags/~/dagRuns/invalid/taskInstances")
+        assert response.status_code == 404
+        assert response.json() == {"detail": "DagRun with run_id: `invalid` was not found"}
+
     @pytest.mark.xfail(reason="permissions not implemented yet.")
     def test_return_TI_only_from_readable_dags(self, test_client, session):
         task_instances = {
