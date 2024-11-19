@@ -38,7 +38,7 @@ variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
 
 @variables_router.delete(
     "/{variable_key}",
-    status_code=204,
+    status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def delete_variable(
