@@ -1032,7 +1032,8 @@ export class DagSourceService {
    * Get Dag Source
    * Get source code using file token.
    * @param data The data for the request.
-   * @param data.fileToken
+   * @param data.dagId
+   * @param data.versionNumber
    * @param data.accept
    * @returns DAGSourceResponse Successful Response
    * @throws ApiError
@@ -1042,12 +1043,15 @@ export class DagSourceService {
   ): CancelablePromise<GetDagSourceResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dagSources/{file_token}",
+      url: "/public/dagSources/{dag_id}",
       path: {
-        file_token: data.fileToken,
+        dag_id: data.dagId,
       },
       headers: {
         accept: data.accept,
+      },
+      query: {
+        version_number: data.versionNumber,
       },
       errors: {
         400: "Bad Request",

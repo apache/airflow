@@ -877,7 +877,6 @@ def dag_maker(request) -> Generator[DagMaker, None, None]:
                     dagv = DagVersion.write_dag(
                         dag_id=dag.dag_id,
                         session=self.session,
-                        version_name=dag.version_name,
                     )
                     self.session.add(dagv)
                     self.session.flush()
