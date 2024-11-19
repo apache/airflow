@@ -662,7 +662,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
     sql_check_template = """
     SELECT '{check_name}' AS check_name, MIN({check_name}) AS check_result
     FROM (SELECT CASE WHEN {check_statement} THEN 1 ELSE 0 END AS {check_name}
-          FROM {table} {partition_clause}) AS sq
+          FROM {table} {partition_clause}) sq
     """
 
     def __init__(
@@ -680,7 +680,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         self.table = table
         self.checks = checks
         self.partition_clause = partition_clause
-        self.sql = f"SELECT check_name, check_result FROM ({self._generate_sql_query()}) AS check_table"
+        self.sql = f"SELECT check_name, check_result FROM ({self._generate_sql_query()}) check_table"
 
     def execute(self, context: Context):
         hook = self.get_db_hook()
