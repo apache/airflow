@@ -3076,7 +3076,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/": {
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances": {
     get: {
       req: GetTaskInstancesData;
       res: {
