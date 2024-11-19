@@ -385,15 +385,17 @@ export const useDagSourceServiceGetDagSourceKey =
 export const UseDagSourceServiceGetDagSourceKeyFn = (
   {
     accept,
-    fileToken,
+    dagId,
+    versionNumber,
   }: {
     accept?: string;
-    fileToken: string;
+    dagId: string;
+    versionNumber?: number;
   },
   queryKey?: Array<unknown>,
 ) => [
   useDagSourceServiceGetDagSourceKey,
-  ...(queryKey ?? [{ accept, fileToken }]),
+  ...(queryKey ?? [{ accept, dagId, versionNumber }]),
 ];
 export type DagStatsServiceGetDagStatsDefaultResponse = Awaited<
   ReturnType<typeof DagStatsService.getDagStats>

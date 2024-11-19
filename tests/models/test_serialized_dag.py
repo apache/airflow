@@ -186,7 +186,7 @@ class TestSerializedDagModel:
         ]
         DAG.bulk_write_to_db(dags)
         # we also write to dag_version and dag_code tables
-        # in dag_version, we search for unique version_name too
+        # in dag_version.
         with assert_queries_count(24):
             SDM.bulk_sync_to_db(dags)
 

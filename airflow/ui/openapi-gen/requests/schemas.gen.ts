@@ -1586,9 +1586,24 @@ export const $DAGSourceResponse = {
       ],
       title: "Content",
     },
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    version_number: {
+      anyOf: [
+        {
+          type: "integer",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Version Number",
+    },
   },
   type: "object",
-  required: ["content"],
+  required: ["content", "dag_id", "version_number"],
   title: "DAGSourceResponse",
   description: "DAG Source serializer for responses.",
 } as const;

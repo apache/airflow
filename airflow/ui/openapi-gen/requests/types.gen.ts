@@ -351,6 +351,8 @@ export type DAGRunTypes = {
  */
 export type DAGSourceResponse = {
   content: string | null;
+  dag_id: string;
+  version_number: number | null;
 };
 
 /**
@@ -1242,7 +1244,8 @@ export type ClearDagRunResponse =
 
 export type GetDagSourceData = {
   accept?: string;
-  fileToken: string;
+  dagId: string;
+  versionNumber?: number | null;
 };
 
 export type GetDagSourceResponse = DAGSourceResponse;
@@ -2335,7 +2338,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dagSources/{file_token}": {
+  "/public/dagSources/{dag_id}": {
     get: {
       req: GetDagSourceData;
       res: {

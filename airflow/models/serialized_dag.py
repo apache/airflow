@@ -206,7 +206,6 @@ class SerializedDagModel(Base):
             log.debug("Serialized DAG (%s) is unchanged. Skipping writing to DB", dag.dag_id)
             return False
         dagv = DagVersion.write_dag(
-            version_name=dag.version_name,
             dag_id=dag.dag_id,
             session=session,
         )

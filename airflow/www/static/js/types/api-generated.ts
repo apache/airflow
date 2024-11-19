@@ -736,17 +736,13 @@ export interface paths {
   "/dagStats": {
     get: operations["get_dag_stats"];
   };
-  "/dagSources/{file_token}": {
+  "/dagSources/{dag_id}": {
     /** Get a source code using file token. */
     get: operations["get_dag_source"];
     parameters: {
       path: {
-        /**
-         * The key containing the encrypted path to the file. Encryption and decryption take place only on
-         * the server. This prevents the client from reading an non-DAG file. This also ensures API
-         * extensibility, because the format of encrypted data may change.
-         */
-        file_token: components["parameters"]["FileToken"];
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
       };
     };
   };
@@ -2763,6 +2759,8 @@ export interface components {
     UpdateMask: string[];
     /** @description List of field for return. */
     ReturnFields: string[];
+    /** @description The version number. */
+    VersionNumber: number;
   };
   requestBodies: {};
   headers: {};
@@ -4949,12 +4947,12 @@ export interface operations {
   get_dag_source: {
     parameters: {
       path: {
-        /**
-         * The key containing the encrypted path to the file. Encryption and decryption take place only on
-         * the server. This prevents the client from reading an non-DAG file. This also ensures API
-         * extensibility, because the format of encrypted data may change.
-         */
-        file_token: components["parameters"]["FileToken"];
+        /** The DAG ID. */
+        dag_id: components["parameters"]["DAGID"];
+      };
+      query: {
+        /** The version number. */
+        version_number?: components["parameters"]["VersionNumber"];
       };
     };
     responses: {
@@ -5748,7 +5746,8 @@ export type GetDagStatsVariables = CamelCasedPropertiesDeep<
   operations["get_dag_stats"]["parameters"]["query"]
 >;
 export type GetDagSourceVariables = CamelCasedPropertiesDeep<
-  operations["get_dag_source"]["parameters"]["path"]
+  operations["get_dag_source"]["parameters"]["path"] &
+    operations["get_dag_source"]["parameters"]["query"]
 >;
 export type GetDagWarningsVariables = CamelCasedPropertiesDeep<
   operations["get_dag_warnings"]["parameters"]["query"]
