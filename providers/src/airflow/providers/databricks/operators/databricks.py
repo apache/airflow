@@ -121,7 +121,7 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                     repair_json = {"run_id": operator.run_id, "rerun_all_failed_tasks": True}
                     if latest_repair_id is not None:
                         repair_json["latest_repair_id"] = latest_repair_id
-                    operator.json["latest_repair_id"] = hook.repair_run(operator, repair_json)
+                    operator.json["latest_repair_id"] = hook.repair_run(repair_json)
                     _handle_databricks_operator_execution(operator, hook, log, context)
                 raise AirflowException(error_message)
 

@@ -93,6 +93,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -100,6 +101,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: tags
@@ -183,6 +185,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -190,6 +193,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: uri_pattern
@@ -259,6 +263,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -266,6 +271,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -540,6 +546,174 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/assets/queuedEvent/{uri}:
+    get:
+      tags:
+      - Asset
+      summary: Get Dag Asset Queued Event
+      description: Get a queued asset event for a DAG.
+      operationId: get_dag_asset_queued_event
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: uri
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Uri
+      - name: before
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Before
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueuedEventResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Asset
+      summary: Delete Dag Asset Queued Event
+      description: Delete a queued asset event for a DAG.
+      operationId: delete_dag_asset_queued_event
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: uri
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Uri
+      - name: before
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Before
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/assets/queuedEvent/{uri}:
+    delete:
+      tags:
+      - Asset
+      summary: Delete Asset Queued Events
+      description: Delete queued asset events for an asset.
+      operationId: delete_asset_queued_events
+      parameters:
+      - name: uri
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Uri
+      - name: before
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Before
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/backfills/:
     get:
       tags:
@@ -558,6 +732,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -565,6 +740,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -1002,6 +1178,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -1009,6 +1186,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -1574,6 +1752,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -1581,6 +1760,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -1628,6 +1808,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -1635,6 +1816,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: tags
@@ -1746,6 +1928,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -1753,6 +1936,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: tags
@@ -1858,6 +2042,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -1865,6 +2050,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -2275,6 +2461,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -2282,6 +2469,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -2374,6 +2562,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -2381,6 +2570,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -2427,6 +2617,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -2434,6 +2625,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       responses:
@@ -2631,6 +2823,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -2638,6 +2831,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -2728,6 +2922,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -2735,6 +2930,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       responses:
@@ -2970,6 +3166,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -2977,6 +3174,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -3358,6 +3556,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -3365,6 +3564,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
@@ -3727,6 +3927,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 100
           title: Limit
       - name: offset
@@ -3734,6 +3935,7 @@ paths:
         required: false
         schema:
           type: integer
+          minimum: 0
           default: 0
           title: Offset
       - name: order_by
