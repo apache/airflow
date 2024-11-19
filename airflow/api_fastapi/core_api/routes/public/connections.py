@@ -166,7 +166,9 @@ def patch_connection(
     connection = session.scalar(select(Connection).filter_by(conn_id=connection_id).limit(1))
 
     if connection is None:
-        raise HTTPException(404, f"The Connection with connection_id: `{connection_id}` was not found")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"The Connection with connection_id: `{connection_id}` was not found"
+        )
 
     if update_mask:
         data = patch_body.model_dump(include=set(update_mask) - non_update_fields)
