@@ -188,6 +188,38 @@ export const useAssetServiceGetAssetEvents = <
     ...options,
   });
 /**
+ * Get Asset Queued Events
+ * Get queued asset events for an asset.
+ * @param data The data for the request.
+ * @param data.uri
+ * @param data.before
+ * @returns QueuedEventCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceGetAssetQueuedEvents = <
+  TData = Common.AssetServiceGetAssetQueuedEventsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    before,
+    uri,
+  }: {
+    before?: string;
+    uri: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseAssetServiceGetAssetQueuedEventsKeyFn(
+      { before, uri },
+      queryKey,
+    ),
+    queryFn: () => AssetService.getAssetQueuedEvents({ before, uri }) as TData,
+    ...options,
+  });
+/**
  * Get Asset
  * Get an asset.
  * @param data The data for the request.
@@ -280,38 +312,6 @@ export const useAssetServiceGetDagAssetQueuedEvent = <
     ),
     queryFn: () =>
       AssetService.getDagAssetQueuedEvent({ before, dagId, uri }) as TData,
-    ...options,
-  });
-/**
- * Get Asset Queued Events
- * Get queued asset events for an asset.
- * @param data The data for the request.
- * @param data.uri
- * @param data.before
- * @returns QueuedEventCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useAssetServiceGetAssetQueuedEvents = <
-  TData = Common.AssetServiceGetAssetQueuedEventsDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    before,
-    uri,
-  }: {
-    before?: string;
-    uri: string;
-  },
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceGetAssetQueuedEventsKeyFn(
-      { before, uri },
-      queryKey,
-    ),
-    queryFn: () => AssetService.getAssetQueuedEvents({ before, uri }) as TData,
     ...options,
   });
 /**
@@ -2620,6 +2620,49 @@ export const useVariableServicePatchVariable = <
     ...options,
   });
 /**
+ * Delete Asset Queued Events
+ * Delete queued asset events for an asset.
+ * @param data The data for the request.
+ * @param data.uri
+ * @param data.before
+ * @returns void Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceDeleteAssetQueuedEvents = <
+  TData = Common.AssetServiceDeleteAssetQueuedEventsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        before?: string;
+        uri: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      before?: string;
+      uri: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ before, uri }) =>
+      AssetService.deleteAssetQueuedEvents({
+        before,
+        uri,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Delete Dag Asset Queued Events
  * @param data The data for the request.
  * @param data.dagId
@@ -2704,49 +2747,6 @@ export const useAssetServiceDeleteDagAssetQueuedEvent = <
       AssetService.deleteDagAssetQueuedEvent({
         before,
         dagId,
-        uri,
-      }) as unknown as Promise<TData>,
-    ...options,
-  });
-/**
- * Delete Asset Queued Events
- * Delete queued asset events for an asset.
- * @param data The data for the request.
- * @param data.uri
- * @param data.before
- * @returns void Successful Response
- * @throws ApiError
- */
-export const useAssetServiceDeleteAssetQueuedEvents = <
-  TData = Common.AssetServiceDeleteAssetQueuedEventsMutationResult,
-  TError = unknown,
-  TContext = unknown,
->(
-  options?: Omit<
-    UseMutationOptions<
-      TData,
-      TError,
-      {
-        before?: string;
-        uri: string;
-      },
-      TContext
-    >,
-    "mutationFn"
-  >,
-) =>
-  useMutation<
-    TData,
-    TError,
-    {
-      before?: string;
-      uri: string;
-    },
-    TContext
-  >({
-    mutationFn: ({ before, uri }) =>
-      AssetService.deleteAssetQueuedEvents({
-        before,
         uri,
       }) as unknown as Promise<TData>,
     ...options,

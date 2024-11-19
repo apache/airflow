@@ -146,6 +146,29 @@ export const prefetchUseAssetServiceGetAssetEvents = (
       }),
   });
 /**
+ * Get Asset Queued Events
+ * Get queued asset events for an asset.
+ * @param data The data for the request.
+ * @param data.uri
+ * @param data.before
+ * @returns QueuedEventCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseAssetServiceGetAssetQueuedEvents = (
+  queryClient: QueryClient,
+  {
+    before,
+    uri,
+  }: {
+    before?: string;
+    uri: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseAssetServiceGetAssetQueuedEventsKeyFn({ before, uri }),
+    queryFn: () => AssetService.getAssetQueuedEvents({ before, uri }),
+  });
+/**
  * Get Asset
  * Get an asset.
  * @param data The data for the request.
@@ -220,29 +243,6 @@ export const prefetchUseAssetServiceGetDagAssetQueuedEvent = (
       uri,
     }),
     queryFn: () => AssetService.getDagAssetQueuedEvent({ before, dagId, uri }),
-  });
-/**
- * Get Asset Queued Events
- * Get queued asset events for an asset.
- * @param data The data for the request.
- * @param data.uri
- * @param data.before
- * @returns QueuedEventCollectionResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseAssetServiceGetAssetQueuedEvents = (
-  queryClient: QueryClient,
-  {
-    before,
-    uri,
-  }: {
-    before?: string;
-    uri: string;
-  },
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseAssetServiceGetAssetQueuedEventsKeyFn({ before, uri }),
-    queryFn: () => AssetService.getAssetQueuedEvents({ before, uri }),
   });
 /**
  * Historical Metrics
