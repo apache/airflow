@@ -143,7 +143,7 @@ def downgrade():
         batch_op.drop_column("id")
         batch_op.drop_constraint(batch_op.f("dag_code_dag_version_id_fkey"), type_="foreignkey")
         batch_op.drop_column("dag_version_id")
-        batch_op.add_column(sa.Column("fileloc", sa.BigInteger, nullable=False))
+        batch_op.add_column(sa.Column("fileloc_hash", sa.BigInteger, nullable=False))
         batch_op.create_primary_key("dag_code_pkey", ["fileloc_hash"])
         batch_op.drop_column("source_code_hash")
         batch_op.drop_column("dag_id")
