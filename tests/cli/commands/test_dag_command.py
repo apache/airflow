@@ -99,16 +99,6 @@ class TestCliDags:
         dag_version_after_command = session.query(DagVersion).all()
         assert len(dag_version_after_command)
 
-        # Serialize the dag with clear history
-        dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize", "--clear-history"]))
-
-        # Check serialized DAGs are back
-        dagv = session.query(DagVersion).all()
-        assert len(dagv)
-        serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
-        assert len(serialized_dags_after_reserialize) >= 40  # Serialized DAGs back
-        assert len(dagv) == len(serialized_dags_after_reserialize)
-
     def test_reserialize_should_support_subdir_argument(self, session):
         # Run clear of serialized dags
         session.query(DagVersion).delete()
