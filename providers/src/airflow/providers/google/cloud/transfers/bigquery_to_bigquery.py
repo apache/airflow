@@ -209,27 +209,22 @@ class BigQueryToBigQueryOperator(BaseOperator):
                 impersonation_chain=self.impersonation_chain,
             )
 
-        project_id = self.project_id or self.hook.project_id
-        source_table_object = self.hook.get_client(project_id).get_table(self.source_project_dataset_table)
-        dest_table_object = self.hook.get_client(project_id).get_table(self.destination_project_dataset_table)
+        input_datasets = []
+        for source_project_dataset_table in self.source_project_dataset_tables:
+            source_table_object = self.hook.get_client(self.hook.project_id).get_table(source_project_dataset_table)
+            input_dataset_facets = get_facets_from_bq_table(source_table_object)
 
-        input_dataset_facets = get_facets_from_bq_table(source_table_object)
+            input_datasets.append(Dataset(
+                namespace="bigquery",
+                name=str(source_table_object.reference),
+                facets=input_dataset_facets,
+            ))
+
+        dest_table_object = self.hook.get_client(self.hook.project_id).get_table(self.destination_project_dataset_table)
         output_dataset_facets = get_facets_from_bq_table(dest_table_object)
 
-        self.log.debug("project_id: %s", project_id)
-        self.log.debug("source_table_object: %s", source_table_object)
-        self.log.debug("dest_table_object: %s", dest_table_object)
-        self.log.debug("input_dataset_facets: %s", input_dataset_facets)
-        self.log.debug("output_dataset_facets: %s", output_dataset_facets)
-
-        input_dataset = Dataset(
-            namespace="bigquery",
-            name=str(source_table_object.reference),
-            facets=input_dataset_facets,
-        )
-
         output_dataset_facets["columnLineage"] = get_identity_column_lineage_facet(
-            field_names=[field.name for field in dest_table_object.schema], input_datasets=[input_dataset]
+            field_names=[field.name for field in dest_table_object.schema], input_datasets=input_datasets
         )
 
         output_dataset = Dataset(
@@ -238,8 +233,4 @@ class BigQueryToBigQueryOperator(BaseOperator):
             facets=output_dataset_facets,
         )
 
-        self.log.debug("input_dataset: %s", input_dataset)
-        self.log.debug("output_dataset: %s", output_dataset)
-
-
-        return OperatorLineage(inputs=[input_dataset], outputs=[output_dataset])
+        return OperatorLineage(inputs=input_datasets, outputs=[output_dataset])
