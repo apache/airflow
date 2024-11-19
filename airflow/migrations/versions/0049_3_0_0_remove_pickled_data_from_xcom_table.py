@@ -64,6 +64,7 @@ def upgrade():
         sa.Column("value", sa.LargeBinary().with_variant(LONGBLOB, "mysql"), nullable=True),
         sa.Column("timestamp", TIMESTAMP(), nullable=False),
         sa.PrimaryKeyConstraint("dag_run_id", "task_id", "map_index", "key"),
+        if_not_exists=True,
     )
 
     # Condition to detect pickled data for different databases
@@ -102,7 +103,7 @@ def upgrade():
             ALTER TABLE xcom
             ALTER COLUMN value TYPE JSONB
             USING CASE
-                WHEN value IS NOT NULL THEN CAST(CONVERT_FROM(value, 'utf-8') AS JSONB)
+                WHEN value IS NOT NULL THEN CAST(CONVERT_FROM(value, 'UTF8') AS JSONB)
                 ELSE NULL
             END
             """
@@ -149,7 +150,7 @@ def downgrade():
             ALTER TABLE xcom
             ALTER COLUMN value TYPE BYTEA
             USING CASE
-                WHEN value IS NOT NULL THEN ENCODE(CAST(value AS TEXT), 'escape')
+                WHEN value IS NOT NULL THEN CONVERT_TO(value::TEXT, 'UTF8')
                 ELSE NULL
             END
             """
