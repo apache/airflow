@@ -298,10 +298,13 @@ def get_task_instances(
     This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
     and DAG runs.
     """
+    base_query = select(TI).join(TI.dag_run)
+
     if dag_id != "~":
         dag = request.app.state.dag_bag.get_dag(dag_id)
         if not dag:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with dag_id: `{dag_id}` was not found")
+        base_query = base_query.where(TI.dag_id == dag_id)
 
     if dag_run_id != "~":
         dag_run = session.scalar(select(DagRun).filter_by(run_id=dag_run_id))
@@ -310,12 +313,6 @@ def get_task_instances(
                 status.HTTP_404_NOT_FOUND,
                 f"DagRun with run_id: `{dag_run_id}` was not found",
             )
-
-    base_query = select(TI).join(TI.dag_run)
-
-    if dag_id != "~":
-        base_query = base_query.where(TI.dag_id == dag_id)
-    if dag_run_id != "~":
         base_query = base_query.where(TI.run_id == dag_run_id)
 
     task_instance_select, total_entries = paginated_select(
