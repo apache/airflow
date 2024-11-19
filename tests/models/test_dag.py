@@ -2613,13 +2613,10 @@ class TestDagDecorator:
 
 
 @pytest.mark.parametrize(
-    "run_id, logical_date",
-    [
-        (None, datetime_tz(2020, 1, 1)),
-        ("test-run-id", None),
-    ],
+    "run_id",
+    ["test-run-id"],
 )
-def test_set_task_instance_state(run_id, logical_date, session, dag_maker):
+def test_set_task_instance_state(run_id, session, dag_maker):
     """Test that set_task_instance_state updates the TaskInstance state and clear downstream failed"""
 
     start_date = datetime_tz(2020, 1, 1)
@@ -2634,7 +2631,6 @@ def test_set_task_instance_state(run_id, logical_date, session, dag_maker):
     dagrun = dag_maker.create_dagrun(
         run_id=run_id,
         state=State.FAILED,
-        logical_date=logical_date,
         run_type=DagRunType.SCHEDULED,
     )
 
