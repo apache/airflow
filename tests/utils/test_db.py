@@ -37,6 +37,7 @@ from sqlalchemy import MetaData
 from airflow.models import Base as airflow_base
 from airflow.settings import engine
 from airflow.utils.db import (
+    LazySelectSequence,
     _get_alembic_config,
     check_migrations,
     compare_server_default,
@@ -55,6 +56,12 @@ from tests_common.test_utils.config import conf_vars
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
+
+class EmptyLazySelectSequence(LazySelectSequence):
+    _data = []
+
+    def __init__(self):
+        super().__init__(None, None, session="MockSession")
 
 class TestDb:
     def test_database_schema_and_sqlalchemy_model_are_in_sync(self):
@@ -251,3 +258,10 @@ class TestDb:
         import airflow
 
         assert config.config_file_name == os.path.join(os.path.dirname(airflow.__file__), "alembic.ini")
+
+    @mock.patch("sqlalchemy.orm.Session.scalar")
+    def test_bool_lazy_select_sequence(self, mock_scalar):
+        mock_scalar.return_value = None
+
+        lss = EmptyLazySelectSequence()
+        assert not bool(lss)

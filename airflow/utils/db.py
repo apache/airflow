@@ -1458,7 +1458,8 @@ def check_query_exists(query_stmt: Select, *, session: Session) -> bool:
     :meta private:
     """
     count_stmt = select(literal(True)).select_from(query_stmt.order_by(None).subquery())
-    return session.scalar(count_stmt)
+    # we must cast to bool because scalar() can return None
+    return bool(session.scalar(count_stmt))
 
 
 def exists_query(*where: ClauseElement, session: Session) -> bool:
@@ -1557,9 +1558,7 @@ class LazySelectSequence(Sequence[T]):
         self._session = get_current_task_instance_session()
 
     def __bool__(self) -> bool:
-        if check := check_query_exists(self._select_asc, session=self._session) is not None:
-            return check
-        return False
+        return check_query_exists(self._select_asc, session=self._session)
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, collections.abc.Sequence):
