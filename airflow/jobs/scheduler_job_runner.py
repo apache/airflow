@@ -1800,6 +1800,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ti=ti,
                         session=session,
                     )
+                    session.commit()
             except NotImplementedError:
                 # this block only gets entered if the executor has not implemented `revoke_task`.
                 # in which case, we try the fallback logic
