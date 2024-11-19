@@ -765,3 +765,38 @@ class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
 
         assert response.status_code == 404
         assert response.json()["detail"] == "Queue event with uri: `not_exists` was not found"
+
+
+class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
+    def test_delete_should_respond_204(self, test_client, session, create_dummy_dag):
+        dag, _ = create_dummy_dag()
+        dag_id = dag.dag_id
+        asset_uri = "s3://bucket/key/1"
+        self.create_assets(session=session, num=1)
+        asset_id = 1
+
+        self._create_asset_dag_run_queues(dag_id, asset_id, session)
+        adrq = session.query(AssetDagRunQueue).all()
+        assert len(adrq) == 1
+
+        response = test_client.delete(
+            f"/public/dags/{dag_id}/assets/queuedEvent/{asset_uri}",
+        )
+
+        assert response.status_code == 204
+        adrq = session.query(AssetDagRunQueue).all()
+        assert len(adrq) == 0
+
+    def test_should_respond_404(self, test_client):
+        dag_id = "not_exists"
+        asset_uri = "not_exists"
+
+        response = test_client.delete(
+            f"/public/dags/{dag_id}/assets/queuedEvent/{asset_uri}",
+        )
+
+        assert response.status_code == 404
+        assert (
+            response.json()["detail"]
+            == "Queued event with dag_id: `not_exists` and asset uri: `not_exists` was not found"
+        )
