@@ -45,6 +45,7 @@ from airflow_breeze.global_constants import (
     DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
     KIND_VERSION,
+    OTHER_PROVIDERS_INTEGRATIONS,
     RUNS_ON_PUBLIC_RUNNER,
     RUNS_ON_SELF_HOSTED_ASF_RUNNER,
     RUNS_ON_SELF_HOSTED_RUNNER,
@@ -119,6 +120,7 @@ class FileGroupForCi(Enum):
     ALL_PROVIDER_YAML_FILES = "all_provider_yaml_files"
     ALL_DOCS_PYTHON_FILES = "all_docs_python_files"
     TESTS_UTILS_FILES = "test_utils_files"
+    ASSET_FILES = "asset_files"
 
 
 class AllProvidersSentinel:
@@ -252,6 +254,14 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.TASK_SDK_FILES: [
             r"^task_sdk/src/airflow/sdk/.*\.py$",
             r"^task_sdk/tests/.*\.py$",
+        ],
+        FileGroupForCi.ASSET_FILES: [
+            r"^airflow/assets/",
+            r"^airflow/models/assets/",
+            r"^task_sdk/src/airflow/sdk/definitions/asset/",
+            r"^airflow/datasets/",
+            r"^airflow/dag_processing/collection.py",
+            r"airflow/timetables/assets.py",
         ],
     }
 )
@@ -860,13 +870,24 @@ class SelectiveChecks:
             all_providers_source_files = self._matching_files(
                 FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
-            if len(all_providers_source_files) == 0 and not self.needs_api_tests:
+            assets_source_files = self._matching_files(
+                FileGroupForCi.ASSET_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+
+            if (
+                len(all_providers_source_files) == 0
+                and len(assets_source_files) == 0
+                and not self.needs_api_tests
+            ):
                 # IF API tests are needed, that will trigger extra provider checks
                 return []
             else:
-                affected_providers = self._find_all_providers_affected(
-                    include_docs=False,
-                )
+                if len(all_providers_source_files) != 0:
+                    affected_providers = self._find_all_providers_affected(
+                        include_docs=False,
+                    )
+                elif len(assets_source_files) != 0:
+                    affected_providers = OTHER_PROVIDERS_INTEGRATIONS
         candidate_test_types: set[str] = set()
         if affected_providers and not isinstance(affected_providers, AllProvidersSentinel):
             if split_to_individual_providers:
