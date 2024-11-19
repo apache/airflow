@@ -1301,7 +1301,7 @@ export type ClearDagRunResponse =
   | DAGRunResponse;
 
 export type GetDagSourceData = {
-  accept?: "application/json" | "text/plain";
+  accept?: "application/json" | "text/plain" | "*/*";
   dagId: string;
   versionNumber?: number | null;
 };
@@ -1315,14 +1315,14 @@ export type GetDagStatsData = {
 export type GetDagStatsResponse = DagStatsCollectionResponse;
 
 export type GetConfigData = {
-  accept?: "application/json" | "text/plain";
+  accept?: "application/json" | "text/plain" | "*/*";
   section?: string | null;
 };
 
 export type GetConfigResponse = Config;
 
 export type GetConfigValueData = {
-  accept?: "application/json" | "text/plain";
+  accept?: "application/json" | "text/plain" | "*/*";
   option: string;
   section: string;
 };

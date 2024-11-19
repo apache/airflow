@@ -642,7 +642,7 @@ export const useDagSourceServiceGetDagSource = <
     dagId,
     versionNumber,
   }: {
-    accept?: "application/json" | "text/plain";
+    accept?: "application/json" | "text/plain" | "*/*";
     dagId: string;
     versionNumber?: number;
   },
@@ -701,7 +701,7 @@ export const useConfigServiceGetConfig = <
     accept,
     section,
   }: {
-    accept?: "application/json" | "text/plain";
+    accept?: "application/json" | "text/plain" | "*/*";
     section?: string;
   } = {},
   queryKey?: TQueryKey,
@@ -734,7 +734,7 @@ export const useConfigServiceGetConfigValue = <
     option,
     section,
   }: {
-    accept?: "application/json" | "text/plain";
+    accept?: "application/json" | "text/plain" | "*/*";
     option: string;
     section: string;
   },

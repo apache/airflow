@@ -28,7 +28,7 @@ def header_accept_json_or_text_depends(
         Header(
             json_schema_extra={
                 "type": "string",
-                "enum": [Mimetype.JSON, Mimetype.TEXT],
+                "enum": [Mimetype.JSON, Mimetype.TEXT, Mimetype.ANY],
             }
         ),
     ] = Mimetype.ANY,

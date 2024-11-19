@@ -411,7 +411,7 @@ export const UseDagSourceServiceGetDagSourceKeyFn = (
     dagId,
     versionNumber,
   }: {
-    accept?: "application/json" | "text/plain";
+    accept?: "application/json" | "text/plain" | "*/*";
     dagId: string;
     versionNumber?: number;
   },
@@ -449,7 +449,7 @@ export const UseConfigServiceGetConfigKeyFn = (
     accept,
     section,
   }: {
-    accept?: "application/json" | "text/plain";
+    accept?: "application/json" | "text/plain" | "*/*";
     section?: string;
   } = {},
   queryKey?: Array<unknown>,
@@ -468,7 +468,7 @@ export const UseConfigServiceGetConfigValueKeyFn = (
     option,
     section,
   }: {
-    accept?: "application/json" | "text/plain";
+    accept?: "application/json" | "text/plain" | "*/*";
     option: string;
     section: string;
   },

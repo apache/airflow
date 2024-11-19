@@ -32,7 +32,7 @@ from airflow.api_fastapi.core_api.datamodels.config import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.configuration import conf
 
-text_example_response = {
+text_example_response_for_get_config_value = {
     Mimetype.TEXT: {
         "schema": {
             "type": "string",
@@ -44,6 +44,25 @@ text_example_response = {
     """
             ),
         }
+    }
+}
+
+text_example_response_for_get_config = {
+    Mimetype.TEXT: {
+        "schema": {
+            "type": "string",
+            "example": textwrap.dedent(
+                """\
+    [core]
+    dags_folder = /opt/airflow/dags
+    base_log_folder = /opt/airflow/logs
+
+    [smtp]
+    smtp_host = localhost
+    smtp_mail_from = airflow@example.com
+    """
+            ),
+        },
     }
 }
 
@@ -85,7 +104,7 @@ config_router = AirflowRouter(tags=["Config"], prefix="/config")
                 status.HTTP_406_NOT_ACCEPTABLE,
             ]
         ),
-        "200": {"description": "Successful Response", "content": text_example_response},
+        "200": {"description": "Successful Response", "content": text_example_response_for_get_config},
     },
     response_model=Config,
 )
@@ -129,7 +148,7 @@ def get_config(
                 status.HTTP_406_NOT_ACCEPTABLE,
             ]
         ),
-        "200": {"description": "Successful Response", "content": text_example_response},
+        "200": {"description": "Successful Response", "content": text_example_response_for_get_config_value},
     },
     response_model=Config,
 )

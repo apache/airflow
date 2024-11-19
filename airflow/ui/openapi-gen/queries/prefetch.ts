@@ -509,7 +509,7 @@ export const prefetchUseDagSourceServiceGetDagSource = (
     dagId,
     versionNumber,
   }: {
-    accept?: "application/json" | "text/plain";
+    accept?: "application/json" | "text/plain" | "*/*";
     dagId: string;
     versionNumber?: number;
   },
@@ -557,7 +557,7 @@ export const prefetchUseConfigServiceGetConfig = (
     accept,
     section,
   }: {
-    accept?: "application/json" | "text/plain";
+    accept?: "application/json" | "text/plain" | "*/*";
     section?: string;
   } = {},
 ) =>
@@ -581,7 +581,7 @@ export const prefetchUseConfigServiceGetConfigValue = (
     option,
     section,
   }: {
-    accept?: "application/json" | "text/plain";
+    accept?: "application/json" | "text/plain" | "*/*";
     option: string;
     section: string;
   },

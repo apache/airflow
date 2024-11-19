@@ -1686,6 +1686,7 @@ paths:
           enum:
           - application/json
           - text/plain
+          - '*/*'
           default: '*/*'
           title: Accept
       responses:
@@ -1811,6 +1812,7 @@ paths:
           enum:
           - application/json
           - text/plain
+          - '*/*'
           default: '*/*'
           title: Accept
       responses:
@@ -1828,6 +1830,13 @@ paths:
                   dags_folder = /opt/airflow/dags
 
                   base_log_folder = /opt/airflow/logs
+
+
+                  [smtp]
+
+                  smtp_host = localhost
+
+                  smtp_mail_from = airflow@example.com
 
                   '
         '401':
@@ -1887,6 +1896,7 @@ paths:
           enum:
           - application/json
           - text/plain
+          - '*/*'
           default: '*/*'
           title: Accept
       responses:
