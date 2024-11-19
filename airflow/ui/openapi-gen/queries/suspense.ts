@@ -170,6 +170,38 @@ export const useAssetServiceGetAssetEventsSuspense = <
     ...options,
   });
 /**
+ * Get Asset Queued Events
+ * Get queued asset events for an asset.
+ * @param data The data for the request.
+ * @param data.uri
+ * @param data.before
+ * @returns QueuedEventCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceGetAssetQueuedEventsSuspense = <
+  TData = Common.AssetServiceGetAssetQueuedEventsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    before,
+    uri,
+  }: {
+    before?: string;
+    uri: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseAssetServiceGetAssetQueuedEventsKeyFn(
+      { before, uri },
+      queryKey,
+    ),
+    queryFn: () => AssetService.getAssetQueuedEvents({ before, uri }) as TData,
+    ...options,
+  });
+/**
  * Get Asset
  * Get an asset.
  * @param data The data for the request.

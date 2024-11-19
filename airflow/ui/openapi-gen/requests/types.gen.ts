@@ -1086,6 +1086,20 @@ export type CreateAssetEventData = {
 
 export type CreateAssetEventResponse = AssetEventResponse;
 
+export type GetAssetQueuedEventsData = {
+  before?: string | null;
+  uri: string;
+};
+
+export type GetAssetQueuedEventsResponse = QueuedEventCollectionResponse;
+
+export type DeleteAssetQueuedEventsData = {
+  before?: string | null;
+  uri: string;
+};
+
+export type DeleteAssetQueuedEventsResponse = void;
+
 export type GetAssetData = {
   uri: string;
 };
@@ -1121,13 +1135,6 @@ export type DeleteDagAssetQueuedEventData = {
 };
 
 export type DeleteDagAssetQueuedEventResponse = void;
-
-export type DeleteAssetQueuedEventsData = {
-  before?: string | null;
-  uri: string;
-};
-
-export type DeleteAssetQueuedEventsResponse = void;
 
 export type HistoricalMetricsData = {
   endDate: string;
@@ -1711,6 +1718,58 @@ export type $OpenApiTs = {
       };
     };
   };
+  "/public/assets/queuedEvent/{uri}": {
+    get: {
+      req: GetAssetQueuedEventsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: QueuedEventCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    delete: {
+      req: DeleteAssetQueuedEventsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
   "/public/assets/{uri}": {
     get: {
       req: GetAssetData;
@@ -1831,33 +1890,6 @@ export type $OpenApiTs = {
          * Bad Request
          */
         400: HTTPExceptionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/assets/queuedEvent/{uri}": {
-    delete: {
-      req: DeleteAssetQueuedEventsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        204: void;
         /**
          * Unauthorized
          */
