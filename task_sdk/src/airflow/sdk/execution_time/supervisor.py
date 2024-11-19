@@ -149,8 +149,9 @@ def _reopen_std_io_handles(child_stdin, child_stdout, child_stderr):
                 fd = sock.fileno()
             else:
                 raise
-
-        setattr(sys, handle_name, os.fdopen(fd, mode))
+        # We can't open text mode fully unbuffered (python throws an exception if we try), but we can make it line buffered with `buffering=1`
+        handle = os.fdopen(fd, mode, buffering=1)
+        setattr(sys, handle_name, handle)
 
 
 def _fork_main(

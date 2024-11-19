@@ -51,29 +51,29 @@ class TestWatchedSubprocess:
         # Ignore anything lower than INFO for this test. Captured_logs resets things for us afterwards
         structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
 
-        line = lineno()
-
         def subprocess_main():
             # This is run in the subprocess!
 
             # Ensure we follow the "protocol" and get the startup message before we do anything
             sys.stdin.readline()
 
-            # Flush calls are to ensure ordering of output for predictable tests
             import logging
             import warnings
 
             print("I'm a short message")
             sys.stdout.write("Message ")
-            sys.stdout.write("split across two writes\n")
-            sys.stdout.flush()
-
             print("stderr message", file=sys.stderr)
-            sys.stderr.flush()
+            # We need a short sleep for the main process to process things. I worry this timining will be
+            # fragile, but I can't think of a better way. This lets the stdout be read (partial line) and the
+            # stderr full line be read
+            sleep(0.1)
+            sys.stdout.write("split across two writes\n")
 
             logging.getLogger("airflow.foobar").error("An error message")
 
             warnings.warn("Warning should be captured too", stacklevel=1)
+
+        line = lineno() - 2  # Line the error should be on
 
         instant = tz.datetime(2024, 11, 7, 12, 34, 56, 78901)
         time_machine.move_to(instant, tick=False)
@@ -103,16 +103,16 @@ class TestWatchedSubprocess:
                 "timestamp": "2024-11-07T12:34:56.078901Z",
             },
             {
-                "chan": "stdout",
-                "event": "Message split across two writes",
-                "level": "info",
+                "chan": "stderr",
+                "event": "stderr message",
+                "level": "error",
                 "logger": "task",
                 "timestamp": "2024-11-07T12:34:56.078901Z",
             },
             {
-                "chan": "stderr",
-                "event": "stderr message",
-                "level": "error",
+                "chan": "stdout",
+                "event": "Message split across two writes",
+                "level": "info",
                 "logger": "task",
                 "timestamp": "2024-11-07T12:34:56.078901Z",
             },
@@ -127,7 +127,7 @@ class TestWatchedSubprocess:
                 "event": "Warning should be captured too",
                 "filename": __file__,
                 "level": "warning",
-                "lineno": line + 22,
+                "lineno": line,
                 "logger": "py.warnings",
                 "timestamp": instant.replace(tzinfo=None),
             },
