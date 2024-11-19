@@ -250,7 +250,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         top_stats = snapshot.statistics("lineno")
         n = 10
         self.log.error(
-            "scheduler memory usgae:\n Top %d\n %s",
+            "scheduler memory usage:\n Top %d\n %s",
             n,
             "\n\t".join(map(str, top_stats[:n])),
         )
@@ -704,7 +704,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         queued_tis = self._executable_task_instances_to_queued(max_tis, session=session)
 
-        # Sort queued TIs to there respective executor
+        # Sort queued TIs to their respective executor
         executor_to_queued_tis = self._executor_to_tis(queued_tis)
         for executor, queued_tis_per_executor in executor_to_queued_tis.items():
             self.log.info(
