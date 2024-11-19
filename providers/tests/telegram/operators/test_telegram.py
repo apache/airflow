@@ -156,15 +156,15 @@ class TestTelegramOperator:
             telegram_conn_id="telegram_default",
             chat_id="-420913222",
             task_id="telegram",
-            text="execution date is {{ ds }}",
+            text="logical date is {{ ds }}",
             telegram_kwargs={"custom_arg": "value", "text": "should be ignored"},
         )
         operator.render_template_fields({"ds": "2021-02-04"})
 
         operator.execute(None)
-        assert operator.text == "execution date is 2021-02-04"
+        assert operator.text == "logical date is 2021-02-04"
         assert "text" in operator.telegram_kwargs
-        assert operator.telegram_kwargs["text"] == "execution date is 2021-02-04"
+        assert operator.telegram_kwargs["text"] == "logical date is 2021-02-04"
 
     def test_should_return_templatized_chat_id_field(self):
         operator = TelegramOperator(

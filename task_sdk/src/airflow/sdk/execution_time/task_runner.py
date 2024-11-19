@@ -28,8 +28,9 @@ import attrs
 import structlog
 from pydantic import ConfigDict, TypeAdapter
 
-from airflow.sdk import BaseOperator
-from airflow.sdk.execution_time.comms import StartupDetails, TaskInstance, ToSupervisor, ToTask
+from airflow.sdk.api.datamodels._generated import TaskInstance
+from airflow.sdk.definitions.baseoperator import BaseOperator
+from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor, ToTask
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
@@ -43,7 +44,7 @@ class RuntimeTaskInstance(TaskInstance):
 
 def parse(what: StartupDetails) -> RuntimeTaskInstance:
     # TODO: Task-SDK:
-    # Using DagBag here is aoubt 98% wrong, but it'll do for now
+    # Using DagBag here is about 98% wrong, but it'll do for now
 
     from airflow.models.dagbag import DagBag
 
@@ -64,7 +65,8 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
     task = dag.task_dict[what.ti.task_id]
     if not isinstance(task, BaseOperator):
         raise TypeError(f"task is of the wrong type, got {type(task)}, wanted {BaseOperator}")
-    return RuntimeTaskInstance(**what.ti.model_dump(exclude_unset=True), task=task)
+
+    return RuntimeTaskInstance.model_construct(**what.ti.model_dump(exclude_unset=True), task=task)
 
 
 @attrs.define()

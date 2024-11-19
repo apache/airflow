@@ -198,7 +198,7 @@ def get_mapped_task_instances(
     # Other search criteria
     base_query = _apply_range_filter(
         base_query,
-        key=DR.execution_date,
+        key=DR.logical_date,
         value_range=(execution_date_gte, execution_date_lte),
     )
     base_query = _apply_range_filter(
@@ -336,7 +336,7 @@ def get_task_instances(
         base_query = base_query.where(TI.run_id == dag_run_id)
     base_query = _apply_range_filter(
         base_query,
-        key=DR.execution_date,
+        key=DR.logical_date,
         value_range=(execution_date_gte, execution_date_lte),
     )
     base_query = _apply_range_filter(
@@ -367,6 +367,7 @@ def get_task_instances(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
@@ -398,7 +399,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     base_query = _apply_array_filter(base_query, key=TI.task_id, values=data["task_ids"])
     base_query = _apply_range_filter(
         base_query,
-        key=DR.execution_date,
+        key=DR.logical_date,
         value_range=(data["execution_date_gte"], data["execution_date_lte"]),
     )
     base_query = _apply_range_filter(
@@ -522,22 +523,18 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
         error_message = f"Task ID {task_id} not found"
         raise NotFound(error_message)
 
-    execution_date = data.get("execution_date")
+    logical_date = data.get("logical_date")
     run_id = data.get("dag_run_id")
     if (
-        execution_date
+        logical_date
         and (
             session.scalars(
-                select(TI).where(
-                    TI.task_id == task_id, TI.dag_id == dag_id, TI.execution_date == execution_date
-                )
+                select(TI).where(TI.task_id == task_id, TI.dag_id == dag_id, TI.logical_date == logical_date)
             ).one_or_none()
         )
         is None
     ):
-        raise NotFound(
-            detail=f"Task instance not found for task {task_id!r} on execution_date {execution_date}"
-        )
+        raise NotFound(detail=f"Task instance not found for task {task_id!r} on logical_date {logical_date}")
 
     select_stmt = select(TI).where(
         TI.dag_id == dag_id, TI.task_id == task_id, TI.run_id == run_id, TI.map_index == -1
@@ -550,7 +547,7 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
     tis = dag.set_task_instance_state(
         task_id=task_id,
         run_id=run_id,
-        execution_date=execution_date,
+        logical_date=logical_date,
         state=data["new_state"],
         upstream=data["include_upstream"],
         downstream=data["include_downstream"],
@@ -731,6 +728,7 @@ def get_mapped_task_instance_dependencies(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_task_instance_try_details(

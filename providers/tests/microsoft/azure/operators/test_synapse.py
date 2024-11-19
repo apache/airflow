@@ -280,7 +280,6 @@ class TestAzureSynapseRunPipelineOperator:
         ti = create_task_instance_of_operator(
             AzureSynapseRunPipelineOperator,
             dag_id="test_synapse_run_pipeline_op_link",
-            execution_date=DEFAULT_DATE,
             task_id=AZURE_SYNAPSE_PIPELINE_TASK_ID,
             azure_synapse_conn_id=AZURE_SYNAPSE_CONN_ID,
             pipeline_name=PIPELINE_NAME,

@@ -21,6 +21,18 @@ from enum import Enum
 
 import methodtools
 
+# Databases do not support arbitrary precision integers, so we need to limit the range of priority weights.
+# postgres: -2147483648 to +2147483647 (see https://www.postgresql.org/docs/current/datatype-numeric.html)
+# mysql: -2147483648 to +2147483647 (see https://dev.mysql.com/doc/refman/8.4/en/integer-types.html)
+# sqlite: -9223372036854775808 to +9223372036854775807 (see https://sqlite.org/datatype3.html)
+DB_SAFE_MINIMUM = -2147483648
+DB_SAFE_MAXIMUM = 2147483647
+
+
+def db_safe_priority(priority_weight: int) -> int:
+    """Convert priority weight to a safe value for the database."""
+    return max(DB_SAFE_MINIMUM, min(DB_SAFE_MAXIMUM, priority_weight))
+
 
 class WeightRule(str, Enum):
     """Weight rules."""

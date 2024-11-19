@@ -30,10 +30,16 @@ from airflow.api.common.mark_tasks import (
 )
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.assets import AssetEventCollectionResponse, AssetEventResponse
 from airflow.api_fastapi.core_api.datamodels.dag_run import (
+    DAGRunClearBody,
     DAGRunPatchBody,
     DAGRunPatchStates,
     DAGRunResponse,
+)
+from airflow.api_fastapi.core_api.datamodels.task_instances import (
+    TaskInstanceCollectionResponse,
+    TaskInstanceResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models import DAG, DagRun
@@ -142,3 +148,84 @@ def patch_dag_run(
     dag_run = session.get(DagRun, dag_run.id)
 
     return DAGRunResponse.model_validate(dag_run, from_attributes=True)
+
+
+@dag_run_router.get(
+    "/{dag_run_id}/upstreamAssetEvents",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
+def get_upstream_asset_events(
+    dag_id: str, dag_run_id: str, session: Annotated[Session, Depends(get_session)]
+) -> AssetEventCollectionResponse:
+    """If dag run is asset-triggered, return the asset events that triggered it."""
+    dag_run: DagRun | None = session.scalar(
+        select(DagRun).where(
+            DagRun.dag_id == dag_id,
+            DagRun.run_id == dag_run_id,
+        )
+    )
+    if dag_run is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
+        )
+    events = dag_run.consumed_asset_events
+    return AssetEventCollectionResponse(
+        asset_events=[
+            AssetEventResponse.model_validate(asset_event, from_attributes=True) for asset_event in events
+        ],
+        total_entries=len(events),
+    )
+
+
+@dag_run_router.post(
+    "/{dag_run_id}/clear", responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND])
+)
+def clear_dag_run(
+    dag_id: str,
+    dag_run_id: str,
+    body: DAGRunClearBody,
+    request: Request,
+    session: Annotated[Session, Depends(get_session)],
+) -> TaskInstanceCollectionResponse | DAGRunResponse:
+    dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
+    if dag_run is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
+        )
+
+    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    start_date = dag_run.logical_date
+    end_date = dag_run.logical_date
+
+    if body.dry_run:
+        task_instances = dag.clear(
+            start_date=start_date,
+            end_date=end_date,
+            task_ids=None,
+            only_failed=False,
+            dry_run=True,
+            session=session,
+        )
+
+        return TaskInstanceCollectionResponse(
+            task_instances=[
+                TaskInstanceResponse.model_validate(ti, from_attributes=True) for ti in task_instances
+            ],
+            total_entries=len(task_instances),
+        )
+    else:
+        dag.clear(
+            start_date=dag_run.start_date,
+            end_date=dag_run.end_date,
+            task_ids=None,
+            only_failed=False,
+            session=session,
+        )
+        dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
+        return DAGRunResponse.model_validate(dag_run_cleared, from_attributes=True)

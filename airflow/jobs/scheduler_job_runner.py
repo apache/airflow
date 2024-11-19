@@ -25,12 +25,14 @@ import signal
 import sys
 import time
 from collections import Counter, defaultdict, deque
+from contextlib import suppress
 from datetime import timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
+from deprecated import deprecated
 from sqlalchemy import and_, delete, exists, func, not_, select, text, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import lazyload, load_only, make_transient, selectinload
@@ -40,7 +42,7 @@ from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
-from airflow.exceptions import UnknownExecutorException
+from airflow.exceptions import RemovedInAirflow3Warning, UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
@@ -98,6 +100,9 @@ if TYPE_CHECKING:
 TI = TaskInstance
 DR = DagRun
 DM = DagModel
+
+TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT = "stuck in queued reschedule"
+""":meta private:"""
 
 
 class ConcurrencyMap:
@@ -184,8 +189,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
         self._task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
-
         self._enable_tracemalloc = conf.getboolean("scheduler", "enable_tracemalloc")
+
+        # this param is intentionally undocumented
+        self._num_stuck_queued_retries = conf.getint(
+            section="scheduler",
+            key="num_stuck_in_queued_retries",
+            fallback=2,
+        )
+
         if self._enable_tracemalloc:
             import tracemalloc
 
@@ -238,7 +250,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         top_stats = snapshot.statistics("lineno")
         n = 10
         self.log.error(
-            "scheduler memory usgae:\n Top %d\n %s",
+            "scheduler memory usage:\n Top %d\n %s",
             n,
             "\n\t".join(map(str, top_stats[:n])),
         )
@@ -340,7 +352,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .where(not_(DM.is_paused))
                 .where(TI.state == TaskInstanceState.SCHEDULED)
                 .options(selectinload(TI.dag_model))
-                .order_by(-TI.priority_weight, DR.execution_date, TI.map_index)
+                .order_by(-TI.priority_weight, DR.logical_date, TI.map_index)
             )
 
             if starved_pools:
@@ -692,7 +704,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         queued_tis = self._executable_task_instances_to_queued(max_tis, session=session)
 
-        # Sort queued TIs to there respective executor
+        # Sort queued TIs to their respective executor
         executor_to_queued_tis = self._executor_to_tis(queued_tis)
         for executor, queued_tis_per_executor in executor_to_queued_tis.items():
             self.log.info(
@@ -735,7 +747,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Report execution
         for ti_key, (state, _) in event_buffer.items():
-            # We create map (dag_id, task_id, execution_date) -> in-memory try_number
+            # We create map (dag_id, task_id, logical_date) -> in-memory try_number
             ti_primary_key_to_try_number_map[ti_key.primary] = ti_key.try_number
 
             cls.logger().info("Received executor event with state %s for task instance %s", state, ti_key)
@@ -871,7 +883,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "end_date": str(ti.end_date),
                 "duration": ti.duration,
                 "executor_config": str(ti.executor_config),
-                "execution_date": str(ti.execution_date),
+                "logical_date": str(ti.logical_date),
                 "hostname": ti.hostname,
                 "log_url": ti.log_url,
                 "operator": str(ti.operator),
@@ -1046,7 +1058,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         timers.call_regular_interval(
             conf.getfloat("scheduler", "task_queued_timeout_check_interval"),
-            self._fail_tasks_stuck_in_queued,
+            self._handle_tasks_stuck_in_queued,
         )
 
         timers.call_regular_interval(
@@ -1098,6 +1110,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 for executor in self.job.executors:
                     try:
                         # this is backcompat check if executor does not inherit from BaseExecutor
+                        # todo: remove in airflow 3.0
                         if not hasattr(executor, "_task_event_logs"):
                             continue
                         with create_session() as session:
@@ -1288,15 +1301,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @add_span
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
         """Create a DAG run and update the dag_model to control if/when the next DAGRun should be created."""
-        # Bulk Fetch DagRuns with dag_id and execution_date same
+        # Bulk Fetch DagRuns with dag_id and logical_date same
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
         # duplicate dag runs
         existing_dagruns = (
             session.execute(
-                select(DagRun.dag_id, DagRun.execution_date).where(
+                select(DagRun.dag_id, DagRun.logical_date).where(
                     tuple_in_condition(
-                        (DagRun.dag_id, DagRun.execution_date),
+                        (DagRun.dag_id, DagRun.logical_date),
                         ((dm.dag_id, dm.next_dagrun) for dm in dag_models),
                     ),
                 )
@@ -1337,7 +1350,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 try:
                     dag.create_dagrun(
                         run_type=DagRunType.SCHEDULED,
-                        execution_date=dag_model.next_dagrun,
+                        logical_date=dag_model.next_dagrun,
                         state=DagRunState.QUEUED,
                         data_interval=data_interval,
                         external_trigger=False,
@@ -1372,18 +1385,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session: Session,
     ) -> None:
         """For DAGs that are triggered by assets, create dag runs."""
-        # Bulk Fetch DagRuns with dag_id and execution_date same
+        # Bulk Fetch DagRuns with dag_id and logical_date same
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
         # duplicate dag runs
-        exec_dates = {
+        logical_dates = {
             dag_id: timezone.coerce_datetime(last_time)
             for dag_id, (_, last_time) in asset_triggered_dag_info.items()
         }
         existing_dagruns: set[tuple[str, timezone.DateTime]] = set(
             session.execute(
-                select(DagRun.dag_id, DagRun.execution_date).where(
-                    tuple_in_condition((DagRun.dag_id, DagRun.execution_date), exec_dates.items())
+                select(DagRun.dag_id, DagRun.logical_date).where(
+                    tuple_in_condition((DagRun.dag_id, DagRun.logical_date), logical_dates.items())
                 )
             )
         )
@@ -1411,24 +1424,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # we need to set dag.next_dagrun_info if the Dag Run already exists or if we
             # create a new one. This is so that in the next Scheduling loop we try to create new runs
             # instead of falling in a loop of Integrity Error.
-            exec_date = exec_dates[dag.dag_id]
-            if (dag.dag_id, exec_date) not in existing_dagruns:
+            logical_date = logical_dates[dag.dag_id]
+            if (dag.dag_id, logical_date) not in existing_dagruns:
                 previous_dag_run = session.scalar(
                     select(DagRun)
                     .where(
                         DagRun.dag_id == dag.dag_id,
-                        DagRun.execution_date < exec_date,
+                        DagRun.logical_date < logical_date,
                         DagRun.run_type == DagRunType.ASSET_TRIGGERED,
                     )
-                    .order_by(DagRun.execution_date.desc())
+                    .order_by(DagRun.logical_date.desc())
                     .limit(1)
                 )
                 asset_event_filters = [
                     DagScheduleAssetReference.dag_id == dag.dag_id,
-                    AssetEvent.timestamp <= exec_date,
+                    AssetEvent.timestamp <= logical_date,
                 ]
                 if previous_dag_run:
-                    asset_event_filters.append(AssetEvent.timestamp > previous_dag_run.execution_date)
+                    asset_event_filters.append(AssetEvent.timestamp > previous_dag_run.logical_date)
 
                 asset_events = session.scalars(
                     select(AssetEvent)
@@ -1439,10 +1452,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .where(*asset_event_filters)
                 ).all()
 
-                data_interval = dag.timetable.data_interval_for_events(exec_date, asset_events)
+                data_interval = dag.timetable.data_interval_for_events(logical_date, asset_events)
                 run_id = dag.timetable.generate_run_id(
                     run_type=DagRunType.ASSET_TRIGGERED,
-                    logical_date=exec_date,
+                    logical_date=logical_date,
                     data_interval=data_interval,
                     session=session,
                     events=asset_events,
@@ -1451,7 +1464,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag_run = dag.create_dagrun(
                     run_id=run_id,
                     run_type=DagRunType.ASSET_TRIGGERED,
-                    execution_date=exec_date,
+                    logical_date=logical_date,
                     data_interval=data_interval,
                     state=DagRunState.QUEUED,
                     external_trigger=False,
@@ -1706,8 +1719,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                 return callback_to_execute
 
-            if dag_run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:
-                self.log.error("Execution date is in future: %s", dag_run.execution_date)
+            if dag_run.logical_date > timezone.utcnow() and not dag.allow_future_exec_dates:
+                self.log.error("Logical date is in future: %s", dag_run.logical_date)
                 return callback
 
             if not self._verify_integrity_if_dag_changed(dag_run=dag_run, session=session):
@@ -1721,7 +1734,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if self._should_update_dag_next_dagruns(dag, dag_model, last_dag_run=dag_run, session=session):
                 dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
             # This will do one query per dag run. We "could" build up a complex
-            # query to update all the TIs across all the execution dates and dag
+            # query to update all the TIs across all the logical dates and dag
             # IDs in a single query, but it turns out that can be _very very slow_
             # see #11147/commit ee90807ac for more details
             if span.is_recording():
@@ -1767,48 +1780,132 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.debug("callback is empty")
 
     @provide_session
-    def _fail_tasks_stuck_in_queued(self, session: Session = NEW_SESSION) -> None:
+    def _handle_tasks_stuck_in_queued(self, session: Session = NEW_SESSION) -> None:
         """
-        Mark tasks stuck in queued for longer than `task_queued_timeout` as failed.
+        Handle the scenario where a task is queued for longer than `task_queued_timeout`.
 
         Tasks can get stuck in queued for a wide variety of reasons (e.g. celery loses
         track of a task, a cluster can't further scale up its workers, etc.), but tasks
-        should not be stuck in queued for a long time. This will mark tasks stuck in
-        queued for longer than `self._task_queued_timeout` as failed. If the task has
-        available retries, it will be retried.
-        """
-        self.log.debug("Calling SchedulerJob._fail_tasks_stuck_in_queued method")
+        should not be stuck in queued for a long time.
 
-        tasks_stuck_in_queued = session.scalars(
+        We will attempt to requeue the task (by revoking it from executor and setting to
+        scheduled) up to 2 times before failing the task.
+        """
+        tasks_stuck_in_queued = self._get_tis_stuck_in_queued(session)
+        for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued).items():
+            try:
+                for ti in stuck_tis:
+                    executor.revoke_task(ti=ti)
+                    self._maybe_requeue_stuck_ti(
+                        ti=ti,
+                        session=session,
+                    )
+            except NotImplementedError:
+                # this block only gets entered if the executor has not implemented `revoke_task`.
+                # in which case, we try the fallback logic
+                # todo: remove the call to _stuck_in_queued_backcompat_logic in airflow 3.0.
+                #   after 3.0, `cleanup_stuck_queued_tasks` will be removed, so we should
+                #   just continue immediately.
+                self._stuck_in_queued_backcompat_logic(executor, stuck_tis)
+                continue
+
+    def _get_tis_stuck_in_queued(self, session) -> Iterable[TaskInstance]:
+        """Query db for TIs that are stuck in queued."""
+        return session.scalars(
             select(TI).where(
                 TI.state == TaskInstanceState.QUEUED,
                 TI.queued_dttm < (timezone.utcnow() - timedelta(seconds=self._task_queued_timeout)),
                 TI.queued_by_job_id == self.job.id,
             )
-        ).all()
+        )
 
-        for executor, stuck_tis in self._executor_to_tis(tasks_stuck_in_queued).items():
-            try:
-                cleaned_up_task_instances = set(executor.cleanup_stuck_queued_tasks(tis=stuck_tis))
-                for ti in stuck_tis:
-                    if repr(ti) in cleaned_up_task_instances:
-                        self.log.warning(
-                            "Marking task instance %s stuck in queued as failed. "
-                            "If the task instance has available retries, it will be retried.",
-                            ti,
-                        )
-                        session.add(
-                            Log(
-                                event="stuck in queued",
-                                task_instance=ti.key,
-                                extra=(
-                                    "Task will be marked as failed. If the task instance has "
-                                    "available retries, it will be retried."
-                                ),
-                            )
-                        )
-            except NotImplementedError:
-                self.log.debug("Executor doesn't support cleanup of stuck queued tasks. Skipping.")
+    def _maybe_requeue_stuck_ti(self, *, ti, session):
+        """
+        Requeue task if it has not been attempted too many times.
+
+        Otherwise, fail it.
+        """
+        num_times_stuck = self._get_num_times_stuck_in_queued(ti, session)
+        if num_times_stuck < self._num_stuck_queued_retries:
+            self.log.info("Task stuck in queued; will try to requeue. task_id=%s", ti.task_id)
+            session.add(
+                Log(
+                    event=TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+                    task_instance=ti.key,
+                    extra=(
+                        f"Task was in queued state for longer than {self._task_queued_timeout} "
+                        "seconds; task state will be set back to scheduled."
+                    ),
+                )
+            )
+            self._reschedule_stuck_task(ti)
+        else:
+            self.log.info(
+                "Task requeue attempts exceeded max; marking failed. task_instance=%s",
+                ti,
+            )
+            session.add(
+                Log(
+                    event="stuck in queued tries exceeded",
+                    task_instance=ti.key,
+                    extra=f"Task was requeued more than {self._num_stuck_queued_retries} times and will be failed.",
+                )
+            )
+            ti.set_state(TaskInstanceState.FAILED, session=session)
+
+    @deprecated(
+        reason="This is backcompat layer for older executor interface. Should be removed in 3.0",
+        category=RemovedInAirflow3Warning,
+        action="ignore",
+    )
+    def _stuck_in_queued_backcompat_logic(self, executor, stuck_tis):
+        """
+        Try to invoke stuck in queued cleanup for older executor interface.
+
+        TODO: remove in airflow 3.0
+
+        Here we handle case where the executor pre-dates the interface change that
+        introduced `cleanup_tasks_stuck_in_queued` and deprecated `cleanup_stuck_queued_tasks`.
+
+        """
+        with suppress(NotImplementedError):
+            for ti_repr in executor.cleanup_stuck_queued_tasks(tis=stuck_tis):
+                self.log.warning(
+                    "Task instance %s stuck in queued. Will be set to failed.",
+                    ti_repr,
+                )
+
+    @provide_session
+    def _reschedule_stuck_task(self, ti, session=NEW_SESSION):
+        session.execute(
+            update(TI)
+            .where(TI.filter_for_tis([ti]))
+            .values(
+                state=TaskInstanceState.SCHEDULED,
+                queued_dttm=None,
+            )
+            .execution_options(synchronize_session=False)
+        )
+
+    @provide_session
+    def _get_num_times_stuck_in_queued(self, ti: TaskInstance, session: Session = NEW_SESSION) -> int:
+        """
+        Check the Log table to see how many times a taskinstance has been stuck in queued.
+
+        We can then use this information to determine whether to reschedule a task or fail it.
+        """
+        return (
+            session.query(Log)
+            .where(
+                Log.task_id == ti.task_id,
+                Log.dag_id == ti.dag_id,
+                Log.run_id == ti.run_id,
+                Log.map_index == ti.map_index,
+                Log.try_number == ti.try_number,
+                Log.event == TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+            )
+            .count()
+        )
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
@@ -2167,7 +2264,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.add(warning)
             existing_warned_dag_ids.add(warning.dag_id)
 
-    def _executor_to_tis(self, tis: list[TaskInstance]) -> dict[BaseExecutor, list[TaskInstance]]:
+    def _executor_to_tis(self, tis: Iterable[TaskInstance]) -> dict[BaseExecutor, list[TaskInstance]]:
         """Organize TIs into lists per their respective executor."""
         _executor_to_tis: defaultdict[BaseExecutor, list[TaskInstance]] = defaultdict(list)
         for ti in tis:

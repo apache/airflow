@@ -19,10 +19,10 @@ from __future__ import annotations
 
 import sys
 import uuid
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import httpx
-import methodtools
+import msgspec
 import structlog
 from pydantic import BaseModel
 from uuid6 import uuid7
@@ -30,9 +30,9 @@ from uuid6 import uuid7
 from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
-    State1 as TerminalState,
-    TaskInstanceState,
+    TerminalTIState,
     TIEnterRunningPayload,
+    TIHeartbeatInfo,
     TITerminalStatePayload,
     ValidationError as RemoteValidationError,
 )
@@ -42,13 +42,25 @@ from airflow.utils.platform import getuser
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from airflow.typing_compat import ParamSpec
+
+    P = ParamSpec("P")
+    T = TypeVar("T")
+
+    # # methodtools doesn't have typestubs, so give a stub
+    def lru_cache(maxsize: int | None = 128):
+        def wrapper(f):
+            return f
+
+        return wrapper
+else:
+    from methodtools import lru_cache
 
 log = structlog.get_logger(logger_name=__name__)
 
 __all__ = [
     "Client",
     "ConnectionOperations",
-    "ErrorBody",
     "ServerResponseError",
     "TaskInstanceOperations",
 ]
@@ -98,16 +110,17 @@ class TaskInstanceOperations:
         """Tell the API server that this TI has started running."""
         body = TIEnterRunningPayload(pid=pid, hostname=get_hostname(), unixname=getuser(), start_date=when)
 
-        self.client.patch(f"task-instance/{id}/state", content=body.model_dump_json())
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
-    def finish(self, id: uuid.UUID, state: TaskInstanceState, when: datetime):
+    def finish(self, id: uuid.UUID, state: TerminalTIState, when: datetime):
         """Tell the API server that this TI has reached a terminal state."""
-        body = TITerminalStatePayload(end_date=when, state=TerminalState(state))
+        body = TITerminalStatePayload(end_date=when, state=TerminalTIState(state))
 
-        self.client.patch(f"task-instance/{id}/state", content=body.model_dump_json())
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
-    def heartbeat(self, id: uuid.UUID):
-        self.client.put(f"task-instance/{id}/heartbeat")
+    def heartbeat(self, id: uuid.UUID, pid: int):
+        body = TIHeartbeatInfo(pid=pid, hostname=get_hostname())
+        self.client.put(f"task-instances/{id}/heartbeat", content=body.model_dump_json())
 
 
 class ConnectionOperations:
@@ -164,21 +177,22 @@ class Client(httpx.Client):
     # methods on one object prefixed with the object type (`.task_instances.update` rather than
     # `task_instance_update` etc.)
 
-    @methodtools.lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[misc]
     @property
     def task_instances(self) -> TaskInstanceOperations:
         """Operations related to TaskInstances."""
         return TaskInstanceOperations(self)
 
-    @methodtools.lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[misc]
     @property
     def connections(self) -> ConnectionOperations:
         """Operations related to TaskInstances."""
         return ConnectionOperations(self)
 
 
-class ErrorBody(BaseModel):
-    detail: list[RemoteValidationError] | dict[str, Any]
+# This is only used for parsing. ServerResponseError is raised instead
+class _ErrorBody(BaseModel):
+    detail: list[RemoteValidationError] | str
 
     def __repr__(self):
         return repr(self.detail)
@@ -188,7 +202,7 @@ class ServerResponseError(httpx.HTTPStatusError):
     def __init__(self, message: str, *, request: httpx.Request, response: httpx.Response):
         super().__init__(message, request=request, response=response)
 
-    detail: ErrorBody
+    detail: list[RemoteValidationError] | str | dict[str, Any] | None
 
     @classmethod
     def from_response(cls, response: httpx.Response) -> ServerResponseError | None:
@@ -201,16 +215,23 @@ class ServerResponseError(httpx.HTTPStatusError):
         if response.headers.get("content-type") != "application/json":
             return None
 
+        detail: list[RemoteValidationError] | dict[str, Any] | None = None
         try:
-            err = ErrorBody.model_validate_json(response.read())
-            if isinstance(err.detail, list):
+            body = _ErrorBody.model_validate_json(response.read())
+
+            if isinstance(body.detail, list):
+                detail = body.detail
                 msg = "Remote server returned validation error"
             else:
-                msg = err.detail.get("message", "") or "Un-parseable error"
+                msg = body.detail or "Un-parseable error"
         except Exception:
-            err = ErrorBody.model_validate_json(response.content)
+            try:
+                detail = msgspec.json.decode(response.content)
+            except Exception:
+                # Fallback to a normal httpx error
+                return None
             msg = "Server returned error"
 
         self = cls(msg, request=response.request, response=response)
-        self.detail = err
+        self.detail = detail
         return self

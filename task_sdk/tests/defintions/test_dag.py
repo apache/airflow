@@ -221,7 +221,7 @@ class TestDag:
         assert "t3" not in partial.task_group.used_group_ids
 
     def test_partial_subset_taskgroup_join_ids(self):
-        from airflow.sdk import TaskGroup
+        from airflow.sdk.definitions.taskgroup import TaskGroup
 
         with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
             start = BaseOperator(task_id="start")

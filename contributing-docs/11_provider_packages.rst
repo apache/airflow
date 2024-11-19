@@ -118,29 +118,60 @@ in development mode - then capabilities of your provider will be discovered by a
 the provider among other providers in ``airflow providers`` command output.
 
 
-Local Development Release of a Specific Provider
+Local Release of a Specific Provider
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When you develop a provider, you can release it locally and test it in your Airflow environment. This should
-be accomplished using breeze. Choose a suffix for the release such as "dev1" and run the breeze build for
+be accomplished using breeze. Choose a suffix for the release such as "patch.asb.1" and run the breeze build for
 that provider. Remember Provider IDs use a dot ('.') for directory separators so the Provider ID for the
-Microsoft Azure provider is 'microsoft.azure'. This can be provided in the PACKAGE_LIST environment variable
-or passed on the command line.
+Microsoft Azure provider is 'microsoft.azure'. The provider IDs to build can be provided in the PACKAGE_LIST
+environment variable or passed on the command line.
 
-``export PACKAGE_LIST=microsoft.azure``
+.. code-block:: bash
+
+     export PACKAGE_LIST=microsoft.azure
 
 Then build the provider (you don't need to pass the package ID if you set the environment variable above):
 
-```bash
-breeze release-management prepare-provider-packages \
-    --package-format both --version-suffix-for-pypi=dev1 \
-    --skip-tag-check microsoft.azure
-```
+.. code-block:: bash
+
+    breeze release-management prepare-provider-packages \
+        --package-format both \
+        --version-suffix-for-local=patch.asb.1 \
+        microsoft.azure
+
 
 Finally, copy the wheel file from the dist directory to the a directory your airflow deployment can use.
 If this is ~/airflow/test-airflow/local_providers, you can use the following command:
 
-``cp dist/apache_airflow_providers_microsoft_azure-10.5.2+dev1-py3-none-any.whl ~/airflow/test-airflow/local_providers/``
+``cp dist/apache_airflow_providers_microsoft_azure-10.5.2+patch.asb.1-none-any.whl ~/airflow/test-airflow/local_providers/``
+
+If you want to build a local version of a version already released to PyPI, such as rc1, then you can combine
+the PyPI suffix flag --version-suffix-for-pypi with the local suffix flag --version-suffix-for-local. For example:
+
+.. code-block:: bash
+
+    breeze release-management prepare-provider-packages \
+        --package-format both \
+        --version-suffix-for-pypi rc1 \
+        --version-suffix-for-local=patch.asb.1 \
+        microsoft.azure
+
+
+The above would result in a wheel file
+
+    apache_airflow_providers_microsoft_azure-10.5.2rc1+patch.asb.1-py3-none-any.whl
+
+Builds using a local suffix will not check to see if a release has already been made. This is useful for testing.
+
+Local versions can also be built using the version-suffix-for-pypi flag although using the version-suffix-for-local
+flag is preferred. To build with the version-suffix-for-pypi flag, use the following command:
+
+.. code-block:: bash
+
+    breeze release-management prepare-provider-packages \
+        --package-format both --version-suffix-for-pypi=dev1 \
+        --skip-tag-check microsoft.azure
 
 
 Naming Conventions for provider packages

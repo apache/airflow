@@ -38,7 +38,7 @@ from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.weight_rule import WeightRule
+from airflow.utils.weight_rule import WeightRule, db_safe_priority
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -50,7 +50,8 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG as SchedulerDAG
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.taskinstance import TaskInstance
-    from airflow.sdk import DAG, BaseOperator
+    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.node import DAGNode
     from airflow.task.priority_strategy import PriorityWeightStrategy
     from airflow.triggers.base import StartTriggerArgs
@@ -335,7 +336,7 @@ class AbstractOperator(Templater, TaskSDKAbstractOperator):
         )
 
         if isinstance(self.weight_rule, _AbsolutePriorityWeightStrategy):
-            return self.priority_weight
+            return db_safe_priority(self.priority_weight)
         elif isinstance(self.weight_rule, _DownstreamPriorityWeightStrategy):
             upstream = False
         elif isinstance(self.weight_rule, _UpstreamPriorityWeightStrategy):
@@ -344,10 +345,13 @@ class AbstractOperator(Templater, TaskSDKAbstractOperator):
             upstream = False
         dag = self.get_dag()
         if dag is None:
-            return self.priority_weight
-        return self.priority_weight + sum(
-            dag.task_dict[task_id].priority_weight
-            for task_id in self.get_flat_relative_ids(upstream=upstream)
+            return db_safe_priority(self.priority_weight)
+        return db_safe_priority(
+            self.priority_weight
+            + sum(
+                dag.task_dict[task_id].priority_weight
+                for task_id in self.get_flat_relative_ids(upstream=upstream)
+            )
         )
 
     @cached_property
@@ -457,7 +461,7 @@ class AbstractOperator(Templater, TaskSDKAbstractOperator):
 
         from airflow.models.mappedoperator import MappedOperator
         from airflow.models.taskinstance import TaskInstance
-        from airflow.sdk import BaseOperator
+        from airflow.sdk.definitions.baseoperator import BaseOperator
         from airflow.settings import task_instance_mutation_hook
 
         if not isinstance(self, (BaseOperator, MappedOperator)):

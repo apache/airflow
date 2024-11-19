@@ -43,7 +43,7 @@ import structlog
 from pydantic import TypeAdapter
 
 from airflow.sdk.api.client import Client
-from airflow.sdk.api.datamodels._generated import TaskInstanceState
+from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
     ConnectionResponse,
     GetConnection,
@@ -55,8 +55,6 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
     from airflow.sdk.api.datamodels.activities import ExecuteTaskActivity
-    from airflow.sdk.api.datamodels.ti import TaskInstance
-
 
 __all__ = ["WatchedSubprocess", "supervise"]
 
@@ -131,7 +129,7 @@ def _reopen_std_io_handles(child_stdin, child_stdout, child_stderr):
         sys.stderr = sys.__stderr__
 
     # Ensure that sys.stdout et al (and the underlying filehandles for C libraries etc) are connected to the
-    # pipes form the supervisor
+    # pipes from the supervisor
 
     for handle_name, sock, mode, close in (
         ("stdin", child_stdin, "r", True),
@@ -151,8 +149,9 @@ def _reopen_std_io_handles(child_stdin, child_stdout, child_stderr):
                 fd = sock.fileno()
             else:
                 raise
-
-        setattr(sys, handle_name, os.fdopen(fd, mode))
+        # We can't open text mode fully unbuffered (python throws an exception if we try), but we can make it line buffered with `buffering=1`
+        handle = os.fdopen(fd, mode, buffering=1)
+        setattr(sys, handle_name, handle)
 
 
 def _fork_main(
@@ -405,7 +404,7 @@ class WatchedSubprocess:
                     continue
 
                 try:
-                    self.client.task_instances.heartbeat(self.ti_id)
+                    self.client.task_instances.heartbeat(self.ti_id, pid=self._process.pid)
                     self._last_heartbeat = time.monotonic()
                 except Exception:
                     log.warning("Couldn't heartbeat", exc_info=True)
@@ -431,8 +430,8 @@ class WatchedSubprocess:
         Not valid before the process has finished.
         """
         if self._exit_code == 0:
-            return self._terminal_state or TaskInstanceState.SUCCESS
-        return TaskInstanceState.FAILED
+            return self._terminal_state or TerminalTIState.SUCCESS
+        return TerminalTIState.FAILED
 
     def __rich_repr__(self):
         yield "pid", self.pid

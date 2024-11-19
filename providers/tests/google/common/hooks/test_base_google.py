@@ -410,7 +410,6 @@ class TestGoogleBaseHook:
             key_secret_name=None,
             key_secret_project_id=None,
             scopes=self.instance.scopes,
-            delegate_to=None,
             target_principal=None,
             delegates=None,
             is_anonymous=None,
@@ -452,7 +451,6 @@ class TestGoogleBaseHook:
             key_secret_name=None,
             key_secret_project_id=None,
             scopes=self.instance.scopes,
-            delegate_to=None,
             target_principal=None,
             delegates=None,
             is_anonymous=None,
@@ -487,7 +485,6 @@ class TestGoogleBaseHook:
             key_secret_name=None,
             key_secret_project_id=None,
             scopes=self.instance.scopes,
-            delegate_to=None,
             target_principal=None,
             delegates=None,
             is_anonymous=None,
@@ -503,7 +500,6 @@ class TestGoogleBaseHook:
         mock_credentials = mock.MagicMock()
         mock_get_creds_and_proj_id.return_value = (mock_credentials, "PROJECT_ID")
         self.instance.extras = {}
-        self.instance.delegate_to = "USER"
         result = self.instance.get_credentials_and_project_id()
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
@@ -512,7 +508,6 @@ class TestGoogleBaseHook:
             key_secret_name=None,
             key_secret_project_id=None,
             scopes=self.instance.scopes,
-            delegate_to="USER",
             target_principal=None,
             delegates=None,
             is_anonymous=None,
@@ -522,23 +517,6 @@ class TestGoogleBaseHook:
             idp_extra_params_dict=None,
         )
         assert (mock_credentials, "PROJECT_ID") == result
-
-    @mock.patch("google.auth.default")
-    def test_get_credentials_and_project_id_with_default_auth_and_unsupported_delegate(
-        self, mock_auth_default
-    ):
-        self.instance.delegate_to = "TEST_DELEGATE_TO"
-        mock_credentials = mock.MagicMock(spec=google.auth.compute_engine.Credentials)
-        mock_auth_default.return_value = (mock_credentials, "PROJECT_ID")
-
-        with pytest.raises(
-            AirflowException,
-            match=re.escape(
-                "The `delegate_to` parameter cannot be used here as the current authentication method "
-                "does not support account impersonate. Please use service-account for authorization."
-            ),
-        ):
-            self.instance.get_credentials_and_project_id()
 
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id", return_value=("CREDENTIALS", "PROJECT_ID"))
     def test_get_credentials_and_project_id_with_default_auth_and_overridden_project_id(
@@ -553,7 +531,6 @@ class TestGoogleBaseHook:
             key_secret_name=None,
             key_secret_project_id=None,
             scopes=self.instance.scopes,
-            delegate_to=None,
             target_principal=None,
             delegates=None,
             is_anonymous=None,
@@ -593,7 +570,6 @@ class TestGoogleBaseHook:
             key_secret_name=None,
             key_secret_project_id=None,
             scopes=self.instance.scopes,
-            delegate_to=None,
             target_principal=None,
             delegates=None,
             is_anonymous=True,
@@ -805,7 +781,6 @@ class TestGoogleBaseHook:
             key_secret_name=None,
             key_secret_project_id=None,
             scopes=self.instance.scopes,
-            delegate_to=None,
             target_principal=target_principal,
             delegates=delegates,
             is_anonymous=None,
