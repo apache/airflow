@@ -521,8 +521,8 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
                 expire_on_commit=False,
             )
 
-    Session = scoped_session(_session_maker(engine))
     NonScopedSession = _session_maker(engine)
+    Session = scoped_session(NonScopedSession)
 
 
 def force_traceback_session_for_untrusted_components(allow_tests_to_use_db=False):
