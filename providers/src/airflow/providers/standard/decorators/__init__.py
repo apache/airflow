@@ -19,19 +19,19 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from airflow.decorators.base import TaskDecorator
-from airflow.decorators.bash import bash_task
-from airflow.decorators.branch_external_python import branch_external_python_task
-from airflow.decorators.branch_python import branch_task
-from airflow.decorators.branch_virtualenv import branch_virtualenv_task
-from airflow.decorators.condition import run_if, skip_if
-from airflow.decorators.external_python import external_python_task
-from airflow.decorators.python import python_task
-from airflow.decorators.python_virtualenv import virtualenv_task
-from airflow.decorators.sensor import sensor_task
-from airflow.decorators.setup_teardown import setup_task, teardown_task
-from airflow.decorators.short_circuit import short_circuit_task
-from airflow.decorators.task_group import task_group
 from airflow.models.dag import dag
+from airflow.providers.standard.decorators.bash import bash_task
+from airflow.providers.standard.decorators.branch_external_python import branch_external_python_task
+from airflow.providers.standard.decorators.branch_python import branch_task
+from airflow.providers.standard.decorators.branch_virtualenv import branch_virtualenv_task
+from airflow.providers.standard.decorators.condition import run_if, skip_if
+from airflow.providers.standard.decorators.external_python import external_python_task
+from airflow.providers.standard.decorators.python import python_task
+from airflow.providers.standard.decorators.python_virtualenv import virtualenv_task
+from airflow.providers.standard.decorators.sensor import sensor_task
+from airflow.providers.standard.decorators.setup_teardown import setup_task, teardown_task
+from airflow.providers.standard.decorators.short_circuit import short_circuit_task
+from airflow.providers.standard.decorators.task_group import task_group
 from airflow.providers_manager import ProvidersManager
 
 # Please keep this in sync with the .pyi's __all__.

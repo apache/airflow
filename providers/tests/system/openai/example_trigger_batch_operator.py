@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from airflow.decorators import dag, task
+from airflow.providers.standard.decorators import dag, task
 
 OPENAI_CONN_ID = "openai_default"
 

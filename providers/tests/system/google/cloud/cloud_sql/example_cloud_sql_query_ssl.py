@@ -35,7 +35,6 @@ from typing import Any, Iterable
 from googleapiclient import discovery
 
 from airflow import settings
-from airflow.decorators import task
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLHook
@@ -46,6 +45,7 @@ from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLDeleteInstanceOperator,
     CloudSQLExecuteQueryOperator,
 )
+from airflow.providers.standard.decorators import task
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 

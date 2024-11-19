@@ -86,7 +86,7 @@ class _SnowparkDecoratedOperator(DecoratedOperator, SnowparkOperator):
             snowflake_conn_id=snowflake_conn_id,
             python_callable=python_callable,
             op_args=op_args,
-            # airflow.decorators.base.DecoratedOperator checks if the functions are bindable, so we have to
+            # airflow.providers.standard.decorators.base.DecoratedOperator checks if the functions are bindable, so we have to
             # add an artificial value to pass the validation if there is a keyword argument named `session`
             # in the signature of the python callable. The real value is determined at runtime.
             op_kwargs=inject_session_into_op_kwargs(python_callable, op_kwargs, None)

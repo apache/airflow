@@ -22,13 +22,13 @@ import logging
 import os
 from datetime import datetime
 
-from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.sheets_to_gcs import GoogleSheetsToGCSOperator
 from airflow.providers.google.suite.operators.sheets import GoogleSheetsCreateSpreadsheetOperator
 from airflow.providers.google.suite.transfers.gcs_to_sheets import GCSToGoogleSheetsOperator
+from airflow.providers.standard.decorators import task
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 

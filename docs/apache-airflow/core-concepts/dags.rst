@@ -78,7 +78,7 @@ Or, you can use the ``@dag`` decorator to :ref:`turn a function into a DAG gener
 
     import datetime
 
-    from airflow.decorators import dag
+    from airflow.providers.standard.decorators import dag
     from airflow.operators.empty import EmptyOperator
 
 
@@ -453,7 +453,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
         # dags/branch_without_trigger.py
         import pendulum
 
-        from airflow.decorators import task
+        from airflow.providers.standard.decorators import task
         from airflow.models import DAG
         from airflow.operators.empty import EmptyOperator
 
@@ -552,7 +552,7 @@ Dependency relationships can be applied across all tasks in a TaskGroup with the
 .. code-block:: python
    :emphasize-lines: 4,12
 
-    from airflow.decorators import task_group
+    from airflow.providers.standard.decorators import task_group
 
 
     @task_group()
@@ -573,7 +573,7 @@ TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``defau
     import datetime
 
     from airflow import DAG
-    from airflow.decorators import task_group
+    from airflow.providers.standard.decorators import task_group
     from airflow.providers.standard.operators.bash import BashOperator
     from airflow.operators.empty import EmptyOperator
 

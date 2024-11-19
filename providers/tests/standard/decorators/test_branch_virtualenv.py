@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.decorators import task
+from airflow.providers.standard.decorators import task
 from airflow.utils.state import State
 
 pytestmark = pytest.mark.db_test

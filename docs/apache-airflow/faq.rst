@@ -184,7 +184,7 @@ until ``min_file_process_interval`` is reached since DAG Parser will look for mo
    :name: dag_loader.py
 
     from airflow import DAG
-    from airflow.decorators import task
+    from airflow.providers.standard.decorators import task
 
     import pendulum
 
@@ -415,7 +415,7 @@ upstream task.
 
     import pendulum
 
-    from airflow.decorators import dag, task
+    from airflow.providers.standard.decorators import dag, task
     from airflow.exceptions import AirflowException
     from airflow.utils.trigger_rule import TriggerRule
 

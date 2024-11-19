@@ -27,19 +27,19 @@ from docker.types import Mount
 from kubernetes.client import models as k8s
 
 from airflow.decorators.base import FParams, FReturn, Task, TaskDecorator, _TaskDecorator
-from airflow.decorators.bash import bash_task
-from airflow.decorators.branch_external_python import branch_external_python_task
-from airflow.decorators.branch_python import branch_task
-from airflow.decorators.branch_virtualenv import branch_virtualenv_task
-from airflow.decorators.condition import AnyConditionFunc
-from airflow.decorators.external_python import external_python_task
-from airflow.decorators.python import python_task
-from airflow.decorators.python_virtualenv import virtualenv_task
-from airflow.decorators.sensor import sensor_task
-from airflow.decorators.short_circuit import short_circuit_task
-from airflow.decorators.task_group import task_group
 from airflow.models.dag import dag
 from airflow.providers.cncf.kubernetes.secret import Secret
+from airflow.providers.standard.decorators.bash import bash_task
+from airflow.providers.standard.decorators.branch_external_python import branch_external_python_task
+from airflow.providers.standard.decorators.branch_python import branch_task
+from airflow.providers.standard.decorators.branch_virtualenv import branch_virtualenv_task
+from airflow.providers.standard.decorators.condition import AnyConditionFunc
+from airflow.providers.standard.decorators.external_python import external_python_task
+from airflow.providers.standard.decorators.python import python_task
+from airflow.providers.standard.decorators.python_virtualenv import virtualenv_task
+from airflow.providers.standard.decorators.sensor import sensor_task
+from airflow.providers.standard.decorators.short_circuit import short_circuit_task
+from airflow.providers.standard.decorators.task_group import task_group
 from airflow.typing_compat import Literal
 
 # Please keep this in sync with __init__.py's __all__.

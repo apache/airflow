@@ -33,7 +33,6 @@ from datetime import datetime
 import pytest
 from pendulum import duration
 
-from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
@@ -50,6 +49,7 @@ from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineInsertInstanceOperator,
 )
 from airflow.providers.ssh.operators.ssh import SSHOperator
+from airflow.providers.standard.decorators import task
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule

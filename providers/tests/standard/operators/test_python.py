@@ -40,7 +40,6 @@ import pytest
 from slugify import slugify
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.decorators import task_group
 from airflow.exceptions import (
     AirflowException,
     DeserializingResultError,
@@ -50,6 +49,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.decorators import task_group
 from airflow.providers.standard.operators.python import (
     BranchExternalPythonOperator,
     BranchPythonOperator,

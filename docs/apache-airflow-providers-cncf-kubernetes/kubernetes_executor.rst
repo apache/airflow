@@ -165,7 +165,7 @@ Here is an example of a task with both features:
     import pendulum
 
     from airflow import DAG
-    from airflow.decorators import task
+    from airflow.providers.standard.decorators import task
     from airflow.example_dags.libs.helper import print_stuff
     from airflow.settings import AIRFLOW_HOME
 

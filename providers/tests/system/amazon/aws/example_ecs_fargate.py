@@ -20,12 +20,12 @@ from datetime import datetime
 
 import boto3
 
-from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.ecs import EcsTaskStates
 from airflow.providers.amazon.aws.operators.ecs import EcsRunTaskOperator
 from airflow.providers.amazon.aws.sensors.ecs import EcsTaskStateSensor
+from airflow.providers.standard.decorators import task
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder

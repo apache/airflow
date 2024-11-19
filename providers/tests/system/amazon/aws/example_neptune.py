@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.neptune import NeptuneHook
@@ -26,6 +25,7 @@ from airflow.providers.amazon.aws.operators.neptune import (
     NeptuneStartDbClusterOperator,
     NeptuneStopDbClusterOperator,
 )
+from airflow.providers.standard.decorators import task
 
 from providers.tests.system.amazon.aws.utils import SystemTestContextBuilder
 

@@ -29,7 +29,7 @@ OUTPUT_PROPERTIES = {
 }
 
 TASK_CALL_FUNCTIONS = {
-    "airflow.decorators.base.Task.__call__",
+    "airflow.providers.standard.decorators.base.Task.__call__",
 }
 
 

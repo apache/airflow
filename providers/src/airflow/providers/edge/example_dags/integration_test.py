@@ -26,7 +26,6 @@ from __future__ import annotations
 from datetime import datetime
 from time import sleep
 
-from airflow.decorators import task, task_group
 from airflow.exceptions import AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.models.dag import DAG
@@ -34,6 +33,7 @@ from airflow.models.param import Param
 from airflow.models.variable import Variable
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.common.compat.standard.operators import PythonOperator
+from airflow.providers.standard.decorators import task, task_group
 
 try:
     from airflow.providers.standard.operators.bash import BashOperator

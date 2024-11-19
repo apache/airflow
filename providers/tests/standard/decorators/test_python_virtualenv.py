@@ -25,8 +25,8 @@ from typing import Any
 
 import pytest
 
-from airflow.decorators import setup, task, teardown
 from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.providers.standard.decorators import setup, task, teardown
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 

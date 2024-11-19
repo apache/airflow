@@ -25,8 +25,8 @@ import textwrap
 
 import pendulum
 
-from airflow.decorators import task
 from airflow.models.dag import DAG
+from airflow.providers.standard.decorators import task
 from airflow.providers.standard.operators.bash import BashOperator
 
 

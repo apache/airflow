@@ -39,7 +39,7 @@ Use a dictionary that maps Param names to either a :class:`~airflow.models.param
    :emphasize-lines: 7-10
 
     from airflow import DAG
-    from airflow.decorators import task
+    from airflow.providers.standard.decorators import task
     from airflow.models.param import Param
 
     with DAG(

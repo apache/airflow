@@ -22,7 +22,7 @@ import os
 import ydb
 
 from airflow import DAG
-from airflow.decorators import task
+from airflow.providers.standard.decorators import task
 from airflow.providers.ydb.hooks.ydb import YDBHook
 from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
 

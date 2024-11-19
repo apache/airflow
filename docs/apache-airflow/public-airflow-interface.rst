@@ -370,22 +370,6 @@ You can extend the way how logs are written by Airflow. You can find out more ab
 The :doc:`apache-airflow-providers:core-extensions/logging` that also shows available log writers
 implemented in the community providers.
 
-Decorators
-----------
-DAG authors can use decorators to author DAGs using the :doc:`TaskFlow <core-concepts/taskflow>` concept.
-All Decorators derive from :class:`~airflow.decorators.base.TaskDecorator`.
-
-Airflow has a set of Decorators that are considered public. You are free to extend their functionality
-by extending them:
-
-.. toctree::
-  :includehidden:
-  :maxdepth: 1
-
-  _api/airflow/decorators/index
-
-You can read more about creating custom Decorators in :doc:`howto/create-custom-decorator`.
-
 Email notifications
 -------------------
 

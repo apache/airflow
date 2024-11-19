@@ -28,8 +28,8 @@ from uuid import uuid4
 import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 
-from airflow.decorators import task
 from airflow.providers.amazon.aws.hooks.ssm import SsmHook
+from airflow.providers.standard.decorators import task
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 

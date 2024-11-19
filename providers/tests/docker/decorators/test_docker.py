@@ -22,10 +22,10 @@ from io import StringIO as StringBuffer
 
 import pytest
 
-from airflow.decorators import setup, task, teardown
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
+from airflow.providers.standard.decorators import setup, task, teardown
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 

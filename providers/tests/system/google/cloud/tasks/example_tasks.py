@@ -29,7 +29,6 @@ from google.api_core.retry import Retry
 from google.cloud.tasks_v2.types import Queue
 from google.protobuf import timestamp_pb2
 
-from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.tasks import (
@@ -41,6 +40,7 @@ from airflow.providers.google.cloud.operators.tasks import (
     CloudTasksTaskRunOperator,
     CloudTasksTasksListOperator,
 )
+from airflow.providers.standard.decorators import task
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")

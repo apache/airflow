@@ -126,7 +126,7 @@ Here we retrieve data, save it to a file on our Airflow instance, and load the d
 
   import os
   import requests
-  from airflow.decorators import task
+  from airflow.providers.standard.decorators import task
   from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 
@@ -160,7 +160,7 @@ Here we select completely unique records from the retrieved data, then we check 
 
 .. code-block:: python
 
-  from airflow.decorators import task
+  from airflow.providers.standard.decorators import task
   from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 
@@ -219,7 +219,7 @@ Putting all of the pieces together, we have our completed DAG.
   import os
 
   import requests
-  from airflow.decorators import dag, task
+  from airflow.providers.standard.decorators import dag, task
   from airflow.providers.postgres.hooks.postgres import PostgresHook
   from airflow.providers.postgres.operators.postgres import PostgresOperator
 

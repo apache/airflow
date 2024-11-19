@@ -28,7 +28,6 @@ import pytest
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
-from airflow.decorators import setup, task, task_group, teardown
 from airflow.exceptions import AirflowException
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG, DagModel
@@ -37,6 +36,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceNote, clear_ta
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.decorators import setup, task, task_group, teardown
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -2289,7 +2289,7 @@ def test_mapped_skip_upstream_not_deadlock(dag_maker):
 
 
 def test_schedulable_task_exist_when_rerun_removed_upstream_mapped_task(session, dag_maker):
-    from airflow.decorators import task
+    from airflow.providers.standard.decorators import task
 
     @task
     def do_something(i):

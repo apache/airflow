@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.decorators import dag, setup, task, teardown
 from airflow.providers.cohere.operators.embedding import CohereEmbeddingOperator
+from airflow.providers.standard.decorators import dag, setup, task, teardown
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
 
 COLLECTION_NAME = "weaviate_cohere_example_collection"

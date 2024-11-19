@@ -26,7 +26,7 @@ from subprocess import CalledProcessError
 
 import pytest
 
-from airflow.decorators import setup, task, teardown
+from airflow.providers.standard.decorators import setup, task, teardown
 from airflow.utils import timezone
 
 pytestmark = pytest.mark.db_test

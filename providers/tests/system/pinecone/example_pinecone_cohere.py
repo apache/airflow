@@ -20,9 +20,9 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.decorators import setup, task, teardown
 from airflow.providers.cohere.operators.embedding import CohereEmbeddingOperator
 from airflow.providers.pinecone.operators.pinecone import PineconeIngestOperator
+from airflow.providers.standard.decorators import setup, task, teardown
 
 index_name = os.getenv("INDEX_NAME", "example-pinecone-index")
 namespace = os.getenv("NAMESPACE", "example-pinecone-index")

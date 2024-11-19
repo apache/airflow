@@ -23,7 +23,7 @@ import json
 
 import pendulum
 
-from airflow.decorators import dag, task
+from airflow.providers.standard.decorators import dag, task
 
 # [END import_module]
 

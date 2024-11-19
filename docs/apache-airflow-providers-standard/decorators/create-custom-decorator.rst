@@ -28,7 +28,7 @@ tasks. The steps to create and register ``@task.foo`` are:
 
     In this case, we are assuming that you have an existing ``FooOperator`` that takes a python function as an
     argument.  By creating a ``FooDecoratedOperator`` that inherits from ``FooOperator`` and
-    ``airflow.decorators.base.DecoratedOperator``, Airflow will supply much of the needed functionality required
+    ``airflow.providers.standard.decorators.base.DecoratedOperator``, Airflow will supply much of the needed functionality required
     to treat your new class as a taskflow native class.
 
     You should also override the ``custom_operator_name`` attribute to provide a custom name for the task. For
@@ -43,10 +43,10 @@ tasks. The steps to create and register ``@task.foo`` are:
     .. code-block:: python
 
         from typing import TYPE_CHECKING
-        from airflow.decorators.base import task_decorator_factory
+        from airflow.providers.standard.decorators.base import task_decorator_factory
 
         if TYPE_CHECKING:
-            from airflow.decorators.base import TaskDecorator
+            from airflow.providers.standard.decorators.base import TaskDecorator
 
 
         def foo_task(
@@ -100,7 +100,7 @@ To hack around this problem, a type stub ``airflow/decorators/__init__.pyi`` is 
 the type signature of each task decorator. A newly added task decorator should declare its signature stub
 like this:
 
-.. exampleinclude:: ../../../airflow/decorators/__init__.pyi
+.. exampleinclude:: ../../providers/src/airflow/providers/standard/decorators/__init__.pyi
     :language: python
     :start-after: [START decorator_signature]
     :end-before: [END decorator_signature]
@@ -114,7 +114,7 @@ If the new decorator can be used without arguments (e.g. ``@task.python`` instea
 You should also add an overload that takes a single callable immediately after the "real" definition so mypy
 can recognize the function as a "bare decorator":
 
-.. exampleinclude:: ../../../airflow/decorators/__init__.pyi
+.. exampleinclude:: ../../providers/src/airflow/providers/standard/decorators/__init__.pyi
     :language: python
     :start-after: [START mixin_for_typing]
     :end-before: [END mixin_for_typing]

@@ -22,9 +22,9 @@ from datetime import datetime
 from typing import cast
 
 from airflow import DAG
-from airflow.decorators import task
 from airflow.io.path import ObjectStoragePath
 from airflow.providers.common.io.operators.file_transfer import FileTransferOperator
+from airflow.providers.standard.decorators import task
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")

@@ -20,9 +20,9 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.decorators import task
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.models import XCom
+from airflow.providers.standard.decorators import task
 from airflow.sensors.base import PokeReturnValue
 from airflow.utils.state import State
 

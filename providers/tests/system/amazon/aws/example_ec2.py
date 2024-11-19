@@ -21,7 +21,6 @@ from operator import itemgetter
 
 import boto3
 
-from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.ec2 import (
@@ -33,6 +32,7 @@ from airflow.providers.amazon.aws.operators.ec2 import (
     EC2TerminateInstanceOperator,
 )
 from airflow.providers.amazon.aws.sensors.ec2 import EC2InstanceStateSensor
+from airflow.providers.standard.decorators import task
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder

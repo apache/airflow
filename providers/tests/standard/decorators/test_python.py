@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import sys
 from collections import namedtuple
 from datetime import date, timedelta
@@ -22,8 +24,6 @@ from typing import TYPE_CHECKING, Dict, Tuple, Union
 
 import pytest
 
-from airflow.decorators import setup, task as task_decorator, teardown
-from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
@@ -32,6 +32,8 @@ from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import PlainXComArg, XComArg
+from airflow.providers.standard.decorators import setup, task as task_decorator, teardown
+from airflow.providers.standard.decorators.base import DecoratedMappedOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
@@ -144,13 +146,13 @@ class TestAirflowTaskDecorator(BasePythonTest):
             class UnresolveableName: ...
 
         @task_decorator
-        def t1(x: "FakeTypeCheckingOnlyClass", y: int) -> Dict[int, int]:  # type: ignore[empty-body]
+        def t1(x: FakeTypeCheckingOnlyClass, y: int) -> Dict[int, int]:  # type: ignore[empty-body]
             ...
 
         assert t1(5, 5).operator.multiple_outputs is True
 
         @task_decorator
-        def t2(x: "FakeTypeCheckingOnlyClass", y: int) -> "Dict[int, int]":  # type: ignore[empty-body]
+        def t2(x: FakeTypeCheckingOnlyClass, y: int) -> Dict[int, int]:  # type: ignore[empty-body]
             ...
 
         assert t2(5, 5).operator.multiple_outputs is True
@@ -159,9 +161,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
             @task_decorator
             def t3(  # type: ignore[empty-body]
-                x: "FakeTypeCheckingOnlyClass",
+                x: FakeTypeCheckingOnlyClass,
                 y: int,
-            ) -> "UnresolveableName[int, int]": ...
+            ) -> UnresolveableName[int, int]: ...
 
             line = sys._getframe().f_lineno - 5 if PY38 else sys._getframe().f_lineno - 2
             if PY311:

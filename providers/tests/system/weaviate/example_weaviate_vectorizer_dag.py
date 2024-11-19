@@ -19,7 +19,7 @@ from __future__ import annotations
 import pendulum
 from weaviate.collections.classes.config import Configure
 
-from airflow.decorators import dag, setup, task, teardown
+from airflow.providers.standard.decorators import dag, setup, task, teardown
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
 
 COLLECTION_NAME = "Weaviate_with_vectorizer_example_collection"

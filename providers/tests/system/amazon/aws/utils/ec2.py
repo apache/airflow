@@ -20,7 +20,7 @@ from ipaddress import IPv4Network
 
 import boto3
 
-from airflow.decorators import task
+from airflow.providers.standard.decorators import task
 from airflow.utils.trigger_rule import TriggerRule
 
 

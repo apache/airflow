@@ -22,9 +22,9 @@ from typing import TYPE_CHECKING, Any
 import httpx
 import pendulum
 
-from airflow.decorators import dag, task
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.email import EmailOperator
+from airflow.providers.standard.decorators import dag, task
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

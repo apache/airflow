@@ -25,8 +25,8 @@ import os
 from datetime import date, datetime, timedelta
 
 from airflow import DAG
-from airflow.decorators import task
 from airflow.providers.apache.hive.operators.hive import HiveOperator
+from airflow.providers.standard.decorators import task
 from airflow.providers.standard.operators.bash import BashOperator
 
 # --------------------------------------------------------------------------------

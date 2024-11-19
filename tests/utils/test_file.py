@@ -194,7 +194,7 @@ class TestListPyFilesPath:
 
         assert len(modules) == 4
         assert "airflow.utils" in modules
-        assert "airflow.decorators" in modules
+        assert "airflow.providers.standard.decorators" in modules
         assert "airflow.models" in modules
         assert "airflow.sensors" in modules
         # this one is a local import, we don't want it.

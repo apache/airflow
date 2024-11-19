@@ -26,9 +26,9 @@ from unittest import mock
 
 import pytest
 
-from airflow.decorators import task
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
+from airflow.providers.standard.decorators import task
 from airflow.utils import timezone
 from airflow.utils.types import NOTSET
 

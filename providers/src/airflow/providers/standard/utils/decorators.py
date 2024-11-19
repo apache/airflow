@@ -31,7 +31,7 @@ def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
     :param python_source: The python source code
     :param task_decorator_name: the decorator name
 
-    TODO: Python 3.9+: Rewrite this to use ast.parse and ast.unparse
+    TODO: Python 3.9+: Rewrite this to use ``ast.parse`` and ``ast.unparse``
     """
 
     def _remove_task_decorator(py_source, decorator_name):

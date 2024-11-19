@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from pendulum import now
 
-from airflow.decorators import dag, task
 from airflow.models import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.openlineage.utils.selective_enable import (
@@ -29,6 +28,7 @@ from airflow.providers.openlineage.utils.selective_enable import (
     disable_lineage,
     enable_lineage,
 )
+from airflow.providers.standard.decorators import dag, task
 
 
 class TestOpenLineageSelectiveEnable:

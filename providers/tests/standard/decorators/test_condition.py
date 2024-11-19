@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from airflow.decorators import task
+from airflow.providers.standard.decorators import task
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:

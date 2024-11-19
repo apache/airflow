@@ -36,7 +36,6 @@ from typing import cast
 
 from google.api_core.exceptions import NotFound
 
-from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
@@ -53,6 +52,7 @@ from airflow.providers.google.marketing_platform.operators.campaign_manager impo
 from airflow.providers.google.marketing_platform.sensors.campaign_manager import (
     GoogleCampaignManagerReportSensor,
 )
+from airflow.providers.standard.decorators import task
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 

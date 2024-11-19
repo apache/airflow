@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
-from airflow.decorators import task
+from airflow.providers.standard.decorators import task
 
 with DAG(
     dag_id="example_kubernetes_decorator",

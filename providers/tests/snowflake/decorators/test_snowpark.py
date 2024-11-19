@@ -23,7 +23,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.decorators import task
+from airflow.providers.standard.decorators import task
 from airflow.utils import timezone
 
 if TYPE_CHECKING:

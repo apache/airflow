@@ -21,7 +21,7 @@ from __future__ import annotations
 # [START import_module]
 import pendulum
 
-from airflow.decorators import dag, task
+from airflow.providers.standard.decorators import dag, task
 from airflow.providers.standard.operators.python import get_current_context
 
 # [END import_module]

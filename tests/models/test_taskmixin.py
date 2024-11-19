@@ -21,9 +21,9 @@ import itertools
 
 import pytest
 
-from airflow.decorators import setup, task, teardown
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.standard.decorators import setup, task, teardown
 
 pytestmark = pytest.mark.db_test
 

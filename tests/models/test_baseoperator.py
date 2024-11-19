@@ -28,7 +28,6 @@ from unittest import mock
 import jinja2
 import pytest
 
-from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException
 from airflow.lineage.entities import File
 from airflow.models.baseoperator import (
@@ -41,6 +40,7 @@ from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.sql.operators import sql
+from airflow.providers.standard.decorators import task as task_decorator
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.template import literal

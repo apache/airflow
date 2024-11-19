@@ -32,7 +32,7 @@ import airflow.in_comment
 # from import
 from airflow.utils import file
 # multiline airflow import
-import airflow.decorators, airflow.models\
+import airflow.providers.standard.decorators, airflow.models\
 , airflow.sensors
 
 if prod:   # type: ignore[name-defined]

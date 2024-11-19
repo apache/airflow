@@ -19,9 +19,9 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.providers.influxdb.hooks.influxdb import InfluxDBHook
+from airflow.providers.standard.decorators import task
 
 
 @task(task_id="influxdb_task")

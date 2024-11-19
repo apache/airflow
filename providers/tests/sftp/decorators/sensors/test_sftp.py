@@ -20,7 +20,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.decorators import task
+from airflow.providers.standard.decorators import task
 from airflow.utils import timezone
 
 pytestmark = pytest.mark.db_test

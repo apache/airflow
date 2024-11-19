@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.decorators import task
 from airflow.models.dag import DAG
+from airflow.providers.standard.decorators import task
 from airflow.utils.task_group import TaskGroup
 
 from tests.models import DEFAULT_DATE

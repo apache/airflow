@@ -61,10 +61,10 @@ from airflow.sdk.definitions.contextmanager import DagContext, TaskGroupContext
 from airflow.typing_compat import ParamSpec, Protocol
 from airflow.utils import timezone
 from airflow.utils.context import KNOWN_CONTEXT_KEYS
-from airflow.utils.decorators import remove_task_decorator
 from airflow.utils.helpers import prevent_duplicates
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
+from providers.src.airflow.providers.standard.utils.decorators import remove_task_decorator
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
