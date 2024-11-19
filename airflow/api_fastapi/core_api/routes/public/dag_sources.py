@@ -16,16 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, Header, HTTPException, Request, Response, status
-from itsdangerous import BadSignature, URLSafeSerializer
 from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.dag_sources import DAGSourceResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.dag_sources import DAGSourceResponse
-from airflow.models.dagcode import DagCode
+from airflow.models.dag_version import DagVersion
 
 dag_sources_router = AirflowRouter(tags=["DagSource"], prefix="/dagSources")
 
@@ -35,13 +35,11 @@ mime_type_any = "*/*"
 
 
 @dag_sources_router.get(
-    "/{file_token}",
+    "/{dag_id}",
     responses={
         **create_openapi_http_exception_doc(
             [
                 status.HTTP_400_BAD_REQUEST,
-                status.HTTP_401_UNAUTHORIZED,
-                status.HTTP_403_FORBIDDEN,
                 status.HTTP_404_NOT_FOUND,
                 status.HTTP_406_NOT_ACCEPTABLE,
             ]
@@ -55,22 +53,24 @@ mime_type_any = "*/*"
     },
     response_model=DAGSourceResponse,
 )
-async def get_dag_source(
-    file_token: str,
+def get_dag_source(
+    dag_id: str,
     session: Annotated[Session, Depends(get_session)],
     request: Request,
     accept: Annotated[str, Header()] = mime_type_any,
+    version_number: int | None = None,
 ):
     """Get source code using file token."""
-    auth_s = URLSafeSerializer(request.app.state.secret_key)
-
-    try:
-        path = auth_s.loads(file_token)
-        dag_source_model = DAGSourceResponse(
-            content=DagCode.code(path, session=session),
+    dag_version = DagVersion.get_version(dag_id, version_number, session=session)
+    if not dag_version:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The source code of the DAG {dag_id}, version_number {version_number} was not found",
         )
-    except (BadSignature, FileNotFoundError):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "DAG source not found")
+
+    dag_source = dag_version.dag_code.source_code
+    version_number = dag_version.version_number
+    dag_source_model = DAGSourceResponse(dag_id=dag_id, content=dag_source, version_number=version_number)
 
     if accept.startswith(mime_type_text):
         return Response(dag_source_model.content, media_type=mime_type_text)

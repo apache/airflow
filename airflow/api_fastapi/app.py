@@ -17,8 +17,10 @@
 from __future__ import annotations
 
 import logging
+from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI
+from starlette.routing import Mount
 
 from airflow.api_fastapi.core_api.app import init_config, init_dag_bag, init_plugins, init_views
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
@@ -32,6 +34,18 @@ app: FastAPI | None = None
 auth_manager: BaseAuthManager | None = None
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with AsyncExitStack() as stack:
+        for route in app.routes:
+            if isinstance(route, Mount) and isinstance(route.app, FastAPI):
+                await stack.enter_async_context(
+                    route.app.router.lifespan_context(route.app),
+                )
+        app.state.lifespan_called = True
+        yield
+
+
 def create_app(apps: str = "all") -> FastAPI:
     apps_list = apps.split(",") if apps else ["all"]
 
@@ -40,6 +54,7 @@ def create_app(apps: str = "all") -> FastAPI:
         description="Airflow API. All endpoints located under ``/public`` can be used safely, are stable and backward compatible. "
         "Endpoints located under ``/ui`` are dedicated to the UI and are subject to breaking change "
         "depending on the need of the frontend. Users should not rely on those but use the public ones instead.",
+        lifespan=lifespan,
     )
 
     if "core" in apps_list or "all" in apps_list:

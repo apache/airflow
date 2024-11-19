@@ -26,7 +26,7 @@ import pytest
 
 from airflow.exceptions import AirflowSensorTimeout, TaskDeferred
 from airflow.models.dag import DAG
-from airflow.sensors.filesystem import FileSensor
+from airflow.providers.standard.sensors.filesystem import FileSensor
 from airflow.triggers.file import FileTrigger
 from airflow.utils.timezone import datetime
 

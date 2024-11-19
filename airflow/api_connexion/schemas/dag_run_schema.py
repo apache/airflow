@@ -63,7 +63,7 @@ class DAGRunSchema(SQLAlchemySchema):
 
     run_id = auto_field(data_key="dag_run_id")
     dag_id = auto_field(dump_only=True)
-    execution_date = auto_field(data_key="logical_date", validate=validate_istimezone)
+    logical_date = auto_field(data_key="logical_date", validate=validate_istimezone)
     start_date = auto_field(dump_only=True)
     end_date = auto_field(dump_only=True)
     state = DagStateField(dump_only=True)
@@ -78,25 +78,12 @@ class DAGRunSchema(SQLAlchemySchema):
 
     @pre_load
     def autogenerate(self, data, **kwargs):
-        """
-        Auto generate run_id and logical_date if they are not provided.
-
-        For compatibility, if `execution_date` is submitted, it is converted
-        to `logical_date`.
-        """
+        """Auto generate run_id and logical_date if they are not provided."""
         logical_date = data.get("logical_date", _MISSING)
-        execution_date = data.pop("execution_date", _MISSING)
-        if logical_date is execution_date is _MISSING:  # Both missing.
+
+        # Auto-generate logical_date if missing
+        if logical_date is _MISSING:
             data["logical_date"] = str(timezone.utcnow())
-        elif logical_date is _MISSING:  # Only logical_date missing.
-            data["logical_date"] = execution_date
-        elif execution_date is _MISSING:  # Only execution_date missing.
-            pass
-        elif logical_date != execution_date:  # Both provided but don't match.
-            raise BadRequest(
-                "logical_date conflicts with execution_date",
-                detail=f"{logical_date!r} != {execution_date!r}",
-            )
 
         if "dag_run_id" not in data:
             try:
@@ -109,9 +96,8 @@ class DAGRunSchema(SQLAlchemySchema):
 
     @post_dump
     def autofill(self, data, **kwargs):
-        """Populate execution_date from logical_date for compatibility."""
+        """Ensure that only requested fields are returned if 'fields' context is set."""
         ret_data = {}
-        data["execution_date"] = data["logical_date"]
         if self.context.get("fields"):
             ret_fields = self.context.get("fields")
             for ret_field in ret_fields:

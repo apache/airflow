@@ -151,23 +151,6 @@ class GCSHook(GoogleBaseHook):
 
     _conn: storage.Client | None = None
 
-    def __init__(
-        self,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
-
-        super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            impersonation_chain=impersonation_chain,
-        )
-
     def get_conn(self) -> storage.Client:
         """Return a Google Cloud Storage service object."""
         if not self._conn:

@@ -22,7 +22,7 @@ import { AnsiUp } from "ansi_up";
 import { getMetaValue } from "./utils";
 import { formatDateTime } from "./datetime_utils";
 
-const executionDate = getMetaValue("execution_date");
+const logicalDate = getMetaValue("logical_date");
 const dagId = getMetaValue("dag_id");
 const taskId = getMetaValue("task_id");
 const mapIndex = getMetaValue("map_index");
@@ -70,7 +70,7 @@ window.scrollBottomLogs = scrollBottom;
 function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
   console.debug(
     `Auto-tailing log for dag_id: ${dagId}, task_id: ${taskId}, ` +
-      `execution_date: ${executionDate}, map_index: ${mapIndex}, try_number: ${tryNumber}, ` +
+      `logical_date: ${logicalDate}, map_index: ${mapIndex}, try_number: ${tryNumber}, ` +
       `metadata: ${JSON.stringify(metadata)}`
   );
 
@@ -81,7 +81,7 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
         dag_id: dagId,
         task_id: taskId,
         map_index: mapIndex,
-        execution_date: executionDate,
+        logical_date: logicalDate,
         try_number: tryNumber,
         metadata: JSON.stringify(metadata),
       },
@@ -214,7 +214,7 @@ function setDownloadUrl(tryNumber) {
   const query = new URLSearchParams({
     dag_id: dagId,
     task_id: taskId,
-    execution_date: executionDate,
+    logical_date: logicalDate,
     try_number: tryNumberData,
     metadata: "null",
     format: "file",

@@ -43,6 +43,7 @@ from sqlalchemy_jsonfield import JSONField
 from airflow.api_connexion.exceptions import NotFound
 from airflow.exceptions import AirflowException
 from airflow.models.base import Base, StringID
+from airflow.models.dag_version import DagVersion
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -170,7 +171,7 @@ def _create_backfill_dag_run(
         dr = session.scalar(
             with_row_locks(
                 select(DagRun)
-                .where(DagRun.execution_date == info.logical_date)
+                .where(DagRun.logical_date == info.logical_date)
                 .order_by(nulls_first(desc(DagRun.start_date), session=session))
                 .limit(1),
                 session=session,
@@ -200,10 +201,10 @@ def _create_backfill_dag_run(
                     )
                 )
                 return
-
+        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
         dr = dag.create_dagrun(
             triggered_by=DagRunTriggeredByType.BACKFILL,
-            execution_date=info.logical_date,
+            logical_date=info.logical_date,
             data_interval=info.data_interval,
             start_date=timezone.utcnow(),
             state=DagRunState.QUEUED,
@@ -213,6 +214,7 @@ def _create_backfill_dag_run(
             creating_job_id=None,
             session=session,
             backfill_id=backfill_id,
+            dag_version=dag_version,
         )
         session.add(
             BackfillDagRun(
@@ -253,7 +255,7 @@ def _create_backfill(
     from airflow.models.serialized_dag import SerializedDagModel
 
     with create_session() as session:
-        serdag = session.get(SerializedDagModel, dag_id)
+        serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
         if not serdag:
             raise NotFound(f"Could not find dag {dag_id}")
         # todo: if dag has no schedule, raise

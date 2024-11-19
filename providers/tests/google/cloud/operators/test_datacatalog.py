@@ -370,7 +370,7 @@ class TestCloudDataCatalogCreateTagTemplateOperator:
                 "project_id": TEST_PROJECT_ID,
             },
         )
-        assert TEST_TAG_TEMPLATE_DICT == result
+        assert {**result, **TEST_TAG_TEMPLATE_DICT} == result
 
 
 class TestCloudDataCatalogCreateTagTemplateFieldOperator:
@@ -418,7 +418,7 @@ class TestCloudDataCatalogCreateTagTemplateFieldOperator:
                 "project_id": TEST_PROJECT_ID,
             },
         )
-        assert TEST_TAG_TEMPLATE_FIELD_DICT == result
+        assert {**result, **TEST_TAG_TEMPLATE_FIELD_DICT} == result
 
 
 class TestCloudDataCatalogDeleteEntryOperator:

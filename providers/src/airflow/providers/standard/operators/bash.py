@@ -97,7 +97,7 @@ class BashOperator(BaseOperator):
 
         .. code-block:: python
 
-            bash_command = "set -e; python3 script.py '{{ next_execution_date }}'"
+            bash_command = "set -e; python3 script.py '{{ data_interval_end }}'"
 
     .. note::
 

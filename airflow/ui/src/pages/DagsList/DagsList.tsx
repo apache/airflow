@@ -22,11 +22,11 @@ import {
   Skeleton,
   VStack,
   Link,
-  createListCollection,
   type SelectValueChangeDetails,
+  Box,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { type ChangeEvent, useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { Link as RouterLink, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
@@ -42,11 +42,13 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
+import TriggerDAGIconButton from "src/components/TriggerDag/TriggerDAGIconButton";
 import { Select } from "src/components/ui";
 import {
   SearchParamsKeys,
   type SearchParamsKeysType,
 } from "src/constants/searchParams";
+import { DagSortOptions as sortOptions } from "src/constants/sortParams";
 import { useDags } from "src/queries/useDags";
 import { pluralize } from "src/utils";
 
@@ -105,8 +107,8 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
           dataIntervalEnd={original.latest_dag_runs[0].data_interval_end}
           dataIntervalStart={original.latest_dag_runs[0].data_interval_start}
           endDate={original.latest_dag_runs[0].end_date}
-          logicalDate={original.latest_dag_runs[0].logical_date}
           startDate={original.latest_dag_runs[0].start_date}
+          state={original.latest_dag_runs[0].state}
         />
       ) : undefined,
     enableSorting: false,
@@ -121,6 +123,12 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
     }) => <DagTags hideIcon tags={tags} />,
     enableSorting: false,
     header: () => "Tags",
+  },
+  {
+    accessorKey: "trigger",
+    cell: ({ row }) => <TriggerDAGIconButton dag={row.original} />,
+    enableSorting: false,
+    header: "",
   },
 ];
 
@@ -139,13 +147,6 @@ const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
 };
 
 const DAGS_LIST_DISPLAY = "dags_list_display";
-
-const sortOptions = createListCollection({
-  items: [
-    { label: "Sort by Dag ID (A-Z)", value: "dag_id" },
-    { label: "Sort by Dag ID (Z-A)", value: "-dag_id" },
-  ],
-});
 
 export const DagsList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -170,9 +171,7 @@ export const DagsList = () => {
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
 
-  const handleSearchChange = ({
-    target: { value },
-  }: ChangeEvent<HTMLInputElement>) => {
+  const handleSearchChange = (value: string) => {
     if (value) {
       searchParams.set(NAME_PATTERN_PARAM, value);
     } else {
@@ -217,10 +216,8 @@ export const DagsList = () => {
       <VStack alignItems="none">
         <SearchBar
           buttonProps={{ disabled: true }}
-          inputProps={{
-            defaultValue: dagDisplayNamePattern,
-            onChange: handleSearchChange,
-          }}
+          defaultValue={dagDisplayNamePattern ?? ""}
+          onChange={handleSearchChange}
         />
         <DagsFilters />
         <HStack justifyContent="space-between">
@@ -233,7 +230,7 @@ export const DagsList = () => {
               data-testid="sort-by-select"
               onValueChange={handleSortChange}
               value={orderBy === undefined ? undefined : [orderBy]}
-              width="200px"
+              width="310px"
             >
               <Select.Trigger>
                 <Select.ValueText placeholder="Sort by" />
@@ -252,20 +249,22 @@ export const DagsList = () => {
         </HStack>
       </VStack>
       <ToggleTableDisplay display={display} setDisplay={setDisplay} />
-      <DataTable
-        cardDef={cardDef}
-        columns={columns}
-        data={data.dags}
-        displayMode={display}
-        errorMessage={<ErrorAlert error={error} />}
-        initialState={tableURLState}
-        isFetching={isFetching}
-        isLoading={isLoading}
-        modelName="Dag"
-        onStateChange={setTableURLState}
-        skeletonCount={display === "card" ? 5 : undefined}
-        total={data.total_entries}
-      />
+      <Box overflow="auto">
+        <DataTable
+          cardDef={cardDef}
+          columns={columns}
+          data={data.dags}
+          displayMode={display}
+          errorMessage={<ErrorAlert error={error} />}
+          initialState={tableURLState}
+          isFetching={isFetching}
+          isLoading={isLoading}
+          modelName="Dag"
+          onStateChange={setTableURLState}
+          skeletonCount={display === "card" ? 5 : undefined}
+          total={data.total_entries}
+        />
+      </Box>
     </>
   );
 };

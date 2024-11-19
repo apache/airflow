@@ -22,6 +22,7 @@ from unittest.mock import patch
 import pytest
 
 from airflow_breeze.commands.testing_commands import _run_test
+from airflow_breeze.global_constants import GroupOfTests
 from airflow_breeze.params.shell_params import ShellParams
 
 
@@ -47,7 +48,7 @@ def mock_get_excluded_provider_folders():
 
 
 @pytest.fixture(autouse=True)
-def mock_sleep():
+def _mock_sleep():
     """_run_test does a 10-second sleep in CI, so we mock the sleep function to save CI test time."""
     with patch("airflow_breeze.commands.testing_commands.sleep"):
         yield
@@ -74,7 +75,7 @@ def test_irregular_provider_with_extra_ignore_should_be_valid_cmd(mock_run_comma
     mock_to_train.return_value = [fake_provider_name]
 
     _run_test(
-        shell_params=ShellParams(test_type="Providers"),
+        shell_params=ShellParams(test_group=GroupOfTests.PROVIDERS, test_type="Providers"),
         extra_pytest_args=(f"--ignore=providers/tests/{fake_provider_name}",),
         python_version="3.9",
         output=None,
@@ -103,7 +104,10 @@ def test_primary_test_arg_is_excluded_by_extra_pytest_arg(mock_run_command):
     test_provider = "http"  # "Providers[<id>]" scans the source tree so we need to use a real provider id
     test_provider_not_skipped = "ftp"
     _run_test(
-        shell_params=ShellParams(test_type=f"Providers[{test_provider},{test_provider_not_skipped}]"),
+        shell_params=ShellParams(
+            test_group=GroupOfTests.PROVIDERS,
+            test_type=f"Providers[{test_provider},{test_provider_not_skipped}]",
+        ),
         extra_pytest_args=(f"--ignore=providers/tests/{test_provider}",),
         python_version="3.9",
         output=None,
@@ -134,8 +138,10 @@ def test_test_is_skipped_if_all_are_ignored(mock_run_command):
         "ftp",
     ]  # "Providers[<id>]" scans the source tree so we need to use a real provider id
     _run_test(
-        shell_params=ShellParams(test_type=f"Providers[{','.join(test_providers)}]"),
-        extra_pytest_args=[f"--ignore=providers/tests/{provider}" for provider in test_providers],
+        shell_params=ShellParams(
+            test_group=GroupOfTests.PROVIDERS, test_type=f"Providers[{','.join(test_providers)}]"
+        ),
+        extra_pytest_args=tuple(f"--ignore=providers/tests/{provider}" for provider in test_providers),
         python_version="3.9",
         output=None,
         test_timeout=60,

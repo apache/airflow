@@ -25,6 +25,7 @@ state: ready
 source-date-epoch: 1730013356
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.14.0
   - 1.13.0
   - 1.12.2
   - 1.12.1
@@ -51,13 +52,11 @@ versions:
 
 dependencies:
   - apache-airflow>=2.8.0
-  - apache-airflow-providers-common-sql>=1.6.0
+  - apache-airflow-providers-common-sql>=1.20.0
   - apache-airflow-providers-common-compat>=1.2.1
   - attrs>=22.2
-  # Temporary limiting Open Lineage version to 1.23.0 due to compatibility issues with 1.24.0
-  # Causing test failures, waiting for 1.24.1 to be released to fix the issue
-  - openlineage-integration-common>=1.22.0,<1.24.0
-  - openlineage-python>=1.22.0,<1.24.0
+  - openlineage-integration-common>=1.24.2
+  - openlineage-python>=1.24.2
 
 integrations:
   - integration-name: OpenLineage

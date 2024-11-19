@@ -23,7 +23,7 @@ import airflow.sdk
 if TYPE_CHECKING:
     from airflow.typing_compat import TypeAlias
 
-EdgeModifier: TypeAlias = airflow.sdk.EdgeModifier
+EdgeModifier: TypeAlias = airflow.sdk.definitions.edges.EdgeModifier
 
 
 # Factory functions

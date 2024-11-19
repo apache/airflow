@@ -49,10 +49,6 @@ ENDPOINT_SERVICE_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.endpoi
 
 
 class TestEndpointServiceWithDefaultProjectIdHook:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            EndpointServiceHook(gcp_conn_id=TEST_GCP_CONN_ID, delegate_to="delegate_to")
-
     def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id

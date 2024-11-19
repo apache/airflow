@@ -19,12 +19,12 @@ from __future__ import annotations
 
 from airflow.api.common.airflow_health import get_airflow_health
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.serializers.monitor import HealthInfoSchema
+from airflow.api_fastapi.core_api.datamodels.monitor import HealthInfoSchema
 
 monitor_router = AirflowRouter(tags=["Monitor"], prefix="/monitor")
 
 
 @monitor_router.get("/health")
-async def get_health() -> HealthInfoSchema:
+def get_health() -> HealthInfoSchema:
     airflow_health_status = get_airflow_health()
     return HealthInfoSchema.model_validate(airflow_health_status)
