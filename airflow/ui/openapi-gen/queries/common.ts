@@ -113,6 +113,28 @@ export const UseAssetServiceGetAssetEventsKeyFn = (
     },
   ]),
 ];
+export type AssetServiceGetAssetQueuedEventsDefaultResponse = Awaited<
+  ReturnType<typeof AssetService.getAssetQueuedEvents>
+>;
+export type AssetServiceGetAssetQueuedEventsQueryResult<
+  TData = AssetServiceGetAssetQueuedEventsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useAssetServiceGetAssetQueuedEventsKey =
+  "AssetServiceGetAssetQueuedEvents";
+export const UseAssetServiceGetAssetQueuedEventsKeyFn = (
+  {
+    before,
+    uri,
+  }: {
+    before?: string;
+    uri: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useAssetServiceGetAssetQueuedEventsKey,
+  ...(queryKey ?? [{ before, uri }]),
+];
 export type AssetServiceGetAssetDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getAsset>
 >;
@@ -1211,14 +1233,14 @@ export type PoolServicePatchPoolMutationResult = Awaited<
 export type VariableServicePatchVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.patchVariable>
 >;
+export type AssetServiceDeleteAssetQueuedEventsMutationResult = Awaited<
+  ReturnType<typeof AssetService.deleteAssetQueuedEvents>
+>;
 export type AssetServiceDeleteDagAssetQueuedEventsMutationResult = Awaited<
   ReturnType<typeof AssetService.deleteDagAssetQueuedEvents>
 >;
 export type AssetServiceDeleteDagAssetQueuedEventMutationResult = Awaited<
   ReturnType<typeof AssetService.deleteDagAssetQueuedEvent>
->;
-export type AssetServiceDeleteAssetQueuedEventsMutationResult = Awaited<
-  ReturnType<typeof AssetService.deleteAssetQueuedEvents>
 >;
 export type ConnectionServiceDeleteConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.deleteConnection>
