@@ -57,7 +57,6 @@ def upgrade():
         "dag_version",
         sa.Column("id", UUIDType(binary=False), nullable=False),
         sa.Column("version_number", sa.Integer(), nullable=False),
-        sa.Column("version_name", StringID()),
         sa.Column("dag_id", StringID(), nullable=False),
         sa.Column("created_at", UtcDateTime(), nullable=False, default=timezone.utcnow),
         sa.ForeignKeyConstraint(
