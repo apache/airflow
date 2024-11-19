@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.operators.comprehend import (
     ComprehendCreateDocumentClassifierOperator,
 )
 from airflow.providers.amazon.aws.operators.s3 import (
+    S3CopyObjectOperator,
     S3CreateBucketOperator,
     S3CreateObjectOperator,
     S3DeleteBucketOperator,
@@ -140,7 +141,14 @@ def copy_data_to_s3(bucket: str, sources: list[dict], prefix: str, number_of_cop
     http_to_s3_configs = [
         {
             "endpoint": source["endpoint"],
-            "s3_key": f"{prefix}/{os.path.splitext(os.path.basename(source['fileName']))[0]}-{counter}{os.path.splitext(os.path.basename(source['fileName']))[1]}",
+            "s3_key": f"{prefix}/{os.path.splitext(os.path.basename(source['fileName']))[0]}-0{os.path.splitext(os.path.basename(source['fileName']))[1]}",
+        }
+        for source in sources
+    ]
+    copy_to_s3_configs = [
+        {
+            "source_bucket_key": f"{prefix}/{os.path.splitext(os.path.basename(source['fileName']))[0]}-0{os.path.splitext(os.path.basename(source['fileName']))[1]}",
+            "dest_bucket_key": f"{prefix}/{os.path.splitext(os.path.basename(source['fileName']))[0]}-{counter}{os.path.splitext(os.path.basename(source['fileName']))[1]}",
         }
         for counter in range(number_of_copies)
         for source in sources
@@ -170,7 +178,14 @@ def copy_data_to_s3(bucket: str, sources: list[dict], prefix: str, number_of_cop
         s3_bucket=bucket,
     ).expand_kwargs(http_to_s3_configs)
 
-    chain(create_connection(http_conn_id), http_to_s3_task, delete_connection(http_conn_id))
+    s3_copy_task = S3CopyObjectOperator.partial(
+        task_id="s3_copy_task",
+        source_bucket_name=bucket,
+        dest_bucket_name=bucket,
+        meta_data_directive="REPLACE",
+    ).expand_kwargs(copy_to_s3_configs)
+
+    chain(create_connection(http_conn_id), http_to_s3_task, s3_copy_task, delete_connection(http_conn_id))
 
 
 with DAG(

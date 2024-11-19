@@ -282,6 +282,8 @@ class S3CopyObjectOperator(BaseOperator):
                  CA cert bundle than the one used by botocore.
     :param acl_policy: String specifying the canned ACL policy for the file being
         uploaded to the S3 bucket.
+    :param meta_data_directive: Whether to `COPY` the metadata from the source object or `REPLACE` it with
+        metadata that's provided in the request.
     """
 
     template_fields: Sequence[str] = (
@@ -302,6 +304,7 @@ class S3CopyObjectOperator(BaseOperator):
         aws_conn_id: str | None = "aws_default",
         verify: str | bool | None = None,
         acl_policy: str | None = None,
+        meta_data_directive: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -314,6 +317,7 @@ class S3CopyObjectOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.verify = verify
         self.acl_policy = acl_policy
+        self.meta_data_directive = meta_data_directive
 
     def execute(self, context: Context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
@@ -324,6 +328,7 @@ class S3CopyObjectOperator(BaseOperator):
             self.dest_bucket_name,
             self.source_version_id,
             self.acl_policy,
+            self.meta_data_directive,
         )
 
     def get_openlineage_facets_on_start(self):
