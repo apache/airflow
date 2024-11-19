@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-18T19:48:04.223601
+# This constraints file was automatically generated on 2024-11-19T02:20:03.721498
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -46,7 +46,6 @@ Flask-Session==0.5.0
 Flask-WTF==1.2.2
 Flask==2.2.5
 GitPython==3.1.43
-JPype1==1.5.0
 JayDeBeApi==1.2.3
 Jinja2==3.1.4
 Mako==1.3.6
@@ -243,7 +242,7 @@ cattrs==24.1.2
 celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
-cfn-lint==1.19.0
+cfn-lint==1.20.0
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.0
@@ -415,6 +414,7 @@ jeepney==0.8.0
 jiter==0.7.1
 jmespath==0.10.0
 joserfc==1.0.0
+jpype1==1.5.1
 json-merge-patch==0.2
 jsondiff==2.2.1
 jsonpatch==1.33
@@ -469,7 +469,7 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.1.0
 mypy-boto3-appflow==1.35.39
-mypy-boto3-rds==1.35.59
+mypy-boto3-rds==1.35.64
 mypy-boto3-redshift-data==1.35.51
 mypy-boto3-s3==1.35.61
 mypy-extensions==1.0.0
@@ -666,7 +666,7 @@ sqlparse==0.5.2
 sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
-starlette==0.41.2
+starlette==0.41.3
 statsd==4.0.1
 std-uritemplate==2.0.1
 strictyaml==1.7.3
@@ -689,7 +689,7 @@ tqdm==4.67.0
 traitlets==5.14.3
 trino==0.330.0
 twine==5.1.1
-typer==0.13.0
+typer==0.13.1
 types-Deprecated==1.2.15.20241117
 types-Markdown==3.7.0.20240822
 types-PyMySQL==1.1.0.20241103
