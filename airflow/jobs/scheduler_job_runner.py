@@ -1838,7 +1838,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ),
                 )
             )
-            self._reschedule_stuck_task(ti)
+            self._reschedule_stuck_task(ti, session=session)
         else:
             self.log.info(
                 "Task requeue attempts exceeded max; marking failed. task_instance=%s",
@@ -1875,8 +1875,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ti_repr,
                 )
 
-    @provide_session
-    def _reschedule_stuck_task(self, ti, session=NEW_SESSION):
+    def _reschedule_stuck_task(self, ti: TaskInstance, session: Session):
         session.execute(
             update(TI)
             .where(TI.filter_for_tis([ti]))
