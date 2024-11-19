@@ -1164,7 +1164,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         # Detect if there's a change in python callable name
         python_callable = getattr(op, "python_callable", None)
         if python_callable:
-            callable_name = python_callable.__name__
+            callable_name = qualname(python_callable)
             serialize_op["python_callable_name"] = callable_name
 
         serialize_op["task_type"] = getattr(op, "task_type", type(op).__name__)
