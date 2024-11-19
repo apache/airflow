@@ -24,6 +24,8 @@ import pytest
 
 from tests_common.test_utils.config import conf_vars
 
+HEADERS_NONE = None
+HEADERS_ANY = {"Accept": "*/*"}
 HEADERS_JSON = {"Accept": "application/json"}
 HEADERS_TEXT = {"Accept": "text/plain"}
 HEADERS_INVALID = {"Accept": "invalid"}
@@ -80,8 +82,82 @@ FORBIDDEN_RESPONSE = {
     "detail": "Your Airflow administrator chose not to expose the configuration, most likely for security reasons."
 }
 
+GET_CONFIG_ALL_JSON_RESPONSE = {
+    "sections": [
+        {
+            "name": SECTION_CORE,
+            "options": [
+                {"key": OPTION_KEY_PARALLELISM, "value": OPTION_VALUE_PARALLELISM},
+            ],
+        },
+        {
+            "name": SECTION_SMTP,
+            "options": [
+                {"key": OPTION_KEY_SMTP_HOST, "value": OPTION_VALUE_SMTP_HOST},
+                {"key": OPTION_KEY_SMTP_MAIL_FROM, "value": OPTION_VALUE_SMTP_MAIL_FROM},
+            ],
+        },
+        {
+            "name": SECTION_DATABASE,
+            "options": [
+                {"key": OPTION_KEY_SQL_ALCHEMY_CONN, "value": OPTION_VALUE_SQL_ALCHEMY_CONN},
+            ],
+        },
+    ],
+}
+GET_CONFIG_NON_SENSITIVE_ONLY_JSON_RESPONSE = {
+    "sections": [
+        {
+            "name": SECTION_CORE,
+            "options": [
+                {"key": OPTION_KEY_PARALLELISM, "value": OPTION_VALUE_PARALLELISM},
+            ],
+        },
+        {
+            "name": SECTION_SMTP,
+            "options": [
+                {"key": OPTION_KEY_SMTP_HOST, "value": OPTION_VALUE_SMTP_HOST},
+                {"key": OPTION_KEY_SMTP_MAIL_FROM, "value": OPTION_VALUE_SMTP_MAIL_FROM},
+            ],
+        },
+        {
+            "name": SECTION_DATABASE,
+            "options": [
+                {"key": OPTION_KEY_SQL_ALCHEMY_CONN, "value": OPTION_VALUE_SENSITIVE_HIDDEN},
+            ],
+        },
+    ],
+}
+GET_CONFIG_VALUE_CORE_PARALLELISM_JSON_RESPONSE = {
+    "sections": [
+        {
+            "name": SECTION_CORE,
+            "options": [
+                {"key": OPTION_KEY_PARALLELISM, "value": OPTION_VALUE_PARALLELISM},
+            ],
+        },
+    ],
+}
+GET_CONFIG_VALUE_NON_SENSITIVE_ONLY_DATABASE_SQL_ALCHEMY_CONN_JSON_RESPONSE = {
+    "sections": [
+        {
+            "name": SECTION_DATABASE,
+            "options": [
+                {"key": OPTION_KEY_SQL_ALCHEMY_CONN, "value": OPTION_VALUE_SENSITIVE_HIDDEN},
+            ],
+        },
+    ],
+}
+
 
 class TestConfigEndpoint:
+    def _validate_response(self, headers, expected_response, expected_status_code, response):
+        assert response.status_code == expected_status_code
+        if headers == HEADERS_TEXT:
+            assert response.text == expected_response
+        else:
+            assert response.json() == expected_response
+
     @pytest.fixture(autouse=True)
     def setup(self) -> Generator[None, None, None]:
         with conf_vars(AIRFLOW_CONFIG_ENABLE_EXPOSE_CONFIG | MOCK_CONFIG_OVERRIDE):
@@ -109,58 +185,11 @@ class TestGetConfig(TestConfigEndpoint):
                 None,
                 HEADERS_JSON,
                 200,
-                {
-                    "sections": [
-                        {
-                            "name": SECTION_CORE,
-                            "options": [
-                                {"key": OPTION_KEY_PARALLELISM, "value": OPTION_VALUE_PARALLELISM},
-                            ],
-                        },
-                        {
-                            "name": SECTION_SMTP,
-                            "options": [
-                                {"key": OPTION_KEY_SMTP_HOST, "value": OPTION_VALUE_SMTP_HOST},
-                                {"key": OPTION_KEY_SMTP_MAIL_FROM, "value": OPTION_VALUE_SMTP_MAIL_FROM},
-                            ],
-                        },
-                        {
-                            "name": SECTION_DATABASE,
-                            "options": [
-                                {"key": OPTION_KEY_SQL_ALCHEMY_CONN, "value": OPTION_VALUE_SQL_ALCHEMY_CONN},
-                            ],
-                        },
-                    ],
-                },
+                GET_CONFIG_ALL_JSON_RESPONSE,
             ),
-            (
-                None,
-                HEADERS_JSON_UTF8,
-                200,
-                {
-                    "sections": [
-                        {
-                            "name": SECTION_CORE,
-                            "options": [
-                                {"key": OPTION_KEY_PARALLELISM, "value": OPTION_VALUE_PARALLELISM},
-                            ],
-                        },
-                        {
-                            "name": SECTION_SMTP,
-                            "options": [
-                                {"key": OPTION_KEY_SMTP_HOST, "value": OPTION_VALUE_SMTP_HOST},
-                                {"key": OPTION_KEY_SMTP_MAIL_FROM, "value": OPTION_VALUE_SMTP_MAIL_FROM},
-                            ],
-                        },
-                        {
-                            "name": SECTION_DATABASE,
-                            "options": [
-                                {"key": OPTION_KEY_SQL_ALCHEMY_CONN, "value": OPTION_VALUE_SQL_ALCHEMY_CONN},
-                            ],
-                        },
-                    ],
-                },
-            ),
+            (None, HEADERS_JSON_UTF8, 200, GET_CONFIG_ALL_JSON_RESPONSE),
+            (None, HEADERS_ANY, 200, GET_CONFIG_ALL_JSON_RESPONSE),
+            (None, HEADERS_NONE, 200, GET_CONFIG_ALL_JSON_RESPONSE),
             (
                 None,
                 HEADERS_TEXT,
@@ -239,42 +268,15 @@ class TestGetConfig(TestConfigEndpoint):
                 response = test_client.get("/public/config/", headers=headers, params=query_params)
         else:
             response = test_client.get("/public/config/", headers=headers, params=query_params)
-        assert response.status_code == expected_status_code
-        if headers == HEADERS_TEXT:
-            assert response.text == expected_response
-        else:
-            assert response.json() == expected_response
+        self._validate_response(headers, expected_response, expected_status_code, response)
 
     @pytest.mark.parametrize(
         "headers, expected_status_code, expected_response",
         [
-            (
-                HEADERS_JSON,
-                200,
-                {
-                    "sections": [
-                        {
-                            "name": SECTION_CORE,
-                            "options": [
-                                {"key": OPTION_KEY_PARALLELISM, "value": OPTION_VALUE_PARALLELISM},
-                            ],
-                        },
-                        {
-                            "name": SECTION_SMTP,
-                            "options": [
-                                {"key": OPTION_KEY_SMTP_HOST, "value": OPTION_VALUE_SMTP_HOST},
-                                {"key": OPTION_KEY_SMTP_MAIL_FROM, "value": OPTION_VALUE_SMTP_MAIL_FROM},
-                            ],
-                        },
-                        {
-                            "name": SECTION_DATABASE,
-                            "options": [
-                                {"key": OPTION_KEY_SQL_ALCHEMY_CONN, "value": OPTION_VALUE_SENSITIVE_HIDDEN},
-                            ],
-                        },
-                    ],
-                },
-            ),
+            (HEADERS_JSON, 200, GET_CONFIG_NON_SENSITIVE_ONLY_JSON_RESPONSE),
+            (HEADERS_JSON_UTF8, 200, GET_CONFIG_NON_SENSITIVE_ONLY_JSON_RESPONSE),
+            (HEADERS_ANY, 200, GET_CONFIG_NON_SENSITIVE_ONLY_JSON_RESPONSE),
+            (HEADERS_NONE, 200, GET_CONFIG_NON_SENSITIVE_ONLY_JSON_RESPONSE),
             (
                 HEADERS_TEXT,
                 200,
@@ -299,11 +301,7 @@ class TestGetConfig(TestConfigEndpoint):
     ):
         with conf_vars(AIRFLOW_CONFIG_NON_SENSITIVE_ONLY_CONFIG):
             response = test_client.get("/public/config/", headers=headers)
-        assert response.status_code == expected_status_code
-        if headers == HEADERS_TEXT:
-            assert response.text == expected_response
-        else:
-            assert response.json() == expected_response
+        self._validate_response(headers, expected_response, expected_status_code, response)
 
 
 class TestGetConfigValue(TestConfigEndpoint):
@@ -315,16 +313,28 @@ class TestGetConfigValue(TestConfigEndpoint):
                 OPTION_KEY_PARALLELISM,
                 HEADERS_JSON,
                 200,
-                {
-                    "sections": [
-                        {
-                            "name": SECTION_CORE,
-                            "options": [
-                                {"key": OPTION_KEY_PARALLELISM, "value": OPTION_VALUE_PARALLELISM},
-                            ],
-                        },
-                    ],
-                },
+                GET_CONFIG_VALUE_CORE_PARALLELISM_JSON_RESPONSE,
+            ),
+            (
+                SECTION_CORE,
+                OPTION_KEY_PARALLELISM,
+                HEADERS_JSON_UTF8,
+                200,
+                GET_CONFIG_VALUE_CORE_PARALLELISM_JSON_RESPONSE,
+            ),
+            (
+                SECTION_CORE,
+                OPTION_KEY_PARALLELISM,
+                HEADERS_ANY,
+                200,
+                GET_CONFIG_VALUE_CORE_PARALLELISM_JSON_RESPONSE,
+            ),
+            (
+                SECTION_CORE,
+                OPTION_KEY_PARALLELISM,
+                HEADERS_NONE,
+                200,
+                GET_CONFIG_VALUE_CORE_PARALLELISM_JSON_RESPONSE,
             ),
             (
                 SECTION_SMTP,
@@ -409,11 +419,7 @@ class TestGetConfigValue(TestConfigEndpoint):
                 )
         else:
             response = test_client.get(f"/public/config/section/{section}/option/{option}", headers=headers)
-        assert response.status_code == expected_status_code
-        if response.status_code != 200 or headers == HEADERS_JSON:
-            assert response.json() == expected_response
-        else:
-            assert response.text == expected_response
+        self._validate_response(headers, expected_response, expected_status_code, response)
 
     @pytest.mark.parametrize(
         "section, option, headers, expected_status_code, expected_response",
@@ -423,16 +429,28 @@ class TestGetConfigValue(TestConfigEndpoint):
                 OPTION_KEY_SQL_ALCHEMY_CONN,
                 HEADERS_JSON,
                 200,
-                {
-                    "sections": [
-                        {
-                            "name": SECTION_DATABASE,
-                            "options": [
-                                {"key": OPTION_KEY_SQL_ALCHEMY_CONN, "value": OPTION_VALUE_SENSITIVE_HIDDEN},
-                            ],
-                        },
-                    ],
-                },
+                GET_CONFIG_VALUE_NON_SENSITIVE_ONLY_DATABASE_SQL_ALCHEMY_CONN_JSON_RESPONSE,
+            ),
+            (
+                SECTION_DATABASE,
+                OPTION_KEY_SQL_ALCHEMY_CONN,
+                HEADERS_JSON_UTF8,
+                200,
+                GET_CONFIG_VALUE_NON_SENSITIVE_ONLY_DATABASE_SQL_ALCHEMY_CONN_JSON_RESPONSE,
+            ),
+            (
+                SECTION_DATABASE,
+                OPTION_KEY_SQL_ALCHEMY_CONN,
+                HEADERS_ANY,
+                200,
+                GET_CONFIG_VALUE_NON_SENSITIVE_ONLY_DATABASE_SQL_ALCHEMY_CONN_JSON_RESPONSE,
+            ),
+            (
+                SECTION_DATABASE,
+                OPTION_KEY_SQL_ALCHEMY_CONN,
+                HEADERS_NONE,
+                200,
+                GET_CONFIG_VALUE_NON_SENSITIVE_ONLY_DATABASE_SQL_ALCHEMY_CONN_JSON_RESPONSE,
             ),
             (
                 SECTION_DATABASE,
@@ -453,8 +471,4 @@ class TestGetConfigValue(TestConfigEndpoint):
     ):
         with conf_vars(AIRFLOW_CONFIG_NON_SENSITIVE_ONLY_CONFIG):
             response = test_client.get(f"/public/config/section/{section}/option/{option}", headers=headers)
-        assert response.status_code == expected_status_code
-        if response.status_code != 200 or headers == HEADERS_JSON:
-            assert response.json() == expected_response
-        else:
-            assert response.text == expected_response
+        self._validate_response(headers, expected_response, expected_status_code, response)
