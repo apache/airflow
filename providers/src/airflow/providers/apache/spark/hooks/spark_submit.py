@@ -520,7 +520,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         """Resolve kerberos principal."""
         # todo: remove try/exception when min airflow version is 3.0
         try:
-            from airflow.security.kerberos import get_kerberos_principal
+            from airflow.security.kerberos import get_kerberos_principal   # type: ignore[attr-defined]
         except ImportError:
             from airflow.security.kerberos import (
                 get_kerberos_principle as get_kerberos_principal,  # type: ignore[attr-defined]
