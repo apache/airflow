@@ -249,15 +249,6 @@ core:
       type: string
       example: ~
       default: "False"
-    enable_xcom_pickling:
-      description: |
-        Whether to enable pickling for xcom (note that this is insecure and allows for
-        RCE exploits).
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
-      see_also: "https://docs.python.org/3/library/pickle.html#comparison-with-json"
     allowed_deserialization_classes:
       description: |
         What classes can be imported during deserialization. This is a multi line value.

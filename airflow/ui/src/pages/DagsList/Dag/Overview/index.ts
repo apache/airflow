@@ -16,23 +16,5 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, type BoxProps } from "@chakra-ui/react";
 
-import type { TaskInstanceState } from "openapi/requests/types.gen";
-import { stateColor } from "src/utils/stateColor";
-
-export const StateCircle = ({
-  state,
-  ...rest
-}: {
-  readonly state: TaskInstanceState;
-} & BoxProps) => (
-  <Box
-    {...rest}
-    bg={stateColor[state]}
-    borderRadius="50%"
-    h={2}
-    minW={2}
-    w={2}
-  />
-);
+export * from "./Overview";
