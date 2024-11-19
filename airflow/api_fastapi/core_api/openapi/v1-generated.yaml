@@ -3413,7 +3413,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/:
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances:
     get:
       tags:
       - Task Instance
