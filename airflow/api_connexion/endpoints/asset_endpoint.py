@@ -181,6 +181,7 @@ def _generate_queued_event_where_clause(
     return where_clause
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("GET")
 @security.requires_access_dag("GET")
 @provide_session

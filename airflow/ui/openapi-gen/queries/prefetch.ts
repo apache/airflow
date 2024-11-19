@@ -192,6 +192,36 @@ export const prefetchUseAssetServiceGetDagAssetQueuedEvents = (
     queryFn: () => AssetService.getDagAssetQueuedEvents({ before, dagId }),
   });
 /**
+ * Get Dag Asset Queued Event
+ * Get a queued asset event for a DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.uri
+ * @param data.before
+ * @returns QueuedEventResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseAssetServiceGetDagAssetQueuedEvent = (
+  queryClient: QueryClient,
+  {
+    before,
+    dagId,
+    uri,
+  }: {
+    before?: string;
+    dagId: string;
+    uri: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseAssetServiceGetDagAssetQueuedEventKeyFn({
+      before,
+      dagId,
+      uri,
+    }),
+    queryFn: () => AssetService.getDagAssetQueuedEvent({ before, dagId, uri }),
+  });
+/**
  * Historical Metrics
  * Return cluster activity historical metrics.
  * @param data The data for the request.
