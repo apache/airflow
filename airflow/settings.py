@@ -105,6 +105,11 @@ Mapping of sync scheme to async scheme.
 
 engine: Engine
 Session: Callable[..., SASession]
+# NonScopedSession creates global sessions and is not safe to use in multi-threaded environment without
+# additional precautions. The only use case is when the session lifecycle needs
+# custom handling. Most of the time we only want one unique thread local session object,
+# this is achieved by the Session factory above.
+NonScopedSession: Callable[..., SASession]
 async_engine: AsyncEngine
 create_async_session: Callable[..., AsyncSession]
 
@@ -465,6 +470,7 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     global engine
     global async_engine
     global create_async_session
+    global NonScopedSession
 
     if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Skip DB initialization in unit tests, if DB tests are skipped
@@ -516,6 +522,7 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
             )
 
     Session = scoped_session(_session_maker(engine))
+    NonScopedSession = _session_maker(engine)
 
 
 def force_traceback_session_for_untrusted_components(allow_tests_to_use_db=False):
