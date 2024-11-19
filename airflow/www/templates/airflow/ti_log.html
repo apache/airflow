@@ -24,7 +24,7 @@
   {{ super() }}
   <meta name="task_id" content="{{ task_id }}">
   <meta name="map_index" content="{{ map_index }}">
-  <meta name="execution_date" content="{{ execution_date }}">
+  <meta name="logical_date" content="{{ logical_date }}">
   <meta name="logs_with_metadata_url" content="{{ url_for('Airflow.get_logs_with_metadata') }}">
   {# Time interval to wait before next log fetching. Default 2s. #}
   <meta name="delay" content="{{ (log_fetch_delay_sec | int ) * 1000 }}">

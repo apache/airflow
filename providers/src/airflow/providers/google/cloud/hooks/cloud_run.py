@@ -68,8 +68,9 @@ class CloudRunHook(GoogleBaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
+        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
         self._client: JobsClient | None = None
 
     def get_conn(self):
@@ -176,9 +177,10 @@ class CloudRunAsyncHook(GoogleBaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ):
         self._client: JobsAsyncClient | None = None
-        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
+        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
 
     def get_conn(self):
         if self._client is None:
@@ -211,9 +213,10 @@ class CloudRunServiceHook(GoogleBaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ):
         self._client: ServicesClient | None = None
-        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
+        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
 
     def get_conn(self):
         if self._client is None:
@@ -273,9 +276,10 @@ class CloudRunServiceAsyncHook(GoogleBaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ):
         self._client: ServicesClient | None = None
-        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
+        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
 
     def get_conn(self):
         if self._client is None:

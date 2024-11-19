@@ -36,16 +36,14 @@ pytestmark = pytest.mark.db_test
 
 TEST_XCOM_KEY = "test_xcom_key"
 TEST_XCOM_VALUE = {"key": "value"}
-TEST_XCOM_KEY2 = "test_xcom_key_non_serializable"
-TEST_XCOM_VALUE2 = {"key": {("201009_NB502104_0421_AHJY23BGXG (SEQ_WF: 138898)", None): 82359}}
 TEST_XCOM_KEY3 = "test_xcom_key_non_existing"
 
 TEST_DAG_ID = "test-dag-id"
 TEST_TASK_ID = "test-task-id"
 TEST_EXECUTION_DATE = "2005-04-02T00:00:00+00:00"
 
-execution_date_parsed = timezone.parse(TEST_EXECUTION_DATE)
-run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
+logical_date_parsed = timezone.parse(TEST_EXECUTION_DATE)
+run_id = DagRun.generate_run_id(DagRunType.MANUAL, logical_date_parsed)
 
 
 @provide_session
@@ -65,8 +63,8 @@ def _create_dag_run(session=None) -> None:
     dagrun = DagRun(
         dag_id=TEST_DAG_ID,
         run_id=run_id,
-        execution_date=execution_date_parsed,
-        start_date=execution_date_parsed,
+        logical_date=logical_date_parsed,
+        start_date=logical_date_parsed,
         run_type=DagRunType.MANUAL,
     )
     session.add(dagrun)
@@ -114,7 +112,7 @@ class TestGetXComEntry(TestXComEndpoint):
         current_data = response.json()
         assert current_data == {
             "dag_id": TEST_DAG_ID,
-            "execution_date": execution_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "logical_date": logical_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "key": TEST_XCOM_KEY,
             "task_id": TEST_TASK_ID,
             "map_index": -1,
@@ -132,31 +130,12 @@ class TestGetXComEntry(TestXComEndpoint):
         current_data = response.json()
         assert current_data == {
             "dag_id": TEST_DAG_ID,
-            "execution_date": execution_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "logical_date": logical_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "key": TEST_XCOM_KEY,
             "task_id": TEST_TASK_ID,
             "map_index": -1,
             "timestamp": current_data["timestamp"],
             "value": TEST_XCOM_VALUE,
-        }
-
-    @conf_vars({("core", "enable_xcom_pickling"): "True"})
-    def test_should_respond_200_pickled(self, test_client):
-        self.create_xcom(TEST_XCOM_KEY2, TEST_XCOM_VALUE2)
-        response = test_client.get(
-            f"/public/dags/{TEST_DAG_ID}/dagRuns/{run_id}/taskInstances/{TEST_TASK_ID}/xcomEntries/{TEST_XCOM_KEY2}"
-        )
-        assert response.status_code == 200
-
-        current_data = response.json()
-        assert current_data == {
-            "dag_id": TEST_DAG_ID,
-            "execution_date": execution_date_parsed.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "key": TEST_XCOM_KEY2,
-            "task_id": TEST_TASK_ID,
-            "map_index": -1,
-            "timestamp": current_data["timestamp"],
-            "value": str(TEST_XCOM_VALUE2),
         }
 
     def test_should_raise_404_for_non_existent_xcom(self, test_client):

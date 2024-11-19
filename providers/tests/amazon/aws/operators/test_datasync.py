@@ -31,6 +31,7 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 TEST_DAG_ID = "unit_tests"
 DEFAULT_DATE = datetime(2018, 1, 1)
@@ -351,12 +352,20 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
         # ### Begin tests:
 
         self.set_up_operator()
-        dag_run = DagRun(
-            dag_id=self.dag.dag_id,
-            execution_date=timezone.utcnow(),
-            run_id="test",
-            run_type=DagRunType.MANUAL,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                logical_date=timezone.utcnow(),
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                execution_date=timezone.utcnow(),
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
         ti = TaskInstance(task=self.datasync)
         ti.dag_run = dag_run
         session.add(ti)
@@ -555,12 +564,20 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
         # ### Begin tests:
 
         self.set_up_operator()
-        dag_run = DagRun(
-            dag_id=self.dag.dag_id,
-            execution_date=timezone.utcnow(),
-            run_id="test",
-            run_type=DagRunType.MANUAL,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                logical_date=timezone.utcnow(),
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                execution_date=timezone.utcnow(),
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
         ti = TaskInstance(task=self.datasync)
         ti.dag_run = dag_run
         session.add(ti)
@@ -661,12 +678,20 @@ class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
         # ### Begin tests:
 
         self.set_up_operator()
-        dag_run = DagRun(
-            dag_id=self.dag.dag_id,
-            execution_date=timezone.utcnow(),
-            run_id="test",
-            run_type=DagRunType.MANUAL,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                logical_date=timezone.utcnow(),
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                execution_date=timezone.utcnow(),
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
         ti = TaskInstance(task=self.datasync)
         ti.dag_run = dag_run
         session.add(ti)
@@ -839,12 +864,20 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
         # ### Begin tests:
 
         self.set_up_operator()
-        dag_run = DagRun(
-            dag_id=self.dag.dag_id,
-            execution_date=timezone.utcnow(),
-            run_id="test",
-            run_type=DagRunType.MANUAL,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                logical_date=timezone.utcnow(),
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                execution_date=timezone.utcnow(),
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
         ti = TaskInstance(task=self.datasync)
         ti.dag_run = dag_run
         session.add(ti)
@@ -941,12 +974,20 @@ class TestDataSyncOperatorDelete(DataSyncTestCaseBase):
         # ### Begin tests:
 
         self.set_up_operator()
-        dag_run = DagRun(
-            dag_id=self.dag.dag_id,
-            execution_date=timezone.utcnow(),
-            run_id="test",
-            run_type=DagRunType.MANUAL,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                logical_date=timezone.utcnow(),
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                execution_date=timezone.utcnow(),
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
         ti = TaskInstance(task=self.datasync)
         ti.dag_run = dag_run
         session.add(ti)

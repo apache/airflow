@@ -26,6 +26,18 @@
 Changelog
 ---------
 
+5.9.1
+.....
+
+Misc
+~~~~
+
+* ``Standard provider python operator (#42081)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 5.9.0
 .....
 

@@ -75,7 +75,7 @@ def action_cli(func=None, check_db=True):
             log : airflow.models.log.Log ORM instance
             dag_id : dag id (optional)
             task_id : task_id (optional)
-            execution_date : execution date (optional)
+            logical_date : logical date (optional)
             error : exception instance if there's an exception
 
         :param f: function instance
@@ -130,7 +130,7 @@ def _build_metrics(func_name, namespace):
 
     It assumes that function arguments is from airflow.bin.cli module's function
     and has Namespace instance where it optionally contains "dag_id", "task_id",
-    and "execution_date".
+    and "logical_date".
 
     :param func_name: name of function
     :param namespace: Namespace instance from argparse
@@ -172,7 +172,7 @@ def _build_metrics(func_name, namespace):
     tmp_dic = vars(namespace)
     metrics["dag_id"] = tmp_dic.get("dag_id")
     metrics["task_id"] = tmp_dic.get("task_id")
-    metrics["execution_date"] = tmp_dic.get("execution_date")
+    metrics["logical_date"] = tmp_dic.get("logical_date")
     metrics["host_name"] = socket.gethostname()
 
     return metrics

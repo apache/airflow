@@ -45,9 +45,7 @@ connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
 @connections_router.delete(
     "/{connection_id}",
     status_code=204,
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def delete_connection(
     connection_id: str,
@@ -66,9 +64,7 @@ def delete_connection(
 
 @connections_router.get(
     "/{connection_id}",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_connection(
     connection_id: str,
@@ -87,9 +83,7 @@ def get_connection(
 
 @connections_router.get(
     "/",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_connections(
     limit: QueryLimit,
@@ -127,9 +121,7 @@ def get_connections(
 @connections_router.post(
     "/",
     status_code=201,
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_409_CONFLICT]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
 )
 def post_connection(
     post_body: ConnectionBody,
@@ -156,8 +148,6 @@ def post_connection(
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
         ]
     ),
@@ -190,12 +180,6 @@ def patch_connection(
 
 @connections_router.post(
     "/test",
-    responses=create_openapi_http_exception_doc(
-        [
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
-        ]
-    ),
 )
 def test_connection(
     test_body: ConnectionBody,

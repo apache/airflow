@@ -249,15 +249,6 @@ core:
       type: string
       example: ~
       default: "False"
-    enable_xcom_pickling:
-      description: |
-        Whether to enable pickling for xcom (note that this is insecure and allows for
-        RCE exploits).
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
-      see_also: "https://docs.python.org/3/library/pickle.html#comparison-with-json"
     allowed_deserialization_classes:
       description: |
         What classes can be imported during deserialization. This is a multi line value.
@@ -1064,17 +1055,6 @@ metrics:
       example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
         or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
-    metrics_consistency_on:
-      description: |
-        Enables metrics consistency across all metrics loggers (ex: timer and timing metrics).
-
-        .. warning::
-
-          It is enabled by default from Airflow 3.
-      version_added: 2.10.0
-      type: string
-      example: ~
-      default: "True"
     statsd_on:
       description: |
         Enables sending metrics to StatsD.
