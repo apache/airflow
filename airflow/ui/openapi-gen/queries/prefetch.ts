@@ -259,7 +259,7 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
     endDate,
     startDate,
   }: {
-    endDate: string;
+    endDate?: string;
     startDate: string;
   },
 ) =>

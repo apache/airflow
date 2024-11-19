@@ -1137,7 +1137,7 @@ export type DeleteDagAssetQueuedEventData = {
 export type DeleteDagAssetQueuedEventResponse = void;
 
 export type HistoricalMetricsData = {
-  endDate: string;
+  endDate?: string | null;
   startDate: string;
 };
 
