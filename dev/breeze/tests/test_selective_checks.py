@@ -1717,7 +1717,6 @@ def test_expected_output_pull_request_target(
         pr_labels=(),
         default_branch="main",
     )
-    print(f"stderr is {str(stderr)}")
     assert_outputs_are_printed(expected_outputs, str(stderr))
 
 
