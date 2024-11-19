@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-19T07:44:47.762640
+# This constraints file was automatically generated on 2024-11-19T19:40:32.700897
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -36,7 +36,7 @@ WTForms==3.2.1
 Werkzeug==2.2.3
 aiobotocore==2.15.2
 aiohappyeyeballs==2.4.3
-aiohttp==3.11.4
+aiohttp==3.11.5
 aioitertools==0.12.0
 aiosignal==1.3.1
 aiosqlite==0.20.0
@@ -73,7 +73,7 @@ dnspython==2.7.0
 docopt==0.6.2
 email_validator==2.2.0
 eval_type_backport==0.2.0
-eventlet==0.37.0
+eventlet==0.38.0
 fastapi-cli==0.0.5
 fastapi==0.115.5
 fastavro==1.9.7
