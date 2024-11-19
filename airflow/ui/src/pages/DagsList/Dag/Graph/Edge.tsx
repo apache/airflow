@@ -40,7 +40,7 @@ const CustomEdge = ({ data }: Props) => {
   // if (rest.isSourceAsset) {
   //   return null;
   // }
-  const strokeWidth = 2;
+  const strokeWidth = 1;
 
   // if (rest.isSelected) {
   //   strokeWidth = 3;
@@ -60,8 +60,15 @@ const CustomEdge = ({ data }: Props) => {
         }
 
         return (
-          <Group height={height} key={id} left={x} top={y} width={width}>
-            <foreignObject height={height} width={width}>
+          <Group
+            // Add a tiny bit of height so letters aren't cut off
+            height={(height ?? 0) + 2}
+            key={id}
+            left={x}
+            top={y}
+            width={width}
+          >
+            <foreignObject height={(height ?? 0) + 2} width={width}>
               <Text>{text}</Text>
             </foreignObject>
           </Group>
@@ -76,7 +83,7 @@ const CustomEdge = ({ data }: Props) => {
           ]}
           key={section.id}
           stroke={colorMode === "dark" ? darkStroke : lightStroke}
-          // strokeDasharray={rest.isSetupTeardown ? "10,5" : undefined}
+          strokeDasharray={rest.isSetupTeardown ? "10,5" : undefined}
           strokeWidth={strokeWidth}
           x={(point: ElkPoint) => point.x}
           y={(point: ElkPoint) => point.y}

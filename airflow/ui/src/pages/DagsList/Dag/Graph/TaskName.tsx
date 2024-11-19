@@ -18,7 +18,9 @@
  */
 import { Text, type TextProps } from "@chakra-ui/react";
 import type { CSSProperties } from "react";
-import { FiChevronUp, FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
+import { FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
+
+import type { Node } from "./data";
 
 type Props = {
   readonly id: string;
@@ -27,7 +29,7 @@ type Props = {
   readonly isOpen?: boolean;
   readonly isZoomedOut?: boolean;
   readonly label: string;
-  readonly setupTeardownType?: string;
+  readonly setupTeardownType?: Node["setup_teardown_type"];
 } & TextProps;
 
 export const TaskName = ({
@@ -50,17 +52,6 @@ export const TaskName = ({
     <Text data-testid={id} fontSize={isZoomedOut ? 24 : undefined} {...rest}>
       {label}
       {isMapped ? " [ ]" : undefined}
-      {isGroup ? (
-        <FiChevronUp
-          size={isZoomedOut ? 24 : 15}
-          strokeWidth={3}
-          style={{
-            transform: `rotate(${isOpen ? 0 : 180}deg)`,
-            transition: "transform 0.5s",
-            ...iconStyle,
-          }}
-        />
-      ) : undefined}
       {setupTeardownType === "setup" && (
         <FiArrowUpRight size={isZoomedOut ? 24 : 15} style={iconStyle} />
       )}

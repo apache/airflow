@@ -39,7 +39,10 @@ type EdgeLabel = {
 type FormattedNode = {
   childCount?: number;
   edges?: Array<FormattedEdge>;
+  isGroup: boolean;
+  isMapped?: boolean;
   isOpen?: boolean;
+  setupTeardownType?: Node["setup_teardown_type"];
 } & ElkShape &
   Node;
 
@@ -164,6 +167,7 @@ const generateGraph = ({
           })
           .map((edge) => formatEdge(edge, font, node)),
         id: node.id,
+        isGroup: true,
         isOpen: true,
         label: node.label,
         layoutOptions: {
@@ -207,7 +211,10 @@ const generateGraph = ({
       childCount,
       height,
       id: node.id,
+      isGroup: Boolean(node.children),
+      isMapped: node.is_mapped,
       label: node.label,
+      setupTeardownType: node.setup_teardown_type,
       type: node.type,
       width,
     };
@@ -251,6 +258,7 @@ export const useGraphLayout = ({
         nodes,
         openGroupIds,
       });
+
       const data = await elk.layout(graph);
 
       return data as LayoutNode;

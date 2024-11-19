@@ -65,12 +65,17 @@ export const flattenNodes = ({
       },
       type: node.type,
       ...parentNode,
-    };
+    } satisfies NodeType;
 
     edges = [
       ...edges,
       ...(node.edges ?? []).map((edge) => ({
         ...edge,
+        labels: edge.labels?.map((label) => ({
+          ...label,
+          x: (label.x ?? 0) + x,
+          y: (label.y ?? 0) + y,
+        })),
         sections: edge.sections?.map((section) => ({
           ...section,
           // eslint-disable-next-line max-nested-callbacks
@@ -116,7 +121,7 @@ type Edge = {
 } & ElkExtendedEdge;
 
 export type EdgeData = {
-  rest: ElkExtendedEdge;
+  rest: { isSetupTeardown?: boolean } & ElkExtendedEdge;
 };
 
 export const formatEdges = ({

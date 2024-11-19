@@ -29,6 +29,7 @@ export type Node = {
   id: string;
   is_mapped?: boolean;
   label: string;
+  setup_teardown_type?: "setup" | "teardown";
   tooltip?: string;
   type:
     | "asset_alias"
@@ -37,8 +38,6 @@ export type Node = {
     | "dag"
     | "join"
     | "sensor"
-    | "setup_task"
-    | "takedown_task"
     | "task"
     | "trigger";
 };
@@ -53,28 +52,31 @@ export const graphData: GraphData = {
   arrange: "LR",
   edges: [
     {
+      source_id: "section_1.upstream_join_id",
+      target_id: "section_1.taskgroup_setup",
+    },
+    {
       source_id: "section_1.downstream_join_id",
       target_id: "section_2.upstream_join_id",
     },
     {
-      source_id: "section_1.task_1",
-      target_id: "section_1.task_2",
+      source_id: "section_1.normal",
+      target_id: "section_1.taskgroup_teardown",
     },
     {
-      source_id: "section_1.task_1",
-      target_id: "section_1.task_3",
+      is_setup_teardown: true,
+      label: "setup and teardown",
+      source_id: "section_1.taskgroup_setup",
+      target_id: "section_1.taskgroup_teardown",
     },
     {
-      source_id: "section_1.task_2",
+      label: "test",
+      source_id: "section_1.taskgroup_teardown",
       target_id: "section_1.downstream_join_id",
     },
     {
-      source_id: "section_1.task_3",
-      target_id: "section_1.downstream_join_id",
-    },
-    {
-      source_id: "section_1.upstream_join_id",
-      target_id: "section_1.task_1",
+      source_id: "section_1.taskgroup_setup",
+      target_id: "section_1.normal",
     },
     {
       source_id: "section_2.downstream_join_id",
@@ -109,6 +111,7 @@ export const graphData: GraphData = {
       target_id: "section_2.task_1",
     },
     {
+      label: "I am a realllllllllllllllllly long label",
       source_id: "start",
       target_id: "section_1.upstream_join_id",
     },
@@ -122,18 +125,20 @@ export const graphData: GraphData = {
     {
       children: [
         {
-          id: "section_1.task_1",
-          label: "task_1",
+          id: "section_1.normal",
+          label: "normal",
           type: "task",
         },
         {
-          id: "section_1.task_2",
-          label: "task_2",
+          id: "section_1.taskgroup_setup",
+          label: "taskgroup_setup",
+          setup_teardown_type: "setup",
           type: "task",
         },
         {
-          id: "section_1.task_3",
-          label: "task_3",
+          id: "section_1.taskgroup_teardown",
+          label: "taskgroup_teardown",
+          setup_teardown_type: "teardown",
           type: "task",
         },
         {
@@ -164,6 +169,7 @@ export const graphData: GraphData = {
             },
             {
               id: "section_2.inner_section_2.task_3",
+              is_mapped: true,
               label: "task_3",
               type: "task",
             },
@@ -174,13 +180,13 @@ export const graphData: GraphData = {
             },
           ],
           id: "section_2.inner_section_2",
-          is_mapped: false,
           label: "inner_section_2",
           tooltip: "Tasks for inner_section2",
           type: "task",
         },
         {
           id: "section_2.task_1",
+          is_mapped: true,
           label: "task_1",
           type: "task",
         },

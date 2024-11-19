@@ -16,59 +16,122 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, Flex } from "@chakra-ui/react";
+import { Box, Button, Flex, Text } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
+
+import { pluralize } from "src/utils";
 
 import { NodeWrapper } from "./NodeWrapper";
 import { TaskName } from "./TaskName";
+import type { Node } from "./data";
 
 export type CustomNodeProps = {
   childCount?: number;
   height?: number;
   isActive?: boolean;
+  isGroup?: boolean;
+  isMapped?: boolean;
   isOpen?: boolean;
   label: string;
   onToggleGroups: (groupIds: Array<string>) => void;
   openGroupIds: Array<string>;
-  setupTeardownType?: "setup" | "teardown";
-  style?: string;
+  setupTeardownType?: Node["setup_teardown_type"];
   width?: number;
 };
 
 export const TaskNode = ({
-  data,
+  data: {
+    childCount,
+    height,
+    isGroup,
+    isMapped,
+    isOpen,
+    label,
+    onToggleGroups,
+    openGroupIds,
+    setupTeardownType,
+    width,
+  },
   id,
 }: NodeProps<NodeType<CustomNodeProps, "task">>) => {
   const onClick = () => {
-    if (data.childCount !== undefined) {
-      data.onToggleGroups(
-        data.isOpen
-          ? data.openGroupIds.filter((groupId) => groupId !== id)
-          : [...data.openGroupIds, id],
+    if (isGroup) {
+      onToggleGroups(
+        isOpen
+          ? openGroupIds.filter((groupId) => groupId !== id)
+          : [...openGroupIds, id],
       );
     }
   };
 
   return (
     <NodeWrapper>
-      <Flex
-        bg="bg"
-        borderColor="fg"
-        borderRadius={5}
-        borderWidth={1}
-        height={`${data.height}px`}
-        px={3}
-        py={2}
-        width={`${data.width}px`}
-      >
-        <Button onClick={onClick} variant="plain">
-          <TaskName
-            id={id}
-            isGroup={data.childCount !== undefined && data.childCount > 0}
-            isOpen={data.isOpen}
-            label={data.label}
-          />
-        </Button>
+      <Flex alignItems="center" flexDirection="column">
+        <Flex
+          bg="bg"
+          borderColor="fg"
+          borderRadius={5}
+          borderWidth={1}
+          height={`${height}px`}
+          justifyContent="space-between"
+          px={3}
+          py={2}
+          width={`${width}px`}
+        >
+          <Box>
+            {/* TODO: replace 'Operator' */}
+            <Text fontSize="xs" fontWeight="lighter" textTransform="uppercase">
+              {isGroup ? "Task Group" : "Operator"}
+            </Text>
+            <TaskName
+              id={id}
+              isGroup={isGroup}
+              isMapped={isMapped}
+              isOpen={isOpen}
+              label={label}
+              setupTeardownType={setupTeardownType}
+            />
+          </Box>
+          <Box>
+            {isGroup ? (
+              <Button
+                colorPalette="blue"
+                onClick={onClick}
+                p={0}
+                variant="plain"
+              >
+                {isOpen ? "- " : "+ "}
+                {pluralize("task", childCount, undefined, false)}
+              </Button>
+            ) : undefined}
+          </Box>
+        </Flex>
+        {Boolean(isMapped) || Boolean(isGroup && !isOpen) ? (
+          <>
+            <Box
+              bg="bg.subtle"
+              borderBottomLeftRadius={5}
+              borderBottomRightRadius={5}
+              borderBottomWidth={1}
+              borderColor="fg"
+              borderLeftWidth={1}
+              borderRightWidth={1}
+              height={1}
+              width={`${(width ?? 0) - 10}px`}
+            />
+            <Box
+              bg="bg.subtle"
+              borderBottomLeftRadius={5}
+              borderBottomRightRadius={5}
+              borderBottomWidth={1}
+              borderColor="fg"
+              borderLeftWidth={1}
+              borderRightWidth={1}
+              height={1}
+              width={`${(width ?? 0) - 20}px`}
+            />
+          </>
+        ) : undefined}
       </Flex>
     </NodeWrapper>
   );
