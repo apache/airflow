@@ -776,7 +776,7 @@ export type TaskInstanceCollectionResponse = {
 };
 
 /**
- * TaskInstance serializer for responses.
+ * TaskInstanceHistory serializer for responses.
  */
 export type TaskInstanceHistoryResponse = {
   task_id: string;
@@ -1519,13 +1519,6 @@ export type GetTaskInstancesBatchData = {
 
 export type GetTaskInstancesBatchResponse = TaskInstanceCollectionResponse;
 
-export type GetTasksData = {
-  dagId: string;
-  orderBy?: string;
-};
-
-export type GetTasksResponse = TaskCollectionResponse;
-
 export type GetTaskInstanceTryDetailsData = {
   dagId: string;
   dagRunId: string;
@@ -1535,6 +1528,13 @@ export type GetTaskInstanceTryDetailsData = {
 };
 
 export type GetTaskInstanceTryDetailsResponse = TaskInstanceHistoryResponse;
+
+export type GetTasksData = {
+  dagId: string;
+  orderBy?: string;
+};
+
+export type GetTasksResponse = TaskCollectionResponse;
 
 export type GetTaskData = {
   dagId: string;
@@ -3034,6 +3034,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: TaskInstanceCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}": {
+    get: {
+      req: GetTaskInstanceTryDetailsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceHistoryResponse;
         /**
          * Unauthorized
          */

@@ -56,6 +56,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.exceptions import TaskNotFound
+from airflow.models import Base
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.ti_deps.dep_context import DepContext
@@ -428,13 +429,13 @@ def get_task_instance_try_details(
 ) -> TaskInstanceHistoryResponse:
     """Get task instance details by try number."""
 
-    def _query(TI):
-        query = select(TI).where(
-            TI.dag_id == dag_id,
-            TI.run_id == dag_run_id,
-            TI.task_id == task_id,
-            TI.try_number == task_try_number,
-            TI.map_index == map_index,
+    def _query(orm_object: Base) -> TI | TIH | None:
+        query = select(orm_object).where(
+            orm_object.dag_id == dag_id,
+            orm_object.run_id == dag_run_id,
+            orm_object.task_id == task_id,
+            orm_object.try_number == task_try_number,
+            orm_object.map_index == map_index,
         )
 
         task_instance = session.scalar(query)

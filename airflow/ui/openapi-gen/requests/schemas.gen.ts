@@ -3239,7 +3239,7 @@ export const $TaskInstanceHistoryResponse = {
     "executor_config",
   ],
   title: "TaskInstanceHistoryResponse",
-  description: "TaskInstance serializer for responses.",
+  description: "TaskInstanceHistory serializer for responses.",
 } as const;
 
 export const $TaskInstanceResponse = {

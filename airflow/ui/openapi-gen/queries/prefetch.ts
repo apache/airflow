@@ -1317,29 +1317,6 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
       }),
   });
 /**
- * Get Tasks
- * Get tasks for DAG.
- * @param data The data for the request.
- * @param data.dagId
- * @param data.orderBy
- * @returns TaskCollectionResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseTaskServiceGetTasks = (
-  queryClient: QueryClient,
-  {
-    dagId,
-    orderBy,
-  }: {
-    dagId: string;
-    orderBy?: string;
-  },
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseTaskServiceGetTasksKeyFn({ dagId, orderBy }),
-    queryFn: () => TaskService.getTasks({ dagId, orderBy }),
-  });
-/**
  * Get Task Instance Try Details
  * Get task instance details by try number.
  * @param data The data for the request.
@@ -1383,6 +1360,29 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceTryDetails = (
         taskId,
         taskTryNumber,
       }),
+  });
+/**
+ * Get Tasks
+ * Get tasks for DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.orderBy
+ * @returns TaskCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseTaskServiceGetTasks = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    orderBy,
+  }: {
+    dagId: string;
+    orderBy?: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseTaskServiceGetTasksKeyFn({ dagId, orderBy }),
+    queryFn: () => TaskService.getTasks({ dagId, orderBy }),
   });
 /**
  * Get Task
