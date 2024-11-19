@@ -396,8 +396,8 @@ def test_mark_task_instance_state(test_app):
         # task_2 remains as SUCCESS
         assert get_task_instance(session, task_2).state == State.SUCCESS
         # task_3 and task_4 are cleared because they were in FAILED/UPSTREAM_FAILED state
-        assert get_task_instance(session, task_3).state == State.UPSTREAM_FAILED
-        assert get_task_instance(session, task_4).state == State.FAILED
+        assert get_task_instance(session, task_3).state == State.NONE
+        assert get_task_instance(session, task_4).state == State.NONE
         # task_5 remains as SKIPPED
         assert get_task_instance(session, task_5).state == State.SKIPPED
         dagrun.refresh_from_db(session=session)

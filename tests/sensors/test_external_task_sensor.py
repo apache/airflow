@@ -1376,13 +1376,18 @@ def test_external_task_marker_clear_activate(dag_bag_parent_child, session):
 
     from sqlalchemy import select
 
+    run_ids = []
     # Assert that dagruns of all the affected dags are set to SUCCESS before tasks are cleared.
     for dag, logical_date in itertools.product(dag_bag.dags.values(), [day_1, day_2]):
-        dagrun = dag.get_dagrun(
-            run_id=select(DagRun.run_id)
+        run_id = (
+            select(DagRun.run_id)
             .where(DagRun.logical_date == logical_date)
             .order_by(DagRun.id.desc())
-            .limit(1),
+            .limit(1)
+        )
+        run_ids.append(run_id)
+        dagrun = dag.get_dagrun(
+            run_id=run_id,
             session=session,
         )
         dagrun.set_state(State.SUCCESS)
@@ -1394,10 +1399,10 @@ def test_external_task_marker_clear_activate(dag_bag_parent_child, session):
 
     # Assert that dagruns of all the affected dags are set to QUEUED after tasks are cleared.
     # Unaffected dagruns should be left as SUCCESS.
-    dagrun_0_1 = dag_bag.get_dag("parent_dag_0").get_dagrun(session=session)
-    dagrun_0_2 = dag_bag.get_dag("parent_dag_0").get_dagrun(session=session)
-    dagrun_1_1 = dag_bag.get_dag("child_dag_1").get_dagrun(session=session)
-    dagrun_1_2 = dag_bag.get_dag("child_dag_1").get_dagrun(session=session)
+    dagrun_0_1 = dag_bag.get_dag("parent_dag_0").get_dagrun(run_id=run_ids[0], session=session)
+    dagrun_0_2 = dag_bag.get_dag("parent_dag_0").get_dagrun(run_id=run_ids[1], session=session)
+    dagrun_1_1 = dag_bag.get_dag("child_dag_1").get_dagrun(run_id=run_ids[2], session=session)
+    dagrun_1_2 = dag_bag.get_dag("child_dag_1").get_dagrun(run_id=run_ids[3], session=session)
 
     assert dagrun_0_1.state == State.QUEUED
     assert dagrun_0_2.state == State.QUEUED
