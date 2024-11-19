@@ -45,7 +45,7 @@ from airflow_breeze.global_constants import (
     DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
     KIND_VERSION,
-    OTHER_PROVIDERS_INTEGRATIONS,
+    OPENLINEAGE_INTEGRATION,
     RUNS_ON_PUBLIC_RUNNER,
     RUNS_ON_SELF_HOSTED_ASF_RUNNER,
     RUNS_ON_SELF_HOSTED_RUNNER,
@@ -707,6 +707,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.API_TEST_FILES)
 
     @cached_property
+    def needs_ol_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.ASSET_FILES)
+
+    @cached_property
     def needs_api_codegen(self) -> bool:
         return self._should_be_run(FileGroupForCi.API_CODEGEN_FILES)
 
@@ -882,12 +886,9 @@ class SelectiveChecks:
                 # IF API tests are needed, that will trigger extra provider checks
                 return []
             else:
-                if len(all_providers_source_files) != 0:
-                    affected_providers = self._find_all_providers_affected(
-                        include_docs=False,
-                    )
-                elif len(assets_source_files) != 0:
-                    affected_providers = OTHER_PROVIDERS_INTEGRATIONS
+                affected_providers = self._find_all_providers_affected(
+                    include_docs=False,
+                )
         candidate_test_types: set[str] = set()
         if affected_providers and not isinstance(affected_providers, AllProvidersSentinel):
             if split_to_individual_providers:
@@ -1461,6 +1462,8 @@ class SelectiveChecks:
                     all_providers.add(provider)
         if self.needs_api_tests:
             all_providers.add("fab")
+        if self.needs_ol_tests:
+            all_providers.add(OPENLINEAGE_INTEGRATION)
         if all_providers_affected:
             return ALL_PROVIDERS_SENTINEL
         if suspended_providers:
@@ -1494,10 +1497,11 @@ class SelectiveChecks:
                 )
         if not all_providers:
             return None
-        for provider in list(all_providers):
-            all_providers.update(
-                get_related_providers(provider, upstream_dependencies=True, downstream_dependencies=True)
-            )
+        if not all_providers == {OPENLINEAGE_INTEGRATION}:
+            for provider in list(all_providers):
+                all_providers.update(
+                    get_related_providers(provider, upstream_dependencies=True, downstream_dependencies=True)
+                )
         return sorted(all_providers)
 
     def _is_canary_run(self):
