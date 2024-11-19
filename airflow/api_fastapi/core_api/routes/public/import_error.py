@@ -53,7 +53,10 @@ def get_import_error(
     """Get an import error."""
     error = session.scalar(select(ParseImportError).where(ParseImportError.id == import_error_id))
     if error is None:
-        raise HTTPException(404, f"The ImportError with import_error_id: `{import_error_id}` was not found")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The ImportError with import_error_id: `{import_error_id}` was not found",
+        )
 
     return ImportErrorResponse.model_validate(
         error,

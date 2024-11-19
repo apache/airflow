@@ -139,15 +139,15 @@ def get_mapped_task_instances(
         dag = request.app.state.dag_bag.get_dag(dag_id)
         if not dag:
             error_message = f"DAG {dag_id} not found"
-            raise HTTPException(404, error_message)
+            raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
         try:
             task = dag.get_task(task_id)
         except TaskNotFound:
             error_message = f"Task id {task_id} not found"
-            raise HTTPException(404, error_message)
+            raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
         if not task.get_needs_expansion():
             error_message = f"Task id {task_id} is not mapped"
-            raise HTTPException(404, error_message)
+            raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
 
     task_instance_select, total_entries = paginated_select(
         base_query,
