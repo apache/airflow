@@ -43,7 +43,6 @@ class DagVersion(Base):
     __tablename__ = "dag_version"
     id = Column(UUIDType(binary=False), primary_key=True, default=uuid6.uuid7)
     version_number = Column(Integer, nullable=False, default=1)
-    version_name = Column(StringID())
     dag_id = Column(StringID(), ForeignKey("dag.dag_id", ondelete="CASCADE"), nullable=False)
     dag_model = relationship("DagModel", back_populates="dag_versions")
     dag_code = relationship(
@@ -78,7 +77,6 @@ class DagVersion(Base):
         cls,
         *,
         dag_id: str,
-        version_name: str | None = None,
         version_number: int = 1,
         session: Session = NEW_SESSION,
     ) -> DagVersion:
@@ -88,7 +86,6 @@ class DagVersion(Base):
         Checks if a version of the DAG exists and increments the version number if it does.
 
         :param dag_id: The DAG ID.
-        :param version_name: The version name.
         :param version_number: The version number.
         :param session: The database session.
         :return: The DagVersion object.
@@ -102,7 +99,6 @@ class DagVersion(Base):
         dag_version = DagVersion(
             dag_id=dag_id,
             version_number=version_number,
-            version_name=version_name,
         )
         log.debug("Writing DagVersion %s to the DB", dag_version)
         session.add(dag_version)
@@ -136,7 +132,7 @@ class DagVersion(Base):
     def get_version(
         cls,
         dag_id: str,
-        version_number: int = 1,
+        version_number: int | None = None,
         *,
         session: Session = NEW_SESSION,
     ) -> DagVersion | None:
@@ -148,18 +144,13 @@ class DagVersion(Base):
         :param session: The database session.
         :return: The version of the DAG or None if not found.
         """
-        version_select_obj = (
-            select(cls)
-            .where(cls.dag_id == dag_id, cls.version_number == version_number)
-            .order_by(cls.version_number.desc())
-            .limit(1)
-        )
-        return session.scalar(version_select_obj)
+        version_select_obj = select(cls).where(cls.dag_id == dag_id)
+        if version_number:
+            version_select_obj = version_select_obj.where(cls.version_number == version_number)
+
+        return session.scalar(version_select_obj.order_by(cls.id.desc()).limit(1))
 
     @property
     def version(self) -> str:
         """A human-friendly representation of the version."""
-        name = f"{self.version_number}"
-        if self.version_name:
-            name = f"{self.version_name}-{self.version_number}"
-        return name
+        return f"{self.dag_id}-{self.version_number}"

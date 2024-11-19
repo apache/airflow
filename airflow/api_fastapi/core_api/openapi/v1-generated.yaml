@@ -1602,7 +1602,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dagSources/{file_token}:
+  /public/dagSources/{dag_id}:
     get:
       tags:
       - DagSource
@@ -1610,12 +1610,20 @@ paths:
       description: Get source code using file token.
       operationId: get_dag_source
       parameters:
-      - name: file_token
+      - name: dag_id
         in: path
         required: true
         schema:
           type: string
-          title: File Token
+          title: Dag Id
+      - name: version_number
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Version Number
       - name: accept
         in: header
         required: false
@@ -5132,9 +5140,19 @@ components:
           - type: string
           - type: 'null'
           title: Content
+        dag_id:
+          type: string
+          title: Dag Id
+        version_number:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Version Number
       type: object
       required:
       - content
+      - dag_id
+      - version_number
       title: DAGSourceResponse
       description: DAG Source serializer for responses.
     DAGTagCollectionResponse:
