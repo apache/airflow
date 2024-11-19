@@ -1889,7 +1889,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @provide_session
     def _get_num_times_stuck_in_queued(self, ti: TaskInstance, session: Session = NEW_SESSION) -> int:
         """
-        Check the Log table to see how many times a taskinstance has been stuck in queued.
+        Check the Log table to see how many times a task instance has been stuck in queued.
 
         We can then use this information to determine whether to reschedule a task or fail it.
         """
