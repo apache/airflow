@@ -1931,6 +1931,8 @@ export class TaskInstanceService {
    * Get Task Instances Batch
    * Get list of task instances.
    * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
    * @param data.requestBody
    * @returns TaskInstanceCollectionResponse Successful Response
    * @throws ApiError
@@ -1941,6 +1943,10 @@ export class TaskInstanceService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+      },
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
