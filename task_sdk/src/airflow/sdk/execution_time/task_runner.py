@@ -73,7 +73,7 @@ def parse(what: StartupDetails) -> RuntimeTaskInstance:
 class CommsDecoder:
     """Handle communication between the task in this process and the supervisor parent process."""
 
-    input: TextIO = sys.stdin
+    input: TextIO
 
     request_socket: FileIO = attrs.field(init=False, default=None)
 
@@ -164,7 +164,8 @@ def run(ti: RuntimeTaskInstance, log: Logger):
     except SystemExit:
         ...
     except BaseException:
-        ...
+        # TODO: Handle TI handle failure
+        raise
 
 
 def finalize(log: Logger): ...
@@ -174,7 +175,7 @@ def main():
     # TODO: add an exception here, it causes an oof of a stack trace!
 
     global SUPERVISOR_COMMS
-    SUPERVISOR_COMMS = CommsDecoder()
+    SUPERVISOR_COMMS = CommsDecoder(input=sys.stdin)
     try:
         ti, log = startup()
         run(ti, log)
