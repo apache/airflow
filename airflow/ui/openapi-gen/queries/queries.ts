@@ -2074,6 +2074,8 @@ export const usePoolServicePostPool = <
  * Get Task Instances Batch
  * Get list of task instances.
  * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
  * @param data.requestBody
  * @returns TaskInstanceCollectionResponse Successful Response
  * @throws ApiError
@@ -2088,6 +2090,8 @@ export const useTaskInstanceServiceGetTaskInstancesBatch = <
       TData,
       TError,
       {
+        dagId: "~";
+        dagRunId: "~";
         requestBody: TaskInstancesBatchBody;
       },
       TContext
@@ -2099,12 +2103,16 @@ export const useTaskInstanceServiceGetTaskInstancesBatch = <
     TData,
     TError,
     {
+      dagId: "~";
+      dagRunId: "~";
       requestBody: TaskInstancesBatchBody;
     },
     TContext
   >({
-    mutationFn: ({ requestBody }) =>
+    mutationFn: ({ dagId, dagRunId, requestBody }) =>
       TaskInstanceService.getTaskInstancesBatch({
+        dagId,
+        dagRunId,
         requestBody,
       }) as unknown as Promise<TData>,
     ...options,

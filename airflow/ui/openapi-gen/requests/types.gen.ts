@@ -1502,6 +1502,8 @@ export type GetTaskInstancesData = {
 export type GetTaskInstancesResponse = TaskInstanceCollectionResponse;
 
 export type GetTaskInstancesBatchData = {
+  dagId: "~";
+  dagRunId: "~";
   requestBody: TaskInstancesBatchBody;
 };
 
