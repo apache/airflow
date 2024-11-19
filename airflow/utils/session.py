@@ -31,7 +31,7 @@ from airflow.typing_compat import ParamSpec
 
 
 @contextlib.contextmanager
-def create_session() -> Generator[SASession, None, None]:
+def create_session(scoped: bool = True) -> Generator[SASession, None, None]:
     """Contextmanager that will create and teardown a session."""
     if InternalApiConfig.get_use_internal_api():
         if os.environ.get("RUN_TESTS_WITH_DATABASE_ISOLATION", "false").lower() == "true":
@@ -48,7 +48,10 @@ def create_session() -> Generator[SASession, None, None]:
         else:
             yield TracebackSession()
         return
-    Session = getattr(settings, "Session", None)
+    if scoped:
+        Session = getattr(settings, "Session", None)
+    else:
+        Session = getattr(settings, "NonScopedSession", None)
     if Session is None:
         raise RuntimeError("Session must be set before!")
     session = Session()
