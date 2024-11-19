@@ -23,18 +23,17 @@ import logging
 from typing import TYPE_CHECKING, Any, Iterable, cast
 
 from sqlalchemy import (
+    JSON,
     Column,
     ForeignKeyConstraint,
     Index,
     Integer,
-    LargeBinary,
     PrimaryKeyConstraint,
     String,
     delete,
     select,
     text,
 )
-from sqlalchemy.dialects.mysql import LONGBLOB
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Query, reconstructor, relationship
 
@@ -80,7 +79,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
     run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
 
-    value = Column(LargeBinary().with_variant(LONGBLOB, "mysql"))
+    value = Column(JSON)
     timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     __table_args__ = (
@@ -453,9 +452,12 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         dag_id: str | None = None,
         run_id: str | None = None,
         map_index: int | None = None,
-    ) -> Any:
+    ) -> str:
         """Serialize XCom value to JSON str."""
-        return json.dumps(value, cls=XComEncoder).encode("UTF-8")
+        try:
+            return json.dumps(value, cls=XComEncoder)
+        except (ValueError, TypeError):
+            raise ValueError("XCom value must be JSON serializable")
 
     @staticmethod
     def _deserialize_value(result: XCom, orm: bool) -> Any:
@@ -466,7 +468,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         if result.value is None:
             return None
 
-        return json.loads(result.value.decode("UTF-8"), cls=XComDecoder, object_hook=object_hook)
+        return json.loads(result.value, cls=XComDecoder, object_hook=object_hook)
 
     @staticmethod
     def deserialize_value(result: XCom) -> Any:
