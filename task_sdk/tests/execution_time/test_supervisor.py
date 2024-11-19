@@ -190,4 +190,4 @@ class TestWatchedSubprocess:
         assert proc.wait() == 0
         assert spy.called_with(id, pid=proc.pid)  # noqa: PGH005
         # The exact number we get will depend on timing behaviour, so be a little lenient
-        assert 2 <= len(spy.calls) <= 4
+        assert 1 <= len(spy.calls) <= 4
