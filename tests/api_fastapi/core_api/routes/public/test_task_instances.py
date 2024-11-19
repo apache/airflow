@@ -31,6 +31,7 @@ from airflow.models import DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagbag import DagBag
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
+from airflow.models.taskinstancehistory import TaskInstanceHistory
 from airflow.models.taskmap import TaskMap
 from airflow.models.trigger import Trigger
 from airflow.utils.platform import getuser
@@ -1420,3 +1421,174 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         num_entries_batch3 = len(response_batch3.json()["task_instances"])
         assert num_entries_batch3 == ti_count
         assert len(response_batch3.json()["task_instances"]) == ti_count
+
+
+class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
+    def test_should_respond_200(self, test_client, session):
+        self.create_task_instances(session, task_instances=[{"state": State.SUCCESS}], with_ti_history=True)
+        response = test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1"
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "dag_id": "example_python_operator",
+            "duration": 10000.0,
+            "end_date": "2020-01-03T00:00:00Z",
+            "executor": None,
+            "executor_config": "{}",
+            "hostname": "",
+            "map_index": -1,
+            "max_tries": 0,
+            "operator": "PythonOperator",
+            "pid": 100,
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "priority_weight": 9,
+            "queue": "default_queue",
+            "queued_when": None,
+            "start_date": "2020-01-02T00:00:00Z",
+            "state": "success",
+            "task_id": "print_the_context",
+            "task_display_name": "print_the_context",
+            "try_number": 1,
+            "unixname": getuser(),
+            "dag_run_id": "TEST_DAG_RUN_ID",
+        }
+
+    @pytest.mark.parametrize("try_number", [1, 2])
+    def test_should_respond_200_with_different_try_numbers(self, test_client, try_number, session):
+        self.create_task_instances(session, task_instances=[{"state": State.SUCCESS}], with_ti_history=True)
+        response = test_client.get(
+            f"/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/{try_number}",
+        )
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "dag_id": "example_python_operator",
+            "duration": 10000.0,
+            "end_date": "2020-01-03T00:00:00Z",
+            "executor": None,
+            "executor_config": "{}",
+            "hostname": "",
+            "map_index": -1,
+            "max_tries": 0 if try_number == 1 else 1,
+            "operator": "PythonOperator",
+            "pid": 100,
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "priority_weight": 9,
+            "queue": "default_queue",
+            "queued_when": None,
+            "start_date": "2020-01-02T00:00:00Z",
+            "state": "success" if try_number == 1 else None,
+            "task_id": "print_the_context",
+            "task_display_name": "print_the_context",
+            "try_number": try_number,
+            "unixname": getuser(),
+            "dag_run_id": "TEST_DAG_RUN_ID",
+        }
+
+    def test_should_respond_200_with_task_state_in_deferred(self, test_client, session):
+        now = pendulum.now("UTC")
+        ti = self.create_task_instances(
+            session,
+            task_instances=[{"state": State.DEFERRED}],
+            update_extras=True,
+        )[0]
+        ti.trigger = Trigger("none", {})
+        ti.trigger.created_date = now
+        ti.triggerer_job = Job()
+        TriggererJobRunner(job=ti.triggerer_job)
+        ti.triggerer_job.state = "running"
+        ti.try_number = 1
+        session.merge(ti)
+        session.flush()
+        # Record the TaskInstanceHistory
+        TaskInstanceHistory.record_ti(ti, session=session)
+        session.flush()
+        # Change TaskInstance try_number to 2, ensuring api checks TIHistory
+        ti = session.query(TaskInstance).one_or_none()
+        ti.try_number = 2
+        session.merge(ti)
+        # Set duration and end_date in TaskInstanceHistory for easy testing
+        tih = session.query(TaskInstanceHistory).all()[0]
+        tih.duration = 10000
+        tih.end_date = self.default_time + dt.timedelta(days=2)
+        session.merge(tih)
+        session.commit()
+        # Get the task instance details from TIHistory:
+        response = test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1",
+        )
+        assert response.status_code == 200
+        data = response.json()
+
+        assert data == {
+            "dag_id": "example_python_operator",
+            "duration": 10000.0,
+            "end_date": "2020-01-03T00:00:00Z",
+            "executor": None,
+            "executor_config": "{}",
+            "hostname": "",
+            "map_index": -1,
+            "max_tries": 0,
+            "operator": "PythonOperator",
+            "pid": 100,
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "priority_weight": 9,
+            "queue": "default_queue",
+            "queued_when": None,
+            "start_date": "2020-01-02T00:00:00Z",
+            "state": "failed",
+            "task_id": "print_the_context",
+            "task_display_name": "print_the_context",
+            "try_number": 1,
+            "unixname": getuser(),
+            "dag_run_id": "TEST_DAG_RUN_ID",
+        }
+
+    def test_should_respond_200_with_task_state_in_removed(self, test_client, session):
+        self.create_task_instances(
+            session, task_instances=[{"state": State.REMOVED}], update_extras=True, with_ti_history=True
+        )
+        response = test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries/1",
+        )
+        assert response.status_code == 200
+
+        assert response.json() == {
+            "dag_id": "example_python_operator",
+            "duration": 10000.0,
+            "end_date": "2020-01-03T00:00:00Z",
+            "executor": None,
+            "executor_config": "{}",
+            "hostname": "",
+            "map_index": -1,
+            "max_tries": 0,
+            "operator": "PythonOperator",
+            "pid": 100,
+            "pool": "default_pool",
+            "pool_slots": 1,
+            "priority_weight": 9,
+            "queue": "default_queue",
+            "queued_when": None,
+            "start_date": "2020-01-02T00:00:00Z",
+            "state": "removed",
+            "task_id": "print_the_context",
+            "task_display_name": "print_the_context",
+            "try_number": 1,
+            "unixname": getuser(),
+            "dag_run_id": "TEST_DAG_RUN_ID",
+        }
+
+    def test_raises_404_for_nonexistent_task_instance(self, test_client, session):
+        self.create_task_instances(session)
+        response = test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/nonexistent_task/tries/0"
+        )
+        assert response.status_code == 404
+
+        assert response.json() == {
+            "detail": "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `nonexistent_task`, try_number: `0` and map_index: `-1` was not found"
+        }
