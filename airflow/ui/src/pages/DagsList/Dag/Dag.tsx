@@ -16,14 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Tabs } from "@chakra-ui/react";
+import { Box, Button } from "@chakra-ui/react";
 import { FiChevronsLeft } from "react-icons/fi";
-import {
-  Outlet,
-  Link as RouterLink,
-  useLocation,
-  useParams,
-} from "react-router-dom";
+import { Outlet, Link as RouterLink, useParams } from "react-router-dom";
 
 import {
   useDagServiceGetDagDetails,
@@ -31,11 +26,9 @@ import {
 } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ProgressBar } from "src/components/ui";
-import { capitalize } from "src/utils";
 
 import { Header } from "./Header";
-
-const tabs = ["runs", "tasks", "events", "code"];
+import { DagTabs } from "./Tabs";
 
 export const Dag = () => {
   const { dagId } = useParams();
@@ -57,14 +50,9 @@ export const Dag = () => {
     enabled: Boolean(dagId),
   });
 
-  const { pathname } = useLocation();
-
   const runs =
     runsData?.dags.find((dagWithRuns) => dagWithRuns.dag_id === dagId)
       ?.latest_dag_runs ?? [];
-
-  const activeTab =
-    tabs.find((tab) => pathname.endsWith(`/${tab}`)) ?? "overview";
 
   return (
     <>
@@ -81,20 +69,7 @@ export const Dag = () => {
           size="xs"
           visibility={isLoading || isLoadingRuns ? "visible" : "hidden"}
         />
-        <Tabs.Root value={activeTab}>
-          <Tabs.List>
-            <Tabs.Trigger asChild value="overview">
-              <RouterLink to={`/dags/${dagId}`}>Overview</RouterLink>
-            </Tabs.Trigger>
-            {tabs.map((tab) => (
-              <Tabs.Trigger asChild key={tab} value={tab}>
-                <RouterLink to={`/dags/${dagId}/${tab}`}>
-                  {capitalize(tab)}
-                </RouterLink>
-              </Tabs.Trigger>
-            ))}
-          </Tabs.List>
-        </Tabs.Root>
+        <DagTabs dag={dag} />
       </Box>
       <Box overflow="auto">
         <Outlet />

@@ -16,17 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useTheme } from "next-themes";
+import { useState } from "react";
 
-export const useColorMode = () => {
-  const { resolvedTheme, setTheme } = useTheme();
-  const toggleColorMode = () => {
-    setTheme(resolvedTheme === "light" ? "dark" : "light");
+const useToggleGroups = ({ dagId }: { dagId: string }) => {
+  const openGroupsKey = `${dagId}/open-groups`;
+  let storedGroups: Array<string> = [];
+
+  try {
+    const storageGroups = localStorage.getItem(openGroupsKey) ?? "[]";
+    const parsed = JSON.parse(storageGroups) as unknown;
+
+    if (Array.isArray(parsed) && typeof parsed[0] === "string") {
+      storedGroups = parsed as Array<string>;
+    }
+    // eslint-disable-next-line no-empty
+  } catch {}
+
+  const [openGroupIds, setOpenGroupIds] = useState(storedGroups);
+
+  const onToggleGroups = (groupIds: Array<string>) => {
+    localStorage.setItem(openGroupsKey, JSON.stringify(groupIds));
+    setOpenGroupIds(groupIds);
   };
 
   return {
-    colorMode: resolvedTheme as "dark" | "light" | undefined,
-    setColorMode: setTheme,
-    toggleColorMode,
+    onToggleGroups,
+    openGroupIds,
   };
 };
+
+export default useToggleGroups;

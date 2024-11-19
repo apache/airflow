@@ -1,0 +1,89 @@
+/*!
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+import { Text, useToken } from "@chakra-ui/react";
+import { Group } from "@visx/group";
+import { LinePath } from "@visx/shape";
+import type { Edge as EdgeType } from "@xyflow/react";
+import type { ElkPoint } from "elkjs";
+
+import { useColorMode } from "src/context/colorMode";
+
+import type { EdgeData } from "./reactflowUtils";
+
+type Props = EdgeType<EdgeData>;
+
+const CustomEdge = ({ data }: Props) => {
+  const { colorMode } = useColorMode();
+  const [lightStroke, darkStroke] = useToken("colors", ["black", "gray.50"]);
+
+  if (data === undefined) {
+    return undefined;
+  }
+  const { rest } = data;
+  // We can not actually say an asset is upstream of a particular task so do not render the edge
+  // if (rest.isSourceAsset) {
+  //   return null;
+  // }
+  const strokeWidth = 2;
+
+  // if (rest.isSelected) {
+  //   strokeWidth = 3;
+  // }
+  // if (rest.isZoomedOut) {
+  //   strokeWidth = 5;
+  // }
+  // if (rest.isZoomedOut && rest.isSelected) {
+  //   strokeWidth = 7;
+  // }
+
+  return (
+    <>
+      {rest.labels?.map(({ height, id, text, width, x, y }) => {
+        if (y === undefined || x === undefined) {
+          return undefined;
+        }
+
+        return (
+          <Group height={height} key={id} left={x} top={y} width={width}>
+            <foreignObject height={height} width={width}>
+              <Text>{text}</Text>
+            </foreignObject>
+          </Group>
+        );
+      })}
+      {(rest.sections ?? []).map((section) => (
+        <LinePath
+          data={[
+            section.startPoint,
+            ...(section.bendPoints ?? []),
+            section.endPoint,
+          ]}
+          key={section.id}
+          stroke={colorMode === "dark" ? darkStroke : lightStroke}
+          // strokeDasharray={rest.isSetupTeardown ? "10,5" : undefined}
+          strokeWidth={strokeWidth}
+          x={(point: ElkPoint) => point.x}
+          y={(point: ElkPoint) => point.y}
+        />
+      ))}
+    </>
+  );
+};
+
+export default CustomEdge;
