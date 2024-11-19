@@ -211,7 +211,7 @@ export const UseDashboardServiceHistoricalMetricsKeyFn = (
     endDate,
     startDate,
   }: {
-    endDate: string;
+    endDate?: string;
     startDate: string;
   },
   queryKey?: Array<unknown>,
