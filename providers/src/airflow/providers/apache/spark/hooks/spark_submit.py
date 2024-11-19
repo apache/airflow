@@ -522,7 +522,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         try:
             from airflow.security.kerberos import get_kerberos_principal
         except ImportError:
-            from airflow.security.kerberos import get_kerberos_principle as get_kerberos_principal # type: ignore[attr-defined]
+            from airflow.security.kerberos import (
+                get_kerberos_principle as get_kerberos_principal,  # type: ignore[attr-defined]
+            )
 
         return get_kerberos_principal(principal)
 
