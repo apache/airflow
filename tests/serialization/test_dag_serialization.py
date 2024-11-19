@@ -78,6 +78,7 @@ from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils import timezone
+from airflow.utils.module_loading import qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.xcom import XCOM_RETURN_KEY
@@ -2631,7 +2632,7 @@ def test_taskflow_expand_serde():
         "template_fields_renderers": {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"},
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "op_kwargs_expand_input",
-        "python_callable_name": "x",
+        "python_callable_name": qualname(x),
         "start_trigger_args": None,
         "start_from_trigger": False,
     }
@@ -2703,7 +2704,7 @@ def test_taskflow_expand_kwargs_serde(strict):
         "_task_module": "airflow.decorators.python",
         "task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
-        "python_callable_name": "x",
+        "python_callable_name": qualname(x),
         "start_trigger_args": None,
         "start_from_trigger": False,
         "downstream_task_ids": [],
