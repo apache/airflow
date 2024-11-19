@@ -25,7 +25,7 @@
   * Rename function ``expand_alias_to_datasets`` as ``expand_alias_to_assets``
   * Rename class ``DatasetAliasEvent`` as ``AssetAliasEvent``
 
-    * Rename method ``dest_dataset_uri`` as ``dest_asset_uri``
+    * Rename attribute ``dest_dataset_uri`` as ``dest_asset_uri``
 
   * Rename class ``BaseDataset`` as ``BaseAsset``
 
