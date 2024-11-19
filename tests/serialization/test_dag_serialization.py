@@ -2631,6 +2631,7 @@ def test_taskflow_expand_serde():
         "template_fields_renderers": {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"},
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "op_kwargs_expand_input",
+        "python_callable_name": "x",
         "start_trigger_args": None,
         "start_from_trigger": False,
     }
@@ -2702,6 +2703,7 @@ def test_taskflow_expand_kwargs_serde(strict):
         "_task_module": "airflow.decorators.python",
         "task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
+        "python_callable_name": "x",
         "start_trigger_args": None,
         "start_from_trigger": False,
         "downstream_task_ids": [],

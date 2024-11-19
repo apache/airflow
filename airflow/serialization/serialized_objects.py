@@ -1161,6 +1161,12 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         """Serialize operator into a JSON object."""
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
 
+        # Detect if there's a change in python callable name
+        python_callable = getattr(op, "python_callable", None)
+        if python_callable:
+            callable_name = python_callable.__name__
+            serialize_op["python_callable_name"] = callable_name
+
         serialize_op["task_type"] = getattr(op, "task_type", type(op).__name__)
         serialize_op["_task_module"] = getattr(op, "_task_module", type(op).__module__)
         if op.operator_name != serialize_op["task_type"]:
@@ -1279,6 +1285,10 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
 
         for k, v in encoded_op.items():
+            # python_callable_name only serves to detect function name
+            # changes
+            if k == "python_callable_name":
+                continue
             if k in ("_outlets", "_inlets"):
                 # `_outlets` -> `outlets`
                 k = k[1:]
