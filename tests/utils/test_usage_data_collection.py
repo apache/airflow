@@ -43,12 +43,14 @@ def test_scarf_analytics_disabled(mock_get, is_enabled, is_prerelease):
 
 @mock.patch("airflow.settings.is_usage_data_collection_enabled", return_value=True)
 @mock.patch("airflow.utils.usage_data_collection._version_is_prerelease", return_value=False)
+@mock.patch("airflow.utils.usage_data_collection._is_ci_environ", return_value=False)
 @mock.patch("airflow.utils.usage_data_collection.get_database_version", return_value="12.3")
 @mock.patch("airflow.utils.usage_data_collection.get_database_name", return_value="postgres")
 @mock.patch("httpx.get")
 def test_scarf_analytics(
     mock_get,
     mock_is_usage_data_collection_enabled,
+    mock_version_is_ci,
     mock_version_is_prerelease,
     get_database_version,
     get_database_name,

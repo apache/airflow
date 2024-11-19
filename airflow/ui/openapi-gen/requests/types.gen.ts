@@ -1076,6 +1076,29 @@ export type DeleteDagAssetQueuedEventsData = {
 
 export type DeleteDagAssetQueuedEventsResponse = void;
 
+export type GetDagAssetQueuedEventData = {
+  before?: string | null;
+  dagId: string;
+  uri: string;
+};
+
+export type GetDagAssetQueuedEventResponse = QueuedEventResponse;
+
+export type DeleteDagAssetQueuedEventData = {
+  before?: string | null;
+  dagId: string;
+  uri: string;
+};
+
+export type DeleteDagAssetQueuedEventResponse = void;
+
+export type DeleteAssetQueuedEventsData = {
+  before?: string | null;
+  uri: string;
+};
+
+export type DeleteAssetQueuedEventsResponse = void;
+
 export type GetAssetQueuedEventsData = {
   before?: string | null;
   uri: string;
@@ -1735,7 +1758,88 @@ export type $OpenApiTs = {
       };
     };
   };
+  "/public/dags/{dag_id}/assets/queuedEvent/{uri}": {
+    get: {
+      req: GetDagAssetQueuedEventData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: QueuedEventResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    delete: {
+      req: DeleteDagAssetQueuedEventData;
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
   "/public/assets/queuedEvent/{uri}": {
+    delete: {
+      req: DeleteAssetQueuedEventsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
     get: {
       req: GetAssetQueuedEventsData;
       res: {
