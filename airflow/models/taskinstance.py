@@ -163,7 +163,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG as SchedulerDAG, DagModel
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
-    from airflow.sdk import DAG
+    from airflow.sdk.definitions.dag import DAG
     from airflow.serialization.pydantic.asset import AssetEventPydantic
     from airflow.serialization.pydantic.dag import DagModelPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
@@ -3368,9 +3368,7 @@ class TaskInstance(Base, LoggingMixin):
         Make an XCom available for tasks to pull.
 
         :param key: Key to store the value under.
-        :param value: Value to store. What types are possible depends on whether
-            ``enable_xcom_pickling`` is true or not. If so, this can be any
-            picklable object; only be JSON-serializable may be used otherwise.
+        :param value: Value to store. Only be JSON-serializable may be used otherwise.
         """
         XCom.set(
             key=key,
