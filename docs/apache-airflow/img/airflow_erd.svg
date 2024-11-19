@@ -1119,7 +1119,7 @@
 <polygon fill="none" stroke="black" points="1729,-1847 1729,-1872 1991,-1872 1991,-1847 1729,-1847"/>
 <text text-anchor="start" x="1734" y="-1856.8" font-family="Helvetica,sans-Serif" font-size="14.00">value</text>
 <text text-anchor="start" x="1772" y="-1856.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1777" y="-1856.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [BYTEA]</text>
+<text text-anchor="start" x="1777" y="-1856.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [JSON]</text>
 </g>
 <!-- task_instance&#45;&#45;xcom -->
 <g id="edge49" class="edge">
