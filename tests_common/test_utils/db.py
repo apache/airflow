@@ -74,6 +74,8 @@ def initial_db_init():
     from airflow.www.extensions.init_auth_manager import get_auth_manager
 
     db.resetdb()
+    db.downgrade(to_revision="044f740568ec")
+    db.upgradedb(to_revision="head")
     _bootstrap_dagbag()
     # minimal app to add roles
     flask_app = Flask(__name__)
