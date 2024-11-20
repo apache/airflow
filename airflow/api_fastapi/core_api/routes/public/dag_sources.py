@@ -18,8 +18,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request, Response, status
-from itsdangerous import BadSignature, URLSafeSerializer
+from fastapi import Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.common.db.common import get_session

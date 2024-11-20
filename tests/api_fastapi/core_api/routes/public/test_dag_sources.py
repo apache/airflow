@@ -77,7 +77,7 @@ class TestGetDAGSource:
     @pytest.mark.parametrize(
         "headers", [{"Accept": "application/json"}, {"Accept": "application/json; charset=utf-8"}, {}]
     )
-    def test_should_respond_200_json(self, test_client,test_dag, headers):
+    def test_should_respond_200_json(self, test_client, test_dag, headers):
         dag_content = self._get_dag_file_code(test_dag.fileloc)
         response: Response = test_client.get(
             f"{API_PREFIX}/{TEST_DAG_ID}",
