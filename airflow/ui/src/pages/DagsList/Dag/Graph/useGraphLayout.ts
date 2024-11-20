@@ -20,14 +20,7 @@ import { useQuery } from "@tanstack/react-query";
 import ELK, { type ElkNode, type ElkExtendedEdge, type ElkShape } from "elkjs";
 
 import type { Edge, Node } from "./data";
-
-type GenerateProps = {
-  arrange: string;
-  edges: Array<Edge>;
-  font: string;
-  nodes: Array<Node>;
-  openGroupIds?: Array<string>;
-};
+import { flattenGraph, formatFlowEdges } from "./reactflowUtils";
 
 type EdgeLabel = {
   height: number;
@@ -53,15 +46,10 @@ type FormattedEdge = {
   parentNode?: string;
 } & ElkExtendedEdge;
 
-type LayoutProps = {
-  arrange?: string;
-  edges: Array<Edge>;
-  nodes: Array<Node>;
-  openGroupIds?: Array<string>;
-};
+export type LayoutNode = ElkNode & Node;
 
 // Take text and font to calculate how long each node should be
-export const getTextWidth = (text: string, font: string) => {
+const getTextWidth = (text: string, font: string) => {
   const context = document.createElement("canvas").getContext("2d");
 
   if (context) {
@@ -87,7 +75,11 @@ const getDirection = (arrange: string) => {
   }
 };
 
-const formatEdge = (edge: Edge, font: string, node?: Node): FormattedEdge => ({
+const formatElkEdge = (
+  edge: Edge,
+  font: string,
+  node?: Node,
+): FormattedEdge => ({
   id: `${edge.source_id}-${edge.target_id}`,
   isSetupTeardown: edge.is_setup_teardown,
   // isSourceAsset: e.isSourceAsset,
@@ -122,13 +114,21 @@ const getNestedChildIds = (children: Array<Node>) => {
   return childIds;
 };
 
-const generateGraph = ({
+type GenerateElkProps = {
+  arrange: string;
+  edges: Array<Edge>;
+  font: string;
+  nodes: Array<Node>;
+  openGroupIds?: Array<string>;
+};
+
+const generateElkGraph = ({
   arrange,
   edges: unformattedEdges,
   font,
   nodes,
   openGroupIds,
-}: GenerateProps): ElkNode => {
+}: GenerateElkProps): ElkNode => {
   const closedGroupIds: Array<string> = [];
   let filteredEdges = unformattedEdges;
 
@@ -165,10 +165,10 @@ const generateGraph = ({
 
             return false;
           })
-          .map((edge) => formatEdge(edge, font, node)),
+          .map((edge) => formatElkEdge(edge, font, node)),
         id: node.id,
         isGroup: true,
-        isOpen: true,
+        isOpen,
         label: node.label,
         layoutOptions: {
           "elk.padding": "[top=80,left=15,bottom=15,right=15]",
@@ -222,7 +222,7 @@ const generateGraph = ({
 
   const children = nodes.map(formatChildNode);
 
-  const edges = filteredEdges.map((fe) => formatEdge(fe, font));
+  const edges = filteredEdges.map((fe) => formatElkEdge(fe, font));
 
   return {
     children,
@@ -237,13 +237,20 @@ const generateGraph = ({
   };
 };
 
-export type LayoutNode = ElkNode & Node;
+type LayoutProps = {
+  arrange?: string;
+  edges: Array<Edge>;
+  nodes: Array<Node>;
+  onToggleGroups: (groupIds: Array<string>) => void;
+  openGroupIds: Array<string>;
+};
 
 export const useGraphLayout = ({
   arrange = "LR",
   edges,
   nodes,
-  openGroupIds,
+  onToggleGroups,
+  openGroupIds = [],
 }: LayoutProps) =>
   useQuery({
     queryFn: async () => {
@@ -251,7 +258,9 @@ export const useGraphLayout = ({
         globalThis.getComputedStyle(document.body).fontFamily
       }`;
       const elk = new ELK();
-      const graph = generateGraph({
+
+      // 1. Format graph data to pass for elk to process
+      const graph = generateElkGraph({
         arrange,
         edges,
         font,
@@ -259,9 +268,25 @@ export const useGraphLayout = ({
         openGroupIds,
       });
 
-      const data = await elk.layout(graph);
+      // 2. use elk to generate the size and position of nodes and edges
+      const data = (await elk.layout(graph)) as LayoutNode;
 
-      return data as LayoutNode;
+      // 3. Flatten the nodes and edges for xyflow to actually render the graph
+      const flattenedData = flattenGraph({
+        children: data.children,
+        onToggleGroups,
+        openGroupIds,
+      });
+
+      // merge & dedupe edges
+      const flatEdges = [...(data.edges ?? []), ...flattenedData.edges].filter(
+        (value, index, self) =>
+          index === self.findIndex((edge) => edge.id === value.id),
+      );
+
+      const formattedEdges = formatFlowEdges({ edges: flatEdges });
+
+      return { edges: formattedEdges, nodes: flattenedData.nodes };
     },
     queryKey: ["graphLayout", nodes.length, openGroupIds, arrange],
   });

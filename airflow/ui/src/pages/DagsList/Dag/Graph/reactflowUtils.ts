@@ -32,7 +32,7 @@ type FlattenNodesProps = {
 };
 
 // Generate a flattened list of nodes for react-flow to render
-export const flattenNodes = ({
+export const flattenGraph = ({
   children,
   onToggleGroups,
   openGroupIds,
@@ -98,7 +98,7 @@ export const flattenNodes = ({
     nodes.push(newNode);
 
     if (node.children) {
-      const { edges: childEdges, nodes: childNodes } = flattenNodes({
+      const { edges: childEdges, nodes: childNodes } = flattenGraph({
         children: node.children,
         onToggleGroups,
         openGroupIds,
@@ -124,7 +124,7 @@ export type EdgeData = {
   rest: { isSetupTeardown?: boolean } & ElkExtendedEdge;
 };
 
-export const formatEdges = ({
+export const formatFlowEdges = ({
   edges,
 }: {
   edges: Array<Edge>;

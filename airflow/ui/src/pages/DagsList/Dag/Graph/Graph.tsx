@@ -19,7 +19,6 @@
 import { Flex } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useMemo } from "react";
 import { useParams } from "react-router-dom";
 
 import { useColorMode } from "src/context/colorMode";
@@ -29,7 +28,6 @@ import Edge from "./Edge";
 import { JoinNode } from "./JoinNode";
 import { TaskNode } from "./TaskNode";
 import { graphData } from "./data";
-import { flattenNodes, formatEdges } from "./reactflowUtils";
 import { useGraphLayout } from "./useGraphLayout";
 
 const nodeTypes = {
@@ -43,57 +41,24 @@ export const Graph = () => {
   const { dagId = "" } = useParams();
 
   const { onToggleGroups, openGroupIds } = useToggleGroups({ dagId });
-  const { data } = useGraphLayout({ ...graphData, openGroupIds });
-
-  const flattenedNodes = useMemo(
-    () =>
-      flattenNodes({
-        children: data?.children,
-        onToggleGroups,
-        // selected,
-        openGroupIds,
-        // latestDagRunId,
-        // groups,
-        // hoveredTaskState,
-        // isZoomedOut,
-        // assetEvents: selected.runId
-        //   ? [...upstreamAssetEvents, ...downstreamAssetEvents]
-        //   : [],
-      }),
-    [
-      data,
-      // selected,
-      openGroupIds,
-      onToggleGroups,
-      // latestDagRunId,
-      // groups,
-      // hoveredTaskState,
-      // isZoomedOut,
-      // upstreamAssetEvents,
-      // downstreamAssetEvents,
-    ],
-  );
-
-  // merge & dedupe edges
-  const flatEdges = [...(data?.edges ?? []), ...flattenedNodes.edges].filter(
-    (value, index, self) =>
-      index === self.findIndex((edge) => edge.id === value.id),
-  );
-
-  const formattedEdges = formatEdges({ edges: flatEdges });
+  const { data } = useGraphLayout({
+    ...graphData,
+    onToggleGroups,
+    openGroupIds,
+  });
 
   return (
     <Flex flex={1}>
       <ReactFlow
         colorMode={colorMode}
         defaultEdgeOptions={{ zIndex: 1 }}
-        edges={formattedEdges}
+        edges={data?.edges ?? []}
         edgeTypes={edgeTypes}
         // Fit view to selected task or the whole graph on render
         fitView
         maxZoom={1}
         minZoom={0.25}
-        nodes={flattenedNodes.nodes}
+        nodes={data?.nodes ?? []}
         nodesDraggable={false}
         nodeTypes={nodeTypes}
         onlyRenderVisibleElements
