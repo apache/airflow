@@ -1595,6 +1595,17 @@ export type GetTaskInstanceTryDetailsData = {
 
 export type GetTaskInstanceTryDetailsResponse = TaskInstanceHistoryResponse;
 
+export type GetMappedTaskInstanceTryDetailsData = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  taskId: string;
+  taskTryNumber: number;
+};
+
+export type GetMappedTaskInstanceTryDetailsResponse =
+  TaskInstanceHistoryResponse;
+
 export type GetTasksData = {
   dagId: string;
   orderBy?: string;
@@ -2514,7 +2525,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/config/": {
+  "/public/config": {
     get: {
       req: GetConfigData;
       res: {
@@ -3028,6 +3039,8 @@ export type $OpenApiTs = {
         422: HTTPValidationError;
       };
     };
+  };
+  "/public/pools": {
     post: {
       req: PostPoolData;
       res: {
@@ -3265,6 +3278,33 @@ export type $OpenApiTs = {
   "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}": {
     get: {
       req: GetTaskInstanceTryDetailsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceHistoryResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries/{task_try_number}": {
+    get: {
+      req: GetMappedTaskInstanceTryDetailsData;
       res: {
         /**
          * Successful Response
