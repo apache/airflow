@@ -1678,8 +1678,6 @@ def test_expected_output_push(
                 "airflow/models/assets/",
                 "task_sdk/src/airflow/sdk/definitions/asset/",
                 "airflow/datasets/",
-                "airflow/dag_processing/collection.py",
-                "airflow/timetables/assets.py",
             ),
             {
                 "selected-providers-list-as-string": "amazon common.compat common.io common.sql dbt.cloud ftp google mysql openlineage postgres sftp snowflake trino",
