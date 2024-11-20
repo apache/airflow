@@ -2514,7 +2514,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/config/": {
+  "/public/config": {
     get: {
       req: GetConfigData;
       res: {

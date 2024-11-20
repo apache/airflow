@@ -94,17 +94,18 @@ config_router = AirflowRouter(tags=["Config"], prefix="/config")
 
 
 @config_router.get(
-    "/",
+    "",
     responses={
         **create_openapi_http_exception_doc(
             [
-                status.HTTP_401_UNAUTHORIZED,
-                status.HTTP_403_FORBIDDEN,
                 status.HTTP_404_NOT_FOUND,
                 status.HTTP_406_NOT_ACCEPTABLE,
             ]
         ),
-        "200": {"description": "Successful Response", "content": text_example_response_for_get_config},
+        status.HTTP_200_OK: {
+            "description": "Successful Response",
+            "content": text_example_response_for_get_config,
+        },
     },
     response_model=Config,
 )
@@ -142,13 +143,14 @@ def get_config(
     responses={
         **create_openapi_http_exception_doc(
             [
-                status.HTTP_401_UNAUTHORIZED,
-                status.HTTP_403_FORBIDDEN,
                 status.HTTP_404_NOT_FOUND,
                 status.HTTP_406_NOT_ACCEPTABLE,
             ]
         ),
-        "200": {"description": "Successful Response", "content": text_example_response_for_get_config_value},
+        status.HTTP_200_OK: {
+            "description": "Successful Response",
+            "content": text_example_response_for_get_config_value,
+        },
     },
     response_model=Config,
 )
