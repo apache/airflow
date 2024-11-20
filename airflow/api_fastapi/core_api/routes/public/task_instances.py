@@ -460,3 +460,25 @@ def get_task_instance_try_details(
             f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}`, try_number: `{task_try_number}` and map_index: `{map_index}` was not found",
         )
     return TaskInstanceHistoryResponse.model_validate(result, from_attributes=True)
+
+
+@task_instances_router.get(
+    "/{task_id}/{map_index}/tries/{task_try_number}",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+)
+def get_mapped_task_instance_try_details(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    task_try_number: int,
+    session: Annotated[Session, Depends(get_session)],
+    map_index: int,
+) -> TaskInstanceHistoryResponse:
+    return get_task_instance_try_details(
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
+        task_try_number=task_try_number,
+        map_index=map_index,
+        session=session,
+    )
