@@ -935,6 +935,20 @@ export type TimeDelta = {
 };
 
 /**
+ * Trigger DAG Run Serializer for POST body.
+ */
+export type TriggerDAGRunPostBody = {
+  dag_run_id: string | null;
+  logical_date: string | null;
+  data_interval_start: string | null;
+  data_interval_end: string | null;
+  conf: {
+    [key: string]: unknown;
+  } | null;
+  note: string | null;
+};
+
+/**
  * Trigger serializer for responses.
  */
 export type TriggerResponse = {
@@ -1223,6 +1237,13 @@ export type ClearDagRunData = {
 export type ClearDagRunResponse =
   | TaskInstanceCollectionResponse
   | DAGRunResponse;
+
+export type TriggerDagRunData = {
+  dagId: unknown;
+  requestBody: TriggerDAGRunPostBody;
+};
+
+export type TriggerDagRunResponse = unknown;
 
 export type GetDagSourceData = {
   accept?: string;
@@ -2256,6 +2277,41 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns": {
+    post: {
+      req: TriggerDagRunData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
         /**
          * Validation Error
          */

@@ -4002,6 +4002,91 @@ export const $TimeDelta = {
     "TimeDelta can be used to interact with datetime.timedelta objects.",
 } as const;
 
+export const $TriggerDAGRunPostBody = {
+  properties: {
+    dag_run_id: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Dag Run Id",
+    },
+    logical_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Logical Date",
+    },
+    data_interval_start: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Data Interval Start",
+    },
+    data_interval_end: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Data Interval End",
+    },
+    conf: {
+      anyOf: [
+        {
+          type: "object",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Conf",
+    },
+    note: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Note",
+    },
+  },
+  type: "object",
+  required: [
+    "dag_run_id",
+    "logical_date",
+    "data_interval_start",
+    "data_interval_end",
+    "conf",
+    "note",
+  ],
+  title: "TriggerDAGRunPostBody",
+  description: "Trigger DAG Run Serializer for POST body.",
+} as const;
+
 export const $TriggerResponse = {
   properties: {
     id: {

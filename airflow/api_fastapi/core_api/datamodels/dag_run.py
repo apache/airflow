@@ -65,3 +65,14 @@ class DAGRunResponse(BaseModel):
     triggered_by: DagRunTriggeredByType
     conf: dict
     note: str | None
+
+
+class TriggerDAGRunPostBody(BaseModel):
+    """Trigger DAG Run Serializer for POST body."""
+
+    dag_run_id: str | None
+    logical_date: datetime | None
+    data_interval_start: datetime | None
+    data_interval_end: datetime | None
+    conf: dict | None
+    note: str | None

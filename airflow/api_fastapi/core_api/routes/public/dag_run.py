@@ -36,6 +36,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import (
     DAGRunPatchBody,
     DAGRunPatchStates,
     DAGRunResponse,
+    TriggerDAGRunPostBody,
 )
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskInstanceCollectionResponse,
@@ -228,3 +229,20 @@ def clear_dag_run(
         )
         dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
         return DAGRunResponse.model_validate(dag_run_cleared, from_attributes=True)
+
+
+@dag_run_router.post(
+    "",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+        ]
+    ),
+)
+def trigger_dag_run(
+    dag_id, post_body: TriggerDAGRunPostBody, session: Annotated[Session, Depends(get_session)]
+):
+    """Trigger a DAG Run."""
+    pass

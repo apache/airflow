@@ -41,6 +41,7 @@ import {
   PoolPatchBody,
   PoolPostBody,
   TaskInstancesBatchBody,
+  TriggerDAGRunPostBody,
   VariableBody,
 } from "../requests/types.gen";
 import * as Common from "./common";
@@ -1993,6 +1994,49 @@ export const useDagRunServiceClearDagRun = <
       DagRunService.clearDagRun({
         dagId,
         dagRunId,
+        requestBody,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Trigger Dag Run
+ * Trigger a DAG Run.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.requestBody
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useDagRunServiceTriggerDagRun = <
+  TData = Common.DagRunServiceTriggerDagRunMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: unknown;
+        requestBody: TriggerDAGRunPostBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: unknown;
+      requestBody: TriggerDAGRunPostBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, requestBody }) =>
+      DagRunService.triggerDagRun({
+        dagId,
         requestBody,
       }) as unknown as Promise<TData>,
     ...options,
