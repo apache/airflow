@@ -324,7 +324,8 @@ def get_dag_runs_batch(body: DAGRunsBatchBody, session: Annotated[Session, Depen
         Range(lower_bound=body.end_date_gte, upper_bound=body.end_date_lte),
         attribute=DagRun.end_date,
     )
-    # include state once list dag runs is merged
+
+    state = QueryDagRunStateFilter(body.states)
 
     offset = OffsetFilter(body.page_offset)
     limit = LimitFilter(body.page_limit)
@@ -349,13 +350,7 @@ def get_dag_runs_batch(body: DAGRunsBatchBody, session: Annotated[Session, Depen
     base_query = select(DagRun)
     dag_runs_select, total_entries = paginated_select(
         base_query,
-        [
-            dag_ids,
-            logical_date,
-            start_date,
-            end_date,
-            # state
-        ],
+        [dag_ids, logical_date, start_date, end_date, state],
         order_by,
         offset,
         limit,
@@ -363,9 +358,8 @@ def get_dag_runs_batch(body: DAGRunsBatchBody, session: Annotated[Session, Depen
     )
 
     dag_runs = session.scalars(dag_runs_select).all()
-    return dag_runs
 
-    # update once list dag runs is merged
-    # return DagRunCollectionResponse(dag_runs=[
-    #     DagRunResponse.model_validate(dag_run, from_attributes=True) for dag_run in dag_runs
-    # ], total_entries=total_entries)
+    return DAGRunCollectionResponse(
+        dag_runs=[DAGRunResponse.model_validate(dag_run, from_attributes=True) for dag_run in dag_runs],
+        total_entries=total_entries,
+    )
