@@ -71,7 +71,6 @@ class TestPoolsEndpoint:
         response = test_client.post("/public/pools/", json=body)
         assert response.status_code == expected_status_code
 
-        body = response.json()
         assert response.json() == expected_response
         if check_count:
             assert session.query(Pool).count() == n_pools + 1
@@ -464,16 +463,8 @@ class TestPostPools(TestPoolsEndpoint):
                         {"name": "my_pool", "slots": 12},
                     ]
                 },
-                422,
-                {
-                    "detail": [
-                        {
-                            "loc": ["body", "pools"],
-                            "msg": "Value error, Pool name should be unique, found duplicates: ['my_pool']",
-                            "type": "value_error",
-                        }
-                    ]
-                },
+                409,
+                {},
             ),
         ],
     )
@@ -485,11 +476,7 @@ class TestPostPools(TestPoolsEndpoint):
         response_json = response.json()
         if expected_status_code == 201:
             assert response_json == expected_response
-        elif expected_status_code == 422:
-            assert response_json["detail"][0]["loc"] == expected_response["detail"][0]["loc"]
-            assert response_json["detail"][0]["msg"] == expected_response["detail"][0]["msg"]
-            assert response_json["detail"][0]["type"] == expected_response["detail"][0]["type"]
-        if expected_status_code == 201:
             assert session.query(Pool).count() == n_pools + 2
         else:
+            # since different database backend return different error messages, we just check the status code
             assert session.query(Pool).count() == n_pools

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Annotated, Callable
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, field_validator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
 
 
 def _call_function(function: Callable[[], int]) -> int:
@@ -81,16 +81,3 @@ class PoolPostBulkBody(BaseModel):
     """Pools serializer for post bodies."""
 
     pools: list[PoolPostBody]
-
-    @field_validator("pools", mode="after")
-    def validate_pools(cls, v: list[PoolPostBody]) -> list[PoolPostBody]:
-        pool_set = set()
-        duplicates = []
-        for pool in v:
-            if pool.pool in pool_set:
-                duplicates.append(pool.pool)
-            else:
-                pool_set.add(pool.pool)
-        if duplicates:
-            raise ValueError(f"Pool name should be unique, found duplicates: {duplicates}")
-        return v
