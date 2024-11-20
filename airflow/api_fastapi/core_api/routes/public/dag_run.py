@@ -295,9 +295,8 @@ def get_dag_runs(
         limit=limit,
         session=session,
     )
-
     dag_runs = session.scalars(dag_run_select)
     return DAGRunCollectionResponse(
-        dag_runs=[DAGRunResponse.model_validate(dag_run, from_attributes=True) for dag_run in dag_runs],
+        dag_runs=[DAGRunResponse.model_validate(dr, from_attributes=True) for dr in dag_runs],
         total_entries=total_entries,
     )
