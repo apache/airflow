@@ -181,6 +181,7 @@ def _generate_queued_event_where_clause(
     return where_clause
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("GET")
 @security.requires_access_dag("GET")
 @provide_session
@@ -203,6 +204,7 @@ def get_dag_asset_queued_event(
     return queued_event_schema.dump(queued_event)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("DELETE")
 @security.requires_access_dag("GET")
 @provide_session
@@ -272,6 +274,7 @@ def delete_dag_asset_queued_events(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("GET")
 @provide_session
 def get_asset_queued_events(

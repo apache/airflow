@@ -111,14 +111,14 @@ class TestXCom:
     def test_resolve_xcom_class_fallback_to_basexcom(self):
         cls = resolve_xcom_backend()
         assert issubclass(cls, BaseXCom)
-        assert cls.serialize_value([1]) == b"[1]"
+        assert cls.serialize_value([1]) == "[1]"
 
     @conf_vars({("core", "xcom_backend"): "to be removed"})
     def test_resolve_xcom_class_fallback_to_basexcom_no_config(self):
         conf.remove_option("core", "xcom_backend")
         cls = resolve_xcom_backend()
         assert issubclass(cls, BaseXCom)
-        assert cls.serialize_value([1]) == b"[1]"
+        assert cls.serialize_value([1]) == "[1]"
 
     @mock.patch("airflow.models.xcom.XCom.orm_deserialize_value")
     def test_xcom_init_on_load_uses_orm_deserialize_value(self, mock_orm_deserialize):
@@ -182,7 +182,7 @@ class TestXCom:
                     run_id=run_id,
                     map_index=map_index,
                 )
-                return json.dumps(value).encode("utf-8")
+                return json.dumps(value)
 
         get_import.return_value = CurrentSignatureXCom
 

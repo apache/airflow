@@ -518,9 +518,15 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     def _resolve_kerberos_principal(self, principal: str | None) -> str:
         """Resolve kerberos principal."""
-        from airflow.security.kerberos import get_kerberos_principle
+        # todo: remove try/exception when min airflow version is 3.0
+        from airflow.security import kerberos
 
-        return get_kerberos_principle(principal)
+        try:
+            func = kerberos.get_kerberos_principal
+        except AttributeError:
+            # Fallback for older versions of Airflow
+            func = kerberos.get_kerberos_principle  # type: ignore[attr-defined]
+        return func(principal)
 
     def submit(self, application: str = "", **kwargs: Any) -> None:
         """
