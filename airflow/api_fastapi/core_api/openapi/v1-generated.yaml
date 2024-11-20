@@ -768,7 +768,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/backfills/:
+  /public/backfills:
     get:
       tags:
       - Backfill
@@ -1219,7 +1219,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/connections/:
+  /public/connections:
     get:
       tags:
       - Connection
@@ -1736,7 +1736,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dagStats/:
+  /public/dagStats:
     get:
       tags:
       - DagStats
@@ -2018,7 +2018,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/:
+  /public/dags:
     get:
       tags:
       - DAG
@@ -2577,7 +2577,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/eventLogs/:
+  /public/eventLogs:
     get:
       tags:
       - Event Log
@@ -2772,7 +2772,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/importErrors/:
+  /public/importErrors:
     get:
       tags:
       - Import Error
@@ -2828,7 +2828,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/plugins/:
+  /public/plugins:
     get:
       tags:
       - Plugin
@@ -3033,7 +3033,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/pools/:
+  /public/pools:
     get:
       tags:
       - Pool
@@ -3095,7 +3095,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/pools:
     post:
       tags:
       - Pool
@@ -3103,11 +3102,11 @@ paths:
       description: Create a Pool.
       operationId: post_pool
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/PoolPostBody'
-        required: true
       responses:
         '201':
           description: Successful Response
@@ -3116,24 +3115,24 @@ paths:
               schema:
                 $ref: '#/components/schemas/PoolResponse'
         '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '403':
-          description: Forbidden
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
         '422':
           description: Validation Error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/providers/:
+  /public/providers:
     get:
       tags:
       - Provider
@@ -4030,7 +4029,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/tasks/:
+  /public/dags/{dag_id}/tasks:
     get:
       tags:
       - Task
@@ -4295,7 +4294,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/variables/:
+  /public/variables:
     get:
       tags:
       - Variable
@@ -4495,7 +4494,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthInfoSchema'
-  /public/version/:
+  /public/version:
     get:
       tags:
       - Version

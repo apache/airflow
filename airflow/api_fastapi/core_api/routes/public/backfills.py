@@ -47,7 +47,7 @@ backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
 
 
 @backfills_router.get(
-    path="/",
+    path="",
 )
 def list_backfills(
     dag_id: str,
@@ -176,7 +176,7 @@ def cancel_backfill(backfill_id, session: Annotated[Session, Depends(get_session
 
 
 @backfills_router.post(
-    path="/",
+    path="",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_404_NOT_FOUND,
