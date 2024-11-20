@@ -1718,7 +1718,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/assets/queuedEvent/{uri}": {
+  "/public/assets/queuedEvents/{uri}": {
     get: {
       req: GetAssetQueuedEventsData;
       res: {
@@ -1797,7 +1797,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/assets/queuedEvent": {
+  "/public/dags/{dag_id}/assets/queuedEvents": {
     get: {
       req: GetDagAssetQueuedEventsData;
       res: {
@@ -1853,7 +1853,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/assets/queuedEvent/{uri}": {
+  "/public/dags/{dag_id}/assets/queuedEvents/{uri}": {
     get: {
       req: GetDagAssetQueuedEventData;
       res: {

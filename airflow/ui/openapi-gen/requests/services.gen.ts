@@ -277,7 +277,7 @@ export class AssetService {
   ): CancelablePromise<GetAssetQueuedEventsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/assets/queuedEvent/{uri}",
+      url: "/public/assets/queuedEvents/{uri}",
       path: {
         uri: data.uri,
       },
@@ -307,7 +307,7 @@ export class AssetService {
   ): CancelablePromise<DeleteAssetQueuedEventsResponse> {
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/public/assets/queuedEvent/{uri}",
+      url: "/public/assets/queuedEvents/{uri}",
       path: {
         uri: data.uri,
       },
@@ -363,7 +363,7 @@ export class AssetService {
   ): CancelablePromise<GetDagAssetQueuedEventsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/assets/queuedEvent",
+      url: "/public/dags/{dag_id}/assets/queuedEvents",
       path: {
         dag_id: data.dagId,
       },
@@ -392,7 +392,7 @@ export class AssetService {
   ): CancelablePromise<DeleteDagAssetQueuedEventsResponse> {
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/public/dags/{dag_id}/assets/queuedEvent",
+      url: "/public/dags/{dag_id}/assets/queuedEvents",
       path: {
         dag_id: data.dagId,
       },
@@ -424,7 +424,7 @@ export class AssetService {
   ): CancelablePromise<GetDagAssetQueuedEventResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/assets/queuedEvent/{uri}",
+      url: "/public/dags/{dag_id}/assets/queuedEvents/{uri}",
       path: {
         dag_id: data.dagId,
         uri: data.uri,
@@ -456,7 +456,7 @@ export class AssetService {
   ): CancelablePromise<DeleteDagAssetQueuedEventResponse> {
     return __request(OpenAPI, {
       method: "DELETE",
-      url: "/public/dags/{dag_id}/assets/queuedEvent/{uri}",
+      url: "/public/dags/{dag_id}/assets/queuedEvents/{uri}",
       path: {
         dag_id: data.dagId,
         uri: data.uri,
