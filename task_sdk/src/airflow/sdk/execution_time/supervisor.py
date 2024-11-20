@@ -54,9 +54,8 @@ from airflow.sdk.execution_time.comms import (
 )
 
 if TYPE_CHECKING:
-    from structlog.typing import FilteringBoundLogger
+    from structlog.typing import FilteringBoundLogger, WrappedLogger
 
-    from airflow.sdk.api.datamodels.activities import ExecuteTaskActivity
 
 __all__ = ["WatchedSubprocess", "supervise"]
 
@@ -282,6 +281,7 @@ class WatchedSubprocess:
         ti: TaskInstance,
         client: Client,
         target: Callable[[], None] = _subprocess_main,
+        logger: FilteringBoundLogger | None = None,
     ) -> WatchedSubprocess:
         """Fork and start a new subprocess to execute the given task."""
         # Create socketpairs/"pipes" to connect to the stdin and out from the subprocess
@@ -296,6 +296,13 @@ class WatchedSubprocess:
         pid = os.fork()
         if pid == 0:
             # Parent ends of the sockets are closed by the OS as they are set as non-inheritable
+
+            # Python GC should delete these for us, but lets make double sure that we don't keep anything
+            # around in the forked processes, especially things that might involve open files or sockets!
+            del path
+            del client
+            del ti
+            del logger
 
             # Run the child entrypoint
             _fork_main(child_stdin, child_stdout, child_stderr, child_logs.fileno(), target)
@@ -319,8 +326,13 @@ class WatchedSubprocess:
             proc.kill(signal.SIGKILL)
             raise
 
+        logger = logger or cast("FilteringBoundLogger", structlog.get_logger(logger_name="task").bind())
         proc._register_pipe_readers(
-            stdout=read_stdout, stderr=read_stderr, requests=read_msgs, logs=read_logs
+            logger=logger,
+            stdout=read_stdout,
+            stderr=read_stderr,
+            requests=read_msgs,
+            logs=read_logs,
         )
 
         # Close the remaining parent-end of the sockets we've passed to the child via fork. We still have the
@@ -331,15 +343,14 @@ class WatchedSubprocess:
         proc._send_startup_message(ti, path, child_comms)
         return proc
 
-    def _register_pipe_readers(self, stdout: socket, stderr: socket, requests: socket, logs: socket):
+    def _register_pipe_readers(
+        self, logger: FilteringBoundLogger, stdout: socket, stderr: socket, requests: socket, logs: socket
+    ):
         """Register handlers for subprocess communication channels."""
         # self.selector is a way of registering a handler/callback to be called when the given IO channel has
         # activity to read on (https://www.man7.org/linux/man-pages/man2/select.2.html etc, but better
         # alternatives are used automatically) -- this is a way of having "event-based" code, but without
         # needing full async, to read and process output from each socket as it is received.
-
-        # TODO: Use logging providers to handle the chunked upload for us
-        logger: FilteringBoundLogger = structlog.get_logger(logger_name="task").bind()
 
         self.selector.register(stdout, selectors.EVENT_READ, self._create_socket_handler(logger, "stdout"))
         self.selector.register(
@@ -369,7 +380,7 @@ class WatchedSubprocess:
 
     def _send_startup_message(self, ti: TaskInstance, path: str | os.PathLike[str], child_comms: socket):
         """Send startup message to the subprocess."""
-        msg = StartupDetails(
+        msg = StartupDetails.model_construct(
             ti=ti,
             file=str(path),
             requests_fd=child_comms.fileno(),
@@ -630,25 +641,57 @@ def forward_to_log(target_log: FilteringBoundLogger, level: int) -> Generator[No
             target_log.log(level, msg)
 
 
-def supervise(activity: ExecuteTaskActivity, server: str | None = None, dry_run: bool = False) -> int:
+def supervise(
+    *,
+    ti: TaskInstance,
+    dag_path: str | os.PathLike[str],
+    token: str,
+    server: str | None = None,
+    dry_run: bool = False,
+    log_path: str | None = None,
+) -> int:
     """
     Run a single task execution to completion.
 
     Returns the exit code of the process
     """
     # One or the other
-    if (server == "") ^ dry_run:
+    if (not server) ^ dry_run:
         raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
 
-    if not activity.path:
-        raise ValueError("path filed of activity missing")
+    if not dag_path:
+        raise ValueError("dag_path is required")
+
+    if (str_path := os.fspath(dag_path)).startswith("DAGS_FOLDER/"):
+        from airflow.settings import DAGS_FOLDER
+
+        dag_path = str_path.replace("DAGS_FOLDER/", DAGS_FOLDER + "/", 1)
 
     limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
-    client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=activity.token)
+    client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=token)
 
     start = time.monotonic()
 
-    process = WatchedSubprocess.start(activity.path, activity.ti, client=client)
+    # TODO: Use logging providers to handle the chunked upload for us etc.
+    logger: FilteringBoundLogger | None = None
+    if log_path:
+        # If we are told to write logs to a file, redirect the task logger to it.
+        from airflow.sdk.log import init_log_file, logging_processors
+
+        try:
+            log_file = init_log_file(log_path)
+        except OSError as e:
+            log.warning("OSError while changing ownership of the log file. ", e)
+
+        pretty_logs = False
+        if pretty_logs:
+            underlying_logger: WrappedLogger = structlog.WriteLogger(log_file.open("w", buffering=1))
+        else:
+            underlying_logger = structlog.BytesLogger(log_file.open("wb"))
+        processors = logging_processors(enable_pretty_log=pretty_logs)[0]
+        logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
+
+    process = WatchedSubprocess.start(dag_path, ti, client=client, logger=logger)
 
     exit_code = process.wait()
     end = time.monotonic()

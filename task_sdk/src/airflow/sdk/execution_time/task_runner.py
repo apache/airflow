@@ -127,6 +127,10 @@ def startup() -> tuple[RuntimeTaskInstance, Logger]:
     msg = SUPERVISOR_COMMS.get_message()
 
     if isinstance(msg, StartupDetails):
+        from setproctitle import setproctitle
+
+        setproctitle(f"airflow worker -- {msg.ti.id}")
+
         log = structlog.get_logger(logger_name="task")
         # TODO: set the "magic loop" context vars for parsing
         ti = parse(msg)
