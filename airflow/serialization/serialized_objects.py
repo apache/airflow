@@ -54,6 +54,7 @@ from airflow.providers_manager import ProvidersManager
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
+    AssetAliasCondition,
     AssetAll,
     AssetAny,
     AssetRef,
