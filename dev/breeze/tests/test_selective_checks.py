@@ -1702,7 +1702,7 @@ def test_expected_output_push(
                 "needs-mypy": "true",
                 "mypy-checks": "['mypy-airflow']",
             },
-            id="No providers tests except openlineage should run if only Asset file changed",
+            id="Trigger openlineage and related providers tests when Assets files changed",
         ),
     ],
 )
