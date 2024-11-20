@@ -24,7 +24,7 @@ from airflow.models.log import Log
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.db import clear_db_logs, clear_db_runs
-from tests_common.test_utils.format_datetime import datetime_zulu_format
+from tests_common.test_utils.format_datetime import datetime_zulu_format, datetime_zulu_format_without_ms
 
 pytestmark = pytest.mark.db_test
 
@@ -168,7 +168,9 @@ class TestGetEventLog(TestEventLogsEndpoint):
             "map_index": event_log.map_index,
             "try_number": event_log.try_number,
             "event": expected_body.get("event"),
-            "logical_date": datetime_zulu_format(event_log.logical_date) if event_log.logical_date else None,
+            "logical_date": datetime_zulu_format_without_ms(event_log.logical_date)
+            if event_log.logical_date
+            else None,
             "owner": expected_body.get("owner"),
             "extra": expected_body.get("extra"),
         }
