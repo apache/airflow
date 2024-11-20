@@ -1726,7 +1726,7 @@ export class PoolService {
   ): CancelablePromise<PostPoolResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/public/pools/",
+      url: "/public/pools",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
