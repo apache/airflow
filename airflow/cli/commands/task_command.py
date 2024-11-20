@@ -91,11 +91,46 @@ def _generate_temporary_run_id() -> str:
     return f"__airflow_temporary_run_{timezone.utcnow().isoformat()}__"
 
 
+def _fetch_dag_run_from_run_id_or_logical_date_string(
+    *,
+    dag_id: str,
+    value: str,
+    session: Session,
+) -> tuple[DagRun | DagRunPydantic, pendulum.DateTime | None]:
+    """
+    Try to find a DAG run with a given string value.
+
+    The string value may be a run ID, or a logical date in string form. We first
+    try to use it as a run_id; if a run is found, it is returned as-is.
+
+    Otherwise, the string value is parsed into a datetime. If that works, it is
+    used to find a DAG run.
+
+    The return value is a two-tuple. The first item is the found DAG run (or
+    *None* if one cannot be found). The second is the parsed logical date. This
+    second value can be used to create a new run by the calling function when
+    one cannot be found here.
+    """
+    if dag_run := DAG.fetch_dagrun(dag_id=dag_id, run_id=value, session=session):
+        return dag_run, dag_run.logical_date  # type: ignore[return-value]
+    try:
+        logical_date = timezone.parse(value)
+    except (ParserError, TypeError):
+        return dag_run, None
+    dag_run = session.scalar(
+        select(DagRun)
+        .where(DagRun.dag_id == dag_id, DagRun.logical_date == logical_date)
+        .order_by(DagRun.id.desc())
+        .limit(1)
+    )
+    return dag_run, logical_date
+
+
 def _get_dag_run(
     *,
     dag: DAG,
     create_if_necessary: CreateIfNecessary,
-    exec_date_or_run_id: str | None = None,
+    logical_date_or_run_id: str | None = None,
     session: Session | None = None,
 ) -> tuple[DagRun | DagRunPydantic, bool]:
     """
@@ -103,7 +138,7 @@ def _get_dag_run(
 
     This checks DAG runs like this:
 
-    1. If the input ``exec_date_or_run_id`` matches a DAG run ID, return the run.
+    1. If the input ``logical_date_or_run_id`` matches a DAG run ID, return the run.
     2. Try to parse the input as a date. If that works, and the resulting
        date matches a DAG run's logical date, return the run.
     3. If ``create_if_necessary`` is *False* and the input works for neither of
@@ -112,23 +147,22 @@ def _get_dag_run(
        the logical date; otherwise use it as a run ID and set the logical date
        to the current time.
     """
-    if not exec_date_or_run_id and not create_if_necessary:
-        raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
-    logical_date: pendulum.DateTime | None = None
-    if exec_date_or_run_id:
-        dag_run = DAG.fetch_dagrun(dag_id=dag.dag_id, run_id=exec_date_or_run_id, session=session)
-        if dag_run:
-            return dag_run, False
-        with suppress(ParserError, TypeError):
-            logical_date = timezone.parse(exec_date_or_run_id)
-        if logical_date:
-            dag_run = DAG.fetch_dagrun(dag_id=dag.dag_id, logical_date=logical_date, session=session)
-        if dag_run:
+    if not logical_date_or_run_id and not create_if_necessary:
+        raise ValueError("Must provide `logical_date_or_run_id` if not `create_if_necessary`.")
+
+    logical_date = None
+    if logical_date_or_run_id:
+        dag_run, logical_date = _fetch_dag_run_from_run_id_or_logical_date_string(
+            dag_id=dag.dag_id,
+            value=logical_date_or_run_id,
+            session=session,
+        )
+        if dag_run is not None:
             return dag_run, False
         elif not create_if_necessary:
             raise DagRunNotFound(
                 f"DagRun for {dag.dag_id} with run_id or logical_date "
-                f"of {exec_date_or_run_id!r} not found"
+                f"of {logical_date_or_run_id!r} not found"
             )
 
     if logical_date is not None:
@@ -139,7 +173,7 @@ def _get_dag_run(
     if create_if_necessary == "memory":
         dag_run = DagRun(
             dag_id=dag.dag_id,
-            run_id=exec_date_or_run_id,
+            run_id=logical_date_or_run_id,
             logical_date=dag_run_logical_date,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_logical_date),
             triggered_by=DagRunTriggeredByType.CLI,
@@ -178,7 +212,7 @@ def _get_ti_db_access(
         raise ValueError(f"Provided task {task.task_id} is not in dag '{dag.dag_id}.")
 
     if not logical_date_or_run_id and not create_if_necessary:
-        raise ValueError("Must provide `exec_date_or_run_id` if not `create_if_necessary`.")
+        raise ValueError("Must provide `logical_date_or_run_id` if not `create_if_necessary`.")
     if task.get_needs_expansion():
         if map_index < 0:
             raise RuntimeError("No map_index passed to mapped task")
@@ -186,7 +220,7 @@ def _get_ti_db_access(
         raise RuntimeError("map_index passed to non-mapped task")
     dag_run, dr_created = _get_dag_run(
         dag=dag,
-        exec_date_or_run_id=logical_date_or_run_id,
+        logical_date_or_run_id=logical_date_or_run_id,
         create_if_necessary=create_if_necessary,
         session=session,
     )

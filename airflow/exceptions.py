@@ -230,13 +230,9 @@ class DagRunNotFound(AirflowNotFoundException):
 class DagRunAlreadyExists(AirflowBadRequest):
     """Raise when creating a DAG run for DAG which already has DAG run entry."""
 
-    def __init__(self, dag_run: DagRun, logical_date: datetime.datetime, run_id: str) -> None:
-        super().__init__(
-            f"A DAG Run already exists for DAG {dag_run.dag_id} at {logical_date} with run id {run_id}"
-        )
+    def __init__(self, dag_run: DagRun) -> None:
+        super().__init__(f"A DAG Run already exists for DAG {dag_run.dag_id} with run id {dag_run.run_id}")
         self.dag_run = dag_run
-        self.logical_date = logical_date
-        self.run_id = run_id
 
     def serialize(self):
         cls = self.__class__
@@ -249,13 +245,12 @@ class DagRunAlreadyExists(AirflowBadRequest):
             run_id=self.dag_run.run_id,
             external_trigger=self.dag_run.external_trigger,
             run_type=self.dag_run.run_type,
-            logical_date=self.dag_run.logical_date,
         )
         dag_run.id = self.dag_run.id
         return (
             f"{cls.__module__}.{cls.__name__}",
             (),
-            {"dag_run": dag_run, "logical_date": self.logical_date, "run_id": self.run_id},
+            {"dag_run": dag_run},
         )
 
 

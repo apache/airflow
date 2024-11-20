@@ -1417,7 +1417,10 @@ class Airflow(AirflowBaseView):
 
         logger.info("Retrieving rendered templates.")
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
-        dag_run = dag.get_dagrun(logical_date=dttm)
+        dag_run = dag.get_dagrun(
+            select(DagRun.run_id).where(DagRun.logical_date == dttm).order_by(DagRun.id.desc()).limit(1),
+            session=session,
+        )
         raw_task = dag.get_task(task_id).prepare_for_execution()
 
         no_dagrun = False
@@ -1550,10 +1553,11 @@ class Airflow(AirflowBaseView):
 
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
         task = dag.get_task(task_id)
+        run_id = session.scalar(
+            select(DagRun.run_id).where(DagRun.logical_date == dttm).order_by(DagRun.id.desc()).limit(1)
+        )
         dag_run = dag.get_dagrun(
-            run_id=session.scalar(
-                select(DagRun.run_id).where(DagRun.logical_date == dttm).order_by(DagRun.id.desc()).limit(1)
-            ),
+            run_id=run_id,
             session=session,
         )
         ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index, session=session)
@@ -2144,7 +2148,7 @@ class Airflow(AirflowBaseView):
                 form=form,
             )
 
-        dr = DagRun.find_duplicate(dag_id=dag_id, run_id=run_id, logical_date=logical_date)
+        dr = DagRun.find_duplicate(dag_id=dag_id, run_id=run_id, session=session)
         if dr:
             if dr.run_id == run_id:
                 message = f"The run ID {run_id} already exists"
@@ -2408,7 +2412,7 @@ class Airflow(AirflowBaseView):
         only_failed = request.form.get("only_failed") == "true"
 
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
-        dr = dag.get_dagrun(run_id=dag_run_id)
+        dr = dag.get_dagrun(run_id=dag_run_id, session=session)
         start_date = dr.logical_date
         end_date = dr.logical_date
 
@@ -3060,8 +3064,16 @@ class Airflow(AirflowBaseView):
             flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
             return redirect(url_for("Airflow.index"))
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
-        dttm = dt_nr_dr_data["dttm"]
-        dag_run = dag.get_dagrun(logical_date=dttm)
+        run_id = session.scalar(
+            select(DagRun.run_id)
+            .where(DagRun.logical_date == dt_nr_dr_data["dttm"])
+            .order_by(DagRun.id.desc())
+            .limit(1)
+        )
+        dag_run = dag.get_dagrun(
+            run_id=run_id,
+            session=session,
+        )
         dag_run_id = dag_run.run_id if dag_run else None
 
         kwargs = {
@@ -3136,7 +3148,13 @@ class Airflow(AirflowBaseView):
         dag = get_airflow_app().dag_bag.get_dag(dag_id, session=session)
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         dttm = dt_nr_dr_data["dttm"]
-        dag_run = dag.get_dagrun(logical_date=dttm)
+        run_id = session.scalar(
+            select(DagRun.run_id).where(DagRun.logical_date == dttm).order_by(DagRun.id.desc()).limit(1)
+        )
+        dag_run = dag.get_dagrun(
+            run_id=run_id,
+            session=session,
+        )
         dag_run_id = dag_run.run_id if dag_run else None
 
         kwargs = {**sanitize_args(request.args), "dag_id": dag_id, "tab": "gantt", "dag_run_id": dag_run_id}

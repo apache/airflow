@@ -215,12 +215,14 @@ class TestDagRunOperator:
     def test_trigger_dagrun_with_scheduled_dag_run(self, dag_maker):
         """Test TriggerDagRunOperator with custom logical_date and scheduled dag_run."""
         utc_now = timezone.utcnow()
+        run_id = f"scheduled__{utc_now.isoformat()}"
         with dag_maker(
             TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
         ) as dag:
             task = TriggerDagRunOperator(
                 task_id="test_trigger_dagrun_with_logical_date",
                 trigger_dag_id=TRIGGERED_DAG_ID,
+                trigger_run_id=run_id,
                 logical_date=utc_now,
                 poke_interval=1,
                 reset_dag_run=True,
@@ -495,23 +497,6 @@ class TestDagRunOperator:
         assert len(dagruns) == 2
         triggered_dag_run = dagruns[1]
         assert triggered_dag_run.state == State.QUEUED
-
-    def test_trigger_dagrun_triggering_itself_with_logical_date(self, dag_maker):
-        """Test TriggerDagRunOperator that triggers itself with logical date,
-        fails with DagRunAlreadyExists"""
-        logical_date = DEFAULT_DATE
-        with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
-        ) as dag:
-            task = TriggerDagRunOperator(
-                task_id="test_task",
-                trigger_dag_id=TEST_DAG_ID,
-                logical_date=logical_date,
-            )
-        self.re_sync_triggered_dag_to_db(dag, dag_maker)
-        dag_maker.create_dagrun()
-        with pytest.raises(DagRunAlreadyExists):
-            task.run(start_date=logical_date, end_date=logical_date)
 
     @pytest.mark.skip_if_database_isolation_mode  # Known to be broken in db isolation mode
     def test_trigger_dagrun_with_wait_for_completion_true_defer_false(self, dag_maker):

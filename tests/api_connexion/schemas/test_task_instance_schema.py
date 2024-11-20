@@ -166,7 +166,7 @@ class TestSetTaskInstanceStateFormSchema:
     current_input = {
         "dry_run": True,
         "task_id": "print_the_context",
-        "logical_date": "2020-01-01T00:00:00+00:00",
+        "dag_run_id": "test_run_id",
         "include_upstream": True,
         "include_downstream": True,
         "include_future": True,
@@ -178,7 +178,7 @@ class TestSetTaskInstanceStateFormSchema:
         result = set_task_instance_state_form.load(self.current_input)
         expected_result = {
             "dry_run": True,
-            "logical_date": dt.datetime(2020, 1, 1, 0, 0, tzinfo=dt.timezone(dt.timedelta(0), "+0000")),
+            "dag_run_id": "test_run_id",
             "include_downstream": True,
             "include_future": True,
             "include_past": True,
@@ -194,7 +194,7 @@ class TestSetTaskInstanceStateFormSchema:
         result = set_task_instance_state_form.load(self.current_input)
         expected_result = {
             "dry_run": True,
-            "logical_date": dt.datetime(2020, 1, 1, 0, 0, tzinfo=dt.timezone(dt.timedelta(0), "+0000")),
+            "dag_run_id": "test_run_id",
             "include_downstream": True,
             "include_future": True,
             "include_past": True,

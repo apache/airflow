@@ -29,7 +29,6 @@ from airflow.api_connexion.schemas.job_schema import JobSchema
 from airflow.api_connexion.schemas.trigger_schema import TriggerSchema
 from airflow.models import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
-from airflow.utils.helpers import exactly_one
 from airflow.utils.state import TaskInstanceState
 
 
@@ -196,8 +195,7 @@ class SetTaskInstanceStateFormSchema(Schema):
 
     dry_run = fields.Boolean(load_default=True)
     task_id = fields.Str(required=True)
-    logical_date = fields.DateTime(validate=validate_istimezone)
-    dag_run_id = fields.Str()
+    dag_run_id = fields.Str(required=True)
     include_upstream = fields.Boolean(required=True)
     include_downstream = fields.Boolean(required=True)
     include_future = fields.Boolean(required=True)
@@ -208,12 +206,6 @@ class SetTaskInstanceStateFormSchema(Schema):
             [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED]
         ),
     )
-
-    @validates_schema
-    def validate_form(self, data, **kwargs):
-        """Validate set task instance state form."""
-        if not exactly_one(data.get("logical_date"), data.get("dag_run_id")):
-            raise ValidationError("Exactly one of logical_date or dag_run_id must be provided")
 
 
 class SetSingleTaskInstanceStateFormSchema(Schema):

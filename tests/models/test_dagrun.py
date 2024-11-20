@@ -220,10 +220,9 @@ class TestDagRun:
 
         session.commit()
 
-        assert DagRun.find_duplicate(dag_id=dag_id, run_id=dag_id, logical_date=now) is not None
-        assert DagRun.find_duplicate(dag_id=dag_id, run_id=dag_id, logical_date=None) is not None
-        assert DagRun.find_duplicate(dag_id=dag_id, run_id=None, logical_date=now) is not None
-        assert DagRun.find_duplicate(dag_id=dag_id, run_id=None, logical_date=None) is None
+        assert DagRun.find_duplicate(dag_id=dag_id, run_id=dag_id) is not None
+        assert DagRun.find_duplicate(dag_id=dag_id, run_id=dag_id) is not None
+        assert DagRun.find_duplicate(dag_id=dag_id, run_id=None) is None
 
     def test_dagrun_success_when_all_skipped(self, session):
         """
