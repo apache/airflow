@@ -33,7 +33,8 @@ import structlog.testing
 
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.datamodels._generated import TaskInstance
-from airflow.sdk.execution_time.supervisor import WatchedSubprocess
+from airflow.sdk.api.datamodels.activities import ExecuteTaskActivity
+from airflow.sdk.execution_time.supervisor import WatchedSubprocess, supervise
 from airflow.utils import timezone as tz
 
 if TYPE_CHECKING:
@@ -191,3 +192,36 @@ class TestWatchedSubprocess:
         assert spy.called_with(id, pid=proc.pid)  # noqa: PGH005
         # The exact number we get will depend on timing behaviour, so be a little lenient
         assert 1 <= len(spy.calls) <= 4
+
+    def test_run_simple_dag(self, test_dags_dir, captured_logs, time_machine):
+        """Test running a simple DAG in a subprocess and capturing the output."""
+
+        # Ignore anything lower than INFO for this test.
+        structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
+
+        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 78901)
+        time_machine.move_to(instant, tick=False)
+
+        dagfile_path = test_dags_dir / "super_basic_run.py"
+        task_activity = ExecuteTaskActivity(
+            ti=TaskInstance(
+                id=UUID("4d828a62-a417-4936-a7a6-2b3fabacecab"),
+                task_id="hello",
+                dag_id="super_basic_run",
+                run_id="c",
+                try_number=1,
+            ),
+            path=dagfile_path,
+            token="",
+        )
+        # Assert Exit Code is 0
+        assert supervise(activity=task_activity, server="", dry_run=True) == 0
+
+        # We should have a log from the task!
+        assert {
+            "chan": "stdout",
+            "event": "Hello World hello!",
+            "level": "info",
+            "logger": "task",
+            "timestamp": "2024-11-07T12:34:56.078901Z",
+        } in captured_logs
