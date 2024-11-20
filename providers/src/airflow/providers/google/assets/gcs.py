@@ -18,13 +18,29 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.providers.common.compat.assets import Asset
 from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
+    from airflow.providers.common.compat.assets import Asset
     from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
+else:
+    # TODO: Remove this try-exception block after bumping common provider to 1.3.0
+    # This is due to common provider AssetDetails import error handling
+    try:
+        from airflow.providers.common.compat.assets import Asset
+    except ImportError:
+        from packaging.version import Version
+
+        from airflow import __version__ as AIRFLOW_VERSION
+
+        AIRFLOW_V_3_0_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("3.0.0")
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.sdk.definitions.asset import Asset
+        else:
+            # dataset is renamed to asset since Airflow 3.0
+            from airflow.datasets import Dataset as Asset
 
 
 def create_asset(*, bucket: str, key: str, extra: dict | None = None) -> Asset:

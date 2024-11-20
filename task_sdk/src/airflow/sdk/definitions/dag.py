@@ -45,7 +45,6 @@ import re2
 from dateutil.relativedelta import relativedelta
 
 from airflow import settings
-from airflow.assets import Asset, AssetAlias, BaseAsset
 from airflow.exceptions import (
     DuplicateTaskIdFound,
     FailStopDagInvalidTriggerRule,
@@ -54,6 +53,7 @@ from airflow.exceptions import (
 )
 from airflow.models.param import DagParam, ParamsDict
 from airflow.sdk.definitions.abstractoperator import AbstractOperator
+from airflow.sdk.definitions.asset import Asset, AssetAlias, BaseAsset
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.types import NOTSET
 from airflow.timetables.base import Timetable
@@ -492,7 +492,7 @@ class DAG:
 
     @timetable.default
     def _default_timetable(instance: DAG):
-        from airflow.assets import AssetAll
+        from airflow.sdk.definitions.asset import AssetAll
 
         schedule = instance.schedule
         # TODO: Once

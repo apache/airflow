@@ -39,7 +39,6 @@ import uuid6
 from sqlalchemy import select
 
 from airflow import settings
-from airflow.assets import AssetAlias
 from airflow.decorators import task, task_group
 from airflow.exceptions import (
     AirflowException,
@@ -78,6 +77,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.sensors.python import PythonSensor
+from airflow.sdk.definitions.asset import AssetAlias
 from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.settings import TracebackSessionForTests
@@ -2441,7 +2441,7 @@ class TestTaskInstance:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_asset_extra(self, dag_maker, session):
-        from airflow.assets import Asset
+        from airflow.sdk.definitions.asset import Asset
 
         with dag_maker(schedule=None, session=session) as dag:
 
@@ -2483,7 +2483,7 @@ class TestTaskInstance:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_asset_extra_ignore_different(self, dag_maker, session):
-        from airflow.assets import Asset
+        from airflow.sdk.definitions.asset import Asset
 
         with dag_maker(schedule=None, session=session):
 
@@ -2505,8 +2505,8 @@ class TestTaskInstance:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_asset_extra_yield(self, dag_maker, session):
-        from airflow.assets import Asset
-        from airflow.assets.metadata import Metadata
+        from airflow.sdk.definitions.asset import Asset
+        from airflow.sdk.definitions.asset.metadata import Metadata
 
         with dag_maker(schedule=None, session=session) as dag:
 
@@ -2555,7 +2555,7 @@ class TestTaskInstance:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_asset_alias(self, dag_maker, session):
-        from airflow.assets import Asset, AssetAlias
+        from airflow.sdk.definitions.asset import Asset, AssetAlias
 
         asset_uri = "test_outlet_asset_alias_test_case_ds"
         alias_name_1 = "test_outlet_asset_alias_test_case_asset_alias_1"
@@ -2604,7 +2604,7 @@ class TestTaskInstance:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_multiple_asset_alias(self, dag_maker, session):
-        from airflow.assets import Asset, AssetAlias
+        from airflow.sdk.definitions.asset import Asset, AssetAlias
 
         asset_uri = "test_outlet_maa_ds"
         asset_alias_name_1 = "test_outlet_maa_asset_alias_1"
@@ -2678,8 +2678,8 @@ class TestTaskInstance:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_asset_alias_through_metadata(self, dag_maker, session):
-        from airflow.assets import AssetAlias
-        from airflow.assets.metadata import Metadata
+        from airflow.sdk.definitions.asset import AssetAlias
+        from airflow.sdk.definitions.asset.metadata import Metadata
 
         asset_uri = "test_outlet_asset_alias_through_metadata_ds"
         asset_alias_name = "test_outlet_asset_alias_through_metadata_asset_alias"
@@ -2723,7 +2723,7 @@ class TestTaskInstance:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_asset_alias_asset_not_exists(self, dag_maker, session):
-        from airflow.assets import Asset, AssetAlias
+        from airflow.sdk.definitions.asset import Asset, AssetAlias
 
         asset_alias_name = "test_outlet_asset_alias_asset_not_exists_asset_alias"
         asset_uri = "did_not_exists"
@@ -2763,7 +2763,7 @@ class TestTaskInstance:
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_inlet_asset_extra(self, dag_maker, session):
-        from airflow.assets import Asset
+        from airflow.sdk.definitions.asset import Asset
 
         read_task_evaluated = False
 
@@ -2826,7 +2826,7 @@ class TestTaskInstance:
         session.add_all([asset_model, asset_alias_model])
         session.commit()
 
-        from airflow.assets import Asset, AssetAlias
+        from airflow.sdk.definitions.asset import Asset, AssetAlias
 
         read_task_evaluated = False
 
@@ -2885,7 +2885,7 @@ class TestTaskInstance:
         session.add(asset_alias_model)
         session.commit()
 
-        from airflow.assets import AssetAlias
+        from airflow.sdk.definitions.asset import AssetAlias
 
         with dag_maker(schedule=None, session=session):
 
@@ -2916,7 +2916,7 @@ class TestTaskInstance:
         ],
     )
     def test_inlet_asset_extra_slice(self, dag_maker, session, slicer, expected):
-        from airflow.assets import Asset
+        from airflow.sdk.definitions.asset import Asset
 
         asset_uri = "test_inlet_asset_extra_slice"
 
@@ -2979,7 +2979,7 @@ class TestTaskInstance:
         session.add_all([asset_model, asset_alias_model])
         session.commit()
 
-        from airflow.assets import Asset
+        from airflow.sdk.definitions.asset import Asset
 
         with dag_maker(dag_id="write", schedule="@daily", params={"i": -1}, session=session):
 
@@ -3024,7 +3024,7 @@ class TestTaskInstance:
         Test that when a task that produces asset has ran, that changing the consumer
         dag asset will not cause primary key blank-out
         """
-        from airflow.assets import Asset
+        from airflow.sdk.definitions.asset import Asset
 
         with dag_maker(schedule=None, serialized=True) as dag1:
 
