@@ -65,7 +65,7 @@ def get_import_error(
 
 
 @import_error_router.get(
-    "/",
+    "",
 )
 def get_import_errors(
     limit: QueryLimit,

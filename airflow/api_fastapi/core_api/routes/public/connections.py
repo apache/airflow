@@ -82,7 +82,7 @@ def get_connection(
 
 
 @connections_router.get(
-    "/",
+    "",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_connections(
@@ -119,7 +119,7 @@ def get_connections(
 
 
 @connections_router.post(
-    "/",
+    "",
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
 )

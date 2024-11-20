@@ -72,7 +72,7 @@ def get_variable(
 
 
 @variables_router.get(
-    "/",
+    "",
 )
 def get_variables(
     limit: QueryLimit,
@@ -144,7 +144,7 @@ def patch_variable(
 
 
 @variables_router.post(
-    "/",
+    "",
     status_code=status.HTTP_201_CREATED,
 )
 def post_variable(
