@@ -1789,7 +1789,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/config/:
+  /public/config:
     get:
       tags:
       - Config
