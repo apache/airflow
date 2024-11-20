@@ -16,11 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Annotated
 
-from pydantic import AfterValidator, AliasGenerator, AwareDatetime, BaseModel, BeforeValidator, ConfigDict
+from pydantic import (
+    AfterValidator,
+    AliasGenerator,
+    AwareDatetime,
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+)
 
 from airflow.utils import timezone
 
@@ -29,7 +36,7 @@ UtcDateTime = Annotated[AwareDatetime, AfterValidator(lambda d: d.astimezone(tim
 
 
 def _validate_timedelta_field(td: timedelta | None) -> TimeDelta | None:
-    """Validate the execution_timeout property."""
+    """Validate the timedelta field and return it."""
     if td is None:
         return None
     return TimeDelta(
@@ -57,6 +64,20 @@ class TimeDelta(BaseModel):
 
 
 TimeDeltaWithValidation = Annotated[TimeDelta, BeforeValidator(_validate_timedelta_field)]
+
+
+def _validate_nonnaive_datetime_field(dt: datetime | None) -> datetime | None:
+    """Validate and return the datetime field."""
+    if dt is None:
+        return None
+    if isinstance(dt, str):
+        dt = datetime.fromisoformat(dt)
+    if not dt.tzinfo:
+        raise ValueError("Invalid datetime format, Naive datetime is disallowed")
+    return dt
+
+
+DatetimeWithNonNaiveValidation = Annotated[datetime, BeforeValidator(_validate_nonnaive_datetime_field)]
 
 
 class Mimetype(str, Enum):

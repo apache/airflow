@@ -459,6 +459,103 @@ export const $BaseInfoSchema = {
   description: "Base status field for metadatabase and scheduler.",
 } as const;
 
+export const $ClearTaskInstancesBody = {
+  properties: {
+    dry_run: {
+      type: "boolean",
+      title: "Dry Run",
+      default: true,
+    },
+    start_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Start Date",
+    },
+    end_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "End Date",
+    },
+    only_failed: {
+      type: "boolean",
+      title: "Only Failed",
+      default: true,
+    },
+    only_running: {
+      type: "boolean",
+      title: "Only Running",
+      default: false,
+    },
+    reset_dag_runs: {
+      type: "boolean",
+      title: "Reset Dag Runs",
+      default: false,
+    },
+    task_ids: {
+      anyOf: [
+        {
+          items: {
+            type: "string",
+          },
+          type: "array",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Task Ids",
+    },
+    dag_run_id: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Dag Run Id",
+    },
+    include_upstream: {
+      type: "boolean",
+      title: "Include Upstream",
+      default: false,
+    },
+    include_downstream: {
+      type: "boolean",
+      title: "Include Downstream",
+      default: false,
+    },
+    include_future: {
+      type: "boolean",
+      title: "Include Future",
+      default: false,
+    },
+    include_past: {
+      type: "boolean",
+      title: "Include Past",
+      default: false,
+    },
+  },
+  type: "object",
+  title: "ClearTaskInstancesBody",
+  description: "Request body for Clear Task Instances endpoint.",
+} as const;
+
 export const $Config = {
   properties: {
     sections: {
@@ -3362,6 +3459,48 @@ export const $TaskInstanceHistoryResponse = {
   ],
   title: "TaskInstanceHistoryResponse",
   description: "TaskInstanceHistory serializer for responses.",
+} as const;
+
+export const $TaskInstanceReferenceCollectionResponse = {
+  properties: {
+    task_instances: {
+      items: {
+        $ref: "#/components/schemas/TaskInstanceReferenceResponse",
+      },
+      type: "array",
+      title: "Task Instances",
+    },
+  },
+  type: "object",
+  required: ["task_instances"],
+  title: "TaskInstanceReferenceCollectionResponse",
+  description: "Task Instance Reference collection serializer for responses.",
+} as const;
+
+export const $TaskInstanceReferenceResponse = {
+  properties: {
+    task_id: {
+      type: "string",
+      title: "Task Id",
+    },
+    dag_run_id: {
+      type: "string",
+      title: "Dag Run Id",
+    },
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    logical_date: {
+      type: "string",
+      format: "date-time",
+      title: "Logical Date",
+    },
+  },
+  type: "object",
+  required: ["task_id", "dag_run_id", "dag_id", "logical_date"],
+  title: "TaskInstanceReferenceResponse",
+  description: "Task Instance Reference serializer for responses.",
 } as const;
 
 export const $TaskInstanceResponse = {

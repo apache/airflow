@@ -32,6 +32,7 @@ import {
 } from "../requests/services.gen";
 import {
   BackfillPostBody,
+  ClearTaskInstancesBody,
   ConnectionBody,
   CreateAssetEventsBody,
   DAGPatchBody,
@@ -2513,6 +2514,49 @@ export const useTaskInstanceServiceGetTaskInstancesBatch = <
       TaskInstanceService.getTaskInstancesBatch({
         dagId,
         dagRunId,
+        requestBody,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Post Clear Task Instances
+ * Clear task instances.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.requestBody
+ * @returns TaskInstanceReferenceCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServicePostClearTaskInstances = <
+  TData = Common.TaskInstanceServicePostClearTaskInstancesMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        requestBody: ClearTaskInstancesBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      requestBody: ClearTaskInstancesBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, requestBody }) =>
+      TaskInstanceService.postClearTaskInstances({
+        dagId,
         requestBody,
       }) as unknown as Promise<TData>,
     ...options,
