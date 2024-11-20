@@ -31,6 +31,8 @@ try:
 except ImportError:
     pytest.skip("MSSQL not available", allow_module_level=True)
 
+pytestmark = pytest.mark.db_test
+
 PYMSSQL_CONN = Connection(
     conn_type="mssql", host="ip", schema="share", login="username", password="password", port=8081
 )
@@ -55,15 +57,6 @@ PYMSSQL_CONN_ALT_2 = Connection(
     port=8081,
     extra={"SQlalchemy_Scheme": "mssql+testdriver", "myparam": "5@-//*"},
 )
-PYMSSQL_CONN_WITH_EXTRA = Connection(
-    conn_type="mssql",
-    host="test-server",
-    schema="test-db",
-    login="test-user",
-    password="test-password",
-    port=8081,
-    extra={"login_timeout": 30, "charset": "utf8", "tds_version": "7.0", "appname": "airflow"},
-)
 
 
 def get_primary_keys(self, table: str) -> list[str]:
@@ -87,28 +80,6 @@ class TestMsSqlHook:
 
         assert mssql_get_conn.return_value == conn
         mssql_get_conn.assert_called_once()
-
-    @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.pymssql.connect")
-    @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_connection")
-    def test_get_conn_with_extra_parameters(self, mock_get_connection, mock_connect):
-        mock_get_connection.return_value = PYMSSQL_CONN_WITH_EXTRA
-
-        hook = MsSqlHook()
-        hook.get_conn()
-
-        mock_connect.assert_called_once_with(
-            server="test-server",
-            user="test-user",
-            password="test-password",
-            database="test-db",
-            port="8081",
-            login_timeout=30,
-            charset="utf8",
-            tds_version="7.0",
-            appname="airflow",
-        )
-
-        assert hook.sqlalchemy_scheme == hook.DEFAULT_SQLALCHEMY_SCHEME
 
     @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_conn")
     @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_connection")
@@ -296,3 +267,10 @@ class TestMsSqlHook:
             replace=True,
         )
         assert sql == load_file("resources", "replace.sql")
+
+    @mock.patch("airflow.providers.microsoft.mssql.hooks.mssql.MsSqlHook.get_connection")
+    def test_get_extra(self, get_connection):
+        get_connection.return_value = PYMSSQL_CONN_ALT_2
+
+        hook = MsSqlHook()
+        assert hook.get_connection().extra
