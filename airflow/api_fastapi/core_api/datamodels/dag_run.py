@@ -65,3 +65,10 @@ class DAGRunResponse(BaseModel):
     triggered_by: DagRunTriggeredByType
     conf: dict
     note: str | None
+
+
+class DAGRunCollectionResponse(BaseModel):
+    """DAG Run Collection serializer for responses."""
+
+    dag_runs: list[DAGRunResponse]
+    total_entries: int
