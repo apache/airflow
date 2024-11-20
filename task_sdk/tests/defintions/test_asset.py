@@ -25,22 +25,24 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy.sql import select
 
-from airflow.assets import (
+from airflow.models.asset import AssetAliasModel, AssetDagRunQueue, AssetModel
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.operators.empty import EmptyOperator
+from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
+    AssetAliasCondition,
     AssetAll,
     AssetAny,
     BaseAsset,
     Dataset,
     Model,
-    _AssetAliasCondition,
     _get_normalized_scheme,
     _sanitize_uri,
 )
-from airflow.models.asset import AssetAliasModel, AssetDagRunQueue, AssetModel
-from airflow.models.serialized_dag import SerializedDagModel
-from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization, SerializedDAG
+
+ASSET_MODULE_PATH = "airflow.sdk.definitions.asset"
 
 
 @pytest.fixture
@@ -269,10 +271,19 @@ def test_asset_logical_conditions_evaluation_and_serialization(inputs, scenario,
 @pytest.mark.parametrize(
     "status_values, expected_evaluation",
     [
-        ((False, True, True), False),  # AssetAll requires all conditions to be True, but d1 is False
+        (
+            (False, True, True),
+            False,
+        ),  # AssetAll requires all conditions to be True, but d1 is False
         ((True, True, True), True),  # All conditions are True
-        ((True, False, True), True),  # d1 is True, and AssetAny condition (d2 or d3 being True) is met
-        ((True, False, False), False),  # d1 is True, but neither d2 nor d3 meet the AssetAny condition
+        (
+            (True, False, True),
+            True,
+        ),  # d1 is True, and AssetAny condition (d2 or d3 being True) is met
+        (
+            (True, False, False),
+            False,
+        ),  # d1 is True, but neither d2 nor d3 meet the AssetAny condition
     ],
 )
 def test_nested_asset_conditions_with_serialization(status_values, expected_evaluation):
@@ -531,7 +542,10 @@ def _mock_get_uri_normalizer_noop(normalized_scheme):
     return normalizer
 
 
-@patch("airflow.assets._get_uri_normalizer", _mock_get_uri_normalizer_raising_error)
+@patch(
+    "airflow.sdk.definitions.asset._get_uri_normalizer",
+    _mock_get_uri_normalizer_raising_error,
+)
 def test_sanitize_uri_raises_exception():
     with pytest.raises(ValueError) as e_info:
         _sanitize_uri("postgres://localhost:5432/database.schema.table")
@@ -539,20 +553,23 @@ def test_sanitize_uri_raises_exception():
     assert str(e_info.value) == "Incorrect URI format"
 
 
-@patch("airflow.assets._get_uri_normalizer", lambda x: None)
+@patch("airflow.sdk.definitions.asset._get_uri_normalizer", lambda x: None)
 def test_normalize_uri_no_normalizer_found():
     asset = Asset(uri="any_uri_without_normalizer_defined")
     assert asset.normalized_uri is None
 
 
-@patch("airflow.assets._get_uri_normalizer", _mock_get_uri_normalizer_raising_error)
+@patch(
+    "airflow.sdk.definitions.asset._get_uri_normalizer",
+    _mock_get_uri_normalizer_raising_error,
+)
 def test_normalize_uri_invalid_uri():
     asset = Asset(uri="any_uri_not_aip60_compliant")
     assert asset.normalized_uri is None
 
 
-@patch("airflow.assets._get_uri_normalizer", _mock_get_uri_normalizer_noop)
-@patch("airflow.assets._get_normalized_scheme", lambda x: "valid_scheme")
+@patch("airflow.sdk.definitions.asset._get_uri_normalizer", _mock_get_uri_normalizer_noop)
+@patch("airflow.sdk.definitions.asset._get_normalized_scheme", lambda x: "valid_scheme")
 def test_normalize_uri_valid_uri():
     asset = Asset(uri="valid_aip60_uri")
     assert asset.normalized_uri == "valid_aip60_uri"
@@ -561,7 +578,7 @@ def test_normalize_uri_valid_uri():
 @pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 @pytest.mark.usefixtures("clear_assets")
-class Test_AssetAliasCondition:
+class TestAssetAliasCondition:
     @pytest.fixture
     def asset_1(self, session):
         """Example asset links to asset alias resolved_asset_alias_2."""
@@ -597,22 +614,22 @@ class Test_AssetAliasCondition:
         return asset_alias_2
 
     def test_init(self, asset_alias_1, asset_1, resolved_asset_alias_2):
-        cond = _AssetAliasCondition(name=asset_alias_1.name)
+        cond = AssetAliasCondition(name=asset_alias_1.name)
         assert cond.objects == []
 
-        cond = _AssetAliasCondition(name=resolved_asset_alias_2.name)
+        cond = AssetAliasCondition(name=resolved_asset_alias_2.name)
         assert cond.objects == [Asset(uri=asset_1.uri)]
 
     def test_as_expression(self, asset_alias_1, resolved_asset_alias_2):
         for assset_alias in (asset_alias_1, resolved_asset_alias_2):
-            cond = _AssetAliasCondition(assset_alias.name)
+            cond = AssetAliasCondition(assset_alias.name)
             assert cond.as_expression() == {"alias": assset_alias.name}
 
     def test_evalute(self, asset_alias_1, resolved_asset_alias_2, asset_1):
-        cond = _AssetAliasCondition(asset_alias_1.name)
+        cond = AssetAliasCondition(asset_alias_1.name)
         assert cond.evaluate({asset_1.uri: True}) is False
 
-        cond = _AssetAliasCondition(resolved_asset_alias_2.name)
+        cond = AssetAliasCondition(resolved_asset_alias_2.name)
         assert cond.evaluate({asset_1.uri: True}) is True
 
 
@@ -645,35 +662,3 @@ class TestAssetSubclasses:
         assert obj.name == arg
         assert obj.uri == arg
         assert obj.group == group
-
-
-@pytest.mark.parametrize(
-    "module_path, attr_name, warning_message",
-    (
-        (
-            "airflow",
-            "Dataset",
-            (
-                "Import 'Dataset' directly from the airflow module is deprecated and will be removed in the future. "
-                "Please import it from 'airflow.assets.Dataset'."
-            ),
-        ),
-        (
-            "airflow.datasets",
-            "Dataset",
-            (
-                "Import from the airflow.dataset module is deprecated and "
-                "will be removed in the Airflow 3.2. Please import it from 'airflow.assets'."
-            ),
-        ),
-    ),
-)
-def test_backward_compat_import_before_airflow_3_2(module_path, attr_name, warning_message):
-    with pytest.warns() as record:
-        import importlib
-
-        mod = importlib.import_module(module_path, __name__)
-        getattr(mod, attr_name)
-
-    assert record[0].category is DeprecationWarning
-    assert str(record[0].message) == warning_message

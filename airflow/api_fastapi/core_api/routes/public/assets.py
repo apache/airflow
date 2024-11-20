@@ -49,9 +49,9 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
     QueuedEventResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.assets import Asset
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
+from airflow.sdk.definitions.asset import Asset
 from airflow.utils import timezone
 
 assets_router = AirflowRouter(tags=["Asset"])
@@ -190,7 +190,7 @@ def create_asset_event(
 
 
 @assets_router.get(
-    "/assets/queuedEvent/{uri:path}",
+    "/assets/queuedEvents/{uri:path}",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_404_NOT_FOUND,
@@ -253,7 +253,7 @@ def get_asset(
 
 
 @assets_router.get(
-    "/dags/{dag_id}/assets/queuedEvent",
+    "/dags/{dag_id}/assets/queuedEvents",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_404_NOT_FOUND,
@@ -297,7 +297,7 @@ def get_dag_asset_queued_events(
 
 
 @assets_router.get(
-    "/dags/{dag_id}/assets/queuedEvent/{uri:path}",
+    "/dags/{dag_id}/assets/queuedEvents/{uri:path}",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_404_NOT_FOUND,
@@ -328,7 +328,7 @@ def get_dag_asset_queued_event(
 
 
 @assets_router.delete(
-    "/assets/queuedEvent/{uri:path}",
+    "/assets/queuedEvents/{uri:path}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc(
         [
@@ -350,7 +350,7 @@ def delete_asset_queued_events(
 
 
 @assets_router.delete(
-    "/dags/{dag_id}/assets/queuedEvent",
+    "/dags/{dag_id}/assets/queuedEvents",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc(
         [
@@ -374,7 +374,7 @@ def delete_dag_asset_queued_events(
 
 
 @assets_router.delete(
-    "/dags/{dag_id}/assets/queuedEvent/{uri:path}",
+    "/dags/{dag_id}/assets/queuedEvents/{uri:path}",
     status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc(
         [
