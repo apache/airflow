@@ -1114,7 +1114,7 @@ export class ConfigService {
   ): CancelablePromise<GetConfigResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/config/",
+      url: "/public/config",
       headers: {
         accept: data.accept,
       },
