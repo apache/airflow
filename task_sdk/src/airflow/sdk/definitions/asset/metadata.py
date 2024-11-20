@@ -17,14 +17,34 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import (
+    Any,
+)
 
 import attrs
 
-from airflow.assets import AssetAlias, extract_event_key
+from airflow.sdk.definitions.asset import Asset, AssetAlias, _sanitize_uri
 
-if TYPE_CHECKING:
-    from airflow.assets import Asset
+__all__ = ["Metadata", "extract_event_key"]
+
+
+def extract_event_key(value: str | Asset | AssetAlias) -> str:
+    """
+    Extract the key of an inlet or an outlet event.
+
+    If the input value is a string, it is treated as a URI and sanitized. If the
+    input is a :class:`Asset`, the URI it contains is considered sanitized and
+    returned directly. If the input is a :class:`AssetAlias`, the name it contains
+    will be returned directly.
+
+    :meta private:
+    """
+    if isinstance(value, AssetAlias):
+        return value.name
+
+    if isinstance(value, Asset):
+        return value.uri
+    return _sanitize_uri(str(value))
 
 
 @attrs.define(init=False)
@@ -36,7 +56,10 @@ class Metadata:
     alias_name: str | None = None
 
     def __init__(
-        self, target: str | Asset, extra: dict[str, Any], alias: AssetAlias | str | None = None
+        self,
+        target: str | Asset,
+        extra: dict[str, Any],
+        alias: AssetAlias | str | None = None,
     ) -> None:
         self.uri = extract_event_key(target)
         self.extra = extra

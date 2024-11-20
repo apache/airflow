@@ -18,14 +18,19 @@
 from __future__ import annotations
 
 import inspect
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Mapping
+from collections.abc import Iterator, Mapping
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+)
 
 import attrs
 
-from airflow.assets import Asset, AssetRef
 from airflow.models.asset import _fetch_active_assets_by_name
 from airflow.models.dag import DAG, ScheduleArg
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk.definitions.asset import Asset, AssetRef
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:

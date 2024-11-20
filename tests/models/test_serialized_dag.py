@@ -26,7 +26,6 @@ import pytest
 from sqlalchemy import func, select
 
 import airflow.example_dags as example_dags_module
-from airflow.assets import Asset
 from airflow.decorators import task as task_decorator
 from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
@@ -36,6 +35,7 @@ from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk.definitions.asset import Asset
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import json
 from airflow.utils.hashlib_wrapper import md5

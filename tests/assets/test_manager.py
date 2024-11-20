@@ -24,7 +24,6 @@ from unittest import mock
 import pytest
 from sqlalchemy import delete
 
-from airflow.assets import Asset, AssetAlias
 from airflow.assets.manager import AssetManager
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import (
@@ -37,6 +36,7 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 from tests.listeners import asset_listener

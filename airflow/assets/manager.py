@@ -24,7 +24,6 @@ from sqlalchemy import exc, select
 from sqlalchemy.orm import joinedload
 
 from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.assets import Asset
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import (
@@ -36,15 +35,16 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
 )
 from airflow.models.dagbag import DagPriorityParsingRequest
+from airflow.sdk.definitions.asset import Asset
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
-    from airflow.assets import Asset, AssetAlias
     from airflow.models.dag import DagModel
     from airflow.models.taskinstance import TaskInstance
+    from airflow.sdk.definitions.asset import Asset, AssetAlias
 
 
 class AssetManager(LoggingMixin):

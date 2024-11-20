@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from importlib.util import find_spec
+from airflow.providers.common.compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 
 
 def _get_asset_compat_hook_lineage_collector():
@@ -79,28 +79,27 @@ def _get_asset_compat_hook_lineage_collector():
 
 
 def get_hook_lineage_collector():
+    # Dataset has been renamed as Asset in 3.0
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.lineage.hook import get_hook_lineage_collector
+
+        return get_hook_lineage_collector()
+
     # HookLineageCollector added in 2.10
-    try:
-        if find_spec("airflow.assets"):
-            # Dataset has been renamed as Asset in 3.0
-            from airflow.lineage.hook import get_hook_lineage_collector
-
-            return get_hook_lineage_collector()
-
+    if AIRFLOW_V_2_10_PLUS:
         return _get_asset_compat_hook_lineage_collector()
-    except ImportError:
 
-        class NoOpCollector:
-            """
-            NoOpCollector is a hook lineage collector that does nothing.
+    class NoOpCollector:
+        """
+        NoOpCollector is a hook lineage collector that does nothing.
 
-            It is used when you want to disable lineage collection.
-            """
+        It is used when you want to disable lineage collection.
+        """
 
-            def add_input_asset(self, *_, **__):
-                pass
+        def add_input_asset(self, *_, **__):
+            pass
 
-            def add_output_asset(self, *_, **__):
-                pass
+        def add_output_asset(self, *_, **__):
+            pass
 
-        return NoOpCollector()
+    return NoOpCollector()

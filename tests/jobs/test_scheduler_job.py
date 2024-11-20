@@ -39,7 +39,6 @@ from sqlalchemy import func, select, update
 
 import airflow.example_dags
 from airflow import settings
-from airflow.assets import Asset
 from airflow.assets.manager import AssetManager
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
@@ -66,6 +65,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.sdk.definitions.asset import Asset
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone

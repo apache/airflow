@@ -22,9 +22,9 @@ import pendulum
 import pytest
 from dateutil.tz import UTC
 
-from airflow.assets import Asset
 from airflow.models.asset import AssetActive, AssetEvent, AssetModel
 from airflow.operators.empty import EmptyOperator
+from airflow.sdk.definitions.asset import Asset
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_assets

@@ -22,10 +22,10 @@ from datetime import datetime, timezone
 import pytest
 from sqlalchemy import select
 
-from airflow import Asset
 from airflow.models import DagRun
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.operators.empty import EmptyOperator
+from airflow.sdk.definitions.asset import Asset
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType

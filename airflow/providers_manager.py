@@ -87,9 +87,9 @@ def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
-    from airflow.assets import Asset
     from airflow.decorators.base import TaskDecorator
     from airflow.hooks.base import BaseHook
+    from airflow.sdk.definitions.asset import Asset
     from airflow.typing_compat import Literal
 
 
@@ -905,7 +905,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
     def _discover_asset_uri_resources(self) -> None:
         """Discovers and registers asset URI handlers, factories, and converters for all providers."""
-        from airflow.assets import normalize_noop
+        from airflow.sdk.definitions.asset import normalize_noop
 
         def _safe_register_resource(
             provider_package_name: str,

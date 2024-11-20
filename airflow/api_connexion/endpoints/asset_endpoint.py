@@ -43,9 +43,9 @@ from airflow.api_connexion.schemas.asset_schema import (
     queued_event_collection_schema,
     queued_event_schema,
 )
-from airflow.assets import Asset
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
+from airflow.sdk.definitions.asset import Asset
 from airflow.utils import timezone
 from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.db import get_query_count

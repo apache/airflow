@@ -49,9 +49,9 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
     QueuedEventResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.assets import Asset
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
+from airflow.sdk.definitions.asset import Asset
 from airflow.utils import timezone
 
 assets_router = AirflowRouter(tags=["Asset"])

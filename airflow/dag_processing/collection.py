@@ -34,7 +34,6 @@ from typing import TYPE_CHECKING, NamedTuple
 from sqlalchemy import func, select, tuple_
 from sqlalchemy.orm import joinedload, load_only
 
-from airflow.assets import Asset, AssetAlias
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import (
     AssetAliasModel,
@@ -45,6 +44,7 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DAG, DagModel, DagOwnerAttributes, DagTag
 from airflow.models.dagrun import DagRun
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.timezone import utcnow
 from airflow.utils.types import DagRunType

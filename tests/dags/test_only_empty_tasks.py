@@ -20,9 +20,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Sequence
 
-from airflow.assets import Asset
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
+from airflow.sdk.definitions.asset import Asset
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 

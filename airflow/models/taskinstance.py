@@ -73,7 +73,6 @@ from sqlalchemy_utils import UUIDType
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
-from airflow.assets import Asset, AssetAlias
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
 from airflow.exceptions import (
@@ -102,6 +101,7 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.plugins_manager import integrate_macros_plugins
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sentry import Sentry
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats

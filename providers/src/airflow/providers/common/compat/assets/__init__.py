@@ -19,10 +19,16 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow import __version__ as AIRFLOW_VERSION
+from airflow.providers.common.compat import (
+    AIRFLOW_V_2_8_PLUS,
+    AIRFLOW_V_2_9_PLUS,
+    AIRFLOW_V_2_10_PLUS,
+    AIRFLOW_V_3_0_PLUS,
+)
 
 if TYPE_CHECKING:
-    from airflow.assets import (
+    from airflow.auth.managers.models.resource_details import AssetDetails
+    from airflow.sdk.definitions.asset import (
         Asset,
         AssetAlias,
         AssetAliasEvent,
@@ -30,10 +36,10 @@ if TYPE_CHECKING:
         AssetAny,
         expand_alias_to_assets,
     )
-    from airflow.auth.managers.models.resource_details import AssetDetails
 else:
-    try:
-        from airflow.assets import (
+    if AIRFLOW_V_3_0_PLUS:
+        from airflow.auth.managers.models.resource_details import AssetDetails
+        from airflow.sdk.definitions.asset import (
             Asset,
             AssetAlias,
             AssetAliasEvent,
@@ -41,27 +47,20 @@ else:
             AssetAny,
             expand_alias_to_assets,
         )
-        from airflow.auth.managers.models.resource_details import AssetDetails
-    except ModuleNotFoundError:
-        from packaging.version import Version
-
-        _IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
-        _IS_AIRFLOW_2_9_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.9.0")
-        _IS_AIRFLOW_2_8_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.8.0")
-
+    else:
         # dataset is renamed to asset since Airflow 3.0
         from airflow.datasets import Dataset as Asset
 
-        if _IS_AIRFLOW_2_8_OR_HIGHER:
+        if AIRFLOW_V_2_8_PLUS:
             from airflow.auth.managers.models.resource_details import DatasetDetails as AssetDetails
 
-        if _IS_AIRFLOW_2_9_OR_HIGHER:
+        if AIRFLOW_V_2_9_PLUS:
             from airflow.datasets import (
                 DatasetAll as AssetAll,
                 DatasetAny as AssetAny,
             )
 
-        if _IS_AIRFLOW_2_10_OR_HIGHER:
+        if AIRFLOW_V_2_10_PLUS:
             from airflow.datasets import (
                 DatasetAlias as AssetAlias,
                 DatasetAliasEvent as AssetAliasEvent,

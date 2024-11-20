@@ -53,7 +53,6 @@ log = logging.getLogger(__name__)
 @functools.lru_cache
 def initialize_method_map() -> dict[str, Callable]:
     from airflow.api.common.trigger_dag import trigger_dag
-    from airflow.assets import expand_alias_to_assets
     from airflow.assets.manager import AssetManager
     from airflow.cli.commands.task_command import _get_ti_db_access
     from airflow.dag_processing.manager import DagFileProcessorManager
@@ -76,6 +75,7 @@ def initialize_method_map() -> dict[str, Callable]:
         _update_ti_heartbeat,
         _xcom_pull,
     )
+    from airflow.sdk.definitions.asset import expand_alias_to_assets
     from airflow.secrets.metastore import MetastoreBackend
     from airflow.utils.cli_action_loggers import _default_action_log_internal
     from airflow.utils.log.file_task_handler import FileTaskHandler

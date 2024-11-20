@@ -26,7 +26,7 @@ import numpy as np
 import pendulum
 import pytest
 
-from airflow.assets import Asset
+from airflow.sdk.definitions.asset import Asset
 from airflow.utils import json as utils_json
 
 

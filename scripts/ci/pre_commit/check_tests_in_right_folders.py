@@ -46,6 +46,7 @@ POSSIBLE_TEST_FOLDERS = [
     "dags",
     "dags_corrupted",
     "dags_with_system_exit",
+    "datasets",
     "decorators",
     "executors",
     "hooks",

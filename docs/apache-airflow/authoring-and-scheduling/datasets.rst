@@ -27,7 +27,7 @@ In addition to scheduling DAGs based on time, you can also schedule DAGs to run 
 
 .. code-block:: python
 
-    from airflow.assets import Asset
+    from airflow.sdk.definitions.asset import Asset
 
     with DAG(...):
         MyOperator(
@@ -57,7 +57,7 @@ An Airflow asset is a logical grouping of data. Upstream producer tasks can upda
 
 .. code-block:: python
 
-    from airflow.assets import Asset
+    from airflow.sdk.definitions.asset import Asset
 
     example_asset = Asset("s3://asset-bucket/example.csv")
 
@@ -67,7 +67,7 @@ You must create assets with a valid URI. Airflow core and providers define vario
 
 .. code-block:: python
 
-    from airflow.assets import Asset
+    from airflow.sdk.definitions.asset import Asset
 
     example_asset = Asset(uri="s3://asset-bucket/example.csv", name="bucket-1")
 
@@ -248,8 +248,8 @@ The easiest way to attach extra information to the asset event is by ``yield``-i
 
 .. code-block:: python
 
-    from airflow.assets import Asset
-    from airflow.assets.metadata import Metadata
+    from airflow.sdk.definitions.asset import Asset
+    from airflow.sdk.definitions.asset.metadata import Metadata
 
     example_s3_asset = Asset("s3://asset/example.csv")
 
@@ -440,7 +440,7 @@ The following example creates an asset event against the S3 URI ``f"s3://bucket/
 
 .. code-block:: python
 
-    from airflow.assets import AssetAlias
+    from airflow.sdk.definitions.asset import AssetAlias
 
 
     @task(outlets=[AssetAlias("my-task-outputs")])
@@ -452,7 +452,7 @@ The following example creates an asset event against the S3 URI ``f"s3://bucket/
 
 .. code-block:: python
 
-    from airflow.assets.metadata import Metadata
+    from airflow.sdk.definitions.asset.metadata import Metadata
 
 
     @task(outlets=[AssetAlias("my-task-outputs")])
@@ -464,7 +464,7 @@ Only one asset event is emitted for an added asset, even if it is added to the a
 
 .. code-block:: python
 
-    from airflow.assets import AssetAlias
+    from airflow.sdk.definitions.asset import AssetAlias
 
 
     @task(

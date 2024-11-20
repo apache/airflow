@@ -36,7 +36,6 @@ import time_machine
 from sqlalchemy import inspect, select
 
 from airflow import settings
-from airflow.assets import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.configuration import conf
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.exceptions import (
@@ -71,6 +70,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import TaskGroup
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.sdk.definitions.contextmanager import TaskGroupContext
 from airflow.security import permissions
 from airflow.templates import NativeEnvironment, SandboxedEnvironment
