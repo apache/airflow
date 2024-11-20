@@ -640,7 +640,7 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
                 xcom = XCom(
                     dag_run_id=dagrun.id,
                     key=f"TEST_XCOM_KEY{i}",
-                    value=b"null",
+                    value="null",
                     run_id=self.run_id,
                     task_id=self.task_id,
                     dag_id=self.dag_id,

@@ -250,7 +250,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         top_stats = snapshot.statistics("lineno")
         n = 10
         self.log.error(
-            "scheduler memory usgae:\n Top %d\n %s",
+            "scheduler memory usage:\n Top %d\n %s",
             n,
             "\n\t".join(map(str, top_stats[:n])),
         )
@@ -704,7 +704,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         queued_tis = self._executable_task_instances_to_queued(max_tis, session=session)
 
-        # Sort queued TIs to there respective executor
+        # Sort queued TIs to their respective executor
         executor_to_queued_tis = self._executor_to_tis(queued_tis)
         for executor, queued_tis_per_executor in executor_to_queued_tis.items():
             self.log.info(
@@ -1800,6 +1800,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ti=ti,
                         session=session,
                     )
+                    session.commit()
             except NotImplementedError:
                 # this block only gets entered if the executor has not implemented `revoke_task`.
                 # in which case, we try the fallback logic
@@ -1838,7 +1839,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ),
                 )
             )
-            self._reschedule_stuck_task(ti)
+            self._reschedule_stuck_task(ti, session=session)
         else:
             self.log.info(
                 "Task requeue attempts exceeded max; marking failed. task_instance=%s",
@@ -1875,8 +1876,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ti_repr,
                 )
 
-    @provide_session
-    def _reschedule_stuck_task(self, ti, session=NEW_SESSION):
+    def _reschedule_stuck_task(self, ti: TaskInstance, session: Session):
         session.execute(
             update(TI)
             .where(TI.filter_for_tis([ti]))
@@ -1890,7 +1890,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @provide_session
     def _get_num_times_stuck_in_queued(self, ti: TaskInstance, session: Session = NEW_SESSION) -> int:
         """
-        Check the Log table to see how many times a taskinstance has been stuck in queued.
+        Check the Log table to see how many times a task instance has been stuck in queued.
 
         We can then use this information to determine whether to reschedule a task or fail it.
         """

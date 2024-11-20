@@ -201,7 +201,8 @@ def clear_dag_run(
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
     if dag_run is None:
         raise HTTPException(
-            404, f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found"
+            status.HTTP_404_NOT_FOUND,
+            f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
 
     dag: DAG = request.app.state.dag_bag.get_dag(dag_id)

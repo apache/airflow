@@ -11,14 +11,20 @@ import type {
   GetAssetEventsResponse,
   CreateAssetEventData,
   CreateAssetEventResponse,
+  GetAssetQueuedEventsData,
+  GetAssetQueuedEventsResponse,
+  DeleteAssetQueuedEventsData,
+  DeleteAssetQueuedEventsResponse,
   GetAssetData,
   GetAssetResponse,
   GetDagAssetQueuedEventsData,
   GetDagAssetQueuedEventsResponse,
   DeleteDagAssetQueuedEventsData,
   DeleteDagAssetQueuedEventsResponse,
-  DeleteAssetQueuedEventsData,
-  DeleteAssetQueuedEventsResponse,
+  GetDagAssetQueuedEventData,
+  GetDagAssetQueuedEventResponse,
+  DeleteDagAssetQueuedEventData,
+  DeleteDagAssetQueuedEventResponse,
   HistoricalMetricsData,
   HistoricalMetricsResponse,
   RecentDagRunsData,
@@ -115,6 +121,8 @@ import type {
   GetTaskInstancesResponse,
   GetTaskInstancesBatchData,
   GetTaskInstancesBatchResponse,
+  GetTaskInstanceTryDetailsData,
+  GetTaskInstanceTryDetailsResponse,
   GetTasksData,
   GetTasksResponse,
   GetTaskData,
@@ -258,6 +266,66 @@ export class AssetService {
   }
 
   /**
+   * Get Asset Queued Events
+   * Get queued asset events for an asset.
+   * @param data The data for the request.
+   * @param data.uri
+   * @param data.before
+   * @returns QueuedEventCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getAssetQueuedEvents(
+    data: GetAssetQueuedEventsData,
+  ): CancelablePromise<GetAssetQueuedEventsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/assets/queuedEvent/{uri}",
+      path: {
+        uri: data.uri,
+      },
+      query: {
+        before: data.before,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Delete Asset Queued Events
+   * Delete queued asset events for an asset.
+   * @param data The data for the request.
+   * @param data.uri
+   * @param data.before
+   * @returns void Successful Response
+   * @throws ApiError
+   */
+  public static deleteAssetQueuedEvents(
+    data: DeleteAssetQueuedEventsData,
+  ): CancelablePromise<DeleteAssetQueuedEventsResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/public/assets/queuedEvent/{uri}",
+      path: {
+        uri: data.uri,
+      },
+      query: {
+        before: data.before,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
    * Get Asset
    * Get an asset.
    * @param data The data for the request.
@@ -344,27 +412,62 @@ export class AssetService {
   }
 
   /**
-   * Delete Asset Queued Events
-   * Delete queued asset events for an asset.
+   * Get Dag Asset Queued Event
+   * Get a queued asset event for a DAG.
    * @param data The data for the request.
+   * @param data.dagId
    * @param data.uri
    * @param data.before
-   * @returns void Successful Response
+   * @returns QueuedEventResponse Successful Response
    * @throws ApiError
    */
-  public static deleteAssetQueuedEvents(
-    data: DeleteAssetQueuedEventsData,
-  ): CancelablePromise<DeleteAssetQueuedEventsResponse> {
+  public static getDagAssetQueuedEvent(
+    data: GetDagAssetQueuedEventData,
+  ): CancelablePromise<GetDagAssetQueuedEventResponse> {
     return __request(OpenAPI, {
-      method: "DELETE",
-      url: "/public/assets/queuedEvent/{uri}",
+      method: "GET",
+      url: "/public/dags/{dag_id}/assets/queuedEvent/{uri}",
       path: {
+        dag_id: data.dagId,
         uri: data.uri,
       },
       query: {
         before: data.before,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Delete Dag Asset Queued Event
+   * Delete a queued asset event for a DAG.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.uri
+   * @param data.before
+   * @returns void Successful Response
+   * @throws ApiError
+   */
+  public static deleteDagAssetQueuedEvent(
+    data: DeleteDagAssetQueuedEventData,
+  ): CancelablePromise<DeleteDagAssetQueuedEventResponse> {
+    return __request(OpenAPI, {
+      method: "DELETE",
+      url: "/public/dags/{dag_id}/assets/queuedEvent/{uri}",
+      path: {
+        dag_id: data.dagId,
+        uri: data.uri,
+      },
+      query: {
+        before: data.before,
+      },
+      errors: {
+        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
@@ -964,7 +1067,8 @@ export class DagSourceService {
    * Get Dag Source
    * Get source code using file token.
    * @param data The data for the request.
-   * @param data.fileToken
+   * @param data.dagId
+   * @param data.versionNumber
    * @param data.accept
    * @returns DAGSourceResponse Successful Response
    * @throws ApiError
@@ -974,12 +1078,15 @@ export class DagSourceService {
   ): CancelablePromise<GetDagSourceResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dagSources/{file_token}",
+      url: "/public/dagSources/{dag_id}",
       path: {
-        file_token: data.fileToken,
+        dag_id: data.dagId,
       },
       headers: {
         accept: data.accept,
+      },
+      query: {
+        version_number: data.versionNumber,
       },
       errors: {
         400: "Bad Request",
@@ -1854,7 +1961,7 @@ export class TaskInstanceService {
   ): CancelablePromise<GetTaskInstancesResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
@@ -1891,6 +1998,8 @@ export class TaskInstanceService {
    * Get Task Instances Batch
    * Get list of task instances.
    * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
    * @param data.requestBody
    * @returns TaskInstanceCollectionResponse Successful Response
    * @throws ApiError
@@ -1901,8 +2010,48 @@ export class TaskInstanceService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+      },
       body: data.requestBody,
       mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Task Instance Try Details
+   * Get task instance details by try number.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.taskTryNumber
+   * @param data.mapIndex
+   * @returns TaskInstanceHistoryResponse Successful Response
+   * @throws ApiError
+   */
+  public static getTaskInstanceTryDetails(
+    data: GetTaskInstanceTryDetailsData,
+  ): CancelablePromise<GetTaskInstanceTryDetailsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+        task_try_number: data.taskTryNumber,
+      },
+      query: {
+        map_index: data.mapIndex,
+      },
       errors: {
         401: "Unauthorized",
         403: "Forbidden",

@@ -146,6 +146,29 @@ export const prefetchUseAssetServiceGetAssetEvents = (
       }),
   });
 /**
+ * Get Asset Queued Events
+ * Get queued asset events for an asset.
+ * @param data The data for the request.
+ * @param data.uri
+ * @param data.before
+ * @returns QueuedEventCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseAssetServiceGetAssetQueuedEvents = (
+  queryClient: QueryClient,
+  {
+    before,
+    uri,
+  }: {
+    before?: string;
+    uri: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseAssetServiceGetAssetQueuedEventsKeyFn({ before, uri }),
+    queryFn: () => AssetService.getAssetQueuedEvents({ before, uri }),
+  });
+/**
  * Get Asset
  * Get an asset.
  * @param data The data for the request.
@@ -192,6 +215,36 @@ export const prefetchUseAssetServiceGetDagAssetQueuedEvents = (
     queryFn: () => AssetService.getDagAssetQueuedEvents({ before, dagId }),
   });
 /**
+ * Get Dag Asset Queued Event
+ * Get a queued asset event for a DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.uri
+ * @param data.before
+ * @returns QueuedEventResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseAssetServiceGetDagAssetQueuedEvent = (
+  queryClient: QueryClient,
+  {
+    before,
+    dagId,
+    uri,
+  }: {
+    before?: string;
+    dagId: string;
+    uri: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseAssetServiceGetDagAssetQueuedEventKeyFn({
+      before,
+      dagId,
+      uri,
+    }),
+    queryFn: () => AssetService.getDagAssetQueuedEvent({ before, dagId, uri }),
+  });
+/**
  * Historical Metrics
  * Return cluster activity historical metrics.
  * @param data The data for the request.
@@ -206,7 +259,7 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
     endDate,
     startDate,
   }: {
-    endDate: string;
+    endDate?: string;
     startDate: string;
   },
 ) =>
@@ -442,7 +495,8 @@ export const prefetchUseDagRunServiceGetUpstreamAssetEvents = (
  * Get Dag Source
  * Get source code using file token.
  * @param data The data for the request.
- * @param data.fileToken
+ * @param data.dagId
+ * @param data.versionNumber
  * @param data.accept
  * @returns DAGSourceResponse Successful Response
  * @throws ApiError
@@ -451,18 +505,22 @@ export const prefetchUseDagSourceServiceGetDagSource = (
   queryClient: QueryClient,
   {
     accept,
-    fileToken,
+    dagId,
+    versionNumber,
   }: {
     accept?: string;
-    fileToken: string;
+    dagId: string;
+    versionNumber?: number;
   },
 ) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseDagSourceServiceGetDagSourceKeyFn({
       accept,
-      fileToken,
+      dagId,
+      versionNumber,
     }),
-    queryFn: () => DagSourceService.getDagSource({ accept, fileToken }),
+    queryFn: () =>
+      DagSourceService.getDagSource({ accept, dagId, versionNumber }),
   });
 /**
  * Get Dag Stats
@@ -1314,6 +1372,51 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
         state,
         updatedAtGte,
         updatedAtLte,
+      }),
+  });
+/**
+ * Get Task Instance Try Details
+ * Get task instance details by try number.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.taskTryNumber
+ * @param data.mapIndex
+ * @returns TaskInstanceHistoryResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseTaskInstanceServiceGetTaskInstanceTryDetails = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+    taskTryNumber,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    taskId: string;
+    taskTryNumber: number;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTryDetailsKeyFn({
+      dagId,
+      dagRunId,
+      mapIndex,
+      taskId,
+      taskTryNumber,
+    }),
+    queryFn: () =>
+      TaskInstanceService.getTaskInstanceTryDetails({
+        dagId,
+        dagRunId,
+        mapIndex,
+        taskId,
+        taskTryNumber,
       }),
   });
 /**

@@ -189,6 +189,38 @@ export const useAssetServiceGetAssetEvents = <
     ...options,
   });
 /**
+ * Get Asset Queued Events
+ * Get queued asset events for an asset.
+ * @param data The data for the request.
+ * @param data.uri
+ * @param data.before
+ * @returns QueuedEventCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceGetAssetQueuedEvents = <
+  TData = Common.AssetServiceGetAssetQueuedEventsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    before,
+    uri,
+  }: {
+    before?: string;
+    uri: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseAssetServiceGetAssetQueuedEventsKeyFn(
+      { before, uri },
+      queryKey,
+    ),
+    queryFn: () => AssetService.getAssetQueuedEvents({ before, uri }) as TData,
+    ...options,
+  });
+/**
  * Get Asset
  * Get an asset.
  * @param data The data for the request.
@@ -248,6 +280,42 @@ export const useAssetServiceGetDagAssetQueuedEvents = <
     ...options,
   });
 /**
+ * Get Dag Asset Queued Event
+ * Get a queued asset event for a DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.uri
+ * @param data.before
+ * @returns QueuedEventResponse Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceGetDagAssetQueuedEvent = <
+  TData = Common.AssetServiceGetDagAssetQueuedEventDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    before,
+    dagId,
+    uri,
+  }: {
+    before?: string;
+    dagId: string;
+    uri: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseAssetServiceGetDagAssetQueuedEventKeyFn(
+      { before, dagId, uri },
+      queryKey,
+    ),
+    queryFn: () =>
+      AssetService.getDagAssetQueuedEvent({ before, dagId, uri }) as TData,
+    ...options,
+  });
+/**
  * Historical Metrics
  * Return cluster activity historical metrics.
  * @param data The data for the request.
@@ -265,7 +333,7 @@ export const useDashboardServiceHistoricalMetrics = <
     endDate,
     startDate,
   }: {
-    endDate: string;
+    endDate?: string;
     startDate: string;
   },
   queryKey?: TQueryKey,
@@ -558,7 +626,8 @@ export const useDagRunServiceGetUpstreamAssetEvents = <
  * Get Dag Source
  * Get source code using file token.
  * @param data The data for the request.
- * @param data.fileToken
+ * @param data.dagId
+ * @param data.versionNumber
  * @param data.accept
  * @returns DAGSourceResponse Successful Response
  * @throws ApiError
@@ -570,21 +639,23 @@ export const useDagSourceServiceGetDagSource = <
 >(
   {
     accept,
-    fileToken,
+    dagId,
+    versionNumber,
   }: {
     accept?: string;
-    fileToken: string;
+    dagId: string;
+    versionNumber?: number;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseDagSourceServiceGetDagSourceKeyFn(
-      { accept, fileToken },
+      { accept, dagId, versionNumber },
       queryKey,
     ),
     queryFn: () =>
-      DagSourceService.getDagSource({ accept, fileToken }) as TData,
+      DagSourceService.getDagSource({ accept, dagId, versionNumber }) as TData,
     ...options,
   });
 /**
@@ -1578,6 +1649,54 @@ export const useTaskInstanceServiceGetTaskInstances = <
     ...options,
   });
 /**
+ * Get Task Instance Try Details
+ * Get task instance details by try number.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.taskTryNumber
+ * @param data.mapIndex
+ * @returns TaskInstanceHistoryResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceGetTaskInstanceTryDetails = <
+  TData = Common.TaskInstanceServiceGetTaskInstanceTryDetailsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+    taskTryNumber,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    taskId: string;
+    taskTryNumber: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTryDetailsKeyFn(
+      { dagId, dagRunId, mapIndex, taskId, taskTryNumber },
+      queryKey,
+    ),
+    queryFn: () =>
+      TaskInstanceService.getTaskInstanceTryDetails({
+        dagId,
+        dagRunId,
+        mapIndex,
+        taskId,
+        taskTryNumber,
+      }) as TData,
+    ...options,
+  });
+/**
  * Get Tasks
  * Get tasks for DAG.
  * @param data The data for the request.
@@ -2082,6 +2201,8 @@ export const usePoolServicePostPool = <
  * Get Task Instances Batch
  * Get list of task instances.
  * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
  * @param data.requestBody
  * @returns TaskInstanceCollectionResponse Successful Response
  * @throws ApiError
@@ -2096,6 +2217,8 @@ export const useTaskInstanceServiceGetTaskInstancesBatch = <
       TData,
       TError,
       {
+        dagId: "~";
+        dagRunId: "~";
         requestBody: TaskInstancesBatchBody;
       },
       TContext
@@ -2107,12 +2230,16 @@ export const useTaskInstanceServiceGetTaskInstancesBatch = <
     TData,
     TError,
     {
+      dagId: "~";
+      dagRunId: "~";
       requestBody: TaskInstancesBatchBody;
     },
     TContext
   >({
-    mutationFn: ({ requestBody }) =>
+    mutationFn: ({ dagId, dagRunId, requestBody }) =>
       TaskInstanceService.getTaskInstancesBatch({
+        dagId,
+        dagRunId,
         requestBody,
       }) as unknown as Promise<TData>,
     ...options,
@@ -2596,6 +2723,49 @@ export const useVariableServicePatchVariable = <
     ...options,
   });
 /**
+ * Delete Asset Queued Events
+ * Delete queued asset events for an asset.
+ * @param data The data for the request.
+ * @param data.uri
+ * @param data.before
+ * @returns void Successful Response
+ * @throws ApiError
+ */
+export const useAssetServiceDeleteAssetQueuedEvents = <
+  TData = Common.AssetServiceDeleteAssetQueuedEventsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        before?: string;
+        uri: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      before?: string;
+      uri: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ before, uri }) =>
+      AssetService.deleteAssetQueuedEvents({
+        before,
+        uri,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Delete Dag Asset Queued Events
  * @param data The data for the request.
  * @param data.dagId
@@ -2638,16 +2808,17 @@ export const useAssetServiceDeleteDagAssetQueuedEvents = <
     ...options,
   });
 /**
- * Delete Asset Queued Events
- * Delete queued asset events for an asset.
+ * Delete Dag Asset Queued Event
+ * Delete a queued asset event for a DAG.
  * @param data The data for the request.
+ * @param data.dagId
  * @param data.uri
  * @param data.before
  * @returns void Successful Response
  * @throws ApiError
  */
-export const useAssetServiceDeleteAssetQueuedEvents = <
-  TData = Common.AssetServiceDeleteAssetQueuedEventsMutationResult,
+export const useAssetServiceDeleteDagAssetQueuedEvent = <
+  TData = Common.AssetServiceDeleteDagAssetQueuedEventMutationResult,
   TError = unknown,
   TContext = unknown,
 >(
@@ -2657,6 +2828,7 @@ export const useAssetServiceDeleteAssetQueuedEvents = <
       TError,
       {
         before?: string;
+        dagId: string;
         uri: string;
       },
       TContext
@@ -2669,13 +2841,15 @@ export const useAssetServiceDeleteAssetQueuedEvents = <
     TError,
     {
       before?: string;
+      dagId: string;
       uri: string;
     },
     TContext
   >({
-    mutationFn: ({ before, uri }) =>
-      AssetService.deleteAssetQueuedEvents({
+    mutationFn: ({ before, dagId, uri }) =>
+      AssetService.deleteDagAssetQueuedEvent({
         before,
+        dagId,
         uri,
       }) as unknown as Promise<TData>,
     ...options,

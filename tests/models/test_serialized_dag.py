@@ -27,12 +27,15 @@ from sqlalchemy import func, select
 
 import airflow.example_dags as example_dags_module
 from airflow.assets import Asset
+from airflow.decorators import task as task_decorator
 from airflow.models.dag import DAG
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import json
 from airflow.utils.hashlib_wrapper import md5
@@ -92,6 +95,39 @@ class TestSerializedDagModel:
                 assert result.dag_version.dag_code.fileloc == dag.fileloc
                 # Verifies JSON schema.
                 SerializedDAG.validate_schema(result.data)
+
+    def test_write_dag_when_python_callable_name_changes(self, dag_maker, session):
+        def my_callable():
+            pass
+
+        with dag_maker("dag1") as dag:
+            PythonOperator(task_id="task1", python_callable=my_callable)
+        dag.sync_to_db()
+        SDM.write_dag(dag)
+        with dag_maker("dag1") as dag:
+            PythonOperator(task_id="task1", python_callable=lambda x: None)
+        SDM.write_dag(dag)
+        assert len(session.query(DagVersion).all()) == 2
+
+        with dag_maker("dag2") as dag:
+
+            @task_decorator
+            def my_callable():
+                pass
+
+            my_callable()
+        dag.sync_to_db()
+        SDM.write_dag(dag)
+        with dag_maker("dag2") as dag:
+
+            @task_decorator
+            def my_callable2():
+                pass
+
+            my_callable2()
+        SDM.write_dag(dag)
+
+        assert len(session.query(DagVersion).all()) == 4
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_serialized_dag_is_updated_if_dag_is_changed(self):
@@ -186,7 +222,7 @@ class TestSerializedDagModel:
         ]
         DAG.bulk_write_to_db(dags)
         # we also write to dag_version and dag_code tables
-        # in dag_version, we search for unique version_name too
+        # in dag_version.
         with assert_queries_count(24):
             SDM.bulk_sync_to_db(dags)
 
