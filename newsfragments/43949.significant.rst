@@ -1,4 +1,4 @@
 The ``--clear-only`` option of ``airflow dags reserialize`` command is now removed.
 
 The ``--clear-only`` option was added to clear the serialized DAGs without reserializing them.
-This option is now removed as it is no longer needed. The command is now only for re-versioning DAGs.
+This option is now removed as it is no longer needed. The command is now only for reserializing DAGs.

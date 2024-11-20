@@ -1236,10 +1236,9 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name="reserialize",
-        help="Re-version DAGs by parsing the DagBag files",
+        help="Reserialize DAGs by parsing the DagBag files",
         description=(
-            "Manually initiate re-versioning of DAGs. Airflow will detect any changes in "
-            "your DAG's structure and re-version those that have been modified. This can be "
+            "Reserialize DAGs in the metadata DB. This can be "
             "particularly useful if your serialized DAGs become out of sync with the Airflow "
             "version you are using."
         ),
