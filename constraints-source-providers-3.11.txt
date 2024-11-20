@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-20T02:13:30.850368
+# This constraints file was automatically generated on 2024-11-20T13:46:23.322296
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -476,7 +476,7 @@ pytest-custom-exit-code==0.3.0
 pytest-icdiff==0.9
 pytest-instafail==0.5.0
 pytest-mock==3.14.0
-pytest-rerunfailures==14.0
+pytest-rerunfailures==15.0
 pytest-timeouts==1.2.1
 pytest-xdist==3.6.1
 pytest==8.3.3
@@ -608,7 +608,7 @@ types-python-slugify==8.0.2.20240310
 types-pytz==2024.2.0.20241003
 types-redis==4.6.0.20241004
 types-requests==2.32.0.20241016
-types-setuptools==75.5.0.20241121
+types-setuptools==75.5.0.20241122
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
