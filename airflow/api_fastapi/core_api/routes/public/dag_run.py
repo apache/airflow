@@ -278,14 +278,15 @@ def get_dag_runs(
 
     This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
     """
+    base_query = select(DagRun)
+
     if dag_id != "~":
         dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
         if not dag:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"The DAG with dag_id: `{dag_id}` was not found")
-    base_query = select(DagRun)
 
-    if dag_id != "~":
         base_query = base_query.filter(DagRun.dag_id == dag_id)
+
     dag_run_select, total_entries = paginated_select(
         base_query,
         [logical_date, start_date_range, end_date_range, update_at_range, state],
@@ -295,7 +296,7 @@ def get_dag_runs(
         session,
     )
 
-    dag_runs = session.scalars(dag_run_select).all()
+    dag_runs = session.scalars(dag_run_select)
     return DAGRunCollectionResponse(
         dag_runs=[DAGRunResponse.model_validate(dag_run, from_attributes=True) for dag_run in dag_runs],
         total_entries=total_entries,
