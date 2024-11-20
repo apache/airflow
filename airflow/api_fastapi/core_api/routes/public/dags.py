@@ -262,7 +262,7 @@ def patch_dags(
         session,
     )
 
-    dags = session.scalars(dags_select)
+    dags = session.scalars(dags_select).all()
 
     dags_to_update = {dag.dag_id for dag in dags}
 
