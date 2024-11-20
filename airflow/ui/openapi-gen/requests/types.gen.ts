@@ -3039,6 +3039,8 @@ export type $OpenApiTs = {
         422: HTTPValidationError;
       };
     };
+  };
+  "/public/pools": {
     post: {
       req: PostPoolData;
       res: {
