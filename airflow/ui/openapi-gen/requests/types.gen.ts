@@ -129,6 +129,29 @@ export type BaseInfoSchema = {
 };
 
 /**
+ * List of config sections with their options.
+ */
+export type Config = {
+  sections: Array<ConfigSection>;
+};
+
+/**
+ * Config option.
+ */
+export type ConfigOption = {
+  key: string;
+  value: string | [string, string];
+};
+
+/**
+ * Config Section Schema.
+ */
+export type ConfigSection = {
+  name: string;
+  options: Array<ConfigOption>;
+};
+
+/**
  * Connection Serializer for requests body.
  */
 export type ConnectionBody = {
@@ -1278,7 +1301,7 @@ export type ClearDagRunResponse =
   | DAGRunResponse;
 
 export type GetDagSourceData = {
-  accept?: string;
+  accept?: "application/json" | "text/plain" | "*/*";
   dagId: string;
   versionNumber?: number | null;
 };
@@ -1290,6 +1313,21 @@ export type GetDagStatsData = {
 };
 
 export type GetDagStatsResponse = DagStatsCollectionResponse;
+
+export type GetConfigData = {
+  accept?: "application/json" | "text/plain" | "*/*";
+  section?: string | null;
+};
+
+export type GetConfigResponse = Config;
+
+export type GetConfigValueData = {
+  accept?: "application/json" | "text/plain" | "*/*";
+  option: string;
+  section: string;
+};
+
+export type GetConfigValueResponse = Config;
 
 export type ListDagWarningsData = {
   dagId?: string | null;
@@ -2469,6 +2507,68 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/config/": {
+    get: {
+      req: GetConfigData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: Config;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Not Acceptable
+         */
+        406: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/config/section/{section}/option/{option}": {
+    get: {
+      req: GetConfigValueData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: Config;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Not Acceptable
+         */
+        406: HTTPExceptionResponse;
         /**
          * Validation Error
          */
