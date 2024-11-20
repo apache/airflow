@@ -25,12 +25,16 @@ LocalExecutor.
 
 from __future__ import annotations
 
+import ctypes
 import logging
 import multiprocessing
+import multiprocessing.sharedctypes
 import os
 import subprocess
 from multiprocessing import Queue, SimpleQueue
 from typing import TYPE_CHECKING, Any, Optional, Tuple
+
+from setproctitle import setproctitle
 
 from airflow import settings
 from airflow.executors.base_executor import PARALLELISM, BaseExecutor
@@ -49,10 +53,13 @@ if TYPE_CHECKING:
     TaskInstanceStateType = Tuple[TaskInstanceKey, TaskInstanceState, Optional[Exception]]
 
 
-def _run_worker(logger_name: str, input: SimpleQueue[ExecutorWorkType], output: Queue[TaskInstanceStateType]):
+def _run_worker(
+    logger_name: str,
+    input: SimpleQueue[ExecutorWorkType],
+    output: Queue[TaskInstanceStateType],
+    unread_messages: multiprocessing.sharedctypes.Synchronized[int],
+):
     import signal
-
-    from setproctitle import setproctitle
 
     # Ignore ctrl-c in this process -- we don't want to kill _this_ one. we let tasks run to completion
     signal.signal(signal.SIGINT, signal.SIG_IGN)
@@ -80,6 +87,10 @@ def _run_worker(logger_name: str, input: SimpleQueue[ExecutorWorkType], output: 
             # Received poison pill, no more tasks to run
             return
 
+        # Decrement this as soon as we pick up a message off the queue
+        with unread_messages:
+            unread_messages.value -= 1
+
         (key, command) = item
         try:
             state = _execute_work(log, key, command)
@@ -96,8 +107,6 @@ def _execute_work(log: logging.Logger, key: TaskInstanceKey, command: CommandTyp
     :param key: the key to identify the task instance
     :param command: the command to execute
     """
-    from setproctitle import setproctitle
-
     setproctitle(f"airflow worker -- LocalExecutor: {command}")
     dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(command)
     try:
@@ -132,8 +141,6 @@ def _execute_work_in_fork(log: logging.Logger, command: CommandType) -> TaskInst
     ret = 1
     try:
         import signal
-
-        from setproctitle import setproctitle
 
         from airflow.cli.cli_parser import get_parser
 
@@ -176,7 +183,7 @@ class LocalExecutor(BaseExecutor):
     activity_queue: SimpleQueue[ExecutorWorkType]
     result_queue: SimpleQueue[TaskInstanceStateType]
     workers: dict[int, multiprocessing.Process]
-    _outstanding_messages: int = 0
+    _unread_messages: multiprocessing.sharedctypes.Synchronized[int]
 
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__(parallelism=parallelism)
@@ -191,7 +198,10 @@ class LocalExecutor(BaseExecutor):
         self.activity_queue = SimpleQueue()
         self.result_queue = SimpleQueue()
         self.workers = {}
-        self._outstanding_messages = 0
+
+        # Mypy sees this value as `SynchronizedBase[c_uint]`, but that isn't the right runtime type behaviour
+        # (it looks like an int to python)
+        self._unread_messages = multiprocessing.Value(ctypes.c_uint)  # type: ignore[assignment]
 
     @add_span
     def execute_async(
@@ -204,7 +214,8 @@ class LocalExecutor(BaseExecutor):
         """Execute asynchronously."""
         self.validate_airflow_tasks_run_command(command)
         self.activity_queue.put((key, command))
-        self._outstanding_messages += 1
+        with self._unread_messages:
+            self._unread_messages.value += 1
         self._check_workers(can_start=True)
 
     def _check_workers(self, can_start: bool = True):
@@ -214,20 +225,28 @@ class LocalExecutor(BaseExecutor):
             if not proc.is_alive():
                 to_remove.add(pid)
                 proc.close()
+                if proc.exitcode is not None and proc.exitcode > 0:
+                    # The process died!
+                    ...
 
         if to_remove:
             self.workers = {pid: proc for pid, proc in self.workers.items() if pid not in to_remove}
 
-        # If we're using spawn in multiprocessing (default on macos now) to start tasks, this can get called a
-        # via sync() a few times before the spawned process actually starts picking up messages. Try not to
-        # create too much
+        with self._unread_messages:
+            num_outstanding = self._unread_messages.value
 
-        if self._outstanding_messages <= 0 or self.activity_queue.empty():
-            # Nothing to do, should we shut down idle workers?
+        if num_outstanding <= 0 or self.activity_queue.empty():
+            # Nothing to do. Future enhancement if someone wants: shut down workers that have been idle for N
+            # seconds
             return
 
-        need_more_workers = len(self.workers) < self._outstanding_messages
+        # If we're using spawn in multiprocessing (default on macOS now) to start tasks, this can get called a
+        # via `sync()` a few times before the spawned process actually starts picking up messages. Try not to
+        # create too much
+        need_more_workers = len(self.workers) < num_outstanding
         if need_more_workers and (self.parallelism == 0 or len(self.workers) < self.parallelism):
+            # This only creates one worker, which is fine as we call this directly after putting a message on
+            # activity_queue in execute_async
             self._spawn_worker()
 
     def _spawn_worker(self):
@@ -237,6 +256,7 @@ class LocalExecutor(BaseExecutor):
                 "logger_name": self.log.name,
                 "input": self.activity_queue,
                 "output": self.result_queue,
+                "unread_messages": self._unread_messages,
             },
         )
         p.start()
@@ -252,7 +272,6 @@ class LocalExecutor(BaseExecutor):
     def _read_results(self):
         while not self.result_queue.empty():
             key, state, exc = self.result_queue.get()
-            self._outstanding_messages = self._outstanding_messages - 1
 
             if exc:
                 # TODO: This needs a better stacktrace, it appears from here

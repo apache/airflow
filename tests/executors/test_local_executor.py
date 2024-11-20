@@ -66,7 +66,6 @@ class TestLocalExecutor:
                 return 0
 
         def fake_task_run(args):
-            print(repr(args))
             if args.dag_id != "success":
                 raise AirflowException("Simulate failed task")
 
@@ -96,9 +95,10 @@ class TestLocalExecutor:
             expected = self.TEST_SUCCESS_COMMANDS + 1 if parallelism == 0 else parallelism
             # Depending on how quickly the tasks run, we might not need to create all the workers we could
             assert 1 <= len(spawn_worker.calls) <= expected
+
         # By that time Queues are already shutdown so we cannot check if they are empty
         assert len(executor.running) == 0
-        assert executor._outstanding_messages == 0
+        assert executor._unread_messages.value == 0
 
         for i in range(self.TEST_SUCCESS_COMMANDS):
             key_id = success_key.format(i)
