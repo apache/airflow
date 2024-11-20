@@ -196,7 +196,7 @@ class TaskInstanceReferenceResponse(BaseModel):
     """Task Instance Reference serializer for responses."""
 
     task_id: str
-    dag_run_id: str = Field(validation_alias=AliasChoices("run_id", "dagrun_id"))
+    dag_run_id: str = Field(validation_alias=AliasChoices("run_id"))
     dag_id: str
     logical_date: datetime
 
