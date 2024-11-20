@@ -63,7 +63,7 @@ def list_dag_warnings(
         select(DagWarning), [warning_type, dag_id], order_by, offset, limit, session
     )
 
-    dag_warnings = session.scalars(dag_warnings_select).all()
+    dag_warnings = session.scalars(dag_warnings_select)
 
     return DAGWarningCollectionResponse(
         dag_warnings=[

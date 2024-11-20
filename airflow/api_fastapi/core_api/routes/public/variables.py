@@ -98,7 +98,7 @@ def get_variables(
         session=session,
     )
 
-    variables = session.scalars(variable_select).all()
+    variables = session.scalars(variable_select)
 
     return VariableCollectionResponse(
         variables=[VariableResponse.model_validate(variable, from_attributes=True) for variable in variables],
