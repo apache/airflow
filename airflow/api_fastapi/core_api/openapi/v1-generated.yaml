@@ -1683,6 +1683,10 @@ paths:
         required: false
         schema:
           type: string
+          enum:
+          - application/json
+          - text/plain
+          - '*/*'
           default: '*/*'
           title: Accept
       responses:
@@ -1779,6 +1783,163 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/config:
+    get:
+      tags:
+      - Config
+      summary: Get Config
+      operationId: get_config
+      parameters:
+      - name: section
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Section
+      - name: accept
+        in: header
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/json
+          - text/plain
+          - '*/*'
+          default: '*/*'
+          title: Accept
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+            text/plain:
+              schema:
+                type: string
+                example: '[core]
+
+                  dags_folder = /opt/airflow/dags
+
+                  base_log_folder = /opt/airflow/logs
+
+
+                  [smtp]
+
+                  smtp_host = localhost
+
+                  smtp_mail_from = airflow@example.com
+
+                  '
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Acceptable
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/config/section/{section}/option/{option}:
+    get:
+      tags:
+      - Config
+      summary: Get Config Value
+      operationId: get_config_value
+      parameters:
+      - name: section
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Section
+      - name: option
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Option
+      - name: accept
+        in: header
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/json
+          - text/plain
+          - '*/*'
+          default: '*/*'
+          title: Accept
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+            text/plain:
+              schema:
+                type: string
+                example: '[core]
+
+                  dags_folder = /opt/airflow/dags
+
+                  base_log_folder = /opt/airflow/logs
+
+                  '
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Acceptable
         '422':
           description: Validation Error
           content:
@@ -4661,6 +4822,55 @@ components:
       - status
       title: BaseInfoSchema
       description: Base status field for metadatabase and scheduler.
+    Config:
+      properties:
+        sections:
+          items:
+            $ref: '#/components/schemas/ConfigSection'
+          type: array
+          title: Sections
+      type: object
+      required:
+      - sections
+      title: Config
+      description: List of config sections with their options.
+    ConfigOption:
+      properties:
+        key:
+          type: string
+          title: Key
+        value:
+          anyOf:
+          - type: string
+          - prefixItems:
+            - type: string
+            - type: string
+            type: array
+            maxItems: 2
+            minItems: 2
+          title: Value
+      type: object
+      required:
+      - key
+      - value
+      title: ConfigOption
+      description: Config option.
+    ConfigSection:
+      properties:
+        name:
+          type: string
+          title: Name
+        options:
+          items:
+            $ref: '#/components/schemas/ConfigOption'
+          type: array
+          title: Options
+      type: object
+      required:
+      - name
+      - options
+      title: ConfigSection
+      description: Config Section Schema.
     ConnectionBody:
       properties:
         connection_id:
