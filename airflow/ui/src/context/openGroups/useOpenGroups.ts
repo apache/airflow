@@ -16,21 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
-import type { NodeProps, Node as NodeType } from "@xyflow/react";
+import { useContext } from "react";
 
-import { NodeWrapper } from "./NodeWrapper";
-import type { CustomNodeProps } from "./reactflowUtils";
+import {
+  OpenGroupsContext,
+  type OpenGroupsContextType,
+} from "./OpenGroupsProvider";
 
-export const JoinNode = ({
-  data,
-}: NodeProps<NodeType<CustomNodeProps, "join">>) => (
-  <NodeWrapper>
-    <Box
-      bg="fg"
-      borderRadius={`${data.width}px`}
-      height={`${data.height}px`}
-      width={`${data.width}px`}
-    />
-  </NodeWrapper>
-);
+export const useOpenGroups = (): OpenGroupsContextType => {
+  const context = useContext(OpenGroupsContext);
+
+  if (context === undefined) {
+    throw new Error("useOpenGroup must be used within a OpenGroupsProvider");
+  }
+
+  return context;
+};

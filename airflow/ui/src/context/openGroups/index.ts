@@ -16,33 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useState } from "react";
 
-const useToggleGroups = ({ dagId }: { dagId: string }) => {
-  const openGroupsKey = `${dagId}/open-groups`;
-  let storedGroups: Array<string> = [];
-
-  try {
-    const storageGroups = localStorage.getItem(openGroupsKey) ?? "[]";
-    const parsed = JSON.parse(storageGroups) as unknown;
-
-    if (Array.isArray(parsed) && typeof parsed[0] === "string") {
-      storedGroups = parsed as Array<string>;
-    }
-    // eslint-disable-next-line no-empty
-  } catch {}
-
-  const [openGroupIds, setOpenGroupIds] = useState(storedGroups);
-
-  const onToggleGroups = (groupIds: Array<string>) => {
-    localStorage.setItem(openGroupsKey, JSON.stringify(groupIds));
-    setOpenGroupIds(groupIds);
-  };
-
-  return {
-    onToggleGroups,
-    openGroupIds,
-  };
-};
-
-export default useToggleGroups;
+export * from "./OpenGroupsProvider";
+export * from "./useOpenGroups";

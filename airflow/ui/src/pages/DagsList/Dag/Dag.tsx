@@ -26,6 +26,7 @@ import {
 } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ProgressBar } from "src/components/ui";
+import { OpenGroupsProvider } from "src/context/openGroups";
 
 import { Header } from "./Header";
 import { DagTabs } from "./Tabs";
@@ -55,7 +56,7 @@ export const Dag = () => {
       ?.latest_dag_runs ?? [];
 
   return (
-    <>
+    <OpenGroupsProvider dagId={dagId ?? ""}>
       <Box>
         <Button asChild colorPalette="blue" variant="ghost">
           <RouterLink to="/dags">
@@ -74,6 +75,6 @@ export const Dag = () => {
       <Box overflow="auto">
         <Outlet />
       </Box>
-    </>
+    </OpenGroupsProvider>
   );
 };

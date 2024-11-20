@@ -19,25 +19,12 @@
 import { Box, Button, Flex, Text } from "@chakra-ui/react";
 import type { NodeProps, Node as NodeType } from "@xyflow/react";
 
+import { useOpenGroups } from "src/context/openGroups";
 import { pluralize } from "src/utils";
 
 import { NodeWrapper } from "./NodeWrapper";
 import { TaskName } from "./TaskName";
-import type { Node } from "./data";
-
-export type CustomNodeProps = {
-  childCount?: number;
-  height?: number;
-  isActive?: boolean;
-  isGroup?: boolean;
-  isMapped?: boolean;
-  isOpen?: boolean;
-  label: string;
-  onToggleGroups: (groupIds: Array<string>) => void;
-  openGroupIds: Array<string>;
-  setupTeardownType?: Node["setup_teardown_type"];
-  width?: number;
-};
+import type { CustomNodeProps } from "./reactflowUtils";
 
 export const TaskNode = ({
   data: {
@@ -47,20 +34,15 @@ export const TaskNode = ({
     isMapped,
     isOpen,
     label,
-    onToggleGroups,
-    openGroupIds,
     setupTeardownType,
     width,
   },
   id,
 }: NodeProps<NodeType<CustomNodeProps, "task">>) => {
+  const { toggleGroupId } = useOpenGroups();
   const onClick = () => {
     if (isGroup) {
-      onToggleGroups(
-        isOpen
-          ? openGroupIds.filter((groupId) => groupId !== id)
-          : [...openGroupIds, id],
-      );
+      toggleGroupId(id);
     }
   };
 

@@ -241,7 +241,6 @@ type LayoutProps = {
   arrange?: string;
   edges: Array<Edge>;
   nodes: Array<Node>;
-  onToggleGroups: (groupIds: Array<string>) => void;
   openGroupIds: Array<string>;
 };
 
@@ -249,7 +248,6 @@ export const useGraphLayout = ({
   arrange = "LR",
   edges,
   nodes,
-  onToggleGroups,
   openGroupIds = [],
 }: LayoutProps) =>
   useQuery({
@@ -274,8 +272,6 @@ export const useGraphLayout = ({
       // 3. Flatten the nodes and edges for xyflow to actually render the graph
       const flattenedData = flattenGraph({
         children: data.children,
-        onToggleGroups,
-        openGroupIds,
       });
 
       // merge & dedupe edges

@@ -19,10 +19,9 @@
 import { Flex } from "@chakra-ui/react";
 import { ReactFlow, Controls, Background, MiniMap } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useParams } from "react-router-dom";
 
 import { useColorMode } from "src/context/colorMode";
-import useToggleGroups from "src/utils/useToggleGroups";
+import { useOpenGroups } from "src/context/openGroups";
 
 import Edge from "./Edge";
 import { JoinNode } from "./JoinNode";
@@ -38,12 +37,10 @@ const edgeTypes = { custom: Edge };
 
 export const Graph = () => {
   const { colorMode } = useColorMode();
-  const { dagId = "" } = useParams();
 
-  const { onToggleGroups, openGroupIds } = useToggleGroups({ dagId });
+  const { openGroupIds } = useOpenGroups();
   const { data } = useGraphLayout({
     ...graphData,
-    onToggleGroups,
     openGroupIds,
   });
 

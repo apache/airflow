@@ -19,23 +19,31 @@
 import type { Node as FlowNodeType, Edge as FlowEdgeType } from "@xyflow/react";
 import type { ElkExtendedEdge } from "elkjs";
 
-import type { CustomNodeProps } from "./TaskNode";
+import type { Node } from "./data";
 import type { LayoutNode } from "./useGraphLayout";
+
+export type CustomNodeProps = {
+  childCount?: number;
+  height?: number;
+  isActive?: boolean;
+  isGroup?: boolean;
+  isMapped?: boolean;
+  isOpen?: boolean;
+  label: string;
+  setupTeardownType?: Node["setup_teardown_type"];
+  width?: number;
+};
 
 type NodeType = FlowNodeType<CustomNodeProps>;
 
 type FlattenNodesProps = {
   children?: Array<LayoutNode>;
-  onToggleGroups: (groupIds: Array<string>) => void;
-  openGroupIds: Array<string>;
   parent?: NodeType;
 };
 
 // Generate a flattened list of nodes for react-flow to render
 export const flattenGraph = ({
   children,
-  onToggleGroups,
-  openGroupIds,
   parent,
 }: FlattenNodesProps): {
   edges: Array<ElkExtendedEdge>;
@@ -53,11 +61,7 @@ export const flattenGraph = ({
     const x = (parent?.position.x ?? 0) + (node.x ?? 0);
     const y = (parent?.position.y ?? 0) + (node.y ?? 0);
     const newNode = {
-      data: {
-        ...node,
-        onToggleGroups,
-        openGroupIds,
-      },
+      data: node,
       id: node.id,
       position: {
         x,
@@ -100,8 +104,6 @@ export const flattenGraph = ({
     if (node.children) {
       const { edges: childEdges, nodes: childNodes } = flattenGraph({
         children: node.children,
-        onToggleGroups,
-        openGroupIds,
         parent: newNode,
       });
 
