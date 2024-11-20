@@ -766,6 +766,7 @@ def get_task_instance_try_details(
     return task_instance_history_schema.dump(result[0])
 
 
+@mark_fastapi_migration_done
 @provide_session
 def get_mapped_task_instance_try_details(
     *,
