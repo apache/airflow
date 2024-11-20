@@ -4,6 +4,7 @@ import { UseQueryResult } from "@tanstack/react-query";
 import {
   AssetService,
   BackfillService,
+  ConfigService,
   ConnectionService,
   DagRunService,
   DagService,
@@ -410,7 +411,7 @@ export const UseDagSourceServiceGetDagSourceKeyFn = (
     dagId,
     versionNumber,
   }: {
-    accept?: string;
+    accept?: "application/json" | "text/plain" | "*/*";
     dagId: string;
     versionNumber?: number;
   },
@@ -435,6 +436,47 @@ export const UseDagStatsServiceGetDagStatsKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [useDagStatsServiceGetDagStatsKey, ...(queryKey ?? [{ dagIds }])];
+export type ConfigServiceGetConfigDefaultResponse = Awaited<
+  ReturnType<typeof ConfigService.getConfig>
+>;
+export type ConfigServiceGetConfigQueryResult<
+  TData = ConfigServiceGetConfigDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useConfigServiceGetConfigKey = "ConfigServiceGetConfig";
+export const UseConfigServiceGetConfigKeyFn = (
+  {
+    accept,
+    section,
+  }: {
+    accept?: "application/json" | "text/plain" | "*/*";
+    section?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [useConfigServiceGetConfigKey, ...(queryKey ?? [{ accept, section }])];
+export type ConfigServiceGetConfigValueDefaultResponse = Awaited<
+  ReturnType<typeof ConfigService.getConfigValue>
+>;
+export type ConfigServiceGetConfigValueQueryResult<
+  TData = ConfigServiceGetConfigValueDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useConfigServiceGetConfigValueKey = "ConfigServiceGetConfigValue";
+export const UseConfigServiceGetConfigValueKeyFn = (
+  {
+    accept,
+    option,
+    section,
+  }: {
+    accept?: "application/json" | "text/plain" | "*/*";
+    option: string;
+    section: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useConfigServiceGetConfigValueKey,
+  ...(queryKey ?? [{ accept, option, section }]),
+];
 export type DagWarningServiceListDagWarningsDefaultResponse = Awaited<
   ReturnType<typeof DagWarningService.listDagWarnings>
 >;

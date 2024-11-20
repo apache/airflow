@@ -74,11 +74,14 @@ class TestGetDAGSource:
             json.loads(response.content.decode())
         assert response.headers["Content-Type"].startswith("text/plain")
 
-    def test_should_respond_200_json(self, test_client, test_dag):
+    @pytest.mark.parametrize(
+        "headers", [{"Accept": "application/json"}, {"Accept": "application/json; charset=utf-8"}, {}]
+    )
+    def test_should_respond_200_json(self, test_client, test_dag, headers):
         dag_content = self._get_dag_file_code(test_dag.fileloc)
         response: Response = test_client.get(
             f"{API_PREFIX}/{TEST_DAG_ID}",
-            headers={"Accept": "application/json"},
+            headers=headers,
         )
         assert isinstance(response, Response)
         assert 200 == response.status_code
