@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-19T19:47:57.258489
+# This constraints file was automatically generated on 2024-11-20T02:20:57.301280
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -227,7 +227,7 @@ azure-synapse-artifacts==0.19.0
 azure-synapse-spark==0.7.0
 babel==2.16.0
 backoff==2.2.1
-bcrypt==4.2.0
+bcrypt==4.2.1
 beautifulsoup4==4.12.3
 billiard==4.2.1
 bitarray==3.0.0
@@ -318,7 +318,7 @@ google-api-python-client==2.153.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.36.0
-google-cloud-aiplatform==1.72.0
+google-cloud-aiplatform==1.73.0
 google-cloud-appengine-logging==1.5.0
 google-cloud-audit-log==0.3.0
 google-cloud-automl==2.14.1
@@ -720,7 +720,7 @@ universal_pathlib==0.2.5
 uritemplate==4.1.1
 urllib3==2.2.3
 uuid6==2024.7.10
-uv==0.5.2
+uv==0.5.3
 uvicorn==0.32.0
 uvloop==0.21.0
 validators==0.33.0
