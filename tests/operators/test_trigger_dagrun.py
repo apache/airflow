@@ -30,7 +30,7 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.settings import TracebackSessionForTests
 from airflow.triggers.external_task import DagStateTrigger
 from airflow.utils import timezone
@@ -107,7 +107,9 @@ class TestDagRunOperator:
             )
             .one()
         )
-        with mock.patch("airflow.operators.trigger_dagrun.build_airflow_url_with_query") as mock_build_url:
+        with mock.patch(
+            "airflow.providers.standard.operators.trigger_dagrun.build_airflow_url_with_query"
+        ) as mock_build_url:
             triggering_task.get_extra_links(triggering_ti, "Triggered DAG")
         assert mock_build_url.called
         args, _ = mock_build_url.call_args
