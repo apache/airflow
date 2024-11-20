@@ -79,7 +79,7 @@ class TestLocalExecutor:
         success_key = "success {}"
         assert executor.result_queue.empty()
 
-        with spy_on(executor._spawn_worker) as spy:
+        with spy_on(executor._spawn_worker) as spawn_worker:
             run_id = "manual_" + datetime.datetime.now().isoformat()
             for i in range(self.TEST_SUCCESS_COMMANDS):
                 key_id, command = success_key.format(i), success_command
@@ -94,7 +94,8 @@ class TestLocalExecutor:
             executor.end()
 
             expected = self.TEST_SUCCESS_COMMANDS + 1 if parallelism == 0 else parallelism
-            assert len(spy.calls) == expected
+            # Depending on how quickly the tasks run, we might not need to create all the workers we could
+            assert 1 <= len(spawn_worker.calls) <= expected
         # By that time Queues are already shutdown so we cannot check if they are empty
         assert len(executor.running) == 0
         assert executor._outstanding_messages == 0
