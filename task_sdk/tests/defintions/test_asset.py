@@ -31,6 +31,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
+    AssetAliasCondition,
     AssetAll,
     AssetAny,
     BaseAsset,
