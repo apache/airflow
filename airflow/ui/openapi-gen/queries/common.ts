@@ -113,6 +113,28 @@ export const UseAssetServiceGetAssetEventsKeyFn = (
     },
   ]),
 ];
+export type AssetServiceGetAssetQueuedEventsDefaultResponse = Awaited<
+  ReturnType<typeof AssetService.getAssetQueuedEvents>
+>;
+export type AssetServiceGetAssetQueuedEventsQueryResult<
+  TData = AssetServiceGetAssetQueuedEventsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useAssetServiceGetAssetQueuedEventsKey =
+  "AssetServiceGetAssetQueuedEvents";
+export const UseAssetServiceGetAssetQueuedEventsKeyFn = (
+  {
+    before,
+    uri,
+  }: {
+    before?: string;
+    uri: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useAssetServiceGetAssetQueuedEventsKey,
+  ...(queryKey ?? [{ before, uri }]),
+];
 export type AssetServiceGetAssetDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getAsset>
 >;
@@ -189,7 +211,7 @@ export const UseDashboardServiceHistoricalMetricsKeyFn = (
     endDate,
     startDate,
   }: {
-    endDate: string;
+    endDate?: string;
     startDate: string;
   },
   queryKey?: Array<unknown>,
@@ -1001,6 +1023,33 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     },
   ]),
 ];
+export type TaskInstanceServiceGetTaskInstanceTryDetailsDefaultResponse =
+  Awaited<ReturnType<typeof TaskInstanceService.getTaskInstanceTryDetails>>;
+export type TaskInstanceServiceGetTaskInstanceTryDetailsQueryResult<
+  TData = TaskInstanceServiceGetTaskInstanceTryDetailsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useTaskInstanceServiceGetTaskInstanceTryDetailsKey =
+  "TaskInstanceServiceGetTaskInstanceTryDetails";
+export const UseTaskInstanceServiceGetTaskInstanceTryDetailsKeyFn = (
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+    taskTryNumber,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    taskId: string;
+    taskTryNumber: number;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useTaskInstanceServiceGetTaskInstanceTryDetailsKey,
+  ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId, taskTryNumber }]),
+];
 export type TaskServiceGetTasksDefaultResponse = Awaited<
   ReturnType<typeof TaskService.getTasks>
 >;
@@ -1184,14 +1233,14 @@ export type PoolServicePatchPoolMutationResult = Awaited<
 export type VariableServicePatchVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.patchVariable>
 >;
+export type AssetServiceDeleteAssetQueuedEventsMutationResult = Awaited<
+  ReturnType<typeof AssetService.deleteAssetQueuedEvents>
+>;
 export type AssetServiceDeleteDagAssetQueuedEventsMutationResult = Awaited<
   ReturnType<typeof AssetService.deleteDagAssetQueuedEvents>
 >;
 export type AssetServiceDeleteDagAssetQueuedEventMutationResult = Awaited<
   ReturnType<typeof AssetService.deleteDagAssetQueuedEvent>
->;
-export type AssetServiceDeleteAssetQueuedEventsMutationResult = Awaited<
-  ReturnType<typeof AssetService.deleteAssetQueuedEvents>
 >;
 export type ConnectionServiceDeleteConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.deleteConnection>

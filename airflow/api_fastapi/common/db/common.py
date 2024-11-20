@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.common.parameters import BaseParam
 
 
-async def get_session() -> Session:
+def get_session() -> Session:
     """
     Dependency for providing a session.
 
@@ -43,7 +43,7 @@ async def get_session() -> Session:
         def your_route(session: Annotated[Session, Depends(get_session)]):
             pass
     """
-    with create_session() as session:
+    with create_session(scoped=False) as session:
         yield session
 
 
