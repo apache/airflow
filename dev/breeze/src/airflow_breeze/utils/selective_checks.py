@@ -45,7 +45,6 @@ from airflow_breeze.global_constants import (
     DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
     KIND_VERSION,
-    OPENLINEAGE_INTEGRATION,
     RUNS_ON_PUBLIC_RUNNER,
     RUNS_ON_SELF_HOSTED_ASF_RUNNER,
     RUNS_ON_SELF_HOSTED_RUNNER,
@@ -1463,7 +1462,7 @@ class SelectiveChecks:
         if self.needs_api_tests:
             all_providers.add("fab")
         if self.needs_ol_tests:
-            all_providers.add(OPENLINEAGE_INTEGRATION)
+            all_providers.add("openlineage")
         if all_providers_affected:
             return ALL_PROVIDERS_SENTINEL
         if suspended_providers:
@@ -1497,11 +1496,11 @@ class SelectiveChecks:
                 )
         if not all_providers:
             return None
-        if not all_providers == {OPENLINEAGE_INTEGRATION}:
-            for provider in list(all_providers):
-                all_providers.update(
-                    get_related_providers(provider, upstream_dependencies=True, downstream_dependencies=True)
-                )
+
+        for provider in list(all_providers):
+            all_providers.update(
+                get_related_providers(provider, upstream_dependencies=True, downstream_dependencies=True)
+            )
         return sorted(all_providers)
 
     def _is_canary_run(self):
