@@ -208,7 +208,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "24.3.1"
-UV_VERSION = "0.5.2"
+UV_VERSION = "0.5.3"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -619,13 +619,13 @@ BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.9",
         "airflow-version": "2.9.3",
-        "remove-providers": "cloudant edge",
+        "remove-providers": "cloudant fab edge",
         "run-tests": "true",
     },
     {
         "python-version": "3.9",
         "airflow-version": "2.10.3",
-        "remove-providers": "cloudant",
+        "remove-providers": "cloudant fab",
         "run-tests": "true",
     },
 ]

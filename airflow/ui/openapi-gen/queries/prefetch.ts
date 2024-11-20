@@ -146,6 +146,29 @@ export const prefetchUseAssetServiceGetAssetEvents = (
       }),
   });
 /**
+ * Get Asset Queued Events
+ * Get queued asset events for an asset.
+ * @param data The data for the request.
+ * @param data.uri
+ * @param data.before
+ * @returns QueuedEventCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseAssetServiceGetAssetQueuedEvents = (
+  queryClient: QueryClient,
+  {
+    before,
+    uri,
+  }: {
+    before?: string;
+    uri: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseAssetServiceGetAssetQueuedEventsKeyFn({ before, uri }),
+    queryFn: () => AssetService.getAssetQueuedEvents({ before, uri }),
+  });
+/**
  * Get Asset
  * Get an asset.
  * @param data The data for the request.
@@ -236,7 +259,7 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
     endDate,
     startDate,
   }: {
-    endDate: string;
+    endDate?: string;
     startDate: string;
   },
 ) =>
@@ -1349,6 +1372,51 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
         state,
         updatedAtGte,
         updatedAtLte,
+      }),
+  });
+/**
+ * Get Task Instance Try Details
+ * Get task instance details by try number.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.taskTryNumber
+ * @param data.mapIndex
+ * @returns TaskInstanceHistoryResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseTaskInstanceServiceGetTaskInstanceTryDetails = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+    taskTryNumber,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    taskId: string;
+    taskTryNumber: number;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTryDetailsKeyFn({
+      dagId,
+      dagRunId,
+      mapIndex,
+      taskId,
+      taskTryNumber,
+    }),
+    queryFn: () =>
+      TaskInstanceService.getTaskInstanceTryDetails({
+        dagId,
+        dagRunId,
+        mapIndex,
+        taskId,
+        taskTryNumber,
       }),
   });
 /**

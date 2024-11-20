@@ -95,6 +95,7 @@ operators:
 hooks:
   - integration-name: Common SQL
     python-modules:
+      - airflow.providers.common.sql.hooks.handlers
       - airflow.providers.common.sql.hooks.sql
 
 sensors:
