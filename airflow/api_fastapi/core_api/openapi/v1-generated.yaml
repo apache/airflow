@@ -1488,7 +1488,7 @@ paths:
       tags:
       - DagRun
       summary: Trigger Dag Run
-      description: Trigger a DAG Run.
+      description: Trigger a DAG.
       operationId: trigger_dag_run
       parameters:
       - name: dag_id
@@ -6674,10 +6674,8 @@ components:
           - type: 'null'
           title: Dag Run Id
         logical_date:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
+          type: string
+          format: date-time
           title: Logical Date
         data_interval_start:
           anyOf:

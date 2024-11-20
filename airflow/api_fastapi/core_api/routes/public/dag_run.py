@@ -19,8 +19,9 @@ from __future__ import annotations
 
 from typing import Annotated
 
+import pendulum
 from fastapi import Depends, HTTPException, Query, Request, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from airflow.api.common.mark_tasks import (
@@ -43,7 +44,11 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskInstanceResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.models import DAG, DagRun
+from airflow.models import DAG, DagModel, DagRun
+from airflow.models.dag_version import DagVersion
+from airflow.timetables.base import DataInterval
+from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
 
@@ -242,7 +247,66 @@ def clear_dag_run(
     ),
 )
 def trigger_dag_run(
-    dag_id, post_body: TriggerDAGRunPostBody, session: Annotated[Session, Depends(get_session)]
+    dag_id, body: TriggerDAGRunPostBody, request: Request, session: Annotated[Session, Depends(get_session)]
 ):
-    """Trigger a DAG Run."""
-    pass
+    """Trigger a DAG."""
+    dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
+    if not dm:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with dag_id: '{dag_id}' not found")
+
+    if dm.has_import_errors:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
+        )
+
+    logical_date = pendulum.instance(body.logical_date)
+    run_id = body.dag_run_id
+    dagrun_instance = session.scalar(
+        select(DagRun)
+        .where(
+            DagRun.dag_id == dag_id,
+            or_(DagRun.run_id == run_id, DagRun.logical_date == logical_date),
+        )
+        .limit(1)
+    )
+    if not dagrun_instance:
+        dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+
+        if body.data_interval_start and body.data_interval_end:
+            data_interval = DataInterval(
+                start=pendulum.instance(body.data_interval_start),
+                end=pendulum.instance(body.data_interval_end),
+            )
+        else:
+            data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
+        dag_run = dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            run_id=run_id,
+            logical_date=logical_date,
+            data_interval=data_interval,
+            state=DagRunState.QUEUED,
+            conf=body.conf,
+            external_trigger=True,
+            dag_version=dag_version,
+            session=session,
+            triggered_by=DagRunTriggeredByType.REST_API,
+        )
+        dag_run_note = body.note
+        if dag_run_note:
+            current_user_id = None  # refer to https://github.com/apache/airflow/issues/43534
+            dag_run.note = (dag_run_note, current_user_id)
+        return DAGRunResponse.model_validate(dag_run, from_attributes=True)
+
+    if dagrun_instance.logical_date == logical_date:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"DAGRun with DAG ID: '{dag_id}' and "
+            f"DAGRun logical date: '{logical_date.isoformat(sep=' ')}' already exists",
+        )
+
+    raise HTTPException(
+        status.HTTP_409_CONFLICT,
+        f"DAGRun with DAG ID: '{dag_id}' and DAGRun ID: '{body.dag_run_id}' already exists",
+    )

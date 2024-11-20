@@ -929,7 +929,7 @@ export class DagRunService {
 
   /**
    * Trigger Dag Run
-   * Trigger a DAG Run.
+   * Trigger a DAG.
    * @param data The data for the request.
    * @param data.dagId
    * @param data.requestBody

@@ -939,7 +939,7 @@ export type TimeDelta = {
  */
 export type TriggerDAGRunPostBody = {
   dag_run_id: string | null;
-  logical_date: string | null;
+  logical_date: string;
   data_interval_start: string | null;
   data_interval_end: string | null;
   conf: {
