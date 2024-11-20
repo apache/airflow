@@ -225,9 +225,6 @@ class LocalExecutor(BaseExecutor):
             if not proc.is_alive():
                 to_remove.add(pid)
                 proc.close()
-                if proc.exitcode is not None and proc.exitcode > 0:
-                    # The process died!
-                    ...
 
         if to_remove:
             self.workers = {pid: proc for pid, proc in self.workers.items() if pid not in to_remove}
