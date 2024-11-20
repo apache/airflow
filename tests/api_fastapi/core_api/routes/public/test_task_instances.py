@@ -1502,9 +1502,7 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         self, test_client, try_number, session
     ):
         tis = self.create_task_instances(session, task_instances=[{"state": State.FAILED}])
-        print(tis)
         old_ti = tis[0]
-        print(old_ti)
         for idx in (1, 2):
             ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
             ti.rendered_task_instance_fields = RTIF(ti, render_templates=False)
@@ -1514,7 +1512,6 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             session.add(ti)
         session.commit()
         tis = session.query(TaskInstance).all()
-        print(tis)
         # Record the task instance history
         from airflow.models.taskinstance import clear_task_instances
 
@@ -1527,14 +1524,10 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
                 session.merge(ti)
         session.commit()
         tis = session.query(TaskInstance).all()
-        print(tis)
         # in each loop, we should get the right mapped TI back
         for map_index in (1, 2):
             # Get the info from TIHistory: try_number 1, try_number 2 is TI table(latest)
-            print(
-                "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
-                f"/print_the_context/{map_index}/tries/{try_number}",
-            )
+            # TODO: Add "REMOTE_USER": "test" as per legacy code after adding Authentication
             response = test_client.get(
                 "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
                 f"/print_the_context/{map_index}/tries/{try_number}",
