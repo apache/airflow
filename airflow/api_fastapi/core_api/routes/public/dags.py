@@ -90,7 +90,7 @@ def get_dags(
         session,
     )
 
-    dags = session.scalars(dags_select).all()
+    dags = session.scalars(dags_select)
 
     return DAGCollectionResponse(
         dags=[DAGResponse.model_validate(dag, from_attributes=True) for dag in dags],
@@ -262,7 +262,7 @@ def patch_dags(
         session,
     )
 
-    dags = session.scalars(dags_select).all()
+    dags = session.scalars(dags_select)
 
     dags_to_update = {dag.dag_id for dag in dags}
 

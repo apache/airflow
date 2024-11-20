@@ -105,7 +105,7 @@ def get_pools(
         session=session,
     )
 
-    pools = session.scalars(pools_select).all()
+    pools = session.scalars(pools_select)
 
     return PoolCollectionResponse(
         pools=[PoolResponse.model_validate(pool, from_attributes=True) for pool in pools],

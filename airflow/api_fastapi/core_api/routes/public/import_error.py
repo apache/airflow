@@ -96,7 +96,7 @@ def get_import_errors(
         limit,
         session,
     )
-    import_errors = session.scalars(import_errors_select).all()
+    import_errors = session.scalars(import_errors_select)
 
     return ImportErrorCollectionResponse(
         import_errors=[

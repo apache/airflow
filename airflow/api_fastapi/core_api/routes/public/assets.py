@@ -106,7 +106,7 @@ def get_assets(
         assets_select.options(
             subqueryload(AssetModel.consuming_dags), subqueryload(AssetModel.producing_tasks)
         )
-    ).all()
+    )
     return AssetCollectionResponse(
         assets=[AssetResponse.model_validate(asset, from_attributes=True) for asset in assets],
         total_entries=total_entries,
@@ -153,7 +153,7 @@ def get_asset_events(
     )
 
     assets_event_select = assets_event_select.options(subqueryload(AssetEvent.created_dagruns))
-    assets_events = session.scalars(assets_event_select).all()
+    assets_events = session.scalars(assets_event_select)
 
     return AssetEventCollectionResponse(
         asset_events=[
