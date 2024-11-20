@@ -367,59 +367,6 @@ class TestGetAssetsEndpointPagination(TestAssets):
         assert response.status_code == 200
         assert len(response.json()["assets"]) == 100
 
-    @pytest.mark.parametrize(
-        "query_params, expected_detail",
-        [
-            (
-                {"limit": 1, "offset": -1},
-                [
-                    {
-                        "type": "greater_than_equal",
-                        "loc": ["query", "offset"],
-                        "msg": "Input should be greater than or equal to 0",
-                        "input": "-1",
-                        "ctx": {"ge": 0},
-                    }
-                ],
-            ),
-            (
-                {"limit": -1, "offset": 1},
-                [
-                    {
-                        "type": "greater_than_equal",
-                        "loc": ["query", "limit"],
-                        "msg": "Input should be greater than or equal to 0",
-                        "input": "-1",
-                        "ctx": {"ge": 0},
-                    }
-                ],
-            ),
-            (
-                {"limit": -1, "offset": -1},
-                [
-                    {
-                        "type": "greater_than_equal",
-                        "loc": ["query", "limit"],
-                        "msg": "Input should be greater than or equal to 0",
-                        "input": "-1",
-                        "ctx": {"ge": 0},
-                    },
-                    {
-                        "type": "greater_than_equal",
-                        "loc": ["query", "offset"],
-                        "msg": "Input should be greater than or equal to 0",
-                        "input": "-1",
-                        "ctx": {"ge": 0},
-                    },
-                ],
-            ),
-        ],
-    )
-    def test_bad_limit_and_offset(self, test_client, query_params, expected_detail):
-        response = test_client.get("/public/assets", params=query_params)
-        assert response.status_code == 422
-        assert response.json()["detail"] == expected_detail
-
 
 class TestGetAssetEvents(TestAssets):
     def test_should_respond_200(self, test_client, session):
@@ -675,7 +622,7 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
         self._create_asset_dag_run_queues(dag_id, asset_id, session)
 
         response = test_client.get(
-            f"/public/dags/{dag_id}/assets/queuedEvent",
+            f"/public/dags/{dag_id}/assets/queuedEvents",
         )
 
         assert response.status_code == 200
@@ -694,7 +641,7 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
         dag_id = "not_exists"
 
         response = test_client.get(
-            f"/public/dags/{dag_id}/assets/queuedEvent",
+            f"/public/dags/{dag_id}/assets/queuedEvents",
         )
 
         assert response.status_code == 404
@@ -713,7 +660,7 @@ class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
         assert len(adrqs) == 1
 
         response = test_client.delete(
-            f"/public/dags/{dag_id}/assets/queuedEvent",
+            f"/public/dags/{dag_id}/assets/queuedEvents",
         )
 
         assert response.status_code == 204
@@ -724,7 +671,7 @@ class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
         dag_id = "not_exists"
 
         response = test_client.delete(
-            f"/public/dags/{dag_id}/assets/queuedEvent",
+            f"/public/dags/{dag_id}/assets/queuedEvents",
         )
 
         assert response.status_code == 404
@@ -738,7 +685,7 @@ class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
         assert len(adrqs) == 0
 
         response = test_client.delete(
-            f"/public/dags/{dag_id}/assets/queuedEvent",
+            f"/public/dags/{dag_id}/assets/queuedEvents",
         )
 
         assert response.status_code == 404
@@ -772,33 +719,6 @@ class TestPostAssetEvents(TestAssets):
 
         assert response.status_code == 422
 
-
-class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
-    @pytest.mark.usefixtures("time_freezer")
-    def test_should_respond_204(self, test_client, session, create_dummy_dag):
-        dag, _ = create_dummy_dag()
-        dag_id = dag.dag_id
-        uri = "s3://bucket/key/1"
-        self.create_assets(session=session, num=1)
-        asset_id = 1
-        self._create_asset_dag_run_queues(dag_id, asset_id, session)
-
-        response = test_client.delete(
-            f"/public/assets/queuedEvent/{uri}",
-        )
-        assert response.status_code == 204
-        assert session.query(AssetDagRunQueue).filter_by(asset_id=1).first() is None
-
-    def test_should_respond_404(self, test_client):
-        uri = "not_exists"
-
-        response = test_client.delete(
-            f"/public/assets/queuedEvent/{uri}",
-        )
-
-        assert response.status_code == 404
-        assert response.json()["detail"] == "Queue event with uri: `not_exists` was not found"
-
     @pytest.mark.usefixtures("time_freezer")
     @pytest.mark.enable_redact
     def test_should_mask_sensitive_extra(self, test_client, session):
@@ -818,3 +738,101 @@ class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
             "created_dagruns": [],
             "timestamp": self.default_time.replace("+00:00", "Z"),
         }
+
+
+class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
+    @pytest.mark.usefixtures("time_freezer")
+    def test_should_respond_200(self, test_client, session, create_dummy_dag):
+        dag, _ = create_dummy_dag()
+        dag_id = dag.dag_id
+        self.create_assets(session=session, num=1)
+        uri = "s3://bucket/key/1"
+        asset_id = 1
+        self._create_asset_dag_run_queues(dag_id, asset_id, session)
+
+        response = test_client.get(
+            f"/public/assets/queuedEvents/{uri}",
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "queued_events": [
+                {
+                    "created_at": self.default_time.replace("+00:00", "Z"),
+                    "uri": "s3://bucket/key/1",
+                    "dag_id": "dag",
+                }
+            ],
+            "total_entries": 1,
+        }
+
+    def test_should_respond_404(self, test_client):
+        uri = "not_exists"
+
+        response = test_client.get(
+            f"/public/assets/queuedEvents/{uri}",
+        )
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Queue event with uri: `not_exists` was not found"
+
+
+class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
+    @pytest.mark.usefixtures("time_freezer")
+    def test_should_respond_204(self, test_client, session, create_dummy_dag):
+        dag, _ = create_dummy_dag()
+        dag_id = dag.dag_id
+        uri = "s3://bucket/key/1"
+        self.create_assets(session=session, num=1)
+        asset_id = 1
+        self._create_asset_dag_run_queues(dag_id, asset_id, session)
+
+        response = test_client.delete(
+            f"/public/assets/queuedEvents/{uri}",
+        )
+        assert response.status_code == 204
+        assert session.query(AssetDagRunQueue).filter_by(asset_id=1).first() is None
+
+    def test_should_respond_404(self, test_client):
+        uri = "not_exists"
+
+        response = test_client.delete(
+            f"/public/assets/queuedEvents/{uri}",
+        )
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Queue event with uri: `not_exists` was not found"
+
+
+class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
+    def test_delete_should_respond_204(self, test_client, session, create_dummy_dag):
+        dag, _ = create_dummy_dag()
+        dag_id = dag.dag_id
+        asset_uri = "s3://bucket/key/1"
+        self.create_assets(session=session, num=1)
+        asset_id = 1
+
+        self._create_asset_dag_run_queues(dag_id, asset_id, session)
+        adrq = session.query(AssetDagRunQueue).all()
+        assert len(adrq) == 1
+
+        response = test_client.delete(
+            f"/public/dags/{dag_id}/assets/queuedEvents/{asset_uri}",
+        )
+
+        assert response.status_code == 204
+        adrq = session.query(AssetDagRunQueue).all()
+        assert len(adrq) == 0
+
+    def test_should_respond_404(self, test_client):
+        dag_id = "not_exists"
+        asset_uri = "not_exists"
+
+        response = test_client.delete(
+            f"/public/dags/{dag_id}/assets/queuedEvents/{asset_uri}",
+        )
+
+        assert response.status_code == 404
+        assert (
+            response.json()["detail"]
+            == "Queued event with dag_id: `not_exists` and asset uri: `not_exists` was not found"
+        )

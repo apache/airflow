@@ -33,7 +33,8 @@ import structlog.testing
 
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.datamodels._generated import TaskInstance
-from airflow.sdk.execution_time.supervisor import WatchedSubprocess
+from airflow.sdk.api.datamodels.activities import ExecuteTaskActivity
+from airflow.sdk.execution_time.supervisor import WatchedSubprocess, supervise
 from airflow.utils import timezone as tz
 
 if TYPE_CHECKING:
@@ -51,29 +52,29 @@ class TestWatchedSubprocess:
         # Ignore anything lower than INFO for this test. Captured_logs resets things for us afterwards
         structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
 
-        line = lineno()
-
         def subprocess_main():
             # This is run in the subprocess!
 
             # Ensure we follow the "protocol" and get the startup message before we do anything
             sys.stdin.readline()
 
-            # Flush calls are to ensure ordering of output for predictable tests
             import logging
             import warnings
 
             print("I'm a short message")
             sys.stdout.write("Message ")
-            sys.stdout.write("split across two writes\n")
-            sys.stdout.flush()
-
             print("stderr message", file=sys.stderr)
-            sys.stderr.flush()
+            # We need a short sleep for the main process to process things. I worry this timining will be
+            # fragile, but I can't think of a better way. This lets the stdout be read (partial line) and the
+            # stderr full line be read
+            sleep(0.1)
+            sys.stdout.write("split across two writes\n")
 
             logging.getLogger("airflow.foobar").error("An error message")
 
             warnings.warn("Warning should be captured too", stacklevel=1)
+
+        line = lineno() - 2  # Line the error should be on
 
         instant = tz.datetime(2024, 11, 7, 12, 34, 56, 78901)
         time_machine.move_to(instant, tick=False)
@@ -103,16 +104,16 @@ class TestWatchedSubprocess:
                 "timestamp": "2024-11-07T12:34:56.078901Z",
             },
             {
-                "chan": "stdout",
-                "event": "Message split across two writes",
-                "level": "info",
+                "chan": "stderr",
+                "event": "stderr message",
+                "level": "error",
                 "logger": "task",
                 "timestamp": "2024-11-07T12:34:56.078901Z",
             },
             {
-                "chan": "stderr",
-                "event": "stderr message",
-                "level": "error",
+                "chan": "stdout",
+                "event": "Message split across two writes",
+                "level": "info",
                 "logger": "task",
                 "timestamp": "2024-11-07T12:34:56.078901Z",
             },
@@ -127,7 +128,7 @@ class TestWatchedSubprocess:
                 "event": "Warning should be captured too",
                 "filename": __file__,
                 "level": "warning",
-                "lineno": line + 22,
+                "lineno": line,
                 "logger": "py.warnings",
                 "timestamp": instant.replace(tzinfo=None),
             },
@@ -190,4 +191,37 @@ class TestWatchedSubprocess:
         assert proc.wait() == 0
         assert spy.called_with(id, pid=proc.pid)  # noqa: PGH005
         # The exact number we get will depend on timing behaviour, so be a little lenient
-        assert 2 <= len(spy.calls) <= 4
+        assert 1 <= len(spy.calls) <= 4
+
+    def test_run_simple_dag(self, test_dags_dir, captured_logs, time_machine):
+        """Test running a simple DAG in a subprocess and capturing the output."""
+
+        # Ignore anything lower than INFO for this test.
+        structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
+
+        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 78901)
+        time_machine.move_to(instant, tick=False)
+
+        dagfile_path = test_dags_dir / "super_basic_run.py"
+        task_activity = ExecuteTaskActivity(
+            ti=TaskInstance(
+                id=UUID("4d828a62-a417-4936-a7a6-2b3fabacecab"),
+                task_id="hello",
+                dag_id="super_basic_run",
+                run_id="c",
+                try_number=1,
+            ),
+            path=dagfile_path,
+            token="",
+        )
+        # Assert Exit Code is 0
+        assert supervise(activity=task_activity, server="", dry_run=True) == 0
+
+        # We should have a log from the task!
+        assert {
+            "chan": "stdout",
+            "event": "Hello World hello!",
+            "level": "info",
+            "logger": "task",
+            "timestamp": "2024-11-07T12:34:56.078901Z",
+        } in captured_logs

@@ -43,6 +43,8 @@ TRANSLATION_LEGACY_MODEL_PREDICT_LINK = (
     + "/locations/{location}/datasets/{dataset_id}/predict;modelId={model_id}?project={project_id}"
 )
 
+TRANSLATION_TRANSLATE_TEXT_BATCH = BASE_LINK + "/storage/browser/{output_uri_prefix}?project={project_id}"
+
 
 class TranslationLegacyDatasetLink(BaseGoogleLink):
     """
@@ -177,5 +179,38 @@ class TranslationLegacyModelPredictLink(BaseGoogleLink):
                 "dataset_id": dataset_id,
                 "model_id": model_id,
                 "project_id": project_id,
+            },
+        )
+
+
+class TranslateTextBatchLink(BaseGoogleLink):
+    """
+    Helper class for constructing Translation results for the text batch translate.
+
+    Provides link to output results.
+
+    """
+
+    name = "Text Translate Batch"
+    key = "translate_text_batch"
+    format_str = TRANSLATION_TRANSLATE_TEXT_BATCH
+
+    @staticmethod
+    def extract_output_uri_prefix(output_config):
+        return output_config["gcs_destination"]["output_uri_prefix"].rpartition("gs://")[-1]
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance,
+        project_id: str,
+        output_config: dict,
+    ):
+        task_instance.xcom_push(
+            context,
+            key=TranslateTextBatchLink.key,
+            value={
+                "project_id": project_id,
+                "output_uri_prefix": TranslateTextBatchLink.extract_output_uri_prefix(output_config),
             },
         )

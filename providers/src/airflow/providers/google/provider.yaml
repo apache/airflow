@@ -1291,6 +1291,7 @@ extra-links:
   - airflow.providers.google.cloud.links.translate.TranslationLegacyModelLink
   - airflow.providers.google.cloud.links.translate.TranslationLegacyModelTrainLink
   - airflow.providers.google.cloud.links.translate.TranslationLegacyModelPredictLink
+  - airflow.providers.google.cloud.links.translate.TranslateTextBatchLink
 
 
 secrets-backends:

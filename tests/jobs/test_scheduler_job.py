@@ -39,7 +39,6 @@ from sqlalchemy import func, select, update
 
 import airflow.example_dags
 from airflow import settings
-from airflow.assets import Asset
 from airflow.assets.manager import AssetManager
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
@@ -66,6 +65,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.sdk.definitions.asset import Asset
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
@@ -2276,8 +2276,7 @@ class TestSchedulerJob:
         scheduler._task_queued_timeout = -300  # always in violation of timeout
 
         with _loader_mock(mock_executors):
-            scheduler._handle_tasks_stuck_in_queued(session=session)
-
+            scheduler._handle_tasks_stuck_in_queued()
         # If the task gets stuck in queued once, we reset it to scheduled
         tis = dr.get_task_instances(session=session)
         assert [x.state for x in tis] == ["scheduled", "scheduled"]
@@ -2291,8 +2290,7 @@ class TestSchedulerJob:
         ]
 
         with _loader_mock(mock_executors):
-            scheduler._handle_tasks_stuck_in_queued(session=session)
-        session.commit()
+            scheduler._handle_tasks_stuck_in_queued()
 
         log_events = [x.event for x in session.scalars(select(Log).where(Log.run_id == run_id)).all()]
         assert log_events == [
@@ -2307,8 +2305,7 @@ class TestSchedulerJob:
         _queue_tasks(tis=tis)
 
         with _loader_mock(mock_executors):
-            scheduler._handle_tasks_stuck_in_queued(session=session)
-        session.commit()
+            scheduler._handle_tasks_stuck_in_queued()
         log_events = [x.event for x in session.scalars(select(Log).where(Log.run_id == run_id)).all()]
         assert log_events == [
             "stuck in queued reschedule",

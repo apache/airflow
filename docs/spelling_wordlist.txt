@@ -898,6 +898,7 @@ Jupyter
 jupyter
 jupytercmd
 JWT
+jwt
 Kafka
 kafka
 Kalibrr
@@ -1701,6 +1702,7 @@ traceback
 tracebacks
 tracemalloc
 TrainingPipeline
+TranslationServiceClient
 travis
 triage
 triaging
