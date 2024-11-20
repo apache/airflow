@@ -173,18 +173,25 @@ class LocalExecutor(BaseExecutor):
 
     serve_logs: bool = True
 
+    activity_queue: SimpleQueue[ExecutorWorkType]
+    result_queue: SimpleQueue[TaskInstanceStateType]
+    workers: dict[int, multiprocessing.Process]
+    _outstanding_messages: int = 0
+
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__(parallelism=parallelism)
-        self._outstanding_messages: int = 0
         if self.parallelism < 0:
             raise ValueError("parallelism must be greater than or equal to 0")
-        self.activity_queue: SimpleQueue[ExecutorWorkType] = SimpleQueue()
-        self.result_queue: SimpleQueue[TaskInstanceStateType] = SimpleQueue()
-        self.workers: dict[int, multiprocessing.Process] = {}
 
     def start(self) -> None:
         """Start the executor."""
-        pass
+        # We delay opening these queues until the start method mostly for unit tests. ExecutorLoader caches
+        # instances, so each test reusues the same instance! (i.e. test 1 runs, closes the queues, then test 2
+        # comes back and gets the same LocalExecutor instance, so we have to open new here.)
+        self.activity_queue = SimpleQueue()
+        self.result_queue = SimpleQueue()
+        self.workers = {}
+        self._outstanding_messages = 0
 
     @add_span
     def execute_async(
