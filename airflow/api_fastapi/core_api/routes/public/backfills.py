@@ -67,11 +67,11 @@ def list_backfills(
         limit=limit,
         session=session,
     )
-    backfills = session.scalars(select_stmt).all()
+    backfills = session.scalars(select_stmt)
 
     return BackfillCollectionResponse(
         backfills=[BackfillResponse.model_validate(x, from_attributes=True) for x in backfills],
-        total_entries=len(backfills),
+        total_entries=total_entries,
     )
 
 
