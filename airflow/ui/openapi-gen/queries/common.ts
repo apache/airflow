@@ -151,6 +151,30 @@ export const UseAssetServiceGetDagAssetQueuedEventsKeyFn = (
   useAssetServiceGetDagAssetQueuedEventsKey,
   ...(queryKey ?? [{ before, dagId }]),
 ];
+export type AssetServiceGetDagAssetQueuedEventDefaultResponse = Awaited<
+  ReturnType<typeof AssetService.getDagAssetQueuedEvent>
+>;
+export type AssetServiceGetDagAssetQueuedEventQueryResult<
+  TData = AssetServiceGetDagAssetQueuedEventDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useAssetServiceGetDagAssetQueuedEventKey =
+  "AssetServiceGetDagAssetQueuedEvent";
+export const UseAssetServiceGetDagAssetQueuedEventKeyFn = (
+  {
+    before,
+    dagId,
+    uri,
+  }: {
+    before?: string;
+    dagId: string;
+    uri: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useAssetServiceGetDagAssetQueuedEventKey,
+  ...(queryKey ?? [{ before, dagId, uri }]),
+];
 export type DashboardServiceHistoricalMetricsDefaultResponse = Awaited<
   ReturnType<typeof DashboardService.historicalMetrics>
 >;
@@ -361,15 +385,17 @@ export const useDagSourceServiceGetDagSourceKey =
 export const UseDagSourceServiceGetDagSourceKeyFn = (
   {
     accept,
-    fileToken,
+    dagId,
+    versionNumber,
   }: {
     accept?: string;
-    fileToken: string;
+    dagId: string;
+    versionNumber?: number;
   },
   queryKey?: Array<unknown>,
 ) => [
   useDagSourceServiceGetDagSourceKey,
-  ...(queryKey ?? [{ accept, fileToken }]),
+  ...(queryKey ?? [{ accept, dagId, versionNumber }]),
 ];
 export type DagStatsServiceGetDagStatsDefaultResponse = Awaited<
   ReturnType<typeof DagStatsService.getDagStats>
@@ -1160,6 +1186,12 @@ export type VariableServicePatchVariableMutationResult = Awaited<
 >;
 export type AssetServiceDeleteDagAssetQueuedEventsMutationResult = Awaited<
   ReturnType<typeof AssetService.deleteDagAssetQueuedEvents>
+>;
+export type AssetServiceDeleteDagAssetQueuedEventMutationResult = Awaited<
+  ReturnType<typeof AssetService.deleteDagAssetQueuedEvent>
+>;
+export type AssetServiceDeleteAssetQueuedEventsMutationResult = Awaited<
+  ReturnType<typeof AssetService.deleteAssetQueuedEvents>
 >;
 export type ConnectionServiceDeleteConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.deleteConnection>

@@ -22,7 +22,10 @@ import logging
 import os
 import signal
 import sys
+from time import sleep
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
+from uuid import UUID
 
 import pytest
 import structlog
@@ -32,6 +35,9 @@ from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.datamodels._generated import TaskInstance
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess
 from airflow.utils import timezone as tz
+
+if TYPE_CHECKING:
+    import kgb
 
 
 def lineno():
@@ -153,3 +159,35 @@ class TestWatchedSubprocess:
         rc = proc.wait()
 
         assert rc == -9
+
+    def test_regular_heartbeat(self, spy_agency: kgb.SpyAgency, monkeypatch):
+        """Test that the WatchedSubprocess class regularly sends heartbeat requests, up to a certain frequency"""
+        import airflow.sdk.execution_time.supervisor
+
+        monkeypatch.setattr(airflow.sdk.execution_time.supervisor, "FASTEST_HEARTBEAT_INTERVAL", 0.1)
+
+        def subprocess_main():
+            sys.stdin.readline()
+
+            for _ in range(5):
+                print("output", flush=True)
+                sleep(0.05)
+
+        id = UUID("4d828a62-a417-4936-a7a6-2b3fabacecab")
+        spy = spy_agency.spy_on(sdk_client.TaskInstanceOperations.heartbeat)
+        proc = WatchedSubprocess.start(
+            path=os.devnull,
+            ti=TaskInstance(
+                id=id,
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+            ),
+            client=sdk_client.Client(base_url="", dry_run=True, token=""),
+            target=subprocess_main,
+        )
+        assert proc.wait() == 0
+        assert spy.called_with(id, pid=proc.pid)  # noqa: PGH005
+        # The exact number we get will depend on timing behaviour, so be a little lenient
+        assert 1 <= len(spy.calls) <= 4
