@@ -100,7 +100,7 @@ is included in the provider package and install it on the webserver and use the
 Some caveats:
 
 - Tasks can consume resources. Make sure your worker has enough resources to run ``worker_concurrency`` tasks
-- Make sure that the ``concurrency_slots`` of a Tasks matches with the ``worker_concurrency`` of the worker
+- Make sure that the ``pool_slots`` of a Tasks matches with the ``worker_concurrency`` of the worker
 - Queue names are limited to 256 characters
 
 See :doc:`apache-airflow:administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
@@ -217,14 +217,16 @@ Concurrency slot handling
 Some tasks may need more resources than other tasks, to handle these use case the Edge worker supports
 concurrency slot handling. The logic behind this is the same as the pool slot feature
 see :doc:`apache-airflow:administration-and-deployment/pools`.
-If a task needs more resources, the ``concurrency_slots`` value can be increased to reduce concurrency. The value can be used to block
-other tasks from being executed in parallel on the same worker. The ``concurrency_slots`` value works together
-with the concurrency value of the worker. A ``concurrency_slots`` of 2 and a worker concurrency of 3 means
-that a worker which executes this task can only execute a job with a ``concurrency_slots`` of 1 in parallel.
-If no ``concurrency_slots`` is defined for a task the default value is 1. The ``concurrency_slots`` value only supports
+Edge worker reuses ``pool_slots`` of task_instance to keep number if task instance parameter as low as possible.
+The ``pool_slots`` value works together with the ``worker_concurrency`` value which is defined during start of worker.
+If a task needs more resources, the ``pool_slots`` value can be increased to reduce number of tasks running in parallel.
+The value can be used to block other tasks from being executed in parallel on the same worker.
+A ``pool_slots`` of 2 and a ``worker_concurrency`` of 3 means
+that a worker which executes this task can only execute a job with a ``pool_slots`` of 1 in parallel.
+If no ``pool_slots`` is defined for a task the default value is 1. The ``pool_slots`` value only supports
 integer values.
 
-Here is an example setting concurrency slots for a task:
+Here is an example setting pool_slots for a task:
 
 .. code-block:: python
 
@@ -238,17 +240,14 @@ Here is an example setting concurrency slots for a task:
     from airflow.settings import AIRFLOW_HOME
 
     with DAG(
-        dag_id="example_edge_concurrency",
+        dag_id="example_edge_pool_slots",
         schedule=None,
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         catchup=False,
         tags=["example"],
     ) as dag:
-        executor_config_template = {
-            "concurrency_slots": 2,
-        }
 
-        @task(executor="EdgeExecutor", executor_config=executor_config_template)
+        @task(executor="EdgeExecutor", pool_slots=2)
         def task_with_template():
             print_stuff()
 

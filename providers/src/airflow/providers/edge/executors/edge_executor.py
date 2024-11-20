@@ -94,6 +94,11 @@ class EdgeExecutor(BaseExecutor):
         session: Session = NEW_SESSION,
     ) -> None:
         """Execute asynchronously."""
+        # Use of a hacky trick to get task instance, will be changed with Airflow 3.0.0
+        # _process_tasks in BaseExecutor calls this function and uses this code to get TI
+        task_instance = self.queued_tasks[key][3]  # TaskInstance in fourth element
+        task_instance.pool_slots
+
         self.validate_airflow_tasks_run_command(command)
         session.add(
             EdgeJobModel(
@@ -104,7 +109,7 @@ class EdgeExecutor(BaseExecutor):
                 try_number=key.try_number,
                 state=TaskInstanceState.QUEUED,
                 queue=queue or DEFAULT_QUEUE,
-                concurrency_slots=executor_config.get("concurrency_slots", 1) if executor_config else 1,
+                concurrency_slots=task_instance.pool_slots,
                 command=str(command),
             )
         )

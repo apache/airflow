@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -40,47 +40,36 @@ class TestEdgeExecutor:
         with create_session() as session:
             session.query(EdgeJobModel).delete()
 
-    def test_execute_async_bad_command(self):
+    def get_test_executor(self, pool_slots=1):
+        key = TaskInstanceKey(
+            dag_id="test_dag", run_id="test_run", task_id="test_task", map_index=-1, try_number=1
+        )
+        ti = MagicMock()
+        ti.pool_slots = pool_slots
         executor = EdgeExecutor()
+        executor.queued_tasks = {key: [None, None, None, ti]}
+
+        return (executor, key)
+
+    def test_execute_async_bad_command(self):
+        executor, key = self.get_test_executor()
         with pytest.raises(ValueError):
             executor.execute_async(
-                TaskInstanceKey(
-                    dag_id="test_dag", run_id="test_run", task_id="test_task", map_index=-1, try_number=1
-                ),
+                key,
                 command=["hello", "world"],
             )
 
-    def test_execute_async_ok_command(self):
-        executor = EdgeExecutor()
-        executor.execute_async(
-            TaskInstanceKey(
-                dag_id="test_dag", run_id="test_run", task_id="test_task", map_index=-1, try_number=1
-            ),
-            command=["airflow", "tasks", "run", "hello", "world"],
-        )
-        with create_session() as session:
-            jobs: list[EdgeJobModel] = session.query(EdgeJobModel).all()
-        assert len(jobs) == 1
-        assert jobs[0].dag_id == "test_dag"
-        assert jobs[0].run_id == "test_run"
-        assert jobs[0].task_id == "test_task"
-        assert jobs[0].concurrency_slots == 1
-
     @pytest.mark.parametrize(
-        "executor_config, expected_concurrency",
+        "pool_slots, expected_concurrency",
         [
-            pytest.param(None, 1, id="no_config"),
-            pytest.param({}, 1, id="missing_key"),
-            pytest.param({"concurrency_slots": 5}, 5, id="with_config"),
+            pytest.param(1, 1, id="default_pool_size"),
+            pytest.param(5, 5, id="increased_pool_size"),
         ],
     )
-    def test_execute_async_concurrency(self, executor_config, expected_concurrency):
-        executor = EdgeExecutor()
+    def test_execute_async_ok_command(self, pool_slots, expected_concurrency):
+        executor, key = self.get_test_executor(pool_slots=pool_slots)
         executor.execute_async(
-            TaskInstanceKey(
-                dag_id="test_dag", run_id="test_run", task_id="test_task", map_index=-1, try_number=1
-            ),
-            executor_config=executor_config,
+            key,
             command=["airflow", "tasks", "run", "hello", "world"],
         )
         with create_session() as session:
