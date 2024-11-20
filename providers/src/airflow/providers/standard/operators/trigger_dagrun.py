@@ -34,8 +34,7 @@ from airflow.exceptions import (
     DagNotFound,
     DagRunAlreadyExists,
 )
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.baseoperatorlink import BaseOperatorLink
+from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun

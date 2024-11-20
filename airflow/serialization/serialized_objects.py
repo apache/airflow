@@ -119,7 +119,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 _OPERATOR_EXTRA_LINKS: set[str] = {
-    "airflow.operators.trigger_dagrun.TriggerDagRunLink",
+    "airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunLink",
     "airflow.sensors.external_task.ExternalDagLink",
     # Deprecated names, so that existing serialized dags load straight away.
     "airflow.sensors.external_task.ExternalTaskSensorLink",
@@ -1020,7 +1020,7 @@ class DependencyDetector:
     @staticmethod
     def detect_task_dependencies(task: Operator) -> list[DagDependency]:
         """Detect dependencies caused by tasks."""
-        from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
         from airflow.sensors.external_task import ExternalTaskSensor
 
         deps = []

@@ -765,7 +765,7 @@ While dependencies between tasks in a DAG are explicitly defined through upstrea
 relationships, dependencies between DAGs are a bit more complex. In general, there are two ways
 in which one DAG can depend on another:
 
-- triggering - :class:`~airflow.operators.trigger_dagrun.TriggerDagRunOperator`
+- triggering - :class:`~airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator`
 - waiting - :class:`~airflow.sensors.external_task_sensor.ExternalTaskSensor`
 
 Additional difficulty is that one DAG could wait for or trigger several runs of the other DAG

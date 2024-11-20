@@ -1806,7 +1806,7 @@ class TestStringifiedDAGs:
         Tests DAG dependency detection for operators, including derived classes
         """
         from airflow.operators.empty import EmptyOperator
-        from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 
         class DerivedOperator(TriggerDagRunOperator):
             pass
