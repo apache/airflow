@@ -324,7 +324,7 @@ class TestPostPool(TestPoolsEndpoint):
     def test_should_respond_200(self, test_client, session, body, expected_status_code, expected_response):
         self.create_pools()
         n_pools = session.query(Pool).count()
-        response = test_client.post("/public/pools/", json=body)
+        response = test_client.post("/public/pools", json=body)
         assert response.status_code == expected_status_code
 
         body = response.json()
