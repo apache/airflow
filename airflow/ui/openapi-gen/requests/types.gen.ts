@@ -2599,7 +2599,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/": {
+  "/public/dags": {
     get: {
       req: GetDagsData;
       res: {
@@ -2821,7 +2821,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/eventLogs/": {
+  "/public/eventLogs": {
     get: {
       req: GetEventLogsData;
       res: {
@@ -2871,7 +2871,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/importErrors/": {
+  "/public/importErrors": {
     get: {
       req: GetImportErrorsData;
       res: {
@@ -2894,7 +2894,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/plugins/": {
+  "/public/plugins": {
     get: {
       req: GetPluginsData;
       res: {
@@ -3002,7 +3002,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/pools/": {
+  "/public/pools": {
     get: {
       req: GetPoolsData;
       res: {
@@ -3050,7 +3050,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/providers/": {
+  "/public/providers": {
     get: {
       req: GetProvidersData;
       res: {
@@ -3289,7 +3289,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/tasks/": {
+  "/public/dags/{dag_id}/tasks": {
     get: {
       req: GetTasksData;
       res: {
@@ -3432,7 +3432,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/variables/": {
+  "/public/variables": {
     get: {
       req: GetVariablesData;
       res: {
@@ -3517,7 +3517,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/version/": {
+  "/public/version": {
     get: {
       res: {
         /**

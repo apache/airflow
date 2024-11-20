@@ -1222,7 +1222,7 @@ export class DagService {
   ): CancelablePromise<GetDagsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/",
+      url: "/public/dags",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -1265,7 +1265,7 @@ export class DagService {
   ): CancelablePromise<PatchDagsResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
-      url: "/public/dags/",
+      url: "/public/dags",
       query: {
         update_mask: data.updateMask,
         limit: data.limit,
@@ -1486,7 +1486,7 @@ export class EventLogService {
   ): CancelablePromise<GetEventLogsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/eventLogs/",
+      url: "/public/eventLogs",
       query: {
         dag_id: data.dagId,
         task_id: data.taskId,
@@ -1554,7 +1554,7 @@ export class ImportErrorService {
   ): CancelablePromise<GetImportErrorsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/importErrors/",
+      url: "/public/importErrors",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -1583,7 +1583,7 @@ export class PluginService {
   ): CancelablePromise<GetPluginsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/plugins/",
+      url: "/public/plugins",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -1698,7 +1698,7 @@ export class PoolService {
   ): CancelablePromise<GetPoolsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/pools/",
+      url: "/public/pools",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -1726,7 +1726,7 @@ export class PoolService {
   ): CancelablePromise<PostPoolResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/public/pools/",
+      url: "/public/pools",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -1753,7 +1753,7 @@ export class ProviderService {
   ): CancelablePromise<GetProvidersResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/providers/",
+      url: "/public/providers",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -2112,7 +2112,7 @@ export class TaskService {
   ): CancelablePromise<GetTasksResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/tasks/",
+      url: "/public/dags/{dag_id}/tasks",
       path: {
         dag_id: data.dagId,
       },
@@ -2259,7 +2259,7 @@ export class VariableService {
   ): CancelablePromise<GetVariablesResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/variables/",
+      url: "/public/variables",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -2286,7 +2286,7 @@ export class VariableService {
   ): CancelablePromise<PostVariableResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/public/variables/",
+      url: "/public/variables",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -2365,7 +2365,7 @@ export class VersionService {
   public static getVersion(): CancelablePromise<GetVersionResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/version/",
+      url: "/public/version",
     });
   }
 }

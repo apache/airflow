@@ -2018,7 +2018,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/:
+  /public/dags:
     get:
       tags:
       - DAG
@@ -2577,7 +2577,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/eventLogs/:
+  /public/eventLogs:
     get:
       tags:
       - Event Log
@@ -2772,7 +2772,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/importErrors/:
+  /public/importErrors:
     get:
       tags:
       - Import Error
@@ -2828,7 +2828,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/plugins/:
+  /public/plugins:
     get:
       tags:
       - Plugin
@@ -3033,7 +3033,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/pools/:
+  /public/pools:
     get:
       tags:
       - Pool
@@ -3132,7 +3132,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/providers/:
+  /public/providers:
     get:
       tags:
       - Provider
@@ -3961,7 +3961,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/tasks/:
+  /public/dags/{dag_id}/tasks:
     get:
       tags:
       - Task
@@ -4226,7 +4226,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/variables/:
+  /public/variables:
     get:
       tags:
       - Variable
@@ -4426,7 +4426,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthInfoSchema'
-  /public/version/:
+  /public/version:
     get:
       tags:
       - Version

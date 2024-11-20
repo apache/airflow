@@ -61,7 +61,7 @@ def get_event_log(
 
 
 @event_logs_router.get(
-    "/",
+    "",
 )
 def get_event_logs(
     limit: QueryLimit,
