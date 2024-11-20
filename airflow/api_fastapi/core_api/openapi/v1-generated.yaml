@@ -397,7 +397,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/assets/queuedEvent/{uri}:
+  /public/assets/queuedEvents/{uri}:
     get:
       tags:
       - Asset
@@ -543,7 +543,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/assets/queuedEvent:
+  /public/dags/{dag_id}/assets/queuedEvents:
     get:
       tags:
       - Asset
@@ -649,7 +649,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/assets/queuedEvent/{uri}:
+  /public/dags/{dag_id}/assets/queuedEvents/{uri}:
     get:
       tags:
       - Asset
