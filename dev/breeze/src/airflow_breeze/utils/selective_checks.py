@@ -259,8 +259,6 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^airflow/models/assets/",
             r"^task_sdk/src/airflow/sdk/definitions/asset/",
             r"^airflow/datasets/",
-            r"^airflow/dag_processing/collection.py",
-            r"airflow/timetables/assets.py",
         ],
     }
 )
