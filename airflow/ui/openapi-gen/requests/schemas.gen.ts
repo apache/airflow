@@ -1404,6 +1404,26 @@ export const $DAGRunClearBody = {
   description: "DAG Run serializer for clear endpoint body.",
 } as const;
 
+export const $DAGRunCollectionResponse = {
+  properties: {
+    dag_runs: {
+      items: {
+        $ref: "#/components/schemas/DAGRunResponse",
+      },
+      type: "array",
+      title: "Dag Runs",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["dag_runs", "total_entries"],
+  title: "DAGRunCollectionResponse",
+  description: "DAG Run Collection serializer for responses.",
+} as const;
+
 export const $DAGRunPatchBody = {
   properties: {
     state: {
