@@ -566,7 +566,7 @@ export class BackfillService {
   ): CancelablePromise<ListBackfillsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/backfills/",
+      url: "/public/backfills",
       query: {
         dag_id: data.dagId,
         limit: data.limit,
@@ -593,7 +593,7 @@ export class BackfillService {
   ): CancelablePromise<CreateBackfillResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/public/backfills/",
+      url: "/public/backfills",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -812,7 +812,7 @@ export class ConnectionService {
   ): CancelablePromise<GetConnectionsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/connections/",
+      url: "/public/connections",
       query: {
         limit: data.limit,
         offset: data.offset,
@@ -840,7 +840,7 @@ export class ConnectionService {
   ): CancelablePromise<PostConnectionResponse> {
     return __request(OpenAPI, {
       method: "POST",
-      url: "/public/connections/",
+      url: "/public/connections",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -1085,7 +1085,7 @@ export class DagStatsService {
   ): CancelablePromise<GetDagStatsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dagStats/",
+      url: "/public/dagStats",
       query: {
         dag_ids: data.dagIds,
       },

@@ -1981,7 +1981,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/backfills/": {
+  "/public/backfills": {
     get: {
       req: ListBackfillsData;
       res: {
@@ -2234,7 +2234,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/connections/": {
+  "/public/connections": {
     get: {
       req: GetConnectionsData;
       res: {
@@ -2483,7 +2483,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dagStats/": {
+  "/public/dagStats": {
     get: {
       req: GetDagStatsData;
       res: {

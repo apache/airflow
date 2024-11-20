@@ -768,7 +768,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/backfills/:
+  /public/backfills:
     get:
       tags:
       - Backfill
@@ -1219,7 +1219,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/connections/:
+  /public/connections:
     get:
       tags:
       - Connection
@@ -1736,7 +1736,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dagStats/:
+  /public/dagStats:
     get:
       tags:
       - DagStats
