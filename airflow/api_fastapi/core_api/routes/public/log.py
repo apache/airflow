@@ -46,7 +46,6 @@ task_instances_log_router = AirflowRouter(
     response_model=TaskInstancesLogResponse,
 )
 def get_log(
-    *,
     dag_id: str,
     dag_run_id: str,
     task_id: str,
