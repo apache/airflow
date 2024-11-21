@@ -19,7 +19,7 @@
 import { useConfigServiceGetConfig } from "openapi/queries";
 
 export const useConfig = (sectionName: string, configKey: string) => {
-  // TODO: replace with a ui/config endpoitn which will always return what the UI need to render
+  // TODO: replace with a ui/config endpoint which will always return what the UI need to render
   const { data: config } = useConfigServiceGetConfig({
     accept: "application/json",
   });
