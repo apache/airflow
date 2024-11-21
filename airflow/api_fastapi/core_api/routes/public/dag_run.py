@@ -56,6 +56,7 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.models import DAG, DagModel, DagRun
 from airflow.models.dag_version import DagVersion
 from airflow.timetables.base import DataInterval
+from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -333,16 +334,16 @@ def trigger_dag_run(
             f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
         )
 
-    logical_date = pendulum.instance(body.logical_date)
     run_id = body.dag_run_id
     dagrun_instance = session.scalar(
         select(DagRun)
         .where(
             DagRun.dag_id == dag_id,
-            or_(DagRun.run_id == run_id, DagRun.logical_date == logical_date),
+            or_(DagRun.run_id == run_id),
         )
         .limit(1)
     )
+
     if not dagrun_instance:
         dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
 
@@ -352,12 +353,12 @@ def trigger_dag_run(
                 end=pendulum.instance(body.data_interval_end),
             )
         else:
-            data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+            now = pendulum.instance(timezone.utcnow())
+            data_interval = dag.timetable.infer_manual_data_interval(run_after=now)
         dag_version = DagVersion.get_latest_version(dag.dag_id)
         dag_run = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             run_id=run_id,
-            logical_date=logical_date,
             data_interval=data_interval,
             state=DagRunState.QUEUED,
             conf=body.conf,
@@ -371,13 +372,6 @@ def trigger_dag_run(
             current_user_id = None  # refer to https://github.com/apache/airflow/issues/43534
             dag_run.note = (dag_run_note, current_user_id)
         return DAGRunResponse.model_validate(dag_run, from_attributes=True)
-
-    if dagrun_instance.logical_date == logical_date:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"DAGRun with DAG ID: '{dag_id}' and "
-            f"DAGRun logical date: '{logical_date.isoformat(sep=' ')}' already exists",
-        )
 
     raise HTTPException(
         status.HTTP_409_CONFLICT,
