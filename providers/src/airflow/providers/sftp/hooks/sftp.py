@@ -28,10 +28,11 @@ from io import BytesIO
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 import asyncssh
+from asgiref.sync import sync_to_async
+
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
-from asgiref.sync import sync_to_async
 
 if TYPE_CHECKING:
     import paramiko
@@ -239,9 +240,7 @@ class SFTPHook(SSHHook):
         conn = self.get_conn()
         conn.rmdir(path)
 
-    def retrieve_file(
-        self, remote_full_path: str, local_full_path: str, prefetch: bool = True
-    ) -> None:
+    def retrieve_file(self, remote_full_path: str, local_full_path: str, prefetch: bool = True) -> None:
         """
         Transfer the remote file to a local location.
 
