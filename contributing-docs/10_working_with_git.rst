@@ -81,7 +81,7 @@ A lot of people are unfamiliar with the rebase workflow in Git, but we think it 
 providing a better alternative to the merge workflow. We've therefore written a short guide for those who
 would like to learn it.
 
-Rebasing is a good practice recommended to follow.
+Rebasing is a good practice recommended to follow for all code changes.
 
 As of February 2022, GitHub introduced the capability of "Update with Rebase" which make it easy to perform
 rebase straight in the GitHub UI, so in cases when there are no conflicts, rebasing to latest version
@@ -173,7 +173,7 @@ we will be adding the remote as "apache" so you can refer to it easily
 
    ``git rebase 5abce471e0690c6b8d06ca25685b0845c5fd270f --onto apache/main``
 
-   Note: This is optional.
+   Rebasing is a good practice recommended to follow for all code changes.
 
 7. If you have no conflicts - that's cool. You rebased. You can now run ``git push --force-with-lease`` to
    push your changes to your repository. That should trigger the build in our CI if you have a
@@ -214,7 +214,7 @@ Useful when you understand the flow but don't remember the steps and want a quic
     git commit
     git merge-base my-branch apache/main
     git checkout my-branch
-    git rebase HASH --onto apache/main #Note: This is optional.
+    git rebase HASH --onto apache/main
     git push --force-with-lease
 
 -------
