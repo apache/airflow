@@ -428,6 +428,91 @@ export const useDagsServiceRecentDagRuns = <
     ...options,
   });
 /**
+ * Get Configs
+ * Get configs for UI.
+ * @returns ConfigResponse Successful Response
+ * @throws ApiError
+ */
+export const useConfigServiceGetConfigs = <
+  TData = Common.ConfigServiceGetConfigsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseConfigServiceGetConfigsKeyFn(queryKey),
+    queryFn: () => ConfigService.getConfigs() as TData,
+    ...options,
+  });
+/**
+ * Get Config
+ * @param data The data for the request.
+ * @param data.section
+ * @param data.accept
+ * @returns airflow__api_fastapi__core_api__datamodels__config__Config Successful Response
+ * @throws ApiError
+ */
+export const useConfigServiceGetConfig = <
+  TData = Common.ConfigServiceGetConfigDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    accept,
+    section,
+  }: {
+    accept?: "application/json" | "text/plain" | "*/*";
+    section?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseConfigServiceGetConfigKeyFn(
+      { accept, section },
+      queryKey,
+    ),
+    queryFn: () => ConfigService.getConfig({ accept, section }) as TData,
+    ...options,
+  });
+/**
+ * Get Config Value
+ * @param data The data for the request.
+ * @param data.section
+ * @param data.option
+ * @param data.accept
+ * @returns airflow__api_fastapi__core_api__datamodels__config__Config Successful Response
+ * @throws ApiError
+ */
+export const useConfigServiceGetConfigValue = <
+  TData = Common.ConfigServiceGetConfigValueDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    accept,
+    option,
+    section,
+  }: {
+    accept?: "application/json" | "text/plain" | "*/*";
+    option: string;
+    section: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseConfigServiceGetConfigValueKeyFn(
+      { accept, option, section },
+      queryKey,
+    ),
+    queryFn: () =>
+      ConfigService.getConfigValue({ accept, option, section }) as TData,
+    ...options,
+  });
+/**
  * List Backfills
  * @param data The data for the request.
  * @param data.dagId
@@ -778,72 +863,6 @@ export const useDagStatsServiceGetDagStats = <
   useQuery<TData, TError>({
     queryKey: Common.UseDagStatsServiceGetDagStatsKeyFn({ dagIds }, queryKey),
     queryFn: () => DagStatsService.getDagStats({ dagIds }) as TData,
-    ...options,
-  });
-/**
- * Get Config
- * @param data The data for the request.
- * @param data.section
- * @param data.accept
- * @returns Config Successful Response
- * @throws ApiError
- */
-export const useConfigServiceGetConfig = <
-  TData = Common.ConfigServiceGetConfigDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    accept,
-    section,
-  }: {
-    accept?: "application/json" | "text/plain" | "*/*";
-    section?: string;
-  } = {},
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseConfigServiceGetConfigKeyFn(
-      { accept, section },
-      queryKey,
-    ),
-    queryFn: () => ConfigService.getConfig({ accept, section }) as TData,
-    ...options,
-  });
-/**
- * Get Config Value
- * @param data The data for the request.
- * @param data.section
- * @param data.option
- * @param data.accept
- * @returns Config Successful Response
- * @throws ApiError
- */
-export const useConfigServiceGetConfigValue = <
-  TData = Common.ConfigServiceGetConfigValueDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    accept,
-    option,
-    section,
-  }: {
-    accept?: "application/json" | "text/plain" | "*/*";
-    option: string;
-    section: string;
-  },
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseConfigServiceGetConfigValueKeyFn(
-      { accept, option, section },
-      queryKey,
-    ),
-    queryFn: () =>
-      ConfigService.getConfigValue({ accept, option, section }) as TData,
     ...options,
   });
 /**
