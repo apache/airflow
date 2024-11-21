@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.6.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Update jobs or edge workers who have been killed to clean up job table.``
+
 0.6.0pre0
 .........
 
