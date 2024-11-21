@@ -526,8 +526,6 @@ def get_log(
 
     task_log_reader = TaskLogReader()
 
-    print("\n\ntask_log_reader : ", task_log_reader)
-
     if not task_log_reader.supports_read:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Task log handler does not support read logs.")
 
