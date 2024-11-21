@@ -89,7 +89,7 @@ def get_import_errors(
 ) -> ImportErrorCollectionResponse:
     """Get all import errors."""
     import_errors_select, total_entries = paginated_select(
-        base_select=select(ParseImportError),
+        select=select(ParseImportError),
         filters=[],
         order_by=order_by,
         offset=offset,

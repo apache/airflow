@@ -90,7 +90,7 @@ def get_variables(
 ) -> VariableCollectionResponse:
     """Get all Variables entries."""
     variable_select, total_entries = paginated_select(
-        base_select=select(Variable),
+        select=select(Variable),
         filters=[],
         order_by=order_by,
         offset=offset,

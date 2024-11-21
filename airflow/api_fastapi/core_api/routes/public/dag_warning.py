@@ -60,7 +60,7 @@ def list_dag_warnings(
 ) -> DAGWarningCollectionResponse:
     """Get a list of DAG warnings."""
     dag_warnings_select, total_entries = paginated_select(
-        base_select=select(DagWarning),
+        select=select(DagWarning),
         filters=[warning_type, dag_id],
         order_by=order_by,
         offset=offset,

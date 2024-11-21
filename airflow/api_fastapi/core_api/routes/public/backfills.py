@@ -60,7 +60,7 @@ def list_backfills(
     session: Annotated[Session, Depends(get_session)],
 ) -> BackfillCollectionResponse:
     select_stmt, total_entries = paginated_select(
-        base_select=select(Backfill).where(Backfill.dag_id == dag_id),
+        select=select(Backfill).where(Backfill.dag_id == dag_id),
         filters=[],
         order_by=order_by,
         offset=offset,
