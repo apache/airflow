@@ -81,7 +81,7 @@ A lot of people are unfamiliar with the rebase workflow in Git, but we think it 
 providing a better alternative to the merge workflow. We've therefore written a short guide for those who
 would like to learn it.
 
-Note: This is optional.
+Rebasing is a good practice recommended to follow.
 
 As of February 2022, GitHub introduced the capability of "Update with Rebase" which make it easy to perform
 rebase straight in the GitHub UI, so in cases when there are no conflicts, rebasing to latest version
