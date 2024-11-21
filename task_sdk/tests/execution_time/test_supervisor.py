@@ -39,6 +39,7 @@ from airflow.sdk.api.datamodels._generated import TaskInstance
 from airflow.sdk.api.datamodels.activities import ExecuteTaskActivity
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
+    DeferTask,
     GetConnection,
     GetVariable,
     GetXCom,
@@ -52,6 +53,8 @@ from task_sdk.tests.api.test_client import make_client
 
 if TYPE_CHECKING:
     import kgb
+
+TI_ID = uuid7()
 
 
 def lineno():
@@ -307,7 +310,7 @@ class TestHandleRequest:
     def watched_subprocess(self, mocker):
         """Fixture to provide a WatchedSubprocess instance."""
         return WatchedSubprocess(
-            ti_id=uuid7(),
+            ti_id=TI_ID,
             pid=12345,
             stdin=BytesIO(),
             client=mocker.Mock(),
@@ -340,6 +343,30 @@ class TestHandleRequest:
                 ("test_dag", "test_run", "test_task", "test_key", -1),
                 XComResult(key="test_key", value="test_value"),
                 id="get_xcom",
+            ),
+            pytest.param(
+                DeferTask(
+                    state="deferred",
+                    trigger_kwargs={},
+                    next_method="execute_callback",
+                    classpath="my-classpath",
+                    trigger_timeout=None,
+                    type="DeferTask",
+                ),
+                b"",
+                "task_instances.defer",
+                (
+                    TI_ID,
+                    DeferTask(
+                        state="deferred",
+                        trigger_kwargs={},
+                        classpath="my-classpath",
+                        next_method="execute_callback",
+                        trigger_timeout=None,
+                    ).model_dump_json(),
+                ),
+                "",
+                id="patch_task_instance_to_deferred",
             ),
         ],
     )
@@ -378,5 +405,9 @@ class TestHandleRequest:
         # Verify the correct client method was called
         mock_client_method.assert_called_once_with(*method_arg)
 
+        expected = expected_buffer + b"\n"
+        if mock_response == "":
+            # for task instance endpoints, there won't be any response
+            expected = b""
         # Verify the response was added to the buffer
-        assert watched_subprocess.stdin.getvalue() == expected_buffer + b"\n"
+        assert watched_subprocess.stdin.getvalue() == expected

@@ -17,12 +17,14 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from unittest import mock
 
 import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 
+from airflow.models import Trigger
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
@@ -195,6 +197,50 @@ class TestTIUpdateState:
             response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
             assert response.status_code == 500
             assert response.json()["detail"] == "Database error occurred"
+
+    def test_ti_update_state_to_deferred(self, client, session, create_task_instance):
+        """
+        Test that tests if the transition to deferred state is handled correctly.
+        """
+
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_deferred",
+            state=State.RUNNING,
+            session=session,
+        )
+        session.commit()
+
+        mock_utcnow = mock.MagicMock(return_value=timezone.datetime(2024, 11, 22, 0, 0, 0))
+
+        with mock.patch("airflow.utils.timezone.utcnow", mock_utcnow):
+            payload = {
+                "state": "deferred",
+                "trigger_kwargs": {"key": "value"},
+                "classpath": "my-classpath",
+                "next_method": "execute_callback",
+                "trigger_timeout": "P1D",
+            }
+
+            response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+
+            assert response.status_code == 204
+            assert response.text == ""
+
+            session.expire_all()
+
+            tis = session.query(TaskInstance).all()
+            assert len(tis) == 1
+
+            assert tis[0].state == TaskInstanceState.DEFERRED
+            assert tis[0].next_method == "execute_callback"
+            assert tis[0].next_kwargs == {"key": "value"}
+            assert tis[0].trigger_timeout == datetime(2024, 11, 23, 0, 0)
+
+            t = session.query(Trigger).all()
+            assert len(t) == 1
+            assert t[0].created_date == datetime(2024, 11, 22, 0, 0, tzinfo=timezone.utc)
+            assert t[0].classpath == "my-classpath"
+            assert t[0].kwargs == {"key": "value"}
 
 
 class TestTIHealthEndpoint:
