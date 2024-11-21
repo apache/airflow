@@ -82,12 +82,20 @@ def get_dags(
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
     dags_select, total_entries = paginated_select(
-        dags_select_with_latest_dag_run,
-        [only_active, paused, dag_id_pattern, dag_display_name_pattern, tags, owners, last_dag_run_state],
-        order_by,
-        offset,
-        limit,
-        session,
+        base_select=dags_select_with_latest_dag_run,
+        filters=[
+            only_active,
+            paused,
+            dag_id_pattern,
+            dag_display_name_pattern,
+            tags,
+            owners,
+            last_dag_run_state,
+        ],
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
 
     dags = session.scalars(dags_select)
@@ -254,12 +262,12 @@ def patch_dags(
         update_mask = ["is_paused"]
 
     dags_select, total_entries = paginated_select(
-        dags_select_with_latest_dag_run,
-        [only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state],
-        None,
-        offset,
-        limit,
-        session,
+        base_select=dags_select_with_latest_dag_run,
+        filters=[only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state],
+        order_by=None,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
 
     dags = session.scalars(dags_select).all()

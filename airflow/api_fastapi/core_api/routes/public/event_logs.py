@@ -125,12 +125,12 @@ def get_event_logs(
     if after is not None:
         base_select = base_select.where(Log.dttm > after)
     event_logs_select, total_entries = paginated_select(
-        base_select,
-        [],
-        order_by,
-        offset,
-        limit,
-        session,
+        base_select=base_select,
+        filters=[],
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
     event_logs = session.scalars(event_logs_select)
 
