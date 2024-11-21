@@ -364,7 +364,7 @@ class TestPostPool(TestPoolsEndpoint):
                     "deferred_slots": 0,
                 },
                 409,
-                {"detail": "Pool with name: `my_pool` already exists"},
+                {"detail": "Unique constraint violation"},
             ),
         ],
     )

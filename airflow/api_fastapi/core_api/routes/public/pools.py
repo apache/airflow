@@ -22,7 +22,6 @@ from fastapi import Depends, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import delete, select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
@@ -162,7 +161,9 @@ def patch_pool(
 @pools_router.post(
     "",
     status_code=status.HTTP_201_CREATED,
-    responses=create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_409_CONFLICT]
+    ),  # handle by global exception handler
 )
 def post_pool(
     body: PoolPostBody,
@@ -170,13 +171,7 @@ def post_pool(
 ) -> PoolResponse:
     """Create a Pool."""
     pool = Pool(**body.model_dump())
-
     session.add(pool)
-    try:
-        session.commit()
-    except IntegrityError:
-        session.rollback()
-        raise HTTPException(status.HTTP_409_CONFLICT, f"Pool with name: `{body.pool}` already exists")
 
     return PoolResponse.model_validate(pool, from_attributes=True)
 
@@ -186,7 +181,7 @@ def post_pool(
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc(
         [
-            status.HTTP_409_CONFLICT,
+            status.HTTP_409_CONFLICT,  # handle by global exception handler
         ]
     ),
 )
@@ -197,15 +192,6 @@ def post_pools(
     """Create multiple pools."""
     pools = [Pool(**body.model_dump()) for body in body.pools]
     session.add_all(pools)
-    try:
-        session.commit()
-    except IntegrityError as e:
-        session.rollback()
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            detail=f"One or more pools already exists. Error: {e}",
-        )
-
     return PoolCollectionResponse(
         pools=[PoolResponse.model_validate(pool, from_attributes=True) for pool in pools],
         total_entries=len(pools),
