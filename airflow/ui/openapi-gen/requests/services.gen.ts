@@ -129,6 +129,8 @@ import type {
   GetTaskInstanceTryDetailsResponse,
   GetMappedTaskInstanceTryDetailsData,
   GetMappedTaskInstanceTryDetailsResponse,
+  GetLogData,
+  GetLogResponse,
   GetTasksData,
   GetTasksResponse,
   GetTaskData,
@@ -2177,6 +2179,44 @@ export class TaskInstanceService {
         task_id: data.taskId,
         task_try_number: data.taskTryNumber,
         map_index: data.mapIndex,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Log
+   * Get logs for specific task instance.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.taskTryNumber
+   * @param data.fullContent
+   * @param data.mapIndex
+   * @param data.token
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getLog(data: GetLogData): CancelablePromise<GetLogResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+        task_try_number: data.taskTryNumber,
+      },
+      query: {
+        full_content: data.fullContent,
+        map_index: data.mapIndex,
+        token: data.token,
       },
       errors: {
         401: "Unauthorized",

@@ -1632,6 +1632,18 @@ export type GetMappedTaskInstanceTryDetailsData = {
 export type GetMappedTaskInstanceTryDetailsResponse =
   TaskInstanceHistoryResponse;
 
+export type GetLogData = {
+  dagId: string;
+  dagRunId: string;
+  fullContent?: boolean;
+  mapIndex?: number;
+  taskId: string;
+  taskTryNumber: number;
+  token?: string | null;
+};
+
+export type GetLogResponse = unknown;
+
 export type GetTasksData = {
   dagId: string;
   orderBy?: string;
@@ -3361,6 +3373,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: TaskInstanceHistoryResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number}": {
+    get: {
+      req: GetLogData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
         /**
          * Unauthorized
          */

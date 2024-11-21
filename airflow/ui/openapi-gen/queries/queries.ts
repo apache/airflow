@@ -1906,6 +1906,62 @@ export const useTaskInstanceServiceGetMappedTaskInstanceTryDetails = <
     ...options,
   });
 /**
+ * Get Log
+ * Get logs for specific task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.taskTryNumber
+ * @param data.fullContent
+ * @param data.mapIndex
+ * @param data.token
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceGetLog = <
+  TData = Common.TaskInstanceServiceGetLogDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    fullContent,
+    mapIndex,
+    taskId,
+    taskTryNumber,
+    token,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    fullContent?: boolean;
+    mapIndex?: number;
+    taskId: string;
+    taskTryNumber: number;
+    token?: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseTaskInstanceServiceGetLogKeyFn(
+      { dagId, dagRunId, fullContent, mapIndex, taskId, taskTryNumber, token },
+      queryKey,
+    ),
+    queryFn: () =>
+      TaskInstanceService.getLog({
+        dagId,
+        dagRunId,
+        fullContent,
+        mapIndex,
+        taskId,
+        taskTryNumber,
+        token,
+      }) as TData,
+    ...options,
+  });
+/**
  * Get Tasks
  * Get tasks for DAG.
  * @param data The data for the request.

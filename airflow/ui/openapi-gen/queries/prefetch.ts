@@ -1599,6 +1599,61 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstanceTryDetails = (
       }),
   });
 /**
+ * Get Log
+ * Get logs for specific task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.taskTryNumber
+ * @param data.fullContent
+ * @param data.mapIndex
+ * @param data.token
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseTaskInstanceServiceGetLog = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+    fullContent,
+    mapIndex,
+    taskId,
+    taskTryNumber,
+    token,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    fullContent?: boolean;
+    mapIndex?: number;
+    taskId: string;
+    taskTryNumber: number;
+    token?: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseTaskInstanceServiceGetLogKeyFn({
+      dagId,
+      dagRunId,
+      fullContent,
+      mapIndex,
+      taskId,
+      taskTryNumber,
+      token,
+    }),
+    queryFn: () =>
+      TaskInstanceService.getLog({
+        dagId,
+        dagRunId,
+        fullContent,
+        mapIndex,
+        taskId,
+        taskTryNumber,
+        token,
+      }),
+  });
+/**
  * Get Tasks
  * Get tasks for DAG.
  * @param data The data for the request.
