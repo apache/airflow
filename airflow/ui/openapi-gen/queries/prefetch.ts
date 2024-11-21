@@ -1609,12 +1609,14 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstanceTryDetails = (
  * @param data.fullContent
  * @param data.mapIndex
  * @param data.token
- * @returns unknown Successful Response
+ * @param data.accept
+ * @returns TaskInstancesLogResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseTaskInstanceServiceGetLog = (
   queryClient: QueryClient,
   {
+    accept,
     dagId,
     dagRunId,
     fullContent,
@@ -1623,6 +1625,7 @@ export const prefetchUseTaskInstanceServiceGetLog = (
     taskTryNumber,
     token,
   }: {
+    accept?: "application/json" | "text/plain" | "*/*";
     dagId: string;
     dagRunId: string;
     fullContent?: boolean;
@@ -1634,6 +1637,7 @@ export const prefetchUseTaskInstanceServiceGetLog = (
 ) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseTaskInstanceServiceGetLogKeyFn({
+      accept,
       dagId,
       dagRunId,
       fullContent,
@@ -1644,6 +1648,7 @@ export const prefetchUseTaskInstanceServiceGetLog = (
     }),
     queryFn: () =>
       TaskInstanceService.getLog({
+        accept,
         dagId,
         dagRunId,
         fullContent,

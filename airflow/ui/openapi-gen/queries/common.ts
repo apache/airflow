@@ -1190,6 +1190,7 @@ export type TaskInstanceServiceGetLogQueryResult<
 export const useTaskInstanceServiceGetLogKey = "TaskInstanceServiceGetLog";
 export const UseTaskInstanceServiceGetLogKeyFn = (
   {
+    accept,
     dagId,
     dagRunId,
     fullContent,
@@ -1198,6 +1199,7 @@ export const UseTaskInstanceServiceGetLogKeyFn = (
     taskTryNumber,
     token,
   }: {
+    accept?: "application/json" | "text/plain" | "*/*";
     dagId: string;
     dagRunId: string;
     fullContent?: boolean;
@@ -1210,7 +1212,16 @@ export const UseTaskInstanceServiceGetLogKeyFn = (
 ) => [
   useTaskInstanceServiceGetLogKey,
   ...(queryKey ?? [
-    { dagId, dagRunId, fullContent, mapIndex, taskId, taskTryNumber, token },
+    {
+      accept,
+      dagId,
+      dagRunId,
+      fullContent,
+      mapIndex,
+      taskId,
+      taskTryNumber,
+      token,
+    },
   ]),
 ];
 export type TaskServiceGetTasksDefaultResponse = Awaited<

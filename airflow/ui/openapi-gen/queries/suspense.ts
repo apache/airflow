@@ -1898,7 +1898,8 @@ export const useTaskInstanceServiceGetMappedTaskInstanceTryDetailsSuspense = <
  * @param data.fullContent
  * @param data.mapIndex
  * @param data.token
- * @returns unknown Successful Response
+ * @param data.accept
+ * @returns TaskInstancesLogResponse Successful Response
  * @throws ApiError
  */
 export const useTaskInstanceServiceGetLogSuspense = <
@@ -1907,6 +1908,7 @@ export const useTaskInstanceServiceGetLogSuspense = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    accept,
     dagId,
     dagRunId,
     fullContent,
@@ -1915,6 +1917,7 @@ export const useTaskInstanceServiceGetLogSuspense = <
     taskTryNumber,
     token,
   }: {
+    accept?: "application/json" | "text/plain" | "*/*";
     dagId: string;
     dagRunId: string;
     fullContent?: boolean;
@@ -1928,11 +1931,21 @@ export const useTaskInstanceServiceGetLogSuspense = <
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseTaskInstanceServiceGetLogKeyFn(
-      { dagId, dagRunId, fullContent, mapIndex, taskId, taskTryNumber, token },
+      {
+        accept,
+        dagId,
+        dagRunId,
+        fullContent,
+        mapIndex,
+        taskId,
+        taskTryNumber,
+        token,
+      },
       queryKey,
     ),
     queryFn: () =>
       TaskInstanceService.getLog({
+        accept,
         dagId,
         dagRunId,
         fullContent,

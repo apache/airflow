@@ -2200,7 +2200,8 @@ export class TaskInstanceService {
    * @param data.fullContent
    * @param data.mapIndex
    * @param data.token
-   * @returns unknown Successful Response
+   * @param data.accept
+   * @returns TaskInstancesLogResponse Successful Response
    * @throws ApiError
    */
   public static getLog(data: GetLogData): CancelablePromise<GetLogResponse> {
@@ -2212,6 +2213,9 @@ export class TaskInstanceService {
         dag_run_id: data.dagRunId,
         task_id: data.taskId,
         task_try_number: data.taskTryNumber,
+      },
+      headers: {
+        accept: data.accept,
       },
       query: {
         full_content: data.fullContent,

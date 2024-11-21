@@ -936,6 +936,14 @@ export type TaskInstancesBatchBody = {
 };
 
 /**
+ * Log serializer for responses.
+ */
+export type TaskInstancesLogResponse = {
+  content: string;
+  continuation_token: string | null;
+};
+
+/**
  * Task outlet reference serializer for assets.
  */
 export type TaskOutletAssetReference = {
@@ -1633,6 +1641,7 @@ export type GetMappedTaskInstanceTryDetailsResponse =
   TaskInstanceHistoryResponse;
 
 export type GetLogData = {
+  accept?: "application/json" | "text/plain" | "*/*";
   dagId: string;
   dagRunId: string;
   fullContent?: boolean;
@@ -1642,7 +1651,7 @@ export type GetLogData = {
   token?: string | null;
 };
 
-export type GetLogResponse = unknown;
+export type GetLogResponse = TaskInstancesLogResponse;
 
 export type GetTasksData = {
   dagId: string;
@@ -3399,7 +3408,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: unknown;
+        200: TaskInstancesLogResponse;
         /**
          * Unauthorized
          */

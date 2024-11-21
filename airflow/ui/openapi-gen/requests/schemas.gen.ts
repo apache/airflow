@@ -3942,6 +3942,30 @@ export const $TaskInstancesBatchBody = {
   description: "Task Instance body for get batch.",
 } as const;
 
+export const $TaskInstancesLogResponse = {
+  properties: {
+    content: {
+      type: "string",
+      title: "Content",
+    },
+    continuation_token: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Continuation Token",
+    },
+  },
+  type: "object",
+  required: ["content", "continuation_token"],
+  title: "TaskInstancesLogResponse",
+  description: "Log serializer for responses.",
+} as const;
+
 export const $TaskOutletAssetReference = {
   properties: {
     dag_id: {
