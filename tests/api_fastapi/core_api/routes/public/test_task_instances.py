@@ -1863,7 +1863,6 @@ class TestTaskInstancesLog:
             request_url,
             params={"token": token, **extra_query_string},
             headers={"Accept": "text/plain"},
-            # environ_overrides={"REMOTE_USER": "test"},
         )
         assert 200 == response.status_code
 
@@ -1918,7 +1917,6 @@ class TestTaskInstancesLog:
             request_url,
             params={"token": token, **extra_query_string},
             headers={"Accept": "text/plain"},
-            # environ_overrides={"REMOTE_USER": "test"},
         )
 
         assert 200 == response.status_code
@@ -1937,7 +1935,6 @@ class TestTaskInstancesLog:
         response = self.client.get(
             f"public/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/Invalid-Task-ID/logs/{try_number}",
             params={"token": token},
-            # environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
         assert response.json() == {"detail": "TaskInstance not found"}
@@ -1955,7 +1952,6 @@ class TestTaskInstancesLog:
                 f"public/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/"
                 f"taskInstances/{self.TASK_ID}/logs/{try_number}?full_content=True",
                 headers={"Accept": "text/plain"},
-                # environ_overrides={"REMOTE_USER": "test"},
             )
 
             assert "1st line" in response.content.decode("utf-8")
@@ -1977,7 +1973,6 @@ class TestTaskInstancesLog:
             f"public/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/{try_number}",
             params={"token": token},
             headers={"Content-Type": "application/jso"},
-            # environ_overrides={"REMOTE_USER": "test"},
         )
         assert 400 == response.status_code
         assert "Task log handler does not support read logs." in response.content.decode("utf-8")
@@ -1989,7 +1984,6 @@ class TestTaskInstancesLog:
             f"public/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
             params={"token": token},
             headers={"Accept": "application/json"},
-            # environ_overrides={"REMOTE_USER": "test"},
         )
         # assert response.status_code == 400
         assert response.json() == {"detail": "Bad Signature. Please use only the tokens provided by the API."}
@@ -1999,7 +1993,6 @@ class TestTaskInstancesLog:
             f"public/dags/{self.DAG_ID}/dagRuns/NO_DAG_RUN/"  # invalid run_id
             f"taskInstances/{self.TASK_ID}/logs/1?",
             headers={"Accept": "application/json"},
-            # environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
         assert response.json() == {"detail": "TaskInstance not found"}
@@ -2013,7 +2006,6 @@ class TestTaskInstancesLog:
             f"public/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.MAPPED_TASK_ID}/logs/1",
             params={"token": token},
             headers={"Accept": "text/plain"},
-            # environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
         assert response.json()["detail"] == "TaskInstance not found"
@@ -2027,7 +2019,6 @@ class TestTaskInstancesLog:
             f"public/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/1",
             params={"token": token, "map_index": 0},
             headers={"Accept": "text/plain"},
-            # environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
         assert response.json()["detail"] == "TaskInstance not found"
