@@ -52,8 +52,6 @@ class SFTPHook(SSHHook):
         - In contrast with FTPHook describe_directory only returns size, type and
           modify. It doesn't return unix.owner, unix.mode, perm, unix.group and
           unique.
-        - retrieve_file and store_file only take a local full path and not a
-           buffer.
         - If no mode is passed to create_directory it will be created with 777
           permissions.
 
