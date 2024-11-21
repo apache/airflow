@@ -16,11 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import patch
 
 import pytest
 
+from airflow.configuration import conf
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.edge.executors.edge_executor import EdgeExecutor
 from airflow.providers.edge.models.edge_job import EdgeJobModel
@@ -77,12 +78,17 @@ class TestEdgeExecutor:
         mock_success.side_effect = remove_from_running
         mock_fail.side_effect = remove_from_running
 
+        smaler_job_failed_purge = timedelta(minutes=conf.getint("edge", "job_fail_purge") + 1)
+
         # Prepare some data
         with create_session() as session:
-            for task_id, state in [
-                ("started_running", TaskInstanceState.RUNNING),
-                ("started_success", TaskInstanceState.SUCCESS),
-                ("started_failed", TaskInstanceState.FAILED),
+            for task_id, state, last_update in [
+                (
+                    "started_running_orphaned",
+                    TaskInstanceState.RUNNING,
+                    timezone.utcnow() - smaler_job_failed_purge,
+                ),
+                ("started_removed", TaskInstanceState.REMOVED, timezone.utcnow() - smaler_job_failed_purge),
             ]:
                 session.add(
                     EdgeJobModel(
@@ -94,7 +100,35 @@ class TestEdgeExecutor:
                         state=state,
                         queue="default",
                         command="dummy",
-                        last_update=timezone.utcnow(),
+                        last_update=last_update,
+                    )
+                )
+                session.commit()
+
+        executor.sync()
+
+        with create_session() as session:
+            jobs = session.query(EdgeJobModel).all()
+            assert len(jobs) == 0
+
+        # Prepare some data
+        with create_session() as session:
+            for task_id, state, last_update in [
+                ("started_running", TaskInstanceState.RUNNING, timezone.utcnow()),
+                ("started_success", TaskInstanceState.SUCCESS, timezone.utcnow() - smaler_job_failed_purge),
+                ("started_failed", TaskInstanceState.FAILED, timezone.utcnow() - smaler_job_failed_purge),
+            ]:
+                session.add(
+                    EdgeJobModel(
+                        dag_id="test_dag",
+                        task_id=task_id,
+                        run_id="test_run",
+                        map_index=-1,
+                        try_number=1,
+                        state=state,
+                        queue="default",
+                        command="dummy",
+                        last_update=last_update,
                     )
                 )
                 key = TaskInstanceKey(
@@ -105,6 +139,12 @@ class TestEdgeExecutor:
         assert len(executor.running) == 3
 
         executor.sync()
+
+        with create_session() as session:
+            jobs = session.query(EdgeJobModel).all()
+            assert len(session.query(EdgeJobModel).all()) == 1
+            assert jobs[0].task_id == "started_running"
+            assert jobs[0].state == TaskInstanceState.RUNNING
 
         assert len(executor.running) == 1
         mock_running_state.assert_called_once()

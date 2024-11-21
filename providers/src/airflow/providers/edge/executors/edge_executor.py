@@ -196,11 +196,10 @@ class EdgeExecutor(BaseExecutor):
     def sync(self, session: Session = NEW_SESSION) -> None:
         """Sync will get called periodically by the heartbeat method."""
         with Stats.timer("edge_executor.sync.duration"):
-            if (
-                self._purge_jobs(session)
-                or self._check_worker_liveness(session)
-                or self._update_orphaned_jobs(session)
-            ):
+            orphaned = self._update_orphaned_jobs(session)
+            purged = self._purge_jobs(session)
+            liveness = self._check_worker_liveness(session)
+            if purged or liveness or orphaned:
                 session.commit()
 
     def end(self) -> None:
