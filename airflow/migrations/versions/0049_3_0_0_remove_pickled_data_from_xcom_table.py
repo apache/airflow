@@ -101,9 +101,9 @@ def upgrade():
         op.execute(
             """
             ALTER TABLE xcom
-            ALTER COLUMN value TYPE JSONB
+            ALTER COLUMN value TYPE JSON
             USING CASE
-                WHEN value IS NOT NULL THEN CAST(CONVERT_FROM(value, 'UTF8') AS JSONB)
+                WHEN value IS NOT NULL THEN CAST(CONVERT_FROM(value, 'UTF8') AS JSON)
                 ELSE NULL
             END
             """
@@ -136,6 +136,7 @@ def upgrade():
         # Drop the old `value_old` column
         with op.batch_alter_table("xcom", schema=None) as batch_op:
             batch_op.drop_column("value_old")
+    op.drop_table("_xcom_archive")
 
 
 def downgrade():
