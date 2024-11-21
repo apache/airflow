@@ -43,11 +43,17 @@ Execution API server is because:
 
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal, Union
+from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState  # noqa: TCH001
+from airflow.sdk.api.datamodels._generated import (
+    ConnectionResponse,
+    TaskInstance,
+    TerminalTIState,
+    VariableResponse,
+    XComResponse,
+)
 
 
 class StartupDetails(BaseModel):
@@ -64,23 +70,22 @@ class StartupDetails(BaseModel):
     type: Literal["StartupDetails"] = "StartupDetails"
 
 
-class XComResponse(BaseModel):
+class XComResult(XComResponse):
     """Response to ReadXCom request."""
 
-    key: str
-    value: Any
-
-    type: Literal["XComResponse"] = "XComResponse"
+    type: Literal["XComResult"] = "XComResult"
 
 
-class ConnectionResponse(BaseModel):
-    conn: Any
+class ConnectionResult(ConnectionResponse):
+    type: Literal["ConnectionResult"] = "ConnectionResult"
 
-    type: Literal["ConnectionResponse"] = "ConnectionResponse"
+
+class VariableResult(VariableResponse):
+    type: Literal["VariableResult"] = "VariableResult"
 
 
 ToTask = Annotated[
-    Union[StartupDetails, XComResponse, ConnectionResponse],
+    Union[StartupDetails, XComResult, ConnectionResult, VariableResult],
     Field(discriminator="type"),
 ]
 
@@ -98,22 +103,22 @@ class TaskState(BaseModel):
     type: Literal["TaskState"] = "TaskState"
 
 
-class ReadXCom(BaseModel):
+class GetXCom(BaseModel):
     key: str
-    type: Literal["ReadXCom"] = "ReadXCom"
+    type: Literal["GetXCom"] = "GetXCom"
 
 
 class GetConnection(BaseModel):
-    id: str
+    conn_id: str
     type: Literal["GetConnection"] = "GetConnection"
 
 
 class GetVariable(BaseModel):
-    id: str
+    key: str
     type: Literal["GetVariable"] = "GetVariable"
 
 
 ToSupervisor = Annotated[
-    Union[TaskState, ReadXCom, GetConnection, GetVariable],
+    Union[TaskState, GetXCom, GetConnection, GetVariable],
     Field(discriminator="type"),
 ]

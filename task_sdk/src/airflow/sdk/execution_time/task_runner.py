@@ -105,7 +105,16 @@ class CommsDecoder:
         self.request_socket.write(encoded_msg)
 
 
-# This global variable will be used by Connection/Variable classes etc to send requests to
+# This global variable will be used by Connection/Variable/XCom classes, or other parts of the task's execution,
+# to send requests back to the supervisor process.
+#
+# Why it needs to be a global:
+# - Many parts of Airflow's codebase (e.g., connections, variables, and XComs) may rely on making dynamic requests
+#   to the parent process during task execution.
+# - These calls occur in various locations and cannot easily pass the `CommsDecoder` instance through the
+#   deeply nested execution stack.
+# - By defining `SUPERVISOR_COMMS` as a global, it ensures that this communication mechanism is readily
+#   accessible wherever needed during task execution without modifying every layer of the call stack.
 SUPERVISOR_COMMS: CommsDecoder
 
 # State machine!
