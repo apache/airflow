@@ -21,7 +21,7 @@ import datetime
 import json
 import os
 import shutil
-from io import StringIO, BytesIO
+from io import BytesIO, StringIO
 from unittest import mock
 from unittest.mock import AsyncMock, patch
 
@@ -184,7 +184,7 @@ class TestSFTPHook:
         assert output == [SUB_DIR, FIFO_FOR_TESTS]
 
     def test_store_retrieve_and_delete_file_using_buffer(self):
-        file_contents = BytesIO("Test file".encode())
+        file_contents = BytesIO(b"Test file")
         self.hook.store_file(
             remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
             local_full_path=file_contents,
@@ -196,7 +196,7 @@ class TestSFTPHook:
             remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
             local_full_path=retrieved_file_contents,
         )
-        assert retrieved_file_contents.getvalue() == file_contents
+        assert retrieved_file_contents.getvalue() == file_contents.getvalue()
         self.hook.delete_file(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS))
         output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
         assert output == [SUB_DIR, FIFO_FOR_TESTS]
