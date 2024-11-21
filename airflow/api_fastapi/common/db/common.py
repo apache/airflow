@@ -68,20 +68,20 @@ def paginated_select(
     session: Session = NEW_SESSION,
     return_total_entries: bool = True,
 ) -> Select:
-    select = apply_filters_to_select(
+    base_select = apply_filters_to_select(
         select,
         filters,
     )
 
     total_entries = None
     if return_total_entries:
-        total_entries = get_query_count(select, session=session)
+        total_entries = get_query_count(base_select, session=session)
 
     # TODO: Re-enable when permissions are handled. Readable / writable entities,
     # for instance:
     # readable_dags = get_auth_manager().get_permitted_dag_ids(user=g.user)
     # dags_select = dags_select.where(DagModel.dag_id.in_(readable_dags))
 
-    select = apply_filters_to_select(select, [order_by, offset, limit])
+    base_select = apply_filters_to_select(base_select, [order_by, offset, limit])
 
-    return select, total_entries
+    return base_select, total_entries
