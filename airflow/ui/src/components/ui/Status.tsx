@@ -16,19 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Status as ChakraStatus } from "@chakra-ui/react";
+import * as React from "react";
 
-export * from "./Dialog";
-export * from "./Pagination";
-export * from "./Select";
-export * from "./Alert";
-export * from "./CloseButton";
-export * from "./InputGroup";
+import type {
+  DagRunState,
+  TaskInstanceState,
+} from "openapi/requests/types.gen";
+import { stateColor } from "src/utils/stateColor";
 
-export * from "./Switch";
-export * from "./Tag";
-export * from "./Tooltip";
+type StatusValue = DagRunState | TaskInstanceState;
 
-export * from "./ProgressBar";
-export * from "./Menu";
-export * from "./Accordion";
-export * from "./Status";
+export type StatusProps = {
+  state?: StatusValue;
+} & ChakraStatus.RootProps;
+
+export const Status = React.forwardRef<HTMLDivElement, StatusProps>(
+  ({ children, state, ...rest }, ref) => {
+    const colorPalette = state === undefined ? "info" : stateColor[state];
+
+    return (
+      <ChakraStatus.Root ref={ref} {...rest}>
+        <ChakraStatus.Indicator bg={colorPalette} />
+        {children}
+      </ChakraStatus.Root>
+    );
+  },
+);
