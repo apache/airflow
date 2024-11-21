@@ -504,21 +504,19 @@ def set_task_instances_state(
 
     task_id = body.task_id
     task = dag.task_dict.get(task_id)
-
     if not task:
         error_message = f"Task ID {task_id} not found"
         raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
+
     run_id = body.dag_run_id
+    error_message = f"Task instance not found for task '{task_id}' on DAG run with ID '{run_id}'"
     if not run_id:
-        error_message = f"Task instance not found for task {task_id} on DAG run with ID {run_id}"
         raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
 
     select_stmt = select(TI).where(
         TI.dag_id == dag_id, TI.task_id == task_id, TI.run_id == run_id, TI.map_index == -1
     )
-
     if run_id and not session.scalars(select_stmt).one_or_none():
-        error_message = f"Task instance not found for task {task_id} on DAG run with ID {run_id}"
         raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
 
     tis = dag.set_task_instance_state(
