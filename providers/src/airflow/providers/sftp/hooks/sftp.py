@@ -24,14 +24,14 @@ import os
 import stat
 import warnings
 from fnmatch import fnmatch
+from io import BytesIO
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 import asyncssh
-from asgiref.sync import sync_to_async
-
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
+from asgiref.sync import sync_to_async
 
 if TYPE_CHECKING:
     import paramiko
@@ -239,7 +239,9 @@ class SFTPHook(SSHHook):
         conn = self.get_conn()
         conn.rmdir(path)
 
-    def retrieve_file(self, remote_full_path: str, local_full_path: str, prefetch: bool = True) -> None:
+    def retrieve_file(
+        self, remote_full_path: str, local_full_path: str, prefetch: bool = True
+    ) -> None:
         """
         Transfer the remote file to a local location.
 
@@ -247,11 +249,14 @@ class SFTPHook(SSHHook):
         at that location.
 
         :param remote_full_path: full path to the remote file
-        :param local_full_path: full path to the local file
+        :param local_full_path: full path to the local file or a file-like buffer
         :param prefetch: controls whether prefetch is performed (default: True)
         """
         conn = self.get_conn()
-        conn.get(remote_full_path, local_full_path, prefetch=prefetch)
+        if isinstance(local_full_path, BytesIO):
+            conn.getfo(remote_full_path, local_full_path, prefetch=prefetch)
+        else:
+            conn.get(remote_full_path, local_full_path, prefetch=prefetch)
 
     def store_file(self, remote_full_path: str, local_full_path: str, confirm: bool = True) -> None:
         """
@@ -261,10 +266,13 @@ class SFTPHook(SSHHook):
         from that location.
 
         :param remote_full_path: full path to the remote file
-        :param local_full_path: full path to the local file
+        :param local_full_path: full path to the local file or a file-like buffer
         """
         conn = self.get_conn()
-        conn.put(local_full_path, remote_full_path, confirm=confirm)
+        if isinstance(local_full_path, BytesIO):
+            conn.putfo(local_full_path, remote_full_path, confirm=confirm)
+        else:
+            conn.put(local_full_path, remote_full_path, confirm=confirm)
 
     def delete_file(self, path: str) -> None:
         """

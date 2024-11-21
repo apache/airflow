@@ -21,7 +21,7 @@ import datetime
 import json
 import os
 import shutil
-from io import StringIO
+from io import StringIO, BytesIO
 from unittest import mock
 from unittest.mock import AsyncMock, patch
 
@@ -88,7 +88,10 @@ class TestSFTPHook:
                 file.write("Test file")
         with open(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS), "a") as file:
             file.write("Test file")
-        os.mkfifo(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS))
+        try:
+            os.mkfifo(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS))
+        except AttributeError:
+            os.makedirs(os.path.join(temp_dir, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS))
 
         self.temp_dir = str(temp_dir)
 
@@ -176,6 +179,24 @@ class TestSFTPHook:
         )
         assert retrieved_file_name in os.listdir(self.temp_dir)
         os.remove(os.path.join(self.temp_dir, retrieved_file_name))
+        self.hook.delete_file(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS))
+        output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        assert output == [SUB_DIR, FIFO_FOR_TESTS]
+
+    def test_store_retrieve_and_delete_file_using_buffer(self):
+        file_contents = BytesIO("Test file".encode())
+        self.hook.store_file(
+            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
+            local_full_path=file_contents,
+        )
+        output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
+        assert output == [SUB_DIR, FIFO_FOR_TESTS, TMP_FILE_FOR_TESTS]
+        retrieved_file_contents = BytesIO()
+        self.hook.retrieve_file(
+            remote_full_path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
+            local_full_path=retrieved_file_contents,
+        )
+        assert retrieved_file_contents.getvalue() == file_contents
         self.hook.delete_file(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS))
         output = self.hook.list_directory(path=os.path.join(self.temp_dir, TMP_DIR_FOR_TESTS))
         assert output == [SUB_DIR, FIFO_FOR_TESTS]
