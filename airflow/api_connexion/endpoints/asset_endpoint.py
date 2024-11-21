@@ -43,10 +43,11 @@ from airflow.api_connexion.schemas.asset_schema import (
     queued_event_collection_schema,
     queued_event_schema,
 )
-from airflow.assets import Asset
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
+from airflow.sdk.definitions.asset import Asset
 from airflow.utils import timezone
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.decorators import action_logging
@@ -60,6 +61,7 @@ if TYPE_CHECKING:
 RESOURCE_EVENT_PREFIX = "asset"
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("GET")
 @provide_session
 def get_asset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
@@ -77,6 +79,7 @@ def get_asset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
     return asset_schema.dump(asset)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("GET")
 @format_parameters({"limit": check_limit})
 @provide_session
@@ -112,6 +115,7 @@ def get_assets(
     return asset_collection_schema.dump(AssetCollection(assets=assets, total_entries=total_entries))
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("GET")
 @provide_session
 @format_parameters({"limit": check_limit})
@@ -177,6 +181,7 @@ def _generate_queued_event_where_clause(
     return where_clause
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("GET")
 @security.requires_access_dag("GET")
 @provide_session
@@ -199,6 +204,7 @@ def get_dag_asset_queued_event(
     return queued_event_schema.dump(queued_event)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("DELETE")
 @security.requires_access_dag("GET")
 @provide_session
@@ -218,6 +224,7 @@ def delete_dag_asset_queued_event(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("GET")
 @security.requires_access_dag("GET")
 @provide_session
@@ -246,6 +253,7 @@ def get_dag_asset_queued_events(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("DELETE")
 @security.requires_access_dag("GET")
 @action_logging
@@ -266,6 +274,7 @@ def delete_dag_asset_queued_events(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("GET")
 @provide_session
 def get_asset_queued_events(
@@ -297,6 +306,7 @@ def get_asset_queued_events(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("DELETE")
 @action_logging
 @provide_session
@@ -319,6 +329,7 @@ def delete_asset_queued_events(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_asset("POST")
 @provide_session
 @action_logging

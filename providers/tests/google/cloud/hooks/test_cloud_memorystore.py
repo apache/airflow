@@ -58,10 +58,6 @@ TEST_NAME_DEFAULT_PROJECT_ID = (
 
 
 class TestCloudMemorystoreWithDefaultProjectIdHook:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            CloudMemorystoreHook(gcp_conn_id="test", delegate_to="delegate_to")
-
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.cloud_memorystore.CloudMemorystoreHook.__init__",

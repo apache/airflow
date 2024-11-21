@@ -34,7 +34,6 @@ from typing import TYPE_CHECKING, NamedTuple
 from sqlalchemy import func, select, tuple_
 from sqlalchemy.orm import joinedload, load_only
 
-from airflow.assets import Asset, AssetAlias
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import (
     AssetAliasModel,
@@ -45,6 +44,7 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DAG, DagModel, DagOwnerAttributes, DagTag
 from airflow.models.dagrun import DagRun
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.timezone import utcnow
 from airflow.utils.types import DagRunType
@@ -89,7 +89,7 @@ def _get_latest_runs_stmt(dag_ids: Collection[str]) -> Select:
     if len(dag_ids) == 1:  # Index optimized fast path to avoid more complicated & slower groupby queryplan.
         (dag_id,) = dag_ids
         last_automated_runs_subq = (
-            select(func.max(DagRun.execution_date).label("max_execution_date"))
+            select(func.max(DagRun.logical_date).label("max_logical_date"))
             .where(
                 DagRun.dag_id == dag_id,
                 DagRun.run_type.in_((DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED)),
@@ -98,11 +98,11 @@ def _get_latest_runs_stmt(dag_ids: Collection[str]) -> Select:
         )
         query = select(DagRun).where(
             DagRun.dag_id == dag_id,
-            DagRun.execution_date == last_automated_runs_subq,
+            DagRun.logical_date == last_automated_runs_subq,
         )
     else:
         last_automated_runs_subq = (
-            select(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
+            select(DagRun.dag_id, func.max(DagRun.logical_date).label("max_logical_date"))
             .where(
                 DagRun.dag_id.in_(dag_ids),
                 DagRun.run_type.in_((DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED)),
@@ -112,12 +112,12 @@ def _get_latest_runs_stmt(dag_ids: Collection[str]) -> Select:
         )
         query = select(DagRun).where(
             DagRun.dag_id == last_automated_runs_subq.c.dag_id,
-            DagRun.execution_date == last_automated_runs_subq.c.max_execution_date,
+            DagRun.logical_date == last_automated_runs_subq.c.max_logical_date,
         )
     return query.options(
         load_only(
             DagRun.dag_id,
-            DagRun.execution_date,
+            DagRun.logical_date,
             DagRun.data_interval_start,
             DagRun.data_interval_end,
         )

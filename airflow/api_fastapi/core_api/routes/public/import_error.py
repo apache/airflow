@@ -44,9 +44,7 @@ import_error_router = AirflowRouter(tags=["Import Error"], prefix="/importErrors
 
 @import_error_router.get(
     "/{import_error_id}",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_import_error(
     import_error_id: int,
@@ -55,7 +53,10 @@ def get_import_error(
     """Get an import error."""
     error = session.scalar(select(ParseImportError).where(ParseImportError.id == import_error_id))
     if error is None:
-        raise HTTPException(404, f"The ImportError with import_error_id: `{import_error_id}` was not found")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The ImportError with import_error_id: `{import_error_id}` was not found",
+        )
 
     return ImportErrorResponse.model_validate(
         error,
@@ -64,8 +65,7 @@ def get_import_error(
 
 
 @import_error_router.get(
-    "/",
-    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
+    "",
 )
 def get_import_errors(
     limit: QueryLimit,
@@ -96,7 +96,7 @@ def get_import_errors(
         limit,
         session,
     )
-    import_errors = session.scalars(import_errors_select).all()
+    import_errors = session.scalars(import_errors_select)
 
     return ImportErrorCollectionResponse(
         import_errors=[

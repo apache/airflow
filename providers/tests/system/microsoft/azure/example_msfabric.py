@@ -19,8 +19,8 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import models
-from airflow.assets import Asset
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator
+from airflow.sdk.definitions.asset import Asset
 
 DAG_ID = "example_msfabric"
 

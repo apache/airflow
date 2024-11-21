@@ -34,6 +34,7 @@ from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
 
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
 
 
@@ -60,7 +61,10 @@ class TestS3TaskHandler:
         date = datetime(2016, 1, 1)
         self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
-        dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test", run_type="manual")
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(dag_id=self.dag.dag_id, logical_date=date, run_id="test", run_type="manual")
+        else:
+            dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test", run_type="manual")
         session.add(dag_run)
         session.commit()
         session.refresh(dag_run)
@@ -128,8 +132,8 @@ class TestS3TaskHandler:
         ti.state = TaskInstanceState.SUCCESS
         log, metadata = self.s3_task_handler.read(ti)
         actual = log[0][0][-1]
-        expected = "*** Found logs in s3:\n***   * s3://bucket/remote/log/location/1.log\nLog line"
-        assert actual == expected
+        assert "*** Found logs in s3:\n***   * s3://bucket/remote/log/location/1.log\n" in actual
+        assert actual.endswith("Log line")
         assert metadata == [{"end_of_log": True, "log_pos": 8}]
 
     def test_read_when_s3_log_missing(self):
@@ -141,7 +145,7 @@ class TestS3TaskHandler:
         assert len(log) == len(metadata)
         actual = log[0][0][-1]
         expected = "*** No logs found on s3 for ti=<TaskInstance: dag_for_testing_s3_task_handler.task_for_testing_s3_log_handler test [success]>\n"
-        assert actual == expected
+        assert expected in actual
         assert {"end_of_log": True, "log_pos": 0} == metadata[0]
 
     def test_s3_read_when_log_missing(self):

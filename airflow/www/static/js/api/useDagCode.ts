@@ -29,17 +29,13 @@ export default function useDagCode() {
   return useQuery(
     ["dagSourceQuery"],
     () => {
-      const fileToken = dagData?.fileToken || "";
-      const dagSourceApiUrl = getMetaValue("dag_source_api").replace(
-        "_FILE_TOKEN_",
-        fileToken
-      );
+      const dagSourceApiUrl = getMetaValue("dag_source_api");
       return axios.get<AxiosResponse, string>(dagSourceApiUrl, {
         headers: { Accept: "text/plain" },
       });
     },
     {
-      enabled: !!dagData?.fileToken,
+      enabled: !!dagData?.dagId,
     }
   );
 }

@@ -141,7 +141,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "statsd>=3.3.0",
     ],
     "uv": [
-        "uv>=0.5.1",
+        "uv>=0.5.3",
     ],
 }
 
@@ -248,7 +248,6 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     ],
     "devel-static-checks": [
         "black>=23.12.0",
-        "pre-commit>=3.5.0",
         "ruff==0.7.3",
         "yamllint>=1.33.0",
     ],

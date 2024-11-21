@@ -249,15 +249,6 @@ core:
       type: string
       example: ~
       default: "False"
-    enable_xcom_pickling:
-      description: |
-        Whether to enable pickling for xcom (note that this is insecure and allows for
-        RCE exploits).
-      version_added: ~
-      type: string
-      example: ~
-      default: "False"
-      see_also: "https://docs.python.org/3/library/pickle.html#comparison-with-json"
     allowed_deserialization_classes:
       description: |
         What classes can be imported during deserialization. This is a multi line value.
@@ -482,13 +473,6 @@ core:
       sensitive: true
       default: ~
       example: '{"some_param": "some_value"}'
-    strict_asset_uri_validation:
-      description: |
-        Asset URI validation should raise an exception if it is not compliant with AIP-60.
-      default: "True"
-      example: ~
-      version_added: 2.9.2
-      type: boolean
     database_access_isolation:
       description: (experimental) Whether components should use Airflow Internal API for DB connectivity.
       version_added: 2.6.0
@@ -912,7 +896,7 @@ logging:
         Specify prefix pattern like mentioned below with stream handler ``TaskHandlerWithCustomFormatter``
       version_added: 2.0.0
       type: string
-      example: "{{ti.dag_id}}-{{ti.task_id}}-{{execution_date}}-{{ti.try_number}}"
+      example: "{{ti.dag_id}}-{{ti.task_id}}-{{logical_date}}-{{ti.try_number}}"
       is_template: true
       default: ""
     log_filename_template:
@@ -1071,17 +1055,6 @@ metrics:
       example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
         or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
-    metrics_consistency_on:
-      description: |
-        Enables metrics consistency across all metrics loggers (ex: timer and timing metrics).
-
-        .. warning::
-
-          It is enabled by default from Airflow 3.
-      version_added: 2.10.0
-      type: string
-      example: ~
-      default: "True"
     statsd_on:
       description: |
         Enables sending metrics to StatsD.
@@ -1290,14 +1263,6 @@ traces:
       type: string
       example: ~
       default: "False"
-    otel_task_log_event:
-      description: |
-        If True, after the task is complete, the full task log messages will be added as the
-        span events, chunked by 64k size. defaults to False.
-      version_added: 2.10.0
-      type: string
-      example: ~
-      default: "False"
 secrets:
   description: ~
   options:
@@ -1439,6 +1404,26 @@ api:
       version_added: 2.7.0
       example: ~
       default: "False"
+    auth_jwt_secret:
+      description: |
+        Secret key used to encode and decode JWT tokens to authenticate to public and private APIs.
+        It should be as random as possible. However, when running more than 1 instances of API services,
+        make sure all of them use the same ``jwt_secret`` otherwise calls will fail on authentication.
+      version_added: 3.0.0
+      type: string
+      sensitive: true
+      example: ~
+      default: "{JWT_SECRET_KEY}"
+    auth_jwt_expiration_time:
+      description: |
+        Number in seconds until the JWT token used for authentication expires. When the token expires,
+        all API calls using this token will fail on authentication.
+        Make sure that time on ALL the machines that you run airflow components on is synchronized
+        (for example using ntpd) otherwise you might get "forbidden" errors.
+      version_added: 3.0.0
+      type: integer
+      example: ~
+      default: "86400"
 lineage:
   description: ~
   options:
@@ -2385,7 +2370,7 @@ scheduler:
         Setting this to ``True`` will make first task instance of a task
         ignore depends_on_past setting. A task instance will be considered
         as the first task instance of a task when there is no task instance
-        in the DB with an execution_date earlier than it., i.e. no manual marking
+        in the DB with a logical_date earlier than it., i.e. no manual marking
         success will be needed for a newly added task to be scheduled.
       version_added: 2.3.0
       type: boolean

@@ -898,6 +898,7 @@ Jupyter
 jupyter
 jupytercmd
 JWT
+jwt
 Kafka
 kafka
 Kalibrr
@@ -1375,6 +1376,7 @@ repos
 repr
 req
 reqs
+requeued
 Reserialize
 reserialize
 reserialized
@@ -1700,6 +1702,7 @@ traceback
 tracebacks
 tracemalloc
 TrainingPipeline
+TranslationServiceClient
 travis
 triage
 triaging

@@ -336,7 +336,6 @@ class DbtCloudHook(HttpHook):
 
             raise ValueError("An endpoint is needed to paginate a response.")
 
-        # breakpoint()
         return self.run(endpoint=full_endpoint, data=payload, extra_options=extra_options)
 
     def list_accounts(self) -> list[Response]:

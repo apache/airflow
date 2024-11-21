@@ -38,8 +38,8 @@ paths:
   "/rpcapi":
     post:
       deprecated: false
-      x-openapi-router-controller: airflow.providers.edge.api_endpoints.rpc_api_endpoint
-      operationId: edge_worker_api
+      x-openapi-router-controller: airflow.providers.edge.worker_api.routes.rpc_api
+      operationId: edge_worker_api_v2
       tags:
       - JSONRPC
       parameters: []
@@ -72,7 +72,7 @@ paths:
     get:
       operationId: health
       deprecated: false
-      x-openapi-router-controller: airflow.providers.edge.api_endpoints.health_endpoint
+      x-openapi-router-controller: airflow.providers.edge.worker_api.routes.health
       tags:
       - JSONRPC
       parameters: []

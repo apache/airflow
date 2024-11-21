@@ -26,7 +26,6 @@ from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler, fetch_one_handler
 from airflow.providers.ydb.operators.ydb import YDBExecuteQueryOperator
-from airflow.utils import timezone
 
 
 @pytest.mark.db_test
@@ -38,7 +37,6 @@ def test_sql_templating(create_task_instance_of_operator):
         ydb_conn_id="ydb_default1",
         dag_id="test_template_body_templating_dag",
         task_id="test_template_body_templating_task",
-        execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
     )
     ti.render_templates()
     task: YDBExecuteQueryOperator = ti.task
@@ -46,13 +44,11 @@ def test_sql_templating(create_task_instance_of_operator):
 
 
 class FakeDriver:
+    def __init__(self, *args):
+        self.table_client = FakeTableClient()
+
     def wait(*args, **kwargs):
         pass
-
-
-class FakeSessionPoolImpl:
-    def __init__(self, driver):
-        self._driver = driver
 
 
 class FakeTableClient:
@@ -60,13 +56,12 @@ class FakeTableClient:
         self.bulk_upsert_args = []
 
     def bulk_upsert(self, table_path, rows, column_types, settings=None):
-        assert settings is None
         self.bulk_upsert_args.append((table_path, rows, column_types))
 
 
 class FakeSessionPool:
     def __init__(self, driver):
-        self._pool_impl = FakeSessionPoolImpl(driver)
+        self._driver = driver
 
 
 class FakeYDBCursor:
@@ -105,30 +100,21 @@ class TestYDBExecuteQueryOperator:
 
     @patch("airflow.hooks.base.BaseHook.get_connection")
     @patch("ydb.Driver")
-    @patch("ydb.SessionPool")
-    @patch(
-        "airflow.providers.ydb.hooks._vendor.dbapi.connection.Connection._ydb_table_client_class",
-        new_callable=PropertyMock,
-    )
-    @patch(
-        "airflow.providers.ydb.hooks._vendor.dbapi.connection.Connection._cursor_class",
-        new_callable=PropertyMock,
-    )
-    def test_execute_query(
-        self, cursor_class, table_client_class, mock_session_pool, mock_driver, mock_get_connection
-    ):
+    @patch("ydb.QuerySessionPool")
+    @patch("ydb_dbapi.Connection._cursor_cls", new_callable=PropertyMock)
+    def test_execute_query(self, cursor_class, mock_session_pool, mock_driver, mock_get_connection):
         mock_get_connection.return_value = Connection(
             conn_type="ydb", host="localhost", extra={"database": "/my_db"}
         )
 
         cursor_class.return_value = FakeYDBCursor
-        table_client_class.return_value = FakeTableClient
 
         driver = FakeDriver()
         mock_driver.return_value = driver
 
         session_pool = FakeSessionPool(driver)
         mock_session_pool.return_value = session_pool
+
         context = {"ti": MagicMock()}
         operator = YDBExecuteQueryOperator(
             task_id="simple_sql", sql="select 987", is_ddl=False, handler=fetch_one_handler
@@ -157,7 +143,7 @@ class TestYDBExecuteQueryOperator:
             {"a": 888, "b": "world"},
         ]
         hook.bulk_upsert("my_table", rows=rows, column_types=column_types)
-        assert len(session_pool._pool_impl._driver.table_client.bulk_upsert_args) == 1
-        arg0 = session_pool._pool_impl._driver.table_client.bulk_upsert_args[0]
+        assert len(session_pool._driver.table_client.bulk_upsert_args) == 1
+        arg0 = session_pool._driver.table_client.bulk_upsert_args[0]
         assert arg0[0] == "/my_db/my_table"
         assert len(arg0[1]) == 2

@@ -48,8 +48,8 @@ from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.models.variable import Variable
 from airflow.operators.branch import BranchMixIn
-from airflow.providers.standard import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
+from airflow.providers.standard.utils.version_references import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 from airflow.settings import _ENABLE_AIP_44
 from airflow.typing_compat import Literal
 from airflow.utils import hashlib_wrapper
@@ -114,13 +114,13 @@ class PythonOperator(BaseOperator):
     function. This set of kwargs correspond exactly to what you can use in your jinja templates.
     For this to work, you need to define ``**kwargs`` in your function header, or you can add directly the
     keyword arguments you would like to get - for example with the below code your callable will get
-    the values of ``ti`` and ``next_ds`` context variables.
+    the values of ``ti`` context variables.
 
     With explicit arguments:
 
     .. code-block:: python
 
-       def my_python_callable(ti, next_ds):
+       def my_python_callable(ti):
            pass
 
     With kwargs:
@@ -129,7 +129,6 @@ class PythonOperator(BaseOperator):
 
        def my_python_callable(**kwargs):
            ti = kwargs["ti"]
-           next_ds = kwargs["next_ds"]
 
 
     :param python_callable: A reference to an object that is callable
@@ -310,7 +309,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
             self.skip(
                 dag_run=dag_run,
                 tasks=to_skip,
-                execution_date=cast("DateTime", dag_run.execution_date),  # type: ignore[call-arg]
+                execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg, union-attr]
                 map_index=context["ti"].map_index,
             )
 
@@ -360,34 +359,36 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "ds_nodash",
         "expanded_ti_count",
         "inlets",
-        "next_ds",
-        "next_ds_nodash",
         "outlets",
-        "prev_ds",
-        "prev_ds_nodash",
         "run_id",
         "task_instance_key_str",
         "test_mode",
-        "tomorrow_ds",
-        "tomorrow_ds_nodash",
         "ts",
         "ts_nodash",
         "ts_nodash_with_tz",
+        # The following should be removed when Airflow 2 support is dropped.
+        "next_ds",
+        "next_ds_nodash",
+        "prev_ds",
+        "prev_ds_nodash",
+        "tomorrow_ds",
+        "tomorrow_ds_nodash",
         "yesterday_ds",
         "yesterday_ds_nodash",
     }
     PENDULUM_SERIALIZABLE_CONTEXT_KEYS = {
         "data_interval_end",
         "data_interval_start",
-        "execution_date",
         "logical_date",
-        "next_execution_date",
         "prev_data_interval_end_success",
         "prev_data_interval_start_success",
-        "prev_execution_date",
-        "prev_execution_date_success",
         "prev_start_date_success",
         "prev_end_date_success",
+        # The following should be removed when Airflow 2 support is dropped.
+        "execution_date",
+        "next_execution_date",
+        "prev_execution_date",
+        "prev_execution_date_success",
     }
 
     AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {
@@ -397,7 +398,9 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "dag_run",
         "task",
         "params",
-        "triggering_asset_events" if AIRFLOW_V_3_0_PLUS else "triggering_dataset_events",
+        "triggering_asset_events",
+        # The following should be removed when Airflow 2 support is dropped.
+        "triggering_dataset_events",
     }
 
     def __init__(

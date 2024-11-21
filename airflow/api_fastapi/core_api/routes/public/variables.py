@@ -38,10 +38,8 @@ variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
 
 @variables_router.delete(
     "/{variable_key}",
-    status_code=204,
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def delete_variable(
     variable_key: str,
@@ -56,9 +54,7 @@ def delete_variable(
 
 @variables_router.get(
     "/{variable_key}",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_variable(
     variable_key: str,
@@ -76,8 +72,7 @@ def get_variable(
 
 
 @variables_router.get(
-    "/",
-    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
+    "",
 )
 def get_variables(
     limit: QueryLimit,
@@ -103,7 +98,7 @@ def get_variables(
         session=session,
     )
 
-    variables = session.scalars(variable_select).all()
+    variables = session.scalars(variable_select)
 
     return VariableCollectionResponse(
         variables=[VariableResponse.model_validate(variable, from_attributes=True) for variable in variables],
@@ -116,8 +111,6 @@ def get_variables(
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
         ]
     ),
@@ -151,9 +144,8 @@ def patch_variable(
 
 
 @variables_router.post(
-    "/",
+    "",
     status_code=status.HTTP_201_CREATED,
-    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
 def post_variable(
     post_body: VariableBody,

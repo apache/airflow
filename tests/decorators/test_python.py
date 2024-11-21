@@ -458,7 +458,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         dr = self.dag_non_serialized.create_dagrun(
             run_id=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=self.dag_non_serialized.timetable.infer_manual_data_interval(
                 run_after=DEFAULT_DATE
@@ -523,7 +523,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         dr = self.dag_non_serialized.create_dagrun(
             run_id=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=self.dag_non_serialized.timetable.infer_manual_data_interval(
                 run_after=DEFAULT_DATE
@@ -985,7 +985,7 @@ def test_no_warnings(reset_logging_config, caplog):
 
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_task_decorator_asset(dag_maker, session):
-    from airflow.assets import Asset
+    from airflow.sdk.definitions.asset import Asset
 
     result = None
     uri = "s3://bucket/name"

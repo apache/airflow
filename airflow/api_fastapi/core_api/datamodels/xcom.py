@@ -27,7 +27,7 @@ class XComResponse(BaseModel):
 
     key: str
     timestamp: datetime
-    execution_date: datetime
+    logical_date: datetime
     map_index: int
     task_id: str
     dag_id: str
@@ -42,8 +42,8 @@ class XComResponseNative(XComResponse):
 class XComResponseString(XComResponse):
     """XCom response serializer with string return type."""
 
-    value: Any
+    value: str | None
 
-    @field_validator("value")
+    @field_validator("value", mode="before")
     def value_to_string(cls, v):
         return str(v) if v is not None else None

@@ -18,12 +18,13 @@
 from __future__ import annotations
 
 import logging
-from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import HTTPException, status
 
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.execution_api import datamodels
+from airflow.api_fastapi.execution_api import deps
+from airflow.api_fastapi.execution_api.datamodels.token import TIToken
+from airflow.api_fastapi.execution_api.datamodels.variable import VariableResponse
 from airflow.models.variable import Variable
 
 # TODO: Add dependency on JWT token
@@ -34,11 +35,6 @@ router = AirflowRouter(
 log = logging.getLogger(__name__)
 
 
-def get_task_token() -> datamodels.TIToken:
-    """TODO: Placeholder for task identity authentication. This should be replaced with actual JWT decoding and validation."""
-    return datamodels.TIToken(ti_key="test_key")
-
-
 @router.get(
     "/{variable_key}",
     responses={
@@ -46,10 +42,7 @@ def get_task_token() -> datamodels.TIToken:
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
     },
 )
-def get_variable(
-    variable_key: str,
-    token: Annotated[datamodels.TIToken, Depends(get_task_token)],
-) -> datamodels.VariableResponse:
+def get_variable(variable_key: str, token: deps.TokenDep) -> VariableResponse:
     """Get an Airflow Variable."""
     if not has_variable_access(variable_key, token):
         raise HTTPException(
@@ -71,10 +64,10 @@ def get_variable(
             },
         )
 
-    return datamodels.VariableResponse(key=variable_key, value=variable_value)
+    return VariableResponse(key=variable_key, value=variable_value)
 
 
-def has_variable_access(variable_key: str, token: datamodels.TIToken) -> bool:
+def has_variable_access(variable_key: str, token: TIToken) -> bool:
     """Check if the task has access to the variable."""
     # TODO: Placeholder for actual implementation
 

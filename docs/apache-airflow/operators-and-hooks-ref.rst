@@ -65,7 +65,7 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - :mod:`airflow.operators.latest_only`
      -
 
-   * - :mod:`airflow.operators.trigger_dagrun`
+   * - :mod:`airflow.providers.standard.operators.trigger_dagrun`
      -
 
 **Sensors:**
@@ -78,9 +78,6 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
 
    * - :mod:`airflow.sensors.external_task`
      - :doc:`How to use <howto/operator/external_task_sensor>`
-
-   * - :mod:`airflow.sensors.filesystem`
-     - :ref:`How to use <howto/operator:FileSensor>`
 
 
 **Hooks:**

@@ -19,9 +19,15 @@ from __future__ import annotations
 import urllib.parse
 from typing import TYPE_CHECKING
 
-try:
-    from airflow.assets import Asset
-except ModuleNotFoundError:
+from packaging.version import Version
+
+from airflow import __version__ as AIRFLOW_VERSION
+
+# TODO: Remove version check block after bumping common provider to 1.3.0
+AIRFLOW_V_3_0_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("3.0.0")
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.sdk.definitions.asset import Asset
+else:
     from airflow.datasets import Dataset as Asset  # type: ignore[no-redef]
 
 if TYPE_CHECKING:

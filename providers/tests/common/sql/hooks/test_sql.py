@@ -277,3 +277,13 @@ class TestDbApiHook:
         for _ in range(10):
             assert dbapi_hook.placeholder == "%s"
         assert dbapi_hook.connection_invocations == 1
+
+    @pytest.mark.db_test
+    def test_uri(self):
+        dbapi_hook = mock_hook(DbApiHook)
+        assert dbapi_hook.get_uri() == "//login:password@host:1234/schema"
+
+    @pytest.mark.db_test
+    def test_uri_with_schema(self):
+        dbapi_hook = mock_hook(DbApiHook, conn_params={"schema": "other_schema"})
+        assert dbapi_hook.get_uri() == "//login:password@host:1234/other_schema"
