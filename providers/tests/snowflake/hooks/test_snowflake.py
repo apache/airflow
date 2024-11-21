@@ -138,6 +138,7 @@ class TestPytestSnowflakeHook:
                         "extra__snowflake__region": "af_region",
                         "extra__snowflake__role": "af_role",
                         "extra__snowflake__insecure_mode": "True",
+                        "extra__snowflake__json_result_force_utf8_decoding": "True",
                         "extra__snowflake__client_request_mfa_token": "True",
                     },
                 },
@@ -158,6 +159,7 @@ class TestPytestSnowflakeHook:
                     "user": "user",
                     "warehouse": "af_wh",
                     "insecure_mode": True,
+                    "json_result_force_utf8_decoding": True,
                     "client_request_mfa_token": True,
                 },
             ),
@@ -171,6 +173,7 @@ class TestPytestSnowflakeHook:
                         "extra__snowflake__region": "af_region",
                         "extra__snowflake__role": "af_role",
                         "extra__snowflake__insecure_mode": "False",
+                        "extra__snowflake__json_result_force_utf8_decoding": "False",
                         "extra__snowflake__client_request_mfa_token": "False",
                     },
                 },
@@ -247,6 +250,7 @@ class TestPytestSnowflakeHook:
                     "extra": {
                         **BASE_CONNECTION_KWARGS["extra"],
                         "extra__snowflake__insecure_mode": False,
+                        "extra__snowflake__json_result_force_utf8_decoding": True,
                         "extra__snowflake__client_request_mfa_token": False,
                     },
                 },
@@ -266,6 +270,7 @@ class TestPytestSnowflakeHook:
                     "session_parameters": None,
                     "user": "user",
                     "warehouse": "af_wh",
+                    "json_result_force_utf8_decoding": True,
                 },
             ),
         ],
@@ -470,6 +475,23 @@ class TestPytestSnowflakeHook:
                 "snowflake://user:pw@airflow.af_region/db/public"
                 "?application=AIRFLOW&authenticator=snowflake&role=af_role&warehouse=af_wh",
                 connect_args={"insecure_mode": True},
+            )
+            assert mock_create_engine.return_value == conn
+
+    def test_get_sqlalchemy_engine_should_support_json_result_force_utf8_decoding(self):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["extra__snowflake__json_result_force_utf8_decoding"] = "True"
+
+        with (
+            mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
+            mock.patch("airflow.providers.snowflake.hooks.snowflake.create_engine") as mock_create_engine,
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            conn = hook.get_sqlalchemy_engine()
+            mock_create_engine.assert_called_once_with(
+                "snowflake://user:pw@airflow.af_region/db/public"
+                "?application=AIRFLOW&authenticator=snowflake&role=af_role&warehouse=af_wh",
+                connect_args={"json_result_force_utf8_decoding": True},
             )
             assert mock_create_engine.return_value == conn
 
