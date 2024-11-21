@@ -99,7 +99,6 @@ class StandardTaskRunner(LoggingMixin):
         self._cfg_path = cfg_path
         self._command = popen_prepend + self._task_instance.command_as_list(
             raw=True,
-            pickle_id=self.job_runner.pickle_id,
             mark_success=self.job_runner.mark_success,
             pool=self.job_runner.pool,
             cfg_path=cfg_path,
@@ -161,7 +160,7 @@ class StandardTaskRunner(LoggingMixin):
             self.log.info("Running: %s", self._command)
             self.log.info("Subtask %s", self._task_instance.task_id)
 
-            proc_title = "airflow task runner: {0.dag_id} {0.task_id} {0.execution_date_or_run_id}"
+            proc_title = "airflow task runner: {0.dag_id} {0.task_id} {0.logical_date_or_run_id}"
             setproctitle(proc_title.format(args))
             return_code = 0
             try:

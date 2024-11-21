@@ -16,30 +16,38 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException
+import os
+from typing import Annotated
+
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.connections import (
+from airflow.api_fastapi.core_api.datamodels.connections import (
+    ConnectionBody,
     ConnectionCollectionResponse,
     ConnectionResponse,
+    ConnectionTestResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.configuration import conf
 from airflow.models import Connection
+from airflow.secrets.environment_variables import CONN_ENV_PREFIX
+from airflow.utils import helpers
+from airflow.utils.strings import get_random_string
 
 connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
 
 
 @connections_router.delete(
     "/{connection_id}",
-    status_code=204,
-    responses=create_openapi_http_exception_doc([401, 403, 404]),
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
-async def delete_connection(
+def delete_connection(
     connection_id: str,
     session: Annotated[Session, Depends(get_session)],
 ):
@@ -47,16 +55,18 @@ async def delete_connection(
     connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
 
     if connection is None:
-        raise HTTPException(404, f"The Connection with connection_id: `{connection_id}` was not found")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"The Connection with connection_id: `{connection_id}` was not found"
+        )
 
     session.delete(connection)
 
 
 @connections_router.get(
     "/{connection_id}",
-    responses=create_openapi_http_exception_doc([401, 403, 404]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
-async def get_connection(
+def get_connection(
     connection_id: str,
     session: Annotated[Session, Depends(get_session)],
 ) -> ConnectionResponse:
@@ -64,16 +74,18 @@ async def get_connection(
     connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
 
     if connection is None:
-        raise HTTPException(404, f"The Connection with connection_id: `{connection_id}` was not found")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"The Connection with connection_id: `{connection_id}` was not found"
+        )
 
     return ConnectionResponse.model_validate(connection, from_attributes=True)
 
 
 @connections_router.get(
-    "/",
-    responses=create_openapi_http_exception_doc([401, 403, 404]),
+    "",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
-async def get_connections(
+def get_connections(
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -96,7 +108,7 @@ async def get_connections(
         session=session,
     )
 
-    connections = session.scalars(connection_select).all()
+    connections = session.scalars(connection_select)
 
     return ConnectionCollectionResponse(
         connections=[
@@ -104,3 +116,106 @@ async def get_connections(
         ],
         total_entries=total_entries,
     )
+
+
+@connections_router.post(
+    "",
+    status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
+)
+def post_connection(
+    post_body: ConnectionBody,
+    session: Annotated[Session, Depends(get_session)],
+) -> ConnectionResponse:
+    """Create connection entry."""
+    try:
+        helpers.validate_key(post_body.connection_id, max_length=200)
+    except Exception as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"{e}")
+
+    connection = session.scalar(select(Connection).filter_by(conn_id=post_body.connection_id))
+    if connection is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Connection with connection_id: `{post_body.connection_id}` already exists",
+        )
+
+    connection = Connection(**post_body.model_dump(by_alias=True))
+    session.add(connection)
+
+    return ConnectionResponse.model_validate(connection, from_attributes=True)
+
+
+@connections_router.patch(
+    "/{connection_id}",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
+)
+def patch_connection(
+    connection_id: str,
+    patch_body: ConnectionBody,
+    session: Annotated[Session, Depends(get_session)],
+    update_mask: list[str] | None = Query(None),
+) -> ConnectionResponse:
+    """Update a connection entry."""
+    if patch_body.connection_id != connection_id:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "The connection_id in the request body does not match the URL parameter",
+        )
+
+    non_update_fields = {"connection_id", "conn_id"}
+    connection = session.scalar(select(Connection).filter_by(conn_id=connection_id).limit(1))
+
+    if connection is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"The Connection with connection_id: `{connection_id}` was not found"
+        )
+
+    if update_mask:
+        data = patch_body.model_dump(include=set(update_mask) - non_update_fields)
+    else:
+        data = patch_body.model_dump(exclude=non_update_fields)
+
+    for key, val in data.items():
+        setattr(connection, key, val)
+    return ConnectionResponse.model_validate(connection, from_attributes=True)
+
+
+@connections_router.post(
+    "/test",
+)
+def test_connection(
+    test_body: ConnectionBody,
+) -> ConnectionTestResponse:
+    """
+    Test an API connection.
+
+    This method first creates an in-memory transient conn_id & exports that to an env var,
+    as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
+    It also deletes the conn id env variable after the test.
+    """
+    if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            "Testing connections is disabled in Airflow configuration. "
+            "Contact your deployment admin to enable it.",
+        )
+
+    transient_conn_id = get_random_string()
+    conn_env_var = f"{CONN_ENV_PREFIX}{transient_conn_id.upper()}"
+    try:
+        data = test_body.model_dump(by_alias=True)
+        data["conn_id"] = transient_conn_id
+        conn = Connection(**data)
+        os.environ[conn_env_var] = conn.get_uri()
+        test_status, test_message = conn.test_connection()
+        return ConnectionTestResponse.model_validate(
+            {"status": test_status, "message": test_message}, from_attributes=True
+        )
+    finally:
+        os.environ.pop(conn_env_var, None)

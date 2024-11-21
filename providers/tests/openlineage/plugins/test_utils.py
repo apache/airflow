@@ -29,8 +29,10 @@ from openlineage.client.utils import RedactMixin
 from pkg_resources import parse_version
 
 from airflow.models import DAG as AIRFLOW_DAG, DagModel
+from airflow.providers.common.compat.assets import Asset
 from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.utils.utils import (
+    DagInfo,
     InfoJsonEncodable,
     OpenLineageRedactor,
     _get_all_packages_installed,
@@ -38,22 +40,23 @@ from airflow.providers.openlineage.utils.utils import (
     get_airflow_debug_facet,
     get_airflow_run_facet,
     get_fully_qualified_class_name,
+    get_processing_engine_facet,
     is_operator_disabled,
 )
+from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils import timezone
 from airflow.utils.log.secrets_masker import _secrets_masker
 from airflow.utils.state import State
 
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS, BashOperator
+from tests_common.test_utils.compat import (
+    AIRFLOW_V_2_9_PLUS,
+    AIRFLOW_V_2_10_PLUS,
+    AIRFLOW_V_3_0_PLUS,
+    BashOperator,
+)
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
-
-BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
-PYTHON_OPERATOR_PATH = "airflow.providers.standard.operators.python"
-if not AIRFLOW_V_2_10_PLUS:
-    BASH_OPERATOR_PATH = "airflow.operators.bash"
-    PYTHON_OPERATOR_PATH = "airflow.operators.python"
 
 
 class SafeStrDict(dict):
@@ -268,7 +271,7 @@ def test_get_fully_qualified_class_name():
     from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 
     result = get_fully_qualified_class_name(BashOperator(task_id="test", bash_command="exit 0;"))
-    assert result == f"{BASH_OPERATOR_PATH}.BashOperator"
+    assert result == "airflow.providers.standard.operators.bash.BashOperator"
 
     result = get_fully_qualified_class_name(OpenLineageAdapter())
     assert result == "airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter"
@@ -284,8 +287,8 @@ def test_is_operator_disabled(mock_disabled_operators):
     assert is_operator_disabled(op) is False
 
     mock_disabled_operators.return_value = {
-        f"{BASH_OPERATOR_PATH}.BashOperator",
-        f"{PYTHON_OPERATOR_PATH}.PythonOperator",
+        "airflow.providers.standard.operators.bash.BashOperator",
+        "airflow.providers.standard.operators.python.PythonOperator",
     }
     assert is_operator_disabled(op) is True
 
@@ -322,3 +325,133 @@ def test_does_not_include_full_task_info(mock_include_full_task_info):
             MagicMock(),
         )["airflow"].task
     )
+
+
+@pytest.mark.db_test
+@pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This test checks serialization only in 3.0 conditions")
+def test_serialize_timetable():
+    from airflow.providers.common.compat.assets import AssetAlias, AssetAll, AssetAny
+    from airflow.timetables.simple import AssetTriggeredTimetable
+
+    asset = AssetAny(
+        Asset("2"),
+        AssetAlias("example-alias"),
+        Asset("3"),
+        AssetAll(AssetAlias("this-should-not-be-seen"), Asset("4")),
+    )
+    dag = MagicMock()
+    dag.timetable = AssetTriggeredTimetable(asset)
+    dag_info = DagInfo(dag)
+
+    assert dag_info.timetable == {
+        "asset_condition": {
+            "__type": DagAttributeTypes.ASSET_ANY,
+            "objects": [
+                {"__type": DagAttributeTypes.ASSET, "extra": {}, "name": "2", "uri": "2"},
+                {"__type": DagAttributeTypes.ASSET_ANY, "objects": []},
+                {"__type": DagAttributeTypes.ASSET, "extra": {}, "name": "3", "uri": "3"},
+                {
+                    "__type": DagAttributeTypes.ASSET_ALL,
+                    "objects": [
+                        {"__type": DagAttributeTypes.ASSET_ANY, "objects": []},
+                        {"__type": DagAttributeTypes.ASSET, "extra": {}, "name": "4", "uri": "4"},
+                    ],
+                },
+            ],
+        }
+    }
+
+
+@pytest.mark.db_test
+@pytest.mark.skipif(
+    not AIRFLOW_V_2_10_PLUS or AIRFLOW_V_3_0_PLUS,
+    reason="This test checks serialization only in 2.10 conditions",
+)
+def test_serialize_timetable_2_10():
+    from airflow.providers.common.compat.assets import AssetAlias, AssetAll, AssetAny
+    from airflow.timetables.simple import DatasetTriggeredTimetable
+
+    asset = AssetAny(
+        Asset("2"),
+        AssetAlias("example-alias"),
+        Asset("3"),
+        AssetAll(AssetAlias("this-should-not-be-seen"), Asset("4")),
+    )
+
+    dag = MagicMock()
+    dag.timetable = DatasetTriggeredTimetable(asset)
+    dag_info = DagInfo(dag)
+
+    assert dag_info.timetable == {
+        "dataset_condition": {
+            "__type": DagAttributeTypes.DATASET_ANY,
+            "objects": [
+                {"__type": DagAttributeTypes.DATASET, "extra": None, "uri": "2"},
+                {"__type": DagAttributeTypes.DATASET_ANY, "objects": []},
+                {"__type": DagAttributeTypes.DATASET, "extra": None, "uri": "3"},
+                {
+                    "__type": DagAttributeTypes.DATASET_ALL,
+                    "objects": [
+                        {"__type": DagAttributeTypes.DATASET_ANY, "objects": []},
+                        {"__type": DagAttributeTypes.DATASET, "extra": None, "uri": "4"},
+                    ],
+                },
+            ],
+        }
+    }
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_2_9_PLUS or AIRFLOW_V_2_10_PLUS,
+    reason="This test checks serialization only in 2.9 conditions",
+)
+def test_serialize_timetable_2_9():
+    dag = MagicMock()
+    dag.timetable.serialize.return_value = {}
+    dag.dataset_triggers = [Asset("a"), Asset("b")]
+    dag_info = DagInfo(dag)
+    assert dag_info.timetable == {
+        "dataset_condition": {
+            "__type": "dataset_all",
+            "objects": [
+                {"__type": "dataset", "extra": None, "uri": "a"},
+                {"__type": "dataset", "extra": None, "uri": "b"},
+            ],
+        }
+    }
+
+
+@pytest.mark.skipif(
+    AIRFLOW_V_2_9_PLUS,
+    reason="This test checks serialization only in 2.8 conditions",
+)
+def test_serialize_timetable_2_8():
+    dag = MagicMock()
+    dag.timetable.serialize.return_value = {}
+    dag.dataset_triggers = [Asset("a"), Asset("b")]
+    dag_info = DagInfo(dag)
+    assert dag_info.timetable == {
+        "dataset_condition": {
+            "__type": "dataset_all",
+            "objects": [
+                {"__type": "dataset", "extra": None, "uri": "a"},
+                {"__type": "dataset", "extra": None, "uri": "b"},
+            ],
+        }
+    }
+
+
+@pytest.mark.parametrize(
+    ("airflow_version", "ol_version"),
+    [
+        ("2.9.3", "1.12.2"),
+        ("2.10.1", "1.13.0"),
+        ("3.0.0", "1.14.0"),
+    ],
+)
+def test_get_processing_engine_facet(airflow_version, ol_version):
+    with patch("airflow.providers.openlineage.utils.utils.AIRFLOW_VERSION", airflow_version):
+        with patch("airflow.providers.openlineage.utils.utils.OPENLINEAGE_PROVIDER_VERSION", ol_version):
+            result = get_processing_engine_facet()
+            assert result["processing_engine"].version == airflow_version
+            assert result["processing_engine"].openlineageAdapterVersion == ol_version

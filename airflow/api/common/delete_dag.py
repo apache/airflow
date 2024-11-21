@@ -28,7 +28,6 @@ from airflow import models
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DagModel
 from airflow.models.errors import ParseImportError
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.db import get_sqla_model_classes
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
@@ -63,11 +62,6 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
     dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id).limit(1))
     if dag is None:
         raise DagNotFound(f"Dag id {dag_id} not found")
-
-    # Scheduler removes DAGs without files from serialized_dag table every dag_dir_list_interval.
-    # There may be a lag, so explicitly removes serialized DAG here.
-    if SerializedDagModel.has_dag(dag_id=dag_id, session=session):
-        SerializedDagModel.remove_dag(dag_id=dag_id, session=session)
 
     count = 0
 

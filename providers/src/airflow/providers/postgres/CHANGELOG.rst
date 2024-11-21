@@ -27,6 +27,31 @@
 Changelog
 ---------
 
+5.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add AWS Redshift Serverless support to PostgresHook (#43669)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix PostgresHook bug when getting AWS Redshift Serverless credentials (#43807)``
+
+Misc
+~~~~
+
+* ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Start porting DAG definition code to the Task SDK (#43076)``
+   * ``Add docs about 'cursor' extra param in Postgres Connection (#43134)``
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 5.13.1
 ......
 

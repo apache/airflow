@@ -25,9 +25,11 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
 
 import pendulum
+from deprecated import deprecated
 
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
 from airflow.stats import Stats
@@ -112,7 +114,6 @@ class BaseExecutor(LoggingMixin):
     """
 
     supports_ad_hoc_ti_run: bool = False
-    supports_pickling: bool = True
     supports_sentry: bool = False
 
     is_local: bool = False
@@ -172,7 +173,6 @@ class BaseExecutor(LoggingMixin):
         self,
         task_instance: TaskInstance,
         mark_success: bool = False,
-        pickle_id: int | None = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         wait_for_past_depends_before_skipping: bool = False,
@@ -196,7 +196,6 @@ class BaseExecutor(LoggingMixin):
             ignore_task_deps=ignore_task_deps,
             ignore_ti_state=ignore_ti_state,
             pool=pool,
-            pickle_id=pickle_id,
             # cfg_path is needed to propagate the config values if using impersonation
             # (run_as_user), given that there are different code paths running tasks.
             # https://github.com/apache/airflow/pull/2991
@@ -394,13 +393,17 @@ class BaseExecutor(LoggingMixin):
                 span_id=span_id,
                 links=links,
             ) as span:
-                span.set_attribute("dag_id", key.dag_id)
-                span.set_attribute("run_id", key.run_id)
-                span.set_attribute("task_id", key.task_id)
-                span.set_attribute("try_number", key.try_number)
-                span.set_attribute("command", str(command))
-                span.set_attribute("queue", str(queue))
-                span.set_attribute("executor_config", str(executor_config))
+                span.set_attributes(
+                    {
+                        "dag_id": key.dag_id,
+                        "run_id": key.run_id,
+                        "task_id": key.task_id,
+                        "try_number": key.try_number,
+                        "command": str(command),
+                        "queue": str(queue),
+                        "executor_config": str(executor_config),
+                    }
+                )
                 del self.queued_tasks[key]
                 self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
                 self.running.add(key)
@@ -439,11 +442,15 @@ class BaseExecutor(LoggingMixin):
                 component="BaseExecutor",
                 parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
             ) as span:
-                span.set_attribute("dag_id", key.dag_id)
-                span.set_attribute("run_id", key.run_id)
-                span.set_attribute("task_id", key.task_id)
-                span.set_attribute("try_number", key.try_number)
-                span.set_attribute("error", True)
+                span.set_attributes(
+                    {
+                        "dag_id": key.dag_id,
+                        "run_id": key.run_id,
+                        "task_id": key.task_id,
+                        "try_number": key.try_number,
+                        "error": True,
+                    }
+                )
 
         self.change_state(key, TaskInstanceState.FAILED, info)
 
@@ -462,10 +469,14 @@ class BaseExecutor(LoggingMixin):
                 component="BaseExecutor",
                 parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
             ) as span:
-                span.set_attribute("dag_id", key.dag_id)
-                span.set_attribute("run_id", key.run_id)
-                span.set_attribute("task_id", key.task_id)
-                span.set_attribute("try_number", key.try_number)
+                span.set_attributes(
+                    {
+                        "dag_id": key.dag_id,
+                        "run_id": key.run_id,
+                        "task_id": key.task_id,
+                        "try_number": key.try_number,
+                    }
+                )
 
         self.change_state(key, TaskInstanceState.SUCCESS, info)
 
@@ -543,7 +554,12 @@ class BaseExecutor(LoggingMixin):
         """Get called when the daemon receives a SIGTERM."""
         raise NotImplementedError
 
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:  # pragma: no cover
+    @deprecated(
+        reason="Replaced by function `revoke_task`.",
+        category=RemovedInAirflow3Warning,
+        action="ignore",
+    )
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
 
@@ -554,7 +570,23 @@ class BaseExecutor(LoggingMixin):
         :param tis: List of Task Instances to clean up
         :return: List of readable task instances for a warning message
         """
-        raise NotImplementedError()
+        raise NotImplementedError
+
+    def revoke_task(self, *, ti: TaskInstance):
+        """
+        Attempt to remove task from executor.
+
+        It should attempt to ensure that the task is no longer running on the worker,
+        and ensure that it is cleared out from internal data structures.
+
+        It should *not* change the state of the task in airflow, or add any events
+        to the event buffer.
+
+        It should not raise any error.
+
+        :param ti: Task instance to remove
+        """
+        raise NotImplementedError
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """

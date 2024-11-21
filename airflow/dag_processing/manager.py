@@ -50,7 +50,6 @@ from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagwarning import DagWarning
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.secrets.cache import SecretCache
 from airflow.stats import Stats
 from airflow.traces.tracer import Trace, add_span
@@ -117,7 +116,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         for unlimited.
     :param processor_timeout: How long to wait before timing out a DAG file processor
     :param dag_ids: if specified, only schedule tasks with these DAG IDs
-    :param pickle_dags: whether to pickle DAGs.
     :param async_mode: Whether to start agent in async mode
     """
 
@@ -127,7 +125,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         max_runs: int,
         processor_timeout: timedelta,
         dag_ids: list[str] | None,
-        pickle_dags: bool,
         async_mode: bool,
     ):
         super().__init__()
@@ -135,7 +132,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         self._max_runs = max_runs
         self._processor_timeout = processor_timeout
         self._dag_ids = dag_ids
-        self._pickle_dags = pickle_dags
         self._async_mode = async_mode
         # Map from file path to the processor
         self._processors: dict[str, DagFileProcessorProcess] = {}
@@ -163,7 +159,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
                 self._processor_timeout,
                 child_signal_conn,
                 self._dag_ids,
-                self._pickle_dags,
                 self._async_mode,
             ),
         )
@@ -223,7 +218,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         processor_timeout: timedelta,
         signal_conn: MultiprocessingConnection,
         dag_ids: list[str] | None,
-        pickle_dags: bool,
         async_mode: bool,
     ) -> None:
         # Make this process start as a new process group - that makes it easy
@@ -231,8 +225,12 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         # to iterate the child processes
         set_new_process_group()
         span = Trace.get_current_span()
-        span.set_attribute("dag_directory", str(dag_directory))
-        span.set_attribute("dag_ids", str(dag_ids))
+        span.set_attributes(
+            {
+                "dag_directory": str(dag_directory),
+                "dag_ids": str(dag_ids),
+            }
+        )
         setproctitle("airflow scheduler -- DagFileProcessorManager")
         reload_configuration_for_dag_processing()
         processor_manager = DagFileProcessorManager(
@@ -240,7 +238,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
             max_runs=max_runs,
             processor_timeout=processor_timeout,
             dag_ids=dag_ids,
-            pickle_dags=pickle_dags,
             signal_conn=signal_conn,
             async_mode=async_mode,
         )
@@ -353,7 +350,6 @@ class DagFileProcessorManager(LoggingMixin):
     :param processor_timeout: How long to wait before timing out a DAG file processor
     :param signal_conn: connection to communicate signal with processor agent.
     :param dag_ids: if specified, only schedule tasks with these DAG IDs
-    :param pickle_dags: whether to pickle DAGs.
     :param async_mode: whether to start the manager in async mode
     """
 
@@ -372,7 +368,6 @@ class DagFileProcessorManager(LoggingMixin):
         max_runs: int,
         processor_timeout: timedelta,
         dag_ids: list[str] | None,
-        pickle_dags: bool,
         signal_conn: MultiprocessingConnection | None = None,
         async_mode: bool = True,
     ):
@@ -383,7 +378,6 @@ class DagFileProcessorManager(LoggingMixin):
         self._max_runs = max_runs
         # signal_conn is None for dag_processor_standalone mode.
         self._direct_scheduler_conn = signal_conn
-        self._pickle_dags = pickle_dags
         self._dag_ids = dag_ids
         self._async_mode = async_mode
         self._parsing_start_time: float | None = None
@@ -513,11 +507,7 @@ class DagFileProcessorManager(LoggingMixin):
         stale_dag_threshold: int,
         session: Session = NEW_SESSION,
     ):
-        """
-        Detect DAGs which are no longer present in files.
-
-        Deactivate them and remove them in the serialized_dag table.
-        """
+        """Detect and deactivate DAGs which are no longer present in files."""
         to_deactivate = set()
         query = select(DagModel.dag_id, DagModel.fileloc, DagModel.last_parsed_time).where(DagModel.is_active)
         standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
@@ -547,10 +537,6 @@ class DagFileProcessorManager(LoggingMixin):
             deactivated = deactivated_dagmodel.rowcount
             if deactivated:
                 cls.logger().info("Deactivated %i DAGs which are no longer present in file.", deactivated)
-
-            for dag_id in to_deactivate:
-                SerializedDagModel.remove_dag(dag_id)
-                cls.logger().info("Deleted DAG %s in serialized_dag table", dag_id)
 
     def _run_parsing_loop(self):
         # In sync mode we want timeout=None -- wait forever until a message is received
@@ -828,17 +814,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             dag_filelocs = {full_loc for path in self._file_paths for full_loc in _iter_dag_filelocs(path)}
 
-            from airflow.models.dagcode import DagCode
-
-            SerializedDagModel.remove_deleted_dags(
-                alive_dag_filelocs=dag_filelocs,
-                processor_subdir=self.get_dag_directory(),
-            )
             DagModel.deactivate_deleted_dags(
-                dag_filelocs,
-                processor_subdir=self.get_dag_directory(),
-            )
-            DagCode.remove_deleted_code(
                 dag_filelocs,
                 processor_subdir=self.get_dag_directory(),
             )
@@ -1143,15 +1119,27 @@ class DagFileProcessorManager(LoggingMixin):
         span = Trace.get_tracer("DagFileProcessorManager").start_span(
             "dag_processing", start_time=datetime_to_nano(processor.start_time)
         )
-        span.set_attribute("file_path", processor.file_path)
-        span.set_attribute("run_count", self.get_run_count(processor.file_path) + 1)
+        span.set_attributes(
+            {
+                "file_path": processor.file_path,
+                "run_count": self.get_run_count(processor.file_path) + 1,
+            }
+        )
 
         if processor.result is None:
-            span.set_attribute("error", True)
-            span.set_attribute("processor.exit_code", processor.exit_code)
+            span.set_attributes(
+                {
+                    "error": True,
+                    "processor.exit_code": processor.exit_code,
+                }
+            )
         else:
-            span.set_attribute("num_dags", num_dags)
-            span.set_attribute("import_errors", count_import_errors)
+            span.set_attributes(
+                {
+                    "num_dags": num_dags,
+                    "import_errors": count_import_errors,
+                }
+            )
             if count_import_errors > 0:
                 span.set_attribute("error", True)
                 import_errors = session.scalars(
@@ -1191,11 +1179,10 @@ class DagFileProcessorManager(LoggingMixin):
         self.log.debug("%s file paths queued for processing", len(self._file_path_queue))
 
     @staticmethod
-    def _create_process(file_path, pickle_dags, dag_ids, dag_directory, callback_requests):
+    def _create_process(file_path, dag_ids, dag_directory, callback_requests):
         """Create DagFileProcessorProcess instance."""
         return DagFileProcessorProcess(
             file_path=file_path,
-            pickle_dags=pickle_dags,
             dag_ids=dag_ids,
             dag_directory=dag_directory,
             callback_requests=callback_requests,
@@ -1217,7 +1204,6 @@ class DagFileProcessorManager(LoggingMixin):
             callback_to_execute_for_file = self._callback_to_execute[file_path]
             processor = self._create_process(
                 file_path,
-                self._pickle_dags,
                 self._dag_ids,
                 self.get_dag_directory(),
                 callback_to_execute_for_file,
@@ -1439,9 +1425,13 @@ class DagFileProcessorManager(LoggingMixin):
             Stats.gauge(
                 "dag_processing.import_errors", sum(stat.import_errors for stat in self._file_stats.values())
             )
-            span.set_attribute("total_parse_time", parse_time)
-            span.set_attribute("dag_bag_size", sum(stat.num_dags for stat in self._file_stats.values()))
-            span.set_attribute("import_errors", sum(stat.import_errors for stat in self._file_stats.values()))
+            span.set_attributes(
+                {
+                    "total_parse_time": parse_time,
+                    "dag_bag_size": sum(stat.num_dags for stat in self._file_stats.values()),
+                    "import_errors": sum(stat.import_errors for stat in self._file_stats.values()),
+                }
+            )
 
     @property
     def file_paths(self):

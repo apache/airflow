@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 import sqlalchemy_jsonfield
@@ -29,15 +30,36 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     String,
     Table,
+    select,
     text,
 )
 from sqlalchemy.orm import relationship
 
-from airflow.assets import Asset, AssetAlias
 from airflow.models.base import Base, StringID
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from typing import Sequence
+
+    from sqlalchemy.orm import Session
+
+
+def _fetch_active_assets_by_name(
+    names: Sequence[str],
+    session: Session,
+) -> dict[str, Asset]:
+    return {
+        asset_model[0].name: asset_model[0].to_public()
+        for asset_model in session.execute(
+            select(AssetModel)
+            .join(AssetActive, AssetActive.name == AssetModel.name)
+            .where(AssetActive.name.in_(name for name in names))
+        )
+    }
+
 
 alias_association_table = Table(
     "asset_alias_asset",
@@ -48,13 +70,22 @@ alias_association_table = Table(
     Index("idx_asset_alias_asset_asset_id", "asset_id"),
 )
 
-asset_alias_asset_event_assocation_table = Table(
+asset_alias_asset_event_association_table = Table(
     "asset_alias_asset_event",
     Base.metadata,
     Column("alias_id", ForeignKey("asset_alias.id", ondelete="CASCADE"), primary_key=True),
     Column("event_id", ForeignKey("asset_event.id", ondelete="CASCADE"), primary_key=True),
     Index("idx_asset_alias_asset_event_alias_id", "alias_id"),
     Index("idx_asset_alias_asset_event_event_id", "event_id"),
+)
+
+asset_trigger_association_table = Table(
+    "asset_trigger",
+    Base.metadata,
+    Column("asset_id", ForeignKey("asset.id", ondelete="CASCADE"), primary_key=True),
+    Column("trigger_id", ForeignKey("trigger.id", ondelete="CASCADE"), primary_key=True),
+    Index("idx_asset_trigger_asset_id", "asset_id"),
+    Index("idx_asset_trigger_trigger_id", "trigger_id"),
 )
 
 
@@ -105,7 +136,7 @@ class AssetAliasModel(Base):
     )
     asset_events = relationship(
         "AssetEvent",
-        secondary=asset_alias_asset_event_assocation_table,
+        secondary=asset_alias_asset_event_association_table,
         back_populates="source_aliases",
     )
     consuming_dags = relationship("DagScheduleAssetAliasReference", back_populates="asset_alias")
@@ -185,6 +216,7 @@ class AssetModel(Base):
 
     consuming_dags = relationship("DagScheduleAssetReference", back_populates="asset")
     producing_tasks = relationship("TaskOutletAssetReference", back_populates="asset")
+    triggers = relationship("Trigger", secondary=asset_trigger_association_table, back_populates="assets")
 
     __tablename__ = "asset"
     __table_args__ = (
@@ -517,7 +549,7 @@ class AssetEvent(Base):
 
     source_aliases = relationship(
         "AssetAliasModel",
-        secondary=asset_alias_asset_event_assocation_table,
+        secondary=asset_alias_asset_event_association_table,
         back_populates="asset_events",
     )
 

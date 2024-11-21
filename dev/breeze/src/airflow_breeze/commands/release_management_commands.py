@@ -151,13 +151,18 @@ from airflow_breeze.utils.provider_dependencies import (
     generate_providers_metadata_for_package,
     get_related_providers,
 )
-from airflow_breeze.utils.python_versions import check_python_version, get_python_version_list
+from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.reproducible import get_source_date_epoch, repack_deterministically
 from airflow_breeze.utils.run_utils import (
     run_command,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
-from airflow_breeze.utils.version_utils import get_latest_airflow_version, get_latest_helm_chart_version
+from airflow_breeze.utils.version_utils import (
+    create_package_version,
+    get_latest_airflow_version,
+    get_latest_helm_chart_version,
+    is_local_package_version,
+)
 from airflow_breeze.utils.versions import is_pre_release
 from airflow_breeze.utils.virtualenv_utils import create_pip_command, create_venv
 
@@ -230,9 +235,9 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "24.3.1"
-AIRFLOW_UV_VERSION = "0.4.29"
+AIRFLOW_UV_VERSION = "0.5.3"
 AIRFLOW_USE_UV = False
-# TODO: automate thsese as well
+# TODO: automate these as well
 WHEEL_VERSION = "0.44.0"
 GITPYTHON_VERSION = "3.1.43"
 RICH_VERSION = "13.9.4"
@@ -530,7 +535,6 @@ def prepare_airflow_packages(
     version_suffix_for_pypi: str,
     use_local_hatch: bool,
 ):
-    check_python_version()
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -576,7 +580,6 @@ def prepare_airflow_task_sdk_packages(
     package_format: str,
     use_local_hatch: bool,
 ):
-    check_python_version()
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -867,6 +870,15 @@ def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
     help="Skip checking if the tag already exists in the remote repository",
 )
 @click.option(
+    "--version-suffix-for-local",
+    default=None,
+    show_default=False,
+    help="Version suffix for local builds. Do not provide the leading plus sign ('+'). The suffix must "
+    "contain only ascii letters, numbers, and periods. The first character must be an ascii letter or number "
+    "and the last character must be an ascii letter or number. Note: the local suffix will be appended after "
+    "the PyPi suffix if both are provided.",
+)
+@click.option(
     "--skip-deleting-generated-files",
     default=False,
     is_flag=True,
@@ -906,8 +918,8 @@ def prepare_provider_packages(
     skip_deleting_generated_files: bool,
     skip_tag_check: bool,
     version_suffix_for_pypi: str,
+    version_suffix_for_local: str,
 ):
-    check_python_version(release_provider_packages=True)
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -929,7 +941,8 @@ def prepare_provider_packages(
         include_removed=include_removed_providers,
         include_not_ready=include_not_ready_providers,
     )
-    if not skip_tag_check:
+    package_version = create_package_version(version_suffix_for_pypi, version_suffix_for_local)
+    if not skip_tag_check and not is_local_package_version(package_version):
         run_command(["git", "remote", "rm", "apache-https-for-providers"], check=False, stderr=DEVNULL)
         make_sure_remote_apache_exists_and_fetch(github_repository=github_repository)
     success_packages = []
@@ -942,7 +955,6 @@ def prepare_provider_packages(
         shutil.rmtree(DIST_DIR, ignore_errors=True)
         DIST_DIR.mkdir(parents=True, exist_ok=True)
     for provider_id in packages_list:
-        package_version = version_suffix_for_pypi
         try:
             basic_provider_checks(provider_id)
             if not skip_tag_check:
@@ -3182,7 +3194,6 @@ def prepare_helm_chart_tarball(
 ) -> None:
     import yaml
 
-    check_python_version()
     chart_yaml_file_content = CHART_YAML_FILE.read_text()
     chart_yaml_dict = yaml.safe_load(chart_yaml_file_content)
     version_in_chart = chart_yaml_dict["version"]
@@ -3324,8 +3335,6 @@ def prepare_helm_chart_tarball(
 @option_dry_run
 @option_verbose
 def prepare_helm_chart_package(sign_email: str):
-    check_python_version()
-
     import yaml
 
     from airflow_breeze.utils.kubernetes_utils import (

@@ -38,17 +38,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-8.9.1
+8.9.2
 .....
 
-Latest change: 2024-10-24
+Latest change: 2024-11-13
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`e7194dff6a <https://github.com/apache/airflow/commit/e7194dff6a816bf3a721cbf579ceac19c11cd111>`_  2024-11-13   ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+=================================================================================================  ===========  ========================================================================================
+
+8.9.1
+.....
+
+Latest change: 2024-10-27
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`78ff0a9970 <https://github.com/apache/airflow/commit/78ff0a99700125121b7f0647023503750f14a11b>`_  2024-10-27   ``Prepare docs for Oct 2nd wave of providers (#43409)``
 `75ecaffa5f <https://github.com/apache/airflow/commit/75ecaffa5fa6884729243083a487f33187ed3c66>`_  2024-10-24   ``adding support for snippet type in slack api (#43305)``
 `c881565c07 <https://github.com/apache/airflow/commit/c881565c0741b4beb50552eebde130de6dc29c2d>`_  2024-10-17   ``passing the filetype for SlackAPIFileOperator (#43069)``
 `857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+`a5ffbbda17 <https://github.com/apache/airflow/commit/a5ffbbda17450a5c99037b292844087119b5676a>`_  2024-10-09   ``Standard provider bash operator (#42252)``
+`55fe75d083 <https://github.com/apache/airflow/commit/55fe75d083499c6fbaaca35d6dbad4487f4a9ad0>`_  2024-09-25   ``Purge existing SLA implementation (#42285)``
 =================================================================================================  ===========  ========================================================================================
 
 8.9.0
@@ -164,6 +178,7 @@ Commit                                                                          
 =================================================================================================  ===========  ==================================================================================
 `b15d5578da <https://github.com/apache/airflow/commit/b15d5578dac73c4c6a3ca94d90ab0dc9e9e74c9c>`_  2023-12-23   ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
 `f5883d6e7b <https://github.com/apache/airflow/commit/f5883d6e7be83f1ab9468e67164b7ac381fdb49f>`_  2023-12-23   ``Prepare 2nd wave of providers in December (#36373)``
+`e718395714 <https://github.com/apache/airflow/commit/e718395714a499b6c1d6554b1867c1a21e01d4a9>`_  2023-12-20   ``Remove notifiers compatibility note (#36323)``
 `4824ca7c5a <https://github.com/apache/airflow/commit/4824ca7c5a1e532ae19899f4b0d48c3216c7c871>`_  2023-12-08   ``Slack: Remove parameter 'token' in SlackAPIPostOperator's docstring (#36121)``
 =================================================================================================  ===========  ==================================================================================
 
@@ -194,6 +209,8 @@ Commit                                                                          
 `3fbd9d6b18 <https://github.com/apache/airflow/commit/3fbd9d6b18021faa08550532241515d75fbf3b83>`_  2023-11-07   ``Add missing examples into Slack Provider (#35495)``
 `11bdfe4c12 <https://github.com/apache/airflow/commit/11bdfe4c12efa2f5d256cc49916a20beaa5487eb>`_  2023-11-07   ``Work around typing issue in examples and providers (#35494)``
 `850e1947a6 <https://github.com/apache/airflow/commit/850e1947a6691e3c0664e59bbb36debc3ab19f48>`_  2023-11-05   ``Reorganize SQL to Slack Operators (#35215)``
+`706878ec35 <https://github.com/apache/airflow/commit/706878ec354cf867440c367a95c85753c19e54de>`_  2023-11-04   ``Remove empty lines in generated changelog (#35436)``
+`052e26ad47 <https://github.com/apache/airflow/commit/052e26ad473a9d50f0b96456ed094f2087ee4434>`_  2023-11-04   ``Change security.rst to use includes in providers (#35435)``
 =================================================================================================  ===========  ===============================================================
 
 8.3.0
@@ -223,6 +240,7 @@ Commit                                                                          
 `6ba2c4485c <https://github.com/apache/airflow/commit/6ba2c4485cb8ff2cf3c2e4d8043e4c7fe5008b15>`_  2023-10-12   ``Docstring correction for 'SlackAPIOperator' (#34871)``
 `0c8e30e43b <https://github.com/apache/airflow/commit/0c8e30e43b70e9d033e1686b327eb00aab82479c>`_  2023-10-05   ``Bump min airflow version of providers (#34728)``
 `faa32f23e8 <https://github.com/apache/airflow/commit/faa32f23e824ec8dd00b296ce9d8bd239ac0437f>`_  2023-09-23   ``Slack: use default_conn_name by default (#34548)``
+`3ab49cb1e7 <https://github.com/apache/airflow/commit/3ab49cb1e739f6615bdde5ca5d9cbf23266cc5c2>`_  2023-09-14   ``Update slackwebhook_notifier_howto_guide.rst typo (#34353)``
 =================================================================================================  ===========  ===============================================================
 
 8.1.0
@@ -263,12 +281,14 @@ Latest change: 2023-07-29
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================
 `d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
+`73b90c48b1 <https://github.com/apache/airflow/commit/73b90c48b1933b49086d34176527947bd727ec85>`_  2023-07-21   ``Allow configuration to be contributed by providers (#32604)``
 `60c49ab2df <https://github.com/apache/airflow/commit/60c49ab2dfabaf450b80a5c7569743dd383500a6>`_  2023-07-19   ``Add more accurate typing for DbApiHook.run method (#31846)``
 `225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 `e45bee8840 <https://github.com/apache/airflow/commit/e45bee884068399e7265421511e17fed106ce5b4>`_  2023-07-05   ``D205 Support - Providers: Pagerduty to SMTP (inclusive) (#32358)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
 `cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
 `09d4718d3a <https://github.com/apache/airflow/commit/09d4718d3a46aecf3355d14d3d23022002f4a818>`_  2023-06-27   ``Improve provider documentation and README structure (#32125)``
+`e4ca68818e <https://github.com/apache/airflow/commit/e4ca68818eec0f29ef04a1a5bfec3241ea03bf8c>`_  2023-06-23   ``Adapt Notifier for sla_miss_callback (#31887)``
 =================================================================================================  ===========  ====================================================================
 
 7.3.1
@@ -297,6 +317,7 @@ Commit                                                                          
 `45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
 `abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
 `f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`7ebda3898d <https://github.com/apache/airflow/commit/7ebda3898db2eee72d043a9565a674dea72cd8fa>`_  2023-05-17   ``Fix missing line in index.rst for provider documentation (#31343)``
 `d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
 `24532312b6 <https://github.com/apache/airflow/commit/24532312b694242ba74644fdd43a487e93122235>`_  2023-05-12   ``Standardize Slack Notifier (#31244)``
 `0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
@@ -316,6 +337,7 @@ Latest change: 2023-01-14
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================
 `911b708ffd <https://github.com/apache/airflow/commit/911b708ffddd4e7cb6aaeac84048291891eb0f1f>`_  2023-01-14   ``Prepare docs for Jan 2023 mid-month wave of Providers (#28929)``
+`2b92c3c74d <https://github.com/apache/airflow/commit/2b92c3c74d3259ebac714f157c525836f0af50f0>`_  2023-01-05   ``Fix providers documentation formatting (#28754)``
 `a7e1cb2fbf <https://github.com/apache/airflow/commit/a7e1cb2fbfc684508f4b832527ae2371f99ad37d>`_  2023-01-04   ``Add general-purpose "notifier" concept to DAGs (#28569)``
 =================================================================================================  ===========  ==================================================================
 
@@ -328,6 +350,7 @@ Latest change: 2023-01-02
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================
 `5246c009c5 <https://github.com/apache/airflow/commit/5246c009c557b4f6bdf1cd62bf9b89a2da63f630>`_  2023-01-02   ``Prepare docs for Jan 2023 wave of Providers (#28651)``
+`c8e348dcb0 <https://github.com/apache/airflow/commit/c8e348dcb0bae27e98d68545b59388c9f91fc382>`_  2022-12-05   ``Add automated version replacement in example dag indexes (#28090)``
 `527b948856 <https://github.com/apache/airflow/commit/527b948856584320f74d385f58477af79506834d>`_  2022-12-03   ``[misc] Replace XOR '^' conditions by 'exactly_one' helper in providers (#27858)``
 =================================================================================================  ===========  ===================================================================================
 
@@ -465,6 +488,7 @@ Commit                                                                          
 `d56e7b56bb <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
 `a0821235fb <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
 `dad2f8103b <https://github.com/apache/airflow/commit/dad2f8103be954afaedf15e9d098ee417b0d5d02>`_  2021-12-15   ``Fix mypy providers (#20190)``
+`43de625d42 <https://github.com/apache/airflow/commit/43de625d4246af7014f64941f8effb09997731cb>`_  2021-12-01   ``Correctly capitalize names and abbreviations in docs (#19908)``
 `853576d901 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
 `d9567eb106 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
 `d937bebdad <https://github.com/apache/airflow/commit/d937bebdadeab6d159be10ea328e1947001ba73c>`_  2021-10-16   ``Doc: Restoring additional context in Slack operators how-to guide (#18985)``
@@ -482,6 +506,8 @@ Commit                                                                          
 `ef037e7021 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
 `29493d2d61 <https://github.com/apache/airflow/commit/29493d2d617198e34cded1a04ab6c039012eb068>`_  2021-09-26   ``Add Slack operators how-to guide (#18525)``
 `9bf0ed2179 <https://github.com/apache/airflow/commit/9bf0ed2179b62f374cad74334a8976534cf1a53b>`_  2021-09-23   ``Restore 'filename' to template_fields (#18466)``
+`1cb456cba1 <https://github.com/apache/airflow/commit/1cb456cba1099198bbdba50c2d1ad79664be8ce6>`_  2021-09-12   ``Add official download page for providers (#18187)``
+`046f02e5a7 <https://github.com/apache/airflow/commit/046f02e5a7097a6e6c928c28196b38b37e776916>`_  2021-09-09   ``fix misspelling (#18121)``
 =================================================================================================  ===========  ======================================================================================
 
 4.0.1
@@ -543,16 +569,17 @@ Commit                                                                          
 
 Latest change: 2021-02-04
 
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  =========================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  =========================================================
 `88bdcfa0df <https://github.com/apache/airflow/commit/88bdcfa0df5bcb4c489486e05826544b428c8f43>`_  2021-02-04   ``Prepare to release a new wave of providers. (#14013)``
 `ac2f72c98d <https://github.com/apache/airflow/commit/ac2f72c98dc0821b33721054588adbf2bb53bb0b>`_  2021-02-01   ``Implement provider versioning tools (#13767)``
 `2839450013 <https://github.com/apache/airflow/commit/283945001363d8f492fbd25f2765d39fa06d757a>`_  2021-01-25   ``Upgrade slack_sdk to v3 (#13745)``
 `3fd5ef3555 <https://github.com/apache/airflow/commit/3fd5ef355556cf0ad7896bb570bbe4b2eabbf46e>`_  2021-01-21   ``Add missing logos for integrations (#13717)``
 `295d66f914 <https://github.com/apache/airflow/commit/295d66f91446a69610576d040ba687b38f1c5d0a>`_  2020-12-30   ``Fix Grammar in PIP warning (#13380)``
 `6cf76d7ac0 <https://github.com/apache/airflow/commit/6cf76d7ac01270930de7f105fb26428763ee1d4e>`_  2020-12-18   ``Fix typo in pip upgrade command :( (#13148)``
-=================================================================================================  ===========  ========================================================
+`f6448b4e48 <https://github.com/apache/airflow/commit/f6448b4e482fd96339ae65c26d08e6a2bdb51aaf>`_  2020-12-15   ``Add link to PyPI Repository to provider docs (#13064)``
+=================================================================================================  ===========  =========================================================
 
 1.0.0
 .....

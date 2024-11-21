@@ -138,24 +138,34 @@ Console, but if we wanted to change that link we could:
     BIGQUERY_JOB_DETAILS_LINK_FMT = "http://console.cloud.google.com/bigquery?j={job_id}"
 
 
-    class BigQueryConsoleLink(BaseOperatorLink):
+    class BigQueryDatasetLink(BaseGoogleLink):
         """
-        Helper class for constructing BigQuery link.
+        Helper class for constructing BigQuery Dataset Link.
         """
 
-        name = "BigQuery Console"
-        operators = [BigQueryOperator]
+        name = "BigQuery Dataset"
+        key = "bigquery_dataset"
+        format_str = BIGQUERY_DATASET_LINK
 
-        def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey):
-            job_id = XCom.get_one(ti_key=ti_key, key="job_id")
-            return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ""
+        @staticmethod
+        def persist(
+            context: Context,
+            task_instance: BaseOperator,
+            dataset_id: str,
+            project_id: str,
+        ):
+            task_instance.xcom_push(
+                context,
+                key=BigQueryDatasetLink.key,
+                value={"dataset_id": dataset_id, "project_id": project_id},
+            )
 
 
     # Defining the plugin class
     class AirflowExtraLinkPlugin(AirflowPlugin):
         name = "extra_link_plugin"
         operator_extra_links = [
-            BigQueryConsoleLink(),
+            BigQueryDatasetLink(),
         ]
 
 
@@ -171,9 +181,7 @@ by ``apache-airflow-providers-google`` provider currently:
 .. code-block:: yaml
 
     extra-links:
-      - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink
-      - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink
-      - airflow.providers.google.cloud.operators.mlengine.AIPlatformConsoleLink
-
+      - airflow.providers.google.cloud.links.bigquery.BigQueryDatasetLink
+      - airflow.providers.google.cloud.links.bigquery.BigQueryTableLink
 
 You can include as many operators with extra links as you want.

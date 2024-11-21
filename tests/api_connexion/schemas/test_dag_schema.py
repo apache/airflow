@@ -27,9 +27,9 @@ from airflow.api_connexion.schemas.dag_schema import (
     DAGDetailSchema,
     DAGSchema,
 )
-from airflow.assets import Asset
 from airflow.models import DagModel, DagTag
 from airflow.models.dag import DAG
+from airflow.sdk.definitions.asset import Asset
 
 UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UTC')"
 
@@ -67,7 +67,6 @@ def test_serialize_test_dag_schema(url_safe_serializer):
         "next_dagrun_create_after": None,
         "last_expired": None,
         "max_active_tasks": 16,
-        "last_pickled": None,
         "default_view": None,
         "last_parsed_time": None,
         "timetable_description": None,
@@ -102,7 +101,6 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
                 "last_expired": None,
                 "max_active_tasks": 16,
                 "max_consecutive_failed_dag_runs": 0,
-                "last_pickled": None,
                 "default_view": None,
                 "last_parsed_time": None,
                 "timetable_description": None,
@@ -128,7 +126,6 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
                 "last_expired": None,
                 "max_active_tasks": 16,
                 "max_consecutive_failed_dag_runs": 0,
-                "last_pickled": None,
                 "default_view": None,
                 "last_parsed_time": None,
                 "timetable_description": None,

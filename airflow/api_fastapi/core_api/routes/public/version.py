@@ -19,14 +19,14 @@ from __future__ import annotations
 
 import airflow
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.serializers.version import VersionInfo
+from airflow.api_fastapi.core_api.datamodels.version import VersionInfo
 from airflow.utils.platform import get_airflow_git_version
 
 version_router = AirflowRouter(tags=["Version"], prefix="/version")
 
 
-@version_router.get("/")
-async def get_version() -> VersionInfo:
+@version_router.get("")
+def get_version() -> VersionInfo:
     """Get version information."""
     airflow_version = airflow.__version__
     git_version = get_airflow_git_version()

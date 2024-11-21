@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.common.parameters import BaseParam
 
 
-async def get_session() -> Session:
+def get_session() -> Session:
     """
     Dependency for providing a session.
 
@@ -43,7 +43,7 @@ async def get_session() -> Session:
         def your_route(session: Annotated[Session, Depends(get_session)]):
             pass
     """
-    with create_session() as session:
+    with create_session(scoped=False) as session:
         yield session
 
 
@@ -65,13 +65,16 @@ def paginated_select(
     offset: BaseParam | None = None,
     limit: BaseParam | None = None,
     session: Session = NEW_SESSION,
+    return_total_entries: bool = True,
 ) -> Select:
     base_select = apply_filters_to_select(
         base_select,
         filters,
     )
 
-    total_entries = get_query_count(base_select, session=session)
+    total_entries = None
+    if return_total_entries:
+        total_entries = get_query_count(base_select, session=session)
 
     # TODO: Re-enable when permissions are handled. Readable / writable entities,
     # for instance:

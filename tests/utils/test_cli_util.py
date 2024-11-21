@@ -33,7 +33,7 @@ from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.models.log import Log
 from airflow.utils import cli, cli_action_loggers, timezone
-from airflow.utils.cli import _search_for_dag_file, get_dag_by_pickle
+from airflow.utils.cli import _search_for_dag_file
 
 # Mark entire module as db_test because ``action_cli`` wrapper still could use DB on callbacks:
 # - ``cli_action_loggers.on_pre_execution``
@@ -45,8 +45,7 @@ repo_root = Path(airflow.__file__).parent.parent
 class TestCliUtil:
     def test_metrics_build(self):
         func_name = "test"
-        exec_date = timezone.utcnow()
-        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", execution_date=exec_date)
+        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test")
         metrics = cli._build_metrics(func_name, namespace)
 
         expected = {
@@ -54,7 +53,6 @@ class TestCliUtil:
             "sub_command": "test",
             "dag_id": "foo",
             "task_id": "bar",
-            "execution_date": exec_date,
         }
         for k, v in expected.items():
             assert v == metrics.get(k)
@@ -132,7 +130,7 @@ class TestCliUtil:
         expected_command = expected_masked_command.split()
 
         exec_date = timezone.utcnow()
-        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", execution_date=exec_date)
+        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", logical_date=exec_date)
         with mock.patch.object(sys, "argv", args), mock.patch(
             "airflow.utils.session.create_session"
         ) as mock_create_session:
@@ -168,22 +166,6 @@ class TestCliUtil:
         default_pid_path = os.path.join(settings.AIRFLOW_HOME, f"airflow-{process_name}.pid")
         pid, _, _, _ = cli.setup_locations(process=process_name)
         assert pid == default_pid_path
-
-    def test_get_dag_by_pickle(self, session, dag_maker):
-        from airflow.models.dagpickle import DagPickle
-
-        with dag_maker(dag_id="test_get_dag_by_pickle") as dag:
-            pass
-
-        dp = DagPickle(dag=dag)
-        session.add(dp)
-        session.commit()
-
-        dp_from_db = get_dag_by_pickle(pickle_id=dp.id, session=session)
-        assert dp_from_db.dag_id == "test_get_dag_by_pickle"
-
-        with pytest.raises(AirflowException, match="pickle_id could not be found .* -42"):
-            get_dag_by_pickle(pickle_id=-42, session=session)
 
     @pytest.mark.parametrize(
         ["given_command", "expected_masked_command"],

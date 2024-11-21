@@ -47,7 +47,20 @@ dependencies = [
     "black>=23.11.0",
     "click>=8.1.7",
     "filelock>=3.13.0",
-    "flit>=3.5.0",
+    #
+    # We pin flit in order to make sure reproducibility of provider packages is maintained
+    # It turns out that when packages are prepared metadata version in the produced packages
+    # is taken from the front-end not from the backend, so in order to make sure that the
+    # packages are reproducible, we should pin both backend in "build-system" and frontend in
+    # "dependencies" of the environment that is used to build the packages.
+    #
+    # TODO(potiuk): automate bumping the version of flit in breeze and sync it with
+    # the version in the template for provider packages with pre-commit also add instructions in
+    # the source packages explaining that reproducibility can only be achieved by using the same
+    # version of flit front-end to build the package
+    #
+    "flit==3.10.1",
+    "flit-core==3.10.1",
     "google-api-python-client>=2.142.0",
     "google-auth-httplib2>=0.2.0",
     "google-auth-oauthlib>=1.2.0",
@@ -60,7 +73,6 @@ dependencies = [
     "jinja2>=3.1.0",
     "jsonschema>=4.19.1",
     "packaging>=23.2",
-    "pipx>=1.4.1",
     "pre-commit>=3.5.0",
     "pre-commit-uv>=4.1.3",
     "psutil>=5.9.6",

@@ -24,12 +24,12 @@
 requires = [
     "GitPython==3.1.43",
     "gitdb==4.0.11",
-    "hatchling==1.25.0",
-    "packaging==24.1",
+    "hatchling==1.26.3",
+    "packaging==24.2",
     "pathspec==0.12.1",
     "pluggy==1.5.0",
     "smmap==5.0.1",
-    "tomli==2.0.2; python_version < '3.11'",
+    "tomli==2.1.0; python_version < '3.11'",
     "trove-classifiers==2024.10.21.16",
 ]
 build-backend = "hatchling.build"
@@ -155,37 +155,6 @@ Homepage = "https://airflow.apache.org/"
 Twitter = "https://twitter.com/ApacheAirflow"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
-[tool.hatch.envs.default]
-python = "3.9"
-platforms = ["linux", "macos"]
-description = "Default environment with Python 3.9 for maximum compatibility"
-features = []
-
-[tool.hatch.envs.airflow-39]
-python = "3.9"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.9. No devel installed."
-features = []
-
-[tool.hatch.envs.airflow-310]
-python = "3.10"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.10. No devel installed."
-features = []
-
-[tool.hatch.envs.airflow-311]
-python = "3.11"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.11. No devel installed"
-features = []
-
-[tool.hatch.envs.airflow-312]
-python = "3.12"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.12. No devel installed"
-features = []
-
-
 [tool.hatch.version]
 path = "airflow/__init__.py"
 
@@ -211,7 +180,6 @@ artifacts = [
     "/airflow/git_version",
     "/generated/",
 ]
-
 
 [tool.hatch.build.targets.wheel]
 include = [
@@ -349,6 +317,7 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 "airflow/models/__init__.py" = ["F401", "TCH004"]
 "airflow/models/sqla_models.py" = ["F401"]
 "providers/src/airflow/providers/__init__.py" = ["I002"]
+"providers/src/airflow/__init__.py" = ["I002"]
 
 # The test_python.py is needed because adding __future__.annotations breaks runtime checks that are
 # needed for the test to work

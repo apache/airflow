@@ -28,7 +28,8 @@ from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow import __version__
+from airflow.exceptions import AirflowException
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
     CELERY_KUBERNETES_EXECUTOR,
@@ -52,12 +53,12 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils impor
     get_base_pod_from_template,
 )
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    add_unique_suffix,
     annotations_for_logging_task_metadata,
     annotations_to_key,
     create_unique_id,
     get_logs_task_metadata,
 )
-from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 
@@ -65,6 +66,11 @@ from tests_common.test_utils.compat import BashOperator
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.skip_if_database_isolation_mode
+
+if __version__.startswith("2."):
+    LOGICAL_DATE_KEY = "execution_date"
+else:
+    LOGICAL_DATE_KEY = "logical_date"
 
 
 class TestAirflowKubernetesScheduler:
@@ -106,8 +112,7 @@ class TestAirflowKubernetesScheduler:
 
     def test_create_pod_id(self):
         for dag_id, task_id in self._cases():
-            with pytest.warns(AirflowProviderDeprecationWarning, match=r"deprecated\. Use `add_pod_suffix`"):
-                pod_name = PodGenerator.make_unique_pod_id(create_unique_id(dag_id, task_id))
+            pod_name = add_unique_suffix(name=create_unique_id(dag_id, task_id))
             assert self._is_valid_pod_id(pod_name), f"dag_id={dag_id!r}, task_id={task_id!r}"
 
     @mock.patch("airflow.providers.cncf.kubernetes.pod_generator.PodGenerator")
@@ -1215,7 +1220,14 @@ class TestKubernetesExecutor:
     @pytest.mark.db_test
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
     def test_cleanup_stuck_queued_tasks(self, mock_kube_dynamic_client, dag_maker, create_dummy_dag, session):
-        """Delete any pods associated with a task stuck in queued."""
+        """
+        This verifies legacy behavior.  Remove when removing ``cleanup_stuck_queued_tasks``.
+
+        It's expected that that method, ``cleanup_stuck_queued_tasks`` will patch the pod
+        such that it is ignored by watcher, delete the pod, remove from running set, and
+        fail the task.
+
+        """
         mock_kube_client = mock.MagicMock()
         mock_kube_dynamic_client.return_value = mock.MagicMock()
         mock_pod_resource = mock.MagicMock()
@@ -1256,8 +1268,64 @@ class TestKubernetesExecutor:
         executor.kube_scheduler = mock.MagicMock()
         ti.refresh_from_db()
         tis = [ti]
-        executor.cleanup_stuck_queued_tasks(tis)
+        with pytest.warns(DeprecationWarning):
+            executor.cleanup_stuck_queued_tasks(tis=tis)
         executor.kube_scheduler.delete_pod.assert_called_once()
+        assert executor.running == set()
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
+    def test_revoke_task(self, mock_kube_dynamic_client, dag_maker, create_dummy_dag, session):
+        """
+        It's expected that that ``revoke_tasks`` will patch the pod
+        such that it is ignored by watcher, delete the pod and remove from running set.
+        """
+        mock_kube_client = mock.MagicMock()
+        mock_kube_dynamic_client.return_value = mock.MagicMock()
+        mock_pod_resource = mock.MagicMock()
+        mock_kube_dynamic_client.return_value.resources.get.return_value = mock_pod_resource
+        mock_kube_dynamic_client.return_value.get.return_value = k8s.V1PodList(
+            items=[
+                k8s.V1Pod(
+                    metadata=k8s.V1ObjectMeta(
+                        annotations={
+                            "dag_id": "test_cleanup_stuck_queued_tasks",
+                            "task_id": "bash",
+                            "run_id": "test",
+                            "try_number": 0,
+                        },
+                        labels={
+                            "role": "airflow-worker",
+                            "dag_id": "test_cleanup_stuck_queued_tasks",
+                            "task_id": "bash",
+                            "airflow-worker": 123,
+                            "run_id": "test",
+                            "try_number": 0,
+                        },
+                    ),
+                    status=k8s.V1PodStatus(phase="Pending"),
+                )
+            ]
+        )
+        create_dummy_dag(dag_id="test_cleanup_stuck_queued_tasks", task_id="bash", with_dagrun_type=None)
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.task_instances[0]
+        ti.state = State.QUEUED
+        ti.queued_by_job_id = 123
+        session.flush()
+
+        executor = self.kubernetes_executor
+        executor.job_id = 123
+        executor.kube_client = mock_kube_client
+        executor.kube_scheduler = mock.MagicMock()
+        ti.refresh_from_db()
+        executor.running.add(ti.key)  # so we can verify it gets removed after revoke
+        assert executor.has_task(task_instance=ti)
+        executor.revoke_task(ti=ti)
+        assert not executor.has_task(task_instance=ti)
+        executor.kube_scheduler.patch_pod_revoked.assert_called_once()
+        executor.kube_scheduler.delete_pod.assert_called_once()
+        mock_kube_client.patch_namespaced_pod.calls[0] == []
         assert executor.running == set()
 
     @pytest.mark.parametrize(
@@ -1750,9 +1818,6 @@ class TestKubernetesExecutor:
             "Reading from k8s pod logs failed: error_fetching_pod_log",
         ]
 
-    def test_supports_pickling(self):
-        assert KubernetesExecutor.supports_pickling
-
     def test_supports_sentry(self):
         assert not KubernetesExecutor.supports_sentry
 
@@ -1822,7 +1887,7 @@ class TestKubernetesJobWatcher:
             "task_id": "task",
             "run_id": "run_id",
             "try_number": "1",
-            "execution_date": None,
+            LOGICAL_DATE_KEY: None,
         }
         self.pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(

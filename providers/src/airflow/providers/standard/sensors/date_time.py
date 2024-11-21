@@ -18,10 +18,27 @@
 from __future__ import annotations
 
 import datetime
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, NoReturn, Sequence
 
+from airflow.providers.standard.utils.version_references import AIRFLOW_V_3_0_PLUS
 from airflow.sensors.base import BaseSensorOperator
-from airflow.triggers.base import StartTriggerArgs
+
+try:
+    from airflow.triggers.base import StartTriggerArgs
+except ImportError:
+    # TODO: Remove this when min airflow version is 2.10.0 for standard provider
+    @dataclass
+    class StartTriggerArgs:  # type: ignore[no-redef]
+        """Arguments required for start task execution from triggerer."""
+
+        trigger_cls: str
+        next_method: str
+        trigger_kwargs: dict[str, Any] | None = None
+        next_kwargs: dict[str, Any] | None = None
+        timeout: datetime.timedelta | None = None
+
+
 from airflow.triggers.temporal import DateTimeTrigger
 from airflow.utils import timezone
 
@@ -37,7 +54,7 @@ class DateTimeSensor(BaseSensorOperator):
     It handles some cases for which ``TimeSensor`` and ``TimeDeltaSensor`` are not suited.
 
     **Example** 1 :
-        If a task needs to wait for 11am on each ``execution_date``. Using
+        If a task needs to wait for 11am on each ``logical_date``. Using
         ``TimeSensor`` or ``TimeDeltaSensor``, all backfill tasks started at
         1am have to wait for 10 hours. This is unnecessary, e.g. a backfill
         task with ``{{ ds }} = '1970-01-01'`` does not need to wait because
@@ -52,7 +69,7 @@ class DateTimeSensor(BaseSensorOperator):
 
             DateTimeSensor(
                 task_id="wait_for_0100",
-                target_time="{{ next_execution_date.tomorrow().replace(hour=1) }}",
+                target_time="{{ data_interval_end.tomorrow().replace(hour=1) }}",
             )
 
     :param target_time: datetime after which the job succeeds. (templated)
@@ -125,7 +142,9 @@ class DateTimeSensorAsync(DateTimeSensor):
             trigger=DateTimeTrigger(
                 moment=timezone.parse(self.target_time),
                 end_from_trigger=self.end_from_trigger,
-            ),
+            )
+            if AIRFLOW_V_3_0_PLUS
+            else DateTimeTrigger(moment=timezone.parse(self.target_time)),
         )
 
     def execute_complete(self, context: Context, event: Any = None) -> None:

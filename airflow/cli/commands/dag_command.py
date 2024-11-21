@@ -65,7 +65,7 @@ def dag_trigger(args) -> None:
             dag_id=args.dag_id,
             run_id=args.run_id,
             conf=args.conf,
-            execution_date=args.exec_date,
+            logical_date=args.exec_date,
             replace_microseconds=args.replace_microseconds,
         )
         AirflowConsole().print_as(
@@ -225,7 +225,6 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "is_paused": dag.get_is_paused(),
         "is_active": dag.get_is_active(),
         "last_parsed_time": None,
-        "last_pickled": None,
         "last_expired": None,
         "default_view": dag.default_view,
         "fileloc": dag.fileloc,
@@ -265,7 +264,7 @@ def dag_state(args, session: Session = NEW_SESSION) -> None:
 
     if not dag:
         raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
-    dr = session.scalar(select(DagRun).filter_by(dag_id=args.dag_id, execution_date=args.execution_date))
+    dr = session.scalar(select(DagRun).filter_by(dag_id=args.dag_id, logical_date=args.logical_date))
     out = dr.state if dr else None
     conf_out = ""
     if out and dr.conf:
@@ -277,7 +276,7 @@ def dag_state(args, session: Session = NEW_SESSION) -> None:
 @providers_configuration_loaded
 def dag_next_execution(args) -> None:
     """
-    Return the next execution datetime of a DAG at the command line.
+    Return the next logical datetime of a DAG at the command line.
 
     >>> airflow dags next-execution tutorial
     2018-08-31 10:38:00
@@ -462,12 +461,12 @@ def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSI
         dag_id=args.dag_id,
         state=state,
         no_backfills=args.no_backfill,
-        execution_start_date=args.start_date,
-        execution_end_date=args.end_date,
+        logical_start_date=args.start_date,
+        logical_end_date=args.end_date,
         session=session,
     )
 
-    dag_runs.sort(key=lambda x: x.execution_date, reverse=True)
+    dag_runs.sort(key=lambda x: x.logical_date, reverse=True)
     AirflowConsole().print_as(
         data=dag_runs,
         output=args.output,
@@ -475,7 +474,7 @@ def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSI
             "dag_id": dr.dag_id,
             "run_id": dr.run_id,
             "state": dr.state,
-            "execution_date": dr.execution_date.isoformat(),
+            "logical_date": dr.logical_date.isoformat(),
             "start_date": dr.start_date.isoformat() if dr.start_date else "",
             "end_date": dr.end_date.isoformat() if dr.end_date else "",
         },
@@ -486,14 +485,14 @@ def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSI
 @providers_configuration_loaded
 @provide_session
 def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> None:
-    """Execute one single DagRun for a given DAG and execution date."""
+    """Execute one single DagRun for a given DAG and logical date."""
     run_conf = None
     if args.conf:
         try:
             run_conf = json.loads(args.conf)
         except ValueError as e:
             raise SystemExit(f"Configuration {args.conf!r} is not valid JSON. Error: {e}")
-    execution_date = args.execution_date or timezone.utcnow()
+    logical_date = args.logical_date or timezone.utcnow()
     use_executor = args.use_executor
 
     mark_success_pattern = (
@@ -503,7 +502,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
     with _airflow_parsing_context_manager(dag_id=args.dag_id):
         dag = dag or get_dag(subdir=args.subdir, dag_id=args.dag_id)
     dr: DagRun = dag.test(
-        execution_date=execution_date,
+        logical_date=logical_date,
         run_conf=run_conf,
         use_executor=use_executor,
         mark_success_pattern=mark_success_pattern,
@@ -516,7 +515,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
         tis = session.scalars(
             select(TaskInstance).where(
                 TaskInstance.dag_id == args.dag_id,
-                TaskInstance.execution_date == execution_date,
+                TaskInstance.logical_date == logical_date,
             )
         ).all()
 

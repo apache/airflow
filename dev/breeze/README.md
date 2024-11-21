@@ -22,6 +22,7 @@
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
 - [Apache Airflow Breeze](#apache-airflow-breeze)
+- [Setting up development env for Breeze](#setting-up-development-env-for-breeze)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -34,26 +35,18 @@ for Airflow Development.
 
 This package should never be installed in "production" mode. The `breeze` entrypoint will actually
 fail if you do so. It is supposed to be installed only in [editable/development mode](https://packaging.python.org/en/latest/guides/distributing-packages-using-setuptools/#working-in-development-mode)
-directly from Airflow sources using `pipx` - usually with `--force` flag to account for re-installation
-that might often be needed if dependencies change during development.
+directly from Airflow sources using `uv tool` or `pipx` - usually with `--force` flag to account
+for re-installation  that might often be needed if dependencies change during development.
+
+```shell
+uv tool install -e ./dev/breeze --force
+```
+
+or
 
 ```shell
 pipx install -e ./dev/breeze --force
 ```
-
-NOTE! If you see below warning - it means that you hit [known issue](https://github.com/pypa/pipx/issues/1092)
-with `packaging` version 23.2
-⚠️ Ignoring --editable install option. pipx disallows it for anything but a local path,
-to avoid having to create a new src/ directory.
-
-The workaround is to downgrade packaging to 23.1 and re-running the `pipx install` command, for example
-by running `pip install "packaging<23.2"`.
-
-```shell
-pip install "packaging<23.2"
-pipx install -e ./dev/breeze --force
-```
-
 
 You can read more about Breeze in the [documentation](https://github.com/apache/airflow/blob/main/dev/breeze/doc/README.rst)
 
@@ -62,10 +55,79 @@ available when the package was installed. Since this file becomes part of the in
 to detect automatically if any of the files have changed. If they did, the user will be warned to upgrade
 their installations.
 
+Setting up development env for Breeze
+-------------------------------------
+
+> [!NOTE]
+> This section is for developers of Breeze. If you are a user of Breeze, you do not need to read this section.
+
+Breeze is actively developed by Airflow maintainers and contributors, Airflow is an active project
+and we are in the process of developing Airflow 3, so breeze requires a lot of adjustments to keep up
+the dev environment in sync with Airflow 3 development - this is also why it is part of the same
+repository as Airflow - because it needs to be closely synchronized with Airflow development.
+
+As of November 2024 Airflow switches to using `uv` as the main development environment for Airflow
+and for Breeze. So the instructions below are for setting up the development environment for Breeze
+using `uv`. However we are using only standard python packaging tools, so you can still use `pip` or
+`pipenv` or other build frontends to install Breeze, but we recommend using `uv` as it is the most
+convenient way to install, manage python packages and virtual environments.
+
+Unlike in Airflow, where we manage our own constraints, we use `uv` to manage requirements for Breeze
+and we use `uv` to lock the dependencies. This way we can ensure that the dependencies are always
+up-to-date and that the development environment is always consistent for different people. This is
+why Breeze's `uv.lock` is committed to the repository and is used to install the dependencies by
+default by Breeze. Here's how to install breeze with `uv`
+
+
+1. Install `uv` - see [uv documentation](https://docs.astral.sh/uv/getting-started/installation/)
+
+> [!IMPORTANT]
+> All the commands below should be executed while you are in `dev/breeze` directory of the Airflow repository.
+
+2. Create a new virtual environment for Breeze development:
+
+```shell
+uv venv
+```
+
+3. Synchronize Breeze dependencies with `uv` to the latest dependencies stored in uv.lock file:
+
+```shell
+uv sync
+```
+
+After syncing, the `.venv` directory will contain the virtual environment with all the dependencies
+installed - you can use that environment to develop Breeze - for example with your favourite IDE
+or text editor, you can also use `uv run` to run the scripts in the virtual environment.
+
+For example to run all tests in the virtual environment you can use:
+
+```shell
+uv run pytest
+```
+
+4. Add/remove dependencies with `uv`:
+
+```shell
+uv add <package>
+uv remove <package>
+```
+
+5. Update and lock the dependencies (after adding them or periodically to keep them up-to-date):
+
+```shell
+uv lock
+```
+
+Note that when you update dependencies/lock them you should commit the changes in `pyproject.toml` and `uv.lock`.
+
+See [uv documentation](https://docs.astral.sh/uv/getting-started/) for more details on using `uv`.
+
+
 PLEASE DO NOT MODIFY THE HASH BELOW! IT IS AUTOMATICALLY UPDATED BY PRE-COMMIT.
 
 ---------------------------------------------------------------------------------------------------------
 
-Package config hash: f13c42703e0a262d9f3c1bee608ff32c368be4c6a11f150a2f95809938641f5ec07904d5cc2e3944dfe4d206dc52846f8b81193fc279a333ff898dd033e07be4
+Package config hash: 1a6bdff24f910175038dbd62c1c18dd091958ee2ffbb55ac7d5c93cc43f8f9ad5176093c135ac72031574292397164402a2c17a7c4f7f5fdb3c02e3d576109bf
 
 ---------------------------------------------------------------------------------------------------------

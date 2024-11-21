@@ -85,7 +85,7 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
     :class:`airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTabularTrainingJobOperator`,
     :class:`airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`,
     :class:`airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLImageTrainingJobOperator`,
-    :class:`airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`,
+    :class:`airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`,
     instead.
 
     .. seealso::
@@ -155,7 +155,7 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
                     "CreateAutoMLTabularTrainingJobOperator",
                     "CreateAutoMLVideoTrainingJobOperator",
                     "CreateAutoMLImageTrainingJobOperator",
-                    "CreateAutoMLTextTrainingJobOperator",
+                    "SupervisedFineTuningTrainOperator",
                 ],
             )
         hook = CloudAutoMLHook(

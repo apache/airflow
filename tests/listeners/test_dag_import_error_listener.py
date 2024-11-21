@@ -99,7 +99,7 @@ class TestDagFileProcessor:
             dag_ids=[], dag_directory=str(dag_directory), log=mock.MagicMock()
         )
 
-        dag_file_processor.process_file(file_path, [], False)
+        dag_file_processor.process_file(file_path, [])
 
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_newly_added_import_error(self, tmp_path, session):

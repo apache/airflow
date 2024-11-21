@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.10.2",
+            "default": "2.10.3",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.10.2",
+            "default": "2.10.3",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -895,7 +895,7 @@
                         "tag": {
                             "description": "The PgBouncer image tag.",
                             "type": "string",
-                            "default": "airflow-pgbouncer-2024.01.19-1.21.0"
+                            "default": "airflow-pgbouncer-2024.09.19-1.22.1"
                         },
                         "pullPolicy": {
                             "description": "The PgBouncer image pull policy.",
@@ -7983,7 +7983,7 @@
             "additionalProperties": false,
             "properties": {
                 "secretName": {
-                    "description": "Registry connection string secret.",
+                    "description": "Name of the Kubernetes secret containing Base64 encoded credentials to connect to a private registry (will get passed to imagePullSecrets).",
                     "type": [
                         "string",
                         "null"
@@ -7991,7 +7991,7 @@
                     "default": null
                 },
                 "connection": {
-                    "description": "Registry connection configuration.",
+                    "description": "Credentials to connect to a private registry, these will get Base64 encoded and stored in a secret (will get passed to imagePullSecrets).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": false,
@@ -8007,12 +8007,12 @@
                             "default": ""
                         },
                         "host": {
-                            "description": "Host",
+                            "description": "Registry Server URL (e.g. https://index.docker.io/v1/ for DockerHub)",
                             "type": "string",
                             "default": ""
                         },
                         "email": {
-                            "description": "Email",
+                            "description": "Email Address",
                             "type": "string",
                             "default": ""
                         }

@@ -116,31 +116,60 @@ $.each($("[id^=toggle]"), function toggleId() {
   });
 });
 
-$(".typeahead").typeahead({
-  source(query, callback) {
-    return $.ajax(autocompleteUrl, {
-      data: {
-        query: encodeURIComponent(query),
-        status: statusFilter,
-      },
-      success: callback,
-    });
-  },
-  displayText(value) {
-    return value.dag_display_name || value.name;
-  },
-  autoSelect: false,
-  afterSelect(value) {
-    const query = new URLSearchParams(window.location.search);
-    query.set("search", value.name);
-    if (value.type === "owner") {
-      window.location = `${DAGS_INDEX}?${query}`;
-    }
-    if (value.type === "dag") {
-      window.location = `${gridUrl.replace("__DAG_ID__", value.name)}?${query}`;
-    }
-  },
-});
+// eslint-disable-next-line no-underscore-dangle
+$(".typeahead")
+  .autocomplete({
+    autoFocus: true,
+    source: (request, response) => {
+      $.ajax({
+        url: autocompleteUrl,
+        data: {
+          query: encodeURIComponent(request.term),
+          status: statusFilter,
+        },
+        success: (data) => {
+          response(data);
+        },
+      });
+    },
+    focus: (event) => {
+      // Prevents value from being inserted on focus
+      event.preventDefault();
+    },
+    select: (_, ui) => {
+      const value = ui.item;
+      const query = new URLSearchParams(window.location.search);
+      query.set("search", value.name);
+      if (value.type === "owner") {
+        window.location = `${DAGS_INDEX}?${query}`;
+      }
+      if (value.type === "dag") {
+        window.location = `${gridUrl.replace(
+          "__DAG_ID__",
+          value.name
+        )}?${query}`;
+      }
+    },
+    appendTo: "#search_form > div",
+  })
+  .data("ui-autocomplete")._renderMenu = function (ul, items) {
+  ul.addClass("typeahead dropdown-menu");
+  $.each(items, function (_, item) {
+    // eslint-disable-next-line no-underscore-dangle
+    this._renderItemData(ul, item);
+  });
+};
+
+// eslint-disable-next-line no-underscore-dangle
+$.ui.autocomplete.prototype._renderItem = function (ul, item) {
+  return $("<li>")
+    .append(
+      $("<a>")
+        .addClass("dropdown-item")
+        .text(item.dag_display_name || item.name)
+    )
+    .appendTo(ul);
+};
 
 $("#search_form").on("reset", () => {
   const query = new URLSearchParams(window.location.search);
@@ -169,7 +198,7 @@ function lastDagRunsHandler(error, json) {
   $(".js-loading-last-run").remove();
   Object.keys(json).forEach((safeDagId) => {
     const dagId = json[safeDagId].dag_id;
-    const executionDate = json[safeDagId].execution_date;
+    const logicalDate = json[safeDagId].logical_date;
     const g = d3.select(`#last-run-${safeDagId}`);
 
     // Show last run as a link to the graph view
@@ -178,10 +207,10 @@ function lastDagRunsHandler(error, json) {
         "href",
         `${graphUrl}?dag_id=${encodeURIComponent(
           dagId
-        )}&execution_date=${encodeURIComponent(executionDate)}`
+        )}&logical_date=${encodeURIComponent(logicalDate)}`
       )
       .html("")
-      .insert(isoDateToTimeEl.bind(null, executionDate, { title: false }));
+      .insert(isoDateToTimeEl.bind(null, logicalDate, { title: false }));
 
     // Only show the tooltip when we have a last run and add the json to a custom data- attribute
     g.selectAll("span")

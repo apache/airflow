@@ -27,6 +27,23 @@
 Changelog
 ---------
 
+4.13.3
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix(http) bug, pass request_kwargs to HttpHooK.run (#43459)``
+
+Misc
+~~~~
+
+* ``Limit temporarily aiohttp to < 3.11.0 (#44006)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.13.2
 ......
 

@@ -27,6 +27,47 @@
 Changelog
 ---------
 
+0.6.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Support for FastAPI in Airflow 3 as API backend.``
+
+0.5.5pre0
+.........
+
+Misc
+~~~~
+
+* ``Fixed reading none UTF-8 signs in log file.``
+
+0.5.4pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix SIGINT handling of child processes. Ensure graceful shutdown when SIGINT in received (not killing working tasks).``
+* ``Fix SIGTERM handling of child processes. Ensure all childs are terminated on SIGTERM.``
+
+0.5.3pre0
+.........
+
+Misc
+~~~~
+
+* ``Adding some links to host and job overview pages.``
+
+0.5.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Small beautification for host status in Edge Worker view.``
+
 0.5.1pre0
 .........
 

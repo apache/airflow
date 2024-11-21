@@ -16,15 +16,18 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import contextmanager
 from itertools import chain
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import Mock
 
 import pytest
-from flask import Flask
+from flask import Flask, g
 
 from airflow.exceptions import AirflowConfigException, AirflowException
+
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_user
 
 try:
     from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
@@ -72,6 +75,13 @@ IS_AUTHORIZED_METHODS_SIMPLE = {
 }
 
 
+@contextmanager
+def user_set(app, user):
+    g.user = user
+    yield
+    g.user = None
+
+
 @pytest.fixture
 def auth_manager():
     return FabAuthManager(None)
@@ -114,12 +124,34 @@ class TestFabAuthManager:
         assert auth_manager.get_user_display_name() == expected
 
     @mock.patch("flask_login.utils._get_user")
-    def test_get_user(self, mock_current_user, auth_manager):
+    def test_get_user(self, mock_current_user, minimal_app_for_auth_api, auth_manager):
         user = Mock()
         user.is_anonymous.return_value = True
         mock_current_user.return_value = user
+        with minimal_app_for_auth_api.app_context():
+            assert auth_manager.get_user() == user
 
-        assert auth_manager.get_user() == user
+    @mock.patch("flask_login.utils._get_user")
+    def test_get_user_from_flask_g(self, mock_current_user, minimal_app_for_auth_api, auth_manager):
+        session_user = Mock()
+        session_user.is_anonymous = True
+        mock_current_user.return_value = session_user
+
+        flask_g_user = Mock()
+        flask_g_user.is_anonymous = False
+        with minimal_app_for_auth_api.app_context():
+            with user_set(minimal_app_for_auth_api, flask_g_user):
+                assert auth_manager.get_user() == flask_g_user
+
+    def test_deserialize_user(self, flask_app, auth_manager_with_appbuilder):
+        user = create_user(flask_app, "test")
+        result = auth_manager_with_appbuilder.deserialize_user({"id": user.id})
+        assert user == result
+
+    def test_serialize_user(self, flask_app, auth_manager_with_appbuilder):
+        user = create_user(flask_app, "test")
+        result = auth_manager_with_appbuilder.serialize_user(user)
+        assert result == {"id": user.id}
 
     @pytest.mark.db_test
     @mock.patch.object(FabAuthManager, "get_user")
@@ -318,11 +350,17 @@ class TestFabAuthManager:
         ],
     )
     def test_is_authorized_dag(
-        self, method, dag_access_entity, dag_details, user_permissions, expected_result, auth_manager
+        self,
+        method,
+        dag_access_entity,
+        dag_details,
+        user_permissions,
+        expected_result,
+        auth_manager_with_appbuilder,
     ):
         user = Mock()
         user.perms = user_permissions
-        result = auth_manager.is_authorized_dag(
+        result = auth_manager_with_appbuilder.is_authorized_dag(
             method=method, access_entity=dag_access_entity, details=dag_details, user=user
         )
         assert result == expected_result
