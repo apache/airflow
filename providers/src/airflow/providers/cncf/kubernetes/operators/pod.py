@@ -396,7 +396,9 @@ class KubernetesPodOperator(BaseOperator):
         self.remote_pod: k8s.V1Pod | None = None
         self.log_pod_spec_on_failure = log_pod_spec_on_failure
         self.on_finish_action = OnFinishAction(on_finish_action)
-        self.is_delete_operator_pod = self.on_finish_action == OnFinishAction.DELETE_POD
+        # The `is_delete_operator_pod` parameter should have been removed in provider version 10.0.0.
+        # TODO: remove it from here and from the operator's parameters list when the next major version bumped
+        self._is_delete_operator_pod = self.on_finish_action == OnFinishAction.DELETE_POD
         self.termination_message_policy = termination_message_policy
         self.active_deadline_seconds = active_deadline_seconds
         self.logging_interval = logging_interval

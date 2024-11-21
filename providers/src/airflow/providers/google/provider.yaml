@@ -32,6 +32,7 @@ state: ready
 source-date-epoch: 1732429547
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 11.1.0
   - 11.0.0
   - 10.26.0
   - 10.25.0
@@ -188,7 +189,7 @@ additional-extras:
       - apache-beam[gcp]
   - name: cncf.kubernetes
     dependencies:
-      - apache-airflow-providers-cncf-kubernetes>=7.2.0
+      - apache-airflow-providers-cncf-kubernetes>=10.1.0
   - name: leveldb
     dependencies:
       - plyvel>=1.5.1

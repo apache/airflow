@@ -607,7 +607,7 @@ DEFAULT_EXTRAS = [
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join(["common.compat"])
+CHICKEN_EGG_PROVIDERS = " ".join(["common.compat", "cncf.kubernetes"])
 
 
 PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [

@@ -26,9 +26,11 @@ from time import sleep
 from typing import TYPE_CHECKING, Any
 
 import aiofiles
+import requests
 import tenacity
 from asgiref.sync import sync_to_async
-from kubernetes import client, config, watch
+from kubernetes import client, config, utils, watch
+from kubernetes.client.models import V1Deployment
 from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client, config as async_config
 from urllib3.exceptions import HTTPError
@@ -47,7 +49,7 @@ from airflow.utils import yaml
 
 if TYPE_CHECKING:
     from kubernetes.client import V1JobList
-    from kubernetes.client.models import V1Deployment, V1Job, V1Pod
+    from kubernetes.client.models import V1Job, V1Pod
 
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
 
@@ -489,12 +491,9 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         :param name: Name of Deployment to retrieve
         :param namespace: Deployment namespace
         """
-        try:
-            return self.apps_v1_client.read_namespaced_deployment_status(
-                name=name, namespace=namespace, pretty=True, **kwargs
-            )
-        except Exception as exc:
-            raise exc
+        return self.apps_v1_client.read_namespaced_deployment_status(
+            name=name, namespace=namespace, pretty=True, **kwargs
+        )
 
     @tenacity.retry(
         stop=tenacity.stop_after_attempt(3),
@@ -643,6 +642,71 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             namespace=namespace,
             body=body,
         )
+
+    def apply_from_yaml_file(
+        self,
+        api_client: Any = None,
+        yaml_file: str | None = None,
+        yaml_objects: list[dict] | None = None,
+        verbose: bool = False,
+        namespace: str = "default",
+    ):
+        """
+        Perform an action from a yaml file.
+
+        :param api_client: A Kubernetes client application.
+        :param yaml_file: Contains the path to yaml file.
+        :param yaml_objects: List of YAML objects; used instead of reading the yaml_file.
+        :param verbose: If True, print confirmation from create action. Default is False.
+        :param namespace: Contains the namespace to create all resources inside. The namespace must
+            preexist otherwise the resource creation will fail.
+        """
+        utils.create_from_yaml(
+            k8s_client=api_client or self.api_client,
+            yaml_objects=yaml_objects,
+            yaml_file=yaml_file,
+            verbose=verbose,
+            namespace=namespace or self.get_namespace(),
+        )
+
+    def check_kueue_deployment_running(
+        self, name: str, namespace: str, timeout: float = 300.0, polling_period_seconds: float = 2.0
+    ) -> None:
+        _timeout = timeout
+        while _timeout > 0:
+            try:
+                deployment = self.get_deployment_status(name=name, namespace=namespace)
+            except Exception as e:
+                self.log.exception("Exception occurred while checking for Deployment status.")
+                raise e
+
+            deployment_status = V1Deployment.to_dict(deployment)["status"]
+            replicas = deployment_status["replicas"]
+            ready_replicas = deployment_status["ready_replicas"]
+            unavailable_replicas = deployment_status["unavailable_replicas"]
+            if (
+                replicas is not None
+                and ready_replicas is not None
+                and unavailable_replicas is None
+                and replicas == ready_replicas
+            ):
+                return
+            else:
+                self.log.info("Waiting until Deployment will be ready...")
+                sleep(polling_period_seconds)
+
+            _timeout -= polling_period_seconds
+
+        raise AirflowException("Deployment timed out")
+
+    @staticmethod
+    def get_yaml_content_from_file(kueue_yaml_url) -> list[dict]:
+        """Download content of YAML file and separate it into several dictionaries."""
+        response = requests.get(kueue_yaml_url, allow_redirects=True)
+        if response.status_code != 200:
+            raise AirflowException("Was not able to read the yaml file from given URL")
+
+        return list(yaml.safe_load_all(response.text))
 
 
 def _get_bool(val) -> bool | None:
