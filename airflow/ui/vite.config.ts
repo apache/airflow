@@ -17,6 +17,7 @@
  * under the License.
  */
 import react from "@vitejs/plugin-react-swc";
+import cssInjectedByJsPlugin from "vite-plugin-css-injected-by-js";
 import { defineConfig } from "vitest/config";
 
 // https://vitejs.dev/config/
@@ -32,6 +33,7 @@ export default defineConfig({
           .replace(`src="/assets/`, `src="/static/assets/`)
           .replace(`href="/`, `href="/webapp/`),
     },
+    cssInjectedByJsPlugin(),
   ],
   resolve: { alias: { openapi: "/openapi-gen", src: "/src" } },
   test: {

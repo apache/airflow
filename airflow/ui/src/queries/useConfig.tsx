@@ -16,27 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Dialog as ChakraDialog } from "@chakra-ui/react";
-import { forwardRef } from "react";
+import { useConfigServiceGetConfig } from "openapi/queries";
 
-import { CloseButton, type CloseButtonProps } from "../CloseButton";
+export const useConfig = (sectionName: string, configKey: string) => {
+  // TODO: replace with a ui/config endpoint which will always return what the UI need to render
+  const { data: config } = useConfigServiceGetConfig({
+    accept: "application/json",
+  });
 
-type Props = {
-  closeButtonProps?: CloseButtonProps;
-} & ChakraDialog.CloseTriggerProps;
+  const configSection = config?.sections.find(
+    (section) => section.name === sectionName,
+  );
 
-export const CloseTrigger = forwardRef<HTMLButtonElement, Props>(
-  ({ children, closeButtonProps, ...rest }, ref) => (
-    <ChakraDialog.CloseTrigger
-      insetEnd="2"
-      position="absolute"
-      top="2"
-      {...rest}
-      asChild
-    >
-      <CloseButton ref={ref} size="sm" {...closeButtonProps}>
-        {children}
-      </CloseButton>
-    </ChakraDialog.CloseTrigger>
-  ),
-);
+  return configSection?.options.find(({ key }) => key === configKey)?.value;
+};
