@@ -33,7 +33,7 @@ from typing import (
     overload,
 )
 
-from fastapi import Depends, HTTPException, Query
+from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
 from sqlalchemy import Column, case, or_
@@ -337,9 +337,15 @@ class DagRunStateFilter(BaseParam[List[Optional[DagRunState]]]):
 
     @staticmethod
     def _convert_dag_run_states(states: Iterable[str] | None) -> list[DagRunState | None] | None:
-        if not states:
-            return None
-        return [None if s in ("none", None) else DagRunState(s) for s in states]
+        try:
+            if not states:
+                return None
+            return [None if s in ("none", None) else DagRunState(s) for s in states]
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid value for state. Valid values are {', '.join(DagRunState)}",
+            )
 
     def depends(self, state: list[str] = Query(default_factory=list)) -> DagRunStateFilter:
         states = self._convert_dag_run_states(state)
@@ -360,7 +366,13 @@ class TIStateFilter(BaseParam[List[Optional[TaskInstanceState]]]):
         return select.where(or_(*conditions))
 
     def depends(self, state: list[str] = Query(default_factory=list)) -> TIStateFilter:
-        states = _convert_ti_states(state)
+        try:
+            states = _convert_ti_states(state)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid value for state. Valid values are {', '.join(TaskInstanceState)}",
+            )
         return self.set_value(states)
 
 
