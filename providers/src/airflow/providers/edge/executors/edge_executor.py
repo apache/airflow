@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Optional, Sequence, Tuple
 
@@ -96,7 +97,7 @@ class EdgeExecutor(BaseExecutor):
         Store queued_tasks in own var to be able to access this in execute_async function.
         Looking forward to delete this hacky overwrite in the near future.
         """
-        self.edge_queued_tasks = self.queued_tasks
+        self.edge_queued_tasks = deepcopy(self.queued_tasks)
         super()._process_tasks(task_tuples)
 
     @provide_session
