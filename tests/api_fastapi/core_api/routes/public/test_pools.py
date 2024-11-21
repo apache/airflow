@@ -54,27 +54,6 @@ class TestPoolsEndpoint:
     def create_pools(self):
         _create_pools()
 
-    def _create_pool_in_test(
-        self,
-        test_client,
-        session,
-        body,
-        expected_status_code,
-        expected_response,
-        create_default=True,
-        check_count=True,
-    ):
-        if create_default:
-            self.create_pools()
-        if check_count:
-            n_pools = session.query(Pool).count()
-        response = test_client.post("/public/pools/", json=body)
-        assert response.status_code == expected_status_code
-
-        assert response.json() == expected_response
-        if check_count:
-            assert session.query(Pool).count() == n_pools + 1
-
 
 class TestDeletePool(TestPoolsEndpoint):
     def test_delete_should_respond_204(self, test_client, session):
@@ -343,7 +322,13 @@ class TestPostPool(TestPoolsEndpoint):
         ],
     )
     def test_should_respond_200(self, test_client, session, body, expected_status_code, expected_response):
-        self._create_pool_in_test(test_client, session, body, expected_status_code, expected_response)
+        self.create_pools()
+        n_pools = session.query(Pool).count()
+        response = test_client.post("/public/pools/", json=body)
+        assert response.status_code == expected_status_code
+
+        assert response.json() == expected_response
+        assert session.query(Pool).count() == n_pools + 1
 
     @pytest.mark.parametrize(
         "body,first_expected_status_code, first_expected_response, second_expected_status_code, second_expected_response",
@@ -378,20 +363,16 @@ class TestPostPool(TestPoolsEndpoint):
         second_expected_status_code,
         second_expected_response,
     ):
-        # first request
-        self._create_pool_in_test(
-            test_client, session, body, first_expected_status_code, first_expected_response
-        )
-        # second request
-        self._create_pool_in_test(
-            test_client,
-            session,
-            body,
-            second_expected_status_code,
-            second_expected_response,
-            create_default=False,
-            check_count=False,
-        )
+        self.create_pools()
+        n_pools = session.query(Pool).count()
+        response = test_client.post("/public/pools/", json=body)
+        assert response.status_code == first_expected_status_code
+        assert response.json() == first_expected_response
+        assert session.query(Pool).count() == n_pools + 1
+        response = test_client.post("/public/pools/", json=body)
+        assert response.status_code == second_expected_status_code
+        assert response.json() == second_expected_response
+        assert session.query(Pool).count() == n_pools + 1
 
 
 class TestPostPools(TestPoolsEndpoint):
@@ -444,7 +425,7 @@ class TestPostPools(TestPoolsEndpoint):
                     ]
                 },
                 409,
-                {},
+                {"detail": "Unique constraint violation"},
             ),
             (
                 {
@@ -454,7 +435,7 @@ class TestPostPools(TestPoolsEndpoint):
                     ]
                 },
                 409,
-                {},
+                {"detail": "Unique constraint violation"},
             ),
             (
                 {
@@ -464,7 +445,7 @@ class TestPostPools(TestPoolsEndpoint):
                     ]
                 },
                 409,
-                {},
+                {"detail": "Unique constraint violation"},
             ),
         ],
     )
@@ -473,10 +454,8 @@ class TestPostPools(TestPoolsEndpoint):
         n_pools = session.query(Pool).count()
         response = test_client.post("/public/pools/bulk", json=body)
         assert response.status_code == expected_status_code
-        response_json = response.json()
+        assert response.json() == expected_response
         if expected_status_code == 201:
-            assert response_json == expected_response
             assert session.query(Pool).count() == n_pools + 2
         else:
-            # since different database backend return different error messages, we just check the status code
             assert session.query(Pool).count() == n_pools
