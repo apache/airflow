@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 from enum import Enum
 from typing import Annotated
 
@@ -64,20 +64,6 @@ class TimeDelta(BaseModel):
 
 
 TimeDeltaWithValidation = Annotated[TimeDelta, BeforeValidator(_validate_timedelta_field)]
-
-
-def _validate_nonnaive_datetime_field(dt: datetime | None) -> datetime | None:
-    """Validate and return the datetime field."""
-    if dt is None:
-        return None
-    if isinstance(dt, str):
-        dt = datetime.fromisoformat(dt)
-    if not dt.tzinfo:
-        raise ValueError("Invalid datetime format, Naive datetime is disallowed")
-    return dt
-
-
-DatetimeWithNonNaiveValidation = Annotated[datetime, BeforeValidator(_validate_nonnaive_datetime_field)]
 
 
 class Mimetype(str, Enum):

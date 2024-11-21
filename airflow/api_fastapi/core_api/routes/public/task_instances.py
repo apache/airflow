@@ -267,7 +267,7 @@ def get_mapped_task_instance(
 
 
 @task_instances_router.get(
-    task_instances_prefix + "",
+    task_instances_prefix,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_task_instances(
@@ -531,15 +531,15 @@ def post_clear_task_instances(
 
     task_instances = dag.clear(
         dry_run=True,
-        task_ids=body.task_ids,
+        task_ids=task_ids,
         dag_bag=request.app.state.dag_bag,
         **body.model_dump(
-            include=[  # type: ignore[arg-type]
+            include={
                 "start_date",
                 "end_date",
                 "only_failed",
                 "only_running",
-            ]
+            }
         ),
     )
 

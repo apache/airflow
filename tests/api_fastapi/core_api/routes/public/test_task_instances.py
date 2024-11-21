@@ -24,11 +24,13 @@ from unittest import mock
 
 import pendulum
 import pytest
+import sqlalchemy
 
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.models.taskinstancehistory import TaskInstanceHistory
@@ -1836,21 +1838,36 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert len(response.json()["task_instances"]) == expected_ti
 
-    def test_clear_taskinstance_is_called_with_queued_dr_state(self, test_client, session):
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.task_instances.clear_task_instances")
+    def test_clear_taskinstance_is_called_with_queued_dr_state(self, mock_clearti, test_client, session):
         """Test that if reset_dag_runs is True, then clear_task_instances is called with State.QUEUED"""
         self.create_task_instances(session)
         dag_id = "example_python_operator"
         payload = {"reset_dag_runs": True, "dry_run": False}
         self.dagbag.sync_to_db()
-        with mock.patch(
-            "airflow.api_fastapi.core_api.routes.public.task_instances.clear_task_instances",
-        ) as mp:
-            response = test_client.post(
-                f"/public/dags/{dag_id}/clearTaskInstances",
-                json=payload,
-            )
-            assert response.status_code == 200
-            mp.assert_called_once()
+        response = test_client.post(
+            f"/public/dags/{dag_id}/clearTaskInstances",
+            json=payload,
+        )
+        assert response.status_code == 200
+
+        # We check args individually instead of direct matching using
+        # assert_called_once_with(), because the session objects don't match
+        # and can't be skipped using mock.ANY.
+        mock_clearti.assert_called_once()
+        args, kwargs = mock_clearti.call_args
+        assert len(args) == 4
+        assert len(kwargs) == 0
+        # 1st argument
+        assert args[0] == []
+        # 2nd argument
+        assert args[1] is not None
+        assert isinstance(args[1], sqlalchemy.orm.session.Session)
+        # 3rd argument
+        assert args[2].dag_id, dag_id
+        assert isinstance(args[2], DAG)
+        # 4th argument
+        assert args[3] == DagRunState.QUEUED
 
     def test_clear_taskinstance_is_called_with_invalid_task_ids(self, test_client, session):
         """Test that dagrun is running when invalid task_ids are passed to clearTaskInstances API."""
@@ -2235,11 +2252,10 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 {
                     "detail": [
                         {
-                            "type": "value_error",
+                            "type": "timezone_aware",
                             "loc": ["body", "end_date"],
-                            "msg": "Value error, Invalid datetime format, Naive datetime is disallowed",
+                            "msg": "Input should have timezone info",
                             "input": "2020-11-10T12:42:39.442973",
-                            "ctx": {"error": {}},
                         }
                     ]
                 },
@@ -2249,11 +2265,11 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 {
                     "detail": [
                         {
-                            "type": "value_error",
+                            "type": "datetime_from_date_parsing",
                             "loc": ["body", "end_date"],
-                            "msg": "Value error, Invalid isoformat string: '2020-11-10T12:4po'",
+                            "msg": "Input should be a valid datetime or date, unexpected extra characters at the end of the input",
                             "input": "2020-11-10T12:4po",
-                            "ctx": {"error": {}},
+                            "ctx": {"error": "unexpected extra characters at the end of the input"},
                         }
                     ]
                 },
@@ -2263,11 +2279,10 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 {
                     "detail": [
                         {
-                            "type": "value_error",
+                            "type": "timezone_aware",
                             "loc": ["body", "start_date"],
-                            "msg": "Value error, Invalid datetime format, Naive datetime is disallowed",
+                            "msg": "Input should have timezone info",
                             "input": "2020-11-10T12:42:39.442973",
-                            "ctx": {"error": {}},
                         }
                     ]
                 },
@@ -2277,11 +2292,11 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 {
                     "detail": [
                         {
-                            "type": "value_error",
+                            "type": "datetime_from_date_parsing",
                             "loc": ["body", "start_date"],
-                            "msg": "Value error, Invalid isoformat string: '2020-11-10T12:4po'",
+                            "msg": "Input should be a valid datetime or date, unexpected extra characters at the end of the input",
                             "input": "2020-11-10T12:4po",
-                            "ctx": {"error": {}},
+                            "ctx": {"error": "unexpected extra characters at the end of the input"},
                         }
                     ]
                 },

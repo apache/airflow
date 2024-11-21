@@ -20,7 +20,6 @@ from datetime import datetime
 from typing import Annotated, Any
 
 from pydantic import (
-    AliasChoices,
     AliasPath,
     AwareDatetime,
     BaseModel,
@@ -32,7 +31,6 @@ from pydantic import (
     model_validator,
 )
 
-from airflow.api_fastapi.common.types import DatetimeWithNonNaiveValidation
 from airflow.api_fastapi.core_api.datamodels.job import JobResponse
 from airflow.api_fastapi.core_api.datamodels.trigger import TriggerResponse
 from airflow.utils.state import TaskInstanceState
@@ -160,8 +158,8 @@ class ClearTaskInstancesBody(BaseModel):
     """Request body for Clear Task Instances endpoint."""
 
     dry_run: bool = True
-    start_date: DatetimeWithNonNaiveValidation | None = None
-    end_date: DatetimeWithNonNaiveValidation | None = None
+    start_date: AwareDatetime | None = None
+    end_date: AwareDatetime | None = None
     only_failed: bool = True
     only_running: bool = False
     reset_dag_runs: bool = False
@@ -196,7 +194,7 @@ class TaskInstanceReferenceResponse(BaseModel):
     """Task Instance Reference serializer for responses."""
 
     task_id: str
-    dag_run_id: str = Field(validation_alias=AliasChoices("run_id"))
+    dag_run_id: str = Field(validation_alias="run_id")
     dag_id: str
     logical_date: datetime
 
