@@ -876,7 +876,6 @@ export type TaskInstanceReferenceResponse = {
   task_id: string;
   dag_run_id: string;
   dag_id: string;
-  logical_date: string;
 };
 
 /**

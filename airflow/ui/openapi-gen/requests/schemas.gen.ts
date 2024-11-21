@@ -3495,14 +3495,9 @@ export const $TaskInstanceReferenceResponse = {
       type: "string",
       title: "Dag Id",
     },
-    logical_date: {
-      type: "string",
-      format: "date-time",
-      title: "Logical Date",
-    },
   },
   type: "object",
-  required: ["task_id", "dag_run_id", "dag_id", "logical_date"],
+  required: ["task_id", "dag_run_id", "dag_id"],
   title: "TaskInstanceReferenceResponse",
   description: "Task Instance Reference serializer for responses.",
 } as const;

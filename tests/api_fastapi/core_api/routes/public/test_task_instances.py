@@ -1939,37 +1939,31 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_0",
-                "logical_date": "2020-01-01T00:00:00Z",
                 "task_id": "print_the_context",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_1",
-                "logical_date": "2020-01-02T00:00:00Z",
                 "task_id": "log_sql_query",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_2",
-                "logical_date": "2020-01-03T00:00:00Z",
                 "task_id": "sleep_for_0",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_3",
-                "logical_date": "2020-01-04T00:00:00Z",
                 "task_id": "sleep_for_1",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_4",
-                "logical_date": "2020-01-05T00:00:00Z",
                 "task_id": "sleep_for_2",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_5",
-                "logical_date": "2020-01-06T00:00:00Z",
                 "task_id": "sleep_for_3",
             },
         ]
@@ -2028,7 +2022,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_0",
-                "logical_date": "2020-01-01T00:00:00Z",
                 "task_id": "print_the_context",
             },
         ]
@@ -2085,37 +2078,31 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_0",
-                "logical_date": "2020-01-01T00:00:00Z",
                 "task_id": "print_the_context",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_1",
-                "logical_date": "2020-01-02T00:00:00Z",
                 "task_id": "log_sql_query",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_2",
-                "logical_date": "2020-01-03T00:00:00Z",
                 "task_id": "sleep_for_0",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_3",
-                "logical_date": "2020-01-04T00:00:00Z",
                 "task_id": "sleep_for_1",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_4",
-                "logical_date": "2020-01-05T00:00:00Z",
                 "task_id": "sleep_for_2",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_5",
-                "logical_date": "2020-01-06T00:00:00Z",
                 "task_id": "sleep_for_3",
             },
         ]
@@ -2174,37 +2161,31 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_0",
-                "logical_date": "2020-01-01T00:00:00Z",
                 "task_id": "print_the_context",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_1",
-                "logical_date": "2020-01-02T00:00:00Z",
                 "task_id": "log_sql_query",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_2",
-                "logical_date": "2020-01-03T00:00:00Z",
                 "task_id": "sleep_for_0",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_3",
-                "logical_date": "2020-01-04T00:00:00Z",
                 "task_id": "sleep_for_1",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_4",
-                "logical_date": "2020-01-05T00:00:00Z",
                 "task_id": "sleep_for_2",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_5",
-                "logical_date": "2020-01-06T00:00:00Z",
                 "task_id": "sleep_for_3",
             },
         ]

@@ -196,7 +196,6 @@ class TaskInstanceReferenceResponse(BaseModel):
     task_id: str
     dag_run_id: str = Field(validation_alias="run_id")
     dag_id: str
-    logical_date: datetime
 
 
 class TaskInstanceReferenceCollectionResponse(BaseModel):
