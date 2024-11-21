@@ -60,6 +60,7 @@ __all__ = [
     "bash_task",
     "setup",
     "teardown",
+    "empty_task",
 ]
 
 _T = TypeVar("_T", bound=Task[..., Any] | _TaskDecorator[..., Any, Any])
@@ -791,6 +792,17 @@ class TaskDecoratorCollection:
         """
     @overload
     def bash(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    @overload
+    def empty(self, *, task_id: str, **kwargs) -> TaskDecorator:
+        """
+        Wraps a Python callable into an EmptyOperator task.
+
+        :param task_id: Task ID.
+        :param kwargs: Additional keyword arguments passed to the EmptyOperator.
+        """
+
+    @overload
+    def empty(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
     def run_if(self, condition: AnyConditionFunc, skip_message: str | None = None) -> Callable[[_T], _T]:
         """
         Decorate a task to run only if a condition is met.
