@@ -392,6 +392,9 @@ class MetricsMap:
 def get_otel_logger(cls) -> SafeOtelLogger:
     host = conf.get("metrics", "otel_host")  # ex: "breeze-otel-collector"
     port = conf.getint("metrics", "otel_port")  # ex: 4318
+    headers = dict([
+        header.split('=', 1) for header in conf.getlist("traces", "otel_headers")
+    ])
     prefix = conf.get("metrics", "otel_prefix")  # ex: "airflow"
     ssl_active = conf.getboolean("metrics", "otel_ssl_active")
     # PeriodicExportingMetricReader will default to an interval of 60000 millis.
@@ -409,7 +412,7 @@ def get_otel_logger(cls) -> SafeOtelLogger:
         PeriodicExportingMetricReader(
             OTLPMetricExporter(
                 endpoint=endpoint,
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": "application/json", **headers},
             ),
             export_interval_millis=interval,
         )

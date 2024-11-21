@@ -269,6 +269,9 @@ def get_otel_tracer(cls) -> OtelTrace:
     """Get OTEL tracer from airflow configuration."""
     host = conf.get("traces", "otel_host")
     port = conf.getint("traces", "otel_port")
+    headers = dict([
+        header.split('=', 1) for header in conf.getlist("traces", "otel_headers")
+    ])
     ssl_active = conf.getboolean("traces", "otel_ssl_active")
     tag_string = cls.get_constant_tags()
 
@@ -276,7 +279,10 @@ def get_otel_tracer(cls) -> OtelTrace:
     endpoint = f"{protocol}://{host}:{port}/v1/traces"
     log.info("[OTLPSpanExporter] Connecting to OpenTelemetry Collector at %s", endpoint)
     return OtelTrace(
-        span_exporter=OTLPSpanExporter(endpoint=endpoint, headers={"Content-Type": "application/json"}),
+        span_exporter=OTLPSpanExporter(
+            endpoint=endpoint,
+            headers={"Content-Type": "application/json", **headers}
+        ),
         tag_string=tag_string,
     )
 

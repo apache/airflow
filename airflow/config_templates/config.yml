@@ -1174,6 +1174,13 @@ metrics:
       type: string
       example: ~
       default: "8889"
+    otel_headers:
+      description: |
+        Headers to be added to the traces.
+      version_added: 2.10.0
+      type: string
+      example: 'Authorization="Bearer token",Potato="Tomato"'
+      default: ""
     otel_prefix:
       description: |
         The prefix for the Airflow metrics.
@@ -1239,6 +1246,13 @@ traces:
       type: string
       example: ~
       default: "8889"
+    otel_headers:
+      description: |
+        Headers to be added to the traces.
+      version_added: 2.10.0
+      type: string
+      example: 'Authorization="Bearer token",Potato="Tomato"'
+      default: ""
     otel_service:
       description: |
         The default service name of traces.
