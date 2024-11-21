@@ -425,11 +425,10 @@ class TestGetDagRuns:
         assert body["detail"] == expected_detail
 
     def test_invalid_state(self, test_client):
-        response = test_client.get(f"/public/dags/{DAG1_ID}/dagRuns", params={"state": "invalid"})
+        response = test_client.get(f"/public/dags/{DAG1_ID}/dagRuns", params={"state": ["invalid"]})
         assert response.status_code == 422
         assert (
-            response.json()["detail"][0]["msg"]
-            == f"Invalid value for state. Valid values are {', '.join(DagRunState)}"
+            response.json()["detail"] == f"Invalid value for state. Valid values are {', '.join(DagRunState)}"
         )
 
 
