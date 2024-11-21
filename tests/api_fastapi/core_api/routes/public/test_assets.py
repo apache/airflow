@@ -622,7 +622,7 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
         self._create_asset_dag_run_queues(dag_id, asset_id, session)
 
         response = test_client.get(
-            f"/public/dags/{dag_id}/assets/queuedEvent",
+            f"/public/dags/{dag_id}/assets/queuedEvents",
         )
 
         assert response.status_code == 200
@@ -641,7 +641,7 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
         dag_id = "not_exists"
 
         response = test_client.get(
-            f"/public/dags/{dag_id}/assets/queuedEvent",
+            f"/public/dags/{dag_id}/assets/queuedEvents",
         )
 
         assert response.status_code == 404
@@ -660,7 +660,7 @@ class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
         assert len(adrqs) == 1
 
         response = test_client.delete(
-            f"/public/dags/{dag_id}/assets/queuedEvent",
+            f"/public/dags/{dag_id}/assets/queuedEvents",
         )
 
         assert response.status_code == 204
@@ -671,7 +671,7 @@ class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
         dag_id = "not_exists"
 
         response = test_client.delete(
-            f"/public/dags/{dag_id}/assets/queuedEvent",
+            f"/public/dags/{dag_id}/assets/queuedEvents",
         )
 
         assert response.status_code == 404
@@ -685,7 +685,7 @@ class TestDeleteDagDatasetQueuedEvents(TestQueuedEventEndpoint):
         assert len(adrqs) == 0
 
         response = test_client.delete(
-            f"/public/dags/{dag_id}/assets/queuedEvent",
+            f"/public/dags/{dag_id}/assets/queuedEvents",
         )
 
         assert response.status_code == 404
@@ -751,7 +751,7 @@ class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
         self._create_asset_dag_run_queues(dag_id, asset_id, session)
 
         response = test_client.get(
-            f"/public/assets/queuedEvent/{uri}",
+            f"/public/assets/queuedEvents/{uri}",
         )
         assert response.status_code == 200
         assert response.json() == {
@@ -769,7 +769,7 @@ class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
         uri = "not_exists"
 
         response = test_client.get(
-            f"/public/assets/queuedEvent/{uri}",
+            f"/public/assets/queuedEvents/{uri}",
         )
 
         assert response.status_code == 404
@@ -787,7 +787,7 @@ class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
         self._create_asset_dag_run_queues(dag_id, asset_id, session)
 
         response = test_client.delete(
-            f"/public/assets/queuedEvent/{uri}",
+            f"/public/assets/queuedEvents/{uri}",
         )
         assert response.status_code == 204
         assert session.query(AssetDagRunQueue).filter_by(asset_id=1).first() is None
@@ -796,7 +796,7 @@ class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
         uri = "not_exists"
 
         response = test_client.delete(
-            f"/public/assets/queuedEvent/{uri}",
+            f"/public/assets/queuedEvents/{uri}",
         )
 
         assert response.status_code == 404
@@ -816,7 +816,7 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
         assert len(adrq) == 1
 
         response = test_client.delete(
-            f"/public/dags/{dag_id}/assets/queuedEvent/{asset_uri}",
+            f"/public/dags/{dag_id}/assets/queuedEvents/{asset_uri}",
         )
 
         assert response.status_code == 204
@@ -828,7 +828,7 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
         asset_uri = "not_exists"
 
         response = test_client.delete(
-            f"/public/dags/{dag_id}/assets/queuedEvent/{asset_uri}",
+            f"/public/dags/{dag_id}/assets/queuedEvents/{asset_uri}",
         )
 
         assert response.status_code == 404

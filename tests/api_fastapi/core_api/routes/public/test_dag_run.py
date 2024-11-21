@@ -17,15 +17,15 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import select
 
-from airflow import Asset
 from airflow.models import DagRun
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.operators.empty import EmptyOperator
+from airflow.sdk.definitions.asset import Asset
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -52,9 +52,12 @@ DAG1_RUN1_TRIGGERED_BY = DagRunTriggeredByType.UI
 DAG1_RUN2_TRIGGERED_BY = DagRunTriggeredByType.ASSET
 DAG2_RUN1_TRIGGERED_BY = DagRunTriggeredByType.CLI
 DAG2_RUN2_TRIGGERED_BY = DagRunTriggeredByType.REST_API
-START_DATE = datetime(2024, 6, 15, 0, 0, tzinfo=timezone.utc)
-END_DATE = datetime(2024, 6, 15, 0, 0, tzinfo=timezone.utc)
-EXECUTION_DATE = datetime(2024, 6, 16, 0, 0, tzinfo=timezone.utc)
+START_DATE1 = datetime(2024, 1, 15, 0, 0, tzinfo=timezone.utc)
+LOGICAL_DATE1 = datetime(2024, 2, 16, 0, 0, tzinfo=timezone.utc)
+LOGICAL_DATE2 = datetime(2024, 2, 20, 0, 0, tzinfo=timezone.utc)
+START_DATE2 = datetime(2024, 4, 15, 0, 0, tzinfo=timezone.utc)
+LOGICAL_DATE3 = datetime(2024, 5, 16, 0, 0, tzinfo=timezone.utc)
+LOGICAL_DATE4 = datetime(2024, 5, 25, 0, 0, tzinfo=timezone.utc)
 DAG1_RUN1_NOTE = "test_note"
 
 
@@ -68,7 +71,7 @@ def setup(dag_maker, session=None):
     with dag_maker(
         DAG1_ID,
         schedule="@daily",
-        start_date=START_DATE,
+        start_date=START_DATE1,
     ):
         task1 = EmptyOperator(task_id="task_1")
     dag_run1 = dag_maker.create_dagrun(
@@ -76,6 +79,7 @@ def setup(dag_maker, session=None):
         state=DAG1_RUN1_STATE,
         run_type=DAG1_RUN1_RUN_TYPE,
         triggered_by=DAG1_RUN1_TRIGGERED_BY,
+        logical_date=LOGICAL_DATE1,
     )
 
     dag_run1.note = (DAG1_RUN1_NOTE, 1)
@@ -89,13 +93,13 @@ def setup(dag_maker, session=None):
         state=DAG1_RUN2_STATE,
         run_type=DAG1_RUN2_RUN_TYPE,
         triggered_by=DAG1_RUN2_TRIGGERED_BY,
-        logical_date=EXECUTION_DATE,
+        logical_date=LOGICAL_DATE2,
     )
 
     with dag_maker(
         DAG2_ID,
         schedule=None,
-        start_date=START_DATE,
+        start_date=START_DATE2,
     ):
         EmptyOperator(task_id="task_2")
     dag_maker.create_dagrun(
@@ -103,14 +107,14 @@ def setup(dag_maker, session=None):
         state=DAG2_RUN1_STATE,
         run_type=DAG2_RUN1_RUN_TYPE,
         triggered_by=DAG2_RUN1_TRIGGERED_BY,
-        logical_date=EXECUTION_DATE,
+        logical_date=LOGICAL_DATE3,
     )
     dag_maker.create_dagrun(
         run_id=DAG2_RUN2_ID,
         state=DAG2_RUN2_STATE,
         run_type=DAG2_RUN2_RUN_TYPE,
         triggered_by=DAG2_RUN2_TRIGGERED_BY,
-        logical_date=EXECUTION_DATE,
+        logical_date=LOGICAL_DATE4,
     )
 
     dag_maker.dagbag.sync_to_db()
@@ -154,6 +158,278 @@ class TestGetDagRun:
         assert response.status_code == 404
         body = response.json()
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
+
+
+class TestGetDagRuns:
+    @staticmethod
+    def parse_datetime(datetime_str):
+        return datetime_str.isoformat().replace("+00:00", "Z") if datetime_str else None
+
+    @staticmethod
+    def get_dag_run_dict(run: DagRun):
+        return {
+            "run_id": run.run_id,
+            "dag_id": run.dag_id,
+            "logical_date": TestGetDagRuns.parse_datetime(run.logical_date),
+            "queued_at": TestGetDagRuns.parse_datetime(run.queued_at),
+            "start_date": TestGetDagRuns.parse_datetime(run.start_date),
+            "end_date": TestGetDagRuns.parse_datetime(run.end_date),
+            "data_interval_start": TestGetDagRuns.parse_datetime(run.data_interval_start),
+            "data_interval_end": TestGetDagRuns.parse_datetime(run.data_interval_end),
+            "last_scheduling_decision": TestGetDagRuns.parse_datetime(run.last_scheduling_decision),
+            "run_type": run.run_type,
+            "state": run.state,
+            "external_trigger": run.external_trigger,
+            "triggered_by": run.triggered_by.value,
+            "conf": run.conf,
+            "note": run.note,
+        }
+
+    @pytest.mark.parametrize("dag_id, total_entries", [(DAG1_ID, 2), (DAG2_ID, 2), ("~", 4)])
+    def test_get_dag_runs(self, test_client, session, dag_id, total_entries):
+        response = test_client.get(f"/public/dags/{dag_id}/dagRuns")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == total_entries
+        for each in body["dag_runs"]:
+            run = (
+                session.query(DagRun)
+                .where(DagRun.dag_id == each["dag_id"], DagRun.run_id == each["run_id"])
+                .one()
+            )
+            expected = self.get_dag_run_dict(run)
+            assert each == expected
+
+    def test_get_dag_runs_not_found(self, test_client):
+        response = test_client.get("/public/dags/invalid/dagRuns")
+        assert response.status_code == 404
+        body = response.json()
+        assert body["detail"] == "The DAG with dag_id: `invalid` was not found"
+
+    def test_invalid_order_by_raises_400(self, test_client):
+        response = test_client.get("/public/dags/test_dag1/dagRuns?order_by=invalid")
+        assert response.status_code == 400
+        body = response.json()
+        assert (
+            body["detail"]
+            == "Ordering with 'invalid' is disallowed or the attribute does not exist on the model"
+        )
+
+    @pytest.mark.parametrize(
+        "order_by, expected_dag_id_order",
+        [
+            ("id", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("state", [DAG1_RUN2_ID, DAG1_RUN1_ID]),
+            ("dag_id", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("logical_date", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("dag_run_id", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("start_date", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("end_date", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("updated_at", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("external_trigger", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ("conf", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+        ],
+    )
+    def test_return_correct_results_with_order_by(self, test_client, order_by, expected_dag_id_order):
+        response = test_client.get("/public/dags/test_dag1/dagRuns", params={"order_by": order_by})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 2
+        assert [each["run_id"] for each in body["dag_runs"]] == expected_dag_id_order
+
+    @pytest.mark.parametrize(
+        "query_params, expected_dag_id_order",
+        [
+            ({}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ({"limit": 1}, [DAG1_RUN1_ID]),
+            ({"limit": 3}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            ({"offset": 1}, [DAG1_RUN2_ID]),
+            ({"offset": 2}, []),
+            ({"limit": 1, "offset": 1}, [DAG1_RUN2_ID]),
+            ({"limit": 1, "offset": 2}, []),
+        ],
+    )
+    def test_limit_and_offset(self, test_client, query_params, expected_dag_id_order):
+        response = test_client.get("/public/dags/test_dag1/dagRuns", params=query_params)
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 2
+        assert [each["run_id"] for each in body["dag_runs"]] == expected_dag_id_order
+
+    @pytest.mark.parametrize(
+        "query_params, expected_detail",
+        [
+            (
+                {"limit": 1, "offset": -1},
+                [
+                    {
+                        "type": "greater_than_equal",
+                        "loc": ["query", "offset"],
+                        "msg": "Input should be greater than or equal to 0",
+                        "input": "-1",
+                        "ctx": {"ge": 0},
+                    }
+                ],
+            ),
+            (
+                {"limit": -1, "offset": 1},
+                [
+                    {
+                        "type": "greater_than_equal",
+                        "loc": ["query", "limit"],
+                        "msg": "Input should be greater than or equal to 0",
+                        "input": "-1",
+                        "ctx": {"ge": 0},
+                    }
+                ],
+            ),
+            (
+                {"limit": -1, "offset": -1},
+                [
+                    {
+                        "type": "greater_than_equal",
+                        "loc": ["query", "limit"],
+                        "msg": "Input should be greater than or equal to 0",
+                        "input": "-1",
+                        "ctx": {"ge": 0},
+                    },
+                    {
+                        "type": "greater_than_equal",
+                        "loc": ["query", "offset"],
+                        "msg": "Input should be greater than or equal to 0",
+                        "input": "-1",
+                        "ctx": {"ge": 0},
+                    },
+                ],
+            ),
+        ],
+    )
+    def test_bad_limit_and_offset(self, test_client, query_params, expected_detail):
+        response = test_client.get("/public/dags/test_dag1/dagRuns", params=query_params)
+        assert response.status_code == 422
+        assert response.json()["detail"] == expected_detail
+
+    @pytest.mark.parametrize(
+        "dag_id, query_params, expected_dag_id_list",
+        [
+            (DAG1_ID, {"logical_date_gte": LOGICAL_DATE1.isoformat()}, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            (DAG2_ID, {"logical_date_lte": LOGICAL_DATE3.isoformat()}, [DAG2_RUN1_ID]),
+            (
+                "~",
+                {
+                    "start_date_gte": START_DATE1.isoformat(),
+                    "start_date_lte": (START_DATE2 - timedelta(days=1)).isoformat(),
+                },
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),
+            (
+                DAG1_ID,
+                {
+                    "end_date_gte": START_DATE2.isoformat(),
+                    "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                },
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),
+            (
+                DAG1_ID,
+                {
+                    "logical_date_gte": LOGICAL_DATE1.isoformat(),
+                    "logical_date_lte": LOGICAL_DATE2.isoformat(),
+                },
+                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+            ),
+            (
+                DAG2_ID,
+                {
+                    "start_date_gte": START_DATE2.isoformat(),
+                    "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
+                },
+                [DAG2_RUN1_ID, DAG2_RUN2_ID],
+            ),
+            (DAG1_ID, {"state": DagRunState.SUCCESS.value}, [DAG1_RUN1_ID]),
+            (DAG2_ID, {"state": DagRunState.FAILED.value}, []),
+            (
+                DAG1_ID,
+                {"state": DagRunState.SUCCESS.value, "logical_date_gte": LOGICAL_DATE1.isoformat()},
+                [DAG1_RUN1_ID],
+            ),
+            (
+                DAG1_ID,
+                {"state": DagRunState.FAILED.value, "start_date_gte": START_DATE1.isoformat()},
+                [DAG1_RUN2_ID],
+            ),
+        ],
+    )
+    def test_filters(self, test_client, dag_id, query_params, expected_dag_id_list):
+        response = test_client.get(f"/public/dags/{dag_id}/dagRuns", params=query_params)
+        assert response.status_code == 200
+        body = response.json()
+        assert [each["run_id"] for each in body["dag_runs"]] == expected_dag_id_list
+
+    def test_bad_filters(self, test_client):
+        query_params = {
+            "logical_date_gte": "invalid",
+            "start_date_gte": "invalid",
+            "end_date_gte": "invalid",
+            "logical_date_lte": "invalid",
+            "start_date_lte": "invalid",
+            "end_date_lte": "invalid",
+        }
+        expected_detail = [
+            {
+                "type": "datetime_from_date_parsing",
+                "loc": ["query", "logical_date_gte"],
+                "msg": "Input should be a valid datetime or date, input is too short",
+                "input": "invalid",
+                "ctx": {"error": "input is too short"},
+            },
+            {
+                "type": "datetime_from_date_parsing",
+                "loc": ["query", "logical_date_lte"],
+                "msg": "Input should be a valid datetime or date, input is too short",
+                "input": "invalid",
+                "ctx": {"error": "input is too short"},
+            },
+            {
+                "type": "datetime_from_date_parsing",
+                "loc": ["query", "start_date_gte"],
+                "msg": "Input should be a valid datetime or date, input is too short",
+                "input": "invalid",
+                "ctx": {"error": "input is too short"},
+            },
+            {
+                "type": "datetime_from_date_parsing",
+                "loc": ["query", "start_date_lte"],
+                "msg": "Input should be a valid datetime or date, input is too short",
+                "input": "invalid",
+                "ctx": {"error": "input is too short"},
+            },
+            {
+                "type": "datetime_from_date_parsing",
+                "loc": ["query", "end_date_gte"],
+                "msg": "Input should be a valid datetime or date, input is too short",
+                "input": "invalid",
+                "ctx": {"error": "input is too short"},
+            },
+            {
+                "type": "datetime_from_date_parsing",
+                "loc": ["query", "end_date_lte"],
+                "msg": "Input should be a valid datetime or date, input is too short",
+                "input": "invalid",
+                "ctx": {"error": "input is too short"},
+            },
+        ]
+        response = test_client.get(f"/public/dags/{DAG1_ID}/dagRuns", params=query_params)
+        assert response.status_code == 422
+        body = response.json()
+        assert body["detail"] == expected_detail
+
+    def test_invalid_state(self, test_client):
+        response = test_client.get(f"/public/dags/{DAG1_ID}/dagRuns", params={"state": ["invalid"]})
+        assert response.status_code == 422
+        assert (
+            response.json()["detail"] == f"Invalid value for state. Valid values are {', '.join(DagRunState)}"
+        )
 
 
 class TestPatchDagRun:
@@ -271,7 +547,7 @@ class TestGetDagRunAssetTriggerEvents:
     def test_should_respond_200(self, test_client, dag_maker, session):
         asset1 = Asset(uri="ds1")
 
-        with dag_maker(dag_id="source_dag", start_date=START_DATE, session=session):
+        with dag_maker(dag_id="source_dag", start_date=START_DATE1, session=session):
             EmptyOperator(task_id="task", outlets=[asset1])
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
@@ -286,7 +562,7 @@ class TestGetDagRunAssetTriggerEvents:
         )
         session.add(event)
 
-        with dag_maker(dag_id="TEST_DAG_ID", start_date=START_DATE, session=session):
+        with dag_maker(dag_id="TEST_DAG_ID", start_date=START_DATE1, session=session):
             pass
         dr = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.ASSET_TRIGGERED)
         dr.consumed_asset_events.append(event)

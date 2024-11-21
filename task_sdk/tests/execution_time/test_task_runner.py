@@ -20,6 +20,7 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 from socket import socketpair
+from unittest import mock
 
 import pytest
 from uuid6 import uuid7
@@ -27,7 +28,7 @@ from uuid6 import uuid7
 from airflow.sdk import DAG, BaseOperator
 from airflow.sdk.api.datamodels._generated import TaskInstance
 from airflow.sdk.execution_time.comms import StartupDetails
-from airflow.sdk.execution_time.task_runner import CommsDecoder, parse
+from airflow.sdk.execution_time.task_runner import CommsDecoder, parse, run
 
 
 class TestCommsDecoder:
@@ -73,3 +74,15 @@ def test_parse(test_dags_dir: Path):
     assert ti.task.dag
     assert isinstance(ti.task, BaseOperator)
     assert isinstance(ti.task.dag, DAG)
+
+
+def test_run_basic(test_dags_dir: Path):
+    """Test running a basic task."""
+    what = StartupDetails(
+        ti=TaskInstance(id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1),
+        file=str(test_dags_dir / "super_basic_run.py"),
+        requests_fd=0,
+    )
+
+    ti = parse(what)
+    run(ti, log=mock.MagicMock())

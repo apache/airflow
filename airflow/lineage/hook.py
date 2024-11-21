@@ -24,8 +24,8 @@ from typing import TYPE_CHECKING, Union
 
 import attr
 
-from airflow.assets import Asset
 from airflow.providers_manager import ProvidersManager
+from airflow.sdk.definitions.asset import Asset
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:

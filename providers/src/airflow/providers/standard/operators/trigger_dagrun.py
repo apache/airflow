@@ -34,8 +34,7 @@ from airflow.exceptions import (
     DagNotFound,
     DagRunAlreadyExists,
 )
-from airflow.models.baseoperator import BaseOperator
-from airflow.models.baseoperatorlink import BaseOperatorLink
+from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
@@ -68,11 +67,28 @@ class TriggerDagRunLink(BaseOperatorLink):
     name = "Triggered DAG"
 
     def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey) -> str:
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields
+        from airflow.models.taskinstance import TaskInstance
+
+        ti = TaskInstance.get_task_instance(
+            dag_id=ti_key.dag_id, run_id=ti_key.run_id, task_id=ti_key.task_id, map_index=ti_key.map_index
+        )
+        if TYPE_CHECKING:
+            assert ti is not None
+
+        template_fields = RenderedTaskInstanceFields.get_templated_fields(ti)
+        untemplated_trigger_dag_id = cast(TriggerDagRunOperator, operator).trigger_dag_id
+        if template_fields:
+            trigger_dag_id = template_fields.get("trigger_dag_id", untemplated_trigger_dag_id)
+        else:
+            trigger_dag_id = untemplated_trigger_dag_id
+
         # Fetch the correct dag_run_id for the triggerED dag which is
         # stored in xcom during execution of the triggerING task.
         triggered_dag_run_id = XCom.get_value(ti_key=ti_key, key=XCOM_RUN_ID)
+
         query = {
-            "dag_id": cast(TriggerDagRunOperator, operator).trigger_dag_id,
+            "dag_id": trigger_dag_id,
             "dag_run_id": triggered_dag_run_id,
         }
         return build_airflow_url_with_query(query)

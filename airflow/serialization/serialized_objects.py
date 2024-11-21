@@ -35,15 +35,6 @@ from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow import macros
-from airflow.assets import (
-    Asset,
-    AssetAlias,
-    AssetAll,
-    AssetAny,
-    AssetRef,
-    BaseAsset,
-    _AssetAliasCondition,
-)
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import AirflowException, SerializationError, TaskDeferred
 from airflow.jobs.job import Job
@@ -60,6 +51,15 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom_arg import XComArg, deserialize_xcom_arg, serialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
+from airflow.sdk.definitions.asset import (
+    Asset,
+    AssetAlias,
+    AssetAliasCondition,
+    AssetAll,
+    AssetAny,
+    AssetRef,
+    BaseAsset,
+)
 from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
@@ -119,7 +119,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 _OPERATOR_EXTRA_LINKS: set[str] = {
-    "airflow.operators.trigger_dagrun.TriggerDagRunLink",
+    "airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunLink",
     "airflow.sensors.external_task.ExternalDagLink",
     # Deprecated names, so that existing serialized dags load straight away.
     "airflow.sensors.external_task.ExternalTaskSensorLink",
@@ -1020,7 +1020,7 @@ class DependencyDetector:
     @staticmethod
     def detect_task_dependencies(task: Operator) -> list[DagDependency]:
         """Detect dependencies caused by tasks."""
-        from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
         from airflow.sensors.external_task import ExternalTaskSensor
 
         deps = []
@@ -1053,7 +1053,7 @@ class DependencyDetector:
                     )
                 )
             elif isinstance(obj, AssetAlias):
-                cond = _AssetAliasCondition(obj.name)
+                cond = AssetAliasCondition(obj.name)
 
                 deps.extend(cond.iter_dag_dependencies(source=task.dag_id, target=""))
         return deps

@@ -152,8 +152,8 @@ def get_mapped_task_instances(
             raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
 
     task_instance_select, total_entries = paginated_select(
-        base_query,
-        [
+        select=base_query,
+        filters=[
             logical_date_range,
             start_date_range,
             end_date_range,
@@ -164,10 +164,10 @@ def get_mapped_task_instances(
             queue,
             executor,
         ],
-        order_by,
-        offset,
-        limit,
-        session,
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
 
     task_instances = session.scalars(task_instance_select)
@@ -318,8 +318,8 @@ def get_task_instances(
         base_query = base_query.where(TI.run_id == dag_run_id)
 
     task_instance_select, total_entries = paginated_select(
-        base_query,
-        [
+        select=base_query,
+        filters=[
             logical_date,
             start_date_range,
             end_date_range,
@@ -330,10 +330,10 @@ def get_task_instances(
             queue,
             executor,
         ],
-        order_by,
-        offset,
-        limit,
-        session,
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
 
     task_instances = session.scalars(task_instance_select)
@@ -392,8 +392,8 @@ def get_task_instances_batch(
 
     base_query = select(TI).join(TI.dag_run)
     task_instance_select, total_entries = paginated_select(
-        base_query,
-        [
+        select=base_query,
+        filters=[
             dag_ids,
             dag_run_ids,
             task_ids,
@@ -406,10 +406,10 @@ def get_task_instances_batch(
             queue,
             executor,
         ],
-        order_by,
-        offset,
-        limit,
-        session,
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
 
     task_instance_select = task_instance_select.options(
@@ -460,3 +460,25 @@ def get_task_instance_try_details(
             f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}`, try_number: `{task_try_number}` and map_index: `{map_index}` was not found",
         )
     return TaskInstanceHistoryResponse.model_validate(result, from_attributes=True)
+
+
+@task_instances_router.get(
+    "/{task_id}/{map_index}/tries/{task_try_number}",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+)
+def get_mapped_task_instance_try_details(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    task_try_number: int,
+    session: Annotated[Session, Depends(get_session)],
+    map_index: int,
+) -> TaskInstanceHistoryResponse:
+    return get_task_instance_try_details(
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
+        task_try_number=task_try_number,
+        map_index=map_index,
+        session=session,
+    )

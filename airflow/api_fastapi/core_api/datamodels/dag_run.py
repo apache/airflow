@@ -67,6 +67,13 @@ class DAGRunResponse(BaseModel):
     note: str | None
 
 
+class DAGRunCollectionResponse(BaseModel):
+    """DAG Run Collection serializer for responses."""
+
+    dag_runs: list[DAGRunResponse]
+    total_entries: int
+
+
 class TriggerDAGRunPostBody(BaseModel):
     """Trigger DAG Run Serializer for POST body."""
 
