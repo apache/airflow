@@ -57,7 +57,7 @@ def get_log(
     map_index: int = -1,
     token: str | None = None,
 ):
-    """Get logs for specific task instance."""
+    """Get logs for a specific task instance."""
     if not token:
         metadata = {}
     else:
