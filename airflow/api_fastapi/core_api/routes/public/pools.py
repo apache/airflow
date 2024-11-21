@@ -96,7 +96,7 @@ def get_pools(
 ) -> PoolCollectionResponse:
     """Get all pools entries."""
     pools_select, total_entries = paginated_select(
-        select=select(Pool),
+        query=select(Pool),
         order_by=order_by,
         offset=offset,
         limit=limit,

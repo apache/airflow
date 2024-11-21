@@ -103,7 +103,7 @@ def recent_dag_runs(
         .order_by(recent_runs_subquery.c.logical_date.desc())
     )
     dags_with_recent_dag_runs_select_filter, _ = paginated_select(
-        select=dags_with_recent_dag_runs_select,
+        query=dags_with_recent_dag_runs_select,
         filters=[
             only_active,
             paused,
