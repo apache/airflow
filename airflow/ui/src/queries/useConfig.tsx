@@ -16,31 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Flex } from "@chakra-ui/react";
-import type { PropsWithChildren } from "react";
-import { Outlet } from "react-router-dom";
+import { useConfigServiceGetConfig } from "openapi/queries";
 
-import { useConfig } from "src/queries/useConfig";
+export const useConfig = (sectionName: string, configKey: string) => {
+  // TODO: replace with a ui/config endpoitn which will always return what the UI need to render
+  const { data: config } = useConfigServiceGetConfig({
+    accept: "application/json",
+  });
 
-import { Nav } from "./Nav";
-
-export const BaseLayout = ({ children }: PropsWithChildren) => {
-  const instanceName = useConfig("webserver", "instance_name");
-  // const instanceNameHasMarkup =
-  //   webserverConfig?.options.find(
-  //     ({ key }) => key === "instance_name_has_markup",
-  //   )?.value === "True";
-
-  if (typeof instanceName === "string") {
-    document.title = instanceName;
-  }
-
-  return (
-    <>
-      <Nav />
-      <Flex flexFlow="column" height="100%" ml={20} p={3}>
-        {children ?? <Outlet />}
-      </Flex>
-    </>
+  const configSection = config?.sections.find(
+    (section) => section.name === sectionName,
   );
+
+  return configSection?.options.find(({ key }) => key === configKey)?.value;
 };
