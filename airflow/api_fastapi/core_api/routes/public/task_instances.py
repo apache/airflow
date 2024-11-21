@@ -48,9 +48,12 @@ from airflow.api_fastapi.common.parameters import (
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
+    SetTaskInstancesStateBody,
     TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceHistoryResponse,
+    TaskInstanceReferenceCollectionResponse,
+    TaskInstanceReferenceResponse,
     TaskInstanceResponse,
     TaskInstancesBatchBody,
 )
@@ -64,13 +67,12 @@ from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
 from airflow.utils.db import get_query_count
 from airflow.utils.state import TaskInstanceState
 
-task_instances_router = AirflowRouter(
-    tags=["Task Instance"], prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances"
-)
+task_instances_router = AirflowRouter(tags=["Task Instance"], prefix="/dags/{dag_id}")
+task_instances_prefix = "/dagRuns/{dag_run_id}/taskInstances"
 
 
 @task_instances_router.get(
-    "/{task_id}",
+    task_instances_prefix + "/{task_id}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_task_instance(
@@ -99,7 +101,7 @@ def get_task_instance(
 
 
 @task_instances_router.get(
-    "/{task_id}/listMapped",
+    task_instances_prefix + "/{task_id}/listMapped",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_mapped_task_instances(
@@ -182,11 +184,11 @@ def get_mapped_task_instances(
 
 
 @task_instances_router.get(
-    "/{task_id}/dependencies",
+    task_instances_prefix + "/{task_id}/dependencies",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 @task_instances_router.get(
-    "/{task_id}/{map_index}/dependencies",
+    task_instances_prefix + "/{task_id}/{map_index}/dependencies",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_task_instance_dependencies(
@@ -236,7 +238,7 @@ def get_task_instance_dependencies(
 
 
 @task_instances_router.get(
-    "/{task_id}/{map_index}",
+    task_instances_prefix + "/{task_id}/{map_index}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_mapped_task_instance(
@@ -265,7 +267,7 @@ def get_mapped_task_instance(
 
 
 @task_instances_router.get(
-    "",
+    task_instances_prefix,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_task_instances(
@@ -348,7 +350,7 @@ def get_task_instances(
 
 
 @task_instances_router.post(
-    "/list",
+    task_instances_prefix + "/list",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_task_instances_batch(
@@ -428,7 +430,7 @@ def get_task_instances_batch(
 
 
 @task_instances_router.get(
-    "/{task_id}/tries/{task_try_number}",
+    task_instances_prefix + "/{task_id}/tries/{task_try_number}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_task_instance_try_details(
@@ -463,7 +465,7 @@ def get_task_instance_try_details(
 
 
 @task_instances_router.get(
-    "/{task_id}/{map_index}/tries/{task_try_number}",
+    task_instances_prefix + "/{task_id}/{map_index}/tries/{task_try_number}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_mapped_task_instance_try_details(
@@ -481,4 +483,61 @@ def get_mapped_task_instance_try_details(
         task_try_number=task_try_number,
         map_index=map_index,
         session=session,
+    )
+
+
+@task_instances_router.put(
+    "/updateTaskInstancesState",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_400_BAD_REQUEST]),
+)
+def set_task_instances_state(
+    dag_id: str,
+    request: Request,
+    body: SetTaskInstancesStateBody,
+    session: Annotated[Session, Depends(get_session)],
+) -> TaskInstanceReferenceCollectionResponse:
+    """Set a state of task instances."""
+    error_message = f"Dag ID {dag_id} not found"
+    dag = request.app.state.dag_bag.get_dag(dag_id)
+    if not dag:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
+
+    task_id = body.task_id
+    task = dag.task_dict.get(task_id)
+
+    if not task:
+        error_message = f"Task ID {task_id} not found"
+        raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
+    run_id = body.dag_run_id
+    if not run_id:
+        error_message = f"Task instance not found for task {task_id} on DAG run with ID {run_id}"
+        raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
+
+    select_stmt = select(TI).where(
+        TI.dag_id == dag_id, TI.task_id == task_id, TI.run_id == run_id, TI.map_index == -1
+    )
+
+    if run_id and not session.scalars(select_stmt).one_or_none():
+        error_message = f"Task instance not found for task {task_id} on DAG run with ID {run_id}"
+        raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
+
+    tis = dag.set_task_instance_state(
+        task_id=task_id,
+        run_id=run_id,
+        state=body.new_state,
+        upstream=body.include_upstream,
+        downstream=body.include_downstream,
+        future=body.include_future,
+        past=body.include_past,
+        commit=not body.dry_run,
+        session=session,
+    )
+    return TaskInstanceReferenceCollectionResponse(
+        task_instances=[
+            TaskInstanceReferenceResponse.model_validate(
+                ti,
+                from_attributes=True,
+            )
+            for ti in tis
+        ]
     )

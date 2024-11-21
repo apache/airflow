@@ -41,6 +41,7 @@ import {
   DagWarningType,
   PoolPatchBody,
   PoolPostBody,
+  SetTaskInstancesStateBody,
   TaskInstancesBatchBody,
   VariableBody,
 } from "../requests/types.gen";
@@ -2560,6 +2561,49 @@ export const useBackfillServiceCancelBackfill = <
     mutationFn: ({ backfillId }) =>
       BackfillService.cancelBackfill({
         backfillId,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Set Task Instances State
+ * Set a state of task instances.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.requestBody
+ * @returns TaskInstanceReferenceCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceSetTaskInstancesState = <
+  TData = Common.TaskInstanceServiceSetTaskInstancesStateMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        requestBody: SetTaskInstancesStateBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      requestBody: SetTaskInstancesStateBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, requestBody }) =>
+      TaskInstanceService.setTaskInstancesState({
+        dagId,
+        requestBody,
       }) as unknown as Promise<TData>,
     ...options,
   });

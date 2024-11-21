@@ -129,6 +129,8 @@ import type {
   GetTaskInstanceTryDetailsResponse,
   GetMappedTaskInstanceTryDetailsData,
   GetMappedTaskInstanceTryDetailsResponse,
+  SetTaskInstancesStateData,
+  SetTaskInstancesStateResponse,
   GetTasksData,
   GetTasksResponse,
   GetTaskData,
@@ -2179,6 +2181,36 @@ export class TaskInstanceService {
         map_index: data.mapIndex,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Set Task Instances State
+   * Set a state of task instances.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.requestBody
+   * @returns TaskInstanceReferenceCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static setTaskInstancesState(
+    data: SetTaskInstancesStateData,
+  ): CancelablePromise<SetTaskInstancesStateResponse> {
+    return __request(OpenAPI, {
+      method: "PUT",
+      url: "/public/dags/{dag_id}/updateTaskInstancesState",
+      path: {
+        dag_id: data.dagId,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",

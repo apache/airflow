@@ -3067,6 +3067,56 @@ export const $SchedulerInfoSchema = {
   description: "Schema for Scheduler info.",
 } as const;
 
+export const $SetTaskInstancesStateBody = {
+  properties: {
+    dry_run: {
+      type: "boolean",
+      title: "Dry Run",
+      default: true,
+    },
+    task_id: {
+      type: "string",
+      title: "Task Id",
+    },
+    dag_run_id: {
+      type: "string",
+      title: "Dag Run Id",
+    },
+    include_upstream: {
+      type: "boolean",
+      title: "Include Upstream",
+    },
+    include_downstream: {
+      type: "boolean",
+      title: "Include Downstream",
+    },
+    include_future: {
+      type: "boolean",
+      title: "Include Future",
+    },
+    include_past: {
+      type: "boolean",
+      title: "Include Past",
+    },
+    new_state: {
+      type: "string",
+      title: "New State",
+    },
+  },
+  type: "object",
+  required: [
+    "task_id",
+    "dag_run_id",
+    "include_upstream",
+    "include_downstream",
+    "include_future",
+    "include_past",
+    "new_state",
+  ],
+  title: "SetTaskInstancesStateBody",
+  description: "Request body for Set Task Instances State endpoint.",
+} as const;
+
 export const $TaskCollectionResponse = {
   properties: {
     tasks: {
@@ -3345,6 +3395,48 @@ export const $TaskInstanceHistoryResponse = {
   ],
   title: "TaskInstanceHistoryResponse",
   description: "TaskInstanceHistory serializer for responses.",
+} as const;
+
+export const $TaskInstanceReferenceCollectionResponse = {
+  properties: {
+    task_instances: {
+      items: {
+        $ref: "#/components/schemas/TaskInstanceReferenceResponse",
+      },
+      type: "array",
+      title: "Task Instances",
+    },
+  },
+  type: "object",
+  required: ["task_instances"],
+  title: "TaskInstanceReferenceCollectionResponse",
+  description: "Task Instance Reference collection serializer for responses.",
+} as const;
+
+export const $TaskInstanceReferenceResponse = {
+  properties: {
+    task_id: {
+      type: "string",
+      title: "Task Id",
+    },
+    dag_run_id: {
+      type: "string",
+      title: "Dag Run Id",
+    },
+    dag_id: {
+      type: "string",
+      title: "Dag Id",
+    },
+    logical_date: {
+      type: "string",
+      format: "date-time",
+      title: "Logical Date",
+    },
+  },
+  type: "object",
+  required: ["task_id", "dag_run_id", "dag_id", "logical_date"],
+  title: "TaskInstanceReferenceResponse",
+  description: "Task Instance Reference serializer for responses.",
 } as const;
 
 export const $TaskInstanceResponse = {

@@ -24,6 +24,8 @@ from unittest import mock
 
 import pendulum
 import pytest
+import sqlalchemy
+from sqlalchemy.orm import contains_eager
 
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
@@ -1671,3 +1673,293 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         assert response.json() == {
             "detail": "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `nonexistent_task`, try_number: `0` and map_index: `-1` was not found"
         }
+
+
+class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
+    @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
+    def test_should_assert_call_mocked_api(self, mock_set_task_instance_state, test_client, session):
+        self.create_task_instances(session)
+        run_id = "TEST_DAG_RUN_ID"
+        mock_set_task_instance_state.return_value = (
+            session.query(TaskInstance)
+            .join(TaskInstance.dag_run)
+            .options(contains_eager(TaskInstance.dag_run))
+            .filter(TaskInstance.task_id == "print_the_context")
+            .all()
+        )
+        response = test_client.put(
+            "/public/dags/example_python_operator/updateTaskInstancesState",
+            json={
+                "dry_run": True,
+                "task_id": "print_the_context",
+                "dag_run_id": run_id,
+                "include_upstream": True,
+                "include_downstream": True,
+                "include_future": True,
+                "include_past": True,
+                "new_state": "failed",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "task_instances": [
+                {
+                    "dag_id": "example_python_operator",
+                    "dag_run_id": "TEST_DAG_RUN_ID",
+                    "logical_date": "2020-01-01T00:00:00Z",
+                    "task_id": "print_the_context",
+                }
+            ]
+        }
+
+        # We check args individually instead of direct matching using
+        # assert_called_once_with(), because the session objects don't match
+        # and can't be skipped using mock.ANY.
+        mock_set_task_instance_state.assert_called_once()
+        args, kwargs = mock_set_task_instance_state.call_args
+        assert len(args) == 0
+        assert len(kwargs) == 9
+        assert kwargs["commit"] is False
+        assert kwargs["downstream"] is True
+        assert kwargs["run_id"] == run_id
+        assert kwargs["future"] is True
+        assert kwargs["past"] is True
+        assert kwargs["state"] == "failed"
+        assert kwargs["task_id"] == "print_the_context"
+        assert kwargs["upstream"] is True
+        assert isinstance(kwargs["session"], sqlalchemy.orm.session.Session)
+
+    @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
+    def test_should_assert_call_mocked_api_when_run_id(
+        self, mock_set_task_instance_state, test_client, session
+    ):
+        self.create_task_instances(session)
+        run_id = "TEST_DAG_RUN_ID"
+        mock_set_task_instance_state.return_value = (
+            session.query(TaskInstance)
+            .join(TaskInstance.dag_run)
+            .filter(TaskInstance.task_id == "print_the_context")
+            .all()
+        )
+        response = test_client.put(
+            "/public/dags/example_python_operator/updateTaskInstancesState",
+            json={
+                "dry_run": True,
+                "task_id": "print_the_context",
+                "dag_run_id": run_id,
+                "include_upstream": True,
+                "include_downstream": True,
+                "include_future": True,
+                "include_past": True,
+                "new_state": "failed",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "task_instances": [
+                {
+                    "dag_id": "example_python_operator",
+                    "dag_run_id": "TEST_DAG_RUN_ID",
+                    "logical_date": "2020-01-01T00:00:00Z",
+                    "task_id": "print_the_context",
+                }
+            ]
+        }
+
+        # We check args individually instead of direct matching using
+        # assert_called_once_with(), because the session objects don't match
+        # and can't be skipped using mock.ANY.
+        mock_set_task_instance_state.assert_called_once()
+        args, kwargs = mock_set_task_instance_state.call_args
+        assert len(args) == 0
+        assert len(kwargs) == 9
+        assert kwargs["commit"] is False
+        assert kwargs["downstream"] is True
+        assert kwargs["run_id"] == run_id
+        assert kwargs["future"] is True
+        assert kwargs["past"] is True
+        assert kwargs["state"] == "failed"
+        assert kwargs["task_id"] == "print_the_context"
+        assert kwargs["upstream"] is True
+        assert isinstance(kwargs["session"], sqlalchemy.orm.session.Session)
+
+    @pytest.mark.parametrize(
+        "error, code, payload",
+        [
+            [
+                {
+                    "detail": [
+                        {
+                            "input": {
+                                "dry_run": True,
+                                "include_downstream": True,
+                                "include_future": True,
+                                "include_past": True,
+                                "include_upstream": True,
+                                "new_state": "failed",
+                                "task_id": "print_the_context",
+                            },
+                            "loc": ["body", "dag_run_id"],
+                            "msg": "Field required",
+                            "type": "missing",
+                        },
+                    ]
+                },
+                422,
+                {
+                    "dry_run": True,
+                    "task_id": "print_the_context",
+                    "include_upstream": True,
+                    "include_downstream": True,
+                    "include_future": True,
+                    "include_past": True,
+                    "new_state": "failed",
+                },
+            ],
+            [
+                {
+                    "detail": [
+                        {
+                            "input": {
+                                "dry_run": True,
+                                "include_downstream": True,
+                                "include_future": True,
+                                "include_past": True,
+                                "include_upstream": True,
+                                "logical_date": "2021-01-01T00:00:00+00:00",
+                                "new_state": "failed",
+                                "task_id": "print_the_context",
+                            },
+                            "loc": ["body", "dag_run_id"],
+                            "msg": "Field required",
+                            "type": "missing",
+                        },
+                    ]
+                },
+                422,
+                {
+                    "dry_run": True,
+                    "task_id": "print_the_context",
+                    "logical_date": "2021-01-01T00:00:00+00:00",
+                    "include_upstream": True,
+                    "include_downstream": True,
+                    "include_future": True,
+                    "include_past": True,
+                    "new_state": "failed",
+                },
+            ],
+            [
+                {
+                    "detail": "Task instance not found for task 'print_the_context' on DAG run with ID 'TEST_DAG_RUN_'"
+                },
+                404,
+                {
+                    "dry_run": True,
+                    "task_id": "print_the_context",
+                    "dag_run_id": "TEST_DAG_RUN_",
+                    "include_upstream": True,
+                    "include_downstream": True,
+                    "include_future": True,
+                    "include_past": True,
+                    "new_state": "failed",
+                },
+            ],
+            [
+                {
+                    "detail": [
+                        {
+                            "input": {
+                                "dry_run": True,
+                                "include_downstream": True,
+                                "include_future": True,
+                                "include_past": True,
+                                "include_upstream": True,
+                                "logical_date": "2020-01-01T00:00:00+00:00",
+                                "new_state": "failed",
+                                "task_id": "print_the_context",
+                            },
+                            "loc": ["body", "dag_run_id"],
+                            "msg": "Field required",
+                            "type": "missing",
+                        },
+                    ]
+                },
+                422,
+                {
+                    "dry_run": True,
+                    "task_id": "print_the_context",
+                    "logical_date": "2020-01-01T00:00:00+00:00",
+                    "include_upstream": True,
+                    "include_downstream": True,
+                    "include_future": True,
+                    "include_past": True,
+                    "new_state": "failed",
+                },
+            ],
+        ],
+    )
+    def test_should_handle_errors(self, error, code, payload, test_client, session):
+        self.create_task_instances(session)
+        response = test_client.put(
+            "/public/dags/example_python_operator/updateTaskInstancesState",
+            json=payload,
+        )
+        assert response.status_code == code
+        assert response.json() == error
+
+    def test_should_raise_404_not_found_dag(self, test_client):
+        response = test_client.put(
+            "/public/dags/INVALID_DAG/updateTaskInstancesState",
+            json={
+                "dry_run": True,
+                "task_id": "print_the_context",
+                "dag_run_id": "random_run_id",
+                "include_upstream": True,
+                "include_downstream": True,
+                "include_future": True,
+                "include_past": True,
+                "new_state": "failed",
+            },
+        )
+        assert response.status_code == 404
+
+    @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
+    def test_should_raise_not_found_if_run_id_is_wrong(
+        self, mock_set_task_instance_state, test_client, session
+    ):
+        self.create_task_instances(session)
+        run_id = "random_run_id"
+        response = test_client.put(
+            "/public/dags/example_python_operator/updateTaskInstancesState",
+            json={
+                "dry_run": True,
+                "task_id": "print_the_context",
+                "dag_run_id": run_id,
+                "include_upstream": True,
+                "include_downstream": True,
+                "include_future": True,
+                "include_past": True,
+                "new_state": "failed",
+            },
+        )
+        assert response.status_code == 404
+        assert response.json()["detail"] == (
+            f"Task instance not found for task 'print_the_context' on DAG run with ID '{run_id}'"
+        )
+        assert mock_set_task_instance_state.call_count == 0
+
+    def test_should_raise_404_not_found_task(self, test_client):
+        response = test_client.put(
+            "/public/dags/example_python_operator/updateTaskInstancesState",
+            json={
+                "dry_run": True,
+                "task_id": "INVALID_TASK",
+                "dag_run_id": "TEST_DAG_RUN_ID",
+                "include_upstream": True,
+                "include_downstream": True,
+                "include_future": True,
+                "include_past": True,
+                "new_state": "failed",
+            },
+        )
+        assert response.status_code == 404

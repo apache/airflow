@@ -778,6 +778,20 @@ export type SchedulerInfoSchema = {
 };
 
 /**
+ * Request body for Set Task Instances State endpoint.
+ */
+export type SetTaskInstancesStateBody = {
+  dry_run?: boolean;
+  task_id: string;
+  dag_run_id: string;
+  include_upstream: boolean;
+  include_downstream: boolean;
+  include_future: boolean;
+  include_past: boolean;
+  new_state: string;
+};
+
+/**
  * Task collection serializer for responses.
  */
 export type TaskCollectionResponse = {
@@ -834,6 +848,23 @@ export type TaskInstanceHistoryResponse = {
   pid: number | null;
   executor: string | null;
   executor_config: string;
+};
+
+/**
+ * Task Instance Reference collection serializer for responses.
+ */
+export type TaskInstanceReferenceCollectionResponse = {
+  task_instances: Array<TaskInstanceReferenceResponse>;
+};
+
+/**
+ * Task Instance Reference serializer for responses.
+ */
+export type TaskInstanceReferenceResponse = {
+  task_id: string;
+  dag_run_id: string;
+  dag_id: string;
+  logical_date: string;
 };
 
 /**
@@ -1631,6 +1662,14 @@ export type GetMappedTaskInstanceTryDetailsData = {
 
 export type GetMappedTaskInstanceTryDetailsResponse =
   TaskInstanceHistoryResponse;
+
+export type SetTaskInstancesStateData = {
+  dagId: string;
+  requestBody: SetTaskInstancesStateBody;
+};
+
+export type SetTaskInstancesStateResponse =
+  TaskInstanceReferenceCollectionResponse;
 
 export type GetTasksData = {
   dagId: string;
@@ -3361,6 +3400,37 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: TaskInstanceHistoryResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/updateTaskInstancesState": {
+    put: {
+      req: SetTaskInstancesStateData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceReferenceCollectionResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
         /**
          * Unauthorized
          */

@@ -27,6 +27,7 @@ from pydantic import (
     ConfigDict,
     Field,
     NonNegativeInt,
+    field_validator,
 )
 
 from airflow.api_fastapi.core_api.datamodels.job import JobResponse
@@ -150,3 +151,44 @@ class TaskInstanceHistoryCollectionResponse(BaseModel):
 
     task_instances: list[TaskInstanceHistoryResponse]
     total_entries: int
+
+
+class SetTaskInstancesStateBody(BaseModel):
+    """Request body for Set Task Instances State endpoint."""
+
+    dry_run: bool = True
+    task_id: str
+    dag_run_id: str
+    include_upstream: bool
+    include_downstream: bool
+    include_future: bool
+    include_past: bool
+    new_state: str
+
+    @field_validator("new_state", mode="before")
+    @classmethod
+    def validate_new_state(cls, ns: str) -> str:
+        """Validate new_state."""
+        valid_states = [
+            vs.name.lower()
+            for vs in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED)
+        ]
+        ns = ns.lower()
+        if ns not in valid_states:
+            raise ValueError(f"'{ns}' is not one of {valid_states}")
+        return ns
+
+
+class TaskInstanceReferenceResponse(BaseModel):
+    """Task Instance Reference serializer for responses."""
+
+    task_id: str
+    dag_run_id: str = Field(validation_alias="run_id")
+    dag_id: str
+    logical_date: datetime
+
+
+class TaskInstanceReferenceCollectionResponse(BaseModel):
+    """Task Instance Reference collection serializer for responses."""
+
+    task_instances: list[TaskInstanceReferenceResponse]

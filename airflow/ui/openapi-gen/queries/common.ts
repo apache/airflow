@@ -1345,6 +1345,9 @@ export type BackfillServiceUnpauseBackfillMutationResult = Awaited<
 export type BackfillServiceCancelBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.cancelBackfill>
 >;
+export type TaskInstanceServiceSetTaskInstancesStateMutationResult = Awaited<
+  ReturnType<typeof TaskInstanceService.setTaskInstancesState>
+>;
 export type ConnectionServicePatchConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.patchConnection>
 >;
