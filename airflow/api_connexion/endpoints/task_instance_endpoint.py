@@ -500,6 +500,7 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
 @action_logging
 @provide_session
