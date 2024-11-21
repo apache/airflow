@@ -94,7 +94,6 @@
 - providers/tests/google/cloud/operators/test_dataproc.py::test_scale_cluster_operator_extra_links
 - providers/tests/google/cloud/operators/test_dataproc.py::test_submit_spark_job_operator_extra_links
 - providers/tests/google/cloud/operators/test_gcs.py::TestGoogleCloudStorageListOperator::test_execute__delimiter
-- providers/tests/google/cloud/operators/test_kubernetes_engine.py::TestGoogleCloudPlatformContainerOperator::test_create_execute_error_body
 - providers/tests/google/cloud/operators/test_life_sciences.py::TestLifeSciencesRunPipelineOperator::test_executes
 - providers/tests/google/cloud/operators/test_life_sciences.py::TestLifeSciencesRunPipelineOperator::test_executes_without_project_id
 - providers/tests/google/cloud/transfers/test_gcs_to_gcs.py::TestGoogleCloudStorageToCloudStorageOperator::test_copy_files_into_a_folder

@@ -676,3 +676,46 @@ you to update Jobs on a Kubernetes cluster.
     :dedent: 4
     :start-after: [START howto_operator_update_job]
     :end-before: [END howto_operator_update_job]
+
+
+.. _howto/operator:KubernetesInstallKueueOperator:
+
+KubernetesInstallKueueOperator
+==============================
+
+The :class:`~airflow.providers.cncf.kubernetes.operators.kueue.KubernetesInstallKueueOperator` allows
+you to install the Kueue component in a Kubernetes cluster
+
+.. exampleinclude:: /../../providers/tests/system/cncf/kubernetes/example_kubernetes_kueue.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_k8s_kueue_install]
+    :end-before: [END howto_operator_k8s_kueue_install]
+
+Reference
+^^^^^^^^^
+For further information, look at:
+
+* `Kubernetes Documentation <https://kubernetes.io/docs/home/>`__
+* `Kueue Installation details <https://kueue.sigs.k8s.io/docs/installation/>`__
+
+
+.. _howto/operator:KubernetesStartKueueJobOperator:
+
+
+KubernetesStartKueueJobOperator
+===============================
+
+The :class:`~airflow.providers.cncf.kubernetes.operators.kueue.KubernetesStartKueueJobOperator` allows
+you to start a Kueue job in a Kubernetes cluster
+
+.. exampleinclude:: /../../providers/tests/system/cncf/kubernetes/example_kubernetes_kueue.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_k8s_install_kueue]
+    :end-before: [END howto_operator_k8s_install_kueue]
+
+For further information, look at:
+
+* `Kubernetes Documentation <https://kubernetes.io/docs/home/>`__
+* `Rub a Kubernetes job in Kueue <https://kueue.sigs.k8s.io/docs/tasks/run/jobs/>`__
