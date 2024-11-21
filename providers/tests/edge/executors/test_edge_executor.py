@@ -46,18 +46,19 @@ class TestEdgeExecutor:
         )
         ti = MagicMock()
         ti.pool_slots = pool_slots
+        ti.dag_run.dag_id = key.dag_id
+        ti.dag_run.run_id = key.run_id
+        ti.dag_run.start_date = datetime(2021, 1, 1)
         executor = EdgeExecutor()
-        executor.edge_queued_tasks = {key: [None, None, None, ti]}
+        executor.queued_tasks = {key: [None, None, None, ti]}
 
         return (executor, key)
 
-    def test_execute_async_bad_command(self):
+    def test__process_tasks_bad_command(self):
         executor, key = self.get_test_executor()
+        task_tuple = (key, ["hello", "world"], None, None)
         with pytest.raises(ValueError):
-            executor.execute_async(
-                key,
-                command=["hello", "world"],
-            )
+            executor._process_tasks([task_tuple])
 
     @pytest.mark.parametrize(
         "pool_slots, expected_concurrency",
@@ -66,12 +67,11 @@ class TestEdgeExecutor:
             pytest.param(5, 5, id="increased_pool_size"),
         ],
     )
-    def test_execute_async_ok_command(self, pool_slots, expected_concurrency):
+    def test__process_tasks_ok_command(self, pool_slots, expected_concurrency):
         executor, key = self.get_test_executor(pool_slots=pool_slots)
-        executor.execute_async(
-            key,
-            command=["airflow", "tasks", "run", "hello", "world"],
-        )
+        task_tuple = (key, ["airflow", "tasks", "run", "hello", "world"], None, None)
+        executor._process_tasks([task_tuple])
+
         with create_session() as session:
             jobs: list[EdgeJobModel] = session.query(EdgeJobModel).all()
         assert len(jobs) == 1
