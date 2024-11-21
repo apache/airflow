@@ -1297,6 +1297,7 @@ class S3Hook(AwsBaseHook):
         dest_bucket_name: str | None = None,
         source_version_id: str | None = None,
         acl_policy: str | None = None,
+        meta_data_directive: str | None = None,
         **kwargs,
     ) -> None:
         """
@@ -1326,10 +1327,14 @@ class S3Hook(AwsBaseHook):
         :param source_version_id: Version ID of the source object (OPTIONAL)
         :param acl_policy: The string to specify the canned ACL policy for the
             object to be copied which is private by default.
+        :param meta_data_directive: Whether to `COPY` the metadata from the source object or `REPLACE` it
+            with metadata that's provided in the request.
         """
         acl_policy = acl_policy or "private"
         if acl_policy != NO_ACL:
             kwargs["ACL"] = acl_policy
+        if meta_data_directive:
+            kwargs["MetadataDirective"] = meta_data_directive
 
         dest_bucket_name, dest_bucket_key = self.get_s3_bucket_key(
             dest_bucket_name, dest_bucket_key, "dest_bucket_name", "dest_bucket_key"

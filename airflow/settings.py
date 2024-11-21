@@ -105,6 +105,11 @@ Mapping of sync scheme to async scheme.
 
 engine: Engine
 Session: Callable[..., SASession]
+# NonScopedSession creates global sessions and is not safe to use in multi-threaded environment without
+# additional precautions. The only use case is when the session lifecycle needs
+# custom handling. Most of the time we only want one unique thread local session object,
+# this is achieved by the Session factory above.
+NonScopedSession: Callable[..., SASession]
 async_engine: AsyncEngine
 create_async_session: Callable[..., AsyncSession]
 
@@ -465,6 +470,7 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     global engine
     global async_engine
     global create_async_session
+    global NonScopedSession
 
     if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Skip DB initialization in unit tests, if DB tests are skipped
@@ -484,7 +490,7 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     else:
         connect_args = {}
 
-    if os.environ.get("AIRFLOW__CORE__UNIT_TEST_MODE") == "True" and SQL_ALCHEMY_CONN.startswith("sqlite"):
+    if SQL_ALCHEMY_CONN.startswith("sqlite"):
         # FastAPI runs sync endpoints in a separate thread. SQLite does not allow
         # to use objects created in another threads by default. Allowing that in test
         # to so the `test` thread and the tested endpoints can use common objects.
@@ -515,7 +521,8 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
                 expire_on_commit=False,
             )
 
-    Session = scoped_session(_session_maker(engine))
+    NonScopedSession = _session_maker(engine)
+    Session = scoped_session(NonScopedSession)
 
 
 def force_traceback_session_for_untrusted_components(allow_tests_to_use_db=False):
@@ -829,7 +836,7 @@ EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not CAN_FORK or conf.getboolean(
     fallback=False,
 )
 
-ALLOW_FUTURE_EXEC_DATES = conf.getboolean("scheduler", "allow_trigger_in_future", fallback=False)
+ALLOW_FUTURE_LOGICAL_DATES = conf.getboolean("scheduler", "allow_trigger_in_future", fallback=False)
 
 USE_JOB_SCHEDULE = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
 

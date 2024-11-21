@@ -24,6 +24,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 from typing import Annotated, Any, Literal
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -41,6 +42,20 @@ class ConnectionResponse(BaseModel):
     password: Annotated[str | None, Field(title="Password")] = None
     port: Annotated[int | None, Field(title="Port")] = None
     extra: Annotated[str | None, Field(title="Extra")] = None
+
+
+class IntermediateTIState(str, Enum):
+    """
+    States that a Task Instance can be in that indicate it is not yet in a terminal or running state.
+    """
+
+    SCHEDULED = "scheduled"
+    QUEUED = "queued"
+    RESTARTING = "restarting"
+    UP_FOR_RETRY = "up_for_retry"
+    UP_FOR_RESCHEDULE = "up_for_reschedule"
+    UPSTREAM_FAILED = "upstream_failed"
+    DEFERRED = "deferred"
 
 
 class TIEnterRunningPayload(BaseModel):
@@ -64,60 +79,23 @@ class TIHeartbeatInfo(BaseModel):
     pid: Annotated[int, Field(title="Pid")]
 
 
-class State(Enum):
-    REMOVED = "removed"
-    SCHEDULED = "scheduled"
-    QUEUED = "queued"
-    RUNNING = "running"
-    RESTARTING = "restarting"
-    UP_FOR_RETRY = "up_for_retry"
-    UP_FOR_RESCHEDULE = "up_for_reschedule"
-    UPSTREAM_FAILED = "upstream_failed"
-    DEFERRED = "deferred"
-
-
 class TITargetStatePayload(BaseModel):
     """
     Schema for updating TaskInstance to a target state, excluding terminal and running states.
     """
 
-    state: State
+    state: IntermediateTIState
 
 
-class State1(Enum):
-    FAILED = "failed"
+class TerminalTIState(str, Enum):
+    """
+    States that a Task Instance can be in that indicate it has reached a terminal state.
+    """
+
     SUCCESS = "success"
+    FAILED = "failed"
     SKIPPED = "skipped"
-
-
-class TITerminalStatePayload(BaseModel):
-    """
-    Schema for updating TaskInstance to a terminal state (e.g., SUCCESS or FAILED).
-    """
-
-    state: Annotated[State1, Field(title="TerminalState")]
-    end_date: Annotated[datetime, Field(title="End Date")]
-
-
-class TaskInstanceState(str, Enum):
-    """
-    All possible states that a Task Instance can be in.
-
-    Note that None is also allowed, so always use this in a type hint with Optional.
-    """
-
     REMOVED = "removed"
-    SCHEDULED = "scheduled"
-    QUEUED = "queued"
-    RUNNING = "running"
-    SUCCESS = "success"
-    RESTARTING = "restarting"
-    FAILED = "failed"
-    UP_FOR_RETRY = "up_for_retry"
-    UP_FOR_RESCHEDULE = "up_for_reschedule"
-    UPSTREAM_FAILED = "upstream_failed"
-    SKIPPED = "skipped"
-    DEFERRED = "deferred"
 
 
 class ValidationError(BaseModel):
@@ -144,5 +122,27 @@ class XComResponse(BaseModel):
     value: Annotated[Any, Field(title="Value")]
 
 
+class TaskInstance(BaseModel):
+    """
+    Schema for TaskInstance model with minimal required fields needed for Runtime.
+    """
+
+    id: Annotated[UUID, Field(title="Id")]
+    task_id: Annotated[str, Field(title="Task Id")]
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    run_id: Annotated[str, Field(title="Run Id")]
+    try_number: Annotated[int, Field(title="Try Number")]
+    map_index: Annotated[int | None, Field(title="Map Index")] = None
+
+
 class HTTPValidationError(BaseModel):
     detail: Annotated[list[ValidationError] | None, Field(title="Detail")] = None
+
+
+class TITerminalStatePayload(BaseModel):
+    """
+    Schema for updating TaskInstance to a terminal state (e.g., SUCCESS or FAILED).
+    """
+
+    state: TerminalTIState
+    end_date: Annotated[datetime, Field(title="End Date")]

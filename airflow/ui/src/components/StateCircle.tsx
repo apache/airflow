@@ -32,7 +32,7 @@ export const StateCircle = ({
     bg={stateColor[state]}
     borderRadius="50%"
     h={2}
-    maxW={2}
+    minW={2}
     w={2}
   />
 );

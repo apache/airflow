@@ -208,12 +208,6 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/marketing_platform/analytics_admin.rst
     tags: [gmp]
-  - integration-name: Google Analytics360
-    external-doc-url: https://analytics.google.com/
-    logo: /integration-logos/gcp/Google-Analytics.png
-    how-to-guide:
-      - /docs/apache-airflow-providers-google/operators/marketing_platform/analytics.rst
-    tags: [gmp]
   - integration-name: Google Ads
     external-doc-url: https://ads.google.com/
     logo: /integration-logos/gcp/Google-Ads.png
@@ -671,9 +665,6 @@ operators:
   - integration-name: Google Analytics (GA4)
     python-modules:
       - airflow.providers.google.marketing_platform.operators.analytics_admin
-  - integration-name: Google Analytics360
-    python-modules:
-      - airflow.providers.google.marketing_platform.operators.analytics
   - integration-name: Google Campaign Manager
     python-modules:
       - airflow.providers.google.marketing_platform.operators.campaign_manager
@@ -937,9 +928,6 @@ hooks:
   - integration-name: Google Analytics (GA4)
     python-modules:
       - airflow.providers.google.marketing_platform.hooks.analytics_admin
-  - integration-name: Google Analytics360
-    python-modules:
-      - airflow.providers.google.marketing_platform.hooks.analytics
   - integration-name: Google Campaign Manager
     python-modules:
       - airflow.providers.google.marketing_platform.hooks.campaign_manager
@@ -1190,8 +1178,6 @@ connection-types:
     connection-type: leveldb
 
 extra-links:
-  - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink
-  - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink
   - airflow.providers.google.cloud.links.dataform.DataformRepositoryLink
   - airflow.providers.google.cloud.links.dataform.DataformWorkspaceLink
   - airflow.providers.google.cloud.links.dataform.DataformWorkflowInvocationLink
@@ -1305,6 +1291,7 @@ extra-links:
   - airflow.providers.google.cloud.links.translate.TranslationLegacyModelLink
   - airflow.providers.google.cloud.links.translate.TranslationLegacyModelTrainLink
   - airflow.providers.google.cloud.links.translate.TranslationLegacyModelPredictLink
+  - airflow.providers.google.cloud.links.translate.TranslateTextBatchLink
 
 
 secrets-backends:

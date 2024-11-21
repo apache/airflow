@@ -160,7 +160,7 @@ class TestSparkJDBCScrip:
             arguments.upper_bound,
         )
 
-    @pytest.mark.system("spark")
+    @pytest.mark.system
     @mock.patch.object(DataFrameWriter, "save")
     def test_spark_write_to_jdbc(self, mock_writer_save):
         # Given
@@ -188,7 +188,7 @@ class TestSparkJDBCScrip:
         # Then
         mock_writer_save.assert_called_once_with(mode=arguments.save_mode)
 
-    @pytest.mark.system("spark")
+    @pytest.mark.system
     @mock.patch.object(DataFrameReader, "load")
     def test_spark_read_from_jdbc(self, mock_reader_load):
         # Given

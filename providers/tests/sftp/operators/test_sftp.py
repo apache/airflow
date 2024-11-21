@@ -36,6 +36,7 @@ from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
@@ -95,6 +96,7 @@ class TestSFTPOperator:
         if os.path.exists(self.test_remote_dir):
             os.rmdir(self.test_remote_dir)
 
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Pickle support is removed in Airflow 3")
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_pickle_file_transfer_put(self, dag_maker):
         test_local_file_content = (
@@ -129,6 +131,7 @@ class TestSFTPOperator:
         pulled = tis["check_file_task"].xcom_pull(task_ids="check_file_task", key="return_value")
         assert pulled.strip() == test_local_file_content
 
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Pickle support is removed in Airflow 3")
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_file_transfer_no_intermediate_dir_error_put(self, create_task_instance_of_operator):
         test_local_file_content = (
@@ -144,7 +147,6 @@ class TestSFTPOperator:
         ti2 = create_task_instance_of_operator(
             SFTPOperator,
             dag_id="unit_tests_sftp_op_file_transfer_no_intermediate_dir_error_put",
-            execution_date=timezone.utcnow(),
             task_id="test_sftp",
             ssh_hook=self.hook,
             local_filepath=self.test_local_filepath,
@@ -159,6 +161,7 @@ class TestSFTPOperator:
             ti2.run()
         assert "No such file" in str(ctx.value)
 
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Pickle support is removed in Airflow 3")
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_file_transfer_with_intermediate_dir_put(self, dag_maker):
         test_local_file_content = (
@@ -184,8 +187,7 @@ class TestSFTPOperator:
                 command=f"cat {self.test_remote_filepath_int_dir}",
                 do_xcom_push=True,
             )
-
-        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        dagrun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
         tis = {ti.task_id: ti for ti in dagrun.task_instances}
         with pytest.warns(AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"):
             tis["test_sftp"].run()
@@ -218,8 +220,7 @@ class TestSFTPOperator:
                 command=f"cat {self.test_remote_filepath}",
                 do_xcom_push=True,
             )
-
-        dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        dagrun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
         tis = {ti.task_id: ti for ti in dagrun.task_instances}
         with pytest.warns(AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"):
             tis["put_test_task"].run()
@@ -235,6 +236,7 @@ class TestSFTPOperator:
         yield
         os.remove(self.test_remote_filepath)
 
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Pickle support is removed in Airflow 3")
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_pickle_file_transfer_get(self, dag_maker, create_remote_file_and_cleanup):
         with dag_maker(dag_id="unit_tests_sftp_op_pickle_file_transfer_get"):
@@ -245,8 +247,7 @@ class TestSFTPOperator:
                 remote_filepath=self.test_remote_filepath,
                 operation=SFTPOperation.GET,
             )
-
-        for ti in dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances:
+        for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
             with pytest.warns(
                 AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
             ):
@@ -267,8 +268,7 @@ class TestSFTPOperator:
                 remote_filepath=self.test_remote_filepath,
                 operation=SFTPOperation.GET,
             )
-
-        for ti in dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances:
+        for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
             with pytest.warns(
                 AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
             ):
@@ -280,6 +280,7 @@ class TestSFTPOperator:
             content_received = file.read()
         assert content_received == self.test_remote_file_content
 
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Pickle support is removed in Airflow 3")
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_file_transfer_no_intermediate_dir_error_get(self, dag_maker, create_remote_file_and_cleanup):
         with dag_maker(dag_id="unit_tests_sftp_op_file_transfer_no_intermediate_dir_error_get"):
@@ -291,7 +292,7 @@ class TestSFTPOperator:
                 operation=SFTPOperation.GET,
             )
 
-        for ti in dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances:
+        for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
             # This should raise an error with "No such file" as the directory
             # does not exist.
             with (
@@ -303,6 +304,7 @@ class TestSFTPOperator:
                 ti.run()
             assert "No such file" in str(ctx.value)
 
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="Pickle support is removed in Airflow 3")
     @conf_vars({("core", "enable_xcom_pickling"): "True"})
     def test_file_transfer_with_intermediate_dir_error_get(self, dag_maker, create_remote_file_and_cleanup):
         with dag_maker(dag_id="unit_tests_sftp_op_file_transfer_with_intermediate_dir_error_get"):
@@ -315,7 +317,7 @@ class TestSFTPOperator:
                 create_intermediate_dirs=True,
             )
 
-        for ti in dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances:
+        for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
             with pytest.warns(
                 AirflowProviderDeprecationWarning, match="Parameter `ssh_hook` is deprecated..*"
             ):

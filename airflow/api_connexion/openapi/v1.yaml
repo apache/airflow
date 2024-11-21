@@ -1751,7 +1751,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TaskInstance"
+                $ref: "#/components/schemas/TaskInstanceHistory"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -1782,7 +1782,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TaskInstanceCollection"
+                $ref: "#/components/schemas/TaskInstanceHistoryCollection"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -1814,7 +1814,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TaskInstanceCollection"
+                $ref: "#/components/schemas/TaskInstanceHistoryCollection"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -1844,7 +1844,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TaskInstance"
+                $ref: "#/components/schemas/TaskInstanceHistory"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -2263,10 +2263,9 @@ paths:
         "403":
           $ref: "#/components/responses/PermissionDenied"
 
-  /dagSources/{file_token}:
+  /dagSources/{dag_id}:
     parameters:
-      - $ref: "#/components/parameters/FileToken"
-
+      - $ref: "#/components/parameters/DAGID"
     get:
       summary: Get a source code
       description: >
@@ -2274,6 +2273,8 @@ paths:
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_source_endpoint
       operationId: get_dag_source
       tags: [DAG]
+      parameters:
+        - $ref: "#/components/parameters/VersionNumber"
       responses:
         "200":
           description: Success.
@@ -3080,7 +3081,7 @@ components:
             The value of this field can be set only when creating the object. If you try to modify the
             field of an existing object, the request fails with an BAD_REQUEST error.
 
-            If not provided, a value will be generated based on execution_date.
+            If not provided, a value will be generated based on logical_date.
 
             If the specified dag_run_id is in use, the creation request fails with an ALREADY_EXISTS error.
 
@@ -3102,19 +3103,6 @@ components:
 
             *New in version 2.2.0*
           format: date-time
-        execution_date:
-          type: string
-          nullable: true
-          description: |
-            The execution date. This is the same as logical_date, kept for backwards compatibility.
-            If both this field and logical_date are provided but with different values, the request
-            will fail with an BAD_REQUEST error.
-
-            *Changed in version 2.2.0*&#58; Field becomes nullable.
-
-            *Deprecated since version 2.2.0*&#58; Use 'logical_date' instead.
-          format: date-time
-          deprecated: true
         start_date:
           type: string
           format: date-time
@@ -3677,7 +3665,7 @@ components:
             The DagRun ID for this task instance
 
             *New in version 2.3.0*
-        execution_date:
+        logical_date:
           type: string
           format: datetime
         start_date:
@@ -3776,7 +3764,95 @@ components:
               items:
                 $ref: "#/components/schemas/TaskInstance"
         - $ref: "#/components/schemas/CollectionInfo"
+    TaskInstanceHistory:
+      type: object
+      properties:
+        task_id:
+          type: string
+        task_display_name:
+          type: string
+          description: |
+            Human centric display text for the task.
 
+            *New in version 2.9.0*
+        dag_id:
+          type: string
+        dag_run_id:
+          type: string
+          description: |
+            The DagRun ID for this task instance
+
+            *New in version 2.3.0*
+        start_date:
+          type: string
+          format: datetime
+          nullable: true
+        end_date:
+          type: string
+          format: datetime
+          nullable: true
+        duration:
+          type: number
+          nullable: true
+        state:
+          $ref: "#/components/schemas/TaskState"
+        try_number:
+          type: integer
+        map_index:
+          type: integer
+        max_tries:
+          type: integer
+        hostname:
+          type: string
+        unixname:
+          type: string
+        pool:
+          type: string
+        pool_slots:
+          type: integer
+        queue:
+          type: string
+          nullable: true
+        priority_weight:
+          type: integer
+          nullable: true
+        operator:
+          type: string
+          nullable: true
+          description: |
+            *Changed in version 2.1.1*&#58; Field becomes nullable.
+        queued_when:
+          type: string
+          nullable: true
+          description: |
+            The datetime that the task enter the state QUEUE, also known as queue_at
+        pid:
+          type: integer
+          nullable: true
+        executor:
+          type: string
+          nullable: true
+          description: |
+            Executor the task is configured to run on or None (which indicates the default executor)
+
+            *New in version 2.10.0*
+        executor_config:
+          type: string
+
+    TaskInstanceHistoryCollection:
+      type: object
+      description: |
+        Collection of task instances .
+
+        *Changed in version 2.1.0*&#58; 'total_entries' field is added.
+      allOf:
+        - type: object
+          properties:
+            task_instances_history:
+              type: array
+              items:
+                $ref: "#/components/schemas/TaskInstanceHistory"
+        - $ref: "#/components/schemas/CollectionInfo"
     TaskInstanceReference:
       type: object
       properties:
@@ -3788,7 +3864,7 @@ components:
           type: string
           readOnly: true
           description: The DAG ID.
-        execution_date:
+        logical_date:
           type: string
           format: datetime
           readOnly: true
@@ -3860,7 +3936,7 @@ components:
         timestamp:
           type: string
           format: datetime
-        execution_date:
+        logical_date:
           type: string
           format: datetime
         map_index:
@@ -4734,14 +4810,14 @@ components:
           description: The task ID.
           type: string
 
-        execution_date:
-          description: The execution date. Either set this or dag_run_id but not both.
+        logical_date:
+          description: The logical date. Either set this or dag_run_id but not both.
           type: string
           format: datetime
 
         dag_run_id:
           description: |
-            The task instance's DAG run ID. Either set this or execution_date but not both.
+            The task instance's DAG run ID. Either set this or logical_date but not both.
 
             *New in version 2.3.0*
           type: string
@@ -5784,6 +5860,15 @@ components:
           type: string
       description: |
         List of field for return.
+
+    VersionNumber:
+      in: query
+      name: version_number
+      schema:
+        type: integer
+      description: |
+        The version number.
+
 
   # Reusable request bodies
   requestBodies: {}

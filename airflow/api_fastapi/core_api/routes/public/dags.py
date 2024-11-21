@@ -58,7 +58,7 @@ from airflow.models import DAG, DagModel, DagTag
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
 
-@dags_router.get("/")
+@dags_router.get("")
 def get_dags(
     limit: QueryLimit,
     offset: QueryOffset,
@@ -90,7 +90,7 @@ def get_dags(
         session,
     )
 
-    dags = session.scalars(dags_select).all()
+    dags = session.scalars(dags_select)
 
     return DAGCollectionResponse(
         dags=[DAGResponse.model_validate(dag, from_attributes=True) for dag in dags],
@@ -223,7 +223,7 @@ def patch_dag(
 
 
 @dags_router.patch(
-    "/",
+    "",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,

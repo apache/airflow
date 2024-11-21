@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Any
 
 from googleapiclient.discovery import Resource, build
 
@@ -31,22 +31,6 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
 
     This allows for scheduled and programmatic inspection and deletion of resources managed by GDM.
     """
-
-    def __init__(
-        self,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
-        super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            impersonation_chain=impersonation_chain,
-        )
 
     def get_conn(self) -> Resource:
         """Return a Google Deployment Manager service object."""

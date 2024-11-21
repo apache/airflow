@@ -408,7 +408,7 @@ class TestGCSTimeSpanFileTransformOperator:
         ]
         mock_ti = mock.Mock()
         context = dict(
-            execution_date=timespan_start,
+            logical_date=timespan_start,
             dag=mock_dag,
             ti=mock_ti,
         )
@@ -595,7 +595,7 @@ class TestGCSTimeSpanFileTransformOperator:
             ),
         ]
         context = dict(
-            execution_date=timespan_start,
+            logical_date=timespan_start,
             dag=mock_dag,
             ti=mock.Mock(),
         )

@@ -61,8 +61,7 @@ def get_event_log(
 
 
 @event_logs_router.get(
-    "/",
-    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
+    "",
 )
 def get_event_logs(
     limit: QueryLimit,
@@ -79,7 +78,7 @@ def get_event_logs(
                     "task_id",
                     "run_id",
                     "event",
-                    "execution_date",  # logical_date
+                    "logical_date",
                     "owner",
                     "extra",
                 ],
@@ -133,7 +132,7 @@ def get_event_logs(
         limit,
         session,
     )
-    event_logs = session.scalars(event_logs_select).all()
+    event_logs = session.scalars(event_logs_select)
 
     return EventLogCollectionResponse(
         event_logs=[

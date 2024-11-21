@@ -376,7 +376,7 @@ class AirflowConfigParser(ConfigParser):
         },
         "elasticsearch": {
             "log_id_template": (
-                re2.compile("^" + re2.escape("{dag_id}-{task_id}-{execution_date}-{try_number}") + "$"),
+                re2.compile("^" + re2.escape("{dag_id}-{task_id}-{logical_date}-{try_number}") + "$"),
                 "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
                 "3.0",
             )
@@ -777,7 +777,8 @@ class AirflowConfigParser(ConfigParser):
 
         for section, key in self.sensitive_config_values:
             try:
-                value = self.get(section, key, suppress_warnings=True)
+                with self.suppress_future_warnings():
+                    value = self.get(section, key, suppress_warnings=True)
             except AirflowConfigException:
                 log.debug(
                     "Could not retrieve value from section %s, for key %s. Skipping redaction of this conf.",
@@ -2142,6 +2143,7 @@ else:
     TEST_PLUGINS_FOLDER = os.path.join(AIRFLOW_HOME, "plugins")
 
 SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
+JWT_SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
 FERNET_KEY = ""  # Set only if needed when generating a new file
 WEBSERVER_CONFIG = ""  # Set by initialize_config
 

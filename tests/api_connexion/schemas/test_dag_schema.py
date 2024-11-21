@@ -27,9 +27,9 @@ from airflow.api_connexion.schemas.dag_schema import (
     DAGDetailSchema,
     DAGSchema,
 )
-from airflow.assets import Asset
 from airflow.models import DagModel, DagTag
 from airflow.models.dag import DAG
+from airflow.sdk.definitions.asset import Asset
 
 UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UTC')"
 

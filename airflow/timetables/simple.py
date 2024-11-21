@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Collection, Sequence
 
-from airflow.assets import AssetAlias, _AssetAliasCondition
+from airflow.sdk.definitions.asset import AssetAlias, AssetAliasCondition
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 from airflow.utils import timezone
 
@@ -26,8 +26,8 @@ if TYPE_CHECKING:
     from pendulum import DateTime
     from sqlalchemy import Session
 
-    from airflow.assets import BaseAsset
     from airflow.models.asset import AssetEvent
+    from airflow.sdk.definitions.asset import BaseAsset
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 
@@ -36,7 +36,7 @@ class _TrivialTimetable(Timetable):
     """Some code reuse for "trivial" timetables that has nothing complex."""
 
     periodic = False
-    run_ordering: Sequence[str] = ("execution_date",)
+    run_ordering: Sequence[str] = ("logical_date",)
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
@@ -169,7 +169,7 @@ class AssetTriggeredTimetable(_TrivialTimetable):
         super().__init__()
         self.asset_condition = assets
         if isinstance(self.asset_condition, AssetAlias):
-            self.asset_condition = _AssetAliasCondition(self.asset_condition.name)
+            self.asset_condition = AssetAliasCondition(self.asset_condition.name)
 
         if not next(self.asset_condition.iter_assets(), False):
             self._summary = AssetTriggeredTimetable.UNRESOLVED_ALIAS_SUMMARY

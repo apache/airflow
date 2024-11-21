@@ -43,7 +43,6 @@ from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
 
 import airflow
-from airflow.assets import Asset
 from airflow.decorators import teardown
 from airflow.decorators.base import DecoratedOperator
 from airflow.exceptions import (
@@ -65,6 +64,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.sensors.bash import BashSensor
+from airflow.sdk.definitions.asset import Asset
 from airflow.security import permissions
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
@@ -78,6 +78,7 @@ from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils import timezone
+from airflow.utils.module_loading import qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.xcom import XCOM_RETURN_KEY
@@ -1039,7 +1040,7 @@ class TestStringifiedDAGs:
         # Test all the extra_links are set
         assert simple_task.extra_links == sorted({*links, "airflow", "github", "google"})
 
-        dr = dag_maker.create_dagrun(execution_date=test_date)
+        dr = dag_maker.create_dagrun(logical_date=test_date)
         (ti,) = dr.task_instances
         XCom.set(
             key="search_query",
@@ -1330,9 +1331,9 @@ class TestStringifiedDAGs:
         """
         from airflow.operators.empty import EmptyOperator
 
-        execution_date = datetime(2020, 1, 1)
+        logical_date = datetime(2020, 1, 1)
         task_id = "task1"
-        with DAG("test_task_resources", schedule=None, start_date=execution_date) as dag:
+        with DAG("test_task_resources", schedule=None, start_date=logical_date) as dag:
             task = EmptyOperator(task_id=task_id, resources={"cpus": 0.1, "ram": 2048})
 
         SerializedDAG.validate_schema(SerializedDAG.to_dict(dag))
@@ -1347,8 +1348,8 @@ class TestStringifiedDAGs:
         Test TaskGroup serialization/deserialization.
         """
 
-        execution_date = datetime(2020, 1, 1)
-        with DAG("test_task_group_serialization", schedule=None, start_date=execution_date) as dag:
+        logical_date = datetime(2020, 1, 1)
+        with DAG("test_task_group_serialization", schedule=None, start_date=logical_date) as dag:
             task1 = EmptyOperator(task_id="task1")
             with TaskGroup("group234") as group234:
                 _ = EmptyOperator(task_id="task2")
@@ -1403,8 +1404,8 @@ class TestStringifiedDAGs:
         Test setup and teardown task serialization/deserialization.
         """
 
-        execution_date = datetime(2020, 1, 1)
-        with DAG("test_task_group_setup_teardown_tasks", schedule=None, start_date=execution_date) as dag:
+        logical_date = datetime(2020, 1, 1)
+        with DAG("test_task_group_setup_teardown_tasks", schedule=None, start_date=logical_date) as dag:
             EmptyOperator(task_id="setup").as_setup()
             EmptyOperator(task_id="teardown").as_teardown()
 
@@ -1507,8 +1508,8 @@ class TestStringifiedDAGs:
         from airflow.operators.empty import EmptyOperator
         from airflow.sensors.external_task import ExternalTaskSensor
 
-        execution_date = datetime(2020, 1, 1)
-        with DAG(dag_id="test_deps_sorted", schedule=None, start_date=execution_date) as dag:
+        logical_date = datetime(2020, 1, 1)
+        with DAG(dag_id="test_deps_sorted", schedule=None, start_date=logical_date) as dag:
             task1 = ExternalTaskSensor(
                 task_id="task1",
                 external_dag_id="external_dag_id",
@@ -1537,11 +1538,11 @@ class TestStringifiedDAGs:
         class DummyTask(BaseOperator):
             deps = frozenset([*BaseOperator.deps, DummyTriggerRule()])
 
-        execution_date = datetime(2020, 1, 1)
+        logical_date = datetime(2020, 1, 1)
         with DAG(
             dag_id="test_error_on_unregistered_ti_dep_serialization",
             schedule=None,
-            start_date=execution_date,
+            start_date=logical_date,
         ) as dag:
             DummyTask(task_id="task1")
 
@@ -1573,8 +1574,8 @@ class TestStringifiedDAGs:
         class DummyTask(BaseOperator):
             deps = frozenset([*BaseOperator.deps, CustomTestTriggerRule()])
 
-        execution_date = datetime(2020, 1, 1)
-        with DAG(dag_id="test_serialize_custom_ti_deps", schedule=None, start_date=execution_date) as dag:
+        logical_date = datetime(2020, 1, 1)
+        with DAG(dag_id="test_serialize_custom_ti_deps", schedule=None, start_date=logical_date) as dag:
             DummyTask(task_id="task1")
 
         serialize_op = SerializedBaseOperator.serialize_operator(dag.task_dict["task1"])
@@ -1625,9 +1626,9 @@ class TestStringifiedDAGs:
         class DerivedSensor(ExternalTaskSensor):
             pass
 
-        execution_date = datetime(2020, 1, 1)
+        logical_date = datetime(2020, 1, 1)
         for class_ in [ExternalTaskSensor, DerivedSensor]:
-            with DAG(dag_id="test_derived_dag_deps_sensor", schedule=None, start_date=execution_date) as dag:
+            with DAG(dag_id="test_derived_dag_deps_sensor", schedule=None, start_date=logical_date) as dag:
                 task1 = class_(
                     task_id="task1",
                     external_dag_id="external_dag_id",
@@ -1657,8 +1658,8 @@ class TestStringifiedDAGs:
         d2 = Asset("d2")
         d3 = Asset("d3")
         d4 = Asset("d4")
-        execution_date = datetime(2020, 1, 1)
-        with DAG(dag_id="test", start_date=execution_date, schedule=[d1, d1, d1, d1, d1]) as dag:
+        logical_date = datetime(2020, 1, 1)
+        with DAG(dag_id="test", start_date=logical_date, schedule=[d1, d1, d1, d1, d1]) as dag:
             ExternalTaskSensor(
                 task_id="task1",
                 external_dag_id="external_dag_id",
@@ -1746,8 +1747,8 @@ class TestStringifiedDAGs:
         d2 = Asset("d2")
         d3 = Asset("d3")
         d4 = Asset("d4")
-        execution_date = datetime(2020, 1, 1)
-        with DAG(dag_id="test", start_date=execution_date, schedule=[d1]) as dag:
+        logical_date = datetime(2020, 1, 1)
+        with DAG(dag_id="test", start_date=logical_date, schedule=[d1]) as dag:
             ExternalTaskSensor(
                 task_id="task1",
                 external_dag_id="external_dag_id",
@@ -1805,14 +1806,14 @@ class TestStringifiedDAGs:
         Tests DAG dependency detection for operators, including derived classes
         """
         from airflow.operators.empty import EmptyOperator
-        from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 
         class DerivedOperator(TriggerDagRunOperator):
             pass
 
-        execution_date = datetime(2020, 1, 1)
+        logical_date = datetime(2020, 1, 1)
         for class_ in [TriggerDagRunOperator, DerivedOperator]:
-            with DAG(dag_id="test_derived_dag_deps_trigger", schedule=None, start_date=execution_date) as dag:
+            with DAG(dag_id="test_derived_dag_deps_trigger", schedule=None, start_date=logical_date) as dag:
                 task1 = EmptyOperator(task_id="task1")
                 task2 = class_(
                     task_id="task2",
@@ -1853,8 +1854,8 @@ class TestStringifiedDAGs:
                    ╲    ╱
                     end
         """
-        execution_date = datetime(2020, 1, 1)
-        with DAG(dag_id="test_task_group_sorted", schedule=None, start_date=execution_date) as dag:
+        logical_date = datetime(2020, 1, 1)
+        with DAG(dag_id="test_task_group_sorted", schedule=None, start_date=logical_date) as dag:
             start = EmptyOperator(task_id="start")
 
             with TaskGroup("task_group_up1") as task_group_up1:
@@ -2529,7 +2530,11 @@ def test_operator_expand_deserialized_unmap():
     ser_normal = BaseSerialization.serialize(normal)
     deser_normal = BaseSerialization.deserialize(ser_normal)
     deser_normal.dag = None
-    assert deser_mapped.unmap(None) == deser_normal
+    unmapped_deser_mapped = deser_mapped.unmap(None)
+
+    assert type(unmapped_deser_mapped) is type(deser_normal) is SerializedBaseOperator
+    assert unmapped_deser_mapped.task_id == deser_normal.task_id == "a"
+    assert unmapped_deser_mapped.executor_config == deser_normal.executor_config == {"a": "b"}
 
 
 @pytest.mark.db_test
@@ -2557,9 +2562,9 @@ def test_task_resources_serde():
     """
     from airflow.operators.empty import EmptyOperator
 
-    execution_date = datetime(2020, 1, 1)
+    logical_date = datetime(2020, 1, 1)
     task_id = "task1"
-    with DAG("test_task_resources", schedule=None, start_date=execution_date) as _:
+    with DAG("test_task_resources", schedule=None, start_date=logical_date) as _:
         task = EmptyOperator(task_id=task_id, resources={"cpus": 0.1, "ram": 2048})
 
     serialized = BaseSerialization.serialize(task)
@@ -2627,6 +2632,7 @@ def test_taskflow_expand_serde():
         "template_fields_renderers": {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"},
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "op_kwargs_expand_input",
+        "python_callable_name": qualname(x),
         "start_trigger_args": None,
         "start_from_trigger": False,
     }
@@ -2698,6 +2704,7 @@ def test_taskflow_expand_kwargs_serde(strict):
         "_task_module": "airflow.decorators.python",
         "task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
+        "python_callable_name": qualname(x),
         "start_trigger_args": None,
         "start_from_trigger": False,
         "downstream_task_ids": [],
