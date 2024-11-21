@@ -45,7 +45,6 @@ import re2
 from dateutil.relativedelta import relativedelta
 
 from airflow import settings
-from airflow.assets import Asset, AssetAlias, BaseAsset
 from airflow.exceptions import (
     DuplicateTaskIdFound,
     FailStopDagInvalidTriggerRule,
@@ -54,6 +53,7 @@ from airflow.exceptions import (
 )
 from airflow.models.param import DagParam, ParamsDict
 from airflow.sdk.definitions.abstractoperator import AbstractOperator
+from airflow.sdk.definitions.asset import Asset, AssetAlias, BaseAsset
 from airflow.sdk.definitions.baseoperator import BaseOperator
 from airflow.sdk.types import NOTSET
 from airflow.timetables.base import Timetable
@@ -355,7 +355,6 @@ class DAG:
         **Warning**: A fail stop dag can only have tasks with the default trigger rule ("all_success").
         An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
     :param dag_display_name: The display name of the DAG which appears on the UI.
-    :param version_name: The version name of the DAG. This is used to identify the version of the DAG.
     """
 
     __serialized_fields: ClassVar[frozenset[str] | None] = None
@@ -438,10 +437,6 @@ class DAG:
 
     has_on_success_callback: bool = attrs.field(init=False)
     has_on_failure_callback: bool = attrs.field(init=False)
-    version_name: str | None = attrs.field(
-        default=None,
-        validator=attrs.validators.optional(attrs.validators.instance_of(str)),
-    )
 
     def __attrs_post_init__(self):
         from airflow.utils import timezone
@@ -497,7 +492,7 @@ class DAG:
 
     @timetable.default
     def _default_timetable(instance: DAG):
-        from airflow.assets import AssetAll
+        from airflow.sdk.definitions.asset import AssetAll
 
         schedule = instance.schedule
         # TODO: Once
@@ -655,11 +650,13 @@ class DAG:
 
     @property
     def allow_future_exec_dates(self) -> bool:
-        return settings.ALLOW_FUTURE_EXEC_DATES and not self.timetable.can_be_scheduled
+        return settings.ALLOW_FUTURE_LOGICAL_DATES and not self.timetable.can_be_scheduled
 
     def resolve_template_files(self):
         for t in self.tasks:
-            t.resolve_template_files()
+            # TODO: TaskSDK: move this on to BaseOperator and remove the check?
+            if hasattr(t, "resolve_template_files"):
+                t.resolve_template_files()
 
     def get_template_env(self, *, force_sandboxed: bool = False) -> jinja2.Environment:
         """Build a Jinja2 environment."""
@@ -1067,7 +1064,6 @@ if TYPE_CHECKING:
         auto_register: bool = True,
         fail_stop: bool = False,
         dag_display_name: str | None = None,
-        version_name: str | None = None,
     ) -> Callable[[Callable], Callable[..., DAG]]:
         """
         Python dag decorator which wraps a function into an Airflow DAG.

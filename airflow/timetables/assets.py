@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import typing
 
-from airflow.assets import AssetAll, BaseAsset
 from airflow.exceptions import AirflowTimetableInvalid
+from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.utils.types import DagRunType
 
@@ -29,7 +29,7 @@ if typing.TYPE_CHECKING:
 
     import pendulum
 
-    from airflow.assets import Asset
+    from airflow.sdk.definitions.asset import Asset
     from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 
 

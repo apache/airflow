@@ -22,9 +22,10 @@ description: |
     `MySQL <https://www.mysql.com/>`__
 
 state: ready
-source-date-epoch: 1730013207
+source-date-epoch: 1731570417
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 5.7.4
   - 5.7.3
   - 5.7.2
   - 5.7.1
@@ -75,6 +76,7 @@ dependencies:
   # Instead, if someone attempts to use it on MacOS, they will get explanatory error on how to install it
   - mysqlclient>=1.4.0; sys_platform != 'darwin'
   - mysql-connector-python>=8.0.29
+  - aiomysql>=0.2.0
 
 additional-extras:
   # only needed for backwards compatibility

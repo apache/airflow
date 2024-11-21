@@ -19,15 +19,15 @@ from __future__ import annotations
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Sequence
 
-from flask import Response, current_app, request
-from itsdangerous import BadSignature, URLSafeSerializer
+from flask import Response, request
+from sqlalchemy import select
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound, PermissionDenied
 from airflow.api_connexion.schemas.dag_source_schema import dag_source_schema
 from airflow.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.models.dag import DagModel
-from airflow.models.dagcode import DagCode
+from airflow.models.dag_version import DagVersion
 from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.extensions.init_auth_manager import get_auth_manager
@@ -41,32 +41,42 @@ if TYPE_CHECKING:
 @mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.CODE)
 @provide_session
-def get_dag_source(*, file_token: str, session: Session = NEW_SESSION) -> Response:
-    """Get source code using file token."""
-    secret_key = current_app.config["SECRET_KEY"]
-    auth_s = URLSafeSerializer(secret_key)
-    try:
-        path = auth_s.loads(file_token)
-        dag_ids = session.query(DagModel.dag_id).filter(DagModel.fileloc == path).all()
-        requests: Sequence[IsAuthorizedDagRequest] = [
-            {
-                "method": "GET",
-                "details": DagDetails(id=dag_id[0]),
-            }
-            for dag_id in dag_ids
-        ]
+def get_dag_source(
+    *,
+    dag_id: str,
+    version_number: int | None = None,
+    session: Session = NEW_SESSION,
+) -> Response:
+    """Get source code from DagCode."""
+    dag_version = DagVersion.get_version(dag_id, version_number, session=session)
+    if not dag_version:
+        raise NotFound(f"The source code of the DAG {dag_id}, version_number {version_number} was not found")
+    path = dag_version.dag_code.fileloc
+    dag_ids = session.scalars(select(DagModel.dag_id).where(DagModel.fileloc == path)).all()
+    requests: Sequence[IsAuthorizedDagRequest] = [
+        {
+            "method": "GET",
+            "details": DagDetails(id=dag_id[0]),
+        }
+        for dag_id in dag_ids
+    ]
 
-        # Check if user has read access to all the DAGs defined in the file
-        if not get_auth_manager().batch_is_authorized_dag(requests):
-            raise PermissionDenied()
-        dag_source = DagCode.code(path, session=session)
-    except (BadSignature, FileNotFoundError):
-        raise NotFound("Dag source not found")
+    # Check if user has read access to all the DAGs defined in the file
+    if not get_auth_manager().batch_is_authorized_dag(requests):
+        raise PermissionDenied()
+    dag_source = dag_version.dag_code.source_code
+    version_number = dag_version.version_number
 
     return_type = request.accept_mimetypes.best_match(["text/plain", "application/json"])
     if return_type == "text/plain":
         return Response(dag_source, headers={"Content-Type": return_type})
     if return_type == "application/json":
-        content = dag_source_schema.dumps({"content": dag_source})
+        content = dag_source_schema.dumps(
+            {
+                "content": dag_source,
+                "dag_id": dag_id,
+                "version_number": version_number,
+            }
+        )
         return Response(content, headers={"Content-Type": return_type})
     return Response("Not Allowed Accept Header", status=HTTPStatus.NOT_ACCEPTABLE)

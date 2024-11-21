@@ -55,13 +55,9 @@ export const Code = () => {
     data: code,
     error: codeError,
     isLoading: isCodeLoading,
-  } = useDagSourceServiceGetDagSource(
-    {
-      fileToken: dag?.file_token ?? "",
-    },
-    undefined,
-    { enabled: Boolean(dag?.file_token) },
-  );
+  } = useDagSourceServiceGetDagSource({
+    dagId: dagId ?? "",
+  });
 
   // TODO: get default_wrap from config
   const [wrap, setWrap] = useState(false);

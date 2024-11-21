@@ -29,7 +29,7 @@ Authenticating to Docker
 
 Authenticate to Docker by using the login information for Docker registry.
 More information on `Docker authentication here
-<https://docker-py.readthedocs.io/en/1.2.3/api/>`_.
+<https://docker-py.readthedocs.io/en/stable/api.html>`_.
 
 Default Connection IDs
 ----------------------

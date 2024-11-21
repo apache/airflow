@@ -490,7 +490,7 @@ class TestCliDags:
         assert dagrun.conf == {"foo": "bar"}
 
         # Coerced to UTC.
-        assert dagrun.execution_date.isoformat(timespec="seconds") == "2021-06-04T01:00:00+00:00"
+        assert dagrun.logical_date.isoformat(timespec="seconds") == "2021-06-04T01:00:00+00:00"
 
         # example_bash_operator runs every day at midnight, so the data interval
         # should be aligned to the previous day.
@@ -517,7 +517,7 @@ class TestCliDags:
         assert dagrun, "DagRun not created"
         assert dagrun.run_type == DagRunType.MANUAL
         assert dagrun.external_trigger
-        assert dagrun.execution_date.isoformat(timespec="microseconds") == "2021-06-04T01:00:00.000001+00:00"
+        assert dagrun.logical_date.isoformat(timespec="microseconds") == "2021-06-04T01:00:00.000001+00:00"
 
     def test_trigger_dag_invalid_conf(self):
         with pytest.raises(ValueError):
@@ -605,7 +605,7 @@ class TestCliDags:
             [
                 mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
                 mock.call().test(
-                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()),
+                    logical_date=timezone.parse(DEFAULT_DATE.isoformat()),
                     run_conf=None,
                     use_executor=False,
                     session=mock.ANY,
@@ -616,22 +616,22 @@ class TestCliDags:
 
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
     def test_dag_test_fail_raise_error(self, mock_get_dag):
-        execution_date_str = DEFAULT_DATE.isoformat()
+        logical_date_str = DEFAULT_DATE.isoformat()
         mock_get_dag.return_value.test.return_value = DagRun(
-            dag_id="example_bash_operator", execution_date=DEFAULT_DATE, state=DagRunState.FAILED
+            dag_id="example_bash_operator", logical_date=DEFAULT_DATE, state=DagRunState.FAILED
         )
-        cli_args = self.parser.parse_args(["dags", "test", "example_bash_operator", execution_date_str])
+        cli_args = self.parser.parse_args(["dags", "test", "example_bash_operator", logical_date_str])
         with pytest.raises(SystemExit, match=r"DagRun failed"):
             dag_command.dag_test(cli_args)
 
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
     @mock.patch("airflow.utils.timezone.utcnow")
-    def test_dag_test_no_execution_date(self, mock_utcnow, mock_get_dag):
+    def test_dag_test_no_logical_date(self, mock_utcnow, mock_get_dag):
         now = pendulum.now()
         mock_utcnow.return_value = now
         cli_args = self.parser.parse_args(["dags", "test", "example_bash_operator"])
 
-        assert cli_args.execution_date is None
+        assert cli_args.logical_date is None
 
         dag_command.dag_test(cli_args)
 
@@ -639,7 +639,7 @@ class TestCliDags:
             [
                 mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
                 mock.call().test(
-                    execution_date=mock.ANY,
+                    logical_date=mock.ANY,
                     run_conf=None,
                     use_executor=False,
                     session=mock.ANY,
@@ -666,7 +666,7 @@ class TestCliDags:
             [
                 mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
                 mock.call().test(
-                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()),
+                    logical_date=timezone.parse(DEFAULT_DATE.isoformat()),
                     run_conf={"dag_run_conf_param": "param_value"},
                     use_executor=False,
                     session=mock.ANY,
@@ -690,7 +690,7 @@ class TestCliDags:
             [
                 mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
                 mock.call().test(
-                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()),
+                    logical_date=timezone.parse(DEFAULT_DATE.isoformat()),
                     run_conf=None,
                     use_executor=False,
                     session=mock.ANY,

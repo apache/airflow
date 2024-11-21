@@ -18,6 +18,10 @@
 Airflow System Tests
 ====================
 
+System tests verify the correctness of Airflow Operators by running them in DAGs and allowing to communicate with
+external services. A system test tries to look as close to a regular DAG as possible, and it generally checks the
+"happy path" (a scenario featuring no errors) ensuring that the Operator works as expected.
+
 System tests need to communicate with external services/systems that are available
 if you have appropriate credentials configured for your tests.
 
@@ -26,85 +30,98 @@ if you have appropriate credentials configured for your tests.
 Purpose of System Tests
 -----------------------
 
-Airflow system tests are pretty special because they serve three purposes:
+The purpose of these tests is to:
 
-* they are runnable tests that communicate with external services
-* they are example_dags that users can just copy&paste and use as starting points for their own DAGs
-* the excerpts from these system tests are used to generate documentation
+- assure high quality of providers and their integration with Airflow core,
+- avoid regression in providers when doing changes to the Airflow,
+- autogenerate documentation for Operators from code,
+- provide runnable example DAGs with use cases for different Operators,
+- serve both as examples and test files.
+- the excerpts from these system tests are used to generate documentation
 
-Old System Tests
-----------------
-
-The system tests derive from the ``tests_common.test_utils.system_test_class.SystemTests`` class.
-
-Old versions of System tests should also be marked with ``@pytest.marker.system(SYSTEM)`` where ``system``
-designates the system to be tested (for example, ``google.cloud``). These tests are skipped by default.
-
-For older version of the tests, you can execute the system tests by providing the
-``--system SYSTEM`` flag to ``pytest``. You can specify several --system flags if you want to execute
-tests for several systems.
-
-The system tests execute a specified example DAG file that runs the DAG end-to-end.
-
-New System Tests
-----------------
-
-The new system tests follows
-[AIP-47 New Design of System Tests](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-47+New+design+of+Airflow+System+Tests)
-and those system tests do not require separate ``pytest`` flag to be executed, they also don't need a separate
-class to run - all the code is kept in the system test class that is also an executable DAG, it is discoverable
-by ``pytest`` and it is executable as Python script.
+Configuration
+-------------
 
 Environment for System Tests
-----------------------------
+............................
 
-**Prerequisites:** You may need to set some variables to run system tests. If you need to
-add some initialization of environment variables to Breeze, you can add a
-``variables.env`` file in the ``files/airflow-breeze-config/variables.env`` file. It will be automatically
-sourced when entering the Breeze environment. You can also add some additional
-initialization commands in this file if you want to execute something
-always at the time of entering Breeze.
+**Prerequisites:** You may need to set some variables to run system tests.
 
-There are several typical operations you might want to perform such as:
-
-* generating a file with the random value used across the whole Breeze session (this is useful if
-  you want to use this random number in names of resources that you create in your service
-* generate variables that will be used as the name of your resources
-* decrypt any variables and resources you keep as encrypted in your configuration files
-* install additional packages that are needed in case you are doing tests with 1.10.* Airflow series
-  (see below)
-
-Example variables.env file is shown here (this is part of the variables.env file that is used to
-run Google Cloud system tests.
+Usually you must set-up ``SYSTEM_TESTS_ENV_ID`` to a random value to avoid conflicts with other tests and
+set it before running test command.
 
 .. code-block:: bash
 
-  # Build variables. This file is sourced by Breeze.
-  # Also it is sourced during continuous integration build in Cloud Build
+  SYSTEM_TESTS_ENV_ID=SOME_RANDOM_VALUE
 
-  # Auto-export all variables
-  set -a
+Running the System Tests
+------------------------
 
-  echo
-  echo "Reading variables"
-  echo
+There are multiple ways of running system tests. Each system test is a self-contained DAG, so it can be run as any
+other DAG. Some tests may require access to external services, enabled APIs or specific permissions. Make sure to
+prepare your  environment correctly, depending on the system tests you want to run - some may require additional
+configuration which should be documented by the relevant providers in their subdirectory
+``providers/tests/system/<provider_name>/README.md``.
 
-  # Generate random number that will be used across your session
-  RANDOM_FILE="/random.txt"
+Running as Airflow DAGs
+.......................
 
-  if [[ ! -f "${RANDOM_FILE}" ]]; then
-      echo "${RANDOM}" > "${RANDOM_FILE}"
-  fi
+If you have a working Airflow environment with a scheduler and a webserver, you can import system test files into
+your Airflow instance as DAGs and they will be automatically triggered. If the setup of the environment is correct
+(depending on the type of tests you want to run), they should be executed without any issues. The instructions on
+how to set up the environment is documented in each provider's system tests directory. Make sure that all resource
+required by the tests are also imported.
 
-  RANDOM_POSTFIX=$(cat "${RANDOM_FILE}")
+Running via Pytest
+..................
 
-Forwarding Authentication from the Host
----------------------------------------
+Running system tests with pytest is the easiest with Breeze. Thanks to it, you don't need to bother about setting up
+the correct environment, that is able to execute the tests.
+You can either run them using your IDE (if you have installed plugin/widget supporting pytest) or using the following
+example of command:
 
-For system tests, you can also forward authentication from the host to your Breeze container. You can specify
-the ``--forward-credentials`` flag when starting Breeze. Then, it will also forward the most commonly used
-credentials stored in your ``home`` directory. Use this feature with care as it makes your personal credentials
-visible to anything that you have installed inside the Docker container.
+For core:
+
+.. code-block:: bash
+
+  pytest --system tests/system/example_empty.py
+
+For providers:
+
+.. code-block:: bash
+
+  pytest --system providers/tests/system/google/cloud/bigquery/example_bigquery_queries.py
+
+
+Running via Breeze
+..................
+
+You can also run system tests using Breeze. To do so, you need to run the following command:
+
+For core:
+
+.. code-block:: bash
+
+  breeze testing system-tests tests/system/example_empty.py
+
+
+For providers:
+
+.. code-block:: bash
+
+  breeze testing system-tests providers/tests/system/example_empty.py
+
+If you need to add some initialization of environment variables when entering Breeze, you can add a
+``variables.env`` file in the ``files/airflow-breeze-config/variables.env`` file.
+
+It will be automatically sourced when entering the Breeze environment. You can also add some additional
+initialization commands in the  ``files/airflow-breeze-config/init.sh`` file if you want to execute
+something always at the time of entering Breeze.
+
+For system tests run in Breeze, you can also forward authentication from the host to your Breeze container.
+You can specify the ``--forward-credentials`` flag when starting Breeze. Then, it will also forward the
+most commonly used credentials stored in your ``home`` directory. Use this feature with care as it makes
+your personal credentials visible to anything that you have installed inside the Docker container.
 
 Currently forwarded credentials are:
   * credentials stored in ``${HOME}/.aws`` for ``aws`` - Amazon Web Services client
@@ -112,11 +129,6 @@ Currently forwarded credentials are:
   * credentials stored in ``${HOME}/.config`` for ``gcloud`` - Google Cloud client (among others)
   * credentials stored in ``${HOME}/.docker`` for ``docker`` client
   * credentials stored in ``${HOME}/.snowsql`` for ``snowsql`` - SnowSQL (Snowflake CLI client)
-
-Running the System Tests
-------------------------
-
-Running the tests and developing tests in `Test documentation <../../tests/system/README.md>`__
 
 ------
 

@@ -55,7 +55,7 @@ apache-airflow-providers-cloudant package
 `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
 
 
-Release: 4.0.2
+Release: 4.0.3
 
 Provider package
 ----------------
@@ -80,5 +80,4 @@ PIP package         Version required
 ==================  =====================================
 ``apache-airflow``  ``>=2.8.0``
 ``ibmcloudant``     ``==0.9.1; python_version >= "3.10"``
-``ibmcloudant``     ``==0.7.0; python_version < "3.10"``
 ==================  =====================================

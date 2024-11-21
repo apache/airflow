@@ -83,3 +83,59 @@ class TelegramOperator(BaseOperator):
             chat_id=self.chat_id,
         )
         telegram_hook.send_message(self.telegram_kwargs)
+
+
+class TelegramFileOperator(BaseOperator):
+    """
+    This operator allows you to send file to Telegram using Telegram Bot API.
+
+    Takes both Telegram Bot API token directly or connection that has Telegram token in password field.
+    If both supplied, token parameter will be given precedence.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:TelegramOperator`
+
+    :param telegram_conn_id: Telegram connection ID which its password is Telegram API token
+    :param token: Telegram API Token
+    :param chat_id: Telegram chat ID for a chat/channel/group
+    :param file: The path of the file or media to be sent via Telegram
+    :param telegram_kwargs: Extra args to be passed to telegram client
+    """
+
+    template_fields: Sequence[str] = "chat_id"
+    ui_color = "#FFBA40"
+
+    def __init__(
+        self,
+        *,
+        telegram_conn_id: str = "telegram_default",
+        token: str | None = None,
+        chat_id: str | None = None,
+        file: str,
+        telegram_kwargs: dict | None = None,
+        **kwargs,
+    ):
+        self.chat_id = chat_id
+        self.token = token
+        self.telegram_kwargs = telegram_kwargs or {}
+        self.file = file
+
+        if telegram_conn_id is None:
+            raise AirflowException("No valid Telegram connection id supplied.")
+
+        self.telegram_conn_id = telegram_conn_id
+
+        super().__init__(**kwargs)
+
+    def execute(self, context: Context) -> None:
+        """Call the TelegramHook to send the provided Telegram file."""
+        if self.file:
+            self.telegram_kwargs["file"] = self.file
+
+        telegram_hook = TelegramHook(
+            telegram_conn_id=self.telegram_conn_id,
+            token=self.token,
+            chat_id=self.chat_id,
+        )
+        telegram_hook.send_file(**self.telegram_kwargs)

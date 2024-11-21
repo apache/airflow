@@ -143,7 +143,7 @@ class TestXComArgBuild:
         assert str(ctx.value) == "'XComArg' object is not iterable"
 
 
-@pytest.mark.system("core")
+@pytest.mark.system
 class TestXComArgRuntime:
     def test_xcom_pass_to_op(self, dag_maker):
         with dag_maker(dag_id="test_xcom_pass_to_op") as dag:

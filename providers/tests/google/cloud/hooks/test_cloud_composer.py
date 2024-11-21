@@ -65,10 +65,6 @@ def mock_init(*args, **kwargs):
 
 
 class TestCloudComposerHook:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            CloudComposerHook(gcp_conn_id="test", delegate_to="delegate_to")
-
     def setup_method(self):
         with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = CloudComposerHook(gcp_conn_id="test")
@@ -263,10 +259,6 @@ class TestCloudComposerHook:
 
 
 class TestCloudComposerAsyncHook:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            CloudComposerAsyncHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
-
     def setup_method(self, method):
         with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = CloudComposerAsyncHook(gcp_conn_id="test")

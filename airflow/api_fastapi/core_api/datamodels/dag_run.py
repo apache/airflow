@@ -41,6 +41,12 @@ class DAGRunPatchBody(BaseModel):
     note: str | None = Field(None, max_length=1000)
 
 
+class DAGRunClearBody(BaseModel):
+    """DAG Run serializer for clear endpoint body."""
+
+    dry_run: bool = True
+
+
 class DAGRunResponse(BaseModel):
     """DAG Run serializer for responses."""
 
@@ -59,3 +65,10 @@ class DAGRunResponse(BaseModel):
     triggered_by: DagRunTriggeredByType
     conf: dict
     note: str | None
+
+
+class DAGRunCollectionResponse(BaseModel):
+    """DAG Run Collection serializer for responses."""
+
+    dag_runs: list[DAGRunResponse]
+    total_entries: int

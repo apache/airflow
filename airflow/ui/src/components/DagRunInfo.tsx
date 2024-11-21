@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { VStack, Text, Box, HStack } from "@chakra-ui/react";
+import { VStack, Text, HStack } from "@chakra-ui/react";
 import dayjs from "dayjs";
 
 import type { DAGRunResponse } from "openapi/requests/types.gen";
 import Time from "src/components/Time";
 import { Tooltip } from "src/components/ui";
 import { stateColor } from "src/utils/stateColor";
+
+import { StateCircle } from "./StateCircle";
 
 type Props = {
   readonly dataIntervalEnd?: string | null;
@@ -81,13 +83,7 @@ const DagRunInfo = ({
         <Time datetime={dataIntervalStart} showTooltip={false} />
         {state === undefined ? undefined : (
           <>
-            <Box
-              bg={stateColor[state]}
-              borderRadius="50%"
-              height={2}
-              minW={2}
-              width={2}
-            />
+            <StateCircle state={state} />
             <Text color={stateColor[state]}>{state}</Text>
           </>
         )}

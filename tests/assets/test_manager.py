@@ -24,7 +24,6 @@ from unittest import mock
 import pytest
 from sqlalchemy import delete
 
-from airflow.assets import Asset, AssetAlias
 from airflow.assets.manager import AssetManager
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import (
@@ -37,6 +36,7 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 from tests.listeners import asset_listener
@@ -66,7 +66,7 @@ def mock_task_instance():
         map_index="13",
         start_date=datetime.now(),
         end_date=datetime.now(),
-        execution_date=datetime.now(),
+        logical_date=datetime.now(),
         duration=0.1,
         state="success",
         try_number=1,
@@ -92,6 +92,7 @@ def mock_task_instance():
         trigger_timeout=datetime.now(),
         next_method="bla",
         next_kwargs=None,
+        dag_version_id=None,
         run_as_user=None,
         task=None,
         test_mode=False,

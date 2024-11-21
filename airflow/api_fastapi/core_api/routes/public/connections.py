@@ -44,7 +44,7 @@ connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
 
 @connections_router.delete(
     "/{connection_id}",
-    status_code=204,
+    status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def delete_connection(
@@ -82,7 +82,7 @@ def get_connection(
 
 
 @connections_router.get(
-    "/",
+    "",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_connections(
@@ -100,15 +100,15 @@ def get_connections(
 ) -> ConnectionCollectionResponse:
     """Get all connection entries."""
     connection_select, total_entries = paginated_select(
-        select(Connection),
-        [],
+        select=select(Connection),
+        filters=[],
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
     )
 
-    connections = session.scalars(connection_select).all()
+    connections = session.scalars(connection_select)
 
     return ConnectionCollectionResponse(
         connections=[
@@ -119,8 +119,8 @@ def get_connections(
 
 
 @connections_router.post(
-    "/",
-    status_code=201,
+    "",
+    status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
 )
 def post_connection(
@@ -131,11 +131,14 @@ def post_connection(
     try:
         helpers.validate_key(post_body.connection_id, max_length=200)
     except Exception as e:
-        raise HTTPException(400, f"{e}")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"{e}")
 
     connection = session.scalar(select(Connection).filter_by(conn_id=post_body.connection_id))
     if connection is not None:
-        raise HTTPException(409, f"Connection with connection_id: `{post_body.connection_id}` already exists")
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Connection with connection_id: `{post_body.connection_id}` already exists",
+        )
 
     connection = Connection(**post_body.model_dump(by_alias=True))
     session.add(connection)
@@ -160,13 +163,18 @@ def patch_connection(
 ) -> ConnectionResponse:
     """Update a connection entry."""
     if patch_body.connection_id != connection_id:
-        raise HTTPException(400, "The connection_id in the request body does not match the URL parameter")
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "The connection_id in the request body does not match the URL parameter",
+        )
 
     non_update_fields = {"connection_id", "conn_id"}
     connection = session.scalar(select(Connection).filter_by(conn_id=connection_id).limit(1))
 
     if connection is None:
-        raise HTTPException(404, f"The Connection with connection_id: `{connection_id}` was not found")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"The Connection with connection_id: `{connection_id}` was not found"
+        )
 
     if update_mask:
         data = patch_body.model_dump(include=set(update_mask) - non_update_fields)
@@ -180,12 +188,6 @@ def patch_connection(
 
 @connections_router.post(
     "/test",
-    responses=create_openapi_http_exception_doc(
-        [
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
-        ]
-    ),
 )
 def test_connection(
     test_body: ConnectionBody,
@@ -199,7 +201,7 @@ def test_connection(
     """
     if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
         raise HTTPException(
-            403,
+            status.HTTP_403_FORBIDDEN,
             "Testing connections is disabled in Airflow configuration. "
             "Contact your deployment admin to enable it.",
         )
