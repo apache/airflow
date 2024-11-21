@@ -16,27 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Dialog as ChakraDialog } from "@chakra-ui/react";
-import { forwardRef } from "react";
+import { Heading } from "@chakra-ui/react";
 
-import { CloseButton, type CloseButtonProps } from "../CloseButton";
+import type { DAGResponse } from "openapi/requests/types.gen";
+import { Dialog } from "src/components/ui";
 
-type Props = {
-  closeButtonProps?: CloseButtonProps;
-} & ChakraDialog.CloseTriggerProps;
+import { Graph } from "./Graph";
 
-export const CloseTrigger = forwardRef<HTMLButtonElement, Props>(
-  ({ children, closeButtonProps, ...rest }, ref) => (
-    <ChakraDialog.CloseTrigger
-      insetEnd="2"
-      position="absolute"
-      top="2"
-      {...rest}
-      asChild
-    >
-      <CloseButton ref={ref} size="sm" {...closeButtonProps}>
-        {children}
-      </CloseButton>
-    </ChakraDialog.CloseTrigger>
-  ),
+type TriggerDAGModalProps = {
+  dagDisplayName: DAGResponse["dag_display_name"];
+  onClose: () => void;
+  open: boolean;
+};
+
+export const DagVizModal: React.FC<TriggerDAGModalProps> = ({
+  dagDisplayName,
+  onClose,
+  open,
+}) => (
+  <Dialog.Root onOpenChange={onClose} open={open} size="full">
+    <Dialog.Content backdrop>
+      <Dialog.Header bg="blue.muted">
+        <Heading size="xl">{dagDisplayName}</Heading>
+        <Dialog.CloseTrigger closeButtonProps={{ size: "xl" }} />
+      </Dialog.Header>
+      <Dialog.Body display="flex">
+        <Graph />
+      </Dialog.Body>
+    </Dialog.Content>
+  </Dialog.Root>
 );
