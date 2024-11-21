@@ -36,7 +36,6 @@ import time_machine
 from sqlalchemy import inspect, select
 
 from airflow import settings
-from airflow.assets import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.configuration import conf
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.exceptions import (
@@ -71,6 +70,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import TaskGroup
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.sdk.definitions.contextmanager import TaskGroupContext
 from airflow.security import permissions
 from airflow.templates import NativeEnvironment, SandboxedEnvironment
@@ -285,7 +285,7 @@ class TestDag:
         dr = dag.create_dagrun(
             state=None,
             run_id="test",
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,
         )
@@ -303,14 +303,14 @@ class TestDag:
         dr1 = test_dag.create_dagrun(
             state=None,
             run_id="test1",
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,
         )
         dr2 = test_dag.create_dagrun(
             state=None,
             run_id="test2",
-            execution_date=DEFAULT_DATE + datetime.timedelta(days=1),
+            logical_date=DEFAULT_DATE + datetime.timedelta(days=1),
             data_interval=(
                 DEFAULT_DATE + datetime.timedelta(days=1),
                 DEFAULT_DATE + datetime.timedelta(days=1),
@@ -320,7 +320,7 @@ class TestDag:
         dr3 = test_dag.create_dagrun(
             state=None,
             run_id="test3",
-            execution_date=DEFAULT_DATE + datetime.timedelta(days=2),
+            logical_date=DEFAULT_DATE + datetime.timedelta(days=2),
             data_interval=(
                 DEFAULT_DATE + datetime.timedelta(days=2),
                 DEFAULT_DATE + datetime.timedelta(days=2),
@@ -330,7 +330,7 @@ class TestDag:
         dr4 = test_dag.create_dagrun(
             state=None,
             run_id="test4",
-            execution_date=DEFAULT_DATE + datetime.timedelta(days=3),
+            logical_date=DEFAULT_DATE + datetime.timedelta(days=3),
             data_interval=(
                 DEFAULT_DATE + datetime.timedelta(days=2),
                 DEFAULT_DATE + datetime.timedelta(days=2),
@@ -397,7 +397,7 @@ class TestDag:
                 **triggered_by_kwargs,
             )
             dagrun.start_date = BASE_DATE + timedelta(hours=delta_h)
-            dagrun.execution_date = BASE_DATE + timedelta(hours=delta_h)
+            dagrun.logical_date = BASE_DATE + timedelta(hours=delta_h)
             return dagrun
 
         dr1 = dag_run_before(delta_h=-1, type=DagRunType.MANUAL)  # H19
@@ -594,7 +594,7 @@ class TestDag:
         dagrun = dag.create_dagrun(
             state=State.RUNNING,
             run_type=DagRunType.MANUAL,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,
         )
@@ -789,7 +789,7 @@ class TestDag:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             state=state,
-            execution_date=model.next_dagrun,
+            logical_date=model.next_dagrun,
             run_type=DagRunType.SCHEDULED,
             session=session,
             data_interval=(model.next_dagrun, model.next_dagrun),
@@ -1037,15 +1037,15 @@ class TestDag:
         assert dag.max_consecutive_failed_dag_runs == 2
 
     def test_existing_dag_is_paused_after_limit(self):
-        def add_failed_dag_run(dag, id, execution_date):
+        def add_failed_dag_run(dag, id, logical_date):
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dag_v = DagVersion.get_latest_version(dag_id=dag.dag_id)
             dr = dag.create_dagrun(
                 run_type=DagRunType.MANUAL,
                 run_id="run_id_" + id,
-                execution_date=execution_date,
+                logical_date=logical_date,
                 state=State.FAILED,
-                data_interval=(execution_date, execution_date),
+                data_interval=(logical_date, logical_date),
                 dag_version=dag_v,
                 **triggered_by_kwargs,
             )
@@ -1126,7 +1126,7 @@ class TestDag:
 
         dag_run = dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
-            execution_date=TEST_DATE,
+            logical_date=TEST_DATE,
             state=State.RUNNING,
             data_interval=(TEST_DATE, TEST_DATE),
             **triggered_by_kwargs,
@@ -1136,8 +1136,8 @@ class TestDag:
         assert dag_run.run_id is not None
         assert "" != dag_run.run_id
         assert (
-            TEST_DATE == dag_run.execution_date
-        ), f"dag_run.execution_date did not match expectation: {dag_run.execution_date}"
+            TEST_DATE == dag_run.logical_date
+        ), f"dag_run.logical_date did not match expectation: {dag_run.logical_date}"
         assert State.RUNNING == dag_run.state
         assert not dag_run.external_trigger
         dag.clear()
@@ -1165,7 +1165,7 @@ class TestDag:
         with create_session() as session:
             dag_run = dag.create_dagrun(
                 state=State.RUNNING,
-                execution_date=when,
+                logical_date=when,
                 run_type=DagRunType.MANUAL,
                 session=session,
                 data_interval=(when, when),
@@ -1203,7 +1203,7 @@ class TestDag:
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dag_run = dag.create_dagrun(
                 state=State.RUNNING,
-                execution_date=TEST_DATE,
+                logical_date=TEST_DATE,
                 run_type=DagRunType.MANUAL,
                 session=session,
                 data_interval=(TEST_DATE, TEST_DATE),
@@ -1234,7 +1234,7 @@ class TestDag:
 
         dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.SUCCESS,
             external_trigger=True,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
@@ -1267,7 +1267,7 @@ class TestDag:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
-            execution_date=TEST_DATE,
+            logical_date=TEST_DATE,
             state=State.SUCCESS,
             data_interval=(TEST_DATE, TEST_DATE),
             **triggered_by_kwargs,
@@ -1295,7 +1295,7 @@ class TestDag:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         run = dag.create_dagrun(
             run_id="test_" + start_date.isoformat(),
-            execution_date=start_date,
+            logical_date=start_date,
             start_date=start_date,
             state=State.RUNNING,
             external_trigger=False,
@@ -1305,7 +1305,7 @@ class TestDag:
 
         run.refresh_from_db()
 
-        assert start_date == run.execution_date, "dag run execution_date loses precision"
+        assert start_date == run.logical_date, "dag run logical_date loses precision"
         assert start_date == run.start_date, "dag run start_date loses precision "
         self._clean_up(dag_id)
 
@@ -1427,7 +1427,7 @@ class TestDag:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.NONE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,
@@ -1523,7 +1523,7 @@ class TestDag:
             run_type=DagRunType.BACKFILL_JOB,
             state=State.FAILED,
             start_date=DEFAULT_DATE,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,
         )
@@ -1572,7 +1572,7 @@ class TestDag:
             run_type=DagRunType.BACKFILL_JOB,
             state=State.FAILED,
             start_date=DEFAULT_DATE,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             session=session,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,
@@ -1759,7 +1759,7 @@ my_postgres_conn:
             run_type=DagRunType.BACKFILL_JOB,
             state=DagRunState.RUNNING,
             start_date=DEFAULT_DATE,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,  # type: ignore
         )
@@ -1953,7 +1953,7 @@ my_postgres_conn:
         """
         Test if the schedule will be auto aligned with the start_date
         such that if the start_date coincides with the schedule the first
-        execution_date will be start_date, otherwise it will be start_date +
+        logical_date will be start_date, otherwise it will be start_date +
         interval.
         """
         dag = DAG(
@@ -2071,7 +2071,7 @@ my_postgres_conn:
             dag.create_dagrun(
                 run_id="test_dagrun_missing_param",
                 state=State.RUNNING,
-                execution_date=TEST_DATE,
+                logical_date=TEST_DATE,
                 data_interval=(TEST_DATE, TEST_DATE),
                 **triggered_by_kwargs,
             )
@@ -2083,7 +2083,7 @@ my_postgres_conn:
             dag.create_dagrun(
                 run_id="test_dagrun_missing_param",
                 state=State.RUNNING,
-                execution_date=TEST_DATE,
+                logical_date=TEST_DATE,
                 conf={"param1": None},
                 data_interval=(TEST_DATE, TEST_DATE),
                 **triggered_by_kwargs,
@@ -2093,7 +2093,7 @@ my_postgres_conn:
         dag.create_dagrun(
             run_id="test_dagrun_missing_param",
             state=State.RUNNING,
-            execution_date=TEST_DATE,
+            logical_date=TEST_DATE,
             conf={"param1": "hello"},
             data_interval=(TEST_DATE, TEST_DATE),
             **triggered_by_kwargs,
@@ -2187,7 +2187,7 @@ class TestDagModel:
         dag_maker.create_dagrun(
             run_type=DagRunType.ASSET_TRIGGERED,
             state=DagRunState.QUEUED,
-            execution_date=pendulum.now("UTC"),
+            logical_date=pendulum.now("UTC"),
         )
         query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
@@ -2235,7 +2235,7 @@ class TestDagModel:
         dag_maker.create_dagrun(
             run_type=DagRunType.ASSET_TRIGGERED,
             state=DagRunState.QUEUED,
-            execution_date=pendulum.now("UTC"),
+            logical_date=pendulum.now("UTC"),
         )
         query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
@@ -2479,7 +2479,7 @@ class TestQueries:
             dag.create_dagrun(
                 run_id="test_dagrun_query_count",
                 state=State.RUNNING,
-                execution_date=TEST_DATE,
+                logical_date=TEST_DATE,
                 data_interval=(TEST_DATE, TEST_DATE),
                 **triggered_by_kwargs,
             )
@@ -2554,7 +2554,7 @@ class TestDagDecorator:
         dr = dag.create_dagrun(
             run_id=DagRunType.MANUAL.value,
             start_date=timezone.utcnow(),
-            execution_date=self.DEFAULT_DATE,
+            logical_date=self.DEFAULT_DATE,
             data_interval=(self.DEFAULT_DATE, self.DEFAULT_DATE),
             state=State.RUNNING,
             **triggered_by_kwargs,
@@ -2584,7 +2584,7 @@ class TestDagDecorator:
         dr = dag.create_dagrun(
             run_id=DagRunType.MANUAL.value,
             start_date=timezone.utcnow(),
-            execution_date=self.DEFAULT_DATE,
+            logical_date=self.DEFAULT_DATE,
             data_interval=(self.DEFAULT_DATE, self.DEFAULT_DATE),
             state=State.RUNNING,
             conf={"value": new_value},
@@ -2613,13 +2613,10 @@ class TestDagDecorator:
 
 
 @pytest.mark.parametrize(
-    "run_id, execution_date",
-    [
-        (None, datetime_tz(2020, 1, 1)),
-        ("test-run-id", None),
-    ],
+    "run_id",
+    ["test-run-id"],
 )
-def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
+def test_set_task_instance_state(run_id, session, dag_maker):
     """Test that set_task_instance_state updates the TaskInstance state and clear downstream failed"""
 
     start_date = datetime_tz(2020, 1, 1)
@@ -2629,12 +2626,10 @@ def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
         task_3 = EmptyOperator(task_id="task_3")
         task_4 = EmptyOperator(task_id="task_4")
         task_5 = EmptyOperator(task_id="task_5")
-
         task_1 >> [task_2, task_3, task_4, task_5]
 
     dagrun = dag_maker.create_dagrun(
         run_id=run_id,
-        execution_date=execution_date,
         state=State.FAILED,
         run_type=DagRunType.SCHEDULED,
     )
@@ -2661,11 +2656,9 @@ def test_set_task_instance_state(run_id, execution_date, session, dag_maker):
     altered = dag.set_task_instance_state(
         task_id=task_1.task_id,
         run_id=run_id,
-        execution_date=execution_date,
         state=State.SUCCESS,
         session=session,
     )
-
     # After _mark_task_instance_state, task_1 is marked as SUCCESS
     ti1 = get_ti_from_db(task_1)
     assert ti1.state == State.SUCCESS
@@ -2716,7 +2709,7 @@ def test_set_task_instance_state_mapped(dag_maker, session):
     dr2 = dag_maker.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         state=DagRunState.FAILED,
-        execution_date=DEFAULT_DATE + datetime.timedelta(days=1),
+        logical_date=DEFAULT_DATE + datetime.timedelta(days=1),
     )
     expand_mapped_task(mapped, dr2.run_id, "make_arg_lists", length=2, session=session)
 
@@ -2758,8 +2751,7 @@ def test_set_task_instance_state_mapped(dag_maker, session):
     ]
 
 
-@pytest.mark.parametrize("run_id, execution_date", [(None, datetime_tz(2020, 1, 1)), ("test-run-id", None)])
-def test_set_task_group_state(run_id, execution_date, session, dag_maker):
+def test_set_task_group_state(session, dag_maker):
     """Test that set_task_group_state updates the TaskGroup state and clear downstream failed"""
 
     start_date = datetime_tz(2020, 1, 1)
@@ -2782,8 +2774,7 @@ def test_set_task_group_state(run_id, execution_date, session, dag_maker):
         start >> section_1 >> [task_4, task_5, task_6, task_7, task_8]
 
     dagrun = dag_maker.create_dagrun(
-        run_id=run_id,
-        execution_date=execution_date,
+        run_id="test-run-id",
         state=State.FAILED,
         run_type=DagRunType.SCHEDULED,
     )
@@ -2811,8 +2802,7 @@ def test_set_task_group_state(run_id, execution_date, session, dag_maker):
 
     altered = dag.set_task_group_state(
         group_id=section_1.group_id,
-        run_id=run_id,
-        execution_date=execution_date,
+        run_id="test-run-id",
         state=State.SUCCESS,
         session=session,
     )
@@ -3097,7 +3087,7 @@ def test_dag_uses_timetable_for_run_id(session):
     dag_run = dag.create_dagrun(
         run_type=DagRunType.MANUAL,
         state=DagRunState.QUEUED,
-        execution_date=DEFAULT_DATE,
+        logical_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         **triggered_by_kwargs,
     )
@@ -3118,7 +3108,7 @@ def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagR
         dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             run_id=run_id,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             state=DagRunState.QUEUED,
             **triggered_by_kwargs,  # type: ignore

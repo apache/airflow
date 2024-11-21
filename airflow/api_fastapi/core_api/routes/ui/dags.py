@@ -68,46 +68,54 @@ def recent_dag_runs(
     recent_runs_subquery = (
         select(
             DagRun.dag_id,
-            DagRun.execution_date,
+            DagRun.logical_date,
             func.rank()
             .over(
                 partition_by=DagRun.dag_id,
-                order_by=DagRun.execution_date.desc(),
+                order_by=DagRun.logical_date.desc(),
             )
             .label("rank"),
         )
-        .order_by(DagRun.execution_date.desc())
+        .order_by(DagRun.logical_date.desc())
         .subquery()
     )
     dags_with_recent_dag_runs_select = (
         select(
             DagRun,
             DagModel,
-            recent_runs_subquery.c.execution_date,
+            recent_runs_subquery.c.logical_date,
         )
         .join(DagModel, DagModel.dag_id == recent_runs_subquery.c.dag_id)
         .join(
             DagRun,
             and_(
                 DagRun.dag_id == DagModel.dag_id,
-                DagRun.execution_date == recent_runs_subquery.c.execution_date,
+                DagRun.logical_date == recent_runs_subquery.c.logical_date,
             ),
         )
         .where(recent_runs_subquery.c.rank <= dag_runs_limit)
         .group_by(
             DagModel.dag_id,
-            recent_runs_subquery.c.execution_date,
-            DagRun.execution_date,
+            recent_runs_subquery.c.logical_date,
+            DagRun.logical_date,
             DagRun.id,
         )
-        .order_by(recent_runs_subquery.c.execution_date.desc())
+        .order_by(recent_runs_subquery.c.logical_date.desc())
     )
     dags_with_recent_dag_runs_select_filter, _ = paginated_select(
-        dags_with_recent_dag_runs_select,
-        [only_active, paused, dag_id_pattern, dag_display_name_pattern, tags, owners, last_dag_run_state],
-        None,
-        offset,
-        limit,
+        select=dags_with_recent_dag_runs_select,
+        filters=[
+            only_active,
+            paused,
+            dag_id_pattern,
+            dag_display_name_pattern,
+            tags,
+            owners,
+            last_dag_run_state,
+        ],
+        order_by=None,
+        offset=offset,
+        limit=limit,
     )
     dags_with_recent_dag_runs = session.execute(dags_with_recent_dag_runs_select_filter)
     # aggregate rows by dag_id

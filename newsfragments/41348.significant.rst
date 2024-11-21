@@ -17,7 +17,7 @@
   * Rename class ``DatasetEventCollectionSchema`` as ``AssetEventCollectionSchema``
   * Rename class ``CreateDatasetEventSchema`` as ``CreateAssetEventSchema``
 
-* Rename module ``airflow.datasets`` as ``airflow.assets``
+* Move module ``airflow.datasets`` to ``airflow.sdk.definitions.asset``
 
   * Rename class ``DatasetAlias`` as ``AssetAlias``
   * Rename class ``DatasetAll`` as ``AssetAll``
@@ -25,7 +25,7 @@
   * Rename function ``expand_alias_to_datasets`` as ``expand_alias_to_assets``
   * Rename class ``DatasetAliasEvent`` as ``AssetAliasEvent``
 
-    * Rename method ``dest_dataset_uri`` as ``dest_asset_uri``
+    * Rename attribute ``dest_dataset_uri`` as ``dest_asset_uri``
 
   * Rename class ``BaseDataset`` as ``BaseAsset``
 
@@ -52,7 +52,7 @@
       * Rename method ``create_datasets`` as ``create_assets``
       * Rename method ``register_dataset_change`` as ``notify_asset_created``
       * Rename method ``notify_dataset_changed`` as ``notify_asset_changed``
-      * Renme method ``notify_dataset_alias_created`` as ``notify_asset_alias_created``
+      * Rename method ``notify_dataset_alias_created`` as ``notify_asset_alias_created``
 
 * Rename module ``airflow.models.dataset`` as ``airflow.models.asset``
 
@@ -84,7 +84,7 @@
     * Rename class ``DatasetPydantic`` as ``AssetPydantic``
     * Rename class ``DatasetEventPydantic`` as ``AssetEventPydantic``
 
-* Rename module ``airflow.datasets.metadata`` as ``airflow.assets.metadata``
+* Rename module ``airflow.datasets.metadata`` as ``airflow.sdk.definitions.asset.metadata``
 
 * In module ``airflow.jobs.scheduler_job_runner``
 

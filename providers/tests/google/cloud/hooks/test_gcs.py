@@ -172,10 +172,6 @@ class TestFallbackObjectUrlToObjectNameAndBucketName:
 
 
 class TestGCSHook:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            gcs.GCSHook(api_version="v1", gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
-
     def setup_method(self):
         with mock.patch(
             GCS_STRING.format("GoogleBaseHook.__init__"),
@@ -428,8 +424,8 @@ class TestGCSHook:
         mock_copy.return_value = storage.Blob(
             name=destination_object_name, bucket=storage.Bucket(mock_service, destination_bucket_name)
         )
-        mock_service.return_value.bucket.side_effect = (
-            lambda name: source_bucket
+        mock_service.return_value.bucket.side_effect = lambda name: (
+            source_bucket
             if name == source_bucket_name
             else storage.Bucket(mock_service, destination_bucket_name)
         )
@@ -523,10 +519,8 @@ class TestGCSHook:
         blob = MagicMock(spec=storage.Blob)
         blob.rewrite = MagicMock(return_value=(None, None, None))
         dest_bucket.blob = MagicMock(return_value=blob)
-        mock_service.return_value.bucket.side_effect = (
-            lambda name: storage.Bucket(mock_service, source_bucket_name)
-            if name == source_bucket_name
-            else dest_bucket
+        mock_service.return_value.bucket.side_effect = lambda name: (
+            storage.Bucket(mock_service, source_bucket_name) if name == source_bucket_name else dest_bucket
         )
 
         self.gcs_hook.rewrite(
@@ -1129,7 +1123,8 @@ class TestGCSHook:
 
 class TestGCSHookUpload:
     def setup_method(self):
-        with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__")):
+        with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__")) as mock_init:
+            mock_init.return_value = None
             self.gcs_hook = gcs.GCSHook(gcp_conn_id="test")
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))

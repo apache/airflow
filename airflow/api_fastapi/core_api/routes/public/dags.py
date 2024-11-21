@@ -58,7 +58,7 @@ from airflow.models import DAG, DagModel, DagTag
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
 
-@dags_router.get("/")
+@dags_router.get("")
 def get_dags(
     limit: QueryLimit,
     offset: QueryOffset,
@@ -82,15 +82,23 @@ def get_dags(
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
     dags_select, total_entries = paginated_select(
-        dags_select_with_latest_dag_run,
-        [only_active, paused, dag_id_pattern, dag_display_name_pattern, tags, owners, last_dag_run_state],
-        order_by,
-        offset,
-        limit,
-        session,
+        select=dags_select_with_latest_dag_run,
+        filters=[
+            only_active,
+            paused,
+            dag_id_pattern,
+            dag_display_name_pattern,
+            tags,
+            owners,
+            last_dag_run_state,
+        ],
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
 
-    dags = session.scalars(dags_select).all()
+    dags = session.scalars(dags_select)
 
     return DAGCollectionResponse(
         dags=[DAGResponse.model_validate(dag, from_attributes=True) for dag in dags],
@@ -119,7 +127,7 @@ def get_dag_tags(
     """Get all DAG tags."""
     base_select = select(DagTag.name).group_by(DagTag.name)
     dag_tags_select, total_entries = paginated_select(
-        base_select=base_select,
+        select=base_select,
         filters=[tag_name_pattern],
         order_by=order_by,
         offset=offset,
@@ -223,7 +231,7 @@ def patch_dag(
 
 
 @dags_router.patch(
-    "/",
+    "",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
@@ -254,12 +262,12 @@ def patch_dags(
         update_mask = ["is_paused"]
 
     dags_select, total_entries = paginated_select(
-        dags_select_with_latest_dag_run,
-        [only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state],
-        None,
-        offset,
-        limit,
-        session,
+        select=dags_select_with_latest_dag_run,
+        filters=[only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state],
+        order_by=None,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
 
     dags = session.scalars(dags_select).all()

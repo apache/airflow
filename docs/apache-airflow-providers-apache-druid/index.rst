@@ -57,7 +57,7 @@
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-druid/>
     Installing from sources <installing-providers-from-sources>
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-druid/|version|/providers/tests/system/apache/druid>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-druid/|version|/tests/system/providers/apache/druid>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
@@ -76,7 +76,7 @@ apache-airflow-providers-apache-druid package
 `Apache Druid <https://druid.apache.org/>`__.
 
 
-Release: 3.12.0
+Release: 3.12.1
 
 Provider package
 ----------------
@@ -100,7 +100,7 @@ The minimum Apache Airflow version supported by this provider package is ``2.8.0
 PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.8.0``
-``apache-airflow-providers-common-sql``  ``>=1.14.1``
+``apache-airflow-providers-common-sql``  ``>=1.20.0``
 ``pydruid``                              ``>=0.4.1``
 =======================================  ==================
 
@@ -130,5 +130,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-druid 3.12.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_druid-3.12.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_druid-3.12.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_druid-3.12.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-druid 3.12.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_druid-3.12.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_druid-3.12.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_druid-3.12.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-apache-druid 3.12.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_druid-3.12.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_druid-3.12.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_druid-3.12.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-druid 3.12.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_druid-3.12.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_druid-3.12.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_druid-3.12.1-py3-none-any.whl.sha512>`__)

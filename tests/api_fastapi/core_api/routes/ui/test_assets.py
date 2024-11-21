@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.assets import Asset
 from airflow.operators.empty import EmptyOperator
+from airflow.sdk.definitions.asset import Asset
 
 from tests_common.test_utils.db import initial_db_init
 

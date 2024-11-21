@@ -79,13 +79,13 @@ export const DagCard = ({ dag }: Props) => {
       </Flex>
       <SimpleGrid columns={4} gap={4} height={20} px={3} py={2}>
         <VStack align="flex-start" gap={1}>
-          <Heading color="gray.500" fontSize="xs">
+          <Heading color="fg.muted" fontSize="xs">
             Schedule
           </Heading>
           <Schedule dag={dag} />
         </VStack>
         <VStack align="flex-start" gap={1}>
-          <Heading color="gray.500" fontSize="xs">
+          <Heading color="fg.muted" fontSize="xs">
             Latest Run
           </Heading>
           {latestRun ? (
@@ -99,7 +99,7 @@ export const DagCard = ({ dag }: Props) => {
           ) : undefined}
         </VStack>
         <VStack align="flex-start" gap={1}>
-          <Heading color="gray.500" fontSize="xs">
+          <Heading color="fg.muted" fontSize="xs">
             Next Run
           </Heading>
           {Boolean(dag.next_dagrun) ? (

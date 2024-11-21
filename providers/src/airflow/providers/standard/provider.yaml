@@ -48,6 +48,7 @@ operators:
       - airflow.providers.standard.operators.bash
       - airflow.providers.standard.operators.python
       - airflow.providers.standard.operators.generic_transfer
+      - airflow.providers.standard.operators.trigger_dagrun
 
 sensors:
   - integration-name: Standard
@@ -58,6 +59,7 @@ sensors:
       - airflow.providers.standard.sensors.weekday
       - airflow.providers.standard.sensors.bash
       - airflow.providers.standard.sensors.python
+      - airflow.providers.standard.sensors.filesystem
 hooks:
   - integration-name: Standard
     python-modules:

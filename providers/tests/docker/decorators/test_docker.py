@@ -51,7 +51,7 @@ class TestDockerDecorator:
             ret = f()
 
         dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
         ti = dr.get_task_instances()[0]
         assert len(ti.xcom_pull()) == 100
 
@@ -66,7 +66,7 @@ class TestDockerDecorator:
             ret = f(50)
 
         dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
         ti = dr.get_task_instances()[0]
         result = ti.xcom_pull()
         assert isinstance(result, list)
@@ -95,7 +95,7 @@ class TestDockerDecorator:
             ret = return_dict(test_number)
 
         dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
 
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull(key="number") == test_number + 1
@@ -111,7 +111,7 @@ class TestDockerDecorator:
             ret = f()
 
         dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() is None
 
@@ -163,9 +163,9 @@ class TestDockerDecorator:
         dr = dag_maker.create_dagrun()
         if expected_state == TaskInstanceState.FAILED:
             with pytest.raises(AirflowException):
-                ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+                ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
         else:
-            ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+            ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
             ti = dr.get_task_instances()[0]
             assert ti.state == expected_state
 
@@ -323,7 +323,7 @@ class TestDockerDecorator:
 
         dr = dag_maker.create_dagrun()
         with pytest.raises(AirflowException):
-            ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+            ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
         ti = dr.get_task_instances()[0]
         assert ti.state == TaskInstanceState.FAILED
 
