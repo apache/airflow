@@ -1813,7 +1813,6 @@ class TestTaskInstancesLog:
         )
         expected_filename = f"{self.log_dir}/dag_id={self.DAG_ID}/run_id={self.RUN_ID}/task_id={self.TASK_ID}/attempt={try_number}.log"
         log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
-        print("\n\n\n response.json()", response.json())
         assert "[('localhost'," in response.json()["content"]
         assert f"*** Found local files:\\n***   * {expected_filename}\\n" in response.json()["content"]
         assert f"{log_content}')]" in response.json()["content"]
