@@ -17,18 +17,19 @@
 
 from __future__ import annotations
 
-import airflow
-from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.version import VersionInfo
-from airflow.utils.platform import get_airflow_git_version
-
-version_router = AirflowRouter(tags=["Version"], prefix="/version")
+from airflow.sdk.definitions.baseoperator import BaseOperator
+from airflow.sdk.definitions.dag import dag
 
 
-@version_router.get("")
-def get_version() -> VersionInfo:
-    """Get version information."""
-    airflow_version = airflow.__version__
-    git_version = get_airflow_git_version()
-    version_info = VersionInfo(version=airflow_version, git_version=git_version)
-    return VersionInfo.model_validate(version_info)
+class CustomOperator(BaseOperator):
+    def execute(self, context):
+        task_id = context["task_instance"].task_id
+        print(f"Hello World {task_id}!")
+
+
+@dag()
+def super_basic_run():
+    CustomOperator(task_id="hello")
+
+
+super_basic_run()

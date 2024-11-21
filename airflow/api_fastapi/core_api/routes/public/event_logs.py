@@ -61,7 +61,7 @@ def get_event_log(
 
 
 @event_logs_router.get(
-    "/",
+    "",
 )
 def get_event_logs(
     limit: QueryLimit,
@@ -132,7 +132,7 @@ def get_event_logs(
         limit,
         session,
     )
-    event_logs = session.scalars(event_logs_select).all()
+    event_logs = session.scalars(event_logs_select)
 
     return EventLogCollectionResponse(
         event_logs=[
