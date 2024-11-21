@@ -150,10 +150,3 @@ class TaskInstanceHistoryCollectionResponse(BaseModel):
 
     task_instances: list[TaskInstanceHistoryResponse]
     total_entries: int
-
-
-class TaskInstancesLogResponseObject(BaseModel):
-    """Log serializer for responses."""
-
-    content: str
-    continuation_token: str | None
