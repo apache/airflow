@@ -1600,7 +1600,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstanceTryDetails = (
   });
 /**
  * Get Log
- * Get logs for specific task instance.
+ * Get logs for a specific task instance.
  * @param data The data for the request.
  * @param data.dagId
  * @param data.dagRunId

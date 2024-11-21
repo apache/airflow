@@ -24,4 +24,3 @@ class TaskInstancesLogResponse(BaseModel):
 
     content: str
     continuation_token: str | None
-

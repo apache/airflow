@@ -4638,7 +4638,7 @@ paths:
       tags:
       - Task Instance
       summary: Get Log
-      description: Get logs for specific task instance.
+      description: Get logs for a specific task instance.
       operationId: get_log
       parameters:
       - name: dag_id
