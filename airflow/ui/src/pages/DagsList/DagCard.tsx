@@ -73,7 +73,11 @@ export const DagCard = ({ dag }: Props) => {
           <DagTags tags={dag.tags} />
         </HStack>
         <HStack>
-          <TogglePause dagId={dag.dag_id} isPaused={dag.is_paused} />
+          <TogglePause
+            dagDisplayName={dag.dag_display_name}
+            dagId={dag.dag_id}
+            isPaused={dag.is_paused}
+          />
           <TriggerDAGIconButton dag={dag} />
         </HStack>
       </Flex>
