@@ -68,6 +68,9 @@ def get_log(
                 status.HTTP_400_BAD_REQUEST, "Bad Signature. Please use only the tokens provided by the API."
             )
 
+    if task_try_number <= 0:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "task_try_number must be a positive integer")
+
     if metadata.get("download_logs") and metadata["download_logs"]:
         full_content = True
 
@@ -117,10 +120,9 @@ def get_log(
     logs: Any
     if accept == Mimetype.JSON or accept == Mimetype.ANY:  # default
         logs, metadata = task_log_reader.read_log_chunks(ti, task_try_number, metadata)
-        logs = logs[0] if task_try_number is not None else logs
         # we must have token here, so we can safely ignore it
         token = URLSafeSerializer(request.app.state.secret_key).dumps(metadata)  # type: ignore[assignment]
-        return TaskInstancesLogResponse(continuation_token=token, content=str(logs)).model_dump()
+        return TaskInstancesLogResponse(continuation_token=token, content=str(logs[0])).model_dump()
     # text/plain. Stream
     logs = task_log_reader.read_log_stream(ti, task_try_number, metadata)
     return Response(media_type=accept, content="".join(list(logs)))
