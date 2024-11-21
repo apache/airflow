@@ -866,6 +866,7 @@ export type TaskInstanceHistoryResponse = {
  */
 export type TaskInstanceReferenceCollectionResponse = {
   task_instances: Array<TaskInstanceReferenceResponse>;
+  total_entries: number;
 };
 
 /**

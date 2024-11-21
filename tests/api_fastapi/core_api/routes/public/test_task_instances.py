@@ -1836,7 +1836,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             json=payload,
         )
         assert response.status_code == 200
-        assert len(response.json()["task_instances"]) == expected_ti
+        assert response.json()["total_entries"] == expected_ti
 
     @mock.patch("airflow.api_fastapi.core_api.routes.public.task_instances.clear_task_instances")
     def test_clear_taskinstance_is_called_with_queued_dr_state(self, mock_clearti, test_client, session):
@@ -1975,7 +1975,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ]
         for task_instance in expected_response:
             assert task_instance in response.json()["task_instances"]
-        assert 6 == len(response.json()["task_instances"])
+        assert 6 == response.json()["total_entries"]
         assert 0 == failed_dag_runs, 0
 
     def test_should_respond_200_with_dag_run_id(self, test_client, session):
@@ -2033,7 +2033,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             },
         ]
         assert response.json()["task_instances"] == expected_response
-        assert 1 == len(response.json()["task_instances"])
+        assert 1 == response.json()["total_entries"]
 
     def test_should_respond_200_with_include_past(self, test_client, session):
         dag_id = "example_python_operator"
@@ -2121,7 +2121,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ]
         for task_instance in expected_response:
             assert task_instance in response.json()["task_instances"]
-        assert 6 == len(response.json()["task_instances"])
+        assert 6 == response.json()["total_entries"]
 
     def test_should_respond_200_with_include_future(self, test_client, session):
         dag_id = "example_python_operator"
@@ -2210,7 +2210,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ]
         for task_instance in expected_response:
             assert task_instance in response.json()["task_instances"]
-        assert 6 == len(response.json()["task_instances"])
+        assert 6 == response.json()["total_entries"]
 
     def test_should_respond_404_for_nonexistent_dagrun_id(self, test_client, session):
         dag_id = "example_python_operator"

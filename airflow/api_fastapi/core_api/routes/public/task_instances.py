@@ -558,5 +558,6 @@ def post_clear_task_instances(
                 from_attributes=True,
             )
             for ti in task_instances
-        ]
+        ],
+        total_entries=len(task_instances),
     )

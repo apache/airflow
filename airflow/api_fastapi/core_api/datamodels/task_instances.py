@@ -203,3 +203,4 @@ class TaskInstanceReferenceCollectionResponse(BaseModel):
     """Task Instance Reference collection serializer for responses."""
 
     task_instances: list[TaskInstanceReferenceResponse]
+    total_entries: int

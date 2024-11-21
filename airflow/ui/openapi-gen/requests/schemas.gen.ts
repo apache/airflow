@@ -3470,9 +3470,13 @@ export const $TaskInstanceReferenceCollectionResponse = {
       type: "array",
       title: "Task Instances",
     },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
   },
   type: "object",
-  required: ["task_instances"],
+  required: ["task_instances", "total_entries"],
   title: "TaskInstanceReferenceCollectionResponse",
   description: "Task Instance Reference collection serializer for responses.",
 } as const;
