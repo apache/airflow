@@ -33,7 +33,7 @@ from typing import (
     overload,
 )
 
-from fastapi import Depends, HTTPException, Query
+from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
 from sqlalchemy import Column, case, or_
@@ -360,7 +360,13 @@ class TIStateFilter(BaseParam[List[Optional[TaskInstanceState]]]):
         return select.where(or_(*conditions))
 
     def depends(self, state: list[str] = Query(default_factory=list)) -> TIStateFilter:
-        states = _convert_ti_states(state)
+        try:
+            states = _convert_ti_states(state)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid value for state. Valid values are {', '.join(TaskInstanceState)}",
+            )
         return self.set_value(states)
 
 
