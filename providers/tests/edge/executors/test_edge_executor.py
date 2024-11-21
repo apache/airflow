@@ -47,7 +47,7 @@ class TestEdgeExecutor:
         ti = MagicMock()
         ti.pool_slots = pool_slots
         executor = EdgeExecutor()
-        executor.queued_tasks = {key: [None, None, None, ti]}
+        executor.edge_queued_tasks = {key: [None, None, None, ti]}
 
         return (executor, key)
 

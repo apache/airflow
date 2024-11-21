@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Tuple
 
 from sqlalchemy import delete, inspect
 from sqlalchemy.exc import NoSuchTableError
@@ -46,6 +46,9 @@ if TYPE_CHECKING:
     from airflow.executors.base_executor import CommandType
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
+
+    # Task tuple to send to be executed
+    TaskTuple = Tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
@@ -84,6 +87,18 @@ class EdgeExecutor(BaseExecutor):
             EdgeLogsModel.metadata.create_all(engine)
             EdgeWorkerModel.metadata.create_all(engine)
 
+    def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
+        """
+        Hacky overwrite of _process_tasks function.
+
+        Idea is to not change the interface of the execute_async function in BaseExecutor as it will be changed in Airflow 3.
+        Edge worker needs task_instance in execute_async but BaseExecutor deletes this out of the self.queued_tasks.
+        Store queued_tasks in own var to be able to access this in execute_async function.
+        Looking forward to delete this hacky overwrite in the near future.
+        """
+        self.edge_queued_tasks = self.queued_tasks
+        super()._process_tasks(task_tuples)
+
     @provide_session
     def execute_async(
         self,
@@ -95,8 +110,9 @@ class EdgeExecutor(BaseExecutor):
     ) -> None:
         """Execute asynchronously."""
         # Use of a hacky trick to get task instance, will be changed with Airflow 3.0.0
-        # _process_tasks in BaseExecutor calls this function and uses this code to get TI
-        task_instance = self.queued_tasks[key][3]  # TaskInstance in fourth element
+        # code works together with _process_tasks overwrite to get task instance.
+        task_instance = self.edge_queued_tasks[key][3]  # TaskInstance in fourth element
+        del self.edge_queued_tasks[key]
         task_instance.pool_slots
 
         self.validate_airflow_tasks_run_command(command)
