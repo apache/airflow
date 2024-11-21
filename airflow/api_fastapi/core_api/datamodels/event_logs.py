@@ -19,7 +19,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class EventLogResponse(BaseModel):
@@ -36,8 +38,6 @@ class EventLogResponse(BaseModel):
     logical_date: datetime | None
     owner: str | None
     extra: str | None
-
-    model_config = ConfigDict(populate_by_name=True)
 
 
 class EventLogCollectionResponse(BaseModel):

@@ -16,24 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
-
-from pydantic import Field
-
-from airflow.api_fastapi.core_api.base import BaseModel
+from pydantic import BaseModel as PydanticBaseModel, ConfigDict
 
 
-class ImportErrorResponse(BaseModel):
-    """Import Error Response."""
+class BaseModel(PydanticBaseModel):
+    """
+    Base pydantic model for REST API.
 
-    id: int = Field(alias="import_error_id")
-    timestamp: datetime
-    filename: str
-    stacktrace: str = Field(alias="stack_trace")
+    :meta private:
+    """
 
-
-class ImportErrorCollectionResponse(BaseModel):
-    """Import Error Collection Response."""
-
-    import_errors: list[ImportErrorResponse]
-    total_entries: int
+    model_config = ConfigDict(from_attributes=True)

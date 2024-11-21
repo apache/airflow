@@ -70,7 +70,7 @@ def list_backfills(
     backfills = session.scalars(select_stmt)
 
     return BackfillCollectionResponse(
-        backfills=[BackfillResponse.model_validate(b, from_attributes=True) for b in backfills],
+        backfills=backfills,
         total_entries=total_entries,
     )
 
@@ -85,7 +85,7 @@ def get_backfill(
 ) -> BackfillResponse:
     backfill = session.get(Backfill, backfill_id)
     if backfill:
-        return BackfillResponse.model_validate(backfill, from_attributes=True)
+        return BackfillResponse.model_validate(backfill)
     raise HTTPException(status.HTTP_404_NOT_FOUND, "Backfill not found")
 
 
@@ -107,7 +107,7 @@ def pause_backfill(backfill_id, session: Annotated[Session, Depends(get_session)
     if b.is_paused is False:
         b.is_paused = True
     session.commit()
-    return BackfillResponse.model_validate(b, from_attributes=True)
+    return BackfillResponse.model_validate(b)
 
 
 @backfills_router.put(
@@ -127,7 +127,7 @@ def unpause_backfill(backfill_id, session: Annotated[Session, Depends(get_sessio
         raise HTTPException(status.HTTP_409_CONFLICT, "Backfill is already completed.")
     if b.is_paused:
         b.is_paused = False
-    return BackfillResponse.model_validate(b, from_attributes=True)
+    return BackfillResponse.model_validate(b)
 
 
 @backfills_router.put(
@@ -172,7 +172,7 @@ def cancel_backfill(backfill_id, session: Annotated[Session, Depends(get_session
     # this is in separate transaction just to avoid potential conflicts
     session.refresh(b)
     b.completed_at = timezone.utcnow()
-    return BackfillResponse.model_validate(b, from_attributes=True)
+    return BackfillResponse.model_validate(b)
 
 
 @backfills_router.post(
@@ -199,7 +199,7 @@ def create_backfill(
             dag_run_conf=backfill_request.dag_run_conf,
             reprocess_behavior=backfill_request.reprocess_behavior,
         )
-        return BackfillResponse.model_validate(backfill_obj, from_attributes=True)
+        return BackfillResponse.model_validate(backfill_obj)
     except AlreadyRunningBackfill:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

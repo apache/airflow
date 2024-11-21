@@ -78,7 +78,7 @@ def get_pool(
     if pool is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Pool with name: `{pool_name}` was not found")
 
-    return PoolResponse.model_validate(pool, from_attributes=True)
+    return PoolResponse.model_validate(pool)
 
 
 @pools_router.get(
@@ -106,7 +106,7 @@ def get_pools(
     pools = session.scalars(pools_select)
 
     return PoolCollectionResponse(
-        pools=[PoolResponse.model_validate(pool, from_attributes=True) for pool in pools],
+        pools=pools,
         total_entries=total_entries,
     )
 
@@ -155,7 +155,7 @@ def patch_pool(
     for key, value in data.items():
         setattr(pool, key, value)
 
-    return PoolResponse.model_validate(pool, from_attributes=True)
+    return PoolResponse.model_validate(pool)
 
 
 @pools_router.post(
@@ -172,8 +172,7 @@ def post_pool(
     """Create a Pool."""
     pool = Pool(**body.model_dump())
     session.add(pool)
-
-    return PoolResponse.model_validate(pool, from_attributes=True)
+    return pool
 
 
 @pools_router.post(
@@ -193,6 +192,6 @@ def post_pools(
     pools = [Pool(**body.model_dump()) for body in body.pools]
     session.add_all(pools)
     return PoolCollectionResponse(
-        pools=[PoolResponse.model_validate(pool, from_attributes=True) for pool in pools],
+        pools=pools,
         total_entries=len(pools),
     )

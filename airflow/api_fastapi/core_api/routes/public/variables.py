@@ -68,7 +68,7 @@ def get_variable(
             status.HTTP_404_NOT_FOUND, f"The Variable with key: `{variable_key}` was not found"
         )
 
-    return VariableResponse.model_validate(variable, from_attributes=True)
+    return VariableResponse.model_validate(variable)
 
 
 @variables_router.get(
@@ -100,7 +100,7 @@ def get_variables(
     variables = session.scalars(variable_select)
 
     return VariableCollectionResponse(
-        variables=[VariableResponse.model_validate(variable, from_attributes=True) for variable in variables],
+        variables=variables,
         total_entries=total_entries,
     )
 
@@ -139,7 +139,7 @@ def patch_variable(
         data = patch_body.model_dump(exclude=non_update_fields, by_alias=True, exclude_none=True)
     for key, val in data.items():
         setattr(variable, key, val)
-    return VariableResponse.model_validate(variable, from_attributes=True)
+    return VariableResponse.model_validate(variable)
 
 
 @variables_router.post(
@@ -155,4 +155,4 @@ def post_variable(
 
     variable = session.scalar(select(Variable).where(Variable.key == post_body.key).limit(1))
 
-    return VariableResponse.model_validate(variable, from_attributes=True)
+    return VariableResponse.model_validate(variable)
