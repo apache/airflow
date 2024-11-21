@@ -152,7 +152,6 @@ class TaskInstanceHistoryCollectionResponse(BaseModel):
     total_entries: int
 
 
-# Response Models
 class TaskInstancesLogResponseObject(BaseModel):
     """Log serializer for responses."""
 
