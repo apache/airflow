@@ -3992,8 +3992,6 @@ paths:
         in: path
         required: true
         schema:
-          enum:
-          - '~'
           const: '~'
           type: string
           title: Dag Id
@@ -4001,8 +3999,6 @@ paths:
         in: path
         required: true
         schema:
-          enum:
-          - '~'
           const: '~'
           type: string
           title: Dag Run Id
