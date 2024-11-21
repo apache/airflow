@@ -102,6 +102,7 @@ def get_assets(
         limit=limit,
         session=session,
     )
+
     assets = session.scalars(
         assets_select.options(
             subqueryload(AssetModel.consuming_dags), subqueryload(AssetModel.producing_tasks)
@@ -211,7 +212,7 @@ def get_asset_queued_events(
         .where(*where_clause)
     )
 
-    dag_asset_queued_events_select, total_entries = paginated_select(select=query, filters=[])
+    dag_asset_queued_events_select, total_entries = paginated_select(select=query)
     adrqs = session.execute(dag_asset_queued_events_select).all()
 
     if not adrqs:
@@ -270,9 +271,8 @@ def get_dag_asset_queued_events(
         .where(*where_clause)
     )
 
-    dag_asset_queued_events_select, total_entries = paginated_select(select=query, filters=[])
+    dag_asset_queued_events_select, total_entries = paginated_select(select=query)
     adrqs = session.execute(dag_asset_queued_events_select).all()
-
     if not adrqs:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with dag_id: `{dag_id}` was not found")
 

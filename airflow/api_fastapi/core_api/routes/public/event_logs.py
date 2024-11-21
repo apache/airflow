@@ -126,7 +126,6 @@ def get_event_logs(
         base_select = base_select.where(Log.dttm > after)
     event_logs_select, total_entries = paginated_select(
         select=base_select,
-        filters=[],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -135,12 +134,6 @@ def get_event_logs(
     event_logs = session.scalars(event_logs_select)
 
     return EventLogCollectionResponse(
-        event_logs=[
-            EventLogResponse.model_validate(
-                event_log,
-                from_attributes=True,
-            )
-            for event_log in event_logs
-        ],
+        event_logs=[EventLogResponse.model_validate(e, from_attributes=True) for e in event_logs],
         total_entries=total_entries,
     )

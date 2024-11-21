@@ -96,7 +96,6 @@ def get_pools(
     """Get all pools entries."""
     pools_select, total_entries = paginated_select(
         select=select(Pool),
-        filters=[],
         order_by=order_by,
         offset=offset,
         limit=limit,

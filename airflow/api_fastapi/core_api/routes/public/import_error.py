@@ -90,7 +90,6 @@ def get_import_errors(
     """Get all import errors."""
     import_errors_select, total_entries = paginated_select(
         select=select(ParseImportError),
-        filters=[],
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -99,8 +98,6 @@ def get_import_errors(
     import_errors = session.scalars(import_errors_select)
 
     return ImportErrorCollectionResponse(
-        import_errors=[
-            ImportErrorResponse.model_validate(error, from_attributes=True) for error in import_errors
-        ],
+        import_errors=[ImportErrorResponse.model_validate(i, from_attributes=True) for i in import_errors],
         total_entries=total_entries,
     )
