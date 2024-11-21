@@ -375,11 +375,7 @@ class ExecutorSafeguard:
             else:
                 sentinel = callers.pop(f"{func.__qualname__.split('.')[0]}__sentinel", None)
 
-            if (
-                not cls.test_mode
-                and not sentinel == _sentinel
-                and not isinstance(self, DecoratedOperator)
-            ):
+            if not cls.test_mode and not sentinel == _sentinel and not isinstance(self, DecoratedOperator):
                 message = f"{self.__class__.__name__}.{func.__name__} cannot be called outside TaskInstance!"
                 if not self.allow_nested_operators:
                     raise AirflowException(message)
