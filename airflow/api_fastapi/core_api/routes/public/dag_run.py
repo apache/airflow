@@ -357,7 +357,7 @@ def get_dag_runs_batch(body: DAGRunsBatchBody, session: Annotated[Session, Depen
         session,
     )
 
-    dag_runs = session.scalars(dag_runs_select).all()
+    dag_runs = session.scalars(dag_runs_select)
 
     return DAGRunCollectionResponse(
         dag_runs=[DAGRunResponse.model_validate(dag_run, from_attributes=True) for dag_run in dag_runs],
