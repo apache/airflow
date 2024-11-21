@@ -25,7 +25,3 @@ class TaskInstancesLogResponse(BaseModel):
     content: str
     continuation_token: str | None
 
-    @property
-    def text_format(self):
-        # convert all config sections to text
-        return "".join(list(self.content))
