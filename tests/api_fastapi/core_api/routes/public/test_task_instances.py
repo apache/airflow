@@ -1809,7 +1809,6 @@ class TestTaskInstancesLog:
             f"public/dags/{self.DAG_ID}/dagRuns/{self.RUN_ID}/taskInstances/{self.TASK_ID}/logs/{try_number}",
             params={"token": token},
             headers={"Accept": "application/json"},
-            # environ_overrides={"REMOTE_USER": "test"},
         )
         expected_filename = f"{self.log_dir}/dag_id={self.DAG_ID}/run_id={self.RUN_ID}/task_id={self.TASK_ID}/attempt={try_number}.log"
         log_content = "Log for testing." if try_number == 1 else "Log for testing 2."
