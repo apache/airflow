@@ -1941,7 +1941,6 @@ class TestTaskInstancesLog:
             params={"token": token},
             # environ_overrides={"REMOTE_USER": "test"},
         )
-        print("response.json(): ", response.json())
         assert response.status_code == 404
         assert response.json() == {"detail": "TaskInstance not found"}
 
