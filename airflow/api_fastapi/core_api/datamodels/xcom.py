@@ -49,3 +49,10 @@ class XComResponseString(XComResponse):
     @field_validator("value", mode="before")
     def value_to_string(cls, v):
         return str(v) if v is not None else None
+
+class XComCollection(BaseModel):
+    """List of XCom items."""
+
+    xcom_entries: List[XComResponse]
+    total_entries: int
+

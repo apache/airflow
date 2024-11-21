@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.XCOM)
 @format_parameters({"limit": check_limit})
 @provide_session
@@ -68,7 +69,7 @@ def get_xcom_entries(
     else:
         query = query.where(XCom.dag_id == dag_id)
         query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.run_id == DR.run_id))
-
+    
     if task_id != "~":
         query = query.where(XCom.task_id == task_id)
     if dag_run_id != "~":
