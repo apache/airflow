@@ -28,7 +28,9 @@ export default defineConfig({
     {
       name: "transform-url-src",
       transformIndexHtml: (html) =>
-        html.replace(`src="/assets/`, `src="/static/assets/`),
+        html
+          .replace(`src="/assets/`, `src="/static/assets/`)
+          .replace(`href="/`, `href="/webapp/`),
     },
   ],
   resolve: { alias: { openapi: "/openapi-gen", src: "/src" } },
