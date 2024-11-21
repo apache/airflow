@@ -59,6 +59,7 @@ def apply_filters_to_select(base_select: Select, filters: Sequence[BaseParam | N
 
 @provide_session
 def paginated_select(
+    *,
     base_select: Select,
     filters: Sequence[BaseParam],
     order_by: BaseParam | None = None,
