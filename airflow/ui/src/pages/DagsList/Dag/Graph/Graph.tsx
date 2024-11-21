@@ -59,19 +59,10 @@ export const Graph = () => {
         nodesDraggable={false}
         nodeTypes={nodeTypes}
         onlyRenderVisibleElements
-        // fitViewOptions={{
-        //   nodes: selected.taskId ? [{ id: selected.taskId }] : undefined,
-        // }}
       >
         <Background />
         <Controls showInteractive={false} />
-        <MiniMap
-          // nodeColor={nodeColor}
-          // nodeStrokeColor={(props) => nodeStrokeColor(props, colors)}
-          nodeStrokeWidth={15}
-          pannable
-          zoomable
-        />
+        <MiniMap nodeStrokeWidth={15} pannable zoomable />
       </ReactFlow>
     </Flex>
   );

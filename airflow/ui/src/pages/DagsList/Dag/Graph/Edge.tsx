@@ -36,21 +36,6 @@ const CustomEdge = ({ data }: Props) => {
     return undefined;
   }
   const { rest } = data;
-  // We can not actually say an asset is upstream of a particular task so do not render the edge
-  // if (rest.isSourceAsset) {
-  //   return null;
-  // }
-  const strokeWidth = 1;
-
-  // if (rest.isSelected) {
-  //   strokeWidth = 3;
-  // }
-  // if (rest.isZoomedOut) {
-  //   strokeWidth = 5;
-  // }
-  // if (rest.isZoomedOut && rest.isSelected) {
-  //   strokeWidth = 7;
-  // }
 
   return (
     <>
@@ -84,7 +69,7 @@ const CustomEdge = ({ data }: Props) => {
           key={section.id}
           stroke={colorMode === "dark" ? darkStroke : lightStroke}
           strokeDasharray={rest.isSetupTeardown ? "10,5" : undefined}
-          strokeWidth={strokeWidth}
+          strokeWidth={1}
           x={(point: ElkPoint) => point.x}
           y={(point: ElkPoint) => point.y}
         />
