@@ -968,6 +968,14 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 404
         assert response.json() == {"detail": "DagRun with run_id: `invalid` was not found"}
 
+    def test_bad_state(self, test_client):
+        response = test_client.get("/public/dags/~/dagRuns/~/taskInstances", params={"state": "invalid"})
+        assert response.status_code == 422
+        assert (
+            response.json()["detail"]
+            == f"Invalid value for state. Valid values are {', '.join(TaskInstanceState)}"
+        )
+
     @pytest.mark.xfail(reason="permissions not implemented yet.")
     def test_return_TI_only_from_readable_dags(self, test_client, session):
         task_instances = {
