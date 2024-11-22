@@ -163,7 +163,7 @@ def patch_pool(
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc(
         [status.HTTP_409_CONFLICT]
-    ),  # handle by global exception handler
+    ),  # handled by global exception handler
 )
 def post_pool(
     body: PoolPostBody,
@@ -181,7 +181,7 @@ def post_pool(
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc(
         [
-            status.HTTP_409_CONFLICT,  # handle by global exception handler
+            status.HTTP_409_CONFLICT,  # handled by global exception handler
         ]
     ),
 )

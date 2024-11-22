@@ -23,7 +23,7 @@ from typing import Generic, TypeVar
 from fastapi import HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
 
-T = TypeVar("T")
+T = TypeVar("T", bound=Exception)
 
 
 class BaseErrorHandler(Generic[T], ABC):
