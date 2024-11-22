@@ -1604,7 +1604,7 @@ class TestBigQueryAsyncHookMethods:
         expected_query_request = {
             "query": "SELECT partition_id "
             f"FROM `{PROJECT_ID}.{DATASET_ID}.INFORMATION_SCHEMA.PARTITIONS`"
-            f" WHERE table_id={TABLE_ID}",
+            f" WHERE table_name='{TABLE_ID}'",
             "useLegacySql": False,
         }
         await hook.create_job_for_partition_get(

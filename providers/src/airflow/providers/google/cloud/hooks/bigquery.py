@@ -2095,7 +2095,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             query_request = {
                 "query": "SELECT partition_id "
                 f"FROM `{project_id}.{dataset_id}.INFORMATION_SCHEMA.PARTITIONS`"
-                + (f" WHERE table_id={table_id}" if table_id else ""),
+                + (f" WHERE table_name='{table_id}'" if table_id else ""),
                 "useLegacySql": False,
             }
             job_query_resp = await job_client.query(query_request, cast(Session, session))
