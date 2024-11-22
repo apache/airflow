@@ -415,7 +415,7 @@ DEPENDENCIES = [
     "pluggy>=1.5.0",
     "psutil>=5.8.0",
     # https://github.com/pydantic/pydantic/issues/10910
-    "pydantic>=2.7.0,!=2.10.0",
+    "pydantic>=2.10.1",
     "pygments>=2.0.1",
     "pyjwt>=2.0.0",
     "python-daemon>=3.0.0",

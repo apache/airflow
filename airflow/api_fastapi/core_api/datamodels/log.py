@@ -16,15 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.routes.ui.assets import assets_router
-from airflow.api_fastapi.core_api.routes.ui.config import config_router
-from airflow.api_fastapi.core_api.routes.ui.dags import dags_router
-from airflow.api_fastapi.core_api.routes.ui.dashboard import dashboard_router
+from pydantic import BaseModel
 
-ui_router = AirflowRouter(prefix="/ui")
 
-ui_router.include_router(assets_router)
-ui_router.include_router(dashboard_router)
-ui_router.include_router(dags_router)
-ui_router.include_router(config_router)
+class TaskInstancesLogResponse(BaseModel):
+    """Log serializer for responses."""
+
+    content: str
+    continuation_token: str | None

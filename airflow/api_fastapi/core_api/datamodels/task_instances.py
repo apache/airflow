@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import (
     AliasPath,
@@ -27,6 +27,8 @@ from pydantic import (
     ConfigDict,
     Field,
     NonNegativeInt,
+    ValidationError,
+    model_validator,
 )
 
 from airflow.api_fastapi.core_api.datamodels.job import JobResponse
@@ -149,4 +151,55 @@ class TaskInstanceHistoryCollectionResponse(BaseModel):
     """TaskInstanceHistory Collection serializer for responses."""
 
     task_instances: list[TaskInstanceHistoryResponse]
+    total_entries: int
+
+
+class ClearTaskInstancesBody(BaseModel):
+    """Request body for Clear Task Instances endpoint."""
+
+    dry_run: bool = True
+    start_date: AwareDatetime | None = None
+    end_date: AwareDatetime | None = None
+    only_failed: bool = True
+    only_running: bool = False
+    reset_dag_runs: bool = False
+    task_ids: list[str] | None = None
+    dag_run_id: str | None = None
+    include_upstream: bool = False
+    include_downstream: bool = False
+    include_future: bool = False
+    include_past: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_model(cls, data: Any) -> Any:
+        """Validate clear task instance form."""
+        if data.get("only_failed") and data.get("only_running"):
+            raise ValidationError("only_failed and only_running both are set to True")
+        if data.get("start_date") and data.get("end_date"):
+            if data.get("start_date") > data.get("end_date"):
+                raise ValidationError("end_date is sooner than start_date")
+        if data.get("start_date") and data.get("end_date") and data.get("dag_run_id"):
+            raise ValidationError("Exactly one of dag_run_id or (start_date and end_date) must be provided")
+        if data.get("start_date") and data.get("dag_run_id"):
+            raise ValidationError("Exactly one of dag_run_id or start_date must be provided")
+        if data.get("end_date") and data.get("dag_run_id"):
+            raise ValidationError("Exactly one of dag_run_id or end_date must be provided")
+        if isinstance(data.get("task_ids"), list) and len(data.get("task_ids")) < 1:
+            raise ValidationError("task_ids list should have at least 1 element.")
+        return data
+
+
+class TaskInstanceReferenceResponse(BaseModel):
+    """Task Instance Reference serializer for responses."""
+
+    task_id: str
+    dag_run_id: str = Field(validation_alias="run_id")
+    dag_id: str
+
+
+class TaskInstanceReferenceCollectionResponse(BaseModel):
+    """Task Instance Reference collection serializer for responses."""
+
+    task_instances: list[TaskInstanceReferenceResponse]
     total_entries: int
