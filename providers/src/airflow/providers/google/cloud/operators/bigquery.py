@@ -2594,13 +2594,13 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
         )
 
     def _handle_job_error(self, job: BigQueryJob | UnknownJob) -> None:
-        self.log.debug("Job %s is completed. checking the job status", self.job_id)
+        self.log.debug("Job %s is completed. Checking the job status", self.job_id)
         # I've noticed that sometimes BigQuery jobs transiently report the wrong status, causing the Airflow job to be incorrectly marked as successful.
         # To avoid this, we refresh the job properties before checking the final state and handling any errors.
-        while job.state != 'DONE':
+        while job.state != "DONE":
             job.reload(timeout=self.result_timeout, retry=self.result_retry)
         # Log any transient errors encountered during the job execution
-        for error in job.errors:
+        for error in job.errors or []:
             self.log.error("BigQuery Job Error:", error)
         if job.error_result:
             raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
