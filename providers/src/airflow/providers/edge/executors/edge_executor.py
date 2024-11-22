@@ -90,12 +90,11 @@ class EdgeExecutor(BaseExecutor):
 
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
         """
-        Hacky overwrite of _process_tasks function.
+        Temponary overwrite of _process_tasks function.
 
         Idea is to not change the interface of the execute_async function in BaseExecutor as it will be changed in Airflow 3.
         Edge worker needs task_instance in execute_async but BaseExecutor deletes this out of the self.queued_tasks.
         Store queued_tasks in own var to be able to access this in execute_async function.
-        Looking forward to delete this hacky overwrite in the near future.
         """
         self.edge_queued_tasks = deepcopy(self.queued_tasks)
         super()._process_tasks(task_tuples)
@@ -110,11 +109,10 @@ class EdgeExecutor(BaseExecutor):
         session: Session = NEW_SESSION,
     ) -> None:
         """Execute asynchronously."""
-        # Use of a hacky trick to get task instance, will be changed with Airflow 3.0.0
+        # Use of a temponary trick to get task instance, will be changed with Airflow 3.0.0
         # code works together with _process_tasks overwrite to get task instance.
         task_instance = self.edge_queued_tasks[key][3]  # TaskInstance in fourth element
         del self.edge_queued_tasks[key]
-        task_instance.pool_slots
 
         self.validate_airflow_tasks_run_command(command)
         session.add(
