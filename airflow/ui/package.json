@@ -24,10 +24,14 @@
     "@tanstack/react-table": "^8.20.1",
     "@uiw/codemirror-themes-all": "^4.23.5",
     "@uiw/react-codemirror": "^4.23.5",
+    "@visx/group": "^3.12.0",
+    "@visx/shape": "^3.12.0",
+    "@xyflow/react": "^12.3.5",
     "axios": "^1.7.7",
     "chakra-react-select": "6.0.0-next.2",
     "chart.js": "^4.4.6",
     "dayjs": "^1.11.13",
+    "elkjs": "^0.9.3",
     "next-themes": "^0.3.0",
     "react": "^18.3.1",
     "react-chartjs-2": "^5.2.0",
@@ -69,6 +73,8 @@
     "typescript": "~5.5.4",
     "typescript-eslint": "^8.5.0",
     "vite": "^5.4.6",
-    "vitest": "^2.1.1"
+    "vite-plugin-css-injected-by-js": "^3.5.2",
+    "vitest": "^2.1.1",
+    "web-worker": "^1.3.0"
   }
 }

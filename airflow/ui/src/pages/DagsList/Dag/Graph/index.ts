@@ -16,27 +16,5 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Dialog as ChakraDialog } from "@chakra-ui/react";
-import { forwardRef } from "react";
 
-import { CloseButton, type CloseButtonProps } from "../CloseButton";
-
-type Props = {
-  closeButtonProps?: CloseButtonProps;
-} & ChakraDialog.CloseTriggerProps;
-
-export const CloseTrigger = forwardRef<HTMLButtonElement, Props>(
-  ({ children, closeButtonProps, ...rest }, ref) => (
-    <ChakraDialog.CloseTrigger
-      insetEnd="2"
-      position="absolute"
-      top="2"
-      {...rest}
-      asChild
-    >
-      <CloseButton ref={ref} size="sm" {...closeButtonProps}>
-        {children}
-      </CloseButton>
-    </ChakraDialog.CloseTrigger>
-  ),
-);
+export * from "./Graph";
