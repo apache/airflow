@@ -2958,6 +2958,7 @@ export const $PoolPostBody = {
   properties: {
     name: {
       type: "string",
+      maxLength: 256,
       title: "Name",
     },
     slots: {
@@ -2985,6 +2986,22 @@ export const $PoolPostBody = {
   required: ["name", "slots"],
   title: "PoolPostBody",
   description: "Pool serializer for post bodies.",
+} as const;
+
+export const $PoolPostBulkBody = {
+  properties: {
+    pools: {
+      items: {
+        $ref: "#/components/schemas/PoolPostBody",
+      },
+      type: "array",
+      title: "Pools",
+    },
+  },
+  type: "object",
+  required: ["pools"],
+  title: "PoolPostBulkBody",
+  description: "Pools serializer for post bodies.",
 } as const;
 
 export const $PoolResponse = {
