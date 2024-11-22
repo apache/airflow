@@ -119,7 +119,7 @@ async def paginated_select_async(
     return_total_entries: bool = True,
 ) -> tuple[Select, int | None]:
     query = apply_filters_to_select(
-        base_select=query,
+        query=query,
         filters=filters,
     )
 
@@ -133,7 +133,7 @@ async def paginated_select_async(
     # dags_select = dags_select.where(DagModel.dag_id.in_(readable_dags))
 
     query = apply_filters_to_select(
-        base_select=query,
+        query=query,
         filters=[order_by, offset, limit],
     )
 
