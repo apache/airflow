@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import Depends, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
@@ -192,6 +192,6 @@ def post_pools(
     pools = [Pool(**body.model_dump()) for body in body.pools]
     session.add_all(pools)
     return PoolCollectionResponse(
-        pools=pools,
+        pools=cast(list[PoolResponse], pools),
         total_entries=len(pools),
     )
