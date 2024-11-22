@@ -91,7 +91,6 @@ def get_variables(
     """Get all Variables entries."""
     variable_select, total_entries = paginated_select(
         select=select(Variable),
-        filters=[],
         order_by=order_by,
         offset=offset,
         limit=limit,

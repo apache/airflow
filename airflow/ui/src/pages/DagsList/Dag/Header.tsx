@@ -52,7 +52,11 @@ export const Header = ({
           <DagIcon height={8} width={8} />
           <Heading size="lg">{dag?.dag_display_name ?? dagId}</Heading>
           {dag !== undefined && (
-            <TogglePause dagId={dag.dag_id} isPaused={dag.is_paused} />
+            <TogglePause
+              dagDisplayName={dag.dag_display_name}
+              dagId={dag.dag_id}
+              isPaused={dag.is_paused}
+            />
           )}
         </HStack>
         <Flex>{dag ? <TriggerDAGTextButton dag={dag} /> : undefined}</Flex>
