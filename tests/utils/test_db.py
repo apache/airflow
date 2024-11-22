@@ -264,4 +264,4 @@ class TestDb:
         t = Table("t", MetaData(), Column("id", Integer, primary_key=True))
         lss = LazySelectSequence.from_select(select(t.c.id), order_by=[], session=MockSession())
 
-        assert not bool(lss)
+        assert bool(lss) is False
