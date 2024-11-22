@@ -29,6 +29,11 @@ import type {
   HistoricalMetricsResponse,
   RecentDagRunsData,
   RecentDagRunsResponse,
+  GetConfigsResponse,
+  GetConfigData,
+  GetConfigResponse,
+  GetConfigValueData,
+  GetConfigValueResponse,
   ListBackfillsData,
   ListBackfillsResponse,
   CreateBackfillData,
@@ -69,10 +74,6 @@ import type {
   GetDagSourceResponse,
   GetDagStatsData,
   GetDagStatsResponse,
-  GetConfigData,
-  GetConfigResponse,
-  GetConfigValueData,
-  GetConfigValueResponse,
   ListDagWarningsData,
   ListDagWarningsResponse,
   GetDagsData,
@@ -131,6 +132,8 @@ import type {
   GetTaskInstanceTryDetailsResponse,
   GetMappedTaskInstanceTryDetailsData,
   GetMappedTaskInstanceTryDetailsResponse,
+  PostClearTaskInstancesData,
+  PostClearTaskInstancesResponse,
   GetLogData,
   GetLogResponse,
   GetTasksData,
@@ -552,6 +555,86 @@ export class DagsService {
         last_dag_run_state: data.lastDagRunState,
       },
       errors: {
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class ConfigService {
+  /**
+   * Get Configs
+   * Get configs for UI.
+   * @returns ConfigResponse Successful Response
+   * @throws ApiError
+   */
+  public static getConfigs(): CancelablePromise<GetConfigsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/config",
+      errors: {
+        404: "Not Found",
+      },
+    });
+  }
+
+  /**
+   * Get Config
+   * @param data The data for the request.
+   * @param data.section
+   * @param data.accept
+   * @returns Config Successful Response
+   * @throws ApiError
+   */
+  public static getConfig(
+    data: GetConfigData = {},
+  ): CancelablePromise<GetConfigResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/config",
+      headers: {
+        accept: data.accept,
+      },
+      query: {
+        section: data.section,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        406: "Not Acceptable",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Config Value
+   * @param data The data for the request.
+   * @param data.section
+   * @param data.option
+   * @param data.accept
+   * @returns Config Successful Response
+   * @throws ApiError
+   */
+  public static getConfigValue(
+    data: GetConfigValueData,
+  ): CancelablePromise<GetConfigValueResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/config/section/{section}/option/{option}",
+      path: {
+        section: data.section,
+        option: data.option,
+      },
+      headers: {
+        accept: data.accept,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        406: "Not Acceptable",
         422: "Validation Error",
       },
     });
@@ -1156,70 +1239,6 @@ export class DagStatsService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-}
-
-export class ConfigService {
-  /**
-   * Get Config
-   * @param data The data for the request.
-   * @param data.section
-   * @param data.accept
-   * @returns Config Successful Response
-   * @throws ApiError
-   */
-  public static getConfig(
-    data: GetConfigData = {},
-  ): CancelablePromise<GetConfigResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/config",
-      headers: {
-        accept: data.accept,
-      },
-      query: {
-        section: data.section,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        406: "Not Acceptable",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Get Config Value
-   * @param data The data for the request.
-   * @param data.section
-   * @param data.option
-   * @param data.accept
-   * @returns Config Successful Response
-   * @throws ApiError
-   */
-  public static getConfigValue(
-    data: GetConfigValueData,
-  ): CancelablePromise<GetConfigValueResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/config/section/{section}/option/{option}",
-      path: {
-        section: data.section,
-        option: data.option,
-      },
-      headers: {
-        accept: data.accept,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        406: "Not Acceptable",
         422: "Validation Error",
       },
     });
@@ -2208,6 +2227,35 @@ export class TaskInstanceService {
         task_try_number: data.taskTryNumber,
         map_index: data.mapIndex,
       },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Post Clear Task Instances
+   * Clear task instances.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.requestBody
+   * @returns TaskInstanceReferenceCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static postClearTaskInstances(
+    data: PostClearTaskInstancesData,
+  ): CancelablePromise<PostClearTaskInstancesResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/dags/{dag_id}/clearTaskInstances",
+      path: {
+        dag_id: data.dagId,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
       errors: {
         401: "Unauthorized",
         403: "Forbidden",
