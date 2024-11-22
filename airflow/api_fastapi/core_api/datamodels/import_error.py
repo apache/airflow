@@ -18,13 +18,15 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class ImportErrorResponse(BaseModel):
     """Import Error Response."""
+
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
     id: int = Field(alias="import_error_id")
     timestamp: datetime
