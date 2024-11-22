@@ -142,7 +142,7 @@ class TestGetJobs(TestJobEndpoint):
     ):
         # setup testcase at runtime based on the `testcase` parameter
         self.setup(testcase)
-        response = test_client.get("/public/jobs/", params=query_params)
+        response = test_client.get("/public/jobs", params=query_params)
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
             return

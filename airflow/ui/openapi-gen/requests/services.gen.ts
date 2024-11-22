@@ -1677,7 +1677,7 @@ export class JobService {
   ): CancelablePromise<GetJobsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/jobs/",
+      url: "/public/jobs",
       query: {
         is_alive: data.isAlive,
         start_date_gte: data.startDateGte,

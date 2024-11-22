@@ -3000,7 +3000,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/jobs/:
+  /public/jobs:
     get:
       tags:
       - Job

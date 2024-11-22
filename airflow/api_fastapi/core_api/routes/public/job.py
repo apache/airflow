@@ -49,7 +49,7 @@ job_router = AirflowRouter(tags=["Job"], prefix="/jobs")
 
 
 @job_router.get(
-    "/",
+    "",
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]),
 )
 def get_jobs(

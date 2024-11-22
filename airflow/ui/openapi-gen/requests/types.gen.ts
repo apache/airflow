@@ -3104,7 +3104,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/jobs/": {
+  "/public/jobs": {
     get: {
       req: GetJobsData;
       res: {
