@@ -2685,6 +2685,15 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
             job.result(timeout=self.result_timeout, retry=self.result_retry)
             self._handle_job_error(job)
 
+            while job.state in ("PENDING", "RUNNING"):
+                job.result(timeout=self.result_timeout, retry=self.result_retry)
+                self._handle_job_error(job)
+                job = hook.get_job(
+                    project_id=self.project_id,
+                    location=self.location,
+                    job_id=self.job_id,
+                )
+
             return self.job_id
         else:
             if job.running():

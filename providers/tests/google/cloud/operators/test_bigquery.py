@@ -849,6 +849,73 @@ class TestBigQueryInsertJobOperator:
         assert result == real_job_id
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryJob")
+    def test_execute_task_transitions_from_running_to_completed(self, mock_job, mock_hook):
+        job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+
+        mock_job.job_id = real_job_id
+        mock_job.error_result = False
+        mock_job.state = "RUNNING"
+
+        mock_hook.return_value.insert_job.return_value = mock_job
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
+
+        job_running = MagicMock(
+            job_id=real_job_id,
+            error_result=None,
+            state="RUNNING",
+            done=lambda: False,
+        )
+        job_completed = MagicMock(
+            job_id=real_job_id,
+            error_result=None,
+            state="COMPLETED",
+            done=lambda: True,
+        )
+
+        # Simulate the sequence of job states when `get_job` is called
+        mock_hook.return_value.get_job.side_effect = [job_running, job_completed]
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
+
+        # Instantiate the operator and execute
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        result = op.execute(context=MagicMock())
+
+        # Validate the number of calls
+        assert mock_hook.return_value.get_job.call_count == 2
+        assert job_running.result.call_count == 1
+        assert job_completed.result.call_count == 0
+
+        mock_hook.return_value.get_job.assert_any_call(
+            location=TEST_DATASET_LOCATION,
+            job_id=real_job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+
+        job_running.result.assert_called_once_with(
+            retry=DEFAULT_RETRY,
+            timeout=None,
+        )
+
+        # Validate the final result
+        assert result == real_job_id
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute_copy_success(self, mock_hook):
         job_id = "123456"
         hash_ = "hash"
@@ -1004,13 +1071,20 @@ class TestBigQueryInsertJobOperator:
         }
 
         mock_hook.return_value.insert_job.side_effect = Conflict("any")
-        job = MagicMock(
+        job_running = MagicMock(
             job_id=real_job_id,
             error_result=False,
             state="RUNNING",
             done=lambda: False,
         )
-        mock_hook.return_value.get_job.return_value = job
+        job_completed = MagicMock(
+            job_id=real_job_id,
+            error_result=False,
+            state="COMPLETED",
+            done=lambda: True,
+        )
+
+        mock_hook.return_value.get_job.side_effect = [job_running, job_completed]
         mock_hook.return_value.generate_job_id.return_value = real_job_id
 
         op = BigQueryInsertJobOperator(
@@ -1023,13 +1097,17 @@ class TestBigQueryInsertJobOperator:
         )
         result = op.execute(context=MagicMock())
 
-        mock_hook.return_value.get_job.assert_called_once_with(
+        assert mock_hook.return_value.get_job.call_count == 2
+        assert job_running.result.call_count == 2
+        assert job_completed.result.call_count == 0
+
+        mock_hook.return_value.get_job.assert_any_call(
             location=TEST_DATASET_LOCATION,
             job_id=real_job_id,
             project_id=TEST_GCP_PROJECT_ID,
         )
 
-        job.result.assert_called_once_with(
+        job_running.result.assert_any_call(
             retry=DEFAULT_RETRY,
             timeout=None,
         )
