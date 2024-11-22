@@ -76,6 +76,8 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - Sensors
      - Guides
 
+   * - :mod:`airflow.sensors.base`
+     -
 
 **Hooks:**
 
