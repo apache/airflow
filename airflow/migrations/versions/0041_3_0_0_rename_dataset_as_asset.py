@@ -286,13 +286,6 @@ def upgrade():
         )
 
         batch_op.create_foreign_key(
-            constraint_name="toar_asset_fkey",
-            referent_table="asset",
-            local_cols=["asset_id"],
-            remote_cols=["id"],
-            ondelete="CASCADE",
-        )
-        batch_op.create_foreign_key(
             constraint_name="toar_dag_id_fkey",
             referent_table="dag",
             local_cols=["dag_id"],
@@ -321,13 +314,6 @@ def upgrade():
             unique=False,
         )
 
-        batch_op.create_foreign_key(
-            constraint_name="adrq_asset_fkey",
-            referent_table="asset",
-            local_cols=["asset_id"],
-            remote_cols=["id"],
-            ondelete="CASCADE",
-        )
         batch_op.create_foreign_key(
             constraint_name="adrq_dag_fkey",
             referent_table="dag",
@@ -565,7 +551,7 @@ def downgrade():
     with op.batch_alter_table("task_outlet_dataset_reference", schema=None) as batch_op:
         batch_op.alter_column("asset_id", new_column_name="dataset_id", type_=sa.Integer(), nullable=False)
 
-        batch_op.drop_constraint("toar_asset_fkey", type_="foreignkey")
+        # batch_op.drop_constraint("toar_asset_fkey", type_="foreignkey")
         batch_op.drop_constraint("toar_dag_id_fkey", type_="foreignkey")
 
         _rename_index(
@@ -600,7 +586,7 @@ def downgrade():
     with op.batch_alter_table("dataset_dag_run_queue", schema=None) as batch_op:
         batch_op.alter_column("asset_id", new_column_name="dataset_id", type_=sa.Integer(), nullable=False)
 
-        batch_op.drop_constraint("adrq_asset_fkey", type_="foreignkey")
+        # batch_op.drop_constraint("adrq_asset_fkey", type_="foreignkey")
         batch_op.drop_constraint("adrq_dag_fkey", type_="foreignkey")
 
         _rename_pk_constraint(
