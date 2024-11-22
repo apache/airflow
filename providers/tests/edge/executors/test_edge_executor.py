@@ -66,29 +66,20 @@ class TestEdgeExecutor:
         assert jobs[0].run_id == "test_run"
         assert jobs[0].task_id == "test_task"
 
-    @patch("airflow.providers.edge.executors.edge_executor.EdgeExecutor.running_state")
-    @patch("airflow.providers.edge.executors.edge_executor.EdgeExecutor.success")
-    @patch("airflow.providers.edge.executors.edge_executor.EdgeExecutor.fail")
-    def test_sync(self, mock_fail, mock_success, mock_running_state):
+    def test_sync_orphaned_tasks(self):
         executor = EdgeExecutor()
 
-        def remove_from_running(key: TaskInstanceKey):
-            executor.running.remove(key)
+        delta_to_purge = timedelta(minutes=conf.getint("edge", "job_fail_purge") + 1)
+        delta_to_orphaned = timedelta(seconds=conf.getint("scheduler", "scheduler_zombie_task_threshold") + 1)
 
-        mock_success.side_effect = remove_from_running
-        mock_fail.side_effect = remove_from_running
-
-        smaler_job_failed_purge = timedelta(minutes=conf.getint("edge", "job_fail_purge") + 1)
-
-        # Prepare some data
         with create_session() as session:
             for task_id, state, last_update in [
                 (
                     "started_running_orphaned",
                     TaskInstanceState.RUNNING,
-                    timezone.utcnow() - smaler_job_failed_purge,
+                    timezone.utcnow() - delta_to_orphaned,
                 ),
-                ("started_removed", TaskInstanceState.REMOVED, timezone.utcnow() - smaler_job_failed_purge),
+                ("started_removed", TaskInstanceState.REMOVED, timezone.utcnow() - delta_to_purge),
             ]:
                 session.add(
                     EdgeJobModel(
@@ -109,14 +100,30 @@ class TestEdgeExecutor:
 
         with create_session() as session:
             jobs = session.query(EdgeJobModel).all()
-            assert len(jobs) == 0
+            assert len(jobs) == 1
+            assert jobs[0].task_id == "started_running_orphaned"
+            assert jobs[0].task_id == "started_running_orphaned"
+
+    @patch("airflow.providers.edge.executors.edge_executor.EdgeExecutor.running_state")
+    @patch("airflow.providers.edge.executors.edge_executor.EdgeExecutor.success")
+    @patch("airflow.providers.edge.executors.edge_executor.EdgeExecutor.fail")
+    def test_sync(self, mock_fail, mock_success, mock_running_state):
+        executor = EdgeExecutor()
+
+        def remove_from_running(key: TaskInstanceKey):
+            executor.running.remove(key)
+
+        mock_success.side_effect = remove_from_running
+        mock_fail.side_effect = remove_from_running
+
+        delta_to_purge = timedelta(minutes=conf.getint("edge", "job_fail_purge") + 1)
 
         # Prepare some data
         with create_session() as session:
             for task_id, state, last_update in [
                 ("started_running", TaskInstanceState.RUNNING, timezone.utcnow()),
-                ("started_success", TaskInstanceState.SUCCESS, timezone.utcnow() - smaler_job_failed_purge),
-                ("started_failed", TaskInstanceState.FAILED, timezone.utcnow() - smaler_job_failed_purge),
+                ("started_success", TaskInstanceState.SUCCESS, timezone.utcnow() - delta_to_purge),
+                ("started_failed", TaskInstanceState.FAILED, timezone.utcnow() - delta_to_purge),
             ]:
                 session.add(
                     EdgeJobModel(
