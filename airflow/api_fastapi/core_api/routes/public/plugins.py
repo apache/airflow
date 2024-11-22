@@ -25,7 +25,7 @@ from airflow.plugins_manager import get_plugin_info
 plugins_router = AirflowRouter(tags=["Plugin"], prefix="/plugins")
 
 
-@plugins_router.get("/")
+@plugins_router.get("")
 def get_plugins(
     limit: QueryLimit,
     offset: QueryOffset,

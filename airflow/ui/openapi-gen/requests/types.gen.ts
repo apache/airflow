@@ -129,6 +129,29 @@ export type BaseInfoSchema = {
 };
 
 /**
+ * List of config sections with their options.
+ */
+export type Config = {
+  sections: Array<ConfigSection>;
+};
+
+/**
+ * Config option.
+ */
+export type ConfigOption = {
+  key: string;
+  value: string | [string, string];
+};
+
+/**
+ * Config Section Schema.
+ */
+export type ConfigSection = {
+  name: string;
+  options: Array<ConfigOption>;
+};
+
+/**
  * Connection Serializer for requests body.
  */
 export type ConnectionBody = {
@@ -288,6 +311,14 @@ export type DAGResponse = {
  */
 export type DAGRunClearBody = {
   dry_run?: boolean;
+};
+
+/**
+ * DAG Run Collection serializer for responses.
+ */
+export type DAGRunCollectionResponse = {
+  dag_runs: Array<DAGRunResponse>;
+  total_entries: number;
 };
 
 /**
@@ -1277,8 +1308,26 @@ export type ClearDagRunResponse =
   | TaskInstanceCollectionResponse
   | DAGRunResponse;
 
+export type GetDagRunsData = {
+  dagId: string;
+  endDateGte?: string | null;
+  endDateLte?: string | null;
+  limit?: number;
+  logicalDateGte?: string | null;
+  logicalDateLte?: string | null;
+  offset?: number;
+  orderBy?: string;
+  startDateGte?: string | null;
+  startDateLte?: string | null;
+  state?: Array<string>;
+  updatedAtGte?: string | null;
+  updatedAtLte?: string | null;
+};
+
+export type GetDagRunsResponse = DAGRunCollectionResponse;
+
 export type GetDagSourceData = {
-  accept?: string;
+  accept?: "application/json" | "text/plain" | "*/*";
   dagId: string;
   versionNumber?: number | null;
 };
@@ -1290,6 +1339,21 @@ export type GetDagStatsData = {
 };
 
 export type GetDagStatsResponse = DagStatsCollectionResponse;
+
+export type GetConfigData = {
+  accept?: "application/json" | "text/plain" | "*/*";
+  section?: string | null;
+};
+
+export type GetConfigResponse = Config;
+
+export type GetConfigValueData = {
+  accept?: "application/json" | "text/plain" | "*/*";
+  option: string;
+  section: string;
+};
+
+export type GetConfigValueResponse = Config;
 
 export type ListDagWarningsData = {
   dagId?: string | null;
@@ -1556,6 +1620,17 @@ export type GetTaskInstanceTryDetailsData = {
 };
 
 export type GetTaskInstanceTryDetailsResponse = TaskInstanceHistoryResponse;
+
+export type GetMappedTaskInstanceTryDetailsData = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  taskId: string;
+  taskTryNumber: number;
+};
+
+export type GetMappedTaskInstanceTryDetailsResponse =
+  TaskInstanceHistoryResponse;
 
 export type GetTasksData = {
   dagId: string;
@@ -1943,7 +2018,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/backfills/": {
+  "/public/backfills": {
     get: {
       req: ListBackfillsData;
       res: {
@@ -2196,7 +2271,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/connections/": {
+  "/public/connections": {
     get: {
       req: GetConnectionsData;
       res: {
@@ -2410,6 +2485,33 @@ export type $OpenApiTs = {
       };
     };
   };
+  "/public/dags/{dag_id}/dagRuns": {
+    get: {
+      req: GetDagRunsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGRunCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
   "/public/dagSources/{dag_id}": {
     get: {
       req: GetDagSourceData;
@@ -2445,7 +2547,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dagStats/": {
+  "/public/dagStats": {
     get: {
       req: GetDagStatsData;
       res: {
@@ -2476,6 +2578,68 @@ export type $OpenApiTs = {
       };
     };
   };
+  "/public/config": {
+    get: {
+      req: GetConfigData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: Config;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Not Acceptable
+         */
+        406: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/config/section/{section}/option/{option}": {
+    get: {
+      req: GetConfigValueData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: Config;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Not Acceptable
+         */
+        406: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
   "/public/dagWarnings": {
     get: {
       req: ListDagWarningsData;
@@ -2499,7 +2663,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/": {
+  "/public/dags": {
     get: {
       req: GetDagsData;
       res: {
@@ -2721,7 +2885,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/eventLogs/": {
+  "/public/eventLogs": {
     get: {
       req: GetEventLogsData;
       res: {
@@ -2771,7 +2935,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/importErrors/": {
+  "/public/importErrors": {
     get: {
       req: GetImportErrorsData;
       res: {
@@ -2794,7 +2958,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/plugins/": {
+  "/public/plugins": {
     get: {
       req: GetPluginsData;
       res: {
@@ -2902,7 +3066,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/pools/": {
+  "/public/pools": {
     get: {
       req: GetPoolsData;
       res: {
@@ -2950,7 +3114,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/providers/": {
+  "/public/providers": {
     get: {
       req: GetProvidersData;
       res: {
@@ -3189,7 +3353,34 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/tasks/": {
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries/{task_try_number}": {
+    get: {
+      req: GetMappedTaskInstanceTryDetailsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceHistoryResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/tasks": {
     get: {
       req: GetTasksData;
       res: {
@@ -3332,7 +3523,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/variables/": {
+  "/public/variables": {
     get: {
       req: GetVariablesData;
       res: {
@@ -3417,7 +3608,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/version/": {
+  "/public/version": {
     get: {
       res: {
         /**

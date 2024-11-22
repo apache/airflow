@@ -60,15 +60,16 @@ def list_dag_warnings(
 ) -> DAGWarningCollectionResponse:
     """Get a list of DAG warnings."""
     dag_warnings_select, total_entries = paginated_select(
-        select(DagWarning), [warning_type, dag_id], order_by, offset, limit, session
+        select=select(DagWarning),
+        filters=[warning_type, dag_id],
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
-
-    dag_warnings = session.scalars(dag_warnings_select).all()
+    dag_warnings = session.scalars(dag_warnings_select)
 
     return DAGWarningCollectionResponse(
-        dag_warnings=[
-            DAGWarningResponse.model_validate(dag_warning, from_attributes=True)
-            for dag_warning in dag_warnings
-        ],
+        dag_warnings=[DAGWarningResponse.model_validate(w, from_attributes=True) for w in dag_warnings],
         total_entries=total_entries,
     )

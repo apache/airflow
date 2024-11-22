@@ -25,7 +25,7 @@ export const useColorMode = () => {
   };
 
   return {
-    colorMode: resolvedTheme,
+    colorMode: resolvedTheme as "dark" | "light" | undefined,
     setColorMode: setTheme,
     toggleColorMode,
   };

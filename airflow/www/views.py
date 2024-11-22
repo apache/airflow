@@ -935,7 +935,7 @@ class Airflow(AirflowBaseView):
                 dag_run_subquery = (
                     select(
                         DagRun.dag_id,
-                        sqla.func.max(DagRun.logical_date).label("max_execution_date"),
+                        sqla.func.max(DagRun.logical_date).label("max_logical_date"),
                     )
                     .group_by(DagRun.dag_id)
                     .subquery()
@@ -943,13 +943,13 @@ class Airflow(AirflowBaseView):
                 current_dags = current_dags.outerjoin(
                     dag_run_subquery, and_(dag_run_subquery.c.dag_id == DagModel.dag_id)
                 )
-                null_case = case((dag_run_subquery.c.max_execution_date.is_(None), 1), else_=0)
+                null_case = case((dag_run_subquery.c.max_logical_date.is_(None), 1), else_=0)
                 if arg_sorting_direction == "desc":
                     current_dags = current_dags.order_by(
-                        null_case, dag_run_subquery.c.max_execution_date.desc()
+                        null_case, dag_run_subquery.c.max_logical_date.desc()
                     )
                 else:
-                    current_dags = current_dags.order_by(null_case, dag_run_subquery.c.max_execution_date)
+                    current_dags = current_dags.order_by(null_case, dag_run_subquery.c.max_logical_date)
             else:
                 sort_column = DagModel.__table__.c.get(arg_sorting_key)
                 if sort_column is not None:
@@ -1336,7 +1336,7 @@ class Airflow(AirflowBaseView):
         last_runs_subquery = (
             select(
                 DagRun.dag_id,
-                sqla.func.max(DagRun.logical_date).label("max_execution_date"),
+                sqla.func.max(DagRun.logical_date).label("max_logical_date"),
             )
             .group_by(DagRun.dag_id)
             .where(DagRun.dag_id.in_(filter_dag_ids))  # Only include accessible/selected DAGs.
@@ -1356,7 +1356,7 @@ class Airflow(AirflowBaseView):
                 last_runs_subquery,
                 and_(
                     last_runs_subquery.c.dag_id == DagRun.dag_id,
-                    last_runs_subquery.c.max_execution_date == DagRun.logical_date,
+                    last_runs_subquery.c.max_logical_date == DagRun.logical_date,
                 ),
             )
         )

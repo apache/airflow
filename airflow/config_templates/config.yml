@@ -896,7 +896,7 @@ logging:
         Specify prefix pattern like mentioned below with stream handler ``TaskHandlerWithCustomFormatter``
       version_added: 2.0.0
       type: string
-      example: "{{ti.dag_id}}-{{ti.task_id}}-{{execution_date}}-{{ti.try_number}}"
+      example: "{{ti.dag_id}}-{{ti.task_id}}-{{logical_date}}-{{ti.try_number}}"
       is_template: true
       default: ""
     log_filename_template:
@@ -2370,7 +2370,7 @@ scheduler:
         Setting this to ``True`` will make first task instance of a task
         ignore depends_on_past setting. A task instance will be considered
         as the first task instance of a task when there is no task instance
-        in the DB with an execution_date earlier than it., i.e. no manual marking
+        in the DB with a logical_date earlier than it., i.e. no manual marking
         success will be needed for a newly added task to be scheduled.
       version_added: 2.3.0
       type: boolean

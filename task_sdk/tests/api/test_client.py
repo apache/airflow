@@ -21,6 +21,7 @@ import httpx
 import pytest
 
 from airflow.sdk.api.client import Client, RemoteValidationError, ServerResponseError
+from airflow.sdk.api.datamodels._generated import VariableResponse
 
 
 class TestClient:
@@ -74,3 +75,61 @@ class TestClient:
             client.get("http://error")
         assert err.value.args == ("Not found",)
         assert err.value.detail is None
+
+
+def make_client(transport: httpx.MockTransport) -> Client:
+    """Get a client with a custom transport"""
+    return Client(base_url="test://server", token="", transport=transport)
+
+
+class TestVariableOperations:
+    """
+    Test that the VariableOperations class works as expected. While the operations are simple, it
+    still catches the basic functionality of the client for variables including endpoint and
+    response parsing.
+    """
+
+    def test_variable_get_success(self):
+        # Simulate a successful response from the server with a variable
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/variables/test_key":
+                return httpx.Response(
+                    status_code=200,
+                    json={"key": "test_key", "value": "test_value"},
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.variables.get(key="test_key")
+
+        assert isinstance(result, VariableResponse)
+        assert result.key == "test_key"
+        assert result.value == "test_value"
+
+    def test_variable_not_found(self):
+        # Simulate a 404 response from the server
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/variables/non_existent_var":
+                return httpx.Response(
+                    status_code=404,
+                    json={
+                        "detail": {
+                            "message": "Variable with key 'non_existent_var' not found",
+                            "reason": "not_found",
+                        }
+                    },
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        with pytest.raises(ServerResponseError) as err:
+            client.variables.get(key="non_existent_var")
+
+        assert err.value.response.status_code == 404
+        assert err.value.detail == {
+            "detail": {
+                "message": "Variable with key 'non_existent_var' not found",
+                "reason": "not_found",
+            }
+        }

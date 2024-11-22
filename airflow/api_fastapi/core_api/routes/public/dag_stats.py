@@ -41,7 +41,7 @@ dag_stats_router = AirflowRouter(tags=["DagStats"], prefix="/dagStats")
 
 
 @dag_stats_router.get(
-    "/",
+    "",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
@@ -55,7 +55,7 @@ def get_dag_stats(
 ) -> DagStatsCollectionResponse:
     """Get Dag statistics."""
     dagruns_select, _ = paginated_select(
-        base_select=dagruns_select_with_state_count,
+        select=dagruns_select_with_state_count,
         filters=[dag_ids],
         session=session,
         return_total_entries=False,

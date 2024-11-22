@@ -31,7 +31,7 @@ tasks_router = AirflowRouter(tags=["Task"], prefix="/dags/{dag_id}/tasks")
 
 
 @tasks_router.get(
-    "/",
+    "",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,

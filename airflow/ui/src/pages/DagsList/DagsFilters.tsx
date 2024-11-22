@@ -38,6 +38,7 @@ import {
   SearchParamsKeys,
   type SearchParamsKeysType,
 } from "src/constants/searchParams";
+import { useConfig } from "src/queries/useConfig";
 import { pluralize } from "src/utils";
 
 const {
@@ -48,7 +49,7 @@ const {
 
 const enabledOptions = createListCollection({
   items: [
-    { label: "All", value: "All" },
+    { label: "All", value: "all" },
     { label: "Enabled", value: "false" },
     { label: "Disabled", value: "true" },
   ],
@@ -69,6 +70,13 @@ export const DagsFilters = () => {
     orderBy: "name",
   });
 
+  const hidePausedDagsByDefault = useConfig(
+    "webserver",
+    "hide_paused_dags_by_default",
+  );
+  const defaultShowPaused =
+    hidePausedDagsByDefault === "True" ? "false" : "all";
+
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
 
@@ -76,7 +84,7 @@ export const DagsFilters = () => {
     ({ value }: SelectValueChangeDetails<string>) => {
       const [val] = value;
 
-      if (val === "All" || val === undefined) {
+      if (val === undefined) {
         searchParams.delete(PAUSED_PARAM);
       } else {
         searchParams.set(PAUSED_PARAM, val);
@@ -181,7 +189,7 @@ export const DagsFilters = () => {
         <Select.Root
           collection={enabledOptions}
           onValueChange={handlePausedChange}
-          value={showPaused === null ? ["All"] : [showPaused]}
+          value={[showPaused ?? defaultShowPaused]}
         >
           <Select.Trigger colorPalette="blue" isActive={Boolean(showPaused)}>
             <Select.ValueText width={20} />

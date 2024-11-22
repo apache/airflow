@@ -95,18 +95,19 @@ def get_assets(
 ) -> AssetCollectionResponse:
     """Get assets."""
     assets_select, total_entries = paginated_select(
-        select(AssetModel),
+        select=select(AssetModel),
         filters=[uri_pattern, dag_ids],
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
     )
+
     assets = session.scalars(
         assets_select.options(
             subqueryload(AssetModel.consuming_dags), subqueryload(AssetModel.producing_tasks)
         )
-    ).all()
+    )
     return AssetCollectionResponse(
         assets=[AssetResponse.model_validate(asset, from_attributes=True) for asset in assets],
         total_entries=total_entries,
@@ -144,7 +145,7 @@ def get_asset_events(
 ) -> AssetEventCollectionResponse:
     """Get asset events."""
     assets_event_select, total_entries = paginated_select(
-        select(AssetEvent),
+        select=select(AssetEvent),
         filters=[asset_id, source_dag_id, source_task_id, source_run_id, source_map_index],
         order_by=order_by,
         offset=offset,
@@ -153,7 +154,7 @@ def get_asset_events(
     )
 
     assets_event_select = assets_event_select.options(subqueryload(AssetEvent.created_dagruns))
-    assets_events = session.scalars(assets_event_select).all()
+    assets_events = session.scalars(assets_event_select)
 
     return AssetEventCollectionResponse(
         asset_events=[
@@ -211,10 +212,7 @@ def get_asset_queued_events(
         .where(*where_clause)
     )
 
-    dag_asset_queued_events_select, total_entries = paginated_select(
-        query,
-        [],
-    )
+    dag_asset_queued_events_select, total_entries = paginated_select(select=query)
     adrqs = session.execute(dag_asset_queued_events_select).all()
 
     if not adrqs:
@@ -273,12 +271,8 @@ def get_dag_asset_queued_events(
         .where(*where_clause)
     )
 
-    dag_asset_queued_events_select, total_entries = paginated_select(
-        query,
-        [],
-    )
+    dag_asset_queued_events_select, total_entries = paginated_select(select=query)
     adrqs = session.execute(dag_asset_queued_events_select).all()
-
     if not adrqs:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with dag_id: `{dag_id}` was not found")
 
