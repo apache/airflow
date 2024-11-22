@@ -4683,6 +4683,109 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}:
+    get:
+      tags:
+      - Task Instance
+      summary: Get Log
+      description: Get logs for a specific task instance.
+      operationId: get_log
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: try_number
+        in: path
+        required: true
+        schema:
+          type: integer
+          exclusiveMinimum: 0
+          title: Try Number
+      - name: full_content
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Full Content
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
+      - name: token
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - name: accept
+        in: header
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/json
+          - text/plain
+          - '*/*'
+          default: '*/*'
+          title: Accept
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstancesLogResponse'
+            text/plain:
+              schema:
+                type: string
+                example: 'content
+
+                  '
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/monitor/health:
     get:
       tags:
@@ -7300,6 +7403,22 @@ components:
       type: object
       title: TaskInstancesBatchBody
       description: Task Instance body for get batch.
+    TaskInstancesLogResponse:
+      properties:
+        content:
+          type: string
+          title: Content
+        continuation_token:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Continuation Token
+      type: object
+      required:
+      - content
+      - continuation_token
+      title: TaskInstancesLogResponse
+      description: Log serializer for responses.
     TaskOutletAssetReference:
       properties:
         dag_id:

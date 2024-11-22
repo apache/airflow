@@ -943,6 +943,14 @@ export type TaskInstancesBatchBody = {
 };
 
 /**
+ * Log serializer for responses.
+ */
+export type TaskInstancesLogResponse = {
+  content: string;
+  continuation_token: string | null;
+};
+
+/**
  * Task outlet reference serializer for assets.
  */
 export type TaskOutletAssetReference = {
@@ -1644,6 +1652,19 @@ export type GetMappedTaskInstanceTryDetailsData = {
 
 export type GetMappedTaskInstanceTryDetailsResponse =
   TaskInstanceHistoryResponse;
+
+export type GetLogData = {
+  accept?: "application/json" | "text/plain" | "*/*";
+  dagId: string;
+  dagRunId: string;
+  fullContent?: boolean;
+  mapIndex?: number;
+  taskId: string;
+  token?: string | null;
+  tryNumber: number;
+};
+
+export type GetLogResponse = TaskInstancesLogResponse;
 
 export type GetTasksData = {
   dagId: string;
@@ -3405,6 +3426,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: TaskInstanceHistoryResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}": {
+    get: {
+      req: GetLogData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstancesLogResponse;
         /**
          * Unauthorized
          */
