@@ -19,7 +19,7 @@ from __future__ import annotations
 from pydantic import BaseModel
 
 
-class Config(BaseModel):
+class ConfigResponse(BaseModel):
     """configuration serializer."""
 
     navbar_color: str
@@ -42,9 +42,3 @@ class Config(BaseModel):
     is_k8s: bool
     test_connection: str
     state_color_mapping: dict
-
-
-class ConfigResponse(BaseModel):
-    """config serializer for responses."""
-
-    configs: Config

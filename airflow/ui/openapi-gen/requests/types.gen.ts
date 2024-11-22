@@ -129,6 +129,13 @@ export type BaseInfoSchema = {
 };
 
 /**
+ * List of config sections with their options.
+ */
+export type Config = {
+  sections: Array<ConfigSection>;
+};
+
+/**
  * Config option.
  */
 export type ConfigOption = {
@@ -137,10 +144,31 @@ export type ConfigOption = {
 };
 
 /**
- * config serializer for responses.
+ * configuration serializer.
  */
 export type ConfigResponse = {
-  configs: airflow__api_fastapi__core_api__datamodels__ui__config__Config;
+  navbar_color: string;
+  navbar_text_color: string;
+  navbar_hover_color: string;
+  navbar_text_hover_color: string;
+  navbar_logo_text_color: string;
+  page_size: number;
+  auto_refresh_interval: number;
+  default_ui_timezone: string;
+  hide_paused_dags_by_default: boolean;
+  instance_name: string;
+  instance_name_has_markup: boolean;
+  enable_swagger_ui: boolean;
+  require_confirmation_dag_change: boolean;
+  default_wrap: boolean;
+  warn_deployment_exposure: boolean;
+  audit_view_excluded_events: string;
+  audit_view_included_events: string;
+  is_k8s: boolean;
+  test_connection: string;
+  state_color_mapping: {
+    [key: string]: unknown;
+  };
 };
 
 /**
@@ -1080,41 +1108,6 @@ export type XComResponseString = {
   value: string | null;
 };
 
-/**
- * List of config sections with their options.
- */
-export type airflow__api_fastapi__core_api__datamodels__config__Config = {
-  sections: Array<ConfigSection>;
-};
-
-/**
- * configuration serializer.
- */
-export type airflow__api_fastapi__core_api__datamodels__ui__config__Config = {
-  navbar_color: string;
-  navbar_text_color: string;
-  navbar_hover_color: string;
-  navbar_text_hover_color: string;
-  navbar_logo_text_color: string;
-  page_size: number;
-  auto_refresh_interval: number;
-  default_ui_timezone: string;
-  hide_paused_dags_by_default: boolean;
-  instance_name: string;
-  instance_name_has_markup: boolean;
-  enable_swagger_ui: boolean;
-  require_confirmation_dag_change: boolean;
-  default_wrap: boolean;
-  warn_deployment_exposure: boolean;
-  audit_view_excluded_events: string;
-  audit_view_included_events: string;
-  is_k8s: boolean;
-  test_connection: string;
-  state_color_mapping: {
-    [key: string]: unknown;
-  };
-};
-
 export type NextRunAssetsData = {
   dagId: string;
 };
@@ -1231,8 +1224,7 @@ export type GetConfigData = {
   section?: string | null;
 };
 
-export type GetConfigResponse =
-  airflow__api_fastapi__core_api__datamodels__config__Config;
+export type GetConfigResponse = Config;
 
 export type GetConfigValueData = {
   accept?: "application/json" | "text/plain" | "*/*";
@@ -1240,8 +1232,7 @@ export type GetConfigValueData = {
   section: string;
 };
 
-export type GetConfigValueResponse =
-  airflow__api_fastapi__core_api__datamodels__config__Config;
+export type GetConfigValueResponse = Config;
 
 export type ListBackfillsData = {
   dagId: string;
@@ -2078,7 +2069,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: airflow__api_fastapi__core_api__datamodels__config__Config;
+        200: Config;
         /**
          * Unauthorized
          */
@@ -2109,7 +2100,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: airflow__api_fastapi__core_api__datamodels__config__Config;
+        200: Config;
         /**
          * Unauthorized
          */

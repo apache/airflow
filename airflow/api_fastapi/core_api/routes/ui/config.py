@@ -21,7 +21,7 @@ from typing import Any
 from fastapi import status
 
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.ui.config import Config, ConfigResponse
+from airflow.api_fastapi.core_api.datamodels.ui.config import ConfigResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.configuration import conf
 from airflow.settings import IS_K8S_OR_K8SCELERY_EXECUTOR, STATE_COLORS
@@ -68,4 +68,4 @@ def get_configs() -> ConfigResponse:
 
     config.update({key: value for key, value in additional_config.items()})
 
-    return ConfigResponse(configs=Config.model_validate(config))
+    return ConfigResponse.model_validate(config)
