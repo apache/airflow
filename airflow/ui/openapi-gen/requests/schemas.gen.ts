@@ -459,6 +459,76 @@ export const $BaseInfoSchema = {
   description: "Base status field for metadatabase and scheduler.",
 } as const;
 
+export const $Config = {
+  properties: {
+    sections: {
+      items: {
+        $ref: "#/components/schemas/ConfigSection",
+      },
+      type: "array",
+      title: "Sections",
+    },
+  },
+  type: "object",
+  required: ["sections"],
+  title: "Config",
+  description: "List of config sections with their options.",
+} as const;
+
+export const $ConfigOption = {
+  properties: {
+    key: {
+      type: "string",
+      title: "Key",
+    },
+    value: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          prefixItems: [
+            {
+              type: "string",
+            },
+            {
+              type: "string",
+            },
+          ],
+          type: "array",
+          maxItems: 2,
+          minItems: 2,
+        },
+      ],
+      title: "Value",
+    },
+  },
+  type: "object",
+  required: ["key", "value"],
+  title: "ConfigOption",
+  description: "Config option.",
+} as const;
+
+export const $ConfigSection = {
+  properties: {
+    name: {
+      type: "string",
+      title: "Name",
+    },
+    options: {
+      items: {
+        $ref: "#/components/schemas/ConfigOption",
+      },
+      type: "array",
+      title: "Options",
+    },
+  },
+  type: "object",
+  required: ["name", "options"],
+  title: "ConfigSection",
+  description: "Config Section Schema.",
+} as const;
+
 export const $ConnectionBody = {
   properties: {
     connection_id: {
@@ -1332,6 +1402,26 @@ export const $DAGRunClearBody = {
   type: "object",
   title: "DAGRunClearBody",
   description: "DAG Run serializer for clear endpoint body.",
+} as const;
+
+export const $DAGRunCollectionResponse = {
+  properties: {
+    dag_runs: {
+      items: {
+        $ref: "#/components/schemas/DAGRunResponse",
+      },
+      type: "array",
+      title: "Dag Runs",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["dag_runs", "total_entries"],
+  title: "DAGRunCollectionResponse",
+  description: "DAG Run Collection serializer for responses.",
 } as const;
 
 export const $DAGRunPatchBody = {
@@ -2758,6 +2848,7 @@ export const $PoolPostBody = {
   properties: {
     name: {
       type: "string",
+      maxLength: 256,
       title: "Name",
     },
     slots: {
@@ -2785,6 +2876,22 @@ export const $PoolPostBody = {
   required: ["name", "slots"],
   title: "PoolPostBody",
   description: "Pool serializer for post bodies.",
+} as const;
+
+export const $PoolPostBulkBody = {
+  properties: {
+    pools: {
+      items: {
+        $ref: "#/components/schemas/PoolPostBody",
+      },
+      type: "array",
+      title: "Pools",
+    },
+  },
+  type: "object",
+  required: ["pools"],
+  title: "PoolPostBulkBody",
+  description: "Pools serializer for post bodies.",
 } as const;
 
 export const $PoolResponse = {
@@ -3852,6 +3959,30 @@ export const $TaskInstancesBatchBody = {
   description: "Task Instance body for get batch.",
 } as const;
 
+export const $TaskInstancesLogResponse = {
+  properties: {
+    content: {
+      type: "string",
+      title: "Content",
+    },
+    continuation_token: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Continuation Token",
+    },
+  },
+  type: "object",
+  required: ["content", "continuation_token"],
+  title: "TaskInstancesLogResponse",
+  description: "Log serializer for responses.",
+} as const;
+
 export const $TaskOutletAssetReference = {
   properties: {
     dag_id: {
@@ -4200,7 +4331,7 @@ export const $TimeDelta = {
   properties: {
     __type: {
       type: "string",
-      title: "  Type",
+      title: "Type",
       default: "TimeDelta",
     },
     days: {

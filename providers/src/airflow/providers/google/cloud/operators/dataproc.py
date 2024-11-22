@@ -818,7 +818,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         try:
             # First try to create a new cluster
             operation = self._create_cluster(hook)
-            if not self.deferrable:
+            if not self.deferrable and type(operation) is not str:
                 cluster = hook.wait_for_operation(
                     timeout=self.timeout, result_retry=self.retry, operation=operation
                 )

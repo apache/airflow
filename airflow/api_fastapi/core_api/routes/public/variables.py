@@ -72,7 +72,7 @@ def get_variable(
 
 
 @variables_router.get(
-    "/",
+    "",
 )
 def get_variables(
     limit: QueryLimit,
@@ -90,15 +90,14 @@ def get_variables(
 ) -> VariableCollectionResponse:
     """Get all Variables entries."""
     variable_select, total_entries = paginated_select(
-        select(Variable),
-        [],
+        select=select(Variable),
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
     )
 
-    variables = session.scalars(variable_select).all()
+    variables = session.scalars(variable_select)
 
     return VariableCollectionResponse(
         variables=[VariableResponse.model_validate(variable, from_attributes=True) for variable in variables],
@@ -144,7 +143,7 @@ def patch_variable(
 
 
 @variables_router.post(
-    "/",
+    "",
     status_code=status.HTTP_201_CREATED,
 )
 def post_variable(

@@ -18,7 +18,7 @@
  */
 import { createListCollection } from "@chakra-ui/react/collection";
 
-export const DagSortOptions = createListCollection({
+export const dagSortOptions = createListCollection({
   items: [
     { label: "Sort by Display Name (A-Z)", value: "dag_display_name" },
     { label: "Sort by Display Name (Z-A)", value: "-dag_display_name" },

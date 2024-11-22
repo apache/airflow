@@ -65,7 +65,7 @@ def get_import_error(
 
 
 @import_error_router.get(
-    "/",
+    "",
 )
 def get_import_errors(
     limit: QueryLimit,
@@ -89,18 +89,15 @@ def get_import_errors(
 ) -> ImportErrorCollectionResponse:
     """Get all import errors."""
     import_errors_select, total_entries = paginated_select(
-        select(ParseImportError),
-        [],
-        order_by,
-        offset,
-        limit,
-        session,
+        select=select(ParseImportError),
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
-    import_errors = session.scalars(import_errors_select).all()
+    import_errors = session.scalars(import_errors_select)
 
     return ImportErrorCollectionResponse(
-        import_errors=[
-            ImportErrorResponse.model_validate(error, from_attributes=True) for error in import_errors
-        ],
+        import_errors=[ImportErrorResponse.model_validate(i, from_attributes=True) for i in import_errors],
         total_entries=total_entries,
     )

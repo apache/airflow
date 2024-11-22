@@ -82,7 +82,7 @@ def get_connection(
 
 
 @connections_router.get(
-    "/",
+    "",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_connections(
@@ -100,15 +100,14 @@ def get_connections(
 ) -> ConnectionCollectionResponse:
     """Get all connection entries."""
     connection_select, total_entries = paginated_select(
-        select(Connection),
-        [],
+        select=select(Connection),
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
     )
 
-    connections = session.scalars(connection_select).all()
+    connections = session.scalars(connection_select)
 
     return ConnectionCollectionResponse(
         connections=[
@@ -119,7 +118,7 @@ def get_connections(
 
 
 @connections_router.post(
-    "/",
+    "",
     status_code=status.HTTP_201_CREATED,
     responses=create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
 )

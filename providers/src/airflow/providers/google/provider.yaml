@@ -125,7 +125,7 @@ dependencies:
   - google-cloud-build>=3.22.0
   - google-cloud-compute>=1.10.0
   - google-cloud-container>=2.17.4
-  - google-cloud-datacatalog>=3.11.1
+  - google-cloud-datacatalog>=3.23.0
   - google-cloud-dataflow-client>=0.8.6
   - google-cloud-dataform>=0.5.0
   - google-cloud-dataplex>=1.10.0
@@ -1291,6 +1291,7 @@ extra-links:
   - airflow.providers.google.cloud.links.translate.TranslationLegacyModelLink
   - airflow.providers.google.cloud.links.translate.TranslationLegacyModelTrainLink
   - airflow.providers.google.cloud.links.translate.TranslationLegacyModelPredictLink
+  - airflow.providers.google.cloud.links.translate.TranslateTextBatchLink
 
 
 secrets-backends:
