@@ -53,9 +53,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 ARCHIVE_TABLE_PREFIX = "_airflow_deleted__"
-# Archived tables created by the DB migrations
+# Archived tables created by DB migrations
 ARCHIVED_TABLES_FROM_DB_MIGRATIONS = [
-    "_xcom_archive"  # Table created by the migration AF 2 -> 3.0.0 when the XComs had pickled values
+    "_xcom_archive"  # Table created by the AF 2 -> 3.0.0 migration when the XComs had pickled values
 ]
 
 
