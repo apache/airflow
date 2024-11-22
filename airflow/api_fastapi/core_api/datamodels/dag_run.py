@@ -21,7 +21,7 @@ from datetime import datetime
 from enum import Enum
 
 from fastapi import HTTPException, status
-from pydantic import AwareDatetime, BaseModel, Field, computed_field, model_validator
+from pydantic import AwareDatetime, Field, computed_field, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.models import DagRun

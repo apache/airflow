@@ -362,7 +362,7 @@ def trigger_dag_run(
             if dag_run_note:
                 current_user_id = None  # refer to https://github.com/apache/airflow/issues/43534
                 dag_run.note = (dag_run_note, current_user_id)
-            return DAGRunResponse.model_validate(dag_run, from_attributes=True)
+            return DAGRunResponse.model_validate(dag_run)
         except ValueError as e:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 
