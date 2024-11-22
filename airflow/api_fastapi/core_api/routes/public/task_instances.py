@@ -169,7 +169,6 @@ def get_mapped_task_instances(
         limit=limit,
         session=session,
     )
-
     task_instances = session.scalars(task_instance_select)
 
     return TaskInstanceCollectionResponse(
@@ -335,14 +334,9 @@ def get_task_instances(
         limit=limit,
         session=session,
     )
-
     task_instances = session.scalars(task_instance_select)
-
     return TaskInstanceCollectionResponse(
-        task_instances=[
-            TaskInstanceResponse.model_validate(task_instance, from_attributes=True)
-            for task_instance in task_instances
-        ],
+        task_instances=[TaskInstanceResponse.model_validate(t, from_attributes=True) for t in task_instances],
         total_entries=total_entries,
     )
 
@@ -411,7 +405,6 @@ def get_task_instances_batch(
         limit=limit,
         session=session,
     )
-
     task_instance_select = task_instance_select.options(
         joinedload(TI.rendered_task_instance_fields), joinedload(TI.task_instance_note)
     )
@@ -419,10 +412,7 @@ def get_task_instances_batch(
     task_instances = session.scalars(task_instance_select)
 
     return TaskInstanceCollectionResponse(
-        task_instances=[
-            TaskInstanceResponse.model_validate(task_instance, from_attributes=True)
-            for task_instance in task_instances
-        ],
+        task_instances=[TaskInstanceResponse.model_validate(t, from_attributes=True) for t in task_instances],
         total_entries=total_entries,
     )
 
