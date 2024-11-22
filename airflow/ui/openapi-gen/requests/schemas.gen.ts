@@ -4579,7 +4579,7 @@ export const $TimeDelta = {
   properties: {
     __type: {
       type: "string",
-      title: "  Type",
+      title: "Type",
       default: "TimeDelta",
     },
     days: {
@@ -4640,14 +4640,7 @@ export const $TriggerDAGRunPostBody = {
       title: "Data Interval End",
     },
     conf: {
-      anyOf: [
-        {
-          type: "object",
-        },
-        {
-          type: "null",
-        },
-      ],
+      type: "object",
       title: "Conf",
     },
     note: {

@@ -1082,7 +1082,7 @@ export type TriggerDAGRunPostBody = {
   data_interval_end?: string | null;
   conf?: {
     [key: string]: unknown;
-  } | null;
+  };
   note?: string | null;
 };
 

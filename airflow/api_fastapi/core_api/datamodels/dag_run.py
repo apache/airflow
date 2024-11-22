@@ -85,7 +85,7 @@ class TriggerDAGRunPostBody(BaseModel):
     data_interval_start: AwareDatetime | None = None
     data_interval_end: AwareDatetime | None = None
 
-    conf: dict | None = Field(default_factory=dict)
+    conf: dict = Field(default_factory=dict)
     note: str | None = None
 
     model_config = {"extra": "forbid"}

@@ -4123,8 +4123,6 @@ paths:
         in: path
         required: true
         schema:
-          enum:
-          - '~'
           const: '~'
           type: string
           title: Dag Id
@@ -4132,8 +4130,6 @@ paths:
         in: path
         required: true
         schema:
-          enum:
-          - '~'
           const: '~'
           type: string
           title: Dag Run Id
@@ -7928,7 +7924,7 @@ components:
       properties:
         __type:
           type: string
-          title: '  Type'
+          title: Type
           default: TimeDelta
         days:
           type: integer
@@ -7966,9 +7962,7 @@ components:
           - type: 'null'
           title: Data Interval End
         conf:
-          anyOf:
-          - type: object
-          - type: 'null'
+          type: object
           title: Conf
         note:
           anyOf:
