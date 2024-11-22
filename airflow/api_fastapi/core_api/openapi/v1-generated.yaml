@@ -3278,6 +3278,56 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/pools/bulk:
+    post:
+      tags:
+      - Pool
+      summary: Post Pools
+      description: Create multiple pools.
+      operationId: post_pools
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PoolPostBulkBody'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolCollectionResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
         '422':
           description: Validation Error
           content:
@@ -6544,6 +6594,7 @@ components:
       properties:
         name:
           type: string
+          maxLength: 256
           title: Name
         slots:
           type: integer
@@ -6563,6 +6614,18 @@ components:
       - slots
       title: PoolPostBody
       description: Pool serializer for post bodies.
+    PoolPostBulkBody:
+      properties:
+        pools:
+          items:
+            $ref: '#/components/schemas/PoolPostBody'
+          type: array
+          title: Pools
+      type: object
+      required:
+      - pools
+      title: PoolPostBulkBody
+      description: Pools serializer for post bodies.
     PoolResponse:
       properties:
         name:

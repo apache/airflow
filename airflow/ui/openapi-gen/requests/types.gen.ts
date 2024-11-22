@@ -713,6 +713,13 @@ export type PoolPostBody = {
 };
 
 /**
+ * Pools serializer for post bodies.
+ */
+export type PoolPostBulkBody = {
+  pools: Array<PoolPostBody>;
+};
+
+/**
  * Pool serializer for responses.
  */
 export type PoolResponse = {
@@ -1509,6 +1516,12 @@ export type PostPoolData = {
 };
 
 export type PostPoolResponse = PoolResponse;
+
+export type PostPoolsData = {
+  requestBody: PoolPostBulkBody;
+};
+
+export type PostPoolsResponse = PoolCollectionResponse;
 
 export type GetProvidersData = {
   limit?: number;
@@ -3107,6 +3120,37 @@ export type $OpenApiTs = {
          * Forbidden
          */
         403: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/pools/bulk": {
+    post: {
+      req: PostPoolsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        201: PoolCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
         /**
          * Validation Error
          */
