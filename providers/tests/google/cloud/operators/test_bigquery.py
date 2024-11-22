@@ -899,7 +899,7 @@ class TestBigQueryInsertJobOperator:
         # Validate the number of calls
         assert mock_hook.return_value.get_job.call_count == 2
         assert job_running.result.call_count == 1
-        assert job_completed.result.call_count == 0
+        assert job_completed.result.call_count == 1
 
         mock_hook.return_value.get_job.assert_any_call(
             location=TEST_DATASET_LOCATION,
@@ -1098,8 +1098,8 @@ class TestBigQueryInsertJobOperator:
         result = op.execute(context=MagicMock())
 
         assert mock_hook.return_value.get_job.call_count == 2
-        assert job_running.result.call_count == 2
-        assert job_completed.result.call_count == 0
+        assert job_running.result.call_count == 1
+        assert job_completed.result.call_count == 1
 
         mock_hook.return_value.get_job.assert_any_call(
             location=TEST_DATASET_LOCATION,
