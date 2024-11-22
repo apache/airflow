@@ -1605,7 +1605,7 @@ export const prefetchUseTaskInstanceServiceGetMappedTaskInstanceTryDetails = (
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
- * @param data.taskTryNumber
+ * @param data.tryNumber
  * @param data.fullContent
  * @param data.mapIndex
  * @param data.token
@@ -1622,8 +1622,8 @@ export const prefetchUseTaskInstanceServiceGetLog = (
     fullContent,
     mapIndex,
     taskId,
-    taskTryNumber,
     token,
+    tryNumber,
   }: {
     accept?: "application/json" | "text/plain" | "*/*";
     dagId: string;
@@ -1631,8 +1631,8 @@ export const prefetchUseTaskInstanceServiceGetLog = (
     fullContent?: boolean;
     mapIndex?: number;
     taskId: string;
-    taskTryNumber: number;
     token?: string;
+    tryNumber: number;
   },
 ) =>
   queryClient.prefetchQuery({
@@ -1643,8 +1643,8 @@ export const prefetchUseTaskInstanceServiceGetLog = (
       fullContent,
       mapIndex,
       taskId,
-      taskTryNumber,
       token,
+      tryNumber,
     }),
     queryFn: () =>
       TaskInstanceService.getLog({
@@ -1654,8 +1654,8 @@ export const prefetchUseTaskInstanceServiceGetLog = (
         fullContent,
         mapIndex,
         taskId,
-        taskTryNumber,
         token,
+        tryNumber,
       }),
   });
 /**

@@ -2196,7 +2196,7 @@ export class TaskInstanceService {
    * @param data.dagId
    * @param data.dagRunId
    * @param data.taskId
-   * @param data.taskTryNumber
+   * @param data.tryNumber
    * @param data.fullContent
    * @param data.mapIndex
    * @param data.token
@@ -2207,12 +2207,12 @@ export class TaskInstanceService {
   public static getLog(data: GetLogData): CancelablePromise<GetLogResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number}",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}",
       path: {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
         task_id: data.taskId,
-        task_try_number: data.taskTryNumber,
+        try_number: data.tryNumber,
       },
       headers: {
         accept: data.accept,

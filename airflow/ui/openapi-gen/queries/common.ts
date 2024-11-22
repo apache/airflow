@@ -1196,8 +1196,8 @@ export const UseTaskInstanceServiceGetLogKeyFn = (
     fullContent,
     mapIndex,
     taskId,
-    taskTryNumber,
     token,
+    tryNumber,
   }: {
     accept?: "application/json" | "text/plain" | "*/*";
     dagId: string;
@@ -1205,8 +1205,8 @@ export const UseTaskInstanceServiceGetLogKeyFn = (
     fullContent?: boolean;
     mapIndex?: number;
     taskId: string;
-    taskTryNumber: number;
     token?: string;
+    tryNumber: number;
   },
   queryKey?: Array<unknown>,
 ) => [
@@ -1219,8 +1219,8 @@ export const UseTaskInstanceServiceGetLogKeyFn = (
       fullContent,
       mapIndex,
       taskId,
-      taskTryNumber,
       token,
+      tryNumber,
     },
   ]),
 ];

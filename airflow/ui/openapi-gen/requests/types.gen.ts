@@ -1647,8 +1647,8 @@ export type GetLogData = {
   fullContent?: boolean;
   mapIndex?: number;
   taskId: string;
-  taskTryNumber: number;
   token?: string | null;
+  tryNumber: number;
 };
 
 export type GetLogResponse = TaskInstancesLogResponse;
@@ -3401,7 +3401,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number}": {
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}": {
     get: {
       req: GetLogData;
       res: {

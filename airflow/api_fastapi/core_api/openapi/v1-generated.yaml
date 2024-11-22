@@ -4633,7 +4633,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{task_try_number}:
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}:
     get:
       tags:
       - Task Instance
@@ -4659,12 +4659,13 @@ paths:
         schema:
           type: string
           title: Task Id
-      - name: task_try_number
+      - name: try_number
         in: path
         required: true
         schema:
           type: integer
-          title: Task Try Number
+          exclusiveMinimum: 0
+          title: Try Number
       - name: full_content
         in: query
         required: false
@@ -4705,6 +4706,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TaskInstancesLogResponse'
+            text/plain:
+              schema:
+                type: string
+                example: 'content
+
+                  '
         '401':
           content:
             application/json:

@@ -17,10 +17,12 @@
 
 from __future__ import annotations
 
+import textwrap
 from typing import Annotated, Any
 
 from fastapi import Depends, HTTPException, Request, Response, status
 from itsdangerous import BadSignature, URLSafeSerializer
+from pydantic import PositiveInt
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.sql import select
 
@@ -39,17 +41,36 @@ task_instances_log_router = AirflowRouter(
     tags=["Task Instance"], prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances"
 )
 
+text_example_response_for_get_log = {
+    Mimetype.TEXT: {
+        "schema": {
+            "type": "string",
+            "example": textwrap.dedent(
+                """\
+    content
+    """
+            ),
+        }
+    }
+}
+
 
 @task_instances_log_router.get(
-    "/{task_id}/logs/{task_try_number}",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    "/{task_id}/logs/{try_number}",
+    responses={
+        **create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+        status.HTTP_200_OK: {
+            "description": "Successful Response",
+            "content": text_example_response_for_get_log,
+        },
+    },
     response_model=TaskInstancesLogResponse,
 )
 def get_log(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    task_try_number: int,
+    try_number: PositiveInt,
     accept: HeaderAcceptJsonOrText,
     request: Request,
     session: Annotated[Session, Depends(get_session)],
@@ -67,9 +88,6 @@ def get_log(
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST, "Bad Signature. Please use only the tokens provided by the API."
             )
-
-    if task_try_number <= 0:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "task_try_number must be a positive integer")
 
     if metadata.get("download_logs") and metadata["download_logs"]:
         full_content = True
@@ -102,7 +120,7 @@ def get_log(
             TaskInstanceHistory.dag_id == dag_id,
             TaskInstanceHistory.run_id == dag_run_id,
             TaskInstanceHistory.map_index == map_index,
-            TaskInstanceHistory.try_number == task_try_number,
+            TaskInstanceHistory.try_number == try_number,
         )
         ti = session.scalar(query)
 
@@ -119,10 +137,10 @@ def get_log(
 
     logs: Any
     if accept == Mimetype.JSON or accept == Mimetype.ANY:  # default
-        logs, metadata = task_log_reader.read_log_chunks(ti, task_try_number, metadata)
+        logs, metadata = task_log_reader.read_log_chunks(ti, try_number, metadata)
         # we must have token here, so we can safely ignore it
         token = URLSafeSerializer(request.app.state.secret_key).dumps(metadata)  # type: ignore[assignment]
         return TaskInstancesLogResponse(continuation_token=token, content=str(logs[0])).model_dump()
     # text/plain. Stream
-    logs = task_log_reader.read_log_stream(ti, task_try_number, metadata)
+    logs = task_log_reader.read_log_stream(ti, try_number, metadata)
     return Response(media_type=accept, content="".join(list(logs)))
