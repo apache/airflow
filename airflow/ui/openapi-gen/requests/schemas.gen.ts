@@ -4385,8 +4385,8 @@ export const $TriggerDAGRunPostBody = {
       title: "Note",
     },
   },
+  additionalProperties: false,
   type: "object",
-  required: ["note"],
   title: "TriggerDAGRunPostBody",
   description: "Trigger DAG Run Serializer for POST body.",
 } as const;

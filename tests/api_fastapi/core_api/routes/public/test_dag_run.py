@@ -18,12 +18,13 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from unittest import mock
 
 import pytest
 import time_machine
 from sqlalchemy import select
 
-from airflow.models import DagRun
+from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
@@ -75,7 +76,7 @@ def setup(request, dag_maker, session=None):
 
     with dag_maker(
         DAG1_ID,
-        schedule="@daily",
+        schedule=None,
         start_date=START_DATE1,
     ):
         task1 = EmptyOperator(task_id="task_1")
@@ -661,63 +662,108 @@ class TestClearDagRun:
 
 # @pytest.mark.no_setup
 class TestTriggerDagRun:
+    def _dags_for_trigger_tests(self, session=None):
+        inactive_dag = DagModel(
+            dag_id="inactive",
+            fileloc="/tmp/dag_del_1.py",
+            timetable_summary="2 2 * * *",
+            is_active=False,
+            is_paused=True,
+            owners="test_owner,another_test_owner",
+            next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        )
+
+        import_errors_dag = DagModel(
+            dag_id="import_errors",
+            fileloc="/tmp/dag_del_2.py",
+            timetable_summary="2 2 * * *",
+            is_active=True,
+            owners="test_owner,another_test_owner",
+            next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        )
+        import_errors_dag.has_import_errors = True
+
+        session.add(inactive_dag)
+        session.add(import_errors_dag)
+        session.commit()
+
     @time_machine.travel(timezone.utcnow(), tick=False)
     @pytest.mark.parametrize(
         "dag_run_id, logical_date, note, data_interval_start, data_interval_end",
         [
-            ("dag_run_5", LOGICAL_DATE1, "test_note", LOGICAL_DATE1, LOGICAL_DATE2 + timedelta(days=1)),
+            ("dag_run_5", "2020-06-11T18:00:00+00:00", "test-note", None, None),
+            (
+                "dag_run_6",
+                "2024-06-11T18:00:00+00:00",
+                "test-note",
+                "2024-01-03T00:00:00+00:00",
+                "2024-01-04T05:00:00+00:00",
+            ),
+            (None, "2020-06-11T18:00:00+00:00", None, None, None),
+            (None, None, None, None, None),
         ],
     )
     def test_should_respond_200(
         self,
         test_client,
-        session,
         dag_run_id,
         logical_date,
         note,
         data_interval_start,
         data_interval_end,
     ):
+        fixed_now = timezone.utcnow().isoformat()
+
+        request_json = {"note": note}
+        if logical_date is not None:
+            request_json["logical_date"] = logical_date
+        if dag_run_id is not None:
+            request_json["dag_run_id"] = dag_run_id
+        if data_interval_start is not None:
+            request_json["data_interval_start"] = data_interval_start
+        if data_interval_end is not None:
+            request_json["data_interval_end"] = data_interval_end
+
         response = test_client.post(
             f"/public/dags/{DAG1_ID}/dagRuns",
             json={
                 "dag_run_id": dag_run_id,
-                "logical_date": logical_date.isoformat(),
+                "logical_date": logical_date,
                 "note": note,
-                "data_interval_start": data_interval_start.isoformat(),
-                "data_interval_end": data_interval_end.isoformat(),
+                "data_interval_start": data_interval_start,
+                "data_interval_end": data_interval_end,
             },
         )
 
         assert response.status_code == 200
-        now = timezone.utcnow().isoformat().replace("+00:00", "Z")
+
         if logical_date is None:
-            logical_date = now
+            expected_logical_date = fixed_now
         else:
-            logical_date = logical_date.isoformat().replace("+00:00", "Z")
-
+            expected_logical_date = logical_date
         if dag_run_id is None:
-            dag_run_id = f"manual__{logical_date}"
-
-        if data_interval_end is None and data_interval_start is None:
-            data_interval_end = now
-            data_interval_start = now
+            expected_dag_run_id = f"manual__{expected_logical_date}"
         else:
-            data_interval_end = data_interval_end.isoformat().replace("+00:00", "Z")
-            data_interval_start = data_interval_start.isoformat().replace("+00:00", "Z")
+            expected_dag_run_id = dag_run_id
+
+        expected_data_interval_start = expected_logical_date.replace("+00:00", "Z")
+        expected_data_interval_end = expected_logical_date.replace("+00:00", "Z")
+        if data_interval_start is not None and data_interval_end is not None:
+            expected_data_interval_start = data_interval_start.replace("+00:00", "Z")
+            expected_data_interval_end = data_interval_end.replace("+00:00", "Z")
 
         expected_response_json = {
             "conf": {},
             "dag_id": DAG1_ID,
-            "run_id": dag_run_id,
+            "run_id": expected_dag_run_id,
             "end_date": None,
-            "logical_date": logical_date,
+            "logical_date": expected_logical_date.replace("+00:00", "Z"),
             "external_trigger": True,
             "start_date": None,
             "state": "queued",
-            "data_interval_end": data_interval_end,
-            "data_interval_start": data_interval_start,
-            "queued_at": now,
+            "data_interval_end": expected_data_interval_end,
+            "data_interval_start": expected_data_interval_start,
+            "queued_at": fixed_now.replace("+00:00", "Z"),
             "last_scheduling_decision": None,
             "run_type": "manual",
             "note": note,
@@ -725,4 +771,198 @@ class TestTriggerDagRun:
         }
 
         assert response.json() == expected_response_json
-        # _check_last_log(session, dag_id=DAG1_ID, event="api.post_dag_run", logical_date=None)
+
+    @pytest.mark.parametrize(
+        "post_body, expected_detail",
+        [
+            (
+                {"executiondate": "2020-11-10T08:25:56Z"},
+                {
+                    "detail": [
+                        {
+                            "input": "2020-11-10T08:25:56Z",
+                            "loc": ["body", "executiondate"],
+                            "msg": "Extra inputs are not permitted",
+                            "type": "extra_forbidden",
+                        }
+                    ]
+                },
+            ),
+            (
+                {"logical_date": "2020-11-10T08:25:56"},
+                {
+                    "detail": [
+                        {
+                            "input": "2020-11-10T08:25:56",
+                            "loc": ["body", "logical_date"],
+                            "msg": "Input should have timezone info",
+                            "type": "timezone_aware",
+                        }
+                    ]
+                },
+            ),
+            (
+                {"data_interval_start": "2020-11-10T08:25:56"},
+                {
+                    "detail": [
+                        {
+                            "input": "2020-11-10T08:25:56",
+                            "loc": ["body", "data_interval_start"],
+                            "msg": "Input should have timezone info",
+                            "type": "timezone_aware",
+                        }
+                    ]
+                },
+            ),
+            (
+                {"data_interval_end": "2020-11-10T08:25:56"},
+                {
+                    "detail": [
+                        {
+                            "input": "2020-11-10T08:25:56",
+                            "loc": ["body", "data_interval_end"],
+                            "msg": "Input should have timezone info",
+                            "type": "timezone_aware",
+                        }
+                    ]
+                },
+            ),
+            (
+                {"dag_run_id": 20},
+                {
+                    "detail": [
+                        {
+                            "input": 20,
+                            "loc": ["body", "dag_run_id"],
+                            "msg": "Input should be a valid string",
+                            "type": "string_type",
+                        }
+                    ]
+                },
+            ),
+            (
+                {"note": 20},
+                {
+                    "detail": [
+                        {
+                            "input": 20,
+                            "loc": ["body", "note"],
+                            "msg": "Input should be a valid string",
+                            "type": "string_type",
+                        }
+                    ]
+                },
+            ),
+            (
+                {"conf": 20},
+                {
+                    "detail": [
+                        {
+                            "input": 20,
+                            "loc": ["body", "conf"],
+                            "msg": "Input should be a valid dictionary",
+                            "type": "dict_type",
+                        }
+                    ]
+                },
+            ),
+        ],
+    )
+    def test_invalid_data(self, test_client, post_body, expected_detail):
+        response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns", json=post_body)
+        assert response.status_code == 422
+        assert response.json() == expected_detail
+
+    @mock.patch("airflow.models.DAG.create_dagrun")
+    def test_dagrun_creation_exception_is_handled(self, mock_create_dagrun, test_client):
+        error_message = "Encountered Error"
+
+        mock_create_dagrun.side_effect = ValueError(error_message)
+
+        response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns", json={})
+        assert response.status_code == 400
+        assert response.json() == {"detail": error_message}
+
+    def test_should_respond_404_if_a_dag_is_inactive(self, test_client, session):
+        self._dags_for_trigger_tests(session)
+        response = test_client.post("/public/dags/inactive/dagRuns", json={})
+        assert response.status_code == 404
+        assert response.json()["detail"] == "DAG with dag_id: 'inactive' not found"
+
+    def test_should_respond_400_if_a_dag_has_import_errors(self, test_client, session):
+        self._dags_for_trigger_tests(session)
+        response = test_client.post("/public/dags/import_errors/dagRuns", json={})
+        assert response.status_code == 400
+        assert (
+            response.json()["detail"]
+            == "DAG with dag_id: 'import_errors' has import errors and cannot be triggered"
+        )
+
+    @time_machine.travel(timezone.utcnow(), tick=False)
+    def test_should_response_200_for_duplicate_logical_date(self, test_client):
+        RUN_ID = "random_1"
+        logical_date = LOGICAL_DATE1.isoformat().replace("+00:00", "Z")
+        note = "duplicate logical date test"
+        response = test_client.post(
+            f"/public/dags/{DAG1_ID}/dagRuns",
+            json={"logical_date": logical_date, "dag_run_id": RUN_ID, "note": note},
+        )
+        now = timezone.utcnow().isoformat().replace("+00:00", "Z")
+        assert response.status_code == 200
+        body = response.json()
+        assert body == {
+            "run_id": RUN_ID,
+            "dag_id": DAG1_ID,
+            "logical_date": logical_date,
+            "queued_at": now,
+            "start_date": None,
+            "end_date": None,
+            "data_interval_start": logical_date,
+            "data_interval_end": logical_date,
+            "last_scheduling_decision": None,
+            "run_type": "manual",
+            "state": "queued",
+            "external_trigger": True,
+            "triggered_by": "rest_api",
+            "conf": {},
+            "note": note,
+        }
+
+    @pytest.mark.parametrize(
+        "data_interval_start, data_interval_end",
+        [
+            (
+                LOGICAL_DATE1.isoformat(),
+                None,
+            ),
+            (
+                None,
+                LOGICAL_DATE1.isoformat(),
+            ),
+        ],
+    )
+    def test_should_response_422_for_missing_start_date_or_end_date(
+        self, test_client, data_interval_start, data_interval_end
+    ):
+        response = test_client.post(
+            f"/public/dags/{DAG1_ID}/dagRuns",
+            json={"data_interval_start": data_interval_start, "data_interval_end": data_interval_end},
+        )
+        assert response.status_code == 422
+        assert (
+            response.json()["detail"]
+            == "Either both data_interval_start and data_interval_end must be provided or both must be None"
+        )
+
+    def test_response_404(self, test_client):
+        response = test_client.post("/public/dags/randoms/dagRuns", json={})
+        assert response.status_code == 404
+        assert response.json()["detail"] == "DAG with dag_id: 'randoms' not found"
+
+    def test_response_409(self, test_client):
+        response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns", json={"dag_run_id": DAG1_RUN1_ID})
+        assert response.status_code == 409
+        assert (
+            response.json()["detail"]
+            == "DAGRun with DAG ID: 'test_dag1' and DAGRun ID: 'dag_run_1' already exists"
+        )

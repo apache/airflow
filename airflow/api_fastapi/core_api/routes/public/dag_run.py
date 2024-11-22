@@ -340,33 +340,36 @@ def trigger_dag_run(
     )
 
     if not dagrun_instance:
-        dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+        try:
+            dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
 
-        if body.data_interval_start and body.data_interval_end:
-            data_interval = DataInterval(
-                start=pendulum.instance(body.data_interval_start),
-                end=pendulum.instance(body.data_interval_end),
+            if body.data_interval_start and body.data_interval_end:
+                data_interval = DataInterval(
+                    start=pendulum.instance(body.data_interval_start),
+                    end=pendulum.instance(body.data_interval_end),
+                )
+            else:
+                data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+            dag_version = DagVersion.get_latest_version(dag.dag_id)
+            dag_run = dag.create_dagrun(
+                run_type=DagRunType.MANUAL,
+                run_id=run_id,
+                logical_date=logical_date,
+                data_interval=data_interval,
+                state=DagRunState.QUEUED,
+                conf=body.conf,
+                external_trigger=True,
+                dag_version=dag_version,
+                session=session,
+                triggered_by=DagRunTriggeredByType.REST_API,
             )
-        else:
-            data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
-        dag_version = DagVersion.get_latest_version(dag.dag_id)
-        dag_run = dag.create_dagrun(
-            run_type=DagRunType.MANUAL,
-            run_id=run_id,
-            logical_date=logical_date,
-            data_interval=data_interval,
-            state=DagRunState.QUEUED,
-            conf=body.conf,
-            external_trigger=True,
-            dag_version=dag_version,
-            session=session,
-            triggered_by=DagRunTriggeredByType.REST_API,
-        )
-        dag_run_note = body.note
-        if dag_run_note:
-            current_user_id = None  # refer to https://github.com/apache/airflow/issues/43534
-            dag_run.note = (dag_run_note, current_user_id)
-        return DAGRunResponse.model_validate(dag_run, from_attributes=True)
+            dag_run_note = body.note
+            if dag_run_note:
+                current_user_id = None  # refer to https://github.com/apache/airflow/issues/43534
+                dag_run.note = (dag_run_note, current_user_id)
+            return DAGRunResponse.model_validate(dag_run, from_attributes=True)
+        except ValueError as e:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 
     raise HTTPException(
         status.HTTP_409_CONFLICT,

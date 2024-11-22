@@ -1006,7 +1006,7 @@ export type TriggerDAGRunPostBody = {
   conf?: {
     [key: string]: unknown;
   } | null;
-  note: string | null;
+  note?: string | null;
 };
 
 /**

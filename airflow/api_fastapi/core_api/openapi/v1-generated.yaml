@@ -7546,9 +7546,8 @@ components:
           - type: string
           - type: 'null'
           title: Note
+      additionalProperties: false
       type: object
-      required:
-      - note
       title: TriggerDAGRunPostBody
       description: Trigger DAG Run Serializer for POST body.
     TriggerResponse:
