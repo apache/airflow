@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 import textwrap
 from collections.abc import Iterable
 from typing import Callable, NamedTuple, Union
@@ -68,6 +69,24 @@ class DefaultHelpParser(argparse.ArgumentParser):
         """Override error and use print_instead of print_usage."""
         self.print_help()
         self.exit(2, f"\n{self.prog} command error: {message}, see help above.\n")
+
+
+class _StoreLogicalDateAction(argparse.Action):
+    """
+    Custom action to store a --logical-date value.
+
+    Due to backward compatibility, we also accept -e and --exec-date flags. This
+    custom action emits a deprecation warning when those two flags are used.
+    """
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if option_string in ("-e", "--exec-date"):
+            sys.stderr.write(
+                f"Using {option_string} to specify a logical date is "
+                f"deprecated and will be removed in the future. Please use "
+                f"--logical-date or -l instead.",
+            )
+        super().__call__(parser, namespace, values, option_string=option_string)
 
 
 # Used in Arg to enable `None' as a distinct value from "not passed"
@@ -411,7 +430,12 @@ ARG_IMGCAT = Arg(("--imgcat",), help="Displays graph using the imgcat tool.", ac
 # trigger_dag
 ARG_RUN_ID = Arg(("-r", "--run-id"), help="Helps to identify this run")
 ARG_CONF = Arg(("-c", "--conf"), help="JSON string that gets pickled into the DagRun's conf attribute")
-ARG_EXEC_DATE = Arg(("-e", "--exec-date"), help="The logical date of the DAG", type=parsedate)
+ARG_LOGICAL_DATE_FLAG = Arg(
+    ("-l", "--logical-date", "-e", "--exec-date"),
+    help="The logical date of the DAG",
+    action=_StoreLogicalDateAction,
+    type=parsedate,
+)
 ARG_REPLACE_MICRO = Arg(
     ("--no-replace-microseconds",),
     help="whether microseconds should be zeroed",
@@ -1136,7 +1160,7 @@ DAGS_COMMANDS = (
             ARG_SUBDIR,
             ARG_RUN_ID,
             ARG_CONF,
-            ARG_EXEC_DATE,
+            ARG_LOGICAL_DATE_FLAG,
             ARG_VERBOSE,
             ARG_REPLACE_MICRO,
             ARG_OUTPUT,
