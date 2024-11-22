@@ -29,6 +29,7 @@ from typing import (
 
 from google.api_core.exceptions import GoogleAPICallError
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.retry import Retry
 from google.cloud.translate_v2 import Client
 from google.cloud.translate_v3 import TranslationServiceClient
 
@@ -38,13 +39,31 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from google.api_core.operation import Operation
-    from google.api_core.retry import Retry
+    from google.cloud.translate_v3.services.translation_service import pagers
     from google.cloud.translate_v3.types import (
+        DatasetInputConfig,
         InputConfig,
         OutputConfig,
         TranslateTextGlossaryConfig,
         TransliterationConfig,
+        automl_translation,
     )
+    from proto import Message
+
+
+class WaitOperationNotDoneYetError(Exception):
+    """Wait operation not done yet error."""
+
+    pass
+
+
+def _if_exc_is_wait_failed_error(exc: Exception):
+    return isinstance(exc, WaitOperationNotDoneYetError)
+
+
+def _check_if_operation_done(operation: Operation):
+    if not operation.done():
+        raise WaitOperationNotDoneYetError("Operation is not done yet.")
 
 
 class CloudTranslateHook(GoogleBaseHook):
@@ -163,13 +182,53 @@ class TranslateHook(GoogleBaseHook):
         return self._client
 
     @staticmethod
-    def wait_for_operation(operation: Operation, timeout: int | None = None):
+    def wait_for_operation_done(
+        *,
+        operation: Operation,
+        timeout: float | None = None,
+        initial: float = 3,
+        multiplier: float = 2,
+        maximum: float = 3600,
+    ) -> None:
+        """
+        Wait for long-running operation to be done.
+
+        Calls operation.done() until success or timeout exhaustion, following the back-off retry strategy.
+        See `google.api_core.retry.Retry`.
+        It's intended use on `Operation` instances that have empty result
+        (:class `google.protobuf.empty_pb2.Empty`) by design.
+        Thus calling operation.result() for such operation triggers the exception
+        ``GoogleAPICallError("Unexpected state: Long-running operation had neither response nor error set.")``
+        even though operation itself is totally fine.
+        """
+        wait_op_for_done = Retry(
+            predicate=_if_exc_is_wait_failed_error,
+            initial=initial,
+            timeout=timeout,
+            multiplier=multiplier,
+            maximum=maximum,
+        )(_check_if_operation_done)
+        try:
+            wait_op_for_done(operation=operation)
+        except GoogleAPICallError:
+            if timeout:
+                timeout = int(timeout)
+            error = operation.exception(timeout=timeout)
+            raise AirflowException(error)
+
+    @staticmethod
+    def wait_for_operation_result(operation: Operation, timeout: int | None = None) -> Message:
         """Wait for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
         except GoogleAPICallError:
             error = operation.exception(timeout=timeout)
             raise AirflowException(error)
+
+    @staticmethod
+    def extract_object_id(obj: dict) -> str:
+        """Return unique id of the object."""
+        return obj["name"].rpartition("/")[-1]
 
     def translate_text(
         self,
@@ -208,12 +267,10 @@ class TranslateHook(GoogleBaseHook):
             If not specified, 'global' is used.
             Non-global location is required for requests using AutoML
             models or custom glossaries.
-
             Models and glossaries must be within the same region (have
             the same location-id).
         :param model: Optional. The ``model`` type requested for this translation.
             If not provided, the default Google model (NMT) will be used.
-
             The format depends on model type:
 
             - AutoML Translation models:
@@ -308,8 +365,8 @@ class TranslateHook(GoogleBaseHook):
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
 
-        :returns: Operation object with the batch text translate results,
-         that are returned by batches as they are ready.
+        :return: Operation object with the batch text translate results,
+            that are returned by batches as they are ready.
         """
         client = self.get_client()
         if location == "global":
@@ -331,6 +388,177 @@ class TranslateHook(GoogleBaseHook):
             },
             timeout=timeout,
             retry=retry,
+            metadata=metadata,
+        )
+        return result
+
+    def create_dataset(
+        self,
+        *,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str,
+        dataset: dict | automl_translation.Dataset,
+        timeout: float | _MethodDefault = DEFAULT,
+        metadata: Sequence[tuple[str, str]] = (),
+        retry: Retry | _MethodDefault | None = DEFAULT,
+    ) -> Operation:
+        """
+        Create the translation dataset.
+
+        :param dataset: The dataset to create. If a dict is provided, it must correspond to
+         the automl_translation.Dataset type.
+        :param project_id: ID of the Google Cloud project where dataset is located. If not provided
+            default project_id is used.
+        :param location: The location of the project.
+        :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
+            retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+
+        :return: `Operation` object for the dataset to be created.
+        """
+        client = self.get_client()
+        parent = f"projects/{project_id or self.project_id}/locations/{location}"
+        return client.create_dataset(
+            request={"parent": parent, "dataset": dataset},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    def get_dataset(
+        self,
+        dataset_id: str,
+        project_id: str,
+        location: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | _MethodDefault = DEFAULT,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> automl_translation.Dataset:
+        """
+        Retrieve the dataset for the given dataset_id.
+
+        :param dataset_id: ID of translation dataset to be retrieved.
+        :param project_id: ID of the Google Cloud project where dataset is located. If not provided
+            default project_id is used.
+        :param location: The location of the project.
+        :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
+            retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+
+        :return: `automl_translation.Dataset` instance.
+        """
+        client = self.get_client()
+        name = f"projects/{project_id}/locations/{location}/datasets/{dataset_id}"
+        return client.get_dataset(
+            request={"name": name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+
+    def import_dataset_data(
+        self,
+        dataset_id: str,
+        location: str,
+        input_config: dict | DatasetInputConfig,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """
+        Import data into the translation dataset.
+
+        :param dataset_id: ID of the translation dataset.
+        :param input_config: The desired input location and its domain specific semantics, if any.
+            If a dict is provided, it must be of the same form as the protobuf message InputConfig.
+        :param project_id: ID of the Google Cloud project where dataset is located if None then
+            default project_id is used.
+        :param location: The location of the project.
+        :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
+            retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+
+        :return: `Operation` object for the import data.
+        """
+        client = self.get_client()
+        name = f"projects/{project_id}/locations/{location}/datasets/{dataset_id}"
+        result = client.import_data(
+            request={"dataset": name, "input_config": input_config},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    def list_datasets(
+        self,
+        project_id: str,
+        location: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | _MethodDefault = DEFAULT,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> pagers.ListDatasetsPager:
+        """
+        List translation datasets in a project.
+
+        :param project_id: ID of the Google Cloud project where dataset is located. If not provided
+            default project_id is used.
+        :param location: The location of the project.
+        :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
+            retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+
+        :return: ``pagers.ListDatasetsPager`` instance, iterable object to retrieve the datasets list.
+        """
+        client = self.get_client()
+        parent = f"projects/{project_id}/locations/{location}"
+        result = client.list_datasets(
+            request={"parent": parent},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    def delete_dataset(
+        self,
+        dataset_id: str,
+        project_id: str,
+        location: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Operation:
+        """
+        Delete the translation dataset and all of its contents.
+
+        :param dataset_id: ID of dataset to be deleted.
+        :param project_id: ID of the Google Cloud project where dataset is located. If not provided
+            default project_id is used.
+        :param location: The location of the project.
+        :param retry: A retry object used to retry requests. If `None` is specified, requests will not be
+            retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
+            `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+
+        :return: `Operation` object with dataset deletion results, when finished.
+        """
+        client = self.get_client()
+        name = f"projects/{project_id}/locations/{location}/datasets/{dataset_id}"
+        result = client.delete_dataset(
+            request={"name": name},
+            retry=retry,
+            timeout=timeout,
             metadata=metadata,
         )
         return result
