@@ -1380,6 +1380,9 @@ export type PoolServicePostPoolsMutationResult = Awaited<
 export type TaskInstanceServiceGetTaskInstancesBatchMutationResult = Awaited<
   ReturnType<typeof TaskInstanceService.getTaskInstancesBatch>
 >;
+export type TaskInstanceServicePostClearTaskInstancesMutationResult = Awaited<
+  ReturnType<typeof TaskInstanceService.postClearTaskInstances>
+>;
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>
 >;
