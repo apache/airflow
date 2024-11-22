@@ -129,6 +129,24 @@ export type BaseInfoSchema = {
 };
 
 /**
+ * Request body for Clear Task Instances endpoint.
+ */
+export type ClearTaskInstancesBody = {
+  dry_run?: boolean;
+  start_date?: string | null;
+  end_date?: string | null;
+  only_failed?: boolean;
+  only_running?: boolean;
+  reset_dag_runs?: boolean;
+  task_ids?: Array<string> | null;
+  dag_run_id?: string | null;
+  include_upstream?: boolean;
+  include_downstream?: boolean;
+  include_future?: boolean;
+  include_past?: boolean;
+};
+
+/**
  * List of config sections with their options.
  */
 export type Config = {
@@ -841,6 +859,23 @@ export type TaskInstanceHistoryResponse = {
   pid: number | null;
   executor: string | null;
   executor_config: string;
+};
+
+/**
+ * Task Instance Reference collection serializer for responses.
+ */
+export type TaskInstanceReferenceCollectionResponse = {
+  task_instances: Array<TaskInstanceReferenceResponse>;
+  total_entries: number;
+};
+
+/**
+ * Task Instance Reference serializer for responses.
+ */
+export type TaskInstanceReferenceResponse = {
+  task_id: string;
+  dag_run_id: string;
+  dag_id: string;
 };
 
 /**
@@ -1652,6 +1687,14 @@ export type GetMappedTaskInstanceTryDetailsData = {
 
 export type GetMappedTaskInstanceTryDetailsResponse =
   TaskInstanceHistoryResponse;
+
+export type PostClearTaskInstancesData = {
+  dagId: string;
+  requestBody: ClearTaskInstancesBody;
+};
+
+export type PostClearTaskInstancesResponse =
+  TaskInstanceReferenceCollectionResponse;
 
 export type GetLogData = {
   accept?: "application/json" | "text/plain" | "*/*";
@@ -3426,6 +3469,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: TaskInstanceHistoryResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/clearTaskInstances": {
+    post: {
+      req: PostClearTaskInstancesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceReferenceCollectionResponse;
         /**
          * Unauthorized
          */
