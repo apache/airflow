@@ -21,7 +21,7 @@ from typing import Annotated
 
 import pendulum
 from fastapi import Depends, HTTPException, Query, Request, status
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow.api.common.mark_tasks import (
@@ -56,7 +56,6 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.models import DAG, DagModel, DagRun
 from airflow.models.dag_version import DagVersion
 from airflow.timetables.base import DataInterval
-from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -336,12 +335,7 @@ def trigger_dag_run(
 
     run_id = body.dag_run_id
     dagrun_instance = session.scalar(
-        select(DagRun)
-        .where(
-            DagRun.dag_id == dag_id,
-            or_(DagRun.run_id == run_id),
-        )
-        .limit(1)
+        select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id).limit(1)
     )
 
     if not dagrun_instance:
@@ -353,8 +347,8 @@ def trigger_dag_run(
                 end=pendulum.instance(body.data_interval_end),
             )
         else:
-            now = pendulum.instance(timezone.utcnow())
-            data_interval = dag.timetable.infer_manual_data_interval(run_after=now)
+            logical_date = pendulum.instance(body._logical_date)
+            data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
         dag_version = DagVersion.get_latest_version(dag.dag_id)
         dag_run = dag.create_dagrun(
             run_type=DagRunType.MANUAL,

@@ -999,10 +999,11 @@ export type TimeDelta = {
  * Trigger DAG Run Serializer for POST body.
  */
 export type TriggerDAGRunPostBody = {
-  dag_run_id: string;
-  data_interval_start: string | null;
-  data_interval_end: string | null;
-  conf: {
+  dag_run_id?: string | null;
+  logical_date?: string | null;
+  data_interval_start?: string | null;
+  data_interval_end?: string | null;
+  conf?: {
     [key: string]: unknown;
   } | null;
   note: string | null;

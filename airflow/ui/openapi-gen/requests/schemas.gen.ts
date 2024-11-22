@@ -4316,8 +4316,27 @@ export const $TimeDelta = {
 export const $TriggerDAGRunPostBody = {
   properties: {
     dag_run_id: {
-      type: "string",
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
       title: "Dag Run Id",
+    },
+    logical_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Logical Date",
     },
     data_interval_start: {
       anyOf: [
@@ -4367,13 +4386,7 @@ export const $TriggerDAGRunPostBody = {
     },
   },
   type: "object",
-  required: [
-    "dag_run_id",
-    "data_interval_start",
-    "data_interval_end",
-    "conf",
-    "note",
-  ],
+  required: ["note"],
   title: "TriggerDAGRunPostBody",
   description: "Trigger DAG Run Serializer for POST body.",
 } as const;

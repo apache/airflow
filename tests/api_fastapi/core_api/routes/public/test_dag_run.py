@@ -652,3 +652,7 @@ class TestClearDagRun:
         body = response.json()
         assert body["detail"][0]["msg"] == "Field required"
         assert body["detail"][0]["loc"][0] == "body"
+
+
+class TestTriggerDagRun:
+    pass
