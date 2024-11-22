@@ -17,7 +17,9 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import Field
+
+from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class ConnectionResponse(BaseModel):

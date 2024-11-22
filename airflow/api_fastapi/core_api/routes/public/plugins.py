@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.plugins import PluginCollectionResponse, PluginResponse
@@ -32,9 +34,6 @@ def get_plugins(
 ) -> PluginCollectionResponse:
     plugins_info = sorted(get_plugin_info(), key=lambda x: x["name"])
     return PluginCollectionResponse(
-        plugins=[
-            PluginResponse.model_validate(plugin_info)
-            for plugin_info in plugins_info[offset.value :][: limit.value]
-        ],
+        plugins=cast(list[PluginResponse], plugins_info[offset.value :][: limit.value]),
         total_entries=len(plugins_info),
     )

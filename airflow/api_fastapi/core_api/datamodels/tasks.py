@@ -22,9 +22,10 @@ from collections import abc
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, computed_field, field_validator, model_validator
+from pydantic import computed_field, field_validator, model_validator
 
 from airflow.api_fastapi.common.types import TimeDeltaWithValidation
+from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.models.mappedoperator import MappedOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator, encode_priority_weight_strategy
 from airflow.task.priority_strategy import PriorityWeightStrategy

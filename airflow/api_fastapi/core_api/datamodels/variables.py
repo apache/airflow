@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import json
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
+from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.typing_compat import Self
 from airflow.utils.log.secrets_masker import redact
 
@@ -28,7 +29,7 @@ from airflow.utils.log.secrets_masker import redact
 class VariableResponse(BaseModel):
     """Variable serializer for responses."""
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
     key: str
     val: str | None = Field(alias="value")

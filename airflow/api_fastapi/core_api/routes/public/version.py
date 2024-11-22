@@ -31,4 +31,4 @@ def get_version() -> VersionInfo:
     airflow_version = airflow.__version__
     git_version = get_airflow_git_version()
     version_info = VersionInfo(version=airflow_version, git_version=git_version)
-    return VersionInfo.model_validate(version_info)
+    return version_info

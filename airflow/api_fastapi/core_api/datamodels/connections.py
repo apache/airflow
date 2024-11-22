@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import json
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
+from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.utils.log.secrets_masker import redact
 
 

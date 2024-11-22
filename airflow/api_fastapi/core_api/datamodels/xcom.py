@@ -19,7 +19,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, field_validator
+from pydantic import field_validator
+
+from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class XComResponse(BaseModel):

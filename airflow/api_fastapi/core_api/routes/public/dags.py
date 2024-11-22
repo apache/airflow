@@ -101,7 +101,7 @@ def get_dags(
     dags = session.scalars(dags_select)
 
     return DAGCollectionResponse(
-        dags=[DAGResponse.model_validate(dag, from_attributes=True) for dag in dags],
+        dags=dags,
         total_entries=total_entries,
     )
 
@@ -162,7 +162,7 @@ def get_dag(dag_id: str, session: Annotated[Session, Depends(get_session)], requ
         if not key.startswith("_") and not hasattr(dag_model, key):
             setattr(dag_model, key, value)
 
-    return DAGResponse.model_validate(dag_model, from_attributes=True)
+    return dag_model
 
 
 @dags_router.get(
@@ -190,7 +190,7 @@ def get_dag_details(
         if not key.startswith("_") and not hasattr(dag_model, key):
             setattr(dag_model, key, value)
 
-    return DAGDetailsResponse.model_validate(dag_model, from_attributes=True)
+    return dag_model
 
 
 @dags_router.patch(
@@ -227,7 +227,7 @@ def patch_dag(
     for key, val in data.items():
         setattr(dag, key, val)
 
-    return DAGResponse.model_validate(dag, from_attributes=True)
+    return dag
 
 
 @dags_router.patch(
@@ -280,7 +280,7 @@ def patch_dags(
     )
 
     return DAGCollectionResponse(
-        dags=[DAGResponse.model_validate(d, from_attributes=True) for d in dags],
+        dags=dags,
         total_entries=total_entries,
     )
 

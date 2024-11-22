@@ -54,10 +54,7 @@ def get_event_log(
     event_log = session.scalar(select(Log).where(Log.id == event_log_id))
     if event_log is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Event Log with id: `{event_log_id}` not found")
-    return EventLogResponse.model_validate(
-        event_log,
-        from_attributes=True,
-    )
+    return event_log
 
 
 @event_logs_router.get(
@@ -134,6 +131,6 @@ def get_event_logs(
     event_logs = session.scalars(event_logs_select)
 
     return EventLogCollectionResponse(
-        event_logs=[EventLogResponse.model_validate(e, from_attributes=True) for e in event_logs],
+        event_logs=event_logs,
         total_entries=total_entries,
     )

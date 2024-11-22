@@ -18,13 +18,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class JobResponse(BaseModel):
     """Job serializer for responses."""
-
-    model_config = ConfigDict(populate_by_name=True)
 
     id: int
     dag_id: str | None

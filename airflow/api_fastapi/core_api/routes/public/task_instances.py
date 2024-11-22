@@ -98,7 +98,7 @@ def get_task_instance(
             status.HTTP_404_NOT_FOUND, "Task instance is mapped, add the map_index value to the URL"
         )
 
-    return TaskInstanceResponse.model_validate(task_instance, from_attributes=True)
+    return task_instance
 
 
 @task_instances_router.get(
@@ -175,10 +175,7 @@ def get_mapped_task_instances(
     task_instances = session.scalars(task_instance_select)
 
     return TaskInstanceCollectionResponse(
-        task_instances=[
-            TaskInstanceResponse.model_validate(task_instance, from_attributes=True)
-            for task_instance in task_instances
-        ],
+        task_instances=task_instances,
         total_entries=total_entries,
     )
 
@@ -263,7 +260,7 @@ def get_mapped_task_instance(
             f"The Mapped Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}`, and map_index: `{map_index}` was not found",
         )
 
-    return TaskInstanceResponse.model_validate(task_instance, from_attributes=True)
+    return task_instance
 
 
 @task_instances_router.get(
@@ -339,7 +336,7 @@ def get_task_instances(
     )
     task_instances = session.scalars(task_instance_select)
     return TaskInstanceCollectionResponse(
-        task_instances=[TaskInstanceResponse.model_validate(t, from_attributes=True) for t in task_instances],
+        task_instances=task_instances,
         total_entries=total_entries,
     )
 
@@ -415,7 +412,7 @@ def get_task_instances_batch(
     task_instances = session.scalars(task_instance_select)
 
     return TaskInstanceCollectionResponse(
-        task_instances=[TaskInstanceResponse.model_validate(t, from_attributes=True) for t in task_instances],
+        task_instances=task_instances,
         total_entries=total_entries,
     )
 
@@ -452,7 +449,7 @@ def get_task_instance_try_details(
             status.HTTP_404_NOT_FOUND,
             f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}`, try_number: `{task_try_number}` and map_index: `{map_index}` was not found",
         )
-    return TaskInstanceHistoryResponse.model_validate(result, from_attributes=True)
+    return result
 
 
 @task_instances_router.get(
