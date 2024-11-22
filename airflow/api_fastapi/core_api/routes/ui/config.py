@@ -39,7 +39,6 @@ WEBSERVER_CONFIG_KEYS = [
     "require_confirmation_dag_change",
     "enable_swagger_ui",
     "instance_name_has_markup",
-    "show_trigger_form_if_no_params",
     "navbar_text_color",
     "navbar_hover_color",
     "navbar_text_hover_color",

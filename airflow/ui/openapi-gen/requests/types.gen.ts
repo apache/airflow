@@ -1101,7 +1101,6 @@ export type airflow__api_fastapi__core_api__datamodels__ui__config__Config = {
   default_ui_timezone: string;
   hide_paused_dags_by_default: boolean;
   instance_name: string;
-  show_trigger_form_if_no_params: boolean;
   instance_name_has_markup: boolean;
   enable_swagger_ui: boolean;
   require_confirmation_dag_change: boolean;

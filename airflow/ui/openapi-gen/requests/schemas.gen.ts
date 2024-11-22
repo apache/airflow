@@ -4679,10 +4679,6 @@ export const $airflow__api_fastapi__core_api__datamodels__ui__config__Config = {
       type: "string",
       title: "Instance Name",
     },
-    show_trigger_form_if_no_params: {
-      type: "boolean",
-      title: "Show Trigger Form If No Params",
-    },
     instance_name_has_markup: {
       type: "boolean",
       title: "Instance Name Has Markup",
@@ -4736,7 +4732,6 @@ export const $airflow__api_fastapi__core_api__datamodels__ui__config__Config = {
     "default_ui_timezone",
     "hide_paused_dags_by_default",
     "instance_name",
-    "show_trigger_form_if_no_params",
     "instance_name_has_markup",
     "enable_swagger_ui",
     "require_confirmation_dag_change",

@@ -32,7 +32,6 @@ class Config(BaseModel):
     default_ui_timezone: str
     hide_paused_dags_by_default: bool
     instance_name: str
-    show_trigger_form_if_no_params: bool
     instance_name_has_markup: bool
     enable_swagger_ui: bool
     require_confirmation_dag_change: bool
