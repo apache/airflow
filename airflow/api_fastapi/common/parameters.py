@@ -102,18 +102,6 @@ class OffsetFilter(BaseParam[NonNegativeInt]):
         return self.set_value(offset)
 
 
-class _PausedFilter(BaseParam[bool]):
-    """Filter on is_paused."""
-
-    def to_orm(self, select: Select) -> Select:
-        if self.value is None and self.skip_none:
-            return select
-        return select.where(DagModel.is_paused == self.value)
-
-    def depends(self, paused: bool | None = None) -> _PausedFilter:
-        return self.set_value(paused)
-
-
 class _OnlyActiveFilter(BaseParam[bool]):
     """Filter on is_active."""
 
@@ -298,12 +286,15 @@ def filter_param_factory(
     _type: type,
     filter_option: FilterOptionEnum = FilterOptionEnum.EQUAL,
     filter_name: str | None = None,
+    default_value: T | None = None,
     skip_none: bool = True,
 ) -> Callable[[T | None], FilterParam[T | None]]:
     # if filter_name is not provided, use the attribute name as the default
     filter_name = filter_name or attribute.name
 
-    def depends_filter(value: T | None = Query(alias=filter_name, default=None)) -> FilterParam[T | None]:
+    def depends_filter(
+        value: T | None = Query(alias=filter_name, default=default_value),
+    ) -> FilterParam[T | None]:
         return FilterParam(attribute, value, filter_option, skip_none)
 
     # add type hint to value at runtime
@@ -642,7 +633,10 @@ OptionalDateTimeQuery = Annotated[Union[str, None], AfterValidator(_safe_parse_d
 # DAG
 QueryLimit = Annotated[LimitFilter, Depends(LimitFilter().depends)]
 QueryOffset = Annotated[OffsetFilter, Depends(OffsetFilter().depends)]
-QueryPausedFilter = Annotated[_PausedFilter, Depends(_PausedFilter().depends)]
+QueryPausedFilter = Annotated[
+    FilterParam[Optional[bool]],
+    Depends(filter_param_factory(DagModel.is_paused, Optional[bool], filter_name="paused")),
+]
 QueryOnlyActiveFilter = Annotated[_OnlyActiveFilter, Depends(_OnlyActiveFilter().depends)]
 QueryDagIdPatternSearch = Annotated[_DagIdPatternSearch, Depends(_DagIdPatternSearch().depends)]
 QueryDagDisplayNamePatternSearch = Annotated[
