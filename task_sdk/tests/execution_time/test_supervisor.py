@@ -163,6 +163,36 @@ class TestWatchedSubprocess:
 
         assert rc == -9
 
+    def test_last_chance_exception_handling(self, capfd):
+        # Ignore anything lower than INFO for this test. Captured_logs resets things for us afterwards
+        structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
+
+        def subprocess_main():
+            # The real main() in task_runner catches exceptions! This is what would happen if we had a syntax
+            # or import error for instance - a very early exception
+            raise RuntimeError("Fake syntax error")
+
+        proc = WatchedSubprocess.start(
+            path=os.devnull,
+            ti=TaskInstance(
+                id=uuid7(),
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+            ),
+            client=MagicMock(spec=sdk_client.Client),
+            target=subprocess_main,
+        )
+
+        rc = proc.wait()
+
+        assert rc == 126
+
+        captured = capfd.readouterr()
+        assert "Last chance exception handler" in captured.err
+        assert "RuntimeError: Fake syntax error" in captured.err
+
     def test_regular_heartbeat(self, spy_agency: kgb.SpyAgency, monkeypatch):
         """Test that the WatchedSubprocess class regularly sends heartbeat requests, up to a certain frequency"""
         import airflow.sdk.execution_time.supervisor
@@ -237,8 +267,6 @@ class TestHandleRequest:
             ti_id=uuid7(),
             pid=12345,
             stdin=BytesIO(),
-            stdout=mocker.Mock(),  # Not used in these tests
-            stderr=mocker.Mock(),  # Not used in these tests
             client=mocker.Mock(),
             process=mocker.Mock(),
         )
