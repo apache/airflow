@@ -334,6 +334,7 @@ def trigger_dag_run(
         )
 
     run_id = body.dag_run_id
+    logical_date = pendulum.instance(body._logical_date)
     dagrun_instance = session.scalar(
         select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id).limit(1)
     )
@@ -347,12 +348,12 @@ def trigger_dag_run(
                 end=pendulum.instance(body.data_interval_end),
             )
         else:
-            logical_date = pendulum.instance(body._logical_date)
             data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
         dag_version = DagVersion.get_latest_version(dag.dag_id)
         dag_run = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             run_id=run_id,
+            logical_date=logical_date,
             data_interval=data_interval,
             state=DagRunState.QUEUED,
             conf=body.conf,

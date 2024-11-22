@@ -17,15 +17,17 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 import pytest
+import time_machine
 from sqlalchemy import select
 
 from airflow.models import DagRun
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
+from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -63,10 +65,13 @@ DAG1_RUN1_NOTE = "test_note"
 
 @pytest.fixture(autouse=True)
 @provide_session
-def setup(dag_maker, session=None):
+def setup(request, dag_maker, session=None):
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()
+
+    if "no_setup" in request.keywords:
+        return
 
     with dag_maker(
         DAG1_ID,
@@ -654,5 +659,70 @@ class TestClearDagRun:
         assert body["detail"][0]["loc"][0] == "body"
 
 
+# @pytest.mark.no_setup
 class TestTriggerDagRun:
-    pass
+    @time_machine.travel(timezone.utcnow(), tick=False)
+    @pytest.mark.parametrize(
+        "dag_run_id, logical_date, note, data_interval_start, data_interval_end",
+        [
+            ("dag_run_5", LOGICAL_DATE1, "test_note", LOGICAL_DATE1, LOGICAL_DATE2 + timedelta(days=1)),
+        ],
+    )
+    def test_should_respond_200(
+        self,
+        test_client,
+        session,
+        dag_run_id,
+        logical_date,
+        note,
+        data_interval_start,
+        data_interval_end,
+    ):
+        response = test_client.post(
+            f"/public/dags/{DAG1_ID}/dagRuns",
+            json={
+                "dag_run_id": dag_run_id,
+                "logical_date": logical_date.isoformat(),
+                "note": note,
+                "data_interval_start": data_interval_start.isoformat(),
+                "data_interval_end": data_interval_end.isoformat(),
+            },
+        )
+
+        assert response.status_code == 200
+        now = timezone.utcnow().isoformat().replace("+00:00", "Z")
+        if logical_date is None:
+            logical_date = now
+        else:
+            logical_date = logical_date.isoformat().replace("+00:00", "Z")
+
+        if dag_run_id is None:
+            dag_run_id = f"manual__{logical_date}"
+
+        if data_interval_end is None and data_interval_start is None:
+            data_interval_end = now
+            data_interval_start = now
+        else:
+            data_interval_end = data_interval_end.isoformat().replace("+00:00", "Z")
+            data_interval_start = data_interval_start.isoformat().replace("+00:00", "Z")
+
+        expected_response_json = {
+            "conf": {},
+            "dag_id": DAG1_ID,
+            "run_id": dag_run_id,
+            "end_date": None,
+            "logical_date": logical_date,
+            "external_trigger": True,
+            "start_date": None,
+            "state": "queued",
+            "data_interval_end": data_interval_end,
+            "data_interval_start": data_interval_start,
+            "queued_at": now,
+            "last_scheduling_decision": None,
+            "run_type": "manual",
+            "note": note,
+            "triggered_by": "rest_api",
+        }
+
+        assert response.json() == expected_response_json
+        # _check_last_log(session, dag_id=DAG1_ID, event="api.post_dag_run", logical_date=None)

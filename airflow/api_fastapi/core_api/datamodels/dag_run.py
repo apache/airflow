@@ -89,9 +89,7 @@ class TriggerDAGRunPostBody(BaseModel):
 
     @model_validator(mode="after")
     def check_data_intervals(cls, values):
-        data_interval_start = values.get("data_interval_start")
-        data_interval_end = values.get("data_interval_end")
-        if (data_interval_start is None) != (data_interval_end is None):
+        if (values.data_interval_start is None) != (values.data_interval_end is None):
             raise ValueError(
                 "Either both data_interval_start and data_interval_end must be provided or both must be None"
             )
