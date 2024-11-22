@@ -784,9 +784,10 @@ class GCSToBigQueryOperator(BaseOperator):
         source_objects = (
             self.source_objects if isinstance(self.source_objects, list) else [self.source_objects]
         )
-        input_dataset_facets = {
-            "schema": output_dataset_facets["schema"],
-        }
+        input_dataset_facets = {}
+        if "schema" in output_dataset_facets:
+            input_dataset_facets["schema"] = output_dataset_facets["schema"]
+
         input_datasets = []
         for blob in sorted(source_objects):
             additional_facets = {}
@@ -811,14 +812,16 @@ class GCSToBigQueryOperator(BaseOperator):
             )
             input_datasets.append(dataset)
 
-        output_dataset_facets["columnLineage"] = get_identity_column_lineage_facet(
-            field_names=[field.name for field in table_object.schema], input_datasets=input_datasets
-        )
-
         output_dataset = Dataset(
             namespace="bigquery",
             name=str(table_object.reference),
-            facets=output_dataset_facets,
+            facets={
+                **output_dataset_facets,
+                **get_identity_column_lineage_facet(
+                    dest_field_names=[field.name for field in table_object.schema],
+                    input_datasets=input_datasets,
+                ),
+            },
         )
 
         run_facets = {}

@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.openlineage.facet import Dataset
 
 from airflow.providers.common.compat.openlineage.facet import (
+    BaseFacet,
     ColumnLineageDatasetFacet,
     DocumentationDatasetFacet,
     Fields,
@@ -41,50 +42,82 @@ BIGQUERY_NAMESPACE = "bigquery"
 BIGQUERY_URI = "bigquery"
 
 
-def get_facets_from_bq_table(table: Table) -> dict[Any, Any]:
+def get_facets_from_bq_table(table: Table) -> dict[str, BaseFacet]:
     """Get facets from BigQuery table object."""
-    facets = {
-        "schema": SchemaDatasetFacet(
+    facets: dict[str, BaseFacet] = {}
+    if table.schema:
+        facets["schema"] = SchemaDatasetFacet(
             fields=[
                 SchemaDatasetFacetFields(
-                    name=field.name, type=field.field_type, description=field.description
+                    name=schema_field.name, type=schema_field.field_type, description=schema_field.description
                 )
-                for field in table.schema
+                for schema_field in table.schema
             ]
-        ),
-        "documentation": DocumentationDatasetFacet(description=table.description or ""),
-    }
+        )
+    if table.description:
+        facets["documentation"] = DocumentationDatasetFacet(description=table.description)
 
     return facets
 
 
 def get_identity_column_lineage_facet(
-    field_names: list[str],
+    dest_field_names: list[str],
     input_datasets: list[Dataset],
-) -> ColumnLineageDatasetFacet:
+) -> dict[str, ColumnLineageDatasetFacet]:
     """
-    Get column lineage facet.
+    Get column lineage facet for identity transformations.
 
-    Simple lineage will be created, where each source column corresponds to single destination column
-    in each input dataset and there are no transformations made.
+    This function generates a simple column lineage facet, where each destination column
+    consists of source columns of the same name from all input datasets that have that column.
+    The lineage assumes there are no transformations applied, meaning the columns retain their
+    identity between the source and destination datasets.
+
+    Args:
+        dest_field_names: A list of destination column names for which lineage should be determined.
+        input_datasets: A list of input datasets with schema facets.
+
+    Returns:
+        A dictionary containing a single key, `columnLineage`, mapped to a `ColumnLineageDatasetFacet`.
+         If no column lineage can be determined, an empty dictionary is returned - see Notes below.
+
+    Notes:
+        - If any input dataset lacks a schema facet, the function immediately returns an empty dictionary.
+        - If any field in the source dataset's schema is not present in the destination table,
+          the function returns an empty dictionary. The destination table can contain extra fields, but all
+          source columns should be present in the destination table.
+        - If none of the destination columns can be matched to input dataset columns, an empty
+          dictionary is returned.
+        - Extra columns in the destination table that do not exist in the input datasets are ignored and
+          skipped in the lineage facet, as they cannot be traced back to a source column.
+        - The function assumes there are no transformations applied, meaning the columns retain their
+          identity between the source and destination datasets.
     """
-    if field_names and not input_datasets:
-        raise ValueError("When providing `field_names` You must provide at least one `input_dataset`.")
+    fields_sources: dict[str, list[Dataset]] = {}
+    for ds in input_datasets:
+        if not ds.facets or "schema" not in ds.facets:
+            return {}
+        for schema_field in ds.facets["schema"].fields:  # type: ignore[attr-defined]
+            if schema_field.name not in dest_field_names:
+                return {}
+            fields_sources[schema_field.name] = fields_sources.get(schema_field.name, []) + [ds]
+
+    if not fields_sources:
+        return {}
 
     column_lineage_facet = ColumnLineageDatasetFacet(
         fields={
-            field: Fields(
+            field_name: Fields(
                 inputFields=[
-                    InputField(namespace=dataset.namespace, name=dataset.name, field=field)
-                    for dataset in input_datasets
+                    InputField(namespace=dataset.namespace, name=dataset.name, field=field_name)
+                    for dataset in source_datasets
                 ],
                 transformationType="IDENTITY",
                 transformationDescription="identical",
             )
-            for field in field_names
+            for field_name, source_datasets in fields_sources.items()
         }
     )
-    return column_lineage_facet
+    return {"columnLineage": column_lineage_facet}
 
 
 @define
