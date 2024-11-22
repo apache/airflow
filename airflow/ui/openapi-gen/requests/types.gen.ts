@@ -630,7 +630,7 @@ export type EventLogResponse = {
  * Extra Links Response.
  */
 export type ExtraLinksResponse = {
-  [key: string]: string;
+  [key: string]: string | null;
 };
 
 /**

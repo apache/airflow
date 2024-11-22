@@ -16,10 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-from pydantic import HttpUrl, RootModel
+from pydantic import RootModel
 
 
 class ExtraLinksResponse(RootModel):
     """Extra Links Response."""
 
-    root: dict[str, HttpUrl]
+    root: dict[str, str | None]

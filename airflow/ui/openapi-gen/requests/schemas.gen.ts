@@ -2593,10 +2593,14 @@ export const $EventLogResponse = {
 
 export const $ExtraLinksResponse = {
   additionalProperties: {
-    type: "string",
-    maxLength: 2083,
-    minLength: 1,
-    format: "uri",
+    anyOf: [
+      {
+        type: "string",
+      },
+      {
+        type: "null",
+      },
+    ],
   },
   type: "object",
   title: "ExtraLinksResponse",

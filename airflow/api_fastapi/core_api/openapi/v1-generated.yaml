@@ -6655,10 +6655,9 @@ components:
       description: Event Log Response.
     ExtraLinksResponse:
       additionalProperties:
-        type: string
-        maxLength: 2083
-        minLength: 1
-        format: uri
+        anyOf:
+        - type: string
+        - type: 'null'
       type: object
       title: ExtraLinksResponse
       description: Extra Links Response.
