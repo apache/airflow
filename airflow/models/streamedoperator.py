@@ -20,7 +20,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from asyncio import AbstractEventLoop, Semaphore, ensure_future, iscoroutinefunction
+from asyncio import AbstractEventLoop, Semaphore, ensure_future, iscoroutinefunction, wait_for
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager, suppress
 from math import ceil
 from time import sleep
@@ -82,13 +83,11 @@ class OperatorExecutor(LoggingMixin):
 
     def __init__(
         self,
-        semaphore: Semaphore,
         operator: BaseOperator,
         context: Context,
         task_instance: TaskInstance,
     ):
         super().__init__()
-        self._semaphore = semaphore
         self.operator = operator
         self.__context = context
         self._task_instance = task_instance
@@ -104,31 +103,31 @@ class OperatorExecutor(LoggingMixin):
         return {**self.__context, **{"ti": self.task_instance}}
 
     async def _run_callable(self, method: Callable, *args, **kwargs):
-        self.log.debug("semaphore: %s (%s)", self._semaphore, self._semaphore.locked())
-        async with self._semaphore:
-            while self.task_instance.try_number <= self.operator.retries:
-                try:
-                    outlet_events = context_get_outlet_events(self.context)
-                    callable_runner = ExecutionCallableRunner(
-                        func=method, outlet_events=outlet_events, logger=self.log
+        while self.task_instance.try_number <= self.operator.retries:
+            try:
+                outlet_events = context_get_outlet_events(self.context)
+                callable_runner = ExecutionCallableRunner(
+                    func=method, outlet_events=outlet_events, logger=self.log
+                )
+                if iscoroutinefunction(method):
+                    return await callable_runner.run(*args, **kwargs)
+                return callable_runner.run(*args, **kwargs)
+            except AirflowException as e:
+                if self.task_instance.next_try_number > self.operator.retries:
+                    self.log.error(
+                        "Max number of attempts for %s with map_index %s failed due to: %s",
+                        type(self.operator).__name__,
+                        self.task_instance.map_index,
+                        e,
                     )
-                    if iscoroutinefunction(method):
-                        return await callable_runner.run(*args, **kwargs)
-                    return callable_runner.run(*args, **kwargs)
-                except AirflowException as e:
-                    if self.task_instance.next_try_number > self.operator.retries:
-                        self.log.error(
-                            "Max number of attempts for %s with map_index %s failed due to: %s",
-                            type(self.operator).__name__,
-                            self.task_instance.map_index,
-                            e,
-                        )
-                        raise e
+                    raise e
 
-                    self.task_instance.try_number += 1
-                    self.task_instance.end_date = timezone.utcnow()
+                self.task_instance.try_number += 1
+                self.task_instance.end_date = timezone.utcnow()
 
-                    raise AirflowRescheduleTaskInstanceException(task_instance=self.task_instance)
+                raise AirflowRescheduleTaskInstanceException(
+                    task_instance=self.task_instance
+                )
 
     async def _run_deferrable(self, context: Context, task_deferred: TaskDeferred):
         event = await run_trigger(task_deferred.trigger)
@@ -157,12 +156,18 @@ class OperatorExecutor(LoggingMixin):
             )
 
         self.operator.pre_execute(context=self.context)
-        self.task_instance._run_execute_callback(context=self.context, task=self.operator)
+        self.task_instance._run_execute_callback(
+            context=self.context, task=self.operator
+        )
 
         try:
-            return await self._run_callable(method, *(list(args or ()) + [self.context]), **kwargs)
+            return await self._run_callable(
+                method, *(list(args or ()) + [self.context]), **kwargs
+            )
         except TaskDeferred as task_deferred:
-            return await self._run_callable(self._run_deferrable, *[self.context, task_deferred])
+            return await self._run_callable(
+                self._run_deferrable, *[self.context, task_deferred]
+            )
         finally:
             self.operator.post_execute(context=self.context)
 
@@ -181,7 +186,13 @@ class StreamedOperator(BaseOperator):
     _operator_class: type[BaseOperator]
     expand_input: ExpandInput
     partial_kwargs: dict[str, Any]
-    shallow_copy_attrs: Sequence[str] = ("expand_input", "partial_kwargs", "_log", "_semaphore")
+    # each operator should override this class attr for shallow copy attrs.
+    shallow_copy_attrs: Sequence[str] = (
+        "expand_input",
+        "partial_kwargs",
+        "_log",
+        "_semaphore",
+    )
 
     def __init__(
         self,
@@ -198,7 +209,6 @@ class StreamedOperator(BaseOperator):
         self._mapped_kwargs: list[dict] = []
         if not self.max_active_tis_per_dag:
             self.max_active_tis_per_dag = os.cpu_count() or 1
-        self._semaphore = Semaphore(self.max_active_tis_per_dag)
         XComArg.apply_upstream_relationship(self, self.expand_input.value)
 
     @property
@@ -212,7 +222,7 @@ class StreamedOperator(BaseOperator):
         self.log.debug("index: %s", index)
         kwargs = {
             **self.partial_kwargs,
-            **{"task_id": f"{self.task_id}_{index}"},
+            **{"task_id": f"{self.partial_kwargs.get('task_id')}_{index}"},
             **self._mapped_kwargs[index],
         }
         self.log.debug("kwargs: %s", kwargs)
@@ -244,23 +254,67 @@ class StreamedOperator(BaseOperator):
         session = get_current_task_instance_session()
         self._resolve_expand_input(context=context, session=session)
 
-    def _run_futures(self, context: Context, futures, results: list[Any] | None = None) -> list[Any]:
+    @classmethod
+    def run_until_complete(cls, func, *args, **kwargs):
+        try:
+            loop = asyncio.get_event_loop()
+            return loop.run_until_complete(func(*args, **kwargs))
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            return loop.run_until_complete(func(*args, **kwargs))
+
+    async def _run_tasks(
+        self, context: Context, tasks, results: list[Any] | None = None
+    ) -> list[Any]:
         reschedule_date = timezone.utcnow()
         results = results or []
-        failed_futures = []
+        failed_tasks = []
 
         with event_loop() as loop:
-            for result in loop.run_until_complete(asyncio.gather(*futures, return_exceptions=True)):
-                if isinstance(result, Exception):
-                    if not isinstance(result, AirflowRescheduleTaskInstanceException):
-                        raise result
-                    reschedule_date = result.reschedule_date
-                    failed_futures.append(ensure_future(self._run_task(context, result.task_instance)))
-                else:
-                    results.append(result)
+            with ThreadPoolExecutor(
+                max_workers=self.max_active_tis_per_dag
+            ) as executor:
+                futures = [
+                    (
+                        loop.run_in_executor(
+                            executor,
+                            self.run_until_complete,
+                            self._run_operator,
+                            context,
+                            task,
+                        ),
+                        task,
+                    )
+                    for task in tasks
+                ]
 
-            if not failed_futures:
-                return list(filter(None, results))
+                for future, task in futures:
+                    try:
+                        # Apply timeout for each task
+                        result = await wait_for(
+                            future, timeout=self.execution_timeout.total_seconds()
+                        )
+                        self.log.info("result: %s", result)
+                        results.append(result)
+                    except asyncio.TimeoutError:
+                        self.log.warning(
+                            "Task timed out after %s seconds: %s",
+                            self.execution_timeout.total_seconds(),
+                            task.task_id,
+                        )
+                        if task.next_try_number > self.retries:
+                            raise e
+                        failed_tasks.append(task)
+                    except AirflowRescheduleTaskInstanceException as e:
+                        reschedule_date = e.reschedule_date
+                        failed_tasks.append(e.task_instance)
+                    except Exception as e:
+                        self.log.exception("Unexpected error: %s", e)
+                        raise e
+
+        if not failed_tasks:
+            return list(filter(None, results))
 
         # session = get_current_task_instance_session()
         # TaskInstance._set_state(context["ti"], TaskInstanceState.UP_FOR_RETRY, session)
@@ -274,21 +328,20 @@ class StreamedOperator(BaseOperator):
         if delay_seconds > 0:
             self.log.info(
                 "Attempting to run %s failed tasks within %s seconds...",
-                len(failed_futures),
+                len(failed_tasks),
                 delay_seconds,
             )
 
-            sleep(delay_seconds)
+            await sleep(delay_seconds)
 
         # TaskInstance._set_state(context["ti"], TaskInstanceState.RUNNING, session)
 
-        return self._run_futures(context, failed_futures, results)
+        return await self._run_tasks(context, failed_tasks, results)
 
-    async def _run_task(self, context: Context, task_instance: TaskInstance):
+    async def _run_operator(self, context: Context, task_instance: TaskInstance):
         operator: BaseOperator = cast(BaseOperator, task_instance.task)
         self.log.debug("operator: %s", operator)
         result = await OperatorExecutor(
-            semaphore=self._semaphore,
             operator=operator,
             context=context,
             task_instance=task_instance,
@@ -298,7 +351,7 @@ class StreamedOperator(BaseOperator):
         if operator.do_xcom_push:
             return result
 
-    def _create_future(self, context: Context, index: int):
+    def _create_task(self, context: Context, index: int):
         operator = self._unmap_operator(index)
         operator.render_template_fields(context=context)
         task_instance = TaskInstance(
@@ -307,19 +360,24 @@ class StreamedOperator(BaseOperator):
             state=context["ti"].state,
             map_index=index,
         )
-        return asyncio.ensure_future(self._run_task(context, task_instance))
+        return task_instance
 
     def execute(self, context: Context):
         self.log.info(
-            "Executing %s mapped tasks on %s with %s workers",
+            "Executing %s mapped tasks on %s with %s threads and timeout of %s",
             len(self._mapped_kwargs),
             self._operator_class.__name__,
             self.max_active_tis_per_dag,
+            self.execution_timeout.total_seconds(),
         )
 
-        return self._run_futures(
-            context=context,
-            futures=[
-                self._create_future(context, index) for index, mapped_kwargs in enumerate(self._mapped_kwargs)
-            ],
-        )
+        with event_loop() as loop:
+            loop.run_until_complete(
+                self._run_tasks(
+                    context=context,
+                    tasks=[
+                        self._create_task(context, index)
+                        for index, _ in enumerate(self._mapped_kwargs)
+                    ],
+                )
+            )

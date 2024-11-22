@@ -40,7 +40,7 @@ from airflow.models.abstractoperator import (
     DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
-    NotMapped,
+    NotMapped, DEFAULT_TASK_EXECUTION_TIMEOUT,
 )
 from airflow.models.expandinput import (
     DictOfListsExpandInput,
@@ -258,6 +258,7 @@ class OperatorPartial:
         start_date = partial_kwargs.pop("start_date")
         end_date = partial_kwargs.pop("end_date")
         max_active_tis_per_dag = partial_kwargs.pop("max_active_tis_per_dag", None)
+        execution_timeout = partial_kwargs.pop("execution_timeout", DEFAULT_TASK_EXECUTION_TIMEOUT)
 
         return StreamedOperator(
             task_id=task_id,
@@ -265,6 +266,7 @@ class OperatorPartial:
             task_group=task_group,
             start_date=start_date,
             end_date=end_date,
+            execution_timeout=execution_timeout,
             max_active_tis_per_dag=max_active_tis_per_dag,
             operator_class=self.operator_class,
             expand_input=expand_input,
