@@ -2899,6 +2899,63 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links:
+    get:
+      tags:
+      - Extra Links
+      summary: Get Extra Links
+      description: Get extra links for task instance.
+      operationId: get_extra_links
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtraLinksResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/importErrors/{import_error_id}:
     get:
       tags:
@@ -6596,6 +6653,15 @@ components:
       - extra
       title: EventLogResponse
       description: Event Log Response.
+    ExtraLinksResponse:
+      additionalProperties:
+        type: string
+        maxLength: 2083
+        minLength: 1
+        format: uri
+      type: object
+      title: ExtraLinksResponse
+      description: Extra Links Response.
     FastAPIAppResponse:
       properties:
         app:

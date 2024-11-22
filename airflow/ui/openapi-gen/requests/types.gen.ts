@@ -627,6 +627,13 @@ export type EventLogResponse = {
 };
 
 /**
+ * Extra Links Response.
+ */
+export type ExtraLinksResponse = {
+  [key: string]: string;
+};
+
+/**
  * Serializer for Plugin FastAPI App responses.
  */
 export type FastAPIAppResponse = {
@@ -1534,6 +1541,14 @@ export type GetEventLogsData = {
 };
 
 export type GetEventLogsResponse = EventLogCollectionResponse;
+
+export type GetExtraLinksData = {
+  dagId: string;
+  dagRunId: string;
+  taskId: string;
+};
+
+export type GetExtraLinksResponse = ExtraLinksResponse;
 
 export type GetImportErrorData = {
   importErrorId: number;
@@ -3022,6 +3037,33 @@ export type $OpenApiTs = {
          * Forbidden
          */
         403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links": {
+    get: {
+      req: GetExtraLinksData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ExtraLinksResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
         /**
          * Validation Error
          */

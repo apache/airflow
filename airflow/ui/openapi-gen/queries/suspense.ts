@@ -14,6 +14,7 @@ import {
   DagsService,
   DashboardService,
   EventLogService,
+  ExtraLinksService,
   ImportErrorService,
   MonitorService,
   PluginService,
@@ -1195,6 +1196,42 @@ export const useEventLogServiceGetEventLogsSuspense = <
         taskId,
         tryNumber,
       }) as TData,
+    ...options,
+  });
+/**
+ * Get Extra Links
+ * Get extra links for task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @returns ExtraLinksResponse Successful Response
+ * @throws ApiError
+ */
+export const useExtraLinksServiceGetExtraLinksSuspense = <
+  TData = Common.ExtraLinksServiceGetExtraLinksDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    taskId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    taskId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn(
+      { dagId, dagRunId, taskId },
+      queryKey,
+    ),
+    queryFn: () =>
+      ExtraLinksService.getExtraLinks({ dagId, dagRunId, taskId }) as TData,
     ...options,
   });
 /**

@@ -14,6 +14,7 @@ import {
   DagsService,
   DashboardService,
   EventLogService,
+  ExtraLinksService,
   ImportErrorService,
   MonitorService,
   PluginService,
@@ -760,6 +761,30 @@ export const UseEventLogServiceGetEventLogsKeyFn = (
       tryNumber,
     },
   ]),
+];
+export type ExtraLinksServiceGetExtraLinksDefaultResponse = Awaited<
+  ReturnType<typeof ExtraLinksService.getExtraLinks>
+>;
+export type ExtraLinksServiceGetExtraLinksQueryResult<
+  TData = ExtraLinksServiceGetExtraLinksDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useExtraLinksServiceGetExtraLinksKey =
+  "ExtraLinksServiceGetExtraLinks";
+export const UseExtraLinksServiceGetExtraLinksKeyFn = (
+  {
+    dagId,
+    dagRunId,
+    taskId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    taskId: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useExtraLinksServiceGetExtraLinksKey,
+  ...(queryKey ?? [{ dagId, dagRunId, taskId }]),
 ];
 export type ImportErrorServiceGetImportErrorDefaultResponse = Awaited<
   ReturnType<typeof ImportErrorService.getImportError>

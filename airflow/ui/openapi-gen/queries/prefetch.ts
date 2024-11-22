@@ -14,6 +14,7 @@ import {
   DagsService,
   DashboardService,
   EventLogService,
+  ExtraLinksService,
   ImportErrorService,
   MonitorService,
   PluginService,
@@ -990,6 +991,36 @@ export const prefetchUseEventLogServiceGetEventLogs = (
         taskId,
         tryNumber,
       }),
+  });
+/**
+ * Get Extra Links
+ * Get extra links for task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @returns ExtraLinksResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseExtraLinksServiceGetExtraLinks = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+    taskId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    taskId: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn({
+      dagId,
+      dagRunId,
+      taskId,
+    }),
+    queryFn: () => ExtraLinksService.getExtraLinks({ dagId, dagRunId, taskId }),
   });
 /**
  * Get Import Error

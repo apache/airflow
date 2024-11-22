@@ -2591,6 +2591,18 @@ export const $EventLogResponse = {
   description: "Event Log Response.",
 } as const;
 
+export const $ExtraLinksResponse = {
+  additionalProperties: {
+    type: "string",
+    maxLength: 2083,
+    minLength: 1,
+    format: "uri",
+  },
+  type: "object",
+  title: "ExtraLinksResponse",
+  description: "Extra Links Response.",
+} as const;
+
 export const $FastAPIAppResponse = {
   properties: {
     app: {
