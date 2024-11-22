@@ -4326,18 +4326,6 @@ export const $TriggerDAGRunPostBody = {
       ],
       title: "Dag Run Id",
     },
-    logical_date: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Logical Date",
-    },
     data_interval_start: {
       anyOf: [
         {

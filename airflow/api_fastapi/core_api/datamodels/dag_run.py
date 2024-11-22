@@ -81,7 +81,6 @@ class TriggerDAGRunPostBody(BaseModel):
     """Trigger DAG Run Serializer for POST body."""
 
     dag_run_id: str | None = None
-    logical_date: AwareDatetime | None = None
     data_interval_start: AwareDatetime | None = None
     data_interval_end: AwareDatetime | None = None
 
@@ -102,11 +101,11 @@ class TriggerDAGRunPostBody(BaseModel):
     @model_validator(mode="after")
     def validate_dag_run_id(self):
         if not self.dag_run_id:
-            self.dag_run_id = DagRun.generate_run_id(DagRunType.MANUAL, self._logical_date)
+            self.dag_run_id = DagRun.generate_run_id(DagRunType.MANUAL, self.logical_date)
         return self
 
     # Mypy issue https://github.com/python/mypy/issues/1362
     @computed_field  # type: ignore[misc]
     @property
-    def _logical_date(self) -> datetime:
-        return self.logical_date or timezone.utcnow()
+    def logical_date(self) -> datetime:
+        return timezone.utcnow()
