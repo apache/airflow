@@ -152,8 +152,8 @@ def get_mapped_task_instances(
             raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
 
     task_instance_select, total_entries = paginated_select(
-        base_query,
-        [
+        select=base_query,
+        filters=[
             logical_date_range,
             start_date_range,
             end_date_range,
@@ -164,12 +164,11 @@ def get_mapped_task_instances(
             queue,
             executor,
         ],
-        order_by,
-        offset,
-        limit,
-        session,
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
-
     task_instances = session.scalars(task_instance_select)
 
     return TaskInstanceCollectionResponse(
@@ -318,8 +317,8 @@ def get_task_instances(
         base_query = base_query.where(TI.run_id == dag_run_id)
 
     task_instance_select, total_entries = paginated_select(
-        base_query,
-        [
+        select=base_query,
+        filters=[
             logical_date,
             start_date_range,
             end_date_range,
@@ -330,19 +329,14 @@ def get_task_instances(
             queue,
             executor,
         ],
-        order_by,
-        offset,
-        limit,
-        session,
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
-
     task_instances = session.scalars(task_instance_select)
-
     return TaskInstanceCollectionResponse(
-        task_instances=[
-            TaskInstanceResponse.model_validate(task_instance, from_attributes=True)
-            for task_instance in task_instances
-        ],
+        task_instances=[TaskInstanceResponse.model_validate(t, from_attributes=True) for t in task_instances],
         total_entries=total_entries,
     )
 
@@ -392,8 +386,8 @@ def get_task_instances_batch(
 
     base_query = select(TI).join(TI.dag_run)
     task_instance_select, total_entries = paginated_select(
-        base_query,
-        [
+        select=base_query,
+        filters=[
             dag_ids,
             dag_run_ids,
             task_ids,
@@ -406,12 +400,11 @@ def get_task_instances_batch(
             queue,
             executor,
         ],
-        order_by,
-        offset,
-        limit,
-        session,
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
-
     task_instance_select = task_instance_select.options(
         joinedload(TI.rendered_task_instance_fields), joinedload(TI.task_instance_note)
     )
@@ -419,10 +412,7 @@ def get_task_instances_batch(
     task_instances = session.scalars(task_instance_select)
 
     return TaskInstanceCollectionResponse(
-        task_instances=[
-            TaskInstanceResponse.model_validate(task_instance, from_attributes=True)
-            for task_instance in task_instances
-        ],
+        task_instances=[TaskInstanceResponse.model_validate(t, from_attributes=True) for t in task_instances],
         total_entries=total_entries,
     )
 

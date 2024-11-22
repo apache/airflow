@@ -45,8 +45,8 @@ from pydantic import TypeAdapter
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
-    ConnectionResponse,
     GetConnection,
+    GetVariable,
     StartupDetails,
     ToSupervisor,
 )
@@ -480,10 +480,7 @@ class WatchedSubprocess:
         return rep + " >"
 
     def handle_requests(self, log: FilteringBoundLogger) -> Generator[None, bytes, None]:
-        encoder = ConnectionResponse.model_dump_json
-        # Use a buffer to avoid small allocations
-        buffer = bytearray(64)
-
+        """Handle incoming requests from the task process, respond with the appropriate data."""
         decoder = TypeAdapter[ToSupervisor](ToSupervisor)
 
         while True:
@@ -495,28 +492,23 @@ class WatchedSubprocess:
                 log.exception("Unable to decode message", line=line)
                 continue
 
-            # if isinstnace(msg, TaskState):
+            # if isinstance(msg, TaskState):
             #     self._terminal_state = msg.state
             # elif isinstance(msg, ReadXCom):
             #     resp = XComResponse(key="secret", value=True)
             #     encoder.encode_into(resp, buffer)
             #     self.stdin.write(buffer + b"\n")
             if isinstance(msg, GetConnection):
-                conn = self.client.connections.get(msg.id)
-                resp = ConnectionResponse(conn=conn)
-                encoded_resp = encoder(resp)
-                buffer.extend(encoded_resp.encode())
+                conn = self.client.connections.get(msg.conn_id)
+                resp = conn.model_dump_json(exclude_unset=True).encode()
+            elif isinstance(msg, GetVariable):
+                var = self.client.variables.get(msg.key)
+                resp = var.model_dump_json(exclude_unset=True).encode()
             else:
                 log.error("Unhandled request", msg=msg)
                 continue
 
-            buffer.extend(b"\n")
-            self.stdin.write(buffer)
-
-            # Ensure the buffer doesn't grow and stay large if a large payload is used. This won't grow it
-            # larger than it is, but it will shrink it
-            if len(buffer) > 1024:
-                buffer = buffer[:1024]
+            self.stdin.write(resp + b"\n")
 
 
 # Sockets, even the `.makefile()` function don't correctly do line buffering on reading. If a chunk is read

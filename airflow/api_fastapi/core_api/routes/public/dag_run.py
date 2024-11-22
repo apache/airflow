@@ -288,16 +288,15 @@ def get_dag_runs(
         base_query = base_query.filter(DagRun.dag_id == dag_id)
 
     dag_run_select, total_entries = paginated_select(
-        base_query,
-        [logical_date, start_date_range, end_date_range, update_at_range, state],
-        order_by,
-        offset,
-        limit,
-        session,
+        select=base_query,
+        filters=[logical_date, start_date_range, end_date_range, update_at_range, state],
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
-
     dag_runs = session.scalars(dag_run_select)
     return DAGRunCollectionResponse(
-        dag_runs=[DAGRunResponse.model_validate(dag_run, from_attributes=True) for dag_run in dag_runs],
+        dag_runs=[DAGRunResponse.model_validate(dr, from_attributes=True) for dr in dag_runs],
         total_entries=total_entries,
     )

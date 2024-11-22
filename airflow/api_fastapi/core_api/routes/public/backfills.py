@@ -60,17 +60,17 @@ def list_backfills(
     session: Annotated[Session, Depends(get_session)],
 ) -> BackfillCollectionResponse:
     select_stmt, total_entries = paginated_select(
-        select(Backfill).where(Backfill.dag_id == dag_id),
-        [],
+        select=select(Backfill).where(Backfill.dag_id == dag_id),
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
     )
+
     backfills = session.scalars(select_stmt)
 
     return BackfillCollectionResponse(
-        backfills=[BackfillResponse.model_validate(x, from_attributes=True) for x in backfills],
+        backfills=[BackfillResponse.model_validate(b, from_attributes=True) for b in backfills],
         total_entries=total_entries,
     )
 

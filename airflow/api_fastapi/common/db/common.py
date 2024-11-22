@@ -14,10 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Database helpers for Airflow REST API.
+
+:meta private:
+"""
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Literal, Sequence, overload
 
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -47,29 +52,59 @@ def get_session() -> Session:
         yield session
 
 
-def apply_filters_to_select(base_select: Select, filters: Sequence[BaseParam | None]) -> Select:
-    base_select = base_select
-    for filter in filters:
-        if filter is None:
+def apply_filters_to_select(
+    *, base_select: Select, filters: Sequence[BaseParam | None] | None = None
+) -> Select:
+    if filters is None:
+        return base_select
+    for f in filters:
+        if f is None:
             continue
-        base_select = filter.to_orm(base_select)
+        base_select = f.to_orm(base_select)
 
     return base_select
 
 
+@overload
+def paginated_select(
+    *,
+    select: Select,
+    filters: Sequence[BaseParam] | None = None,
+    order_by: BaseParam | None = None,
+    offset: BaseParam | None = None,
+    limit: BaseParam | None = None,
+    session: Session = NEW_SESSION,
+    return_total_entries: Literal[True] = True,
+) -> tuple[Select, int]: ...
+
+
+@overload
+def paginated_select(
+    *,
+    select: Select,
+    filters: Sequence[BaseParam] | None = None,
+    order_by: BaseParam | None = None,
+    offset: BaseParam | None = None,
+    limit: BaseParam | None = None,
+    session: Session = NEW_SESSION,
+    return_total_entries: Literal[False],
+) -> tuple[Select, None]: ...
+
+
 @provide_session
 def paginated_select(
-    base_select: Select,
-    filters: Sequence[BaseParam],
+    *,
+    select: Select,
+    filters: Sequence[BaseParam] | None = None,
     order_by: BaseParam | None = None,
     offset: BaseParam | None = None,
     limit: BaseParam | None = None,
     session: Session = NEW_SESSION,
     return_total_entries: bool = True,
-) -> Select:
+) -> tuple[Select, int | None]:
     base_select = apply_filters_to_select(
-        base_select,
-        filters,
+        base_select=select,
+        filters=filters,
     )
 
     total_entries = None
@@ -81,6 +116,6 @@ def paginated_select(
     # readable_dags = get_auth_manager().get_permitted_dag_ids(user=g.user)
     # dags_select = dags_select.where(DagModel.dag_id.in_(readable_dags))
 
-    base_select = apply_filters_to_select(base_select, [order_by, offset, limit])
+    base_select = apply_filters_to_select(base_select=base_select, filters=[order_by, offset, limit])
 
     return base_select, total_entries
