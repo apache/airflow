@@ -35,6 +35,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIHeartbeatInfo,
     TITerminalStatePayload,
     ValidationError as RemoteValidationError,
+    VariableResponse,
 )
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
@@ -124,15 +125,27 @@ class TaskInstanceOperations:
 
 
 class ConnectionOperations:
-    __slots__ = ("client", "decoder")
+    __slots__ = ("client",)
 
     def __init__(self, client: Client):
         self.client = client
 
-    def get(self, id: str) -> ConnectionResponse:
+    def get(self, conn_id: str) -> ConnectionResponse:
         """Get a connection from the API server."""
-        resp = self.client.get(f"connection/{id}")
+        resp = self.client.get(f"connections/{conn_id}")
         return ConnectionResponse.model_validate_json(resp.read())
+
+
+class VariableOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get(self, key: str) -> VariableResponse:
+        """Get a variable from the API server."""
+        resp = self.client.get(f"variables/{key}")
+        return VariableResponse.model_validate_json(resp.read())
 
 
 class BearerAuth(httpx.Auth):
@@ -186,8 +199,14 @@ class Client(httpx.Client):
     @lru_cache()  # type: ignore[misc]
     @property
     def connections(self) -> ConnectionOperations:
-        """Operations related to TaskInstances."""
+        """Operations related to Connections."""
         return ConnectionOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def variables(self) -> VariableOperations:
+        """Operations related to Variables."""
+        return VariableOperations(self)
 
 
 # This is only used for parsing. ServerResponseError is raised instead
