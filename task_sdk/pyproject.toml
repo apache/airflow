@@ -62,11 +62,11 @@ namespace-packages = ["src/airflow"]
 # Pycharm barfs if this "stub" file has future imports
 "src/airflow/__init__.py" = ["I002"]
 
-"src/airflow/sdk/__init__.py" = ["TCH004"]
+"src/airflow/sdk/__init__.py" = ["TC004"]
 
 # msgspec needs types for annotations to be defined, even with future
 # annotations, so disable the "type check only import" for these files
-"src/airflow/sdk/api/datamodels/*.py" = ["TCH001"]
+"src/airflow/sdk/api/datamodels/*.py" = ["TC001"]
 
 # Only the public API should _require_ docstrings on classes
 "!src/airflow/sdk/definitions/*" = ["D101"]

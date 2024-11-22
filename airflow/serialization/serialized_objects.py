@@ -110,9 +110,9 @@ if TYPE_CHECKING:
 
     HAS_KUBERNETES: bool
     try:
-        from kubernetes.client import models as k8s  # noqa: TCH004
+        from kubernetes.client import models as k8s  # noqa: TC004
 
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator  # noqa: TCH004
+        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator  # noqa: TC004
     except ImportError:
         pass
 
