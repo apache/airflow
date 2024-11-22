@@ -689,25 +689,22 @@ class TestTriggerDagRun:
 
     @time_machine.travel(timezone.utcnow(), tick=False)
     @pytest.mark.parametrize(
-        "dag_run_id, logical_date, note, data_interval_start, data_interval_end",
+        "dag_run_id, note, data_interval_start, data_interval_end",
         [
-            ("dag_run_5", "2020-06-11T18:00:00+00:00", "test-note", None, None),
+            ("dag_run_5", "test-note", None, None),
             (
                 "dag_run_6",
-                "2024-06-11T18:00:00+00:00",
                 "test-note",
                 "2024-01-03T00:00:00+00:00",
                 "2024-01-04T05:00:00+00:00",
             ),
-            (None, "2020-06-11T18:00:00+00:00", None, None, None),
-            (None, None, None, None, None),
+            (None, None, None, None),
         ],
     )
     def test_should_respond_200(
         self,
         test_client,
         dag_run_id,
-        logical_date,
         note,
         data_interval_start,
         data_interval_end,
@@ -715,8 +712,6 @@ class TestTriggerDagRun:
         fixed_now = timezone.utcnow().isoformat()
 
         request_json = {"note": note}
-        if logical_date is not None:
-            request_json["logical_date"] = logical_date
         if dag_run_id is not None:
             request_json["dag_run_id"] = dag_run_id
         if data_interval_start is not None:
@@ -728,26 +723,20 @@ class TestTriggerDagRun:
             f"/public/dags/{DAG1_ID}/dagRuns",
             json={
                 "dag_run_id": dag_run_id,
-                "logical_date": logical_date,
                 "note": note,
                 "data_interval_start": data_interval_start,
                 "data_interval_end": data_interval_end,
             },
         )
-
         assert response.status_code == 200
 
-        if logical_date is None:
-            expected_logical_date = fixed_now
-        else:
-            expected_logical_date = logical_date
         if dag_run_id is None:
-            expected_dag_run_id = f"manual__{expected_logical_date}"
+            expected_dag_run_id = f"manual__{fixed_now}"
         else:
             expected_dag_run_id = dag_run_id
 
-        expected_data_interval_start = expected_logical_date.replace("+00:00", "Z")
-        expected_data_interval_end = expected_logical_date.replace("+00:00", "Z")
+        expected_data_interval_start = fixed_now.replace("+00:00", "Z")
+        expected_data_interval_end = fixed_now.replace("+00:00", "Z")
         if data_interval_start is not None and data_interval_end is not None:
             expected_data_interval_start = data_interval_start.replace("+00:00", "Z")
             expected_data_interval_end = data_interval_end.replace("+00:00", "Z")
@@ -757,7 +746,7 @@ class TestTriggerDagRun:
             "dag_id": DAG1_ID,
             "run_id": expected_dag_run_id,
             "end_date": None,
-            "logical_date": expected_logical_date.replace("+00:00", "Z"),
+            "logical_date": fixed_now.replace("+00:00", "Z"),
             "external_trigger": True,
             "start_date": None,
             "state": "queued",
@@ -795,8 +784,8 @@ class TestTriggerDagRun:
                         {
                             "input": "2020-11-10T08:25:56",
                             "loc": ["body", "logical_date"],
-                            "msg": "Input should have timezone info",
-                            "type": "timezone_aware",
+                            "msg": "Extra inputs are not permitted",
+                            "type": "extra_forbidden",
                         }
                     ]
                 },
@@ -900,33 +889,41 @@ class TestTriggerDagRun:
 
     @time_machine.travel(timezone.utcnow(), tick=False)
     def test_should_response_200_for_duplicate_logical_date(self, test_client):
-        RUN_ID = "random_1"
-        logical_date = LOGICAL_DATE1.isoformat().replace("+00:00", "Z")
-        note = "duplicate logical date test"
-        response = test_client.post(
-            f"/public/dags/{DAG1_ID}/dagRuns",
-            json={"logical_date": logical_date, "dag_run_id": RUN_ID, "note": note},
-        )
+        RUN_ID_1 = "random_1"
+        RUN_ID_2 = "random_2"
         now = timezone.utcnow().isoformat().replace("+00:00", "Z")
-        assert response.status_code == 200
-        body = response.json()
-        assert body == {
-            "run_id": RUN_ID,
-            "dag_id": DAG1_ID,
-            "logical_date": logical_date,
-            "queued_at": now,
-            "start_date": None,
-            "end_date": None,
-            "data_interval_start": logical_date,
-            "data_interval_end": logical_date,
-            "last_scheduling_decision": None,
-            "run_type": "manual",
-            "state": "queued",
-            "external_trigger": True,
-            "triggered_by": "rest_api",
-            "conf": {},
-            "note": note,
-        }
+        note = "duplicate logical date test"
+        response_1 = test_client.post(
+            f"/public/dags/{DAG1_ID}/dagRuns",
+            json={"dag_run_id": RUN_ID_1, "note": note},
+        )
+        response_2 = test_client.post(
+            f"/public/dags/{DAG1_ID}/dagRuns",
+            json={"dag_run_id": RUN_ID_2, "note": note},
+        )
+
+        assert response_1.status_code == response_2.status_code == 200
+        body1 = response_1.json()
+        body2 = response_2.json()
+
+        for each_run_id, each_body in [(RUN_ID_1, body1), (RUN_ID_2, body2)]:
+            assert each_body == {
+                "run_id": each_run_id,
+                "dag_id": DAG1_ID,
+                "logical_date": now,
+                "queued_at": now,
+                "start_date": None,
+                "end_date": None,
+                "data_interval_start": now,
+                "data_interval_end": now,
+                "last_scheduling_decision": None,
+                "run_type": "manual",
+                "state": "queued",
+                "external_trigger": True,
+                "triggered_by": "rest_api",
+                "conf": {},
+                "note": note,
+            }
 
     @pytest.mark.parametrize(
         "data_interval_start, data_interval_end",

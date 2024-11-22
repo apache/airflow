@@ -334,7 +334,7 @@ def trigger_dag_run(
         )
 
     run_id = body.dag_run_id
-    logical_date = pendulum.instance(body._logical_date)
+    logical_date = pendulum.instance(body.logical_date)
     dagrun_instance = session.scalar(
         select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id).limit(1)
     )
