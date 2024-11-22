@@ -162,6 +162,34 @@ export type ConfigOption = {
 };
 
 /**
+ * configuration serializer.
+ */
+export type ConfigResponse = {
+  navbar_color: string;
+  navbar_text_color: string;
+  navbar_hover_color: string;
+  navbar_text_hover_color: string;
+  navbar_logo_text_color: string;
+  page_size: number;
+  auto_refresh_interval: number;
+  default_ui_timezone: string;
+  hide_paused_dags_by_default: boolean;
+  instance_name: string;
+  instance_name_has_markup: boolean;
+  enable_swagger_ui: boolean;
+  require_confirmation_dag_change: boolean;
+  default_wrap: boolean;
+  warn_deployment_exposure: boolean;
+  audit_view_excluded_events: string;
+  audit_view_included_events: string;
+  is_k8s: boolean;
+  test_connection: string;
+  state_color_mapping: {
+    [key: string]: unknown;
+  };
+};
+
+/**
  * Config Section Schema.
  */
 export type ConfigSection = {
@@ -1239,6 +1267,23 @@ export type RecentDagRunsData = {
 
 export type RecentDagRunsResponse = DAGWithLatestDagRunsCollectionResponse;
 
+export type GetConfigsResponse = ConfigResponse;
+
+export type GetConfigData = {
+  accept?: "application/json" | "text/plain" | "*/*";
+  section?: string | null;
+};
+
+export type GetConfigResponse = Config;
+
+export type GetConfigValueData = {
+  accept?: "application/json" | "text/plain" | "*/*";
+  option: string;
+  section: string;
+};
+
+export type GetConfigValueResponse = Config;
+
 export type ListBackfillsData = {
   dagId: string;
   limit?: number;
@@ -1389,21 +1434,6 @@ export type GetDagStatsData = {
 };
 
 export type GetDagStatsResponse = DagStatsCollectionResponse;
-
-export type GetConfigData = {
-  accept?: "application/json" | "text/plain" | "*/*";
-  section?: string | null;
-};
-
-export type GetConfigResponse = Config;
-
-export type GetConfigValueData = {
-  accept?: "application/json" | "text/plain" | "*/*";
-  option: string;
-  section: string;
-};
-
-export type GetConfigValueResponse = Config;
 
 export type ListDagWarningsData = {
   dagId?: string | null;
@@ -2095,6 +2125,82 @@ export type $OpenApiTs = {
       };
     };
   };
+  "/ui/config": {
+    get: {
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ConfigResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+      };
+    };
+  };
+  "/public/config": {
+    get: {
+      req: GetConfigData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: Config;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Not Acceptable
+         */
+        406: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/config/section/{section}/option/{option}": {
+    get: {
+      req: GetConfigValueData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: Config;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Not Acceptable
+         */
+        406: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
   "/public/backfills": {
     get: {
       req: ListBackfillsData;
@@ -2648,68 +2754,6 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/config": {
-    get: {
-      req: GetConfigData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: Config;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Not Acceptable
-         */
-        406: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/config/section/{section}/option/{option}": {
-    get: {
-      req: GetConfigValueData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: Config;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Not Acceptable
-         */
-        406: HTTPExceptionResponse;
         /**
          * Validation Error
          */

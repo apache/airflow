@@ -606,6 +606,116 @@ export const $ConfigOption = {
   description: "Config option.",
 } as const;
 
+export const $ConfigResponse = {
+  properties: {
+    navbar_color: {
+      type: "string",
+      title: "Navbar Color",
+    },
+    navbar_text_color: {
+      type: "string",
+      title: "Navbar Text Color",
+    },
+    navbar_hover_color: {
+      type: "string",
+      title: "Navbar Hover Color",
+    },
+    navbar_text_hover_color: {
+      type: "string",
+      title: "Navbar Text Hover Color",
+    },
+    navbar_logo_text_color: {
+      type: "string",
+      title: "Navbar Logo Text Color",
+    },
+    page_size: {
+      type: "integer",
+      title: "Page Size",
+    },
+    auto_refresh_interval: {
+      type: "integer",
+      title: "Auto Refresh Interval",
+    },
+    default_ui_timezone: {
+      type: "string",
+      title: "Default Ui Timezone",
+    },
+    hide_paused_dags_by_default: {
+      type: "boolean",
+      title: "Hide Paused Dags By Default",
+    },
+    instance_name: {
+      type: "string",
+      title: "Instance Name",
+    },
+    instance_name_has_markup: {
+      type: "boolean",
+      title: "Instance Name Has Markup",
+    },
+    enable_swagger_ui: {
+      type: "boolean",
+      title: "Enable Swagger Ui",
+    },
+    require_confirmation_dag_change: {
+      type: "boolean",
+      title: "Require Confirmation Dag Change",
+    },
+    default_wrap: {
+      type: "boolean",
+      title: "Default Wrap",
+    },
+    warn_deployment_exposure: {
+      type: "boolean",
+      title: "Warn Deployment Exposure",
+    },
+    audit_view_excluded_events: {
+      type: "string",
+      title: "Audit View Excluded Events",
+    },
+    audit_view_included_events: {
+      type: "string",
+      title: "Audit View Included Events",
+    },
+    is_k8s: {
+      type: "boolean",
+      title: "Is K8S",
+    },
+    test_connection: {
+      type: "string",
+      title: "Test Connection",
+    },
+    state_color_mapping: {
+      type: "object",
+      title: "State Color Mapping",
+    },
+  },
+  type: "object",
+  required: [
+    "navbar_color",
+    "navbar_text_color",
+    "navbar_hover_color",
+    "navbar_text_hover_color",
+    "navbar_logo_text_color",
+    "page_size",
+    "auto_refresh_interval",
+    "default_ui_timezone",
+    "hide_paused_dags_by_default",
+    "instance_name",
+    "instance_name_has_markup",
+    "enable_swagger_ui",
+    "require_confirmation_dag_change",
+    "default_wrap",
+    "warn_deployment_exposure",
+    "audit_view_excluded_events",
+    "audit_view_included_events",
+    "is_k8s",
+    "test_connection",
+    "state_color_mapping",
+  ],
+  title: "ConfigResponse",
+  description: "configuration serializer.",
+} as const;
+
 export const $ConfigSection = {
   properties: {
     name: {
