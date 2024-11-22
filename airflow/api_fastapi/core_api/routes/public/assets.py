@@ -109,7 +109,7 @@ def get_assets(
         )
     )
     return AssetCollectionResponse(
-        assets=[AssetResponse.model_validate(asset, from_attributes=True) for asset in assets],
+        assets=assets,
         total_entries=total_entries,
     )
 
@@ -157,9 +157,7 @@ def get_asset_events(
     assets_events = session.scalars(assets_event_select)
 
     return AssetEventCollectionResponse(
-        asset_events=[
-            AssetEventResponse.model_validate(asset, from_attributes=True) for asset in assets_events
-        ],
+        asset_events=assets_events,
         total_entries=total_entries,
     )
 
@@ -187,7 +185,7 @@ def create_asset_event(
 
     if not assets_event:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with uri: `{body.uri}` was not found")
-    return AssetEventResponse.model_validate(assets_event, from_attributes=True)
+    return assets_event
 
 
 @assets_router.get(
@@ -247,7 +245,7 @@ def get_asset(
     if asset is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with uri: `{uri}` was not found")
 
-    return AssetResponse.model_validate(asset, from_attributes=True)
+    return AssetResponse.model_validate(asset)
 
 
 @assets_router.get(
@@ -282,10 +280,7 @@ def get_dag_asset_queued_events(
     ]
 
     return QueuedEventCollectionResponse(
-        queued_events=[
-            QueuedEventResponse.model_validate(queued_event, from_attributes=True)
-            for queued_event in queued_events
-        ],
+        queued_events=queued_events,
         total_entries=total_entries,
     )
 
