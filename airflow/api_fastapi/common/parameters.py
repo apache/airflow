@@ -715,8 +715,10 @@ QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter().depends)]
 QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter().depends)]
 
 # DagRun
-QueryLastDagRunStateFilter = Annotated[_LastDagRunStateFilter, Depends(_LastDagRunStateFilter().depends)]
-QueryDagIdsFilter = Annotated[DagIdsFilter, Depends(DagIdsFilter(DagRun).depends)]
+QueryLastDagRunStateFilter = Annotated[
+    FilterParam[Optional[DagRunState]],
+    Depends(filter_param_factory(DagRun.state, Optional[DagRunState], filter_name="last_dag_run_state")),
+]
 QueryDagRunStateFilter = Annotated[DagRunStateFilter, Depends(DagRunStateFilter().depends)]
 
 # DAGTags
