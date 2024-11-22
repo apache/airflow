@@ -72,6 +72,12 @@ class PoolPatchBody(BaseModel):
 class PoolPostBody(BasePool):
     """Pool serializer for post bodies."""
 
-    pool: str = Field(alias="name")
+    pool: str = Field(alias="name", max_length=256)
     description: str | None = None
     include_deferred: bool = False
+
+
+class PoolPostBulkBody(BaseModel):
+    """Pools serializer for post bodies."""
+
+    pools: list[PoolPostBody]
