@@ -77,4 +77,4 @@ def get_task(dag_id: str, task_id, request: Request) -> TaskResponse:
         task = dag.get_task(task_id=task_id)
     except TaskNotFound:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task with id {task_id} was not found")
-    return TaskResponse.model_validate(task)
+    return cast(TaskResponse, task)

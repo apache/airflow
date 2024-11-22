@@ -78,7 +78,7 @@ def get_connection(
             status.HTTP_404_NOT_FOUND, f"The Connection with connection_id: `{connection_id}` was not found"
         )
 
-    return ConnectionResponse.model_validate(connection)
+    return connection
 
 
 @connections_router.get(
@@ -140,7 +140,7 @@ def post_connection(
     connection = Connection(**post_body.model_dump(by_alias=True))
     session.add(connection)
 
-    return ConnectionResponse.model_validate(connection)
+    return connection
 
 
 @connections_router.patch(
@@ -180,7 +180,7 @@ def patch_connection(
 
     for key, val in data.items():
         setattr(connection, key, val)
-    return ConnectionResponse.model_validate(connection)
+    return connection
 
 
 @connections_router.post(

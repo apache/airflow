@@ -74,7 +74,7 @@ def get_dag_run(
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
 
-    return DAGRunResponse.model_validate(dag_run)
+    return dag_run
 
 
 @dag_run_router.delete(
@@ -156,7 +156,7 @@ def patch_dag_run(
 
     dag_run = session.get(DagRun, dag_run.id)
 
-    return DAGRunResponse.model_validate(dag_run)
+    return dag_run
 
 
 @dag_run_router.get(
@@ -233,7 +233,7 @@ def clear_dag_run(
             session=session,
         )
         dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))
-        return DAGRunResponse.model_validate(dag_run_cleared)
+        return dag_run_cleared
 
 
 @dag_run_router.get("", responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]))

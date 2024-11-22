@@ -85,7 +85,7 @@ def get_backfill(
 ) -> BackfillResponse:
     backfill = session.get(Backfill, backfill_id)
     if backfill:
-        return BackfillResponse.model_validate(backfill)
+        return backfill
     raise HTTPException(status.HTTP_404_NOT_FOUND, "Backfill not found")
 
 
@@ -107,7 +107,7 @@ def pause_backfill(backfill_id, session: Annotated[Session, Depends(get_session)
     if b.is_paused is False:
         b.is_paused = True
     session.commit()
-    return BackfillResponse.model_validate(b)
+    return b
 
 
 @backfills_router.put(
@@ -127,7 +127,7 @@ def unpause_backfill(backfill_id, session: Annotated[Session, Depends(get_sessio
         raise HTTPException(status.HTTP_409_CONFLICT, "Backfill is already completed.")
     if b.is_paused:
         b.is_paused = False
-    return BackfillResponse.model_validate(b)
+    return b
 
 
 @backfills_router.put(
@@ -172,7 +172,7 @@ def cancel_backfill(backfill_id, session: Annotated[Session, Depends(get_session
     # this is in separate transaction just to avoid potential conflicts
     session.refresh(b)
     b.completed_at = timezone.utcnow()
-    return BackfillResponse.model_validate(b)
+    return b
 
 
 @backfills_router.post(

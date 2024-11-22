@@ -98,7 +98,7 @@ def get_task_instance(
             status.HTTP_404_NOT_FOUND, "Task instance is mapped, add the map_index value to the URL"
         )
 
-    return TaskInstanceResponse.model_validate(task_instance)
+    return task_instance
 
 
 @task_instances_router.get(
@@ -260,7 +260,7 @@ def get_mapped_task_instance(
             f"The Mapped Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}`, and map_index: `{map_index}` was not found",
         )
 
-    return TaskInstanceResponse.model_validate(task_instance)
+    return task_instance
 
 
 @task_instances_router.get(
@@ -449,7 +449,7 @@ def get_task_instance_try_details(
             status.HTTP_404_NOT_FOUND,
             f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}`, try_number: `{task_try_number}` and map_index: `{map_index}` was not found",
         )
-    return TaskInstanceHistoryResponse.model_validate(result)
+    return result
 
 
 @task_instances_router.get(

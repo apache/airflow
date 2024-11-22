@@ -162,7 +162,7 @@ def get_dag(dag_id: str, session: Annotated[Session, Depends(get_session)], requ
         if not key.startswith("_") and not hasattr(dag_model, key):
             setattr(dag_model, key, value)
 
-    return DAGResponse.model_validate(dag_model)
+    return dag_model
 
 
 @dags_router.get(
@@ -190,7 +190,7 @@ def get_dag_details(
         if not key.startswith("_") and not hasattr(dag_model, key):
             setattr(dag_model, key, value)
 
-    return DAGDetailsResponse.model_validate(dag_model)
+    return dag_model
 
 
 @dags_router.patch(
@@ -227,7 +227,7 @@ def patch_dag(
     for key, val in data.items():
         setattr(dag, key, val)
 
-    return DAGResponse.model_validate(dag)
+    return dag
 
 
 @dags_router.patch(

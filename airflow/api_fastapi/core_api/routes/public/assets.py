@@ -185,7 +185,7 @@ def create_asset_event(
 
     if not assets_event:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with uri: `{body.uri}` was not found")
-    return AssetEventResponse.model_validate(assets_event)
+    return assets_event
 
 
 @assets_router.get(

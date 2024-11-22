@@ -78,7 +78,7 @@ def get_pool(
     if pool is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Pool with name: `{pool_name}` was not found")
 
-    return PoolResponse.model_validate(pool)
+    return pool
 
 
 @pools_router.get(
@@ -155,7 +155,7 @@ def patch_pool(
     for key, value in data.items():
         setattr(pool, key, value)
 
-    return PoolResponse.model_validate(pool)
+    return pool
 
 
 @pools_router.post(

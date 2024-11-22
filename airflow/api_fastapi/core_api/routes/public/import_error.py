@@ -58,10 +58,7 @@ def get_import_error(
             f"The ImportError with import_error_id: `{import_error_id}` was not found",
         )
 
-    return ImportErrorResponse.model_validate(
-        error,
-        from_attributes=True,
-    )
+    return error
 
 
 @import_error_router.get(
