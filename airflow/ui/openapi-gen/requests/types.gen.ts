@@ -1439,7 +1439,7 @@ export type TriggerDagRunData = {
   requestBody: TriggerDAGRunPostBody;
 };
 
-export type TriggerDagRunResponse = unknown;
+export type TriggerDagRunResponse = DAGRunResponse;
 
 export type GetDagSourceData = {
   accept?: "application/json" | "text/plain" | "*/*";
@@ -2720,7 +2720,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: unknown;
+        200: DAGRunResponse;
         /**
          * Bad Request
          */

@@ -1185,7 +1185,7 @@ export class DagRunService {
    * @param data The data for the request.
    * @param data.dagId
    * @param data.requestBody
-   * @returns unknown Successful Response
+   * @returns DAGRunResponse Successful Response
    * @throws ApiError
    */
   public static triggerDagRun(

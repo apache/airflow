@@ -316,7 +316,7 @@ def get_dag_runs(
 )
 def trigger_dag_run(
     dag_id, body: TriggerDAGRunPostBody, request: Request, session: Annotated[Session, Depends(get_session)]
-):
+) -> DAGRunResponse:
     """Trigger a DAG."""
     dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
     if not dm:
@@ -362,7 +362,7 @@ def trigger_dag_run(
             if dag_run_note:
                 current_user_id = None  # refer to https://github.com/apache/airflow/issues/43534
                 dag_run.note = (dag_run_note, current_user_id)
-            return DAGRunResponse.model_validate(dag_run)
+            return dag_run
         except ValueError as e:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 

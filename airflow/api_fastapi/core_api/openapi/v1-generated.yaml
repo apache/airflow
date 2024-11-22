@@ -1851,7 +1851,8 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/DAGRunResponse'
         '401':
           content:
             application/json:
