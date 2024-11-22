@@ -78,11 +78,17 @@ class AssetDefinition(Asset):
 
     function: Callable
     schedule: ScheduleArg
+    dag_kwargs: dict[str, Any] = attrs.field(factory=dict)
 
     def __attrs_post_init__(self) -> None:
         parameters = inspect.signature(self.function).parameters
 
-        with DAG(dag_id=self.name, schedule=self.schedule, auto_register=True):
+        with DAG(
+            dag_id=self.name,
+            schedule=self.schedule,
+            auto_register=True,
+            **self.dag_kwargs,
+        ):
             _AssetMainOperator(
                 task_id="__main__",
                 inlets=[
@@ -113,7 +119,7 @@ class AssetDefinition(Asset):
         }
 
 
-@attrs.define(kw_only=True)
+@attrs.define(init=False, kw_only=True, unsafe_hash=False)
 class asset:
     """Create an asset by decorating a materialization function."""
 
@@ -121,6 +127,24 @@ class asset:
     uri: str | ObjectStoragePath | None = None
     group: str = ""
     extra: dict[str, Any] = attrs.field(factory=dict)
+
+    _dag_kwargs: dict[str, Any] = attrs.field(factory=dict)
+
+    def __init__(
+        self,
+        *,
+        schedule: ScheduleArg,
+        uri: str | ObjectStoragePath | None = None,
+        group: str = "",
+        extra: dict[str, Any] = attrs.field(factory=dict),
+        **kwargs: dict[str, Any],
+    ):
+        self.schedule = schedule
+        self.uri = uri
+        self.group = group
+        self.extra = extra
+
+        self._dag_kwargs = kwargs
 
     def __call__(self, f: Callable) -> AssetDefinition:
         if (name := f.__name__) != f.__qualname__:
@@ -133,4 +157,5 @@ class asset:
             extra=self.extra,
             function=f,
             schedule=self.schedule,
+            dag_kwargs=self._dag_kwargs,
         )
