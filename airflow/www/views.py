@@ -3879,6 +3879,8 @@ class XComModelView(AirflowModelView):
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
 
+    add_exclude_columns = edit_exclude_columns = ["value"]
+
     search_columns = ["key", "timestamp", "dag_id", "task_id", "run_id", "logical_date"]
     list_columns = ["key", "value", "timestamp", "dag_id", "task_id", "run_id", "map_index", "logical_date"]
     base_order = ("dag_run_id", "desc")
