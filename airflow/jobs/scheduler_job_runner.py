@@ -2058,7 +2058,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .values(
                         state=TaskInstanceState.SCHEDULED,
                         next_method="__fail__",
-                        next_kwargs={"error": "Trigger/execution timeout"},
+                        next_kwargs={"error": "Trigger timeout"},
                         trigger_id=None,
                     )
                 ).rowcount

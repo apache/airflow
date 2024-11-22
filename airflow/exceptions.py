@@ -22,13 +22,13 @@
 from __future__ import annotations
 
 import warnings
+from datetime import timedelta
 from http import HTTPStatus
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from airflow.utils.trigger_rule import TriggerRule
 
 if TYPE_CHECKING:
-    import datetime
     from collections.abc import Sized
 
     from airflow.models import DagRun
@@ -385,7 +385,7 @@ class TaskDeferred(BaseException):
         trigger,
         method_name: str,
         kwargs: dict[str, Any] | None = None,
-        timeout: datetime.timedelta | None = None,
+        timeout: timedelta | int | float | None = None,
     ):
         super().__init__()
         self.trigger = trigger
@@ -393,6 +393,8 @@ class TaskDeferred(BaseException):
         self.kwargs = kwargs
         self.timeout = timeout
         # Check timeout type at runtime
+        if isinstance(self.timeout, (int, float)):
+            self.timeout = timedelta(seconds=self.timeout)
         if self.timeout is not None and not hasattr(self.timeout, "total_seconds"):
             raise ValueError("Timeout value must be a timedelta")
 
@@ -415,6 +417,10 @@ class TaskDeferred(BaseException):
 
 class TaskDeferralError(AirflowException):
     """Raised when a task failed during deferral for some reason."""
+
+
+class TaskDeferralTimeout(AirflowException):
+    """Raise when there is a timeout on the deferral."""
 
 
 # The try/except handling is needed after we moved all k8s classes to cncf.kubernetes provider
