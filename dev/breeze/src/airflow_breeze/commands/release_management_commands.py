@@ -2245,6 +2245,8 @@ def generate_issue_content_providers(
                 progress.advance(task)
         providers: dict[str, ProviderPRInfo] = {}
         for provider_id in prepared_package_ids:
+            if provider_id not in provider_prs:
+                continue
             pull_request_list = [pull_requests[pr] for pr in provider_prs[provider_id] if pr in pull_requests]
             provider_yaml_dict = yaml.safe_load(
                 (
