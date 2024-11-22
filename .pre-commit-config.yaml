@@ -699,7 +699,7 @@ repos:
           ^airflow/hooks/.*$|
           ^airflow/operators/.*$|
           ^providers/src/airflow/providers/.*$|
-          ^airflow/sensors/.*$|
+          ^providers/src/airflow/providers/standard/sensors/.*$|
           ^dev/provider_packages/.*$
       - id: check-base-operator-usage
         language: pygrep
@@ -714,7 +714,7 @@ repos:
           ^airflow/hooks/.*$|
           ^airflow/operators/.*$|
           ^providers/src/airflow/providers/.*$|
-          ^airflow/sensors/.*$|
+          ^providers/src/airflow/providers/standard/sensors/.*$|
           ^dev/provider_packages/.*$
       - id: check-base-operator-usage
         language: pygrep
