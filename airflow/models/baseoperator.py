@@ -116,7 +116,7 @@ if TYPE_CHECKING:
 
 # Todo: AIP-44: Once we get rid of AIP-44 we can remove this. But without this here pydantic fails to resolve
 # types for serialization
-from airflow.utils.task_group import TaskGroup  # noqa: TCH001
+from airflow.utils.task_group import TaskGroup  # noqa: TC001
 
 TaskPreExecuteHook = Callable[[Context], None]
 TaskPostExecuteHook = Callable[[Context, Any], None]

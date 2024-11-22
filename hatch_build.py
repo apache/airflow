@@ -248,7 +248,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     ],
     "devel-static-checks": [
         "black>=23.12.0",
-        "ruff==0.7.3",
+        "ruff==0.8.0",
         "yamllint>=1.33.0",
     ],
     "devel-tests": [
