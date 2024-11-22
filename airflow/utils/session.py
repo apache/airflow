@@ -65,6 +65,24 @@ def create_session(scoped: bool = True) -> Generator[SASession, None, None]:
         session.close()
 
 
+@contextlib.asynccontextmanager
+async def create_session_async():
+    """
+    Context manager to create async session.
+
+    :meta private:
+    """
+    from airflow.settings import AsyncSession
+
+    async with AsyncSession() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
 PS = ParamSpec("PS")
 RT = TypeVar("RT")
 
