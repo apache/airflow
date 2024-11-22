@@ -126,54 +126,6 @@ class _OnlyActiveFilter(BaseParam[bool]):
         return self.set_value(only_active)
 
 
-class DagIdsFilter(BaseParam[list[str]]):
-    """Filter on dag ids."""
-
-    def __init__(self, model: Base, value: list[str] | None = None, skip_none: bool = True) -> None:
-        super().__init__(value, skip_none)
-        self.model = model
-
-    def to_orm(self, select: Select) -> Select:
-        if self.value and self.skip_none:
-            return select.where(self.model.dag_id.in_(self.value))
-        return select
-
-    def depends(self, dag_ids: list[str] = Query(None)) -> DagIdsFilter:
-        return self.set_value(dag_ids)
-
-
-class DagRunIdsFilter(BaseParam[list[str]]):
-    """Filter on dag run ids."""
-
-    def __init__(self, model: Base, value: list[str] | None = None, skip_none: bool = True) -> None:
-        super().__init__(value, skip_none)
-        self.model = model
-
-    def to_orm(self, select: Select) -> Select:
-        if self.value and self.skip_none:
-            return select.where(self.model.run_id.in_(self.value))
-        return select
-
-    def depends(self, dag_run_ids: list[str] = Query(None)) -> DagRunIdsFilter:
-        return self.set_value(dag_run_ids)
-
-
-class TaskIdsFilter(BaseParam[list[str]]):
-    """Filter on task ids."""
-
-    def __init__(self, model: Base, value: list[str] | None = None, skip_none: bool = True) -> None:
-        super().__init__(value, skip_none)
-        self.model = model
-
-    def to_orm(self, select: Select) -> Select:
-        if self.value and self.skip_none:
-            return select.where(self.model.task_id.in_(self.value))
-        return select
-
-    def depends(self, task_ids: list[str] = Query(None)) -> TaskIdsFilter:
-        return self.set_value(task_ids)
-
-
 class _SearchParam(BaseParam[str]):
     """Search on attribute."""
 
@@ -497,18 +449,6 @@ class TIExecutorFilter(BaseParam[list[str]]):
 
     def depends(self, executor: list[str] = Query(default_factory=list)) -> TIExecutorFilter:
         return self.set_value(executor)
-
-
-class _LastDagRunStateFilter(BaseParam[DagRunState]):
-    """Filter on the state of the latest DagRun."""
-
-    def to_orm(self, select: Select) -> Select:
-        if self.value is None and self.skip_none:
-            return select
-        return select.where(DagRun.state == self.value)
-
-    def depends(self, last_dag_run_state: DagRunState | None = None) -> _LastDagRunStateFilter:
-        return self.set_value(last_dag_run_state)
 
 
 class _DagTagNamePatternSearch(_SearchParam):

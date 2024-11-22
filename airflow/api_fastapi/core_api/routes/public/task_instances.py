@@ -27,8 +27,8 @@ from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
-    DagIdsFilter,
-    DagRunIdsFilter,
+    FilterOptionEnum,
+    FilterParam,
     LimitFilter,
     OffsetFilter,
     QueryLimit,
@@ -40,7 +40,6 @@ from airflow.api_fastapi.common.parameters import (
     Range,
     RangeFilter,
     SortParam,
-    TaskIdsFilter,
     TIExecutorFilter,
     TIPoolFilter,
     TIQueueFilter,
@@ -416,9 +415,9 @@ def get_task_instances_batch(
     session: SessionDep,
 ) -> TaskInstanceCollectionResponse:
     """Get list of task instances."""
-    dag_ids = DagIdsFilter(TI, body.dag_ids)
-    dag_run_ids = DagRunIdsFilter(TI, body.dag_run_ids)
-    task_ids = TaskIdsFilter(TI, body.task_ids)
+    dag_ids = FilterParam(TI.dag_id, body.dag_ids, FilterOptionEnum.IN)
+    dag_run_ids = FilterParam(TI.run_id, body.dag_run_ids, FilterOptionEnum.IN)
+    task_ids = FilterParam(TI.task_id, body.task_ids, FilterOptionEnum.IN)
     logical_date = RangeFilter(
         Range(lower_bound=body.logical_date_gte, upper_bound=body.logical_date_lte),
         attribute=TI.logical_date,
