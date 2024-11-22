@@ -14,29 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.utils.state import DagRunState
+from pydantic import BaseModel as PydanticBaseModel, ConfigDict
 
 
-class DagStatsStateResponse(BaseModel):
-    """DagStatsState serializer for responses."""
+class BaseModel(PydanticBaseModel):
+    """
+    Base pydantic model for REST API.
 
-    state: DagRunState
-    count: int
+    :meta private:
+    """
 
-
-class DagStatsResponse(BaseModel):
-    """DAG Stats serializer for responses."""
-
-    dag_id: str
-    stats: list[DagStatsStateResponse]
-
-
-class DagStatsCollectionResponse(BaseModel):
-    """DAG Stats Collection serializer for responses."""
-
-    dags: list[DagStatsResponse]
-    total_entries: int
+    model_config = ConfigDict(from_attributes=True)

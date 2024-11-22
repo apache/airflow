@@ -89,6 +89,6 @@ def get_xcom_entry(
         item = xcom_stub
 
     if stringify:
-        return XComResponseString.model_validate(item, from_attributes=True)
+        return XComResponseString.model_validate(item)
 
-    return XComResponseNative.model_validate(item, from_attributes=True)
+    return XComResponseNative.model_validate(item)

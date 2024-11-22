@@ -22,7 +22,6 @@ from typing import Annotated, Any
 from pydantic import (
     AliasPath,
     AwareDatetime,
-    BaseModel,
     BeforeValidator,
     ConfigDict,
     Field,
@@ -31,6 +30,7 @@ from pydantic import (
     model_validator,
 )
 
+from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.datamodels.job import JobResponse
 from airflow.api_fastapi.core_api.datamodels.trigger import TriggerResponse
 from airflow.utils.state import TaskInstanceState
@@ -39,7 +39,7 @@ from airflow.utils.state import TaskInstanceState
 class TaskInstanceResponse(BaseModel):
     """TaskInstance serializer for responses."""
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
     id: str
     task_id: str
@@ -121,11 +121,14 @@ class TaskInstancesBatchBody(BaseModel):
 class TaskInstanceHistoryResponse(BaseModel):
     """TaskInstanceHistory serializer for responses."""
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
     task_id: str
     dag_id: str
+
+    # todo: this should not be aliased; it's ambiguous with dag run's "id" - airflow 3.0
     run_id: str = Field(alias="dag_run_id")
+
     map_index: int
     start_date: datetime | None
     end_date: datetime | None
