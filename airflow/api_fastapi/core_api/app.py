@@ -120,3 +120,11 @@ def init_config(app: FastAPI) -> None:
     app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
 
     app.state.secret_key = conf.get("webserver", "secret_key")
+
+
+def init_error_handlers(app: FastAPI) -> None:
+    from airflow.api_fastapi.common.exceptions import DatabaseErrorHandlers
+
+    # register database error handlers
+    for handler in DatabaseErrorHandlers:
+        app.add_exception_handler(handler.exception_cls, handler.exception_handler)

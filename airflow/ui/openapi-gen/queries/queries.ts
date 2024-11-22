@@ -41,6 +41,7 @@ import {
   DagWarningType,
   PoolPatchBody,
   PoolPostBody,
+  PoolPostBulkBody,
   TaskInstancesBatchBody,
   VariableBody,
 } from "../requests/types.gen";
@@ -2361,6 +2362,43 @@ export const usePoolServicePostPool = <
   >({
     mutationFn: ({ requestBody }) =>
       PoolService.postPool({ requestBody }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Post Pools
+ * Create multiple pools.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns PoolCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const usePoolServicePostPools = <
+  TData = Common.PoolServicePostPoolsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: PoolPostBulkBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: PoolPostBulkBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      PoolService.postPools({ requestBody }) as unknown as Promise<TData>,
     ...options,
   });
 /**

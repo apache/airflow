@@ -32,6 +32,7 @@ from airflow.api_fastapi.core_api.datamodels.pools import (
     PoolCollectionResponse,
     PoolPatchBody,
     PoolPostBody,
+    PoolPostBulkBody,
     PoolResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -160,14 +161,38 @@ def patch_pool(
 @pools_router.post(
     "",
     status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_409_CONFLICT]
+    ),  # handled by global exception handler
 )
 def post_pool(
-    post_body: PoolPostBody,
+    body: PoolPostBody,
     session: Annotated[Session, Depends(get_session)],
 ) -> PoolResponse:
     """Create a Pool."""
-    pool = Pool(**post_body.model_dump())
-
+    pool = Pool(**body.model_dump())
     session.add(pool)
 
     return PoolResponse.model_validate(pool, from_attributes=True)
+
+
+@pools_router.post(
+    "/bulk",
+    status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_409_CONFLICT,  # handled by global exception handler
+        ]
+    ),
+)
+def post_pools(
+    body: PoolPostBulkBody,
+    session: Annotated[Session, Depends(get_session)],
+) -> PoolCollectionResponse:
+    """Create multiple pools."""
+    pools = [Pool(**body.model_dump()) for body in body.pools]
+    session.add_all(pools)
+    return PoolCollectionResponse(
+        pools=[PoolResponse.model_validate(pool, from_attributes=True) for pool in pools],
+        total_entries=len(pools),
+    )
