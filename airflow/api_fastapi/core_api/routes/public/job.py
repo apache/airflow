@@ -95,8 +95,8 @@ def get_jobs(
     # TODO: Refactor using the `FilterParam` class in commit `574b72e41cc5ed175a2bbf4356522589b836bb11`
 
     jobs_select, total_entries = paginated_select(
-        base_select,
-        [
+        select=base_select,
+        filters=[
             start_date_range,
             end_date_range,
             state,
@@ -104,10 +104,11 @@ def get_jobs(
             hostname,
             executor_class,
         ],
-        order_by,
-        limit,
-        offset,
-        session,
+        order_by=order_by,
+        limit=limit,
+        offset=offset,
+        session=session,
+        return_total_entries=True,
     )
     jobs = session.scalars(jobs_select).all()
 
