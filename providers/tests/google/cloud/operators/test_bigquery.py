@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from contextlib import suppress
 from unittest import mock
@@ -68,6 +69,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryValueCheckTrigger,
 )
 from airflow.utils.timezone import datetime
+from providers.tests.google.cloud.transfers.test_gcs_to_bigquery import job_id
 
 pytestmark = pytest.mark.db_test
 
@@ -104,6 +106,16 @@ TEST_JOB_ID_2 = "test-123"
 TEST_FULL_JOB_ID = f"{TEST_GCP_PROJECT_ID}:{TEST_DATASET_LOCATION}:{TEST_JOB_ID_1}"
 TEST_FULL_JOB_ID_2 = f"{TEST_GCP_PROJECT_ID}:{TEST_DATASET_LOCATION}:{TEST_JOB_ID_2}"
 
+@pytest.fixture
+def bigquery_job():
+    # Mocking the BigQuery job object
+    job = MagicMock()
+    job.state = "PENDING"  # initial state
+    job.job_id = "12345"
+    job.errors = []
+    job.error_result = None
+    job.reload = MagicMock()
+    return job
 
 class TestBigQueryCreateEmptyTableOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
@@ -1038,40 +1050,40 @@ class TestBigQueryInsertJobOperator:
 
         assert result == real_job_id
 
-    # @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    # def test_execute_reattach_to_done_state(self, mock_hook):
-    #     job_id = "123456"
-    #     hash_ = "hash"
-    #     real_job_id = f"{job_id}_{hash_}"
-    #
-    #     configuration = {
-    #         "query": {
-    #             "query": "SELECT * FROM any",
-    #             "useLegacySql": False,
-    #         }
-    #     }
-    #
-    #     mock_hook.return_value.insert_job.side_effect = Conflict("any")
-    #     job = MagicMock(
-    #         job_id=real_job_id,
-    #         error_result=False,
-    #         state="DONE",
-    #         done=lambda: False,
-    #     )
-    #     mock_hook.return_value.get_job.return_value = job
-    #     mock_hook.return_value.generate_job_id.return_value = real_job_id
-    #
-    #     op = BigQueryInsertJobOperator(
-    #         task_id="insert_query_job",
-    #         configuration=configuration,
-    #         location=TEST_DATASET_LOCATION,
-    #         job_id=job_id,
-    #         project_id=TEST_GCP_PROJECT_ID,
-    #         reattach_states={"PENDING"},
-    #     )
-    #     with pytest.raises(AirflowException):
-    #         # Not possible to reattach to any state if job is already DONE
-    #         op.execute(context=MagicMock())
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_execute_reattach_to_done_state(self, mock_hook):
+        job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+
+        mock_hook.return_value.insert_job.side_effect = Conflict("any")
+        job = MagicMock(
+            job_id=real_job_id,
+            error_result=False,
+            state="DONE",
+            done=lambda: False,
+        )
+        mock_hook.return_value.get_job.return_value = job
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
+
+        op = BigQueryInsertJobOperator(
+            task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+            reattach_states={"PENDING"},
+        )
+        with pytest.raises(AirflowException):
+            # Not possible to reattach to any state if job is already DONE
+            op.execute(context=MagicMock())
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute_force_rerun(self, mock_hook):
@@ -1737,6 +1749,57 @@ class TestBigQueryInsertJobOperator:
         )
         op._add_job_labels()
         assert "labels" not in configuration
+
+    def test_handle_error_job_state_done(self, bigquery_job, caplog):
+        caplog.set_level(logging.DEBUG)
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+        }
+        op = BigQueryInsertJobOperator(
+            task_id="task.with.dots.is.allowed",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            project_id=TEST_GCP_PROJECT_ID,
+            job_id="12345",
+        )
+
+        bigquery_job.state = "DONE"
+
+        op._handle_job_error(bigquery_job)
+
+        # Ensure that job.reload is never called if the state is already "DONE"
+        bigquery_job.reload.assert_not_called()
+        assert f"Job {bigquery_job.job_id} is completed. Checking the job status" in caplog.text
+
+    def test_handle_error_job_state_pending_then_done(self, bigquery_job):
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            },
+        }
+        op = BigQueryInsertJobOperator(
+            task_id="task.with.dots.is.allowed",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            project_id=TEST_GCP_PROJECT_ID,
+            job_id="12345",
+        )
+
+        bigquery_job.state = "PENDING"
+        bigquery_job.reload.return_value = None
+
+        def mock_reload(*args, **kwargs):
+            bigquery_job.state = "DONE"
+
+        bigquery_job.reload.side_effect = mock_reload
+
+        op._handle_job_error(bigquery_job)
+
+        bigquery_job.reload.assert_called_once()
 
 
 class TestBigQueryIntervalCheckOperator:
