@@ -724,6 +724,7 @@ class DataplexCreateOrUpdateDataQualityScanOperator(GoogleCloudBaseOperator):
         hook.wait_for_operation(timeout=self.timeout, operation=operation)
         self.log.info("Dataplex Data Quality scan %s updated successfully!", self.data_scan_id)
 
+
 class DataplexGetDataQualityScanOperator(GoogleCloudBaseOperator):
     """
     Gets a DataScan resource.
