@@ -1180,6 +1180,50 @@ export const UseTaskInstanceServiceGetMappedTaskInstanceTryDetailsKeyFn = (
   useTaskInstanceServiceGetMappedTaskInstanceTryDetailsKey,
   ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId, taskTryNumber }]),
 ];
+export type TaskInstanceServiceGetLogDefaultResponse = Awaited<
+  ReturnType<typeof TaskInstanceService.getLog>
+>;
+export type TaskInstanceServiceGetLogQueryResult<
+  TData = TaskInstanceServiceGetLogDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useTaskInstanceServiceGetLogKey = "TaskInstanceServiceGetLog";
+export const UseTaskInstanceServiceGetLogKeyFn = (
+  {
+    accept,
+    dagId,
+    dagRunId,
+    fullContent,
+    mapIndex,
+    taskId,
+    token,
+    tryNumber,
+  }: {
+    accept?: "application/json" | "text/plain" | "*/*";
+    dagId: string;
+    dagRunId: string;
+    fullContent?: boolean;
+    mapIndex?: number;
+    taskId: string;
+    token?: string;
+    tryNumber: number;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useTaskInstanceServiceGetLogKey,
+  ...(queryKey ?? [
+    {
+      accept,
+      dagId,
+      dagRunId,
+      fullContent,
+      mapIndex,
+      taskId,
+      token,
+      tryNumber,
+    },
+  ]),
+];
 export type TaskServiceGetTasksDefaultResponse = Awaited<
   ReturnType<typeof TaskService.getTasks>
 >;

@@ -1888,6 +1888,75 @@ export const useTaskInstanceServiceGetMappedTaskInstanceTryDetailsSuspense = <
     ...options,
   });
 /**
+ * Get Log
+ * Get logs for a specific task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.tryNumber
+ * @param data.fullContent
+ * @param data.mapIndex
+ * @param data.token
+ * @param data.accept
+ * @returns TaskInstancesLogResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceGetLogSuspense = <
+  TData = Common.TaskInstanceServiceGetLogDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    accept,
+    dagId,
+    dagRunId,
+    fullContent,
+    mapIndex,
+    taskId,
+    token,
+    tryNumber,
+  }: {
+    accept?: "application/json" | "text/plain" | "*/*";
+    dagId: string;
+    dagRunId: string;
+    fullContent?: boolean;
+    mapIndex?: number;
+    taskId: string;
+    token?: string;
+    tryNumber: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseTaskInstanceServiceGetLogKeyFn(
+      {
+        accept,
+        dagId,
+        dagRunId,
+        fullContent,
+        mapIndex,
+        taskId,
+        token,
+        tryNumber,
+      },
+      queryKey,
+    ),
+    queryFn: () =>
+      TaskInstanceService.getLog({
+        accept,
+        dagId,
+        dagRunId,
+        fullContent,
+        mapIndex,
+        taskId,
+        token,
+        tryNumber,
+      }) as TData,
+    ...options,
+  });
+/**
  * Get Tasks
  * Get tasks for DAG.
  * @param data The data for the request.
