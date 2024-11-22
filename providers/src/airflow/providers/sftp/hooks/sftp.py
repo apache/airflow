@@ -117,6 +117,15 @@ class SFTPHook(SSHHook):
 
         super().__init__(*args, **kwargs)
 
+    def __enter__(self):
+        """Set up the SFTP connection when entering the context."""
+        self.get_conn()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        """Close the SFTP connection when exiting the context."""
+        self.close_conn()
+
     def get_conn(self) -> paramiko.SFTPClient:  # type: ignore[override]
         """Open an SFTP connection to the remote host."""
         if self.conn is None:
