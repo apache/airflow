@@ -1177,7 +1177,7 @@ metrics:
     otel_headers:
       description: |
         Headers to be added to the traces.
-      version_added: 2.10.0
+      version_added: 3.0.0
       type: string
       example: 'Authorization="Bearer token",Potato="Tomato"'
       default: ""
@@ -1249,7 +1249,7 @@ traces:
     otel_headers:
       description: |
         Headers to be added to the traces.
-      version_added: 2.10.0
+      version_added: 3.0.0
       type: string
       example: 'Authorization="Bearer token",Potato="Tomato"'
       default: ""
