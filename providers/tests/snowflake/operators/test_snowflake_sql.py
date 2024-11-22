@@ -17,28 +17,17 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Any
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
-from _pytest.outcomes import importorskip
 
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
-databricks = importorskip("databricks")
 
-MockRow = None
-try:
-    from databricks.sql.types import Row
-except ImportError:
-    # Row is used in the parametrize so it's parsed during collection and we need to have a viable
-    # replacement for the collection time when databricks is not installed (Python 3.12 for now)
-    def MockRow(*args: Any, **kwargs: Any) -> MagicMock:
-        return MagicMock()
-
-
-RowType: type[Row] | Callable[..., MagicMock] = Row if "Row" in locals() else MockRow
+def MockRow(*args: Any, **kwargs: Any) -> MagicMock:
+    return MagicMock()
 
 
 from airflow.models.connection import Connection
@@ -64,45 +53,45 @@ DEFAULT_CONN_ID = "snowflake_default"
             "select * from dummy",
             True,
             True,
-            [RowType(id=1, value="value1"), RowType(id=2, value="value2")],
+            [MockRow(id=1, value="value1"), MockRow(id=2, value="value2")],
             [[("id",), ("value",)]],
-            ([RowType(id=1, value="value1"), RowType(id=2, value="value2")]),
+            ([MockRow(id=1, value="value1"), MockRow(id=2, value="value2")]),
             id="Scalar: Single SQL statement, return_last, split statement",
         ),
         pytest.param(
             "select * from dummy;select * from dummy2",
             True,
             True,
-            [RowType(id=1, value="value1"), RowType(id=2, value="value2")],
+            [MockRow(id=1, value="value1"), MockRow(id=2, value="value2")],
             [[("id",), ("value",)]],
-            ([RowType(id=1, value="value1"), RowType(id=2, value="value2")]),
+            ([MockRow(id=1, value="value1"), MockRow(id=2, value="value2")]),
             id="Scalar: Multiple SQL statements, return_last, split statement",
         ),
         pytest.param(
             "select * from dummy",
             False,
             False,
-            [RowType(id=1, value="value1"), RowType(id=2, value="value2")],
+            [MockRow(id=1, value="value1"), MockRow(id=2, value="value2")],
             [[("id",), ("value",)]],
-            ([RowType(id=1, value="value1"), RowType(id=2, value="value2")]),
+            ([MockRow(id=1, value="value1"), MockRow(id=2, value="value2")]),
             id="Scalar: Single SQL statements, no return_last (doesn't matter), no split statement",
         ),
         pytest.param(
             "select * from dummy",
             True,
             False,
-            [RowType(id=1, value="value1"), RowType(id=2, value="value2")],
+            [MockRow(id=1, value="value1"), MockRow(id=2, value="value2")],
             [[("id",), ("value",)]],
-            ([RowType(id=1, value="value1"), RowType(id=2, value="value2")]),
+            ([MockRow(id=1, value="value1"), MockRow(id=2, value="value2")]),
             id="Scalar: Single SQL statements, return_last (doesn't matter), no split statement",
         ),
         pytest.param(
             ["select * from dummy"],
             False,
             False,
-            [[RowType(id=1, value="value1"), RowType(id=2, value="value2")]],
+            [[MockRow(id=1, value="value1"), MockRow(id=2, value="value2")]],
             [[("id",), ("value",)]],
-            [([RowType(id=1, value="value1"), RowType(id=2, value="value2")])],
+            [([MockRow(id=1, value="value1"), MockRow(id=2, value="value2")])],
             id="Non-Scalar: Single SQL statements in list, no return_last, no split statement",
         ),
         pytest.param(
@@ -110,13 +99,13 @@ DEFAULT_CONN_ID = "snowflake_default"
             False,
             False,
             [
-                [RowType(id=1, value="value1"), RowType(id=2, value="value2")],
-                [RowType(id2=1, value2="value1"), RowType(id2=2, value2="value2")],
+                [MockRow(id=1, value="value1"), MockRow(id=2, value="value2")],
+                [MockRow(id2=1, value2="value1"), MockRow(id2=2, value2="value2")],
             ],
             [[("id",), ("value",)], [("id2",), ("value2",)]],
             [
-                ([RowType(id=1, value="value1"), RowType(id=2, value="value2")]),
-                ([RowType(id2=1, value2="value1"), RowType(id2=2, value2="value2")]),
+                ([MockRow(id=1, value="value1"), MockRow(id=2, value="value2")]),
+                ([MockRow(id2=1, value2="value1"), MockRow(id2=2, value2="value2")]),
             ],
             id="Non-Scalar: Multiple SQL statements in list, no return_last (no matter), no split statement",
         ),
@@ -125,13 +114,13 @@ DEFAULT_CONN_ID = "snowflake_default"
             True,
             False,
             [
-                [RowType(id=1, value="value1"), RowType(id=2, value="value2")],
-                [RowType(id2=1, value2="value1"), RowType(id2=2, value2="value2")],
+                [MockRow(id=1, value="value1"), MockRow(id=2, value="value2")],
+                [MockRow(id2=1, value2="value1"), MockRow(id2=2, value2="value2")],
             ],
             [[("id",), ("value",)], [("id2",), ("value2",)]],
             [
-                ([RowType(id=1, value="value1"), RowType(id=2, value="value2")]),
-                ([RowType(id2=1, value2="value1"), RowType(id2=2, value2="value2")]),
+                ([MockRow(id=1, value="value1"), MockRow(id=2, value="value2")]),
+                ([MockRow(id2=1, value2="value1"), MockRow(id2=2, value2="value2")]),
             ],
             id="Non-Scalar: Multiple SQL statements in list, return_last (no matter), no split statement",
         ),
