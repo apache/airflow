@@ -25,7 +25,7 @@ import time_machine
 from airflow import settings
 from airflow.models import DagRun, TaskInstance
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.latest_only import LatestOnlyOperator
+from airflow.providers.standard.operators.latest_only import LatestOnlyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
