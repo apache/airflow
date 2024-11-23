@@ -2352,7 +2352,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
     def test_raises_404_for_nonexistent_task_instance(self, test_client, session):
         self.create_task_instances(session)
         response = test_client.get(
-            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/nonexistent_task/tries"
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/non_existent_task/tries"
         )
         assert response.status_code == 404
 
