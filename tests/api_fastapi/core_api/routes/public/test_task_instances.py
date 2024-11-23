@@ -2509,6 +2509,41 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                 "total_entries": 2,
             }
 
+    def test_mapped_task_should_respond_200(self, test_client, session):
+        tis = self.create_task_instances(session, task_instances=[{"state": State.FAILED}])
+        old_ti = tis[0]
+        for idx in (1, 2):
+            ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
+            ti.try_number = 1
+            session.add(ti)
+        session.commit()
+        tis = session.query(TaskInstance).all()
+
+        # Record the task instance history
+        from airflow.models.taskinstance import clear_task_instances
+
+        clear_task_instances(tis, session)
+        # Simulate the try_number increasing to new values in TI
+        for ti in tis:
+            if ti.map_index > 0:
+                ti.try_number += 1
+                ti.queue = "default_queue"
+                session.merge(ti)
+        session.commit()
+
+        # in each loop, we should get the right mapped TI back
+        for map_index in (1, 2):
+            # Get the info from TIHistory: try_number 1, try_number 2 is TI table(latest)
+            response = test_client.get(
+                "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
+                f"/print_the_context/{map_index}/tries",
+            )
+            assert response.status_code == 200
+            assert (
+                response.json()["total_entries"] == 2
+            )  # the mapped task was cleared. So both the task instance and its history
+            assert len(response.json()["task_instances"]) == 2
+
     def test_raises_404_for_nonexistent_task_instance(self, test_client, session):
         self.create_task_instances(session)
         response = test_client.get(
