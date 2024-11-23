@@ -88,7 +88,8 @@ these guidelines:
     to the changed code (for example for ``airflow/cli/cli_parser.py`` changes you have tests in
     ``tests/cli/test_cli_parser.py``). However there are a number of cases where the tests that should run
     are placed elsewhere - you can either run tests for the whole ``TEST_TYPE`` that is relevant (see
-    ``breeze testing tests --help`` output for available test types) or you can run all tests, or eventually
+    ``breeze testing core-tests --help`` or ``breeze testing providers-tests --help`` output for
+    available test types for each of the testing commands) or you can run all tests, or eventually
     you can push your code to PR and see results of the tests in the CI.
 
 -   You can use any supported python version to run the tests, but the best is to check
