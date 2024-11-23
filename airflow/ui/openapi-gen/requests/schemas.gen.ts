@@ -1670,7 +1670,7 @@ export const $DAGRunPatchStates = {
 
 export const $DAGRunResponse = {
   properties: {
-    run_id: {
+    dag_run_id: {
       anyOf: [
         {
           type: "string",
@@ -1679,7 +1679,7 @@ export const $DAGRunResponse = {
           type: "null",
         },
       ],
-      title: "Run Id",
+      title: "Dag Run Id",
     },
     dag_id: {
       type: "string",
@@ -1800,7 +1800,7 @@ export const $DAGRunResponse = {
   },
   type: "object",
   required: [
-    "run_id",
+    "dag_run_id",
     "dag_id",
     "logical_date",
     "queued_at",
