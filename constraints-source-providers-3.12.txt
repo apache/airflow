@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-20T19:39:30.041098
+# This constraints file was automatically generated on 2024-11-23T02:12:38.160312
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -17,7 +17,7 @@ Flask-AppBuilder==4.5.2
 Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
 Flask-Caching==2.3.0
-Flask-JWT-Extended==4.7.0
+Flask-JWT-Extended==4.7.1
 Flask-Limiter==3.8.0
 Flask-Login==0.6.3
 Flask-SQLAlchemy==2.5.1
@@ -50,7 +50,7 @@ adlfs==2024.7.0
 aiobotocore==2.15.2
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.3
-aiohttp==3.11.6
+aiohttp==3.11.7
 aioitertools==0.12.0
 aiomysql==0.2.0
 aioresponses==0.7.7
@@ -89,7 +89,7 @@ asyncssh==2.18.0
 atlasclient==1.0.0
 atlassian-python-api==3.41.16
 attrs==24.2.0
-aws-sam-translator==1.92.0
+aws-sam-translator==1.94.0
 aws-xray-sdk==2.14.0
 azure-batch==14.2.0
 azure-common==1.1.28
@@ -159,9 +159,9 @@ cryptography==42.0.8
 curlify==2.2.1
 databricks-sql-connector==2.9.6
 dataclasses-json==0.6.7
-datadog==0.50.1
+datadog==0.50.2
 db-dtypes==1.3.1
-debugpy==1.8.8
+debugpy==1.8.9
 decorator==5.1.1
 defusedxml==0.7.1
 deltalake==0.21.0
@@ -221,7 +221,7 @@ google-cloud-build==3.27.1
 google-cloud-compute==1.22.0
 google-cloud-container==2.54.0
 google-cloud-core==2.4.1
-google-cloud-datacatalog==3.22.0
+google-cloud-datacatalog==3.23.0
 google-cloud-dataflow-client==0.8.14
 google-cloud-dataform==0.5.13
 google-cloud-dataplex==2.4.0
@@ -238,7 +238,7 @@ google-cloud-os-login==2.15.1
 google-cloud-pubsub==2.27.1
 google-cloud-redis==2.16.1
 google-cloud-resource-manager==1.13.1
-google-cloud-run==0.10.12
+google-cloud-run==0.10.13
 google-cloud-secret-manager==2.21.1
 google-cloud-spanner==3.50.1
 google-cloud-speech==2.28.1
@@ -353,16 +353,16 @@ moto==5.0.21
 mpmath==1.3.0
 msal-extensions==1.2.0
 msal==1.31.1
-msgraph-core==1.1.6
+msgraph-core==1.1.7
 msgspec==0.18.6
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.1.0
 mypy-boto3-appflow==1.35.39
-mypy-boto3-rds==1.35.64
+mypy-boto3-rds==1.35.66
 mypy-boto3-redshift-data==1.35.51
-mypy-boto3-s3==1.35.61
+mypy-boto3-s3==1.35.67
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.1.0
@@ -444,9 +444,9 @@ pyasn1_modules==0.4.0
 pycountry==24.6.1
 pycparser==2.22
 pycryptodome==3.21.0
-pydantic==2.9.2
-pydantic_core==2.23.4
-pydata-google-auth==1.8.2
+pydantic==2.10.1
+pydantic_core==2.27.1
+pydata-google-auth==1.9.0
 pydruid==0.6.9
 pyenchant==3.2.2
 pyexasol==0.27.0
@@ -454,7 +454,7 @@ pygraphviz==1.14
 pyiceberg==0.8.0
 pykerberos==1.2.4
 pymongo==4.10.1
-pymssql==2.3.1
+pymssql==2.3.2
 pyodbc==5.2.0
 pyparsing==3.2.0
 pypsrp==0.8.1
@@ -489,7 +489,7 @@ qdrant-client==1.12.1
 reactivex==4.0.4
 readme_renderer==43.0
 redis==5.2.0
-redshift-connector==2.1.3
+redshift-connector==2.1.4
 referencing==0.35.1
 regex==2024.11.6
 requests-file==2.1.0
@@ -508,15 +508,15 @@ rich-click==1.8.4
 rich==13.9.4
 rpds-py==0.21.0
 rsa==4.9
-ruff==0.7.3
+ruff==0.8.0
 s3fs==2024.10.0
-s3transfer==0.10.3
+s3transfer==0.10.4
 scramp==1.4.5
 scrapbook==0.5.0
 semver==3.0.2
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==2.18.0
+sentry-sdk==2.19.0
 setproctitle==1.3.4
 setuptools==75.6.0
 shapely==2.0.6
@@ -529,7 +529,7 @@ smmap==5.0.1
 sniffio==1.3.1
 snowballstemmer==2.2.0
 snowflake-connector-python==3.12.3
-snowflake-sqlalchemy==1.6.1
+snowflake-sqlalchemy==1.7.0
 sortedcontainers==2.4.0
 soupsieve==2.6
 sphinx-airflow-theme==0.0.12
@@ -574,7 +574,7 @@ thrift-sasl==0.4.3
 thrift==0.16.0
 time-machine==2.16.0
 tomlkit==0.13.2
-tornado==6.4.1
+tornado==6.4.2
 towncrier==24.8.0
 tqdm==4.67.0
 traitlets==5.14.3
@@ -612,7 +612,7 @@ uritemplate==4.1.1
 urllib3==2.2.3
 uuid6==2024.7.10
 uv==0.5.3
-uvicorn==0.32.0
+uvicorn==0.32.1
 uvloop==0.21.0
 validators==0.33.0
 vertica-python==1.4.0
@@ -623,19 +623,19 @@ wcwidth==0.2.13
 weaviate-client==4.8.0
 websocket-client==1.8.0
 websockets==14.1
-wheel==0.45.0
+wheel==0.45.1
 wirerope==0.4.8
-wrapt==1.16.0
+wrapt==1.17.0
 xmlsec==1.3.14
 xmltodict==0.14.2
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.325.0
-yarl==1.17.2
+yarl==1.18.0
 ydb-dbapi==0.1.3
 ydb==3.18.9
 zeep==4.3.1
-zenpy==2.0.55
+zenpy==2.0.56
 zipp==3.21.0
 zope.event==5.0
 zope.interface==7.1.1
