@@ -240,7 +240,6 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "types-requests>=2.31.0.6",
         "types-setuptools>=69.5.0.20240423",
         "types-tabulate>=0.9.0.20240106",
-        "types-termcolor>=1.1.6.2",
         "types-toml>=0.10.8.20240310",
     ],
     "devel-sentry": [
@@ -438,7 +437,7 @@ DEPENDENCIES = [
     "sqlalchemy-utils>=0.41.2",
     "tabulate>=0.7.5",
     "tenacity>=8.0.0,!=8.2.0",
-    "termcolor>=1.1.0",
+    "termcolor>=2.5.0",
     # Universal Pathlib 0.2.4 adds extra validation for Paths and our integration with local file paths
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",
