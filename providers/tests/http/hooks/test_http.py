@@ -24,14 +24,16 @@ import logging
 import os
 from http import HTTPStatus
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 import requests
 import tenacity
 from aioresponses import aioresponses
-from requests.adapters import Response
+from requests.adapters import HTTPAdapter, Response
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.models import DEFAULT_REDIRECT_LIMIT
+from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -535,6 +537,68 @@ class TestHttpHook:
         hook = HttpHook()
         hook.base_url = base_url
         assert hook.url_from_endpoint(endpoint) == expected_url
+
+    @pytest.fixture
+    def custom_adapter(self):
+        """Fixture to provide a custom HTTPAdapter."""
+        return HTTPAdapter()
+
+    @pytest.fixture
+    def mock_session(self):
+        with patch("requests.Session") as mock_session:
+            yield mock_session
+
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("requests.Session")
+    def test_get_conn_with_custom_adapter(self, mock_session):
+        """Test that a custom adapter is correctly mounted to the session."""
+        custom_adapter = HTTPAdapter()
+        hook = HttpHook(adapter=custom_adapter)
+
+        # Call get_conn to trigger adapter mounting
+        hook.get_conn()
+
+        # Verify that session.mount was called with the custom adapter
+        expected_scheme = "https://"
+        mock_session.return_value.mount.assert_called_with(expected_scheme, custom_adapter)
+
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("requests.Session")
+    def test_get_conn_without_adapter_uses_default(self, mock_session):
+        """Test that default TCPKeepAliveAdapter is used when no custom adapter is provided."""
+        hook = HttpHook(tcp_keep_alive=True)
+
+        # Call get_conn to trigger adapter mounting
+        hook.get_conn()
+
+        # Verify that TCPKeepAliveAdapter is used
+        calls = mock_session.return_value.mount.call_args_list
+        assert len(calls) == 2  # Should mount for 'http://' and 'https://'
+        adapters_used = [call.args[1] for call in calls]
+        assert all(isinstance(adapter, TCPKeepAliveAdapter) for adapter in adapters_used)
+
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("requests.Session")
+    def test_get_conn_with_adapter_and_tcp_keep_alive(self, mock_session):
+        """Test that when both adapter and tcp_keep_alive are provided, custom adapter is used."""
+        custom_adapter = HTTPAdapter()
+        hook = HttpHook(adapter=custom_adapter, tcp_keep_alive=True)
+
+        # Call get_conn to trigger adapter mounting
+        hook.get_conn()
+
+        # Verify that the custom adapter is used instead of TCPKeepAliveAdapter
+        expected_scheme = "https://"
+        mock_session.return_value.mount.assert_called_with(expected_scheme, custom_adapter)
+        # Ensure TCPKeepAliveAdapter is not mounted
+        calls = mock_session.return_value.mount.call_args_list
+        adapters_used = [call.args[1] for call in calls]
+        assert not any(isinstance(adapter, TCPKeepAliveAdapter) for adapter in adapters_used)
+
+    def test_adapter_invalid_type(self):
+        """Test that providing an invalid adapter type raises TypeError."""
+        with pytest.raises(TypeError, match="adapter must be an instance of requests.adapters.BaseAdapter"):
+            HttpHook(adapter="not_an_adapter")
 
 
 class TestHttpAsyncHook:

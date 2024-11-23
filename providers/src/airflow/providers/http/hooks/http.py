@@ -19,12 +19,14 @@ from __future__ import annotations
 
 import asyncio
 from typing import TYPE_CHECKING, Any, Callable
+from urllib.parse import urlparse
 
 import aiohttp
 import requests
 import tenacity
 from aiohttp import ClientResponseError
 from asgiref.sync import sync_to_async
+from requests.adapters import BaseAdapter
 from requests.auth import HTTPBasicAuth
 from requests.models import DEFAULT_REDIRECT_LIMIT
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
@@ -72,6 +74,7 @@ class HttpHook(BaseHook):
         method: str = "POST",
         http_conn_id: str = default_conn_name,
         auth_type: Any = None,
+        adapter: BaseAdapter | None = None,
         tcp_keep_alive: bool = True,
         tcp_keep_alive_idle: int = 120,
         tcp_keep_alive_count: int = 20,
@@ -83,6 +86,11 @@ class HttpHook(BaseHook):
         self.base_url: str = ""
         self._retry_obj: Callable[..., Any]
         self._auth_type: Any = auth_type
+
+        if adapter is not None and not isinstance(adapter, BaseAdapter):
+            raise TypeError("adapter must be an instance of requests.adapters.BaseAdapter")
+        self.adapter = adapter
+
         self.tcp_keep_alive = tcp_keep_alive
         self.keep_alive_idle = tcp_keep_alive_idle
         self.keep_alive_count = tcp_keep_alive_count
@@ -142,6 +150,18 @@ class HttpHook(BaseHook):
                     self.log.warning("Connection to %s has invalid extra field.", conn.host)
         if headers:
             session.headers.update(headers)
+
+        if self.adapter:
+            scheme = urlparse(self.base_url).scheme if self.base_url else "https"
+            session.mount(f"{scheme}://", self.adapter)
+        elif self.tcp_keep_alive:
+            keep_alive_adapter = TCPKeepAliveAdapter(
+                idle=self.keep_alive_idle,
+                count=self.keep_alive_count,
+                interval=self.keep_alive_interval,
+            )
+            session.mount("http://", keep_alive_adapter)
+            session.mount("https://", keep_alive_adapter)
 
         return session
 
