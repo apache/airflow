@@ -106,9 +106,9 @@ For example this will run API and WWW tests in parallel:
 
 .. code-block:: bash
 
-    breeze testing tests --parallel-test-types "API WWW" --run-in-parallel
+    breeze testing core-tests --parallel-test-types "API WWW" --run-in-parallel
 
-Here is the detailed set of options for the ``breeze testing tests`` command.
+Here is the detailed set of options for the ``breeze testing core-tests`` command.
 
 .. image:: ./images/output_testing_core-tests.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_core-tests.svg
@@ -143,11 +143,11 @@ You can also run parallel tests with ``--run-in-parallel`` flag - by default it 
 in parallel, but you can specify the test type that you want to run with space separated list of test
 types passed to ``--parallel-test-types`` flag.
 
-For example this will run API and WWW tests in parallel:
+For example this will run ``amazon`` and ``google`` tests in parallel:
 
 .. code-block:: bash
 
-    breeze testing tests --parallel-test-types "Providers[amazon] Providers[google]" --run-in-parallel
+    breeze testing providers-tests --parallel-test-types "Providers[amazon] Providers[google]" --run-in-parallel
 
 Here is the detailed set of options for the ``breeze testing providers-test`` command.
 

@@ -316,7 +316,7 @@ function check_run_tests() {
     if [[ ${REMOVE_ARM_PACKAGES:="false"} == "true" ]]; then
         # Test what happens if we do not have ARM packages installed.
         # This is useful to see if pytest collection works without ARM packages which is important
-        # for the MacOS M1 users running tests in their ARM machines with `breeze testing tests` command
+        # for the MacOS M1 users running tests in their ARM machines with `breeze testing *-tests` command
         python "${IN_CONTAINER_DIR}/remove_arm_packages.py"
     fi
 
