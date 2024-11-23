@@ -72,19 +72,19 @@ If the PR is relevant for both Airflow 3 and 2, it should target `main` branch.
 > If you believe a specific feature is a must-have for Airflow 2.11, you will need to raise this as a discussion thread on the mailing list.
 > Points to address to make your case:
 >
-> 1. You must clarify what is the urgency (i.e., why it can't wait for Airflow 3).
-> 2. You need be willing to deliver the feature for both `main` branch and Airflow 2.11 branch.
-> 3. You must be willing to provide support future bug fixes as needed.
+> 1. You must clarify the urgency, specifically why it can't wait for Airflow 3.
+> 2. You need to be willing to deliver the feature for both the `main` branch and the Airflow 2.11 branch.
+> 3. You must be willing to provide support for future bug fixes as needed.
 >
-> Points to consider on how PMC members evaluate the request of exception:
+> Points to consider on how PMC members evaluate the request for exception:
 >
 > 1. Feature impact - Is it really urgent? How many are affected?
-> 2. Workarounds - Are there any ?
+> 2. Workarounds - Are there any?
 > 3. Scope of change - Both in code lines / number of files and components changed.
 > 4. Centrality - Is the feature at the heart of Airflow (scheduler, dag parser) or peripheral.
 > 5. Identity of the requester - Is the request from/supported by a member of the community?
-> 6. Similar previous cases approved.
-> 7. Other considerations that may raise by PMC members depending on the case.
+> 6. Approved cases with similar details in the past.
+> 7. Other considerations that may be raised by PMC members depending on the case.
 
 ## Developing for Airflow 3
 
