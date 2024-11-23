@@ -21,7 +21,8 @@ from __future__ import annotations
 
 import csv
 import json
-from typing import TYPE_CHECKING, Any, ClassVar, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from databricks.sql.utils import ParamEscaper
 

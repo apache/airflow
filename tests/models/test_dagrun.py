@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 import datetime
+from collections.abc import Mapping
 from functools import reduce
-from typing import TYPE_CHECKING, Mapping
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import call
 

@@ -24,7 +24,8 @@ import logging
 import mimetypes
 import os
 import warnings
-from typing import Iterable, Union
+from collections.abc import Iterable
+from typing import Union
 
 import sendgrid
 from sendgrid.helpers.mail import (

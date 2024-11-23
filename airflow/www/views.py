@@ -32,10 +32,11 @@ import traceback
 import warnings
 from bisect import insort_left
 from collections import defaultdict
+from collections.abc import Collection, Iterator, Mapping, MutableMapping, Sequence
 from functools import cache, cached_property
 from json import JSONDecodeError
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Collection, Iterator, Mapping, MutableMapping, Sequence
+from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote, urlencode, urljoin, urlparse, urlsplit
 
 import configupdater

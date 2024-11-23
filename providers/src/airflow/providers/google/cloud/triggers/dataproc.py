@@ -22,7 +22,8 @@ from __future__ import annotations
 import asyncio
 import re
 import time
-from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Sequence
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import NotFound
 from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus

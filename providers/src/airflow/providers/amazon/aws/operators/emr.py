@@ -18,9 +18,10 @@
 from __future__ import annotations
 
 import ast
+from collections.abc import Sequence
 from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from airflow.configuration import conf

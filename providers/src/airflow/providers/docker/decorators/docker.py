@@ -19,8 +19,9 @@ from __future__ import annotations
 import base64
 import os
 import warnings
+from collections.abc import Sequence
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable, Literal, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning

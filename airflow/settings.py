@@ -134,7 +134,7 @@ STATE_COLORS = {
 }
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _get_rich_console(file):
     # Delay imports until we need it
     import rich.console

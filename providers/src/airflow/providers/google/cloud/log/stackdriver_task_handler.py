@@ -20,8 +20,9 @@ from __future__ import annotations
 
 import logging
 import warnings
+from collections.abc import Collection
 from functools import cached_property
-from typing import TYPE_CHECKING, Collection
+from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
 from google.cloud import logging as gcp_logging

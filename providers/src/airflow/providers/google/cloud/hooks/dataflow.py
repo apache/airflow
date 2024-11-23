@@ -27,8 +27,9 @@ import subprocess
 import time
 import uuid
 import warnings
+from collections.abc import Generator, Sequence
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 from google.cloud.dataflow_v1beta3 import (
     GetJobRequest,

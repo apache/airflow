@@ -23,8 +23,10 @@ import abc
 import logging
 import string
 import warnings
+from collections.abc import Iterable
 from functools import partial, wraps
-from typing import Callable, Iterable, Pattern, cast
+from re import Pattern
+from typing import Callable, cast
 
 import re2
 

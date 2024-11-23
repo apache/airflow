@@ -22,9 +22,10 @@ import logging
 import os
 import re
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 from subprocess import run
-from typing import Any, Callable, Iterable
+from typing import Any, Callable
 
 from hatchling.builders.config import BuilderConfig
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
