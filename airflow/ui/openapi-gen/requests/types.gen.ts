@@ -870,6 +870,14 @@ export type TaskInstanceCollectionResponse = {
 };
 
 /**
+ * TaskInstanceHistory Collection serializer for responses.
+ */
+export type TaskInstanceHistoryCollectionResponse = {
+  task_instances: Array<TaskInstanceHistoryResponse>;
+  total_entries: number;
+};
+
+/**
  * TaskInstanceHistory serializer for responses.
  */
 export type TaskInstanceHistoryResponse = {
@@ -1680,6 +1688,16 @@ export type GetTaskInstanceDependencies1Data = {
 
 export type GetTaskInstanceDependencies1Response =
   TaskDependencyCollectionResponse;
+
+export type GetTaskInstanceTriesData = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  taskId: string;
+};
+
+export type GetTaskInstanceTriesResponse =
+  TaskInstanceHistoryCollectionResponse;
 
 export type GetMappedTaskInstanceData = {
   dagId: string;
@@ -3430,6 +3448,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: TaskDependencyCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries": {
+    get: {
+      req: GetTaskInstanceTriesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceHistoryCollectionResponse;
         /**
          * Unauthorized
          */

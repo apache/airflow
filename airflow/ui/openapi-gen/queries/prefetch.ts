@@ -1448,6 +1448,46 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies1 = (
       }),
   });
 /**
+ * Get Task Instance Tries
+ * Get list of task instances history.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.mapIndex
+ * @returns TaskInstanceHistoryCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseTaskInstanceServiceGetTaskInstanceTries = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    taskId: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTriesKeyFn({
+      dagId,
+      dagRunId,
+      mapIndex,
+      taskId,
+    }),
+    queryFn: () =>
+      TaskInstanceService.getTaskInstanceTries({
+        dagId,
+        dagRunId,
+        mapIndex,
+        taskId,
+      }),
+  });
+/**
  * Get Mapped Task Instance
  * Get task instance.
  * @param data The data for the request.

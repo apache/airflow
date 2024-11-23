@@ -1731,6 +1731,50 @@ export const useTaskInstanceServiceGetTaskInstanceDependencies1Suspense = <
     ...options,
   });
 /**
+ * Get Task Instance Tries
+ * Get list of task instances history.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.mapIndex
+ * @returns TaskInstanceHistoryCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceGetTaskInstanceTriesSuspense = <
+  TData = Common.TaskInstanceServiceGetTaskInstanceTriesDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    taskId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTriesKeyFn(
+      { dagId, dagRunId, mapIndex, taskId },
+      queryKey,
+    ),
+    queryFn: () =>
+      TaskInstanceService.getTaskInstanceTries({
+        dagId,
+        dagRunId,
+        mapIndex,
+        taskId,
+      }) as TData,
+    ...options,
+  });
+/**
  * Get Mapped Task Instance
  * Get task instance.
  * @param data The data for the request.

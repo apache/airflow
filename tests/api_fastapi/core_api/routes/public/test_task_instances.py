@@ -2318,3 +2318,44 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 404
         assert "DAG non-existent-dag not found" in response.text
+
+
+class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
+    def test_should_respond_200(self, test_client, session):
+        self.create_task_instances(
+            session=session, task_instances=[{"state": State.SUCCESS}], with_ti_history=True
+        )
+        print("here")
+        response = test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries"
+        )
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 2  # The task instance and its history
+        assert len(response.json()["task_instances"]) == 2
+
+    def test_ti_in_retry_state_not_returned(self, test_client, session):
+        self.create_task_instances(
+            session=session, task_instances=[{"state": State.SUCCESS}], with_ti_history=True
+        )
+        ti = session.query(TaskInstance).one()
+        ti.state = State.UP_FOR_RETRY
+        session.merge(ti)
+        session.commit()
+
+        response = test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries"
+        )
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == 1
+        assert len(response.json()["task_instances"]) == 1
+
+    def test_raises_404_for_nonexistent_task_instance(self, test_client, session):
+        self.create_task_instances(session)
+        response = test_client.get(
+            "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/nonexistent_task/tries"
+        )
+        assert response.status_code == 404
+
+        assert response.json() == {
+            "detail": "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `nonexistent_task` and map_index: `-1` was not found"
+        }

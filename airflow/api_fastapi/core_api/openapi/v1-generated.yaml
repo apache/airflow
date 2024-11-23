@@ -3925,6 +3925,70 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries:
+    get:
+      tags:
+      - Task Instance
+      summary: Get Task Instance Tries
+      description: Get list of task instances history.
+      operationId: get_task_instance_tries
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceHistoryCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}:
     get:
       tags:
@@ -7301,6 +7365,22 @@ components:
       - total_entries
       title: TaskInstanceCollectionResponse
       description: Task Instance Collection serializer for responses.
+    TaskInstanceHistoryCollectionResponse:
+      properties:
+        task_instances:
+          items:
+            $ref: '#/components/schemas/TaskInstanceHistoryResponse'
+          type: array
+          title: Task Instances
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - task_instances
+      - total_entries
+      title: TaskInstanceHistoryCollectionResponse
+      description: TaskInstanceHistory Collection serializer for responses.
     TaskInstanceHistoryResponse:
       properties:
         task_id:

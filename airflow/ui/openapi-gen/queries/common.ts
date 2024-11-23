@@ -1089,6 +1089,32 @@ export const UseTaskInstanceServiceGetTaskInstanceDependencies1KeyFn = (
   useTaskInstanceServiceGetTaskInstanceDependencies1Key,
   ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId }]),
 ];
+export type TaskInstanceServiceGetTaskInstanceTriesDefaultResponse = Awaited<
+  ReturnType<typeof TaskInstanceService.getTaskInstanceTries>
+>;
+export type TaskInstanceServiceGetTaskInstanceTriesQueryResult<
+  TData = TaskInstanceServiceGetTaskInstanceTriesDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useTaskInstanceServiceGetTaskInstanceTriesKey =
+  "TaskInstanceServiceGetTaskInstanceTries";
+export const UseTaskInstanceServiceGetTaskInstanceTriesKeyFn = (
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    taskId: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useTaskInstanceServiceGetTaskInstanceTriesKey,
+  ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId }]),
+];
 export type TaskInstanceServiceGetMappedTaskInstanceDefaultResponse = Awaited<
   ReturnType<typeof TaskInstanceService.getMappedTaskInstance>
 >;
