@@ -66,7 +66,7 @@ Avoid mixing core changes into the same PR
 If the PR is relevant for both Airflow 3 and 2, it should target `main` branch.
 
 > [!IMPORTANT]
-> The mental model of Airflow 2.11 is bridge release for Airflow 3.
+> The mental model of Airflow 2.11 is a bridge release for Airflow 3.
 > As a result, Airflow 2.11 is not planned to introduce new features other than ones relevant as bridge release for Airflow 3.
 > That said, we recognize that there may be exceptions.
 > If you believe a specific feature is a must-have for Airflow 2.11, you will need to raise this as discussion thread on the mailing list.
