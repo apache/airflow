@@ -57,7 +57,6 @@ export const router = createBrowserRouter(
             { element: <Runs />, path: "runs" },
             { element: <Tasks />, path: "tasks" },
             { element: <Events />, path: "events" },
-            { element: <Variables />, path: "variables" },
             { element: <Code />, path: "code" },
           ],
           element: <Dag />,

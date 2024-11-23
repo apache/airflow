@@ -35,10 +35,9 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { CloseButton, Select } from "src/components/ui";
 
-const variablesColumn = (): Array<ColumnDef<VariableResponse>> => [
+const columns: Array<ColumnDef<VariableResponse>> = [
   {
     accessorKey: "key",
-    enableSorting: true,
     header: "Key",
     meta: {
       skeletonWidth: 20,
@@ -46,7 +45,6 @@ const variablesColumn = (): Array<ColumnDef<VariableResponse>> => [
   },
   {
     accessorKey: "value",
-    enableSorting: true,
     header: "Value",
     meta: {
       skeletonWidth: 20,
@@ -95,16 +93,13 @@ export const Variables = () => {
   );
   const [filterText, setFilterText] = useState<string>("");
 
-  const {
-    data,
-    error: VariableError,
-    isFetching,
-    isLoading,
-  } = useVariableServiceGetVariables({
-    limit: pagination.pageSize,
-    offset: pagination.pageIndex * pagination.pageSize,
-    orderBy,
-  });
+  const { data, error, isFetching, isLoading } = useVariableServiceGetVariables(
+    {
+      limit: pagination.pageSize,
+      offset: pagination.pageIndex * pagination.pageSize,
+      orderBy,
+    },
+  );
 
   const [filteredData, setFilteredData] = useState<Array<VariableResponse>>([]);
 
@@ -231,28 +226,28 @@ export const Variables = () => {
         </Box>
 
         <HStack>
-          <Button colorPalette="blue">
+          // TO DO Import Functionality
+          <Button colorPalette="blue" disabled>
             <FiUpload />
             Import Variables
           </Button>
-          <Button colorPalette="blue">
+          // TO DO Add variable Functionality
+          <Button colorPalette="blue" disabled>
             <IoAddCircleOutline />
             Add Variable
           </Button>
         </HStack>
       </HStack>
 
-      <ErrorAlert error={VariableError} />
       <DataTable
-        columns={variablesColumn()}
+        columns={columns}
         data={filteredData}
-        displayMode="table"
+        errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isFetching={isFetching}
         isLoading={isLoading}
         modelName="Variable"
         onStateChange={setTableURLState}
-        skeletonCount={undefined}
         total={filteredData.length}
       />
     </Box>
