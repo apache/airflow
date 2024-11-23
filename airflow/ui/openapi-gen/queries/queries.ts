@@ -2418,15 +2418,16 @@ export const useDagRunServiceClearDagRun = <
     ...options,
   });
 /**
- * Get Dag Runs Batch
+ * Get List Dag Runs Batch
  * Get a list of DAG Runs.
  * @param data The data for the request.
+ * @param data.dagId
  * @param data.requestBody
- * @returns unknown Successful Response
+ * @returns DAGRunCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useDagRunServiceGetDagRunsBatch = <
-  TData = Common.DagRunServiceGetDagRunsBatchMutationResult,
+export const useDagRunServiceGetListDagRunsBatch = <
+  TData = Common.DagRunServiceGetListDagRunsBatchMutationResult,
   TError = unknown,
   TContext = unknown,
 >(
@@ -2435,6 +2436,7 @@ export const useDagRunServiceGetDagRunsBatch = <
       TData,
       TError,
       {
+        dagId: "~";
         requestBody: DAGRunsBatchBody;
       },
       TContext
@@ -2446,12 +2448,14 @@ export const useDagRunServiceGetDagRunsBatch = <
     TData,
     TError,
     {
+      dagId: "~";
       requestBody: DAGRunsBatchBody;
     },
     TContext
   >({
-    mutationFn: ({ requestBody }) =>
-      DagRunService.getDagRunsBatch({
+    mutationFn: ({ dagId, requestBody }) =>
+      DagRunService.getListDagRunsBatch({
+        dagId,
         requestBody,
       }) as unknown as Promise<TData>,
     ...options,

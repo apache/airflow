@@ -1832,39 +1832,48 @@ paths:
     post:
       tags:
       - DagRun
-      summary: Get Dag Runs Batch
+      summary: Get List Dag Runs Batch
       description: Get a list of DAG Runs.
-      operationId: get_dag_runs_batch
+      operationId: get_list_dag_runs_batch
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          const: '~'
+          type: string
+          title: Dag Id
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/DAGRunsBatchBody'
-        required: true
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/DAGRunCollectionResponse'
         '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '404':
-          description: Not Found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:

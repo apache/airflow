@@ -1438,11 +1438,12 @@ export type GetDagRunsData = {
 
 export type GetDagRunsResponse = DAGRunCollectionResponse;
 
-export type GetDagRunsBatchData = {
+export type GetListDagRunsBatchData = {
+  dagId: "~";
   requestBody: DAGRunsBatchBody;
 };
 
-export type GetDagRunsBatchResponse = unknown;
+export type GetListDagRunsBatchResponse = DAGRunCollectionResponse;
 
 export type GetDagSourceData = {
   accept?: "application/json" | "text/plain" | "*/*";
@@ -2720,12 +2721,12 @@ export type $OpenApiTs = {
   };
   "/public/dags/{dag_id}/dagRuns/list": {
     post: {
-      req: GetDagRunsBatchData;
+      req: GetListDagRunsBatchData;
       res: {
         /**
          * Successful Response
          */
-        200: unknown;
+        200: DAGRunCollectionResponse;
         /**
          * Unauthorized
          */

@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, cast
+from typing import Annotated, Literal, cast
 
 from fastapi import Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
@@ -304,7 +304,9 @@ def get_dag_runs(
 
 
 @dag_run_router.post("/list", responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]))
-def get_dag_runs_batch(body: DAGRunsBatchBody, session: Annotated[Session, Depends(get_session)]):
+def get_list_dag_runs_batch(
+    dag_id: Literal["~"], body: DAGRunsBatchBody, session: Annotated[Session, Depends(get_session)]
+) -> DAGRunCollectionResponse:
     """Get a list of DAG Runs."""
     dag_ids = DagIdsFilter(body.dag_ids)
     logical_date = RangeFilter(
@@ -340,7 +342,6 @@ def get_dag_runs_batch(body: DAGRunsBatchBody, session: Annotated[Session, Depen
         ],
         DagRun,
     ).set_value(body.order_by)
-    # Should we need a default order by?
 
     base_query = select(DagRun)
     dag_runs_select, total_entries = paginated_select(
@@ -355,6 +356,6 @@ def get_dag_runs_batch(body: DAGRunsBatchBody, session: Annotated[Session, Depen
     dag_runs = session.scalars(dag_runs_select)
 
     return DAGRunCollectionResponse(
-        dag_runs=[DAGRunResponse.model_validate(dag_run, from_attributes=True) for dag_run in dag_runs],
+        dag_runs=dag_runs,
         total_entries=total_entries,
     )

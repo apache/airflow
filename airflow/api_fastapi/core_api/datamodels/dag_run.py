@@ -89,3 +89,5 @@ class DAGRunsBatchBody(BaseModel):
     start_date_lte: AwareDatetime | None = None
     end_date_gte: AwareDatetime | None = None
     end_date_lte: AwareDatetime | None = None
+
+    model_config = {}

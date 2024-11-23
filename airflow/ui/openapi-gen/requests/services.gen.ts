@@ -70,8 +70,8 @@ import type {
   ClearDagRunResponse,
   GetDagRunsData,
   GetDagRunsResponse,
-  GetDagRunsBatchData,
-  GetDagRunsBatchResponse,
+  GetListDagRunsBatchData,
+  GetListDagRunsBatchResponse,
   GetDagSourceData,
   GetDagSourceResponse,
   GetDagStatsData,
@@ -1180,19 +1180,23 @@ export class DagRunService {
   }
 
   /**
-   * Get Dag Runs Batch
+   * Get List Dag Runs Batch
    * Get a list of DAG Runs.
    * @param data The data for the request.
+   * @param data.dagId
    * @param data.requestBody
-   * @returns unknown Successful Response
+   * @returns DAGRunCollectionResponse Successful Response
    * @throws ApiError
    */
-  public static getDagRunsBatch(
-    data: GetDagRunsBatchData,
-  ): CancelablePromise<GetDagRunsBatchResponse> {
+  public static getListDagRunsBatch(
+    data: GetListDagRunsBatchData,
+  ): CancelablePromise<GetListDagRunsBatchResponse> {
     return __request(OpenAPI, {
       method: "POST",
       url: "/public/dags/{dag_id}/dagRuns/list",
+      path: {
+        dag_id: data.dagId,
+      },
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
