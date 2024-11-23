@@ -384,7 +384,7 @@ export type DAGRunPatchStates = "queued" | "success" | "failed";
  * DAG Run serializer for responses.
  */
 export type DAGRunResponse = {
-  dag_run_id: string | null;
+  run_id: string | null;
   dag_id: string;
   logical_date: string | null;
   queued_at: string | null;
