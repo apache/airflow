@@ -32,12 +32,25 @@ except ImportError:
     pytest.skip("MSSQL not available", allow_module_level=True)
 
 PYMSSQL_CONN = Connection(
-    conn_type="mssql", host="ip", schema="share", login="username", password="password", port=8081
+    conn_id="pymssql_conn",
+    conn_type="mssql",
+    host="ip",
+    schema="share",
+    login="username",
+    password="password",
+    port=8081,
 )
 PYMSSQL_CONN_ALT = Connection(
-    conn_type="mssql", host="ip", schema="", login="username", password="password", port=8081
+    conn_id="pymssql_conn_alt",
+    conn_type="mssql",
+    host="ip",
+    schema="",
+    login="username",
+    password="password",
+    port=8081,
 )
 PYMSSQL_CONN_ALT_1 = Connection(
+    conn_id="pymssql_conn_alt_1",
     conn_type="mssql",
     host="ip",
     schema="",
@@ -47,6 +60,7 @@ PYMSSQL_CONN_ALT_1 = Connection(
     extra={"SQlalchemy_Scheme": "mssql+testdriver"},
 )
 PYMSSQL_CONN_ALT_2 = Connection(
+    conn_id="pymssql_conn_alt_1",
     conn_type="mssql",
     host="ip",
     schema="",
