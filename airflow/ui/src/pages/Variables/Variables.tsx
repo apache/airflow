@@ -226,12 +226,12 @@ export const Variables = () => {
         </Box>
 
         <HStack>
-          // TO DO Import Functionality
+          {/* TO DO Import Functionality */}
           <Button colorPalette="blue" disabled>
             <FiUpload />
             Import Variables
           </Button>
-          // TO DO Add variable Functionality
+          {/* TO DO Add variable Functionality */}
           <Button colorPalette="blue" disabled>
             <IoAddCircleOutline />
             Add Variable
