@@ -233,6 +233,7 @@ class FilterOptionEnum(Enum):
     GREATER_THAN_EQUAL = "ge"
     IN = "in"
     NOT_IN = "not_in"
+    ANY_EQUAL = "any_eq"
 
 
 class FilterParam(BaseParam[T]):
@@ -259,6 +260,9 @@ class FilterParam(BaseParam[T]):
                 return select.where(self.attribute.in_(self.value))
             if self.filter_option == FilterOptionEnum.NOT_IN:
                 return select.where(self.attribute.notin_(self.value))
+            if self.filter_option == FilterOptionEnum.ANY_EQUAL:
+                conditions = [self.attribute == val for val in self.value]
+                return select.where(or_(*conditions))
             raise HTTPException(
                 400, f"Invalid filter option {self.filter_option} for list value {self.value}"
             )
@@ -287,14 +291,19 @@ def filter_param_factory(
     filter_option: FilterOptionEnum = FilterOptionEnum.EQUAL,
     filter_name: str | None = None,
     default_value: T | None = None,
+    default_factory: Callable[[], T | None] | None = None,
     skip_none: bool = True,
 ) -> Callable[[T | None], FilterParam[T | None]]:
     # if filter_name is not provided, use the attribute name as the default
     filter_name = filter_name or attribute.name
+    # can only set either default_value or default_factory
+    query = (
+        Query(alias=filter_name, default_factory=default_factory)
+        if default_factory is not None
+        else Query(alias=filter_name, default=default_value)
+    )
 
-    def depends_filter(
-        value: T | None = Query(alias=filter_name, default=default_value),
-    ) -> FilterParam[T | None]:
+    def depends_filter(value: T | None = query) -> FilterParam[T | None]:
         return FilterParam(attribute, value, filter_option, skip_none)
 
     # add type hint to value at runtime
