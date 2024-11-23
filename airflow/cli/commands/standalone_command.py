@@ -37,6 +37,8 @@ from airflow.utils import db
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
+    from termcolor.termcolor import Color
+
     from airflow.jobs.base_job_runner import BaseJobRunner
 
 
@@ -141,14 +143,14 @@ class StandaloneCommand:
 
         You can pass multiple lines to output if you wish; it will be split for you.
         """
-        color = {
+        color: dict[str, Color] = {
             "fastapi-api": "magenta",
             "webserver": "green",
             "scheduler": "blue",
             "triggerer": "cyan",
             "standalone": "white",
-        }.get(name, "white")
-        colorised_name = colored(f"{name:10}", color)
+        }
+        colorised_name = colored(f"{name:10}", color.get(name, "white"))
         for line in output.splitlines():
             print(f"{colorised_name} | {line.strip()}")
 
