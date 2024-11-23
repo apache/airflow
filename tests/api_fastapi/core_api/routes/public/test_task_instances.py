@@ -2357,5 +2357,5 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         assert response.status_code == 404
 
         assert response.json() == {
-            "detail": "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `nonexistent_task` and map_index: `-1` was not found"
+            "detail": "The Task Instance with dag_id: `example_python_operator`, run_id: `TEST_DAG_RUN_ID`, task_id: `non_existent_task` and map_index: `-1` was not found"
         }
