@@ -294,6 +294,7 @@ class BigQueryToGCSOperator(BaseOperator):
         from pathlib import Path
 
         from airflow.providers.common.compat.openlineage.facet import (
+            BaseFacet,
             Dataset,
             ExternalQueryRunFacet,
             Identifier,
@@ -322,12 +323,12 @@ class BigQueryToGCSOperator(BaseOperator):
             facets=get_facets_from_bq_table(table_object),
         )
 
-        output_dataset_facets = {
-            "schema": input_dataset.facets["schema"],
-            "columnLineage": get_identity_column_lineage_facet(
-                field_names=[field.name for field in table_object.schema], input_datasets=[input_dataset]
-            ),
-        }
+        output_dataset_facets: dict[str, BaseFacet] = get_identity_column_lineage_facet(
+            dest_field_names=[field.name for field in table_object.schema], input_datasets=[input_dataset]
+        )
+        if "schema" in input_dataset.facets:
+            output_dataset_facets["schema"] = input_dataset.facets["schema"]
+
         output_datasets = []
         for uri in sorted(self.destination_cloud_storage_uris):
             bucket, blob = _parse_gcs_url(uri)

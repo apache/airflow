@@ -119,6 +119,7 @@ class FileGroupForCi(Enum):
     ALL_PROVIDER_YAML_FILES = "all_provider_yaml_files"
     ALL_DOCS_PYTHON_FILES = "all_docs_python_files"
     TESTS_UTILS_FILES = "test_utils_files"
+    ASSET_FILES = "asset_files"
 
 
 class AllProvidersSentinel:
@@ -252,6 +253,12 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         FileGroupForCi.TASK_SDK_FILES: [
             r"^task_sdk/src/airflow/sdk/.*\.py$",
             r"^task_sdk/tests/.*\.py$",
+        ],
+        FileGroupForCi.ASSET_FILES: [
+            r"^airflow/assets/",
+            r"^airflow/models/assets/",
+            r"^task_sdk/src/airflow/sdk/definitions/asset/",
+            r"^airflow/datasets/",
         ],
     }
 )
@@ -697,6 +704,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.API_TEST_FILES)
 
     @cached_property
+    def needs_ol_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.ASSET_FILES)
+
+    @cached_property
     def needs_api_codegen(self) -> bool:
         return self._should_be_run(FileGroupForCi.API_CODEGEN_FILES)
 
@@ -860,7 +871,15 @@ class SelectiveChecks:
             all_providers_source_files = self._matching_files(
                 FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
-            if len(all_providers_source_files) == 0 and not self.needs_api_tests:
+            assets_source_files = self._matching_files(
+                FileGroupForCi.ASSET_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+
+            if (
+                len(all_providers_source_files) == 0
+                and len(assets_source_files) == 0
+                and not self.needs_api_tests
+            ):
                 # IF API tests are needed, that will trigger extra provider checks
                 return []
             else:
@@ -1440,6 +1459,8 @@ class SelectiveChecks:
                     all_providers.add(provider)
         if self.needs_api_tests:
             all_providers.add("fab")
+        if self.needs_ol_tests:
+            all_providers.add("openlineage")
         if all_providers_affected:
             return ALL_PROVIDERS_SENTINEL
         if suspended_providers:
@@ -1473,6 +1494,7 @@ class SelectiveChecks:
                 )
         if not all_providers:
             return None
+
         for provider in list(all_providers):
             all_providers.update(
                 get_related_providers(provider, upstream_dependencies=True, downstream_dependencies=True)

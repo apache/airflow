@@ -82,18 +82,26 @@ def get_dags(
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
     dags_select, total_entries = paginated_select(
-        dags_select_with_latest_dag_run,
-        [only_active, paused, dag_id_pattern, dag_display_name_pattern, tags, owners, last_dag_run_state],
-        order_by,
-        offset,
-        limit,
-        session,
+        select=dags_select_with_latest_dag_run,
+        filters=[
+            only_active,
+            paused,
+            dag_id_pattern,
+            dag_display_name_pattern,
+            tags,
+            owners,
+            last_dag_run_state,
+        ],
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
 
     dags = session.scalars(dags_select)
 
     return DAGCollectionResponse(
-        dags=[DAGResponse.model_validate(dag, from_attributes=True) for dag in dags],
+        dags=dags,
         total_entries=total_entries,
     )
 
@@ -119,7 +127,7 @@ def get_dag_tags(
     """Get all DAG tags."""
     base_select = select(DagTag.name).group_by(DagTag.name)
     dag_tags_select, total_entries = paginated_select(
-        base_select=base_select,
+        select=base_select,
         filters=[tag_name_pattern],
         order_by=order_by,
         offset=offset,
@@ -127,7 +135,7 @@ def get_dag_tags(
         session=session,
     )
     dag_tags = session.execute(dag_tags_select).scalars().all()
-    return DAGTagCollectionResponse(tags=[dag_tag for dag_tag in dag_tags], total_entries=total_entries)
+    return DAGTagCollectionResponse(tags=[x for x in dag_tags], total_entries=total_entries)
 
 
 @dags_router.get(
@@ -154,7 +162,7 @@ def get_dag(dag_id: str, session: Annotated[Session, Depends(get_session)], requ
         if not key.startswith("_") and not hasattr(dag_model, key):
             setattr(dag_model, key, value)
 
-    return DAGResponse.model_validate(dag_model, from_attributes=True)
+    return dag_model
 
 
 @dags_router.get(
@@ -182,7 +190,7 @@ def get_dag_details(
         if not key.startswith("_") and not hasattr(dag_model, key):
             setattr(dag_model, key, value)
 
-    return DAGDetailsResponse.model_validate(dag_model, from_attributes=True)
+    return dag_model
 
 
 @dags_router.patch(
@@ -219,7 +227,7 @@ def patch_dag(
     for key, val in data.items():
         setattr(dag, key, val)
 
-    return DAGResponse.model_validate(dag, from_attributes=True)
+    return dag
 
 
 @dags_router.patch(
@@ -251,21 +259,19 @@ def patch_dags(
                 status.HTTP_400_BAD_REQUEST, "Only `is_paused` field can be updated through the REST API"
             )
     else:
+        # todo: this is not used?
         update_mask = ["is_paused"]
 
     dags_select, total_entries = paginated_select(
-        dags_select_with_latest_dag_run,
-        [only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state],
-        None,
-        offset,
-        limit,
-        session,
+        select=dags_select_with_latest_dag_run,
+        filters=[only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state],
+        order_by=None,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
-
     dags = session.scalars(dags_select).all()
-
     dags_to_update = {dag.dag_id for dag in dags}
-
     session.execute(
         update(DagModel)
         .where(DagModel.dag_id.in_(dags_to_update))
@@ -274,7 +280,7 @@ def patch_dags(
     )
 
     return DAGCollectionResponse(
-        dags=[DAGResponse.model_validate(dag, from_attributes=True) for dag in dags],
+        dags=dags,
         total_entries=total_entries,
     )
 

@@ -62,7 +62,7 @@ class EdgeWorkerState(str, Enum):
     TERMINATING = "terminating"
     """Edge Worker is completing work and stopping."""
     OFFLINE = "offline"
-    """Edge Worker was show down."""
+    """Edge Worker was shut down."""
     UNKNOWN = "unknown"
     """No heartbeat signal from worker for some time, Edge Worker probably down."""
 

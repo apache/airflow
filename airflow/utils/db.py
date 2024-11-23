@@ -70,6 +70,7 @@ if TYPE_CHECKING:
     from alembic.runtime.environment import EnvironmentContext
     from alembic.script import ScriptDirectory
     from sqlalchemy.engine import Row
+    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.elements import ClauseElement, TextClause
     from sqlalchemy.sql.selectable import Select
@@ -1445,6 +1446,21 @@ def get_query_count(query_stmt: Select, *, session: Session) -> int:
     """
     count_stmt = select(func.count()).select_from(query_stmt.order_by(None).subquery())
     return session.scalar(count_stmt)
+
+
+async def get_query_count_async(query: Select, *, session: AsyncSession) -> int:
+    """
+    Get count of a query.
+
+    A SELECT COUNT() FROM is issued against the subquery built from the
+    given statement. The ORDER BY clause is stripped from the statement
+    since it's unnecessary for COUNT, and can impact query planning and
+    degrade performance.
+
+    :meta private:
+    """
+    count_stmt = select(func.count()).select_from(query.order_by(None).subquery())
+    return await session.scalar(count_stmt)
 
 
 def check_query_exists(query_stmt: Select, *, session: Session) -> bool:
