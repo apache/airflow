@@ -44,7 +44,7 @@
 
 # Main branch is Airflow 3
 
-The main branch is for development of Airflow 3.
+The `main` branch is for development of Airflow 3.
 Airflow 2.10.x releases will be cut from `v2-10-stable` branch.
 Airflow 2.11.x releases will be cut from `v2-11-stable` branch.
 
@@ -58,29 +58,33 @@ PRs should target `main` branch.
 Make sure your code is only about Providers or Helm chart.
 Avoid mixing core changes into the same PR
 
+> [!NOTE]
+> Please note that providers have been relocated from `airflow/providers` to `providers/src/airflow/providers`.
+
 ## Developing for Airflow 3 and 2.10.x / 2.11.x
 
 If the PR is relevant for both Airflow 3 and 2, it should target `main` branch.
 
-Note: The mental model of Airflow 2.11 is bridge release for Airflow 3.
-As a result, Airflow 2.11 is not planned to introduce new features other than ones relevant as bridge release for Airflow 3.
-That said, we recognize that there may be exceptions.
-If you believe a specific feature is a must-have for Airflow 2.11, you will need to raise this as discussion thread on the mailing list.
-Points to address to make your case:
-
-1. You must clarify what is the urgency (i.e., why it can't wait for Airflow 3).
-2. You need be willing to deliver the feature for both main branch and Airflow 2.11 branch.
-3. You must be willing to provide support future bug fixes as needed.
-
-Points to consider on how PMC members evaluate the request of exception:
-
-1. Feature impact - Is it really urgent? How many are affected?
-2. Workarounds - Are there any ?
-3. Scope of change - Both in code lines / number of files and components changed.
-4. Centrality - Is the feature at the heart of Airflow (scheduler, dag parser) or peripheral.
-5. Identity of the requester - Is the request from/supported by a member of the community?
-6. Similar previous cases approved.
-7. Other considerations that may raise by PMC members depending on the case.
+> [!IMPORTANT] 
+> The mental model of Airflow 2.11 is bridge release for Airflow 3.
+> As a result, Airflow 2.11 is not planned to introduce new features other than ones relevant as bridge release for Airflow 3.
+> That said, we recognize that there may be exceptions.
+> If you believe a specific feature is a must-have for Airflow 2.11, you will need to raise this as discussion thread on the mailing list.
+> Points to address to make your case:
+>
+> 1. You must clarify what is the urgency (i.e., why it can't wait for Airflow 3).
+> 2. You need be willing to deliver the feature for both `main` branch and Airflow 2.11 branch.
+> 3. You must be willing to provide support future bug fixes as needed.
+>
+> Points to consider on how PMC members evaluate the request of exception:
+>
+> 1. Feature impact - Is it really urgent? How many are affected?
+> 2. Workarounds - Are there any ?
+> 3. Scope of change - Both in code lines / number of files and components changed.
+> 4. Centrality - Is the feature at the heart of Airflow (scheduler, dag parser) or peripheral.
+> 5. Identity of the requester - Is the request from/supported by a member of the community?
+> 6. Similar previous cases approved.
+> 7. Other considerations that may raise by PMC members depending on the case.
 
 ## Developing for Airflow 3
 
@@ -96,8 +100,10 @@ PR should never target `v2-10-stable` unless specifically instructed by release 
 
 Version 2.11 is planned to be cut from `v2-10-stable` branch.
 The version will contain features relevant as bridge release for Airflow 3.
-We will not backport otherwise features from main branch to 2.11
-Note that 2.11 policy may change as 2.11 becomes closer.
+We will not backport other features from `main` branch to 2.11.
+
+> [!WARNING]
+> Airflow 2.11 policy may change as its release becomes closer.
 
 # Committers / PMCs
 
@@ -106,8 +112,8 @@ The following sections explains the protocol for merging PRs.
 ## Merging PRs for providers and Helm chart
 
 Make sure PR targets `main` branch.
-Avoid merging PRs that involve providers + core / helm chart + core
-Core part should be extracted to a  separated PR.
+Avoid merging PRs that involve (providers + core) or (helm chart + core).
+Core parts should be extracted to a separate PR.
 Exclusions should be pre-approved specifically with a comment by release manager.
 Do not treat PR approval (Green V) as exclusion approval.
 
@@ -135,9 +141,9 @@ When you want to backport commit via GitHub actions (you need to be a committer)
 should use "Backport commit" action. You need to know the commit hash of the commit you want to backport.
 You can pin the workflow from the list of workflows for easy access to it.
 
-[!NOTE]
-It should be the commit hash of the commit in the `main` branch, not in the original PR - you can find it
-via `git log` or looking up main History.
+> [!NOTE]
+> It should be the commit hash of the commit in the `main` branch, not in the original PR - you can find it
+> via `git log` or looking up main History.
 
 ![Backport commit](images/backport_commit_action.png)
 
@@ -218,8 +224,7 @@ Make sure PR target `main` branch.
 
 ### PRs that involve breaking changes
 
-Make sure it has newsfragment, please allow time for community members to review.
-Our goal is to avoid breaking changes whenever possible. Therefore, we should allow time for community members to review PRs that contain such changes - please avoid rushing to merge them. In addition, ensure that these PRs include a newsfragment.
+Our goal is to avoid breaking changes whenever possible. Therefore, we should allow time for community members to review PRs that contain such changes - please avoid rushing to merge them. Also, please make sure that such PRs contain a `significant` newsfragment that contains `**Breaking Change**`.
 
 ## Merging PRs for Airflow 2.11
 
