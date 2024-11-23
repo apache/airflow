@@ -263,20 +263,20 @@ def get_task_instance_tries(
     tis = session.scalars(
         _query(TI).where(or_(TI.state != TaskInstanceState.UP_FOR_RETRY, TI.state.is_(None)))
     ).all()
-    task_instances = session.scalars(_query(TIH)).all() + tis
+    task_instance_select = session.scalars(_query(TIH)).all() + tis
 
-    if not task_instances:
+    if not task_instance_select:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
         )
-    task_instances_data = [
-        TaskInstanceHistoryResponse.model_validate(instance, from_attributes=True)
-        for instance in task_instances
+    task_instances = [
+        TaskInstanceHistoryResponse.model_validate(task_instance, from_attributes=True)
+        for task_instance in task_instance_select
     ]
     return TaskInstanceHistoryCollectionResponse(
-        task_instances=task_instances_data,
-        total_entries=len(task_instances_data),
+        task_instances=task_instances,
+        total_entries=len(task_instances),
     )
 
 
