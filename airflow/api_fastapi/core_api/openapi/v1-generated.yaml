@@ -5959,11 +5959,11 @@ components:
       description: Enum for DAG Run states when updating a DAG Run.
     DAGRunResponse:
       properties:
-        run_id:
+        dag_run_id:
           anyOf:
           - type: string
           - type: 'null'
-          title: Run Id
+          title: Dag Run Id
         dag_id:
           type: string
           title: Dag Id
@@ -6028,7 +6028,7 @@ components:
           title: Note
       type: object
       required:
-      - run_id
+      - dag_run_id
       - dag_id
       - logical_date
       - queued_at
