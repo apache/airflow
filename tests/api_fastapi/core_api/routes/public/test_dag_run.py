@@ -477,7 +477,7 @@ class TestListDagRunsBatch:
     @staticmethod
     def get_dag_run_dict(run: DagRun):
         return {
-            "run_id": run.run_id,
+            "dag_run_id": run.run_id,
             "dag_id": run.dag_id,
             "logical_date": TestGetDagRuns.parse_datetime(run.logical_date),
             "queued_at": TestGetDagRuns.parse_datetime(run.queued_at),
@@ -500,7 +500,7 @@ class TestListDagRunsBatch:
         body = response.json()
         assert body["total_entries"] == 4
         for each in body["dag_runs"]:
-            run = session.query(DagRun).where(DagRun.run_id == each["run_id"]).one()
+            run = session.query(DagRun).where(DagRun.run_id == each["dag_run_id"]).one()
             expected = self.get_dag_run_dict(run)
             assert each == expected
 
@@ -517,6 +517,19 @@ class TestListDagRunsBatch:
                 "ctx": {"expected": "'~'"},
             }
         ]
+
+    @pytest.mark.parametrize(
+        "dag_ids, status_code, expected_dag_id_list",
+        [
+            ([], 200, DAG_RUNS_LIST),
+            ([DAG1_ID], 200, [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            [["invalid"], 200, []],
+        ],
+    )
+    def test_list_dag_runs_with_dag_ids_filter(self, test_client, dag_ids, status_code, expected_dag_id_list):
+        response = test_client.post("/public/dags/~/dagRuns/list", json={"dag_ids": dag_ids})
+        assert response.status_code == status_code
+        assert [each["dag_run_id"] for each in response.json()["dag_runs"]] == expected_dag_id_list
 
     def test_invalid_order_by_raises_400(self, test_client):
         response = test_client.post("/public/dags/~/dagRuns/list", json={"order_by": "invalid"})
@@ -547,12 +560,12 @@ class TestListDagRunsBatch:
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 4
-        assert [each["run_id"] for each in body["dag_runs"]] == expected_dag_id_order
+        assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_order
 
     @pytest.mark.parametrize(
         "post_body, expected_dag_id_order",
         [
-            # ({}, DAG_RUNS_LIST),
+            ({}, DAG_RUNS_LIST),
             ({"page_limit": 1}, DAG_RUNS_LIST[:1]),
             ({"page_limit": 3}, DAG_RUNS_LIST[:3]),
             ({"page_offset": 1}, DAG_RUNS_LIST[1:]),
@@ -566,7 +579,7 @@ class TestListDagRunsBatch:
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 4
-        assert [each["run_id"] for each in body["dag_runs"]] == expected_dag_id_order
+        assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_order
 
     @pytest.mark.parametrize(
         "post_body, expected_detail",
@@ -682,7 +695,7 @@ class TestListDagRunsBatch:
         response = test_client.post("/public/dags/~/dagRuns/list", json=post_body)
         assert response.status_code == 200
         body = response.json()
-        assert [each["run_id"] for each in body["dag_runs"]] == expected_dag_id_list
+        assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_list
 
     def test_bad_filters(self, test_client):
         post_body = {
@@ -692,8 +705,15 @@ class TestListDagRunsBatch:
             "logical_date_lte": "invalid",
             "start_date_lte": "invalid",
             "end_date_lte": "invalid",
+            "dag_ids": "invalid",
         }
         expected_detail = [
+            {
+                "input": "invalid",
+                "loc": ["body", "dag_ids"],
+                "msg": "Input should be a valid list",
+                "type": "list_type",
+            },
             {
                 "type": "datetime_from_date_parsing",
                 "loc": ["body", "logical_date_gte"],

@@ -308,7 +308,7 @@ def get_list_dag_runs_batch(
     dag_id: Literal["~"], body: DAGRunsBatchBody, session: Annotated[Session, Depends(get_session)]
 ) -> DAGRunCollectionResponse:
     """Get a list of DAG Runs."""
-    dag_ids = DagIdsFilter(body.dag_ids)
+    dag_ids = DagIdsFilter(DagRun, body.dag_ids)
     logical_date = RangeFilter(
         Range(lower_bound=body.logical_date_gte, upper_bound=body.logical_date_lte),
         attribute=DagRun.logical_date,

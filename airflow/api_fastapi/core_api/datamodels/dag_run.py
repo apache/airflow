@@ -51,7 +51,7 @@ class DAGRunClearBody(BaseModel):
 class DAGRunResponse(BaseModel):
     """DAG Run serializer for responses."""
 
-    dag_run_id: str | None = Field(alias="run_id")
+    dag_run_id: str | None = Field(validation_alias="run_id")
     dag_id: str
     logical_date: datetime | None
     queued_at: datetime | None
@@ -89,5 +89,3 @@ class DAGRunsBatchBody(BaseModel):
     start_date_lte: AwareDatetime | None = None
     end_date_gte: AwareDatetime | None = None
     end_date_lte: AwareDatetime | None = None
-
-    model_config = {}
