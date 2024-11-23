@@ -360,7 +360,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ["ruff==0.7.3"]
+        additional_dependencies: ["ruff==0.8.0"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^performance/tests/test_.*.py
       - id: ruff-format
         name: Run 'ruff format'
@@ -370,7 +370,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ["ruff==0.7.3"]
+        additional_dependencies: ["ruff==0.8.0"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py$
       - id: replace-bad-characters
         name: Replace bad characters
@@ -798,7 +798,7 @@ repos:
         entry: ./scripts/ci/pre_commit/boring_cyborg.py
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['pyyaml', 'termcolor==1.1.0', 'wcmatch==8.2']
+        additional_dependencies: ['pyyaml', 'termcolor==2.5.0', 'wcmatch==8.2']
       - id: update-in-the-wild-to-be-sorted
         name: Sort INTHEWILD.md alphabetically
         entry: ./scripts/ci/pre_commit/sort_in_the_wild.py

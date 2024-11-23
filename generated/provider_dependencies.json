@@ -679,7 +679,7 @@
       "google-cloud-storage>=2.7.0",
       "google-cloud-tasks>=2.13.0",
       "google-cloud-texttospeech>=2.14.1",
-      "google-cloud-translate>=3.11.0",
+      "google-cloud-translate>=3.16.0",
       "google-cloud-videointelligence>=2.11.0",
       "google-cloud-vision>=3.4.0",
       "google-cloud-workflows>=1.10.0",

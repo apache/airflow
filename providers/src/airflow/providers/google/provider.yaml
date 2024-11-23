@@ -150,7 +150,7 @@ dependencies:
   - google-cloud-storage-transfer>=1.4.1
   - google-cloud-tasks>=2.13.0
   - google-cloud-texttospeech>=2.14.1
-  - google-cloud-translate>=3.11.0
+  - google-cloud-translate>=3.16.0
   - google-cloud-videointelligence>=2.11.0
   - google-cloud-vision>=3.4.0
   - google-cloud-workflows>=1.10.0
@@ -1292,6 +1292,8 @@ extra-links:
   - airflow.providers.google.cloud.links.translate.TranslationLegacyModelTrainLink
   - airflow.providers.google.cloud.links.translate.TranslationLegacyModelPredictLink
   - airflow.providers.google.cloud.links.translate.TranslateTextBatchLink
+  - airflow.providers.google.cloud.links.translate.TranslationNativeDatasetLink
+  - airflow.providers.google.cloud.links.translate.TranslationDatasetsListLink
 
 
 secrets-backends:
