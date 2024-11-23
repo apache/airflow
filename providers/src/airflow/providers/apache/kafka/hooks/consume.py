@@ -23,6 +23,18 @@ from confluent_kafka import Consumer
 from airflow.providers.apache.kafka.hooks.base import KafkaBaseHook
 
 
+class KafkaAuthenticationError(Exception):
+    """Custom exception for Kafka authentication failures."""
+
+    pass
+
+
+def error_callback(err):
+    """Handle kafka errors."""
+    print("Exception received: ", err)
+    raise KafkaAuthenticationError(f"Authentication failed: {err}")
+
+
 class KafkaConsumerHook(KafkaBaseHook):
     """
     A hook for creating a Kafka Consumer.
@@ -36,6 +48,7 @@ class KafkaConsumerHook(KafkaBaseHook):
         self.topics = topics
 
     def _get_client(self, config) -> Consumer:
+        config["error_cb"] = error_callback
         return Consumer(config)
 
     def get_consumer(self) -> Consumer:
