@@ -143,14 +143,14 @@ class StandaloneCommand:
 
         You can pass multiple lines to output if you wish; it will be split for you.
         """
-        color: Color = {
+        color: dict[str, Color] = {
             "fastapi-api": "magenta",
             "webserver": "green",
             "scheduler": "blue",
             "triggerer": "cyan",
             "standalone": "white",
-        }.get(name, "white")
-        colorised_name = colored(f"{name:10}", color)
+        }
+        colorised_name = colored(f"{name:10}", color.get(name, "white"))
         for line in output.splitlines():
             print(f"{colorised_name} | {line.strip()}")
 
