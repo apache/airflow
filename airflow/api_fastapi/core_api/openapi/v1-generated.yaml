@@ -2996,73 +2996,95 @@ paths:
         in: query
         required: false
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Dag Id
       - name: task_id
         in: query
         required: false
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Task Id
       - name: run_id
         in: query
         required: false
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Run Id
       - name: map_index
         in: query
         required: false
         schema:
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Map Index
       - name: try_number
         in: query
         required: false
         schema:
-          type: integer
+          anyOf:
+          - type: integer
+          - type: 'null'
           title: Try Number
       - name: owner
         in: query
         required: false
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Owner
       - name: event
         in: query
         required: false
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Event
       - name: excluded_events
         in: query
         required: false
         schema:
-          type: array
-          items:
-            type: string
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
           title: Excluded Events
       - name: included_events
         in: query
         required: false
         schema:
-          type: array
-          items:
-            type: string
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
           title: Included Events
       - name: before
         in: query
         required: false
         schema:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: Before
       - name: after
         in: query
         required: false
         schema:
-          type: string
-          format: date-time
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
           title: After
       responses:
         '200':

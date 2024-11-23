@@ -86,28 +86,30 @@ def get_event_logs(
             ).dynamic_depends()
         ),
     ],
-    dag_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.dag_id, str))],
-    task_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.task_id, str))],
-    run_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.run_id, str))],
-    map_index: Annotated[FilterParam[int | None], Depends(filter_param_factory(Log.map_index, int))],
-    try_number: Annotated[FilterParam[int | None], Depends(filter_param_factory(Log.try_number, int))],
-    owner: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.owner, str))],
-    event: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.event, str))],
+    dag_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.dag_id, str | None))],
+    task_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.task_id, str | None))],
+    run_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.run_id, str | None))],
+    map_index: Annotated[FilterParam[int | None], Depends(filter_param_factory(Log.map_index, int | None))],
+    try_number: Annotated[FilterParam[int | None], Depends(filter_param_factory(Log.try_number, int | None))],
+    owner: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.owner, str | None))],
+    event: Annotated[FilterParam[str | None], Depends(filter_param_factory(Log.event, str | None))],
     excluded_events: Annotated[
         FilterParam[list[str] | None],
-        Depends(filter_param_factory(Log.event, list[str], FilterOptionEnum.NOT_IN, "excluded_events")),
+        Depends(
+            filter_param_factory(Log.event, list[str] | None, FilterOptionEnum.NOT_IN, "excluded_events")
+        ),
     ],
     included_events: Annotated[
         FilterParam[list[str] | None],
-        Depends(filter_param_factory(Log.event, list[str], FilterOptionEnum.IN, "included_events")),
+        Depends(filter_param_factory(Log.event, list[str] | None, FilterOptionEnum.IN, "included_events")),
     ],
     before: Annotated[
         FilterParam[datetime | None],
-        Depends(filter_param_factory(Log.dttm, datetime, FilterOptionEnum.LESS_THAN, "before")),
+        Depends(filter_param_factory(Log.dttm, datetime | None, FilterOptionEnum.LESS_THAN, "before")),
     ],
     after: Annotated[
         FilterParam[datetime | None],
-        Depends(filter_param_factory(Log.dttm, datetime, FilterOptionEnum.GREATER_THAN, "after")),
+        Depends(filter_param_factory(Log.dttm, datetime | None, FilterOptionEnum.GREATER_THAN, "after")),
     ],
 ) -> EventLogCollectionResponse:
     """Get all Event Logs."""
