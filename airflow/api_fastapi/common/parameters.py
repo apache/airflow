@@ -39,7 +39,6 @@ from pydantic import AfterValidator, BaseModel, NonNegativeInt
 from sqlalchemy import Column, case, or_
 from sqlalchemy.inspection import inspect
 
-from airflow.api_connexion.endpoints.task_instance_endpoint import _convert_ti_states
 from airflow.jobs.job import Job
 from airflow.models import Base
 from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
@@ -293,6 +292,7 @@ def filter_param_factory(
     default_value: T | None = None,
     default_factory: Callable[[], T | None] | None = None,
     skip_none: bool = True,
+    transform_callable: Callable[[T | None], Any] | None = None,
 ) -> Callable[[T | None], FilterParam[T | None]]:
     # if filter_name is not provided, use the attribute name as the default
     filter_name = filter_name or attribute.name
@@ -304,6 +304,8 @@ def filter_param_factory(
     )
 
     def depends_filter(value: T | None = query) -> FilterParam[T | None]:
+        if transform_callable:
+            value = transform_callable(value)
         return FilterParam(attribute, value, filter_option, skip_none)
 
     # add type hint to value at runtime
@@ -374,81 +376,6 @@ class DagRunStateFilter(BaseParam[list[Optional[DagRunState]]]):
     def depends(self, state: list[str] = Query(default_factory=list)) -> DagRunStateFilter:
         states = self._convert_dag_run_states(state)
         return self.set_value(states)
-
-
-class TIStateFilter(BaseParam[list[Optional[TaskInstanceState]]]):
-    """Filter on task instance state."""
-
-    def to_orm(self, select: Select) -> Select:
-        if self.skip_none is False:
-            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
-
-        if not self.value:
-            return select
-
-        conditions = [TaskInstance.state == state for state in self.value]
-        return select.where(or_(*conditions))
-
-    def depends(self, state: list[str] = Query(default_factory=list)) -> TIStateFilter:
-        try:
-            states = _convert_ti_states(state)
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Invalid value for state. Valid values are {', '.join(TaskInstanceState)}",
-            )
-        return self.set_value(states)
-
-
-class TIPoolFilter(BaseParam[list[str]]):
-    """Filter on task instance pool."""
-
-    def to_orm(self, select: Select) -> Select:
-        if self.skip_none is False:
-            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
-
-        if not self.value:
-            return select
-
-        conditions = [TaskInstance.pool == pool for pool in self.value]
-        return select.where(or_(*conditions))
-
-    def depends(self, pool: list[str] = Query(default_factory=list)) -> TIPoolFilter:
-        return self.set_value(pool)
-
-
-class TIQueueFilter(BaseParam[list[str]]):
-    """Filter on task instance queue."""
-
-    def to_orm(self, select: Select) -> Select:
-        if self.skip_none is False:
-            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
-
-        if not self.value:
-            return select
-
-        conditions = [TaskInstance.queue == queue for queue in self.value]
-        return select.where(or_(*conditions))
-
-    def depends(self, queue: list[str] = Query(default_factory=list)) -> TIQueueFilter:
-        return self.set_value(queue)
-
-
-class TIExecutorFilter(BaseParam[list[str]]):
-    """Filter on task instance executor."""
-
-    def to_orm(self, select: Select) -> Select:
-        if self.skip_none is False:
-            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
-
-        if not self.value:
-            return select
-
-        conditions = [TaskInstance.executor == executor for executor in self.value]
-        return select.where(or_(*conditions))
-
-    def depends(self, executor: list[str] = Query(default_factory=list)) -> TIExecutorFilter:
-        return self.set_value(executor)
 
 
 class _DagTagNamePatternSearch(_SearchParam):
@@ -667,16 +594,53 @@ QueryDagRunStateFilter = Annotated[DagRunStateFilter, Depends(DagRunStateFilter(
 # DAGTags
 QueryDagTagPatternSearch = Annotated[_DagTagNamePatternSearch, Depends(_DagTagNamePatternSearch().depends)]
 
+
 # TI
-QueryTIStateFilter = Annotated[TIStateFilter, Depends(TIStateFilter().depends)]
-QueryTIPoolFilter = Annotated[TIPoolFilter, Depends(TIPoolFilter().depends)]
-QueryTIQueueFilter = Annotated[TIQueueFilter, Depends(TIQueueFilter().depends)]
-QueryTIExecutorFilter = Annotated[TIExecutorFilter, Depends(TIExecutorFilter().depends)]
-# Job
-QueryJobTypeFilter = Annotated[_JobTypeFilter, Depends(_JobTypeFilter().depends)]
-QueryJobStateFilter = Annotated[_JobStateFilter, Depends(_JobStateFilter().depends)]
-QueryJobHostnameFilter = Annotated[_JobHostnameFilter, Depends(_JobHostnameFilter().depends)]
-QueryJobExecutorClassFilter = Annotated[_JobExecutorClassFilter, Depends(_JobExecutorClassFilter().depends)]
+def _transform_ti_states(states: list[str] | None) -> list[TaskInstanceState | None] | None:
+    try:
+        if not states:
+            return None
+        return [None if s in ("none", None) else TaskInstanceState(s) for s in states]
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid value for state. Valid values are {', '.join(TaskInstanceState)}",
+        )
+    return states
+
+
+QueryTIStateFilter = Annotated[
+    FilterParam[list[str]],
+    Depends(
+        filter_param_factory(
+            TaskInstance.state,
+            list[str],
+            FilterOptionEnum.ANY_EQUAL,
+            default_factory=list,
+            transform_callable=_transform_ti_states,
+        )
+    ),
+]
+QueryTIPoolFilter = Annotated[
+    FilterParam[list[str]],
+    Depends(
+        filter_param_factory(TaskInstance.pool, list[str], FilterOptionEnum.ANY_EQUAL, default_factory=list)
+    ),
+]
+QueryTIQueueFilter = Annotated[
+    FilterParam[list[str]],
+    Depends(
+        filter_param_factory(TaskInstance.queue, list[str], FilterOptionEnum.ANY_EQUAL, default_factory=list)
+    ),
+]
+QueryTIExecutorFilter = Annotated[
+    FilterParam[list[str]],
+    Depends(
+        filter_param_factory(
+            TaskInstance.executor, list[str], FilterOptionEnum.ANY_EQUAL, default_factory=list
+        )
+    ),
+]
 
 # Assets
 QueryUriPatternSearch = Annotated[_UriPatternSearch, Depends(_UriPatternSearch().depends)]

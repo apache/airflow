@@ -40,10 +40,6 @@ from airflow.api_fastapi.common.parameters import (
     Range,
     RangeFilter,
     SortParam,
-    TIExecutorFilter,
-    TIPoolFilter,
-    TIQueueFilter,
-    TIStateFilter,
     datetime_range_filter_factory,
     float_range_filter_factory,
 )
@@ -434,10 +430,10 @@ def get_task_instances_batch(
         Range(lower_bound=body.duration_gte, upper_bound=body.duration_lte),
         attribute=TI.duration,
     )
-    state = TIStateFilter(body.state)
-    pool = TIPoolFilter(body.pool)
-    queue = TIQueueFilter(body.queue)
-    executor = TIExecutorFilter(body.executor)
+    state = FilterParam(TI.state, body.state, FilterOptionEnum.ANY_EQUAL)
+    pool = FilterParam(TI.pool, body.pool, FilterOptionEnum.ANY_EQUAL)
+    queue = FilterParam(TI.queue, body.queue, FilterOptionEnum.ANY_EQUAL)
+    executor = FilterParam(TI.executor, body.executor, FilterOptionEnum.ANY_EQUAL)
 
     offset = OffsetFilter(body.page_offset)
     limit = LimitFilter(body.page_limit)
