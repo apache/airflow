@@ -56,6 +56,7 @@ class HttpHook(BaseHook):
         API url i.e https://www.google.com/ and optional authentication credentials. Default
         headers can also be specified in the Extra field in json format.
     :param auth_type: The auth type for the service
+    :param adapter: An optional instance of `requests.adapters.BaseAdapter` to mount for the session.
     :param tcp_keep_alive: Enable TCP Keep Alive for the connection.
     :param tcp_keep_alive_idle: The TCP Keep Alive Idle parameter (corresponds to ``socket.TCP_KEEPIDLE``).
     :param tcp_keep_alive_count: The TCP Keep Alive count parameter (corresponds to ``socket.TCP_KEEPCNT``)
@@ -191,11 +192,6 @@ class HttpHook(BaseHook):
 
         url = self.url_from_endpoint(endpoint)
 
-        if self.tcp_keep_alive:
-            keep_alive_adapter = TCPKeepAliveAdapter(
-                idle=self.keep_alive_idle, count=self.keep_alive_count, interval=self.keep_alive_interval
-            )
-            session.mount(url, keep_alive_adapter)
         if self.method == "GET":
             # GET uses params
             req = requests.Request(self.method, url, params=data, headers=headers, **request_kwargs)
