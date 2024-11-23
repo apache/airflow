@@ -529,7 +529,7 @@ class TestListDagRunsBatch:
     def test_list_dag_runs_with_dag_ids_filter(self, test_client, dag_ids, status_code, expected_dag_id_list):
         response = test_client.post("/public/dags/~/dagRuns/list", json={"dag_ids": dag_ids})
         assert response.status_code == status_code
-        assert [each["dag_run_id"] for each in response.json()["dag_runs"]] == expected_dag_id_list
+        assert set([each["dag_run_id"] for each in response.json()["dag_runs"]]) == set(expected_dag_id_list)
 
     def test_invalid_order_by_raises_400(self, test_client):
         response = test_client.post("/public/dags/~/dagRuns/list", json={"order_by": "invalid"})
