@@ -26,17 +26,23 @@ from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook, TranslateHook
-from airflow.providers.google.cloud.links.translate import TranslateTextBatchLink
+from airflow.providers.google.cloud.links.translate import (
+    TranslateTextBatchLink,
+    TranslationDatasetsListLink,
+    TranslationNativeDatasetLink,
+)
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.cloud.translate_v3.types import (
+        DatasetInputConfig,
         InputConfig,
         OutputConfig,
         TranslateTextGlossaryConfig,
         TransliterationConfig,
+        automl_translation,
     )
 
     from airflow.utils.context import Context
@@ -266,7 +272,7 @@ class TranslateTextBatchOperator(GoogleCloudBaseOperator):
     See https://cloud.google.com/translate/docs/advanced/batch-translation
 
     For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:TranslateTextBatchOperator`.
+    :ref:`howto/operator:TranslateTextBatchOperator`.
 
     :param project_id: Optional. The ID of the Google Cloud project that the
         service belongs to. If not specified the hook project_id will be used.
@@ -381,6 +387,338 @@ class TranslateTextBatchOperator(GoogleCloudBaseOperator):
             project_id=self.project_id or hook.project_id,
             output_config=self.output_config,
         )
-        hook.wait_for_operation(translate_operation)
+        hook.wait_for_operation_result(translate_operation)
         self.log.info("Translate text batch job finished")
         return {"batch_text_translate_results": self.output_config["gcs_destination"]}
+
+
+class TranslateCreateDatasetOperator(GoogleCloudBaseOperator):
+    """
+    Create a Google Cloud Translate dataset.
+
+    Creates a `native` translation dataset, using API V3.
+    For more information on how to use this operator, take a look at the guide:
+    :ref:`howto/operator:TranslateCreateDatasetOperator`.
+
+    :param dataset: The dataset to create. If a dict is provided, it must correspond to
+        the automl_translation.Dataset type.
+    :param project_id: ID of the Google Cloud project where dataset is located.
+        If not provided default project_id is used.
+    :param location: The location of the project.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata:  Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = (
+        "dataset",
+        "location",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    operator_extra_links = (TranslationNativeDatasetLink(),)
+
+    def __init__(
+        self,
+        *,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str,
+        dataset: dict | automl_translation.Dataset,
+        metadata: Sequence[tuple[str, str]] = (),
+        timeout: float | _MethodDefault = DEFAULT,
+        retry: Retry | _MethodDefault | None = DEFAULT,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.dataset = dataset
+        self.metadata = metadata
+        self.timeout = timeout
+        self.retry = retry
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context) -> str:
+        hook = TranslateHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        self.log.info("Dataset creation started %s...", self.dataset)
+        result_operation = hook.create_dataset(
+            dataset=self.dataset,
+            location=self.location,
+            project_id=self.project_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+        result = hook.wait_for_operation_result(result_operation)
+        result = type(result).to_dict(result)
+        dataset_id = hook.extract_object_id(result)
+        self.xcom_push(context, key="dataset_id", value=dataset_id)
+        self.log.info("Dataset creation complete. The dataset_id: %s.", dataset_id)
+
+        project_id = self.project_id or hook.project_id
+        TranslationNativeDatasetLink.persist(
+            context=context,
+            task_instance=self,
+            dataset_id=dataset_id,
+            project_id=project_id,
+        )
+        return result
+
+
+class TranslateDatasetsListOperator(GoogleCloudBaseOperator):
+    """
+    Get a list of native Google Cloud Translation datasets in a project.
+
+    Get project's list of `native` translation datasets, using API V3.
+    For more information on how to use this operator, take a look at the guide:
+    :ref:`howto/operator:TranslateDatasetsListOperator`.
+
+    :param project_id: ID of the Google Cloud project where dataset is located.
+        If not provided default project_id is used.
+    :param location: The location of the project.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata:  Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = (
+        "location",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    operator_extra_links = (TranslationDatasetsListLink(),)
+
+    def __init__(
+        self,
+        *,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str,
+        metadata: Sequence[tuple[str, str]] = (),
+        timeout: float | _MethodDefault = DEFAULT,
+        retry: Retry | _MethodDefault = DEFAULT,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.metadata = metadata
+        self.timeout = timeout
+        self.retry = retry
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context):
+        hook = TranslateHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        project_id = self.project_id or hook.project_id
+        TranslationDatasetsListLink.persist(
+            context=context,
+            task_instance=self,
+            project_id=project_id,
+        )
+        self.log.info("Requesting datasets list")
+        results_pager = hook.list_datasets(
+            location=self.location,
+            project_id=self.project_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+        result_ids = []
+        for ds_item in results_pager:
+            ds_data = type(ds_item).to_dict(ds_item)
+            ds_id = hook.extract_object_id(ds_data)
+            result_ids.append(ds_id)
+
+        self.log.info("Fetching the datasets list complete.")
+        return result_ids
+
+
+class TranslateImportDataOperator(GoogleCloudBaseOperator):
+    """
+    Import data to the translation dataset.
+
+    Loads data to the translation dataset, using API V3.
+    For more information on how to use this operator, take a look at the guide:
+    :ref:`howto/operator:TranslateImportDataOperator`.
+
+    :param dataset_id: The dataset_id of target native dataset to import data to.
+    :param input_config: The desired input location of translations language pairs file. If a dict provided,
+        must follow the structure of DatasetInputConfig.
+        If a dict is provided, it must be of the same form as the protobuf message InputConfig.
+    :param project_id: ID of the Google Cloud project where dataset is located. If not provided
+        default project_id is used.
+    :param location: The location of the project.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata:  Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = (
+        "dataset_id",
+        "input_config",
+        "location",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    operator_extra_links = (TranslationNativeDatasetLink(),)
+
+    def __init__(
+        self,
+        *,
+        dataset_id: str,
+        location: str,
+        input_config: dict | DatasetInputConfig,
+        project_id: str = PROVIDE_PROJECT_ID,
+        metadata: Sequence[tuple[str, str]] = (),
+        timeout: float | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.dataset_id = dataset_id
+        self.input_config = input_config
+        self.project_id = project_id
+        self.location = location
+        self.metadata = metadata
+        self.timeout = timeout
+        self.retry = retry
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context):
+        hook = TranslateHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        self.log.info("Importing data to dataset...")
+        operation = hook.import_dataset_data(
+            dataset_id=self.dataset_id,
+            input_config=self.input_config,
+            location=self.location,
+            project_id=self.project_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+        project_id = self.project_id or hook.project_id
+        TranslationNativeDatasetLink.persist(
+            context=context,
+            task_instance=self,
+            dataset_id=self.dataset_id,
+            project_id=project_id,
+        )
+        hook.wait_for_operation_done(operation=operation, timeout=self.timeout)
+        self.log.info("Importing data finished!")
+
+
+class TranslateDeleteDatasetOperator(GoogleCloudBaseOperator):
+    """
+    Delete translation dataset and all of its contents.
+
+    Deletes the translation dataset and it's data, using API V3.
+    For more information on how to use this operator, take a look at the guide:
+    :ref:`howto/operator:TranslateDeleteDatasetOperator`.
+
+    :param dataset_id: The dataset_id of target native dataset to be deleted.
+    :param location: The location of the project.
+    :param retry: Designation of what errors, if any, should be retried.
+    :param timeout: The timeout for this request.
+    :param metadata:  Strings which should be sent along with the request as metadata.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields: Sequence[str] = (
+        "dataset_id",
+        "location",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
+    )
+
+    def __init__(
+        self,
+        *,
+        dataset_id: str,
+        location: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        metadata: Sequence[tuple[str, str]] = (),
+        timeout: float | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.dataset_id = dataset_id
+        self.project_id = project_id
+        self.location = location
+        self.metadata = metadata
+        self.timeout = timeout
+        self.retry = retry
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context):
+        hook = TranslateHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        self.log.info("Deleting the dataset %s...", self.dataset_id)
+        operation = hook.delete_dataset(
+            dataset_id=self.dataset_id,
+            location=self.location,
+            project_id=self.project_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+        hook.wait_for_operation_done(operation=operation, timeout=self.timeout)
+        self.log.info("Dataset deletion complete!")
