@@ -519,7 +519,7 @@ def test_next_run_datasets_404(admin_client):
     assert resp.json == {"error": "can't find dag missingdag"}
 
 
-@pytest.mark.usefixtures("_freeze_time_for_dagruns")
+@pytest.mark.usefixtures("freeze_time_for_dagruns")
 def test_dynamic_mapped_task_with_retries(admin_client, dag_with_runs: list[DagRun], session):
     """
     Test a DAG with a dynamic mapped task with retries
