@@ -58,21 +58,24 @@ class TestRotateFernetKeyCommand:
             Variable.set(key=var1_key, value="value")
 
         # Create encrypted variable
-        with conf_vars({("core", "fernet_key"): fernet_key1.decode()}), mock.patch(
-            "airflow.models.crypto._fernet", None
+        with (
+            conf_vars({("core", "fernet_key"): fernet_key1.decode()}),
+            mock.patch("airflow.models.crypto._fernet", None),
         ):
             Variable.set(key=var2_key, value="value")
 
         # Rotate fernet key
-        with conf_vars(
-            {("core", "fernet_key"): f"{fernet_key2.decode()},{fernet_key1.decode()}"}
-        ), mock.patch("airflow.models.crypto._fernet", None):
+        with (
+            conf_vars({("core", "fernet_key"): f"{fernet_key2.decode()},{fernet_key1.decode()}"}),
+            mock.patch("airflow.models.crypto._fernet", None),
+        ):
             args = self.parser.parse_args(["rotate-fernet-key"])
             rotate_fernet_key_command.rotate_fernet_key(args)
 
         # Assert correctness using a new fernet key
-        with conf_vars({("core", "fernet_key"): fernet_key2.decode()}), mock.patch(
-            "airflow.models.crypto._fernet", None
+        with (
+            conf_vars({("core", "fernet_key"): fernet_key2.decode()}),
+            mock.patch("airflow.models.crypto._fernet", None),
         ):
             var1 = session.query(Variable).filter(Variable.key == var1_key).first()
             # Unencrypted variable should be unchanged
@@ -93,22 +96,25 @@ class TestRotateFernetKeyCommand:
             session.commit()
 
         # Create encrypted variable
-        with conf_vars({("core", "fernet_key"): fernet_key1.decode()}), mock.patch(
-            "airflow.models.crypto._fernet", None
+        with (
+            conf_vars({("core", "fernet_key"): fernet_key1.decode()}),
+            mock.patch("airflow.models.crypto._fernet", None),
         ):
             session.add(Connection(conn_id=var2_key, uri="mysql://user:pass@localhost"))
             session.commit()
 
         # Rotate fernet key
-        with conf_vars(
-            {("core", "fernet_key"): f"{fernet_key2.decode()},{fernet_key1.decode()}"}
-        ), mock.patch("airflow.models.crypto._fernet", None):
+        with (
+            conf_vars({("core", "fernet_key"): f"{fernet_key2.decode()},{fernet_key1.decode()}"}),
+            mock.patch("airflow.models.crypto._fernet", None),
+        ):
             args = self.parser.parse_args(["rotate-fernet-key"])
             rotate_fernet_key_command.rotate_fernet_key(args)
 
         # Assert correctness using a new fernet key
-        with conf_vars({("core", "fernet_key"): fernet_key2.decode()}), mock.patch(
-            "airflow.models.crypto._fernet", None
+        with (
+            conf_vars({("core", "fernet_key"): fernet_key2.decode()}),
+            mock.patch("airflow.models.crypto._fernet", None),
         ):
             # Unencrypted variable should be unchanged
             conn1: Connection = BaseHook.get_connection(var1_key)

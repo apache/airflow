@@ -17,8 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any, Generator, NamedTuple
+from typing import Any, NamedTuple
 
 import flask
 import jinja2

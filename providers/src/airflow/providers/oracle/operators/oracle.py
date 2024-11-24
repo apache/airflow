@@ -18,7 +18,8 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, ClassVar, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, ClassVar
 
 import oracledb
 from deprecated import deprecated

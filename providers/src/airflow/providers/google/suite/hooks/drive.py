@@ -19,7 +19,8 @@
 
 from __future__ import annotations
 
-from typing import IO, Any, Sequence
+from collections.abc import Sequence
+from typing import IO, Any
 
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import Error as GoogleApiClientError

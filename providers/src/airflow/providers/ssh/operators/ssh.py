@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 from base64 import b64encode
+from collections.abc import Container, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Container, Sequence
+from typing import TYPE_CHECKING
 
 from deprecated.classic import deprecated
 

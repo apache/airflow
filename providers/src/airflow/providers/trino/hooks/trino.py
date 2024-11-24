@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable, Mapping, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import trino
 from packaging.version import Version

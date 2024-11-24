@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence, SupportsAbs
+from collections.abc import AsyncIterator, Sequence
+from typing import TYPE_CHECKING, Any, SupportsAbs
 
 from aiohttp import ClientSession
 from aiohttp.client_exceptions import ClientResponseError

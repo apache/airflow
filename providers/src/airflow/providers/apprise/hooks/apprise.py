@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import json
 import warnings
-from typing import TYPE_CHECKING, Any, Iterable
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any
 
 import apprise
 from apprise import AppriseConfig, NotifyFormat, NotifyType

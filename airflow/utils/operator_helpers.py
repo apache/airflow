@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import inspect
 import logging
+from collections.abc import Collection, Mapping
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Collection, Mapping, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Protocol, TypeVar
 
 from airflow import settings
 from airflow.sdk.definitions.asset.metadata import Metadata

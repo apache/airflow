@@ -155,9 +155,10 @@ class TestCliInternalAPI(_CommonCLIGunicornTestClass):
 
     @conf_vars({("core", "database_access_isolation"): "true"})
     def test_cli_internal_api_debug(self, app):
-        with mock.patch(
-            "airflow.cli.commands.internal_api_command.create_app", return_value=app
-        ), mock.patch.object(app, "run") as app_run:
+        with (
+            mock.patch("airflow.cli.commands.internal_api_command.create_app", return_value=app),
+            mock.patch.object(app, "run") as app_run,
+        ):
             args = self.parser.parse_args(
                 [
                     "internal-api",
@@ -175,8 +176,9 @@ class TestCliInternalAPI(_CommonCLIGunicornTestClass):
 
     @conf_vars({("core", "database_access_isolation"): "true"})
     def test_cli_internal_api_args(self):
-        with mock.patch("subprocess.Popen") as Popen, mock.patch.object(
-            internal_api_command, "GunicornMonitor"
+        with (
+            mock.patch("subprocess.Popen") as Popen,
+            mock.patch.object(internal_api_command, "GunicornMonitor"),
         ):
             args = self.parser.parse_args(
                 [

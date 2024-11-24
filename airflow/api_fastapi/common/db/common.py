@@ -22,7 +22,8 @@ Database helpers for Airflow REST API.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, Sequence, overload
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Literal, overload
 
 from sqlalchemy.ext.asyncio import AsyncSession
 

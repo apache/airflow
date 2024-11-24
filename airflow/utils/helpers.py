@@ -21,9 +21,10 @@ import copy
 import itertools
 import re
 import signal
+from collections.abc import Generator, Iterable, Mapping, MutableMapping
 from datetime import datetime
 from functools import reduce
-from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Mapping, MutableMapping, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 from lazy_object_proxy import Proxy
 

@@ -234,11 +234,15 @@ class TestCeleryExecutor:
         """Test that Airflow retries publishing tasks to Celery Broker at least 3 times"""
         from airflow.providers.celery.executors import celery_executor, celery_executor_utils
 
-        with _prepare_app(), caplog.at_level(logging.INFO), mock.patch.object(
-            # Mock `with timeout()` to _instantly_ fail.
-            celery_executor_utils.timeout,
-            "__enter__",
-            side_effect=AirflowTaskTimeout,
+        with (
+            _prepare_app(),
+            caplog.at_level(logging.INFO),
+            mock.patch.object(
+                # Mock `with timeout()` to _instantly_ fail.
+                celery_executor_utils.timeout,
+                "__enter__",
+                side_effect=AirflowTaskTimeout,
+            ),
         ):
             executor = celery_executor.CeleryExecutor()
             assert executor.task_publish_retries == {}

@@ -18,10 +18,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import contextmanager
 from functools import partial
 from multiprocessing import Process
-from typing import Generator
 
 from airflow import settings
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option

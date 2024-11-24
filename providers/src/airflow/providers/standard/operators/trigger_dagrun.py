@@ -20,7 +20,8 @@ from __future__ import annotations
 import datetime
 import json
 import time
-from typing import TYPE_CHECKING, Any, Sequence, cast
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound

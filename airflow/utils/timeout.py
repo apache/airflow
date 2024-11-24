@@ -19,14 +19,14 @@ from __future__ import annotations
 
 import os
 import signal
+from contextlib import AbstractContextManager
 from threading import Timer
-from typing import ContextManager
 
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.platform import IS_WINDOWS
 
-_timeout = ContextManager[None]
+_timeout = AbstractContextManager[None]
 
 
 class TimeoutWindows(_timeout, LoggingMixin):

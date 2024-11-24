@@ -263,8 +263,9 @@ class TestApp:
 class TestFlaskCli:
     @dont_initialize_flask_app_submodules(skip_all_except=["init_appbuilder"])
     def test_flask_cli_should_display_routes(self, capsys):
-        with mock.patch.dict("os.environ", FLASK_APP="airflow.www.app:cached_app"), mock.patch.object(
-            sys, "argv", ["flask", "routes"]
+        with (
+            mock.patch.dict("os.environ", FLASK_APP="airflow.www.app:cached_app"),
+            mock.patch.object(sys, "argv", ["flask", "routes"]),
         ):
             # Import from flask.__main__ with a combination of mocking With mocking sys.argv
             # will invoke ``flask routes`` command.

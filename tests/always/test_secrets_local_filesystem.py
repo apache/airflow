@@ -35,9 +35,10 @@ from tests_common.test_utils.config import conf_vars
 
 @contextmanager
 def mock_local_file(content):
-    with mock.patch(
-        "airflow.secrets.local_filesystem.open", mock.mock_open(read_data=content)
-    ) as file_mock, mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=True):
+    with (
+        mock.patch("airflow.secrets.local_filesystem.open", mock.mock_open(read_data=content)) as file_mock,
+        mock.patch("airflow.secrets.local_filesystem.os.path.exists", return_value=True),
+    ):
         yield file_mock
 
 

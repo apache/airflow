@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, Header, HTTPException, status
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.types import Mimetype
 

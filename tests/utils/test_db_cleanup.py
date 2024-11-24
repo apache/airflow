@@ -421,8 +421,9 @@ class TestDBCleanup:
                 expected += f"\n  {table}"
 
         mock_ask_yesno.return_value = True
-        with patch("sys.stdout", new=StringIO()) as fake_out, patch(
-            "builtins.input", side_effect=["drop archived tables"]
+        with (
+            patch("sys.stdout", new=StringIO()) as fake_out,
+            patch("builtins.input", side_effect=["drop archived tables"]),
         ):
             _confirm_drop_archives(tables=tables)
             output = fake_out.getvalue().strip()
@@ -431,8 +432,9 @@ class TestDBCleanup:
 
     def test_user_did_not_confirm(self):
         tables = ["table1", "table2"]
-        with pytest.raises(SystemExit) as cm, patch(
-            "builtins.input", side_effect=["not drop archived tables"]
+        with (
+            pytest.raises(SystemExit) as cm,
+            patch("builtins.input", side_effect=["not drop archived tables"]),
         ):
             _confirm_drop_archives(tables=tables)
         assert str(cm.value) == "User did not confirm; exiting."

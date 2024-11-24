@@ -24,10 +24,11 @@ import enum
 import itertools
 import logging
 import weakref
+from collections.abc import Collection, Iterable, Mapping
 from functools import cache
 from inspect import signature
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple, Union, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, Union, cast
 
 import attrs
 import lazy_object_proxy

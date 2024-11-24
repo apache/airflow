@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from typing import IO, Any, AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Sequence
+from typing import IO, Any
 
 from deprecated import deprecated
 from google.cloud.dataflow_v1beta3 import ListJobsRequest

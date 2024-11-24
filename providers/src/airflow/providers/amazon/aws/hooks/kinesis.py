@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 

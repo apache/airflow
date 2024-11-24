@@ -32,7 +32,7 @@ import multiprocessing.sharedctypes
 import os
 import subprocess
 from multiprocessing import Queue, SimpleQueue
-from typing import TYPE_CHECKING, Any, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Optional
 
 from setproctitle import setproctitle
 
@@ -49,8 +49,8 @@ if TYPE_CHECKING:
     # This is a work to be executed by a worker.
     # It can Key and Command - but it can also be None, None which is actually a
     # "Poison Pill" - worker seeing Poison Pill should take the pill and ... die instantly.
-    ExecutorWorkType = Optional[Tuple[TaskInstanceKey, CommandType]]
-    TaskInstanceStateType = Tuple[TaskInstanceKey, TaskInstanceState, Optional[Exception]]
+    ExecutorWorkType = Optional[tuple[TaskInstanceKey, CommandType]]
+    TaskInstanceStateType = tuple[TaskInstanceKey, TaskInstanceState, Optional[Exception]]
 
 
 def _run_worker(

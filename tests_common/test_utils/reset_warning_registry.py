@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import re
 import sys
-from typing import Match
+from re import Match
 
 # We need to explicitly clear the warning registry context
 # https://docs.python.org/2/library/warnings.html

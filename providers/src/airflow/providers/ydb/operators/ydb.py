@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Iterable, Mapping
+from collections.abc import Iterable, Mapping
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator

@@ -26,10 +26,11 @@ import os
 import stat
 import tempfile
 from abc import ABC, ABCMeta, abstractmethod
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import ExitStack
 from functools import partial
-from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
+from typing import IO, TYPE_CHECKING, Any, Callable
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException

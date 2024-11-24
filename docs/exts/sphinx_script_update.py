@@ -22,7 +22,7 @@ import os
 import shutil
 import sys
 import tempfile
-from functools import lru_cache
+from functools import cache
 
 import requests
 from sphinx.builders import html as builders
@@ -55,7 +55,7 @@ def _user_cache_dir(appname=None):
     return path
 
 
-@lru_cache(maxsize=None)
+@cache
 def fetch_and_cache(script_url: str, output_filename: str):
     """Fetch URL to local cache and returns path."""
     cache_key = _gethash(script_url)

@@ -18,7 +18,8 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, Callable, ClassVar, Collection, Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
+from typing import Any, Callable, ClassVar
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.providers.standard.operators.bash import BashOperator

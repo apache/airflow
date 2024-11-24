@@ -16,9 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from functools import cached_property
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Any, Mapping, Sequence
+from typing import TYPE_CHECKING, Any
 
 from deprecated import deprecated
 from typing_extensions import Literal

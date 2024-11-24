@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel
 
@@ -28,5 +28,5 @@ class JsonRpcRequest(BaseModel):
     """Fully qualified python module method name that is called via JSON RPC."""
     jsonrpc: str
     """JSON RPC version."""
-    params: Optional[Dict[str, Any]] = None  # noqa: UP006, UP007 - prevent pytest failing in back-compat
+    params: Optional[dict[str, Any]] = None  # noqa: UP007 - prevent pytest failing in back-compat
     """Parameters passed to the method."""

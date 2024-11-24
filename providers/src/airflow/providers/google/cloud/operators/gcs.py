@@ -23,9 +23,10 @@ import datetime
 import subprocess
 import sys
 import warnings
+from collections.abc import Sequence
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 import pendulum
 

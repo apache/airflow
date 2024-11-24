@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from functools import lru_cache
+from functools import cache
 from io import StringIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -77,7 +77,7 @@ def get_schema_crd(api_version, kind):
     return schema
 
 
-@lru_cache(maxsize=None)
+@cache
 def create_validator(api_version, kind, kubernetes_version):
     schema = get_schema_crd(api_version, kind)
     if not schema:

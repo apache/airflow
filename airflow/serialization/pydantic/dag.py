@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pathlib
 from datetime import datetime
-from typing import Annotated, Any, List, Optional
+from typing import Annotated, Any, Optional
 
 from pydantic import (
     BaseModel as BaseModelPydantic,
@@ -87,8 +87,8 @@ class DagModelPydantic(BaseModelPydantic):
     default_view: Optional[str]
     timetable_summary: Optional[str]
     timetable_description: Optional[str]
-    tags: List[DagTagPydantic]  # noqa: UP006
-    dag_owner_links: List[DagOwnerAttributesPydantic]  # noqa: UP006
+    tags: list[DagTagPydantic]
+    dag_owner_links: list[DagOwnerAttributesPydantic]
 
     max_active_tasks: int
     max_active_runs: Optional[int]

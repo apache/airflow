@@ -22,10 +22,11 @@ import base64
 import json
 import sys
 import tempfile
+from collections.abc import Generator
 from contextlib import contextmanager
 from enum import Enum
 from functools import partial
-from typing import Callable, Generator
+from typing import Callable
 
 from botocore.exceptions import ClientError
 from botocore.signers import RequestSigner

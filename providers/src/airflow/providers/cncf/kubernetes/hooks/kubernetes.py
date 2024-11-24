@@ -20,9 +20,10 @@ import asyncio
 import contextlib
 import json
 import tempfile
+from collections.abc import Generator
 from functools import cached_property
 from time import sleep
-from typing import TYPE_CHECKING, Any, Generator
+from typing import TYPE_CHECKING, Any
 
 import aiofiles
 import tenacity

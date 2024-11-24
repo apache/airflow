@@ -21,8 +21,9 @@ from __future__ import annotations
 
 import ast
 import warnings
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence, Tuple, cast
+from typing import TYPE_CHECKING, cast
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.automl_v1beta1 import (
@@ -53,7 +54,7 @@ if TYPE_CHECKING:
 
     from airflow.utils.context import Context
 
-MetaData = Sequence[Tuple[str, str]]
+MetaData = Sequence[tuple[str, str]]
 
 
 def _raise_exception_for_deprecated_operator(

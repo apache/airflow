@@ -16,13 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Mapping, Optional, Sequence, Tuple, Union
+from collections.abc import Mapping, Sequence
+from typing import Any, Optional, Union
 
 from flask import Response
 
 APIResponse = Union[
     Response,
-    Tuple[object, int],  # For '(NoContent, 201)'.
+    tuple[object, int],  # For '(NoContent, 201)'.
     Mapping[str, Any],  # JSON.
 ]
 

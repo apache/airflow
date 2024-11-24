@@ -20,7 +20,7 @@ import logging
 from collections import defaultdict
 from contextlib import closing
 from enum import IntEnum
-from typing import TYPE_CHECKING, Dict, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from attrs import define
 from openlineage.client.event_v2 import Dataset
@@ -50,7 +50,7 @@ class ColumnIndex(IntEnum):
     DATABASE = 5
 
 
-TablesHierarchy = Dict[Optional[str], Dict[Optional[str], List[str]]]
+TablesHierarchy = dict[Optional[str], dict[Optional[str], list[str]]]
 
 
 @define

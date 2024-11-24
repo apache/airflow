@@ -19,9 +19,10 @@ from __future__ import annotations
 import asyncio
 import datetime
 import traceback
+from collections.abc import AsyncIterator
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, AsyncIterator
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (

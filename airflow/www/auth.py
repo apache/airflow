@@ -18,8 +18,9 @@ from __future__ import annotations
 
 import functools
 import logging
+from collections.abc import Sequence
 from functools import wraps
-from typing import TYPE_CHECKING, Callable, Sequence, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 from flask import flash, redirect, render_template, request, url_for
 from flask_appbuilder._compat import as_unicode

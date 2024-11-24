@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
-from typing import TYPE_CHECKING, Iterable, List, Optional
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 from pydantic import BaseModel as BaseModelPydantic, ConfigDict
@@ -56,7 +57,7 @@ class DagRunPydantic(BaseModelPydantic):
     dag_version_id: Optional[UUID]
     updated_at: Optional[datetime]
     dag: Optional[PydanticDag]
-    consumed_asset_events: List[AssetEventPydantic]  # noqa: UP006
+    consumed_asset_events: list[AssetEventPydantic]
     log_template_id: Optional[int]
     triggered_by: Optional[DagRunTriggeredByType]
 

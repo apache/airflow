@@ -27,12 +27,13 @@ import sys
 import tempfile
 import warnings
 from collections import namedtuple
+from collections.abc import Generator
 from datetime import date, datetime, timedelta, timezone as _timezone
 from functools import partial
 from importlib.util import find_spec
 from subprocess import CalledProcessError
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock
 

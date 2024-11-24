@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import warnings
+from collections.abc import Generator, Iterable, Mapping, Sequence
 from contextlib import closing, contextmanager
 from datetime import datetime
 from functools import cached_property
@@ -25,12 +26,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Generator,
-    Iterable,
-    List,
-    Mapping,
     Protocol,
-    Sequence,
     TypeVar,
     cast,
     overload,
@@ -518,7 +514,7 @@ class DbApiHook(BaseHook):
             )
 
         if isinstance(result, Sequence):
-            return cast(List[tuple], result)
+            return cast(list[tuple], result)
         return cast(tuple, result)
 
     def _run_command(self, cur, sql_statement, parameters):

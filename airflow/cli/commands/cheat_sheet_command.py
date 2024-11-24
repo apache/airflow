@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable
+from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from airflow.cli.cli_parser import GroupCommand, airflow_commands
 from airflow.cli.simple_table import AirflowConsole, SimpleTable

@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import TYPE_CHECKING, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING
 
 from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshStatus,

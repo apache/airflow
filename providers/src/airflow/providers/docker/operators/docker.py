@@ -24,11 +24,11 @@ import os
 import pickle
 import tarfile
 import warnings
-from collections.abc import Container
+from collections.abc import Container, Iterable, Sequence
 from functools import cached_property
 from io import BytesIO, StringIO
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Iterable, Sequence
+from typing import TYPE_CHECKING
 
 from deprecated.classic import deprecated
 from docker.constants import DEFAULT_TIMEOUT_SECONDS

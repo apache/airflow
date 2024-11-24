@@ -22,10 +22,11 @@ from __future__ import annotations
 import os
 import warnings
 from base64 import decodebytes
+from collections.abc import Sequence
 from functools import cached_property
 from io import StringIO
 from select import select
-from typing import Any, Sequence
+from typing import Any
 
 import paramiko
 from deprecated import deprecated

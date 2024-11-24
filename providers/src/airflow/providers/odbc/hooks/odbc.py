@@ -19,7 +19,8 @@
 from __future__ import annotations
 
 from collections import namedtuple
-from typing import Any, List, Sequence, cast
+from collections.abc import Sequence
+from typing import Any, cast
 from urllib.parse import quote_plus
 
 from pyodbc import Connection, Row, connect
@@ -222,7 +223,7 @@ class OdbcHook(DbApiHook):
         if isinstance(result, Sequence):
             field_names = [col[0] for col in result[0].cursor_description]
             row_object = namedtuple("Row", field_names, rename=True)  # type: ignore
-            return cast(List[tuple], [row_object(*row) for row in result])
+            return cast(list[tuple], [row_object(*row) for row in result])
         else:
             field_names = [col[0] for col in result.cursor_description]
             return cast(tuple, namedtuple("Row", field_names, rename=True)(*result))  # type: ignore

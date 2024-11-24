@@ -25,18 +25,15 @@ import pathlib
 import sys
 import time
 from collections import defaultdict
+from collections.abc import Collection, Container, Iterable, Sequence
 from contextlib import ExitStack
 from datetime import datetime, timedelta
 from functools import cache
+from re import Pattern
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Collection,
-    Container,
-    Iterable,
-    Pattern,
-    Sequence,
     Union,
     cast,
     overload,

@@ -17,9 +17,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from airflow.configuration import conf
 from airflow.notifications.basenotifier import BaseNotifier

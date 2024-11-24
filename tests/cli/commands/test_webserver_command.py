@@ -313,9 +313,10 @@ class TestCliWebServer(_CommonCLIGunicornTestClass):
         assert ctx.value.code == 1
 
     def test_cli_webserver_debug(self, app):
-        with mock.patch("airflow.www.app.create_app", return_value=app), mock.patch.object(
-            app, "run"
-        ) as app_run:
+        with (
+            mock.patch("airflow.www.app.create_app", return_value=app),
+            mock.patch.object(app, "run") as app_run,
+        ):
             args = self.parser.parse_args(
                 [
                     "webserver",

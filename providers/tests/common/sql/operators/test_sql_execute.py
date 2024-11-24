@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, NamedTuple, Sequence
+from collections.abc import Sequence
+from typing import Any, NamedTuple
 from unittest import mock
 from unittest.mock import MagicMock
 

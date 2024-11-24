@@ -30,9 +30,10 @@ import math
 import operator
 import time
 from collections import Counter
+from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
-from typing import TYPE_CHECKING, Any, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Optional
 
 from celery import states as celery_states
 from deprecated import deprecated
@@ -75,7 +76,7 @@ if TYPE_CHECKING:
 
     # Task instance that is sent over Celery queues
     # TaskInstanceKey, Command, queue_name, CallableTask
-    TaskInstanceInCelery = Tuple[TaskInstanceKey, CommandType, Optional[str], Task]
+    TaskInstanceInCelery = tuple[TaskInstanceKey, CommandType, Optional[str], Task]
 
 
 # PEP562

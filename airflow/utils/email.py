@@ -22,11 +22,12 @@ import logging
 import os
 import smtplib
 import ssl
+from collections.abc import Iterable
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formatdate
-from typing import Any, Iterable
+from typing import Any
 
 import re2
 

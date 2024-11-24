@@ -24,7 +24,8 @@ import json
 import shutil
 import tempfile
 import urllib.request
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 from airflow.exceptions import AirflowException

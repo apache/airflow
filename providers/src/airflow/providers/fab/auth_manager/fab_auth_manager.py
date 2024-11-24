@@ -18,9 +18,10 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Container
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Container
+from typing import TYPE_CHECKING, Any
 
 import packaging.version
 from connexion import FlaskApi

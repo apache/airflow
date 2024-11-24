@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import contextlib
 import os
+from collections.abc import Generator
 from functools import wraps
 from inspect import signature
-from typing import Callable, Generator, TypeVar, cast
+from typing import Callable, TypeVar, cast
 
 from sqlalchemy.orm import Session as SASession
 

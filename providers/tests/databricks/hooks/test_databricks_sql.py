@@ -392,9 +392,12 @@ def test_execution_timeout_exceeded(
         Row(id=11, value=12),
     ),
 ):
-    with patch(
-        "airflow.providers.databricks.hooks.databricks_sql.create_timeout_thread"
-    ) as mock_create_timeout_thread, patch.object(DatabricksSqlHook, "_run_command") as mock_run_command:
+    with (
+        patch(
+            "airflow.providers.databricks.hooks.databricks_sql.create_timeout_thread"
+        ) as mock_create_timeout_thread,
+        patch.object(DatabricksSqlHook, "_run_command") as mock_run_command,
+    ):
         conn = mock.MagicMock()
         cur = mock.MagicMock(
             rowcount=len(cursor_results),

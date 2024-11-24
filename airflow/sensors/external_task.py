@@ -20,7 +20,8 @@ from __future__ import annotations
 import datetime
 import os
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable
+from collections.abc import Collection, Iterable
+from typing import TYPE_CHECKING, Any, Callable, ClassVar
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException

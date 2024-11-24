@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import datetime
 import inspect
+from collections.abc import Iterable, Iterator, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 import methodtools
 from sqlalchemy import select

@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import datetime
 import json
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 from unittest.mock import patch
 
 import pendulum

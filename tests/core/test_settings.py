@@ -282,9 +282,12 @@ _local_db_path_error = pytest.raises(AirflowConfigException, match=r"Cannot use 
 def test_sqlite_relative_path(value, expectation):
     from airflow import settings
 
-    with patch("os.environ", {"_AIRFLOW_SKIP_DB_TESTS": "true"}), patch(
-        "airflow.settings.SQL_ALCHEMY_CONN", value
-    ), patch("airflow.settings.Session"), patch("airflow.settings.engine"):
+    with (
+        patch("os.environ", {"_AIRFLOW_SKIP_DB_TESTS": "true"}),
+        patch("airflow.settings.SQL_ALCHEMY_CONN", value),
+        patch("airflow.settings.Session"),
+        patch("airflow.settings.engine"),
+    ):
         with expectation:
             settings.configure_orm()
 
