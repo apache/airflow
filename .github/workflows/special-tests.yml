@@ -263,17 +263,47 @@ jobs:
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
 
-  test-openapi:
-    name: "OpenAPI tests"
-    uses: ./.github/workflows/openapi-tests.yml
+  test-openapi-client:
+    timeout-minutes: 60
+    name: "Test OpenAPI client"
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     if: inputs.needs-api-codegen == 'true'
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
-      run-coverage: ${{ inputs.run-coverage }}
-      debug-resources: ${{ inputs.debug-resources }}
-      image-tag: ${{ inputs.image-tag }}
-      default-python-version: ${{ inputs.default-python-version }}
+    env:
+      DEBUG_RESOURCES: "${{ inputs.debug-resources }}"
+      ENABLE_COVERAGE: "${{ inputs.run-coverage }}"
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      IMAGE_TAG: "${{ inputs.image-tag }}"
+      JOB_ID: "openapi-client-tests"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      VERBOSE: "true"
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          repository: "apache/airflow-client-python"
+          fetch-depth: 1
+          persist-credentials: false
+          path: ./airflow-client-python
+      - name: "Prepare breeze & CI image: ${{inputs.default-python-version}}:${{inputs.image-tag}}"
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: "Generate airflow python client"
+        run: >
+          breeze release-management prepare-python-client --package-format both
+          --version-suffix-for-pypi dev0 --python-client-repo ./airflow-client-python
+      - name: "Show diff"
+        run: git diff --color HEAD
+        working-directory: ./airflow-client-python
+      - name: "Open API Tests with python client"
+        run: breeze testing openapi-tests
