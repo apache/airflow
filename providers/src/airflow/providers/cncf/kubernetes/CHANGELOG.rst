@@ -28,6 +28,25 @@ Changelog
 ---------
 
 
+10.0.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bugfix KubernetesJobOperator.on_kill() by removing unexpected 'job' argument from the k8s job client method 'delete_namespaced_job' invocation (#44131)``
+* ``Re-queue tassk when they are stuck in queued (#43520)``
+
+Misc
+~~~~
+
+* ``Rename execution_date to logical_date across codebase (#43902)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+
 10.0.0
 ......
 

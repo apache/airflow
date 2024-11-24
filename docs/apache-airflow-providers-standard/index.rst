@@ -66,7 +66,7 @@ apache-airflow-providers-standard package
 Airflow Standard Provider
 
 
-Release: 0.0.1
+Release: 0.0.2
 
 Provider package
 ----------------

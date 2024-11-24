@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+3.8.5
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Re-queue tassk when they are stuck in queued (#43520)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+
 3.8.4
 .....
 

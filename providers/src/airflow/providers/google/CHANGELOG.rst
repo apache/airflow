@@ -173,6 +173,36 @@ Breaking changes
     * Removed ``BigQueryBaseCursor.run_extract()``. Please use ``BigQueryHook.insert_job()`` instead
     * Removed ``BigQueryBaseCursor.run_query()``. Please use ``BigQueryHook.insert_job()`` instead
 
+
+* ``Remove deprecated functionality from Google provider (#43953)``
+
+Features
+~~~~~~~~
+
+* ``feat: add OpenLineage support for BigQueryToBigQueryOperator (#44214)``
+* ``Introduce gcp advance API (V3) translate native datasets operators (#44271)``
+* ``Introduce new gcp TranslateText and TranslateTextBatch operators (#43860)``
+* ``Add gcloud command to DataprocCreateClusterOperator to be able to create dataproc on GKE cluster (#44185)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix incorrect query in 'BigQueryAsyncHook.create_job_for_partition_get'. (#44225)``
+* ``Fix Dataplex Data Quality partial update (#44262)``
+
+Misc
+~~~~
+
+* ``Bump 'google-cloud-translate' to '3.16' (#44297)``
+* ``Bump 'google-cloud-datacatalog' to '3.23' (#44281)``
+* ``Rename execution_date to logical_date across codebase (#43902)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+   * ``Move Asset user facing components to task_sdk (#43773)``
+
 10.26.0
 .......
 
