@@ -27,9 +27,11 @@
 from __future__ import annotations
 
 import sys
+import time
 import uuid
 
 import airflow_client.client
+import pytest
 
 try:
     # If you have rich installed, you will have nice colored output of the API responses
@@ -65,20 +67,26 @@ DAG_ID = "example_bash_operator"
 
 
 # Enter a context with an instance of the API client
+@pytest.mark.execution_timeout(400)
 def test_python_client():
     with airflow_client.client.ApiClient(configuration) as api_client:
         errors = False
 
         print("[blue]Getting DAG list")
-        dag_api_instance = dag_api.DAGApi(api_client)
-        try:
-            api_response = dag_api_instance.get_dags()
-            print(api_response)
-        except airflow_client.client.OpenApiException as e:
-            print(f"[red]Exception when calling DagAPI->get_dags: {e}\n")
-            errors = True
-        else:
-            print("[green]Getting DAG list successful")
+        max_retries = 10
+        while max_retries > 0:
+            try:
+                dag_api_instance = dag_api.DAGApi(api_client)
+                api_response = dag_api_instance.get_dags()
+                print(api_response)
+            except airflow_client.client.OpenApiException as e:
+                print(f"[red]Exception when calling DagAPI->get_dags: {e}\n")
+                errors = True
+                time.sleep(6)
+                max_retries -= 1
+            else:
+                print("[green]Getting DAG list successful")
+                break
 
         print("[blue]Getting Tasks for a DAG")
         try:
