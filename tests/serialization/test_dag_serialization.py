@@ -1067,10 +1067,13 @@ class TestStringifiedDAGs:
         assert "https://www.google.com" == link
 
     @pytest.mark.usefixtures("clear_all_logger_handlers")
-    def test_extra_operator_links_logs_error_for_non_registered_extra_links(self, caplog):
+    def test_extra_operator_links_logs_error_for_non_registered_extra_links(self):
         """
         Assert OperatorLinks not registered via Plugins and if it is not an inbuilt Operator Link,
-        it can still deserialize the DAG (does not error) but just logs an error
+        it can still deserialize the DAG (does not error) but just logs an error.
+
+        We test NOT using caplog as this is flaky, we check that the task after deserialize
+        is missing the extra links.
         """
 
         class TaskStateLink(BaseOperatorLink):
