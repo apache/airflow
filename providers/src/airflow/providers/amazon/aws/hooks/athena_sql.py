@@ -79,8 +79,8 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
                 "password": "AWS Secret Access Key",
             },
             "placeholders": {
-                "login": "AKIAIOSFODNN7EXAMPLE",
-                "password": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+                "login": "xxxxxxxxxxxxxxxxxxxxxxxxx",
+                "password": "xxxxxxxxxxxxxxxxxxxxxxxxx",
                 "extra": json.dumps(
                     {
                         "aws_domain": "amazonaws.com",
