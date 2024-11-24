@@ -43,7 +43,7 @@ spec:
       release: {{ .Release.Name }}
   policyTypes:
   - Ingress
-  {{- if eq .Values.executor "LocalExecutor" }}
+  {{- if contains "LocalExecutor" .Values.executor }}
   ingress:
   - from:
     - podSelector:
