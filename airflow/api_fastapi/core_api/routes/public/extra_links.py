@@ -43,9 +43,7 @@ extra_links_router = AirflowRouter(
 
 @extra_links_router.get(
     "",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 async def get_extra_links(
     dag_id: str,

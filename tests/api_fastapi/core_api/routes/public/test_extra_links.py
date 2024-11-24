@@ -82,6 +82,9 @@ class TestExtraLinks:
             **triggered_by_kwargs,
         )
 
+    def teardown_method(self) -> None:
+        self._clear_db()
+
     def _create_dag(self):
         with DAG(dag_id=self.dag_id, schedule=None, default_args={"start_date": self.default_time}) as dag:
             CustomOperator(task_id=self.task_single_link, bash_command="TEST_LINK_VALUE")
