@@ -71,7 +71,7 @@ class TestExtraLinks:
         test_client.app.state.dag_bag = dag_bag
         dag_bag.sync_to_db()
 
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST}
 
         self.dag.create_dagrun(
             run_id=self.dag_run_id,
