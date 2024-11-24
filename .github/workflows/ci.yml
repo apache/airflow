@@ -366,7 +366,6 @@ jobs:
       needs.build-info.outputs.default-branch == 'main' &&
       needs.build-info.outputs.latest-versions-only != 'true'
 
-
   tests-postgres:
     name: "Postgres tests"
     uses: ./.github/workflows/run-unit-tests.yml
