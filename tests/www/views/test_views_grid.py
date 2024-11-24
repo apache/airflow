@@ -517,3 +517,47 @@ def test_next_run_datasets_404(admin_client):
     resp = admin_client.get("/object/next_run_datasets/missingdag", follow_redirects=True)
     assert resp.status_code == 404, resp.json
     assert resp.json == {"error": "can't find dag missingdag"}
+
+
+@pytest.mark.usefixtures("_freeze_time_for_dagruns")
+def test_dynamic_mapped_task_with_retries(admin_client, dag_with_runs: list[DagRun], session):
+    """
+    Test a DAG with a dynamic mapped task with retries
+    """
+    run1, run2 = dag_with_runs
+
+    for ti in run1.task_instances:
+        ti.state = TaskInstanceState.SUCCESS
+    for ti in sorted(run2.task_instances, key=lambda ti: (ti.task_id, ti.map_index)):
+        if ti.task_id == "task1":
+            ti.state = TaskInstanceState.SUCCESS
+        elif ti.task_id == "group.mapped":
+            if ti.map_index == 0:
+                ti.state = TaskInstanceState.FAILED
+                ti.start_date = pendulum.DateTime(2021, 7, 1, 1, 0, 0, tzinfo=pendulum.UTC)
+                ti.end_date = pendulum.DateTime(2021, 7, 1, 1, 2, 3, tzinfo=pendulum.UTC)
+            elif ti.map_index == 1:
+                ti.try_number = 1
+                ti.state = TaskInstanceState.SUCCESS
+                ti.start_date = pendulum.DateTime(2021, 7, 1, 2, 3, 4, tzinfo=pendulum.UTC)
+                ti.end_date = None
+            elif ti.map_index == 2:
+                ti.try_number = 2
+                ti.state = TaskInstanceState.FAILED
+                ti.start_date = pendulum.DateTime(2021, 7, 1, 2, 3, 4, tzinfo=pendulum.UTC)
+                ti.end_date = None
+            elif ti.map_index == 3:
+                ti.try_number = 3
+                ti.state = TaskInstanceState.SUCCESS
+                ti.start_date = pendulum.DateTime(2021, 7, 1, 2, 3, 4, tzinfo=pendulum.UTC)
+                ti.end_date = None
+    session.flush()
+
+    resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}", follow_redirects=True)
+
+    assert resp.status_code == 200, resp.json
+
+    assert resp.json["groups"]["children"][-1]["children"][-1]["instances"][-1]["mapped_states"] == {
+        "failed": 2,
+        "success": 2,
+    }
