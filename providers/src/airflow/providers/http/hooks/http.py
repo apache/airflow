@@ -97,6 +97,15 @@ class HttpHook(BaseHook):
         self.keep_alive_count = tcp_keep_alive_count
         self.keep_alive_interval = tcp_keep_alive_interval
 
+        if self.tcp_keep_alive:
+            self.keep_alive_adapter = TCPKeepAliveAdapter(
+                idle=self.keep_alive_idle,
+                count=self.keep_alive_count,
+                interval=self.keep_alive_interval,
+            )
+        else:
+            self.keep_alive_adapter = None
+
     @property
     def auth_type(self):
         return self._auth_type or HTTPBasicAuth
@@ -107,64 +116,67 @@ class HttpHook(BaseHook):
 
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
-    def get_conn(self, headers: dict[Any, Any] | None = None) -> requests.Session:
+    def get_conn(self, headers: dict[Any, Any] = None) -> requests.Session:
         """
         Create a Requests HTTP session.
 
-        :param headers: additional headers to be passed through as a dictionary
+        :param headers: Additional headers to be passed through as a dictionary.
+        :return: A configured requests.Session object.
         """
         session = requests.Session()
+        connection = self.get_connection(self.http_conn_id)
 
-        if self.http_conn_id:
-            conn = self.get_connection(self.http_conn_id)
+        self._set_base_url(connection)
+        self._set_auth(session, connection)
+        self._set_extra(session, connection)
 
-            if conn.host and "://" in conn.host:
-                self.base_url = conn.host
-            else:
-                # schema defaults to HTTP
-                schema = conn.schema if conn.schema else "http"
-                host = conn.host if conn.host else ""
-                self.base_url = f"{schema}://{host}"
-
-            if conn.port:
-                self.base_url += f":{conn.port}"
-            if conn.login:
-                session.auth = self.auth_type(conn.login, conn.password)
-            elif self._auth_type:
-                session.auth = self.auth_type()
-            if conn.extra:
-                extra = conn.extra_dejson
-                extra.pop(
-                    "timeout", None
-                )  # ignore this as timeout is only accepted in request method of Session
-                extra.pop("allow_redirects", None)  # ignore this as only max_redirects is accepted in Session
-                session.proxies = extra.pop("proxies", extra.pop("proxy", {}))
-                session.stream = extra.pop("stream", False)
-                session.verify = extra.pop("verify", extra.pop("verify_ssl", True))
-                session.cert = extra.pop("cert", None)
-                session.max_redirects = extra.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
-                session.trust_env = extra.pop("trust_env", True)
-
-                try:
-                    session.headers.update(extra)
-                except TypeError:
-                    self.log.warning("Connection to %s has invalid extra field.", conn.host)
         if headers:
             session.headers.update(headers)
 
-        if self.adapter:
-            scheme = urlparse(self.base_url).scheme if self.base_url else "https"
-            session.mount(f"{scheme}://", self.adapter)
-        elif self.tcp_keep_alive:
-            keep_alive_adapter = TCPKeepAliveAdapter(
-                idle=self.keep_alive_idle,
-                count=self.keep_alive_count,
-                interval=self.keep_alive_interval,
-            )
-            session.mount("http://", keep_alive_adapter)
-            session.mount("https://", keep_alive_adapter)
+        self._mount_adapters(session)
 
         return session
+
+    def _set_base_url(self, connection) -> None:
+        if connection.host and "://" in connection.host:
+            self.base_url = connection.host
+        else:
+            schema = connection.schema or "http"
+            host = connection.host or ""
+            self.base_url = f"{schema}://{host}"
+            if connection.port:
+                self.base_url += f":{connection.port}"
+
+    def _set_auth(self, session: requests.Session, connection) -> None:
+        if connection.login:
+            session.auth = self.auth_type(connection.login, connection.password)
+        elif self._auth_type:
+            session.auth = self.auth_type()
+
+    def _set_extra(self, session: requests.Session, connection) -> None:
+        if connection.extra:
+            extra = connection.extra_dejson
+            extra.pop("timeout", None)
+            extra.pop("allow_redirects", None)
+            session.proxies = extra.pop("proxies", extra.pop("proxy", {}))
+            session.stream = extra.pop("stream", False)
+            session.verify = extra.pop("verify", extra.pop("verify_ssl", True))
+            session.cert = extra.pop("cert", None)
+            session.max_redirects = extra.pop("max_redirects", requests.adapters.DEFAULT_REDIRECT_LIMIT)
+            session.trust_env = extra.pop("trust_env", True)
+
+            try:
+                session.headers.update(extra)
+            except TypeError:
+                self.log.warning("Connection to %s has invalid extra field.", connection.host)
+
+    def _mount_adapters(self, session: requests.Session) -> None:
+        if self.adapter:
+            scheme = urlparse(self.base_url).scheme or "https"
+            session.mount(f"{scheme}://", self.adapter)
+        elif self.keep_alive_adapter:
+            session.mount("http://", self.keep_alive_adapter)
+            session.mount("https://", self.keep_alive_adapter)
 
     def run(
         self,
