@@ -1094,13 +1094,8 @@ class TestStringifiedDAGs:
 
         serialized_dag = SerializedDAG.to_dict(dag)
 
-        with caplog.at_level("ERROR", logger="airflow.serialization.serialized_objects"):
-            SerializedDAG.from_dict(serialized_dag)
-
-        expected_err_msg = (
-            "Operator Link class 'tests.serialization.test_dag_serialization.TaskStateLink' not registered"
-        )
-        assert expected_err_msg in caplog.text
+        sdag = SerializedDAG.from_dict(serialized_dag)
+        assert sdag.task_dict["blah"].operator_extra_links == []
 
     class ClassWithCustomAttributes:
         """
