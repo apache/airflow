@@ -31,7 +31,6 @@ from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONST
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
-    BASE_PROVIDERS_COMPATIBILITY_CHECKS,
     CHICKEN_EGG_PROVIDERS,
     COMMITTERS,
     CURRENT_KUBERNETES_VERSIONS,
@@ -45,6 +44,7 @@ from airflow_breeze.global_constants import (
     DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
     KIND_VERSION,
+    PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     RUNS_ON_PUBLIC_RUNNER,
     RUNS_ON_SELF_HOSTED_ASF_RUNNER,
     RUNS_ON_SELF_HOSTED_RUNNER,
@@ -1376,12 +1376,12 @@ class SelectiveChecks:
         return CHICKEN_EGG_PROVIDERS
 
     @cached_property
-    def providers_compatibility_checks(self) -> str:
-        """Provider compatibility input checks for the current run. Filter out python versions not built"""
+    def providers_compatibility_tests_matrix(self) -> str:
+        """Provider compatibility input matrix for the current run. Filter out python versions not built"""
         return json.dumps(
             [
                 check
-                for check in BASE_PROVIDERS_COMPATIBILITY_CHECKS
+                for check in PROVIDERS_COMPATIBILITY_TESTS_MATRIX
                 if check["python-version"] in self.python_versions
             ]
         )

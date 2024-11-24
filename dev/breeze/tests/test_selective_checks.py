@@ -25,9 +25,9 @@ import pytest
 from rich.console import Console
 
 from airflow_breeze.global_constants import (
-    BASE_PROVIDERS_COMPATIBILITY_CHECKS,
     COMMITTERS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     GithubEvents,
 )
 from airflow_breeze.utils.packages import get_available_packages
@@ -2291,10 +2291,10 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
         pytest.param(
             (),
             {
-                "providers-compatibility-checks": json.dumps(
+                "providers-compatibility-tests-matrix": json.dumps(
                     [
                         check
-                        for check in BASE_PROVIDERS_COMPATIBILITY_CHECKS
+                        for check in PROVIDERS_COMPATIBILITY_TESTS_MATRIX
                         if check["python-version"] == DEFAULT_PYTHON_MAJOR_MINOR_VERSION
                     ]
                 ),
@@ -2303,7 +2303,7 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
         ),
         pytest.param(
             ("all versions",),
-            {"providers-compatibility-checks": json.dumps(BASE_PROVIDERS_COMPATIBILITY_CHECKS)},
+            {"providers-compatibility-tests-matrix": json.dumps(PROVIDERS_COMPATIBILITY_TESTS_MATRIX)},
             id="full tests",
         ),
     ],
