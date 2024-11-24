@@ -31,6 +31,7 @@ from airflow.decorators.sensor import sensor_task
 from airflow.decorators.setup_teardown import setup_task, teardown_task
 from airflow.decorators.short_circuit import short_circuit_task
 from airflow.decorators.task_group import task_group
+from airflow.decorators.empty import empty_task
 from airflow.models.dag import dag
 from airflow.providers_manager import ProvidersManager
 
@@ -49,9 +50,10 @@ __all__ = [
     "branch_external_python_task",
     "short_circuit_task",
     "sensor_task",
-    "bash_task",
+    "empty_task",
     "setup",
     "teardown",
+    "bash_task",
 ]
 
 
@@ -69,6 +71,7 @@ class TaskDecoratorCollection:
     bash = staticmethod(bash_task)
     run_if = staticmethod(run_if)
     skip_if = staticmethod(skip_if)
+    empty = staticmethod(empty_task)
 
     __call__: Any = python  # Alias '@task' to '@task.python'.
 
