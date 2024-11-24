@@ -116,7 +116,7 @@ class HttpHook(BaseHook):
 
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
-    def get_conn(self, headers: dict[Any, Any] = None) -> requests.Session:
+    def get_conn(self, headers: dict[Any, Any] | None = None) -> requests.Session:
         """
         Create a Requests HTTP session.
 
@@ -162,7 +162,7 @@ class HttpHook(BaseHook):
             session.stream = extra.pop("stream", False)
             session.verify = extra.pop("verify", extra.pop("verify_ssl", True))
             session.cert = extra.pop("cert", None)
-            session.max_redirects = extra.pop("max_redirects", requests.adapters.DEFAULT_REDIRECT_LIMIT)
+            session.max_redirects = extra.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
             session.trust_env = extra.pop("trust_env", True)
 
             try:
