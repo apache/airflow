@@ -20,9 +20,10 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
-from airflow.api_fastapi.common.db.common import get_session, paginated_select
+from airflow.api_fastapi.common.db.common import get_async_session, get_session, paginated_select_async
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.backfills import (
@@ -49,7 +50,7 @@ backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
 @backfills_router.get(
     path="",
 )
-def list_backfills(
+async def list_backfills(
     dag_id: str,
     limit: QueryLimit,
     offset: QueryOffset,
@@ -57,20 +58,18 @@ def list_backfills(
         SortParam,
         Depends(SortParam(["id"], Backfill).dynamic_depends()),
     ],
-    session: Annotated[Session, Depends(get_session)],
+    session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> BackfillCollectionResponse:
-    select_stmt, total_entries = paginated_select(
-        select(Backfill).where(Backfill.dag_id == dag_id),
-        [],
+    select_stmt, total_entries = await paginated_select_async(
+        query=select(Backfill).where(Backfill.dag_id == dag_id),
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
     )
-    backfills = session.scalars(select_stmt)
-
+    backfills = await session.scalars(select_stmt)
     return BackfillCollectionResponse(
-        backfills=[BackfillResponse.model_validate(x, from_attributes=True) for x in backfills],
+        backfills=backfills,
         total_entries=total_entries,
     )
 
@@ -85,7 +84,7 @@ def get_backfill(
 ) -> BackfillResponse:
     backfill = session.get(Backfill, backfill_id)
     if backfill:
-        return BackfillResponse.model_validate(backfill, from_attributes=True)
+        return backfill
     raise HTTPException(status.HTTP_404_NOT_FOUND, "Backfill not found")
 
 
@@ -107,7 +106,7 @@ def pause_backfill(backfill_id, session: Annotated[Session, Depends(get_session)
     if b.is_paused is False:
         b.is_paused = True
     session.commit()
-    return BackfillResponse.model_validate(b, from_attributes=True)
+    return b
 
 
 @backfills_router.put(
@@ -127,7 +126,7 @@ def unpause_backfill(backfill_id, session: Annotated[Session, Depends(get_sessio
         raise HTTPException(status.HTTP_409_CONFLICT, "Backfill is already completed.")
     if b.is_paused:
         b.is_paused = False
-    return BackfillResponse.model_validate(b, from_attributes=True)
+    return b
 
 
 @backfills_router.put(
@@ -172,7 +171,7 @@ def cancel_backfill(backfill_id, session: Annotated[Session, Depends(get_session
     # this is in separate transaction just to avoid potential conflicts
     session.refresh(b)
     b.completed_at = timezone.utcnow()
-    return BackfillResponse.model_validate(b, from_attributes=True)
+    return b
 
 
 @backfills_router.post(
@@ -199,7 +198,7 @@ def create_backfill(
             dag_run_conf=backfill_request.dag_run_conf,
             reprocess_behavior=backfill_request.reprocess_behavior,
         )
-        return BackfillResponse.model_validate(backfill_obj, from_attributes=True)
+        return BackfillResponse.model_validate(backfill_obj)
     except AlreadyRunningBackfill:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

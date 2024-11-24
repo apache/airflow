@@ -35,6 +35,27 @@
 Changelog
 ---------
 
+0.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix TriggerDagRunOperator extra_link when trigger_dag_id is templated (#42810)``
+
+Misc
+~~~~
+
+* ``Move 'TriggerDagRunOperator' to standard provider (#44053)``
+* ``Move filesystem sensor to standard provider (#43890)``
+* ``Rename execution_date to logical_date across codebase (#43902)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+   * ``update standard provider CHANGELOG.rst (#44110)``
+
 0.0.1
 .....
 

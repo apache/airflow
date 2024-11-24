@@ -183,8 +183,9 @@ class TestCliTasks:
         # should be able to find the dag.
         new_file_path = tmp_path / orig_file_path.name
         new_dags_folder = new_file_path.parent
-        with move_back(orig_file_path, new_file_path), conf_vars(
-            {("core", "dags_folder"): new_dags_folder.as_posix()}
+        with (
+            move_back(orig_file_path, new_file_path),
+            conf_vars({("core", "dags_folder"): new_dags_folder.as_posix()}),
         ):
             ser_dag = (
                 session.query(SerializedDagModel)
@@ -487,11 +488,12 @@ class TestCliTasks:
         from airflow.cli.commands import task_command
 
         with dag_maker(dag_id="test_executor", schedule="@daily") as dag:
-            with mock.patch(
-                "airflow.executors.executor_loader.ExecutorLoader.load_executor"
-            ) as loader_mock, mock.patch(
-                "airflow.executors.executor_loader.ExecutorLoader.get_default_executor"
-            ) as get_default_mock:
+            with (
+                mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock,
+                mock.patch(
+                    "airflow.executors.executor_loader.ExecutorLoader.get_default_executor"
+                ) as get_default_mock,
+            ):
                 EmptyOperator(task_id="task1")
                 EmptyOperator(task_id="task2", executor="foo_executor_alias")
 

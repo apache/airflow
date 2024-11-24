@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import contextlib
 import os
+from collections.abc import Generator
 from functools import wraps
 from inspect import signature
-from typing import Callable, Generator, TypeVar, cast
+from typing import Callable, TypeVar, cast
 
 from sqlalchemy.orm import Session as SASession
 
@@ -63,6 +64,24 @@ def create_session(scoped: bool = True) -> Generator[SASession, None, None]:
         raise
     finally:
         session.close()
+
+
+@contextlib.asynccontextmanager
+async def create_session_async():
+    """
+    Context manager to create async session.
+
+    :meta private:
+    """
+    from airflow.settings import AsyncSession
+
+    async with AsyncSession() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
 
 
 PS = ParamSpec("PS")

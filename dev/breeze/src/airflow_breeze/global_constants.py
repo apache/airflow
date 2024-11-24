@@ -609,7 +609,7 @@ DEFAULT_EXTRAS = [
 CHICKEN_EGG_PROVIDERS = " ".join(["standard amazon common.sql"])
 
 
-BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
+PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.9",
         "airflow-version": "2.8.4",

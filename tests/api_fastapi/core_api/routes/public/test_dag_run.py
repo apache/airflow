@@ -147,7 +147,7 @@ class TestGetDagRun:
         assert response.status_code == 200
         body = response.json()
         assert body["dag_id"] == dag_id
-        assert body["run_id"] == run_id
+        assert body["dag_run_id"] == run_id
         assert body["state"] == state
         assert body["run_type"] == run_type
         assert body["triggered_by"] == triggered_by.value
@@ -168,7 +168,7 @@ class TestGetDagRuns:
     @staticmethod
     def get_dag_run_dict(run: DagRun):
         return {
-            "run_id": run.run_id,
+            "dag_run_id": run.run_id,
             "dag_id": run.dag_id,
             "logical_date": TestGetDagRuns.parse_datetime(run.logical_date),
             "queued_at": TestGetDagRuns.parse_datetime(run.queued_at),
@@ -194,7 +194,7 @@ class TestGetDagRuns:
         for each in body["dag_runs"]:
             run = (
                 session.query(DagRun)
-                .where(DagRun.dag_id == each["dag_id"], DagRun.run_id == each["run_id"])
+                .where(DagRun.dag_id == each["dag_id"], DagRun.run_id == each["dag_run_id"])
                 .one()
             )
             expected = self.get_dag_run_dict(run)
@@ -235,7 +235,7 @@ class TestGetDagRuns:
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 2
-        assert [each["run_id"] for each in body["dag_runs"]] == expected_dag_id_order
+        assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_order
 
     @pytest.mark.parametrize(
         "query_params, expected_dag_id_order",
@@ -254,7 +254,7 @@ class TestGetDagRuns:
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 2
-        assert [each["run_id"] for each in body["dag_runs"]] == expected_dag_id_order
+        assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_order
 
     @pytest.mark.parametrize(
         "query_params, expected_detail",
@@ -364,7 +364,7 @@ class TestGetDagRuns:
         response = test_client.get(f"/public/dags/{dag_id}/dagRuns", params=query_params)
         assert response.status_code == 200
         body = response.json()
-        assert [each["run_id"] for each in body["dag_runs"]] == expected_dag_id_list
+        assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_list
 
     def test_bad_filters(self, test_client):
         query_params = {
@@ -425,8 +425,11 @@ class TestGetDagRuns:
         assert body["detail"] == expected_detail
 
     def test_invalid_state(self, test_client):
-        with pytest.raises(ValueError, match="'invalid' is not a valid DagRunState"):
-            test_client.get(f"/public/dags/{DAG1_ID}/dagRuns", params={"state": "invalid"})
+        response = test_client.get(f"/public/dags/{DAG1_ID}/dagRuns", params={"state": ["invalid"]})
+        assert response.status_code == 422
+        assert (
+            response.json()["detail"] == f"Invalid value for state. Valid values are {', '.join(DagRunState)}"
+        )
 
 
 class TestPatchDagRun:
@@ -471,7 +474,7 @@ class TestPatchDagRun:
         assert response.status_code == 200
         body = response.json()
         assert body["dag_id"] == dag_id
-        assert body["run_id"] == run_id
+        assert body["dag_run_id"] == run_id
         assert body.get("state") == response_body.get("state")
         assert body.get("note") == response_body.get("note")
 
@@ -620,7 +623,7 @@ class TestClearDagRun:
         assert response.status_code == 200
         body = response.json()
         assert body["dag_id"] == DAG1_ID
-        assert body["run_id"] == DAG1_RUN1_ID
+        assert body["dag_run_id"] == DAG1_RUN1_ID
         assert body["state"] == "queued"
 
     @pytest.mark.parametrize(

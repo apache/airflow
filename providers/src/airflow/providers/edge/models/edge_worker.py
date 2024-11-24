@@ -20,7 +20,7 @@ import ast
 import json
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import (
@@ -62,7 +62,7 @@ class EdgeWorkerState(str, Enum):
     TERMINATING = "terminating"
     """Edge Worker is completing work and stopping."""
     OFFLINE = "offline"
-    """Edge Worker was show down."""
+    """Edge Worker was shut down."""
     UNKNOWN = "unknown"
     """No heartbeat signal from worker for some time, Edge Worker probably down."""
 
@@ -134,7 +134,7 @@ class EdgeWorker(BaseModel, LoggingMixin):
 
     worker_name: str
     state: EdgeWorkerState
-    queues: Optional[List[str]]  # noqa: UP006,UP007 - prevent Sphinx failing
+    queues: Optional[list[str]]  # noqa: UP007 - prevent Sphinx failing
     first_online: datetime
     last_update: Optional[datetime] = None  # noqa: UP007 - prevent Sphinx failing
     jobs_active: int
@@ -151,7 +151,7 @@ class EdgeWorker(BaseModel, LoggingMixin):
         connected: bool,
         jobs_active: int,
         concurrency: int,
-        queues: Optional[List[str]],  # noqa: UP006,UP007 - prevent Sphinx failing
+        queues: Optional[list[str]],  # noqa: UP007 - prevent Sphinx failing
     ) -> None:
         """Set metric of edge worker."""
         queues = queues if queues else []

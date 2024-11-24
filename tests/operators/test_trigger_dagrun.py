@@ -271,6 +271,27 @@ class TestDagRunOperator:
             assert triggered_dag_run.logical_date == DEFAULT_DATE
             self.assert_extra_link(triggered_dag_run, task, session)
 
+    def test_trigger_dagrun_with_templated_trigger_dag_id(self, dag_maker):
+        """Test TriggerDagRunOperator with templated trigger dag id."""
+        with dag_maker(
+            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+        ) as dag:
+            task = TriggerDagRunOperator(
+                task_id="__".join(["test_trigger_dagrun_with_templated_trigger_dag_id", TRIGGERED_DAG_ID]),
+                trigger_dag_id="{{ ti.task_id.rsplit('.', 1)[-1].split('__')[-1] }}",
+            )
+        self.re_sync_triggered_dag_to_db(dag, dag_maker)
+        dag_maker.create_dagrun()
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        with create_session() as session:
+            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            assert len(dagruns) == 1
+            triggered_dag_run = dagruns[0]
+            assert triggered_dag_run.external_trigger
+            assert triggered_dag_run.dag_id == TRIGGERED_DAG_ID
+            self.assert_extra_link(triggered_dag_run, task, session)
+
     def test_trigger_dagrun_operator_conf(self, dag_maker):
         """Test passing conf to the triggered DagRun."""
         with dag_maker(
@@ -699,8 +720,9 @@ class TestDagRunOperator:
 
         # Simulate the TriggerDagRunOperator task being cleared (aka executed again). A DagRunAlreadyExists
         # exception should be raised because of the previous DAG run.
-        with mock.patch.object(TriggerDagRunOperator, "defer", mock_task_defer), pytest.raises(
-            (DagRunAlreadyExists, TaskDeferred)
+        with (
+            mock.patch.object(TriggerDagRunOperator, "defer", mock_task_defer),
+            pytest.raises((DagRunAlreadyExists, TaskDeferred)),
         ):
             task.execute({"task_instance": mock.MagicMock()})
 

@@ -20,8 +20,8 @@ from __future__ import annotations
 import collections.abc
 import functools
 import operator
-from collections.abc import Sized
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Mapping, NamedTuple, Sequence, Union
+from collections.abc import Iterable, Mapping, Sequence, Sized
+from typing import TYPE_CHECKING, Any, NamedTuple, Union
 
 import attr
 
@@ -41,7 +41,7 @@ ExpandInput = Union["DictOfListsExpandInput", "ListOfDictsExpandInput"]
 
 # Each keyword argument to expand() can be an XComArg, sequence, or dict (not
 # any mapping since we need the value to be ordered).
-OperatorExpandArgument = Union["MappedArgument", "XComArg", Sequence, Dict[str, Any]]
+OperatorExpandArgument = Union["MappedArgument", "XComArg", Sequence, dict[str, Any]]
 
 # The single argument of expand_kwargs() can be an XComArg, or a list with each
 # element being either an XComArg or a dict.

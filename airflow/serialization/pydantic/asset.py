@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 from pydantic import BaseModel as BaseModelPydantic, ConfigDict
 
@@ -52,8 +52,8 @@ class AssetPydantic(BaseModelPydantic):
     created_at: datetime
     updated_at: datetime
 
-    consuming_dags: List[DagScheduleAssetReferencePydantic]
-    producing_tasks: List[TaskOutletAssetReferencePydantic]
+    consuming_dags: list[DagScheduleAssetReferencePydantic]
+    producing_tasks: list[TaskOutletAssetReferencePydantic]
 
     model_config = ConfigDict(from_attributes=True)
 
