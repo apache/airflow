@@ -20,8 +20,8 @@ name: OpenAPI client
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-public:
-        description: "The array of labels (in json form) determining public runners."
+      runs-on-as-json-default:
+        description: "The array of labels (in json form) determining default runner used for the build."
         required: true
         type: string
       debug-resources:
@@ -44,7 +44,7 @@ jobs:
   test-openapi-client:
     timeout-minutes: 60
     name: "Test OpenAPI client"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     env:
       DEBUG_RESOURCES: "${{ inputs.debug-resources }}"
       ENABLE_COVERAGE: "${{ inputs.run-coverage }}"

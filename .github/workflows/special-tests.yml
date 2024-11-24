@@ -76,10 +76,19 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to debug resources or not (true/false)"
         required: true
         type: string
+      is-special-tests-require:
+        description: "Whether to run special tests or not (true/false)"
+        required: true
+        type: string
+      needs-api-codegen:
+        description: "Whether to run API codegen (true/false)"
+        required: true
+        type: string
 jobs:
   tests-min-sqlalchemy:
     name: "Min SQLAlchemy test"
     uses: ./.github/workflows/run-unit-tests.yml
+    if: inputs.is-special-tests-require == 'true'
     permissions:
       contents: read
       packages: read
@@ -104,6 +113,7 @@ jobs:
   tests-boto:
     name: "Latest Boto test"
     uses: ./.github/workflows/run-unit-tests.yml
+    if: inputs.is-special-tests-require == 'true'
     permissions:
       contents: read
       packages: read
@@ -129,6 +139,7 @@ jobs:
   tests-pendulum-2:
     name: "Pendulum2 test"
     uses: ./.github/workflows/run-unit-tests.yml
+    if: inputs.is-special-tests-require == 'true'
     permissions:
       contents: read
       packages: read
@@ -154,6 +165,7 @@ jobs:
   tests-in-progress-disabled:
     name: "In progress disabled test"
     uses: ./.github/workflows/run-unit-tests.yml
+    if: inputs.is-special-tests-require == 'true'
     permissions:
       contents: read
       packages: read
@@ -179,6 +191,7 @@ jobs:
   tests-quarantined:
     name: "Quarantined test"
     uses: ./.github/workflows/run-unit-tests.yml
+    if: inputs.is-special-tests-require == 'true'
     permissions:
       contents: read
       packages: read
@@ -203,6 +216,7 @@ jobs:
   tests-arm-collection:
     name: "ARM Collection test"
     uses: ./.github/workflows/run-unit-tests.yml
+    if: inputs.is-special-tests-require == 'true'
     permissions:
       contents: read
       packages: read
@@ -227,6 +241,7 @@ jobs:
   tests-system:
     name: "System test: ${{ matrix.test-group }}"
     uses: ./.github/workflows/run-unit-tests.yml
+    if: inputs.is-special-tests-require == 'true'
     permissions:
       contents: read
       packages: read
@@ -247,3 +262,18 @@ jobs:
       include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
+
+  test-openapi:
+    name: "OpenAPI tests"
+    uses: ./.github/workflows/openapi-tests.yml
+    if: inputs.needs-api-codegen == 'true'
+    permissions:
+      contents: read
+      packages: read
+    secrets: inherit
+    with:
+      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
+      run-coverage: ${{ inputs.run-coverage }}
+      debug-resources: ${{ inputs.debug-resources }}
+      image-tag: ${{ inputs.image-tag }}
+      default-python-version: ${{ inputs.default-python-version }}

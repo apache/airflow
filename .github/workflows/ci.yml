@@ -485,11 +485,6 @@ jobs:
       contents: read
       packages: read
     secrets: inherit
-    if: >
-      needs.build-info.outputs.run-tests == 'true' &&
-      (needs.build-info.outputs.canary-run == 'true' ||
-       needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' ||
-       needs.build-info.outputs.full-tests-needed == 'true')
     with:
       test-groups: ${{ needs.build-info.outputs.test-groups }}
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
@@ -505,22 +500,13 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-
-  test-openapi:
-    name: "OpenAPI tests"
-    uses: ./.github/workflows/openapi-tests.yml
-    needs: [build-info, wait-for-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-    if: needs.build-info.outputs.needs-api-codegen == 'true'
+      is-special-tests-require: ${{
+        needs.build-info.outputs.run-tests == 'true' &&
+        (needs.build-info.outputs.canary-run == 'true' ||
+        needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' ||
+        needs.build-info.outputs.full-tests-needed == 'true')
+        && 'true' || 'false' }}
+      needs-api-codegen: ${{ needs.build-info.outputs.needs-api-codegen }}
 
   tests-integration-system:
     name: Integration and System Tests
