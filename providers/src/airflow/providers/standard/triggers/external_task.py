@@ -24,9 +24,9 @@ from asgiref.sync import sync_to_async
 from sqlalchemy import func
 
 from airflow.models import DagRun
+from airflow.providers.standard.utils.sensor_helper import _get_count
 from airflow.providers.standard.utils.version_references import AIRFLOW_V_3_0_PLUS
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.sensor_helper import _get_count
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if typing.TYPE_CHECKING:
@@ -118,7 +118,7 @@ class WorkflowTrigger(BaseTrigger):
                     return
             allowed_count = await self._get_count(self.allowed_states)
             _dates = self.logical_dates if AIRFLOW_V_3_0_PLUS else self.execution_dates
-            if allowed_count == len(_dates):
+            if allowed_count == len(_dates):  # type: ignore[arg-type]
                 yield TriggerEvent({"status": "success"})
                 return
             self.log.info("Sleeping for %s seconds", self.poke_interval)
@@ -190,7 +190,7 @@ class DagStateTrigger(BaseTrigger):
             # mypy confuses typing here
             num_dags = await self.count_dags()  # type: ignore[call-arg]
             _dates = self.logical_dates if AIRFLOW_V_3_0_PLUS else self.execution_dates
-            if num_dags == len(_dates):
+            if num_dags == len(_dates):  # type: ignore[arg-type]
                 yield TriggerEvent(self.serialize())
                 return
             await asyncio.sleep(self.poll_interval)
