@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import ClassVar, Sequence
+from collections.abc import Sequence
+from typing import ClassVar
 
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.exasol.hooks.exasol import exasol_fetch_all_handler

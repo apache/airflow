@@ -19,8 +19,9 @@ from __future__ import annotations
 import datetime
 import logging
 import numbers
+from collections.abc import Iterable, Mapping, Sequence
 from contextlib import closing
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any
 
 from airflow.providers.common.sql.operators.sql import BaseSQLOperator
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook

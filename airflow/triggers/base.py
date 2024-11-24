@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import abc
 import logging
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, AsyncIterator
+from typing import TYPE_CHECKING, Any
 
 from airflow.callbacks.callback_requests import TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink

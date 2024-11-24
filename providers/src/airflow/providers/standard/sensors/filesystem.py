@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import datetime
 import os
+from collections.abc import Sequence
 from functools import cached_property
 from glob import glob
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException

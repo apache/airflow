@@ -20,9 +20,9 @@ import contextlib
 import os
 import signal
 from collections import namedtuple
+from collections.abc import Iterator
 from subprocess import PIPE, STDOUT, Popen
 from tempfile import TemporaryDirectory, gettempdir
-from typing import Iterator
 
 from airflow.hooks.base import BaseHook
 

@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal, Sequence, TypedDict
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from botocore.exceptions import ClientError, WaiterError
 

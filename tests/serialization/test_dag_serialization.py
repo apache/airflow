@@ -29,11 +29,12 @@ import os
 import pickle
 import re
 import sys
+from collections.abc import Generator
 from datetime import datetime, timedelta, timezone as dt_timezone
 from glob import glob
 from pathlib import Path
 from textwrap import dedent
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import attr

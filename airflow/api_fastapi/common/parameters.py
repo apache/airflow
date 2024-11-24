@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
@@ -25,8 +26,6 @@ from typing import (
     Any,
     Callable,
     Generic,
-    Iterable,
-    List,
     Optional,
     TypeVar,
     Union,
@@ -288,7 +287,7 @@ class SortParam(BaseParam[str]):
         return inner
 
 
-class _TagsFilter(BaseParam[List[str]]):
+class _TagsFilter(BaseParam[list[str]]):
     """Filter on tags."""
 
     def to_orm(self, select: Select) -> Select:
@@ -305,7 +304,7 @@ class _TagsFilter(BaseParam[List[str]]):
         return self.set_value(tags)
 
 
-class _OwnersFilter(BaseParam[List[str]]):
+class _OwnersFilter(BaseParam[list[str]]):
     """Filter on owners."""
 
     def to_orm(self, select: Select) -> Select:
@@ -322,7 +321,7 @@ class _OwnersFilter(BaseParam[List[str]]):
         return self.set_value(owners)
 
 
-class DagRunStateFilter(BaseParam[List[Optional[DagRunState]]]):
+class DagRunStateFilter(BaseParam[list[Optional[DagRunState]]]):
     """Filter on Dag Run state."""
 
     def to_orm(self, select: Select) -> Select:
@@ -352,7 +351,7 @@ class DagRunStateFilter(BaseParam[List[Optional[DagRunState]]]):
         return self.set_value(states)
 
 
-class TIStateFilter(BaseParam[List[Optional[TaskInstanceState]]]):
+class TIStateFilter(BaseParam[list[Optional[TaskInstanceState]]]):
     """Filter on task instance state."""
 
     def to_orm(self, select: Select) -> Select:
@@ -376,7 +375,7 @@ class TIStateFilter(BaseParam[List[Optional[TaskInstanceState]]]):
         return self.set_value(states)
 
 
-class TIPoolFilter(BaseParam[List[str]]):
+class TIPoolFilter(BaseParam[list[str]]):
     """Filter on task instance pool."""
 
     def to_orm(self, select: Select) -> Select:
@@ -393,7 +392,7 @@ class TIPoolFilter(BaseParam[List[str]]):
         return self.set_value(pool)
 
 
-class TIQueueFilter(BaseParam[List[str]]):
+class TIQueueFilter(BaseParam[list[str]]):
     """Filter on task instance queue."""
 
     def to_orm(self, select: Select) -> Select:
@@ -410,7 +409,7 @@ class TIQueueFilter(BaseParam[List[str]]):
         return self.set_value(queue)
 
 
-class TIExecutorFilter(BaseParam[List[str]]):
+class TIExecutorFilter(BaseParam[list[str]]):
     """Filter on task instance executor."""
 
     def to_orm(self, select: Select) -> Select:

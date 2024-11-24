@@ -21,9 +21,10 @@ from __future__ import annotations
 
 import time
 from collections import deque
+from collections.abc import Sequence
 from contextlib import suppress
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Dict, List, Sequence
+from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import ClientError, NoCredentialsError
 
@@ -55,8 +56,8 @@ from airflow.providers.amazon.aws.executors.batch.utils import (
 )
 from airflow.utils.state import State
 
-CommandType = List[str]
-ExecutorConfigType = Dict[str, Any]
+CommandType = list[str]
+ExecutorConfigType = dict[str, Any]
 
 INVALID_CREDENTIALS_EXCEPTIONS = [
     "ExpiredTokenException",

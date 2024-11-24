@@ -27,16 +27,13 @@ import os
 import sys
 import time
 import warnings
+from collections.abc import Generator, Iterable, Iterator, Sequence
 from tempfile import gettempdir
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Generator,
-    Iterable,
-    Iterator,
     Protocol,
-    Sequence,
     TypeVar,
     overload,
 )
@@ -858,10 +855,13 @@ def _configured_alembic_environment() -> Generator[EnvironmentContext, None, Non
     config = _get_alembic_config()
     script = _get_script_object(config)
 
-    with EnvironmentContext(
-        config,
-        script,
-    ) as env, settings.engine.connect() as connection:
+    with (
+        EnvironmentContext(
+            config,
+            script,
+        ) as env,
+        settings.engine.connect() as connection,
+    ):
         alembic_logger = logging.getLogger("alembic")
         level = alembic_logger.level
         alembic_logger.setLevel(logging.WARNING)
