@@ -269,6 +269,8 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     if: inputs.needs-api-codegen == 'true'
     env:
+      BACKEND: "postgres"
+      BACKEND_VERSION: "${{ inputs.default-postgres-version }}"
       DEBUG_RESOURCES: "${{ inputs.debug-resources }}"
       ENABLE_COVERAGE: "${{ inputs.run-coverage }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
