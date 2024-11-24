@@ -31,8 +31,8 @@ from airflow.models.dagrun import DagRun
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
-from airflow.settings import TracebackSessionForTests
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
+from airflow.settings import TracebackSessionForTests
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState

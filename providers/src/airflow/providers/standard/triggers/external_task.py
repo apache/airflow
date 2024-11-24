@@ -199,12 +199,17 @@ class DagStateTrigger(BaseTrigger):
     @provide_session
     def count_dags(self, *, session: Session = NEW_SESSION) -> int | None:
         """Count how many dag runs in the database match our criteria."""
+        _dag_run_date_condition = (
+            DagRun.logical_date.in_(self.logical_dates)
+            if AIRFLOW_V_3_0_PLUS
+            else DagRun.execution_date.in_(self.execution_dates)
+        )
         count = (
             session.query(func.count("*"))  # .count() is inefficient
             .filter(
                 DagRun.dag_id == self.dag_id,
                 DagRun.state.in_(self.states),
-                DagRun.logical_date.in_(self.logical_dates if AIRFLOW_V_3_0_PLUS else self.execution_dates),
+                _dag_run_date_condition,
             )
             .scalar()
         )
