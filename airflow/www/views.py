@@ -317,7 +317,10 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
             TaskInstance.task_id,
             TaskInstance.run_id,
             TaskInstance.state,
-            TaskInstance.try_number,
+            case(
+                (TaskInstance.map_index == -1, TaskInstance.try_number),
+                else_=None,
+            ).label("try_number"),
             func.min(TaskInstanceNote.content).label("note"),
             func.count(func.coalesce(TaskInstance.state, sqla.literal("no_status"))).label("state_count"),
             func.min(TaskInstance.queued_dttm).label("queued_dttm"),
@@ -329,7 +332,15 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs]),
         )
-        .group_by(TaskInstance.task_id, TaskInstance.run_id, TaskInstance.state, TaskInstance.try_number)
+        .group_by(
+            TaskInstance.task_id,
+            TaskInstance.run_id,
+            TaskInstance.state,
+            case(
+                (TaskInstance.map_index == -1, TaskInstance.try_number),
+                else_=None,
+            ),
+        )
         .order_by(TaskInstance.task_id, TaskInstance.run_id)
     )
 
