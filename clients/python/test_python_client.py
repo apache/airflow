@@ -85,6 +85,7 @@ def test_python_client():
                 time.sleep(6)
                 max_retries -= 1
             else:
+                errors = False
                 print("[green]Getting DAG list successful")
                 break
 
