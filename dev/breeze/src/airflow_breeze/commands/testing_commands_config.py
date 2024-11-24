@@ -114,7 +114,6 @@ TEST_ADVANCED_FLAGS_FOR_PROVIDERS: dict[str, str | list[str]] = {
     ],
 }
 
-
 TEST_PARAMS: list[dict[str, str | list[str]]] = [
     {
         "name": "Select test types to run (tests can also be selected by command args individually)",
@@ -186,7 +185,6 @@ INTEGRATION_TESTS: dict[str, str | list[str]] = {
     ],
 }
 
-
 TESTING_COMMANDS: list[dict[str, str | list[str]]] = [
     {
         "name": "Core Tests",
@@ -205,7 +203,7 @@ TESTING_COMMANDS: list[dict[str, str | list[str]]] = [
     },
     {
         "name": "Other Tests",
-        "commands": ["system-tests", "helm-tests", "docker-compose-tests"],
+        "commands": ["system-tests", "helm-tests", "docker-compose-tests", "openapi-tests"],
     },
 ]
 
@@ -282,5 +280,25 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
             ],
         }
+    ],
+    "breeze testing openapi-tests": [
+        {
+            "name": "OpenAPI tests flag",
+            "options": [
+                "--install-airflow-python-client",
+                "--start-airflow-minimal-webserver-with-examples",
+            ],
+        },
+        {
+            "name": "Advanced flag for tests command",
+            "options": [
+                "--github-repository",
+                "--image-tag",
+                "--skip-docker-compose-down",
+                "--keep-env-variables",
+            ],
+        },
+        TEST_OPTIONS_DB,
+        TEST_ENVIRONMENT_DB,
     ],
 }

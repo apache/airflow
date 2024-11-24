@@ -263,6 +263,7 @@ class GroupOfTests(Enum):
     INTEGRATION_CORE = "integration-core"
     INTEGRATION_PROVIDERS = "integration-providers"
     SYSTEM = "system"
+    OPEN_API = "open-api"
 
 
 ALL_TEST_TYPE = "All"

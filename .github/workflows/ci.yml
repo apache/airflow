@@ -366,6 +366,7 @@ jobs:
       needs.build-info.outputs.default-branch == 'main' &&
       needs.build-info.outputs.latest-versions-only != 'true'
 
+
   tests-postgres:
     name: "Postgres tests"
     uses: ./.github/workflows/run-unit-tests.yml
@@ -505,6 +506,22 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+
+  test-openapi:
+    name: "OpenAPI tests"
+    uses: ./.github/workflows/openapi-tests.yml
+    needs: [build-info, wait-for-ci-images]
+    permissions:
+      contents: read
+      packages: read
+    secrets: inherit
+    with:
+      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+      image-tag: ${{ needs.build-info.outputs.image-tag }}
+      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+    if: needs.build-info.outputs.needs-api-codegen == 'true'
 
   tests-integration-system:
     name: Integration and System Tests

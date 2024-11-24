@@ -168,6 +168,7 @@ class ShellParams:
     image_tag: str | None = None
     include_mypy_volume: bool = False
     install_airflow_version: str = ""
+    install_airflow_python_client: bool = False
     install_airflow_with_constraints: bool = False
     install_selected_providers: str | None = None
     integration: tuple[str, ...] = ()
@@ -205,6 +206,7 @@ class ShellParams:
     standalone_dag_processor: bool = False
     start_airflow: bool = False
     test_type: str | None = None
+    start_airflow_minimal_webserver_with_examples: bool = False
     test_group: GroupOfTests | None = None
     tty: str = "auto"
     upgrade_boto: bool = False
@@ -563,6 +565,7 @@ class ShellParams:
         _set_var(_env, "HOST_USER_ID", self.host_user_id)
         _set_var(_env, "INIT_SCRIPT_FILE", None, "init.sh")
         _set_var(_env, "INSTALL_AIRFLOW_WITH_CONSTRAINTS", self.install_airflow_with_constraints)
+        _set_var(_env, "INSTALL_AIRFLOW_PYTHON_CLIENT", self.install_airflow_python_client)
         _set_var(_env, "INSTALL_AIRFLOW_VERSION", self.install_airflow_version)
         _set_var(_env, "INSTALL_SELECTED_PROVIDERS", self.install_selected_providers)
         _set_var(_env, "ISSUE_ID", self.issue_id)
@@ -596,6 +599,11 @@ class ShellParams:
         _set_var(_env, "STANDALONE_DAG_PROCESSOR", self.standalone_dag_processor)
         _set_var(_env, "START_AIRFLOW", self.start_airflow)
         _set_var(_env, "SUSPENDED_PROVIDERS_FOLDERS", self.suspended_providers_folders)
+        _set_var(
+            _env,
+            "START_AIRFLOW_MINIMAL_WEBSERVER_WITH_EXAMPLES",
+            self.start_airflow_minimal_webserver_with_examples,
+        )
         _set_var(_env, "SYSTEM_TESTS_ENV_ID", None, "")
         _set_var(_env, "TEST_TYPE", self.test_type, "")
         _set_var(_env, "TEST_GROUP", str(self.test_group.value) if self.test_group else "")

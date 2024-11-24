@@ -60,9 +60,11 @@ from airflow_breeze.commands.common_options import (
 )
 from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_reference,
+    option_install_airflow_python_client,
     option_install_airflow_with_constraints,
     option_providers_constraints_location,
     option_providers_skip_constraints,
+    option_start_airflow_minimal_webserver_with_examples,
     option_use_packages_from_dist,
 )
 from airflow_breeze.commands.release_management_commands import option_package_format
@@ -1020,6 +1022,92 @@ def helm_tests(
     result = run_command(cmd, check=False, env=env, output_outside_the_group=True)
     fix_ownership_using_docker()
     sys.exit(result.returncode)
+
+
+@group_for_testing.command(
+    name="openapi-tests",
+    help="Run open api tests.",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_install_airflow_python_client
+@option_start_airflow_minimal_webserver_with_examples
+@option_backend
+@option_collect_only
+@option_db_reset
+@option_no_db_cleanup
+@option_enable_coverage
+@option_force_sa_warnings
+@option_forward_credentials
+@option_github_repository
+@option_image_tag_for_running
+@option_keep_env_variables
+@option_mysql_version
+@option_postgres_version
+@option_python
+@option_skip_docker_compose_down
+@option_test_timeout
+@option_dry_run
+@option_verbose
+@click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
+def openapi_tests(
+    install_airflow_python_client: bool,
+    start_airflow_minimal_webserver_with_examples: bool,
+    backend: str,
+    collect_only: bool,
+    db_reset: bool,
+    no_db_cleanup: bool,
+    enable_coverage: bool,
+    force_sa_warnings: bool,
+    forward_credentials: bool,
+    github_repository: str,
+    image_tag: str | None,
+    keep_env_variables: bool,
+    mysql_version: str,
+    postgres_version: str,
+    python: str,
+    skip_docker_compose_down: bool,
+    test_timeout: int,
+    extra_pytest_args: tuple,
+):
+    shell_params = ShellParams(
+        test_group=GroupOfTests.OPEN_API,
+        backend=backend,
+        collect_only=collect_only,
+        enable_coverage=enable_coverage,
+        forward_credentials=forward_credentials,
+        forward_ports=False,
+        github_repository=github_repository,
+        image_tag=image_tag,
+        integration=(),
+        keep_env_variables=keep_env_variables,
+        mysql_version=mysql_version,
+        postgres_version=postgres_version,
+        python=python,
+        test_type="openapi",
+        force_sa_warnings=force_sa_warnings,
+        run_tests=True,
+        db_reset=db_reset,
+        no_db_cleanup=no_db_cleanup,
+        install_airflow_python_client=install_airflow_python_client,
+        start_airflow_minimal_webserver_with_examples=start_airflow_minimal_webserver_with_examples,
+    )
+    rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+    fix_ownership_using_docker()
+    cleanup_python_generated_files()
+    perform_environment_checks()
+    returncode, _ = _run_test(
+        shell_params=shell_params,
+        extra_pytest_args=extra_pytest_args,
+        python_version=python,
+        output=None,
+        test_timeout=test_timeout,
+        output_outside_the_group=True,
+        skip_docker_compose_down=skip_docker_compose_down,
+    )
+    sys.exit(returncode)
 
 
 def _run_test_command(

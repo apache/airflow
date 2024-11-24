@@ -1155,12 +1155,46 @@ function check_force_lowest_dependencies() {
     set +x
 }
 
+function check_airflow_python_client_installation() {
+    if [[ ${INSTALL_AIRFLOW_PYTHON_CLIENT=} != "true" ]]; then
+        return
+    fi
+    python "${IN_CONTAINER_DIR}/install_airflow_python_client.py"
+}
+
+function start_airflow_minimal_webserver_with_examples(){
+    if [[ ${START_AIRFLOW_MINIMAL_WEBSERVER_WITH_EXAMPLES=} != "true" ]]; then
+        return
+    fi
+    export AIRFLOW__CORE__LOAD_EXAMPLES=True
+    echo
+    echo "${COLOR_BLUE}Initializing database${COLOR_RESET}"
+    echo
+    airflow db migrate
+    echo
+    echo "${COLOR_BLUE}Database initialized${COLOR_RESET}"
+    echo
+    echo "${COLOR_BLUE}Parsing example dags${COLOR_RESET}"
+    echo
+    airflow scheduler --num-runs 100
+    echo "Example dags parsing finished"
+    echo "Create admin user"
+    airflow users create -u admin -p admin -f Thor -l Administrator -r Admin -e admin@email.domain
+    echo "Admin user created"
+    echo
+    echo "${COLOR_BLUE}Starting airflow webserver${COLOR_RESET}"
+    echo
+    airflow webserver --port 8080 --daemon && sleep 60
+}
+
 determine_airflow_to_use
 environment_initialization
 check_boto_upgrade
 check_downgrade_sqlalchemy
 check_downgrade_pendulum
 check_force_lowest_dependencies
+check_airflow_python_client_installation
+start_airflow_minimal_webserver_with_examples
 check_run_tests "${@}"
 
 exec /bin/bash "${@}"
