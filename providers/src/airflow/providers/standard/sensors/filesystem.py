@@ -25,7 +25,7 @@ from glob import glob
 from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowPokeFailException
 from airflow.providers.standard.hooks.filesystem import FSHook
 from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.base import StartTriggerArgs
@@ -135,5 +135,5 @@ class FileSensor(BaseSensorOperator):
 
     def execute_complete(self, context: Context, event: bool | None = None) -> None:
         if not event:
-            raise AirflowException("%s task failed as %s not found.", self.task_id, self.filepath)
+            raise AirflowPokeFailException("%s task failed as %s not found.", self.task_id, self.filepath)
         self.log.info("%s completed successfully as %s found.", self.task_id, self.filepath)
