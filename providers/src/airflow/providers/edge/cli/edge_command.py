@@ -36,11 +36,15 @@ from airflow.cli.cli_config import ARG_PID, ARG_VERBOSE, ActionCommand, Arg
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.edge import __version__ as edge_provider_version
-from airflow.providers.edge.cli.api_client import worker_register, worker_set_state
+from airflow.providers.edge.cli.api_client import (
+    logs_logfile_path,
+    logs_push,
+    worker_register,
+    worker_set_state,
+)
 from airflow.providers.edge.models.edge_job import EdgeJob
-from airflow.providers.edge.models.edge_logs import EdgeLogs
 from airflow.providers.edge.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
-from airflow.utils import cli as cli_utils
+from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.platform import IS_WINDOWS
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.state import TaskInstanceState
@@ -246,7 +250,7 @@ class _EdgeWorkerCli:
             env["AIRFLOW__CORE__INTERNAL_API_URL"] = conf.get("edge", "api_url")
             env["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
             process = Popen(edge_job.command, close_fds=True, env=env, start_new_session=True)
-            logfile = EdgeLogs.logfile_path(edge_job.key)
+            logfile = logs_logfile_path(edge_job.key)
             self.jobs.append(_Job(edge_job, process, logfile, 0))
             EdgeJob.set_state(edge_job.key, TaskInstanceState.RUNNING)
             return True
@@ -285,9 +289,9 @@ class _EdgeWorkerCli:
                         if not chunk_data:
                             break
 
-                        EdgeLogs.push_logs(
+                        logs_push(
                             task=job.edge_job.key,
-                            log_chunk_time=datetime.now(),
+                            log_chunk_time=timezone.utcnow(),
                             log_chunk_data=chunk_data,
                         )
 

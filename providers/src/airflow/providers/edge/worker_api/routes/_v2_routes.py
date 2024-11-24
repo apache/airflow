@@ -24,10 +24,13 @@ from functools import cache
 from typing import TYPE_CHECKING, Any, Callable
 from uuid import uuid4
 
+from flask import Response, request
+
 from airflow.exceptions import AirflowException
 from airflow.providers.edge.worker_api.auth import jwt_token_authorization, jwt_token_authorization_rpc
-from airflow.providers.edge.worker_api.datamodels import JsonRpcRequest, WorkerStateBody
+from airflow.providers.edge.worker_api.datamodels import JsonRpcRequest, PushLogsBody, WorkerStateBody
 from airflow.providers.edge.worker_api.routes._v2_compat import HTTPException, status
+from airflow.providers.edge.worker_api.routes.logs import logfile_path, push_logs
 from airflow.providers.edge.worker_api.routes.worker import register, set_state
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -184,8 +187,6 @@ def rpcapi_v2(body: dict[str, Any]) -> APIResponse:
     # Note: Except the method map this _was_ a 100% copy of internal API module
     #       airflow.api_internal.endpoints.rpc_api_endpoint.internal_airflow_api()
     # As of rework for FastAPI in Airflow 3.0, this is updated and to be removed in the future.
-    from flask import Response, request
-
     try:
         if request.headers.get("Content-Type", "") != "application/json":
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Expected Content-Type: application/json")
@@ -238,8 +239,6 @@ def rpcapi_v2(body: dict[str, Any]) -> APIResponse:
 @provide_session
 def register_v2(worker_name: str, body: dict[str, Any], session=NEW_SESSION) -> Any:
     """Handle Edge Worker API `/edge_worker/v1/worker/{worker_name}` endpoint for Airflow 2.10."""
-    from flask import request
-
     try:
         auth = request.headers.get("Authorization", "")
         jwt_token_authorization(request.path, auth)
@@ -254,8 +253,6 @@ def register_v2(worker_name: str, body: dict[str, Any], session=NEW_SESSION) -> 
 @provide_session
 def set_state_v2(worker_name: str, body: dict[str, Any], session=NEW_SESSION) -> Any:
     """Handle Edge Worker API `/edge_worker/v1/worker/{worker_name}` endpoint for Airflow 2.10."""
-    from flask import request
-
     try:
         auth = request.headers.get("Authorization", "")
         jwt_token_authorization(request.path, auth)
@@ -266,5 +263,41 @@ def set_state_v2(worker_name: str, body: dict[str, Any], session=NEW_SESSION) ->
             sysinfo=body["sysinfo"],
         )
         return set_state(worker_name, request_obj, session)
+    except HTTPException as e:
+        return e.to_response()  # type: ignore[attr-defined]
+
+
+def logfile_path_v2(
+    dag_id: str,
+    task_id: str,
+    run_id: str,
+    try_number: int,
+    map_index: str,  # Note: Connexion can not have negative numbers in path parameters, use string therefore
+) -> str:
+    """Handle Edge Worker API `/edge_worker/v1/logs/logfile_path/{dag_id}/{task_id}/{run_id}/{try_number}/{map_index}` endpoint for Airflow 2.10."""
+    try:
+        auth = request.headers.get("Authorization", "")
+        jwt_token_authorization(request.path, auth)
+        return logfile_path(dag_id, task_id, run_id, try_number, int(map_index))
+    except HTTPException as e:
+        return e.to_response()  # type: ignore[attr-defined]
+
+
+def push_logs_v2(
+    dag_id: str,
+    task_id: str,
+    run_id: str,
+    try_number: int,
+    map_index: str,  # Note: Connexion can not have negative numbers in path parameters, use string therefore
+    body: dict[str, Any],
+) -> None:
+    """Handle Edge Worker API `/edge_worker/v1/logs/push/{dag_id}/{task_id}/{run_id}/{try_number}/{map_index}` endpoint for Airflow 2.10."""
+    try:
+        auth = request.headers.get("Authorization", "")
+        jwt_token_authorization(request.path, auth)
+        request_obj = PushLogsBody(
+            log_chunk_data=body["log_chunk_data"], log_chunk_time=body["log_chunk_time"]
+        )
+        push_logs(dag_id, task_id, run_id, try_number, int(map_index), request_obj)
     except HTTPException as e:
         return e.to_response()  # type: ignore[attr-defined]

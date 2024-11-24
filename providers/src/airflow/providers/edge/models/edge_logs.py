@@ -87,7 +87,7 @@ class EdgeLogsModel(Base, LoggingMixin):
 
 
 class EdgeLogs(BaseModel, LoggingMixin):
-    """Accessor for Edge Worker instances as logical model."""
+    """Deprecated Internal API for Edge Worker instances as logical model."""
 
     dag_id: str
     task_id: str
