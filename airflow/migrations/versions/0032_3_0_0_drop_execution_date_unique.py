@@ -33,7 +33,7 @@ from __future__ import annotations
 
 from alembic import op
 
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.migrations.db_types import TIMESTAMP
 
 # revision identifiers, used by Alembic.
 revision = "1cdc775ca98f"
@@ -48,7 +48,7 @@ def upgrade():
         batch_op.alter_column(
             "execution_date",
             new_column_name="logical_date",
-            existing_type=UtcDateTime,
+            existing_type=TIMESTAMP(timezone=True),
             existing_nullable=False,
         )
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
@@ -60,7 +60,7 @@ def downgrade():
         batch_op.alter_column(
             "logical_date",
             new_column_name="execution_date",
-            existing_type=UtcDateTime,
+            existing_type=TIMESTAMP(timezone=True),
             existing_nullable=False,
         )
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
