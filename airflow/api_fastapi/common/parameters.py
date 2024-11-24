@@ -40,7 +40,7 @@ from sqlalchemy.inspection import inspect
 
 from airflow.api_connexion.endpoints.task_instance_endpoint import _convert_ti_states
 from airflow.jobs.job import Job
-from airflow.models import Base, Connection
+from airflow.models import Base
 from airflow.models.asset import AssetEvent, AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
@@ -221,7 +221,6 @@ class SortParam(BaseParam[str]):
     attr_mapping = {
         "last_run_state": DagRun.state,
         "last_run_start_date": DagRun.start_date,
-        "connection_id": Connection.conn_id,
         "import_error_id": ParseImportError.id,
         "dag_run_id": DagRun.run_id,
     }
