@@ -370,6 +370,8 @@ def generate_args_for_pytest(
         args.append(f"--ignore={TEST_GROUP_TO_TEST_FOLDER[GroupOfTests.HELM]}")
     if test_group not in IGNORE_DB_INIT_FOR_TEST_GROUPS:
         args.append("--with-db-init")
+    if test_group == GroupOfTests.OPEN_API:
+        args.append("--ignore-glob=clients/python/tmp/*")
     args.extend(get_suspended_provider_args())
     args.extend(get_excluded_provider_args(python_version))
     if use_xdist:
