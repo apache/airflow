@@ -226,7 +226,7 @@ class SortParam(BaseParam[str]):
     }
 
     def __init__(
-        self, allowed_attrs: list[str], model: Base, to_replace: dict[str, str] | None = None
+        self, allowed_attrs: list[str], model: Base, to_replace: dict[str, str | Column] | None = None
     ) -> None:
         super().__init__()
         self.allowed_attrs = allowed_attrs
@@ -241,19 +241,22 @@ class SortParam(BaseParam[str]):
             return select
 
         lstriped_orderby = self.value.lstrip("-")
+        column: Column | None = None
         if self.to_replace:
-            lstriped_orderby = self.to_replace.get(lstriped_orderby, lstriped_orderby)
+            replacement = self.to_replace.get(lstriped_orderby, lstriped_orderby)
+            if isinstance(replacement, str):
+                lstriped_orderby = replacement
+            else:
+                column = replacement
 
-        if self.allowed_attrs and lstriped_orderby not in self.allowed_attrs:
+        if (self.allowed_attrs and lstriped_orderby not in self.allowed_attrs) and column is None:
             raise HTTPException(
                 400,
                 f"Ordering with '{lstriped_orderby}' is disallowed or "
                 f"the attribute does not exist on the model",
             )
-
-        column: Column = self.attr_mapping.get(lstriped_orderby, None) or getattr(
-            self.model, lstriped_orderby
-        )
+        if column is None:
+            column = self.attr_mapping.get(lstriped_orderby, None) or getattr(self.model, lstriped_orderby)
 
         # MySQL does not support `nullslast`, and True/False ordering depends on the
         # database implementation.
