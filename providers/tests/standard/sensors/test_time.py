@@ -26,7 +26,7 @@ import time_machine
 from airflow.exceptions import TaskDeferred
 from airflow.models.dag import DAG
 from airflow.providers.standard.sensors.time import TimeSensor, TimeSensorAsync
-from airflow.triggers.temporal import DateTimeTrigger
+from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 from airflow.utils import timezone
 
 DEFAULT_TIMEZONE = "Asia/Singapore"  # UTC+08:00

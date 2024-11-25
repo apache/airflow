@@ -23,8 +23,9 @@ from unittest import mock
 import pendulum
 import pytest
 
+from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
+from airflow.providers.standard.utils.version_references import AIRFLOW_V_2_10_PLUS
 from airflow.triggers.base import TriggerEvent
-from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import utcnow
@@ -56,7 +57,7 @@ def test_datetime_trigger_serialization():
     moment = pendulum.instance(datetime.datetime(2020, 4, 1, 13, 0), pendulum.UTC)
     trigger = DateTimeTrigger(moment)
     classpath, kwargs = trigger.serialize()
-    assert classpath == "airflow.triggers.temporal.DateTimeTrigger"
+    assert classpath == "airflow.providers.standard.triggers.temporal.DateTimeTrigger"
     assert kwargs == {"moment": moment, "end_from_trigger": False}
 
 
@@ -68,12 +69,13 @@ def test_timedelta_trigger_serialization():
     trigger = TimeDeltaTrigger(datetime.timedelta(seconds=10))
     expected_moment = timezone.utcnow() + datetime.timedelta(seconds=10)
     classpath, kwargs = trigger.serialize()
-    assert classpath == "airflow.triggers.temporal.DateTimeTrigger"
+    assert classpath == "airflow.providers.standard.triggers.temporal.DateTimeTrigger"
     # We need to allow for a little time difference to avoid this test being
     # flaky if it runs over the boundary of a single second
     assert -2 < (kwargs["moment"] - expected_moment).total_seconds() < 2
 
 
+@pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Only for Airflow 2.10+")
 @pytest.mark.parametrize(
     "tz, end_from_trigger",
     [
@@ -84,7 +86,7 @@ def test_timedelta_trigger_serialization():
     ],
 )
 @pytest.mark.asyncio
-async def test_datetime_trigger_timing(tz, end_from_trigger):
+async def test_datetime_trigger_timing_airflow_2_10_plus(tz, end_from_trigger):
     """
     Tests that the DateTimeTrigger only goes off on or after the appropriate
     time.
@@ -113,8 +115,46 @@ async def test_datetime_trigger_timing(tz, end_from_trigger):
     assert result.payload == expected_payload
 
 
-@mock.patch("airflow.triggers.temporal.timezone.utcnow")
-@mock.patch("airflow.triggers.temporal.asyncio.sleep")
+@pytest.mark.skipif(AIRFLOW_V_2_10_PLUS, reason="Only for Airflow < 2.10+")
+@pytest.mark.parametrize(
+    "tz",
+    [
+        timezone.parse_timezone("UTC"),
+        timezone.parse_timezone("Europe/Paris"),
+        timezone.parse_timezone("America/Toronto"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_datetime_trigger_timing(tz):
+    """
+    Tests that the DateTimeTrigger only goes off on or after the appropriate
+    time.
+    """
+    past_moment = pendulum.instance((timezone.utcnow() - datetime.timedelta(seconds=60)).astimezone(tz))
+    future_moment = pendulum.instance((timezone.utcnow() + datetime.timedelta(seconds=60)).astimezone(tz))
+
+    # Create a task that runs the trigger for a short time then cancels it
+    trigger = DateTimeTrigger(future_moment)
+    trigger_task = asyncio.create_task(trigger.run().__anext__())
+    await asyncio.sleep(0.5)
+
+    # It should not have produced a result
+    assert trigger_task.done() is False
+    trigger_task.cancel()
+
+    # Now, make one waiting for en event in the past and do it again
+    trigger = DateTimeTrigger(past_moment)
+    trigger_task = asyncio.create_task(trigger.run().__anext__())
+    await asyncio.sleep(0.5)
+
+    assert trigger_task.done() is True
+    result = trigger_task.result()
+    assert isinstance(result, TriggerEvent)
+    assert result.payload == past_moment
+
+
+@mock.patch("airflow.providers.standard.triggers.temporal.timezone.utcnow")
+@mock.patch("airflow.providers.standard.triggers.temporal.asyncio.sleep")
 @pytest.mark.asyncio
 async def test_datetime_trigger_mocked(mock_sleep, mock_utcnow):
     """
