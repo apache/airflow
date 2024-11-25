@@ -2670,7 +2670,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             self.ENDPOINT_URL,
             json={
                 "dryrun": True,
-                "new_state": "failed",
+                "new_state": self.NEW_STATE,
             },
         )
         assert response.status_code == 200
