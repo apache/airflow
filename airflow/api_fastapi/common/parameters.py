@@ -118,6 +118,86 @@ class _OnlyActiveFilter(BaseParam[bool]):
         return self.set_value(only_active)
 
 
+class DagIdsFilter(BaseParam[list[str]]):
+    """Filter on dag ids."""
+
+    def __init__(self, model: Base, value: list[str] | None = None, skip_none: bool = True) -> None:
+        super().__init__(value, skip_none)
+        self.model = model
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value and self.skip_none:
+            return select.where(self.model.dag_id.in_(self.value))
+        return select
+
+    def depends(self, dag_ids: list[str] = Query(None)) -> DagIdsFilter:
+        return self.set_value(dag_ids)
+
+
+class DagRunIdsFilter(BaseParam[list[str]]):
+    """Filter on dag run ids."""
+
+    def __init__(self, model: Base, value: list[str] | None = None, skip_none: bool = True) -> None:
+        super().__init__(value, skip_none)
+        self.model = model
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value and self.skip_none:
+            return select.where(self.model.run_id.in_(self.value))
+        return select
+
+    def depends(self, dag_run_ids: list[str] = Query(None)) -> DagRunIdsFilter:
+        return self.set_value(dag_run_ids)
+
+
+class DagRunRunTypesFilter(BaseParam[list[str]]):
+    """Filter on dag run run_types."""
+
+    def __init__(self, model: Base, value: list[str] | None = None, skip_none: bool = True) -> None:
+        super().__init__(value, skip_none)
+        self.model = model
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value and self.skip_none:
+            return select.where(self.model.run_type.in_(self.value))
+        return select
+
+    def depends(self, run_types: list[str] = Query(None)) -> DagRunRunTypesFilter:
+        return self.set_value(run_types)
+
+
+class DagRunRunStatesFilter(BaseParam[list[str]]):
+    """Filter on dag run_states."""
+
+    def __init__(self, model: Base, value: list[str] | None = None, skip_none: bool = True) -> None:
+        super().__init__(value, skip_none)
+        self.model = model
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value and self.skip_none:
+            return select.where(self.model.state.in_(self.value))
+        return select
+
+    def depends(self, run_states: list[str] = Query(None)) -> DagRunRunStatesFilter:
+        return self.set_value(run_states)
+
+
+class TaskIdsFilter(BaseParam[list[str]]):
+    """Filter on task ids."""
+
+    def __init__(self, model: Base, value: list[str] | None = None, skip_none: bool = True) -> None:
+        super().__init__(value, skip_none)
+        self.model = model
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value and self.skip_none:
+            return select.where(self.model.task_id.in_(self.value))
+        return select
+
+    def depends(self, task_ids: list[str] = Query(None)) -> TaskIdsFilter:
+        return self.set_value(task_ids)
+
+
 class _SearchParam(BaseParam[str]):
     """Search on attribute."""
 
