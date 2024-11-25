@@ -31,7 +31,6 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
-    PickleType,
     PrimaryKeyConstraint,
     String,
     Text,
@@ -48,6 +47,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import declared_attr, joinedload, relationship, synonym, validates
 from sqlalchemy.sql.expression import case, false, select, true
 from sqlalchemy.sql.functions import coalesce
+from sqlalchemy_jsonfield import JSONField
 from sqlalchemy_utils import UUIDType
 
 from airflow import settings
@@ -64,6 +64,7 @@ from airflow.models.dag_version import DagVersion
 from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
+from airflow.settings import json
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
@@ -140,7 +141,7 @@ class DagRun(Base, LoggingMixin):
     triggered_by = Column(
         Enum(DagRunTriggeredByType, native_enum=False, length=50)
     )  # Airflow component that triggered the run.
-    conf = Column(PickleType)
+    conf = Column(JSONField(json=json), nullable=True)
     # These two must be either both NULL or both datetime.
     data_interval_start = Column(UtcDateTime)
     data_interval_end = Column(UtcDateTime)
