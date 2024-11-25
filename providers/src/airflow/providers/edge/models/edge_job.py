@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from ast import literal_eval
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import (
@@ -116,7 +116,7 @@ class EdgeJob(BaseModel, LoggingMixin):
     state: TaskInstanceState
     queue: str
     concurrency_slots: int
-    command: List[str]  # noqa: UP006 - prevent Sphinx failing
+    command: list[str]
     queued_dttm: datetime
     edge_worker: Optional[str]  # noqa: UP007 - prevent Sphinx failing
     last_update: Optional[datetime]  # noqa: UP007 - prevent Sphinx failing

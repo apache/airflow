@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import contextlib
 import json
+from collections.abc import Mapping, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Sequence, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import requests
 import weaviate
@@ -265,7 +266,7 @@ class WeaviateHook(BaseHook):
 
             if isinstance(data, pandas.DataFrame):
                 data = json.loads(data.to_json(orient="records"))
-        return cast(List[Dict[str, Any]], data)
+        return cast(list[dict[str, Any]], data)
 
     def batch_data(
         self,
@@ -785,11 +786,11 @@ class WeaviateHook(BaseHook):
             return []
 
         if isinstance(data, Sequence) and isinstance(data[0], dict):
-            # This is done to narrow the type to List[Dict[str, Any].
-            data = pd.json_normalize(cast(List[Dict[str, Any]], data))
+            # This is done to narrow the type to list[dict[str, Any].
+            data = pd.json_normalize(cast(list[dict[str, Any]], data))
         elif isinstance(data, Sequence) and isinstance(data[0], pd.DataFrame):
-            # This is done to narrow the type to List[pd.DataFrame].
-            data = pd.concat(cast(List[pd.DataFrame], data), ignore_index=True)
+            # This is done to narrow the type to list[pd.DataFrame].
+            data = pd.concat(cast(list[pd.DataFrame], data), ignore_index=True)
         else:
             data = cast(pd.DataFrame, data)
 

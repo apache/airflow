@@ -21,7 +21,7 @@ from __future__ import annotations
 import ast
 import pathlib
 import sys
-from typing import Iterable
+from collections.abc import Iterable
 
 import yaml
 from packaging.specifiers import SpecifierSet

@@ -37,7 +37,6 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dag_warning import (
     DAGWarningCollectionResponse,
-    DAGWarningResponse,
 )
 from airflow.models import DagWarning
 
@@ -70,6 +69,6 @@ def list_dag_warnings(
     dag_warnings = session.scalars(dag_warnings_select)
 
     return DAGWarningCollectionResponse(
-        dag_warnings=[DAGWarningResponse.model_validate(w, from_attributes=True) for w in dag_warnings],
+        dag_warnings=dag_warnings,
         total_entries=total_entries,
     )

@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from time import sleep
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import ClientError
 

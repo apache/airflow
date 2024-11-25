@@ -20,8 +20,9 @@ import datetime
 import logging
 import random
 import warnings
+from collections.abc import Iterable
 from functools import partial
-from typing import TYPE_CHECKING, Callable, Iterable, Union
+from typing import TYPE_CHECKING, Callable, Union
 
 from opentelemetry import metrics
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter

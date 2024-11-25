@@ -20,8 +20,9 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
 from datetime import datetime, timedelta, timezone
-from typing import Any, AsyncIterator
+from typing import Any
 
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent

@@ -20,8 +20,9 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
+from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -50,7 +51,7 @@ class DAGRunClearBody(BaseModel):
 class DAGRunResponse(BaseModel):
     """DAG Run serializer for responses."""
 
-    dag_run_id: str | None = Field(alias="run_id")
+    dag_run_id: str | None = Field(validation_alias="run_id")
     dag_id: str
     logical_date: datetime | None
     queued_at: datetime | None

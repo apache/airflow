@@ -19,7 +19,6 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock
 
-import pytest
 from google.cloud.bigquery.table import Table
 
 from airflow.providers.common.compat.openlineage.facet import (
@@ -89,19 +88,78 @@ def test_get_facets_from_bq_table():
 
 
 def test_get_facets_from_empty_bq_table():
-    expected_facets = {
-        "schema": SchemaDatasetFacet(fields=[]),
-        "documentation": DocumentationDatasetFacet(description=""),
-    }
     result = get_facets_from_bq_table(TEST_EMPTY_TABLE)
-    assert result == expected_facets
+    assert result == {}
+
+
+def test_get_identity_column_lineage_facet_source_datasets_schemas_are_subsets():
+    field_names = ["field1", "field2", "field3"]
+    input_datasets = [
+        Dataset(
+            namespace="gs://first_bucket",
+            name="dir1",
+            facets={
+                "schema": SchemaDatasetFacet(
+                    fields=[
+                        SchemaDatasetFacetFields(name="field1", type="STRING"),
+                    ]
+                )
+            },
+        ),
+        Dataset(
+            namespace="gs://second_bucket",
+            name="dir2",
+            facets={
+                "schema": SchemaDatasetFacet(
+                    fields=[
+                        SchemaDatasetFacetFields(name="field2", type="STRING"),
+                    ]
+                )
+            },
+        ),
+    ]
+    expected_facet = ColumnLineageDatasetFacet(
+        fields={
+            "field1": Fields(
+                inputFields=[
+                    InputField(
+                        namespace="gs://first_bucket",
+                        name="dir1",
+                        field="field1",
+                    )
+                ],
+                transformationType="IDENTITY",
+                transformationDescription="identical",
+            ),
+            "field2": Fields(
+                inputFields=[
+                    InputField(
+                        namespace="gs://second_bucket",
+                        name="dir2",
+                        field="field2",
+                    ),
+                ],
+                transformationType="IDENTITY",
+                transformationDescription="identical",
+            ),
+            # field3 is missing here as it's not present in any source dataset
+        }
+    )
+    result = get_identity_column_lineage_facet(dest_field_names=field_names, input_datasets=input_datasets)
+    assert result == {"columnLineage": expected_facet}
 
 
 def test_get_identity_column_lineage_facet_multiple_input_datasets():
     field_names = ["field1", "field2"]
+    schema_facet = SchemaDatasetFacet(
+        fields=[
+            SchemaDatasetFacetFields(name="field1", type="STRING"),
+            SchemaDatasetFacetFields(name="field2", type="STRING"),
+        ]
+    )
     input_datasets = [
-        Dataset(namespace="gs://first_bucket", name="dir1"),
-        Dataset(namespace="gs://second_bucket", name="dir2"),
+        Dataset(namespace="gs://first_bucket", name="dir1", facets={"schema": schema_facet}),
+        Dataset(namespace="gs://second_bucket", name="dir2", facets={"schema": schema_facet}),
     ]
     expected_facet = ColumnLineageDatasetFacet(
         fields={
@@ -139,24 +197,69 @@ def test_get_identity_column_lineage_facet_multiple_input_datasets():
             ),
         }
     )
-    result = get_identity_column_lineage_facet(field_names=field_names, input_datasets=input_datasets)
-    assert result == expected_facet
+    result = get_identity_column_lineage_facet(dest_field_names=field_names, input_datasets=input_datasets)
+    assert result == {"columnLineage": expected_facet}
+
+
+def test_get_identity_column_lineage_facet_dest_cols_not_in_input_datasets():
+    field_names = ["x", "y"]
+    input_datasets = [
+        Dataset(
+            namespace="gs://first_bucket",
+            name="dir1",
+            facets={
+                "schema": SchemaDatasetFacet(
+                    fields=[
+                        SchemaDatasetFacetFields(name="field1", type="STRING"),
+                    ]
+                )
+            },
+        ),
+        Dataset(
+            namespace="gs://second_bucket",
+            name="dir2",
+            facets={
+                "schema": SchemaDatasetFacet(
+                    fields=[
+                        SchemaDatasetFacetFields(name="field2", type="STRING"),
+                    ]
+                )
+            },
+        ),
+    ]
+
+    result = get_identity_column_lineage_facet(dest_field_names=field_names, input_datasets=input_datasets)
+    assert result == {}
+
+
+def test_get_identity_column_lineage_facet_no_schema_in_input_dataset():
+    field_names = ["field1", "field2"]
+    input_datasets = [
+        Dataset(namespace="gs://first_bucket", name="dir1"),
+    ]
+    result = get_identity_column_lineage_facet(dest_field_names=field_names, input_datasets=input_datasets)
+    assert result == {}
 
 
 def test_get_identity_column_lineage_facet_no_field_names():
     field_names = []
+    schema_facet = SchemaDatasetFacet(
+        fields=[
+            SchemaDatasetFacetFields(name="field1", type="STRING"),
+            SchemaDatasetFacetFields(name="field2", type="STRING"),
+        ]
+    )
     input_datasets = [
-        Dataset(namespace="gs://first_bucket", name="dir1"),
-        Dataset(namespace="gs://second_bucket", name="dir2"),
+        Dataset(namespace="gs://first_bucket", name="dir1", facets={"schema": schema_facet}),
+        Dataset(namespace="gs://second_bucket", name="dir2", facets={"schema": schema_facet}),
     ]
-    expected_facet = ColumnLineageDatasetFacet(fields={})
-    result = get_identity_column_lineage_facet(field_names=field_names, input_datasets=input_datasets)
-    assert result == expected_facet
+    result = get_identity_column_lineage_facet(dest_field_names=field_names, input_datasets=input_datasets)
+    assert result == {}
 
 
 def test_get_identity_column_lineage_facet_no_input_datasets():
     field_names = ["field1", "field2"]
     input_datasets = []
 
-    with pytest.raises(ValueError):
-        get_identity_column_lineage_facet(field_names=field_names, input_datasets=input_datasets)
+    result = get_identity_column_lineage_facet(dest_field_names=field_names, input_datasets=input_datasets)
+    assert result == {}

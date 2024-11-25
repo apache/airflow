@@ -22,9 +22,11 @@ import hashlib
 import logging
 import os
 import zipfile
+from collections.abc import Generator
 from io import TextIOWrapper
 from pathlib import Path
-from typing import Generator, NamedTuple, Pattern, Protocol, overload
+from re import Pattern
+from typing import NamedTuple, Protocol, overload
 
 import re2
 from pathspec.patterns import GitWildMatchPattern

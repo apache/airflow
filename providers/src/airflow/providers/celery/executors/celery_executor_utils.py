@@ -29,8 +29,9 @@ import os
 import subprocess
 import traceback
 import warnings
+from collections.abc import Mapping, MutableMapping
 from concurrent.futures import ProcessPoolExecutor
-from typing import TYPE_CHECKING, Any, Mapping, MutableMapping, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Optional
 
 from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
@@ -59,7 +60,7 @@ if TYPE_CHECKING:
     from airflow.executors.base_executor import CommandType, EventBufferValueType
     from airflow.models.taskinstance import TaskInstanceKey
 
-    TaskInstanceInCelery = Tuple[TaskInstanceKey, CommandType, Optional[str], Task]
+    TaskInstanceInCelery = tuple[TaskInstanceKey, CommandType, Optional[str], Task]
 
 OPERATION_TIMEOUT = conf.getfloat("celery", "operation_timeout")
 

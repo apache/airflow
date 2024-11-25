@@ -17,9 +17,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from copy import deepcopy
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Optional
 
 from sqlalchemy import delete, inspect
 from sqlalchemy.exc import NoSuchTableError
@@ -28,7 +29,7 @@ from airflow.cli.cli_config import GroupCommand
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.abstractoperator import DEFAULT_QUEUE
-from airflow.models.taskinstance import TaskInstanceState
+from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.providers.edge.cli.edge_command import EDGE_COMMANDS
 from airflow.providers.edge.models.edge_job import EdgeJobModel
 from airflow.providers.edge.models.edge_logs import EdgeLogsModel
@@ -45,11 +46,10 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.executors.base_executor import CommandType
-    from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
     # Task tuple to send to be executed
-    TaskTuple = Tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
+    TaskTuple = tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
@@ -149,6 +149,30 @@ class EdgeExecutor(BaseExecutor):
 
         return changed
 
+    def _update_orphaned_jobs(self, session: Session) -> bool:
+        """Update status ob jobs when workers die and don't update anymore."""
+        heartbeat_interval: int = conf.getint("scheduler", "scheduler_zombie_task_threshold")
+        lifeless_jobs: list[EdgeJobModel] = (
+            session.query(EdgeJobModel)
+            .filter(
+                EdgeJobModel.state == TaskInstanceState.RUNNING,
+                EdgeJobModel.last_update < (timezone.utcnow() - timedelta(seconds=heartbeat_interval)),
+            )
+            .all()
+        )
+
+        for job in lifeless_jobs:
+            ti = TaskInstance.get_task_instance(
+                dag_id=job.dag_id,
+                run_id=job.run_id,
+                task_id=job.task_id,
+                map_index=job.map_index,
+                session=session,
+            )
+            job.state = ti.state if ti else TaskInstanceState.REMOVED
+
+        return bool(lifeless_jobs)
+
     def _purge_jobs(self, session: Session) -> bool:
         """Clean finished jobs."""
         purged_marker = False
@@ -158,7 +182,12 @@ class EdgeExecutor(BaseExecutor):
             session.query(EdgeJobModel)
             .filter(
                 EdgeJobModel.state.in_(
-                    [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS, TaskInstanceState.FAILED]
+                    [
+                        TaskInstanceState.RUNNING,
+                        TaskInstanceState.SUCCESS,
+                        TaskInstanceState.FAILED,
+                        TaskInstanceState.REMOVED,
+                    ]
                 )
             )
             .all()
@@ -186,7 +215,7 @@ class EdgeExecutor(BaseExecutor):
                 job.state == TaskInstanceState.SUCCESS
                 and job.last_update_t < (datetime.now() - timedelta(minutes=job_success_purge)).timestamp()
             ) or (
-                job.state == TaskInstanceState.FAILED
+                job.state in (TaskInstanceState.FAILED, TaskInstanceState.REMOVED)
                 and job.last_update_t < (datetime.now() - timedelta(minutes=job_fail_purge)).timestamp()
             ):
                 if job.key in self.last_reported_state:
@@ -209,7 +238,10 @@ class EdgeExecutor(BaseExecutor):
     def sync(self, session: Session = NEW_SESSION) -> None:
         """Sync will get called periodically by the heartbeat method."""
         with Stats.timer("edge_executor.sync.duration"):
-            if self._purge_jobs(session) or self._check_worker_liveness(session):
+            orphaned = self._update_orphaned_jobs(session)
+            purged = self._purge_jobs(session)
+            liveness = self._check_worker_liveness(session)
+            if purged or liveness or orphaned:
                 session.commit()
 
     def end(self) -> None:
