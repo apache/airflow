@@ -259,8 +259,8 @@ def get_dag_runs(
                     "id",
                     "state",
                     "dag_id",
+                    "run_id",
                     "logical_date",
-                    "dag_run_id",
                     "start_date",
                     "end_date",
                     "updated_at",
@@ -268,6 +268,7 @@ def get_dag_runs(
                     "conf",
                 ],
                 DagRun,
+                {"dag_run_id": "run_id"},
             ).dynamic_depends(default="id")
         ),
     ],

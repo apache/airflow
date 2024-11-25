@@ -217,10 +217,6 @@ class _DagDisplayNamePatternSearch(_SearchParam):
 class SortParam(BaseParam[str]):
     """Order result by the attribute."""
 
-    attr_mapping = {
-        "dag_run_id": DagRun.run_id,
-    }
-
     def __init__(
         self, allowed_attrs: list[str], model: Base, to_replace: dict[str, str | Column] | None = None
     ) -> None:
@@ -252,7 +248,7 @@ class SortParam(BaseParam[str]):
                 f"the attribute does not exist on the model",
             )
         if column is None:
-            column = self.attr_mapping.get(lstriped_orderby, None) or getattr(self.model, lstriped_orderby)
+            column = getattr(self.model, lstriped_orderby)
 
         # MySQL does not support `nullslast`, and True/False ordering depends on the
         # database implementation.
