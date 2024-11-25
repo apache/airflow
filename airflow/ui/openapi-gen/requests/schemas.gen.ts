@@ -2732,6 +2732,26 @@ export const $ImportErrorResponse = {
   description: "Import Error Response.",
 } as const;
 
+export const $JobCollectionResponse = {
+  properties: {
+    jobs: {
+      items: {
+        $ref: "#/components/schemas/JobResponse",
+      },
+      type: "array",
+      title: "Jobs",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["jobs", "total_entries"],
+  title: "JobCollectionResponse",
+  description: "Job Collection Response.",
+} as const;
+
 export const $JobResponse = {
   properties: {
     id: {
