@@ -22,9 +22,10 @@ import logging
 import os
 import re
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 from subprocess import run
-from typing import Any, Callable, Iterable
+from typing import Any, Callable
 
 from hatchling.builders.config import BuilderConfig
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
@@ -376,7 +377,7 @@ DEPENDENCIES = [
     "dill>=0.2.2",
     # Required for python 3.9 to work with new annotations styles. Check package
     # description on PyPI for more details: https://pypi.org/project/eval-type-backport/
-    "eval-type-backport>=0.2.0",
+    'eval-type-backport>=0.2.0;python_version<"3.10"',
     "fastapi[standard]>=0.112.2",
     "flask-caching>=2.0.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as

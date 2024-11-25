@@ -25,12 +25,13 @@ import signal
 import sys
 import time
 from collections import Counter, defaultdict, deque
+from collections.abc import Collection, Iterable, Iterator
 from contextlib import suppress
 from datetime import timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
+from typing import TYPE_CHECKING, Any, Callable
 
 from deprecated import deprecated
 from sqlalchemy import and_, delete, exists, func, not_, select, text, update
@@ -1073,9 +1074,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
         for loop_count in itertools.count(start=1):
-            with Trace.start_span(
-                span_name="scheduler_job_loop", component="SchedulerJobRunner"
-            ) as span, Stats.timer("scheduler.scheduler_loop_duration") as timer:
+            with (
+                Trace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as span,
+                Stats.timer("scheduler.scheduler_loop_duration") as timer,
+            ):
                 span.set_attributes(
                     {
                         "category": "scheduler",

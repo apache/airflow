@@ -21,7 +21,8 @@ import json
 import logging
 import textwrap
 import time
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import urlencode
 
 from flask import request, url_for

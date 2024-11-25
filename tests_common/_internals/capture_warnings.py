@@ -24,10 +24,11 @@ import os
 import site
 import sys
 import warnings
+from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Callable, Generator
+from typing import Callable
 
 import pytest
 from typing_extensions import Literal
@@ -36,12 +37,12 @@ WhenTypeDef = Literal["config", "collect", "runtest"]
 TESTS_DIR = Path(__file__).parents[1].resolve()
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _sites_locations() -> tuple[str, ...]:
     return tuple([*site.getsitepackages(), site.getusersitepackages()])
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _resolve_warning_filepath(path: str, rootpath: str):
     if path.startswith(_sites_locations()):
         for site_loc in _sites_locations():

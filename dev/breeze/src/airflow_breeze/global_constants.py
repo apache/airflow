@@ -208,7 +208,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "24.3.1"
-UV_VERSION = "0.5.3"
+UV_VERSION = "0.5.4"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -609,7 +609,7 @@ DEFAULT_EXTRAS = [
 CHICKEN_EGG_PROVIDERS = " ".join(["standard amazon common.sql"])
 
 
-BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
+PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.9",
         "airflow-version": "2.8.4",

@@ -35,6 +35,7 @@ from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.io.path import ObjectStoragePath
+    from airflow.triggers.base import BaseTrigger
 
 
 class _AssetMainOperator(PythonOperator):
@@ -121,6 +122,7 @@ class asset:
     uri: str | ObjectStoragePath | None = None
     group: str = ""
     extra: dict[str, Any] = attrs.field(factory=dict)
+    watchers: list[BaseTrigger] = attrs.field(factory=list)
 
     def __call__(self, f: Callable) -> AssetDefinition:
         if (name := f.__name__) != f.__qualname__:
@@ -131,6 +133,7 @@ class asset:
             uri=name if self.uri is None else str(self.uri),
             group=self.group,
             extra=self.extra,
+            watchers=self.watchers,
             function=f,
             schedule=self.schedule,
         )
