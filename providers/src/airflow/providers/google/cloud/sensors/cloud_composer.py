@@ -20,8 +20,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable, Sequence
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Iterable, Sequence
+from typing import TYPE_CHECKING
 
 from dateutil import parser
 from google.cloud.orchestration.airflow.service_v1.types import ExecuteAirflowCommandResponse

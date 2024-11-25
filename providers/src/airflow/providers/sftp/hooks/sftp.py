@@ -23,8 +23,9 @@ import datetime
 import os
 import stat
 import warnings
+from collections.abc import Sequence
 from fnmatch import fnmatch
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 import asyncssh
 from asgiref.sync import sync_to_async

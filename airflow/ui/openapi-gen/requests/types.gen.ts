@@ -384,7 +384,7 @@ export type DAGRunPatchStates = "queued" | "success" | "failed";
  * DAG Run serializer for responses.
  */
 export type DAGRunResponse = {
-  run_id: string | null;
+  dag_run_id: string | null;
   dag_id: string;
   logical_date: string | null;
   queued_at: string | null;
@@ -693,6 +693,14 @@ export type ImportErrorResponse = {
   timestamp: string;
   filename: string;
   stack_trace: string;
+};
+
+/**
+ * Job Collection Response.
+ */
+export type JobCollectionResponse = {
+  jobs: Array<JobResponse>;
+  total_entries: number;
 };
 
 /**
@@ -1563,6 +1571,23 @@ export type GetImportErrorsData = {
 };
 
 export type GetImportErrorsResponse = ImportErrorCollectionResponse;
+
+export type GetJobsData = {
+  endDateGte?: string | null;
+  endDateLte?: string | null;
+  executorClass?: string | null;
+  hostname?: string | null;
+  isAlive?: boolean | null;
+  jobState?: string | null;
+  jobType?: string | null;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  startDateGte?: string | null;
+  startDateLte?: string | null;
+};
+
+export type GetJobsResponse = JobCollectionResponse;
 
 export type GetPluginsData = {
   limit?: number;
@@ -3106,6 +3131,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: ImportErrorCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/jobs": {
+    get: {
+      req: GetJobsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: JobCollectionResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
         /**
          * Unauthorized
          */

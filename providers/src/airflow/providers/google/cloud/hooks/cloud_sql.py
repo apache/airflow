@@ -33,11 +33,12 @@ import string
 import subprocess
 import time
 import uuid
+from collections.abc import Sequence
 from inspect import signature
 from pathlib import Path
 from subprocess import PIPE, Popen
 from tempfile import NamedTemporaryFile, _TemporaryFileWrapper, gettempdir
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 from urllib.parse import quote_plus
 
 import httpx

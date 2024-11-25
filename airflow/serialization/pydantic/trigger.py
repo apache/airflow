@@ -16,7 +16,7 @@
 # under the License.
 
 import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from pydantic import BaseModel as BaseModelPydantic, ConfigDict
 
@@ -49,14 +49,14 @@ class TriggerPydantic(BaseModelPydantic):
         super().__init__(**kwargs)
 
     @property
-    def kwargs(self) -> Dict[str, Any]:
+    def kwargs(self) -> dict[str, Any]:
         """Return the decrypted kwargs of the trigger."""
         from airflow.models import Trigger
 
         return Trigger._decrypt_kwargs(self.encrypted_kwargs)
 
     @kwargs.setter
-    def kwargs(self, kwargs: Dict[str, Any]) -> None:
+    def kwargs(self, kwargs: dict[str, Any]) -> None:
         """Set the encrypted kwargs of the trigger."""
         from airflow.models import Trigger
 

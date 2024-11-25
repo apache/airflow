@@ -19,7 +19,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from googleapiclient.discovery import Resource, build
 

@@ -17,8 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Collection, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, ClassVar, Collection, Sequence
+from typing import TYPE_CHECKING, ClassVar
 
 import attr
 import papermill as pm

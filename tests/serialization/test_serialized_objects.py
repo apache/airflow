@@ -20,9 +20,9 @@ from __future__ import annotations
 import inspect
 import json
 import warnings
+from collections.abc import Iterator
 from datetime import datetime, timedelta
 from importlib import import_module
-from typing import Iterator
 
 import pendulum
 import pytest

@@ -29,8 +29,9 @@ import logging
 import sys
 from argparse import Action
 from collections import Counter
-from functools import lru_cache
-from typing import TYPE_CHECKING, Iterable
+from collections.abc import Iterable
+from functools import cache
+from typing import TYPE_CHECKING
 
 import lazy_object_proxy
 from rich_argparse import RawTextRichHelpFormatter, RichHelpFormatter
@@ -138,7 +139,7 @@ class LazyRichHelpFormatter(RawTextRichHelpFormatter):
         return super().add_argument(action)
 
 
-@lru_cache(maxsize=None)
+@cache
 def get_parser(dag_parser: bool = False) -> argparse.ArgumentParser:
     """Create and returns command line argument parser."""
     parser = DefaultHelpParser(prog="airflow", formatter_class=AirflowHelpFormatter)

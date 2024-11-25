@@ -20,7 +20,8 @@ import contextlib
 import os
 import shutil
 import typing
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 from urllib.parse import urlsplit
 
 from fsspec.utils import stringify_path

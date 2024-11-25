@@ -23,8 +23,9 @@ import enum
 import json
 import re
 import warnings
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence, SupportsAbs
+from typing import TYPE_CHECKING, Any, SupportsAbs
 
 from google.api_core.exceptions import Conflict
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob, Row

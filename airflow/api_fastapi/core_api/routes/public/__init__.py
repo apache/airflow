@@ -33,6 +33,7 @@ from airflow.api_fastapi.core_api.routes.public.dags import dags_router
 from airflow.api_fastapi.core_api.routes.public.event_logs import event_logs_router
 from airflow.api_fastapi.core_api.routes.public.extra_links import extra_links_router
 from airflow.api_fastapi.core_api.routes.public.import_error import import_error_router
+from airflow.api_fastapi.core_api.routes.public.job import job_router
 from airflow.api_fastapi.core_api.routes.public.log import task_instances_log_router
 from airflow.api_fastapi.core_api.routes.public.monitor import monitor_router
 from airflow.api_fastapi.core_api.routes.public.plugins import plugins_router
@@ -63,6 +64,7 @@ authenticated_router.include_router(dags_router)
 authenticated_router.include_router(event_logs_router)
 authenticated_router.include_router(extra_links_router)
 authenticated_router.include_router(import_error_router)
+authenticated_router.include_router(job_router)
 authenticated_router.include_router(plugins_router)
 authenticated_router.include_router(pools_router)
 authenticated_router.include_router(providers_router)

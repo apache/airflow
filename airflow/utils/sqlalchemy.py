@@ -21,8 +21,9 @@ import contextlib
 import copy
 import datetime
 import logging
+from collections.abc import Generator, Iterable
 from importlib import metadata
-from typing import TYPE_CHECKING, Any, Generator, Iterable, overload
+from typing import TYPE_CHECKING, Any, overload
 
 from packaging import version
 from sqlalchemy import TIMESTAMP, PickleType, event, nullsfirst, tuple_
