@@ -250,8 +250,17 @@ def get_asset_queued_events(
     before: OptionalDateTimeQuery = None,
 ) -> QueuedEventCollectionResponse:
     """Get queued asset events for an asset."""
+<<<<<<< HEAD
     where_clause = _generate_queued_event_where_clause(asset_id=asset_id, before=before)
     query = select(AssetDagRunQueue).where(*where_clause)
+=======
+    where_clause = _generate_queued_event_where_clause(uri=uri, before=before)
+    query = (
+        select(AssetDagRunQueue, AssetModel.uri)
+        .join(AssetModel, AssetDagRunQueue.asset_id == AssetModel.id)
+        .where(*where_clause)
+    )
+>>>>>>> d3c55f5fd5 (Include grid endpoint to FastAPI)
 
     dag_asset_queued_events_select, total_entries = paginated_select(statement=query)
     adrqs = session.scalars(dag_asset_queued_events_select).all()
