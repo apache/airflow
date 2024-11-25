@@ -31,7 +31,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.10.0
-  - pydantic>=2.10.1
+  - pydantic @ git+https://github.com/pydantic/pydantic.git@private-fields-eval
 
 plugins:
   - name: edge_executor

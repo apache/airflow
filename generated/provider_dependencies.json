@@ -528,7 +528,7 @@
   "edge": {
     "deps": [
       "apache-airflow>=2.10.0",
-      "pydantic>=2.10.1"
+      "pydantic @ git+https://github.com/pydantic/pydantic.git@private-fields-eval"
     ],
     "devel-deps": [],
     "plugins": [
