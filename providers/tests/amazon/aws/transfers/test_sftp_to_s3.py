@@ -135,7 +135,7 @@ class TestSFTPToS3Operator:
                 SFTPToS3Operator(
                     s3_bucket=self.s3_bucket,
                     s3_key=self.s3_key,
-                    sftp_path=self.sftp_path,
+                    sftp_path="/tmp/wrong_path.txt",
                     sftp_conn_id=SFTP_CONN_ID,
                     s3_conn_id=S3_CONN_ID,
                     fail_on_file_not_exist=fail_on_file_not_exist,
@@ -154,5 +154,6 @@ class TestSFTPToS3Operator:
                 dag=self.dag,
             ).execute(None)
 
+        conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)
         conn.delete_bucket(Bucket=self.s3_bucket)
         assert not s3_hook.check_for_bucket(self.s3_bucket)
