@@ -50,6 +50,9 @@ mkdir "${AIRFLOW_HOME}/sqlite" -p || true
 
 ASSET_COMPILATION_WAIT_MULTIPLIER=${ASSET_COMPILATION_WAIT_MULTIPLIER:=1}
 
+# shellcheck disable=SC1091
+. "${IN_CONTAINER_DIR}/check_connectivity.sh"
+
 # Make sure that asset compilation is completed before we proceed
 function wait_for_asset_compilation() {
     if [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; then
@@ -422,7 +425,20 @@ function start_airflow_minimal_webserver_with_examples(){
     echo
     echo "${COLOR_BLUE}Starting airflow webserver${COLOR_RESET}"
     echo
-    airflow webserver --port 8080 --daemon && sleep 60
+    airflow webserver --port 8080 --daemon
+    echo
+    echo "${COLOR_BLUE}Waiting for webserver to start${COLOR_RESET}"
+    echo
+    check_service_connection "Airflow webserver" "run_nc localhost 8080" 50
+    EXIT_CODE=$?
+    if [[ ${EXIT_CODE} != 0 ]]; then
+        echo
+        echo "${COLOR_RED}Webserver did not start properly${COLOR_RESET}"
+        echo
+        exit ${EXIT_CODE}
+    fi
+    echo
+    echo "${COLOR_BLUE}Airflow webserver started${COLOR_RESET}"
 }
 
 determine_airflow_to_use
