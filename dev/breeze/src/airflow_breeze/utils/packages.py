@@ -491,18 +491,11 @@ def get_package_extras(provider_id: str, version_suffix: str) -> dict[str, list[
             deps_list[i] = deps_list[i].split("==")[0]
 
     deps = list(filter(lambda x: x.startswith("apache-airflow-providers"), deps_list))
-
-    print("deps is", deps)
-
     extras_dict: dict[str, list[str]] = {
         module: [get_pip_package_name(module)]
         for module in PROVIDER_DEPENDENCIES.get(provider_id)["cross-providers-deps"]
     }
-
-    print("extras is ", extras_dict)
-
     to_pop_extras = []
-
     # remove the keys from extras_dict if the provider is already a required dependency
     for k, v in extras_dict.items():
         if v and v[0] in deps:
