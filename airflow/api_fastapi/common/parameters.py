@@ -219,8 +219,6 @@ class SortParam(BaseParam[str]):
     """Order result by the attribute."""
 
     attr_mapping = {
-        "last_run_state": DagRun.state,
-        "last_run_start_date": DagRun.start_date,
         "import_error_id": ParseImportError.id,
         "dag_run_id": DagRun.run_id,
     }
