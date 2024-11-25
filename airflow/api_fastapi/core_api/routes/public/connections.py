@@ -100,7 +100,7 @@ def get_connections(
 ) -> ConnectionCollectionResponse:
     """Get all connection entries."""
     connection_select, total_entries = paginated_select(
-        select=select(Connection),
+        statement=select(Connection),
         order_by=order_by,
         offset=offset,
         limit=limit,

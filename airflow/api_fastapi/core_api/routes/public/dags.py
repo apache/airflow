@@ -82,7 +82,7 @@ def get_dags(
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
     dags_select, total_entries = paginated_select(
-        select=dags_select_with_latest_dag_run,
+        statement=dags_select_with_latest_dag_run,
         filters=[
             only_active,
             paused,
@@ -125,9 +125,9 @@ def get_dag_tags(
     session: Annotated[Session, Depends(get_session)],
 ) -> DAGTagCollectionResponse:
     """Get all DAG tags."""
-    base_select = select(DagTag.name).group_by(DagTag.name)
+    query = select(DagTag.name).group_by(DagTag.name)
     dag_tags_select, total_entries = paginated_select(
-        select=base_select,
+        statement=query,
         filters=[tag_name_pattern],
         order_by=order_by,
         offset=offset,
@@ -263,7 +263,7 @@ def patch_dags(
         update_mask = ["is_paused"]
 
     dags_select, total_entries = paginated_select(
-        select=dags_select_with_latest_dag_run,
+        statement=dags_select_with_latest_dag_run,
         filters=[only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state],
         order_by=None,
         offset=offset,

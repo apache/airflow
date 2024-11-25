@@ -55,7 +55,7 @@ def get_dag_stats(
 ) -> DagStatsCollectionResponse:
     """Get Dag statistics."""
     dagruns_select, _ = paginated_select(
-        select=dagruns_select_with_state_count,
+        statement=dagruns_select_with_state_count,
         filters=[dag_ids],
         session=session,
         return_total_entries=False,
