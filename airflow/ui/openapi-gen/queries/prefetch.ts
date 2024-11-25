@@ -22,7 +22,6 @@ import {
   PoolService,
   ProviderService,
   TaskInstanceService,
-  TaskInstancesService,
   TaskService,
   VariableService,
   VersionService,
@@ -1034,7 +1033,7 @@ export const prefetchUseExtraLinksServiceGetExtraLinks = (
  * @returns ExtraLinksResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseTaskInstancesServiceGetExtraLinks = (
+export const prefetchUseTaskInstanceServiceGetExtraLinks = (
   queryClient: QueryClient,
   {
     dagId,
@@ -1047,237 +1046,13 @@ export const prefetchUseTaskInstancesServiceGetExtraLinks = (
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseTaskInstancesServiceGetExtraLinksKeyFn({
+    queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn({
       dagId,
       dagRunId,
       taskId,
     }),
     queryFn: () =>
-      TaskInstancesService.getExtraLinks({ dagId, dagRunId, taskId }),
-  });
-/**
- * Get Import Error
- * Get an import error.
- * @param data The data for the request.
- * @param data.importErrorId
- * @returns ImportErrorResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseImportErrorServiceGetImportError = (
-  queryClient: QueryClient,
-  {
-    importErrorId,
-  }: {
-    importErrorId: number;
-  },
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseImportErrorServiceGetImportErrorKeyFn({
-      importErrorId,
-    }),
-    queryFn: () => ImportErrorService.getImportError({ importErrorId }),
-  });
-/**
- * Get Import Errors
- * Get all import errors.
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @returns ImportErrorCollectionResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseImportErrorServiceGetImportErrors = (
-  queryClient: QueryClient,
-  {
-    limit,
-    offset,
-    orderBy,
-  }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  } = {},
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({
-      limit,
-      offset,
-      orderBy,
-    }),
-    queryFn: () =>
-      ImportErrorService.getImportErrors({ limit, offset, orderBy }),
-  });
-/**
- * Get Jobs
- * Get all jobs.
- * @param data The data for the request.
- * @param data.isAlive
- * @param data.startDateGte
- * @param data.startDateLte
- * @param data.endDateGte
- * @param data.endDateLte
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @param data.jobState
- * @param data.jobType
- * @param data.hostname
- * @param data.executorClass
- * @returns JobCollectionResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseJobServiceGetJobs = (
-  queryClient: QueryClient,
-  {
-    endDateGte,
-    endDateLte,
-    executorClass,
-    hostname,
-    isAlive,
-    jobState,
-    jobType,
-    limit,
-    offset,
-    orderBy,
-    startDateGte,
-    startDateLte,
-  }: {
-    endDateGte?: string;
-    endDateLte?: string;
-    executorClass?: string;
-    hostname?: string;
-    isAlive?: boolean;
-    jobState?: string;
-    jobType?: string;
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-    startDateGte?: string;
-    startDateLte?: string;
-  } = {},
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseJobServiceGetJobsKeyFn({
-      endDateGte,
-      endDateLte,
-      executorClass,
-      hostname,
-      isAlive,
-      jobState,
-      jobType,
-      limit,
-      offset,
-      orderBy,
-      startDateGte,
-      startDateLte,
-    }),
-    queryFn: () =>
-      JobService.getJobs({
-        endDateGte,
-        endDateLte,
-        executorClass,
-        hostname,
-        isAlive,
-        jobState,
-        jobType,
-        limit,
-        offset,
-        orderBy,
-        startDateGte,
-        startDateLte,
-      }),
-  });
-/**
- * Get Plugins
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @returns PluginCollectionResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUsePluginServiceGetPlugins = (
-  queryClient: QueryClient,
-  {
-    limit,
-    offset,
-  }: {
-    limit?: number;
-    offset?: number;
-  } = {},
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UsePluginServiceGetPluginsKeyFn({ limit, offset }),
-    queryFn: () => PluginService.getPlugins({ limit, offset }),
-  });
-/**
- * Get Pool
- * Get a pool.
- * @param data The data for the request.
- * @param data.poolName
- * @returns PoolResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUsePoolServiceGetPool = (
-  queryClient: QueryClient,
-  {
-    poolName,
-  }: {
-    poolName: string;
-  },
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UsePoolServiceGetPoolKeyFn({ poolName }),
-    queryFn: () => PoolService.getPool({ poolName }),
-  });
-/**
- * Get Pools
- * Get all pools entries.
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @returns PoolCollectionResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUsePoolServiceGetPools = (
-  queryClient: QueryClient,
-  {
-    limit,
-    offset,
-    orderBy,
-  }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  } = {},
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UsePoolServiceGetPoolsKeyFn({ limit, offset, orderBy }),
-    queryFn: () => PoolService.getPools({ limit, offset, orderBy }),
-  });
-/**
- * Get Providers
- * Get providers.
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @returns ProviderCollectionResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseProviderServiceGetProviders = (
-  queryClient: QueryClient,
-  {
-    limit,
-    offset,
-  }: {
-    limit?: number;
-    offset?: number;
-  } = {},
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }),
-    queryFn: () => ProviderService.getProviders({ limit, offset }),
+      TaskInstanceService.getExtraLinks({ dagId, dagRunId, taskId }),
   });
 /**
  * Get Task Instance
@@ -1812,6 +1587,230 @@ export const prefetchUseTaskInstanceServiceGetLog = (
         token,
         tryNumber,
       }),
+  });
+/**
+ * Get Import Error
+ * Get an import error.
+ * @param data The data for the request.
+ * @param data.importErrorId
+ * @returns ImportErrorResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseImportErrorServiceGetImportError = (
+  queryClient: QueryClient,
+  {
+    importErrorId,
+  }: {
+    importErrorId: number;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseImportErrorServiceGetImportErrorKeyFn({
+      importErrorId,
+    }),
+    queryFn: () => ImportErrorService.getImportError({ importErrorId }),
+  });
+/**
+ * Get Import Errors
+ * Get all import errors.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns ImportErrorCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseImportErrorServiceGetImportErrors = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn({
+      limit,
+      offset,
+      orderBy,
+    }),
+    queryFn: () =>
+      ImportErrorService.getImportErrors({ limit, offset, orderBy }),
+  });
+/**
+ * Get Jobs
+ * Get all jobs.
+ * @param data The data for the request.
+ * @param data.isAlive
+ * @param data.startDateGte
+ * @param data.startDateLte
+ * @param data.endDateGte
+ * @param data.endDateLte
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @param data.jobState
+ * @param data.jobType
+ * @param data.hostname
+ * @param data.executorClass
+ * @returns JobCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseJobServiceGetJobs = (
+  queryClient: QueryClient,
+  {
+    endDateGte,
+    endDateLte,
+    executorClass,
+    hostname,
+    isAlive,
+    jobState,
+    jobType,
+    limit,
+    offset,
+    orderBy,
+    startDateGte,
+    startDateLte,
+  }: {
+    endDateGte?: string;
+    endDateLte?: string;
+    executorClass?: string;
+    hostname?: string;
+    isAlive?: boolean;
+    jobState?: string;
+    jobType?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    startDateGte?: string;
+    startDateLte?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseJobServiceGetJobsKeyFn({
+      endDateGte,
+      endDateLte,
+      executorClass,
+      hostname,
+      isAlive,
+      jobState,
+      jobType,
+      limit,
+      offset,
+      orderBy,
+      startDateGte,
+      startDateLte,
+    }),
+    queryFn: () =>
+      JobService.getJobs({
+        endDateGte,
+        endDateLte,
+        executorClass,
+        hostname,
+        isAlive,
+        jobState,
+        jobType,
+        limit,
+        offset,
+        orderBy,
+        startDateGte,
+        startDateLte,
+      }),
+  });
+/**
+ * Get Plugins
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @returns PluginCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUsePluginServiceGetPlugins = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UsePluginServiceGetPluginsKeyFn({ limit, offset }),
+    queryFn: () => PluginService.getPlugins({ limit, offset }),
+  });
+/**
+ * Get Pool
+ * Get a pool.
+ * @param data The data for the request.
+ * @param data.poolName
+ * @returns PoolResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUsePoolServiceGetPool = (
+  queryClient: QueryClient,
+  {
+    poolName,
+  }: {
+    poolName: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UsePoolServiceGetPoolKeyFn({ poolName }),
+    queryFn: () => PoolService.getPool({ poolName }),
+  });
+/**
+ * Get Pools
+ * Get all pools entries.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns PoolCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUsePoolServiceGetPools = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UsePoolServiceGetPoolsKeyFn({ limit, offset, orderBy }),
+    queryFn: () => PoolService.getPools({ limit, offset, orderBy }),
+  });
+/**
+ * Get Providers
+ * Get providers.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @returns ProviderCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseProviderServiceGetProviders = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }),
+    queryFn: () => ProviderService.getProviders({ limit, offset }),
   });
 /**
  * Get Tasks

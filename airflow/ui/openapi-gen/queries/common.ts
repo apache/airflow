@@ -22,7 +22,6 @@ import {
   PoolService,
   ProviderService,
   TaskInstanceService,
-  TaskInstancesService,
   TaskService,
   VariableService,
   VersionService,
@@ -788,16 +787,16 @@ export const UseExtraLinksServiceGetExtraLinksKeyFn = (
   useExtraLinksServiceGetExtraLinksKey,
   ...(queryKey ?? [{ dagId, dagRunId, taskId }]),
 ];
-export type TaskInstancesServiceGetExtraLinksDefaultResponse = Awaited<
-  ReturnType<typeof TaskInstancesService.getExtraLinks>
+export type TaskInstanceServiceGetExtraLinksDefaultResponse = Awaited<
+  ReturnType<typeof TaskInstanceService.getExtraLinks>
 >;
-export type TaskInstancesServiceGetExtraLinksQueryResult<
-  TData = TaskInstancesServiceGetExtraLinksDefaultResponse,
+export type TaskInstanceServiceGetExtraLinksQueryResult<
+  TData = TaskInstanceServiceGetExtraLinksDefaultResponse,
   TError = unknown,
 > = UseQueryResult<TData, TError>;
-export const useTaskInstancesServiceGetExtraLinksKey =
-  "TaskInstancesServiceGetExtraLinks";
-export const UseTaskInstancesServiceGetExtraLinksKeyFn = (
+export const useTaskInstanceServiceGetExtraLinksKey =
+  "TaskInstanceServiceGetExtraLinks";
+export const UseTaskInstanceServiceGetExtraLinksKeyFn = (
   {
     dagId,
     dagRunId,
@@ -809,181 +808,9 @@ export const UseTaskInstancesServiceGetExtraLinksKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [
-  useTaskInstancesServiceGetExtraLinksKey,
+  useTaskInstanceServiceGetExtraLinksKey,
   ...(queryKey ?? [{ dagId, dagRunId, taskId }]),
 ];
-export type ImportErrorServiceGetImportErrorDefaultResponse = Awaited<
-  ReturnType<typeof ImportErrorService.getImportError>
->;
-export type ImportErrorServiceGetImportErrorQueryResult<
-  TData = ImportErrorServiceGetImportErrorDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useImportErrorServiceGetImportErrorKey =
-  "ImportErrorServiceGetImportError";
-export const UseImportErrorServiceGetImportErrorKeyFn = (
-  {
-    importErrorId,
-  }: {
-    importErrorId: number;
-  },
-  queryKey?: Array<unknown>,
-) => [
-  useImportErrorServiceGetImportErrorKey,
-  ...(queryKey ?? [{ importErrorId }]),
-];
-export type ImportErrorServiceGetImportErrorsDefaultResponse = Awaited<
-  ReturnType<typeof ImportErrorService.getImportErrors>
->;
-export type ImportErrorServiceGetImportErrorsQueryResult<
-  TData = ImportErrorServiceGetImportErrorsDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useImportErrorServiceGetImportErrorsKey =
-  "ImportErrorServiceGetImportErrors";
-export const UseImportErrorServiceGetImportErrorsKeyFn = (
-  {
-    limit,
-    offset,
-    orderBy,
-  }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  } = {},
-  queryKey?: Array<unknown>,
-) => [
-  useImportErrorServiceGetImportErrorsKey,
-  ...(queryKey ?? [{ limit, offset, orderBy }]),
-];
-export type JobServiceGetJobsDefaultResponse = Awaited<
-  ReturnType<typeof JobService.getJobs>
->;
-export type JobServiceGetJobsQueryResult<
-  TData = JobServiceGetJobsDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useJobServiceGetJobsKey = "JobServiceGetJobs";
-export const UseJobServiceGetJobsKeyFn = (
-  {
-    endDateGte,
-    endDateLte,
-    executorClass,
-    hostname,
-    isAlive,
-    jobState,
-    jobType,
-    limit,
-    offset,
-    orderBy,
-    startDateGte,
-    startDateLte,
-  }: {
-    endDateGte?: string;
-    endDateLte?: string;
-    executorClass?: string;
-    hostname?: string;
-    isAlive?: boolean;
-    jobState?: string;
-    jobType?: string;
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-    startDateGte?: string;
-    startDateLte?: string;
-  } = {},
-  queryKey?: Array<unknown>,
-) => [
-  useJobServiceGetJobsKey,
-  ...(queryKey ?? [
-    {
-      endDateGte,
-      endDateLte,
-      executorClass,
-      hostname,
-      isAlive,
-      jobState,
-      jobType,
-      limit,
-      offset,
-      orderBy,
-      startDateGte,
-      startDateLte,
-    },
-  ]),
-];
-export type PluginServiceGetPluginsDefaultResponse = Awaited<
-  ReturnType<typeof PluginService.getPlugins>
->;
-export type PluginServiceGetPluginsQueryResult<
-  TData = PluginServiceGetPluginsDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const usePluginServiceGetPluginsKey = "PluginServiceGetPlugins";
-export const UsePluginServiceGetPluginsKeyFn = (
-  {
-    limit,
-    offset,
-  }: {
-    limit?: number;
-    offset?: number;
-  } = {},
-  queryKey?: Array<unknown>,
-) => [usePluginServiceGetPluginsKey, ...(queryKey ?? [{ limit, offset }])];
-export type PoolServiceGetPoolDefaultResponse = Awaited<
-  ReturnType<typeof PoolService.getPool>
->;
-export type PoolServiceGetPoolQueryResult<
-  TData = PoolServiceGetPoolDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const usePoolServiceGetPoolKey = "PoolServiceGetPool";
-export const UsePoolServiceGetPoolKeyFn = (
-  {
-    poolName,
-  }: {
-    poolName: string;
-  },
-  queryKey?: Array<unknown>,
-) => [usePoolServiceGetPoolKey, ...(queryKey ?? [{ poolName }])];
-export type PoolServiceGetPoolsDefaultResponse = Awaited<
-  ReturnType<typeof PoolService.getPools>
->;
-export type PoolServiceGetPoolsQueryResult<
-  TData = PoolServiceGetPoolsDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const usePoolServiceGetPoolsKey = "PoolServiceGetPools";
-export const UsePoolServiceGetPoolsKeyFn = (
-  {
-    limit,
-    offset,
-    orderBy,
-  }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  } = {},
-  queryKey?: Array<unknown>,
-) => [usePoolServiceGetPoolsKey, ...(queryKey ?? [{ limit, offset, orderBy }])];
-export type ProviderServiceGetProvidersDefaultResponse = Awaited<
-  ReturnType<typeof ProviderService.getProviders>
->;
-export type ProviderServiceGetProvidersQueryResult<
-  TData = ProviderServiceGetProvidersDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useProviderServiceGetProvidersKey = "ProviderServiceGetProviders";
-export const UseProviderServiceGetProvidersKeyFn = (
-  {
-    limit,
-    offset,
-  }: {
-    limit?: number;
-    offset?: number;
-  } = {},
-  queryKey?: Array<unknown>,
-) => [useProviderServiceGetProvidersKey, ...(queryKey ?? [{ limit, offset }])];
 export type TaskInstanceServiceGetTaskInstanceDefaultResponse = Awaited<
   ReturnType<typeof TaskInstanceService.getTaskInstance>
 >;
@@ -1343,6 +1170,178 @@ export const UseTaskInstanceServiceGetLogKeyFn = (
     },
   ]),
 ];
+export type ImportErrorServiceGetImportErrorDefaultResponse = Awaited<
+  ReturnType<typeof ImportErrorService.getImportError>
+>;
+export type ImportErrorServiceGetImportErrorQueryResult<
+  TData = ImportErrorServiceGetImportErrorDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useImportErrorServiceGetImportErrorKey =
+  "ImportErrorServiceGetImportError";
+export const UseImportErrorServiceGetImportErrorKeyFn = (
+  {
+    importErrorId,
+  }: {
+    importErrorId: number;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useImportErrorServiceGetImportErrorKey,
+  ...(queryKey ?? [{ importErrorId }]),
+];
+export type ImportErrorServiceGetImportErrorsDefaultResponse = Awaited<
+  ReturnType<typeof ImportErrorService.getImportErrors>
+>;
+export type ImportErrorServiceGetImportErrorsQueryResult<
+  TData = ImportErrorServiceGetImportErrorsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useImportErrorServiceGetImportErrorsKey =
+  "ImportErrorServiceGetImportErrors";
+export const UseImportErrorServiceGetImportErrorsKeyFn = (
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useImportErrorServiceGetImportErrorsKey,
+  ...(queryKey ?? [{ limit, offset, orderBy }]),
+];
+export type JobServiceGetJobsDefaultResponse = Awaited<
+  ReturnType<typeof JobService.getJobs>
+>;
+export type JobServiceGetJobsQueryResult<
+  TData = JobServiceGetJobsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useJobServiceGetJobsKey = "JobServiceGetJobs";
+export const UseJobServiceGetJobsKeyFn = (
+  {
+    endDateGte,
+    endDateLte,
+    executorClass,
+    hostname,
+    isAlive,
+    jobState,
+    jobType,
+    limit,
+    offset,
+    orderBy,
+    startDateGte,
+    startDateLte,
+  }: {
+    endDateGte?: string;
+    endDateLte?: string;
+    executorClass?: string;
+    hostname?: string;
+    isAlive?: boolean;
+    jobState?: string;
+    jobType?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    startDateGte?: string;
+    startDateLte?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useJobServiceGetJobsKey,
+  ...(queryKey ?? [
+    {
+      endDateGte,
+      endDateLte,
+      executorClass,
+      hostname,
+      isAlive,
+      jobState,
+      jobType,
+      limit,
+      offset,
+      orderBy,
+      startDateGte,
+      startDateLte,
+    },
+  ]),
+];
+export type PluginServiceGetPluginsDefaultResponse = Awaited<
+  ReturnType<typeof PluginService.getPlugins>
+>;
+export type PluginServiceGetPluginsQueryResult<
+  TData = PluginServiceGetPluginsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const usePluginServiceGetPluginsKey = "PluginServiceGetPlugins";
+export const UsePluginServiceGetPluginsKeyFn = (
+  {
+    limit,
+    offset,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [usePluginServiceGetPluginsKey, ...(queryKey ?? [{ limit, offset }])];
+export type PoolServiceGetPoolDefaultResponse = Awaited<
+  ReturnType<typeof PoolService.getPool>
+>;
+export type PoolServiceGetPoolQueryResult<
+  TData = PoolServiceGetPoolDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const usePoolServiceGetPoolKey = "PoolServiceGetPool";
+export const UsePoolServiceGetPoolKeyFn = (
+  {
+    poolName,
+  }: {
+    poolName: string;
+  },
+  queryKey?: Array<unknown>,
+) => [usePoolServiceGetPoolKey, ...(queryKey ?? [{ poolName }])];
+export type PoolServiceGetPoolsDefaultResponse = Awaited<
+  ReturnType<typeof PoolService.getPools>
+>;
+export type PoolServiceGetPoolsQueryResult<
+  TData = PoolServiceGetPoolsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const usePoolServiceGetPoolsKey = "PoolServiceGetPools";
+export const UsePoolServiceGetPoolsKeyFn = (
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [usePoolServiceGetPoolsKey, ...(queryKey ?? [{ limit, offset, orderBy }])];
+export type ProviderServiceGetProvidersDefaultResponse = Awaited<
+  ReturnType<typeof ProviderService.getProviders>
+>;
+export type ProviderServiceGetProvidersQueryResult<
+  TData = ProviderServiceGetProvidersDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useProviderServiceGetProvidersKey = "ProviderServiceGetProviders";
+export const UseProviderServiceGetProvidersKeyFn = (
+  {
+    limit,
+    offset,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [useProviderServiceGetProvidersKey, ...(queryKey ?? [{ limit, offset }])];
 export type TaskServiceGetTasksDefaultResponse = Awaited<
   ReturnType<typeof TaskService.getTasks>
 >;
@@ -1490,17 +1489,17 @@ export type ConnectionServiceTestConnectionMutationResult = Awaited<
 export type DagRunServiceClearDagRunMutationResult = Awaited<
   ReturnType<typeof DagRunService.clearDagRun>
 >;
-export type PoolServicePostPoolMutationResult = Awaited<
-  ReturnType<typeof PoolService.postPool>
->;
-export type PoolServicePostPoolsMutationResult = Awaited<
-  ReturnType<typeof PoolService.postPools>
->;
 export type TaskInstanceServiceGetTaskInstancesBatchMutationResult = Awaited<
   ReturnType<typeof TaskInstanceService.getTaskInstancesBatch>
 >;
 export type TaskInstanceServicePostClearTaskInstancesMutationResult = Awaited<
   ReturnType<typeof TaskInstanceService.postClearTaskInstances>
+>;
+export type PoolServicePostPoolMutationResult = Awaited<
+  ReturnType<typeof PoolService.postPool>
+>;
+export type PoolServicePostPoolsMutationResult = Awaited<
+  ReturnType<typeof PoolService.postPools>
 >;
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>
