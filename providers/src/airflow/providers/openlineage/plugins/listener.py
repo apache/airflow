@@ -42,6 +42,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_user_provided_run_facets,
     is_operator_disabled,
     is_selective_lineage_enabled,
+    is_ti_rescheduled_already,
     print_warning,
 )
 from airflow.settings import configure_orm
@@ -134,6 +135,11 @@ class OpenLineageListener:
             # we return here because Airflow 2.3 needs task from deferred state
             if task_instance.next_method is not None:
                 return
+
+            if is_ti_rescheduled_already(task_instance):
+                self.log.debug("Skipping this instance of rescheduled task - START event was emitted already")
+                return
+
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=dag.dag_id,
                 logical_date=dagrun.logical_date,
@@ -143,11 +149,13 @@ class OpenLineageListener:
                 logical_date = task_instance.logical_date
             else:
                 logical_date = task_instance.execution_date
+
             task_uuid = self.adapter.build_task_instance_run_id(
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
                 try_number=task_instance.try_number,
                 logical_date=logical_date,
+                map_index=task_instance.map_index,
             )
             event_type = RunState.RUNNING.value.lower()
             operator_name = task.task_type.lower()
@@ -231,6 +239,7 @@ class OpenLineageListener:
                 task_id=task.task_id,
                 try_number=_get_try_number_success(task_instance),
                 logical_date=logical_date,
+                map_index=task_instance.map_index,
             )
             event_type = RunState.COMPLETE.value.lower()
             operator_name = task.task_type.lower()
@@ -329,11 +338,13 @@ class OpenLineageListener:
                 logical_date = task_instance.logical_date
             else:
                 logical_date = task_instance.execution_date
+
             task_uuid = self.adapter.build_task_instance_run_id(
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
                 try_number=task_instance.try_number,
                 logical_date=logical_date,
+                map_index=task_instance.map_index,
             )
             event_type = RunState.FAIL.value.lower()
             operator_name = task.task_type.lower()
