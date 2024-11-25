@@ -16,17 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useConfigServiceGetConfig } from "openapi/queries";
+import { useConfigServiceGetConfigs } from "openapi/queries";
+import type { ConfigResponse } from "openapi/requests/types.gen";
 
-export const useConfig = (sectionName: string, configKey: string) => {
-  // TODO: replace with a ui/config endpoint which will always return what the UI need to render
-  const { data: config } = useConfigServiceGetConfig({
-    accept: "application/json",
-  });
+export const useConfig = (configKey: keyof ConfigResponse) => {
+  const { data: config } = useConfigServiceGetConfigs();
 
-  const configSection = config?.sections.find(
-    (section) => section.name === sectionName,
-  );
-
-  return configSection?.options.find(({ key }) => key === configKey)?.value;
+  return config?.[configKey];
 };
