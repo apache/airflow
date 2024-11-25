@@ -403,11 +403,7 @@ class KubernetesPodOperator(BaseOperator):
 
         self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
         self._progress_callback = progress_callback
-        self.callbacks = (
-            [] if not callbacks
-            else callbacks if isinstance(callbacks, list)
-            else [callbacks]
-        )
+        self.callbacks = [] if not callbacks else callbacks if isinstance(callbacks, list) else [callbacks]
         self._killed: bool = False
 
     @cached_property
@@ -602,9 +598,7 @@ class KubernetesPodOperator(BaseOperator):
             # get remote pod for use in cleanup methods
             self.remote_pod = self.find_pod(self.pod.metadata.namespace, context=context)
             for callback in self.callbacks:
-                callback.on_pod_creation(
-                    pod=self.remote_pod, client=self.client, mode=ExecutionMode.SYNC
-                )
+                callback.on_pod_creation(pod=self.remote_pod, client=self.client, mode=ExecutionMode.SYNC)
             self.await_pod_start(pod=self.pod)
             if self.callbacks:
                 pod = self.find_pod(self.pod.metadata.namespace, context=context)
@@ -617,7 +611,7 @@ class KubernetesPodOperator(BaseOperator):
 
             self.await_pod_completion(pod=self.pod)
             if self.callbacks:
-                pod=self.find_pod(self.pod.metadata.namespace, context=context)
+                pod = self.find_pod(self.pod.metadata.namespace, context=context)
                 for callback in self.callbacks:
                     callback.on_pod_completion(
                         pod=pod,
@@ -691,7 +685,7 @@ class KubernetesPodOperator(BaseOperator):
             context=context,
         )
         if self.callbacks:
-            pod=self.find_pod(self.pod.metadata.namespace, context=context)
+            pod = self.find_pod(self.pod.metadata.namespace, context=context)
             for callback in self.callbacks:
                 callback.on_pod_creation(
                     pod=pod,
