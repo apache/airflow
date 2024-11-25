@@ -45,6 +45,7 @@ from airflow.executors.executor_constants import (
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.models import TaskInstance, TaskReschedule
+from airflow.models.baseoperator import TRIGGER_TIMEOUT_REPR
 from airflow.models.xcom import XCom
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
@@ -1066,7 +1067,7 @@ class TestBaseSensor:
         with pytest.raises(AirflowSensorTimeout):
             op.resume_execution(
                 next_method="__fail__",
-                next_kwargs={"error": "Trigger timeout"},
+                next_kwargs={"error": TRIGGER_TIMEOUT_REPR},
                 context={},
             )
 

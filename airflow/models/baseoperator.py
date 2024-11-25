@@ -124,6 +124,13 @@ T = TypeVar("T", bound=FunctionType)
 
 logger = logging.getLogger("airflow.models.baseoperator.BaseOperator")
 
+TRIGGER_TIMEOUT_REPR = "__trigger_timeout__"
+"""
+String to represent that this trigger timed out.
+
+:meta private:
+"""
+
 
 def parse_retries(retries: Any) -> int | None:
     if retries is None:
@@ -996,7 +1003,7 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
             traceback = next_kwargs.get("traceback")
             if traceback is not None:
                 self.log.error("Trigger failed:\n%s", "\n".join(traceback))
-            if (error := next_kwargs.get("error", "Unknown")) == "Trigger timeout":
+            if (error := next_kwargs.get("error", "Unknown")) == TRIGGER_TIMEOUT_REPR:
                 raise TaskDeferralTimeout(error)
             else:
                 raise TaskDeferralError(error)

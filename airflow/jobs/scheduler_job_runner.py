@@ -59,6 +59,7 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.backfill import Backfill
+from airflow.models.baseoperator import TRIGGER_TIMEOUT_REPR
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
@@ -2058,7 +2059,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .values(
                         state=TaskInstanceState.SCHEDULED,
                         next_method="__fail__",
-                        next_kwargs={"error": "Trigger timeout"},
+                        next_kwargs={"error": TRIGGER_TIMEOUT_REPR},
                         trigger_id=None,
                     )
                 ).rowcount
