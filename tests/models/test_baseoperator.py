@@ -32,7 +32,6 @@ from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException, TaskDeferralTimeout
 from airflow.lineage.entities import File
 from airflow.models.baseoperator import (
-    TRIGGER_TIMEOUT_REPR,
     BaseOperator,
     chain,
     chain_linear,
@@ -41,6 +40,7 @@ from airflow.models.baseoperator import (
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.trigger import TriggerFailureReason
 from airflow.providers.common.sql.operators import sql
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
@@ -588,7 +588,7 @@ class TestBaseOperator:
         with pytest.raises(TaskDeferralTimeout):
             op.resume_execution(
                 next_method="__fail__",
-                next_kwargs={"error": TRIGGER_TIMEOUT_REPR},
+                next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
                 context={},
             )
 
