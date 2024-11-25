@@ -55,15 +55,17 @@ def get_session() -> Session:
         yield session
 
 
-def apply_filters_to_select(*, query: Select, filters: Sequence[BaseParam | None] | None = None) -> Select:
+def apply_filters_to_select(
+    *, statement: Select, filters: Sequence[BaseParam | None] | None = None
+) -> Select:
     if filters is None:
-        return query
+        return statement
     for f in filters:
         if f is None:
             continue
-        query = f.to_orm(query)
+        statement = f.to_orm(statement)
 
-    return query
+    return statement
 
 
 async def get_async_session() -> AsyncSession:
@@ -85,7 +87,7 @@ async def get_async_session() -> AsyncSession:
 @overload
 async def paginated_select_async(
     *,
-    query: Select,
+    statement: Select,
     filters: Sequence[BaseParam] | None = None,
     order_by: BaseParam | None = None,
     offset: BaseParam | None = None,
@@ -98,7 +100,7 @@ async def paginated_select_async(
 @overload
 async def paginated_select_async(
     *,
-    query: Select,
+    statement: Select,
     filters: Sequence[BaseParam] | None = None,
     order_by: BaseParam | None = None,
     offset: BaseParam | None = None,
@@ -110,7 +112,7 @@ async def paginated_select_async(
 
 async def paginated_select_async(
     *,
-    query: Select,
+    statement: Select,
     filters: Sequence[BaseParam | None] | None = None,
     order_by: BaseParam | None = None,
     offset: BaseParam | None = None,
@@ -118,32 +120,32 @@ async def paginated_select_async(
     session: AsyncSession,
     return_total_entries: bool = True,
 ) -> tuple[Select, int | None]:
-    query = apply_filters_to_select(
-        query=query,
+    statement = apply_filters_to_select(
+        statement=statement,
         filters=filters,
     )
 
     total_entries = None
     if return_total_entries:
-        total_entries = await get_query_count_async(query, session=session)
+        total_entries = await get_query_count_async(statement, session=session)
 
     # TODO: Re-enable when permissions are handled. Readable / writable entities,
     # for instance:
     # readable_dags = get_auth_manager().get_permitted_dag_ids(user=g.user)
     # dags_select = dags_select.where(DagModel.dag_id.in_(readable_dags))
 
-    query = apply_filters_to_select(
-        query=query,
+    statement = apply_filters_to_select(
+        statement=statement,
         filters=[order_by, offset, limit],
     )
 
-    return query, total_entries
+    return statement, total_entries
 
 
 @overload
 def paginated_select(
     *,
-    query: Select,
+    statement: Select,
     filters: Sequence[BaseParam] | None = None,
     order_by: BaseParam | None = None,
     offset: BaseParam | None = None,
@@ -156,7 +158,7 @@ def paginated_select(
 @overload
 def paginated_select(
     *,
-    query: Select,
+    statement: Select,
     filters: Sequence[BaseParam] | None = None,
     order_by: BaseParam | None = None,
     offset: BaseParam | None = None,
@@ -169,7 +171,7 @@ def paginated_select(
 @provide_session
 def paginated_select(
     *,
-    query: Select,
+    statement: Select,
     filters: Sequence[BaseParam] | None = None,
     order_by: BaseParam | None = None,
     offset: BaseParam | None = None,
@@ -177,20 +179,20 @@ def paginated_select(
     session: Session = NEW_SESSION,
     return_total_entries: bool = True,
 ) -> tuple[Select, int | None]:
-    query = apply_filters_to_select(
-        query=query,
+    statement = apply_filters_to_select(
+        statement=statement,
         filters=filters,
     )
 
     total_entries = None
     if return_total_entries:
-        total_entries = get_query_count(query, session=session)
+        total_entries = get_query_count(statement, session=session)
 
     # TODO: Re-enable when permissions are handled. Readable / writable entities,
     # for instance:
     # readable_dags = get_auth_manager().get_permitted_dag_ids(user=g.user)
     # dags_select = dags_select.where(DagModel.dag_id.in_(readable_dags))
 
-    query = apply_filters_to_select(query=query, filters=[order_by, offset, limit])
+    statement = apply_filters_to_select(statement=statement, filters=[order_by, offset, limit])
 
-    return query, total_entries
+    return statement, total_entries

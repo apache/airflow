@@ -155,7 +155,7 @@ def get_mapped_task_instances(
             raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
 
     task_instance_select, total_entries = paginated_select(
-        query=query,
+        statement=query,
         filters=[
             logical_date_range,
             start_date_range,
@@ -317,7 +317,7 @@ def get_task_instances(
         query = query.where(TI.run_id == dag_run_id)
 
     task_instance_select, total_entries = paginated_select(
-        query=query,
+        statement=query,
         filters=[
             logical_date,
             start_date_range,
@@ -386,7 +386,7 @@ def get_task_instances_batch(
 
     query = select(TI).join(TI.dag_run)
     task_instance_select, total_entries = paginated_select(
-        query=query,
+        statement=query,
         filters=[
             dag_ids,
             dag_run_ids,
