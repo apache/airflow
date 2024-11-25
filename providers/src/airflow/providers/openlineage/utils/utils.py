@@ -30,6 +30,7 @@ import attrs
 from deprecated import deprecated
 from openlineage.client.utils import RedactMixin
 from packaging.version import Version
+from sqlalchemy import exists
 
 from airflow import __version__ as AIRFLOW_VERSION
 from airflow.exceptions import (
@@ -37,7 +38,7 @@ from airflow.exceptions import (
 )
 
 # TODO: move this maybe to Airflow's logic?
-from airflow.models import DAG, BaseOperator, DagRun, MappedOperator
+from airflow.models import DAG, BaseOperator, DagRun, MappedOperator, TaskReschedule
 from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
 from airflow.providers.openlineage.plugins.facets import (
     AirflowDagRunFacet,
@@ -53,6 +54,7 @@ from airflow.providers.openlineage.utils.selective_enable import (
     is_dag_lineage_enabled,
     is_task_lineage_enabled,
 )
+from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.context import AirflowContextDeprecationWarning
 from airflow.utils.log.secrets_masker import (
@@ -62,6 +64,7 @@ from airflow.utils.log.secrets_masker import (
     should_hide_value_for_key,
 )
 from airflow.utils.module_loading import import_string
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from openlineage.client.event_v2 import Dataset as OpenLineageDataset
@@ -184,6 +187,28 @@ def is_selective_lineage_enabled(obj: DAG | BaseOperator | MappedOperator) -> bo
         raise TypeError("is_selective_lineage_enabled can only be used on DAG or Operator objects")
 
 
+@provide_session
+def is_ti_rescheduled_already(ti: TaskInstance, session=NEW_SESSION):
+    if not isinstance(ti.task, BaseSensorOperator):
+        return False
+
+    if not ti.task.reschedule:
+        return False
+
+    return (
+        session.query(
+            exists().where(
+                TaskReschedule.dag_id == ti.dag_id,
+                TaskReschedule.task_id == ti.task_id,
+                TaskReschedule.run_id == ti.run_id,
+                TaskReschedule.map_index == ti.map_index,
+                TaskReschedule.try_number == ti.try_number,
+            )
+        ).scalar()
+        is True
+    )
+
+
 class InfoJsonEncodable(dict):
     """
     Airflow objects might not be json-encodable overall.
@@ -217,6 +242,7 @@ class InfoJsonEncodable(dict):
             self,
             **{field: InfoJsonEncodable._cast_basic_types(getattr(self, field)) for field in self._fields},
         )
+        del self.obj
 
     @staticmethod
     def _cast_basic_types(value):
@@ -677,11 +703,11 @@ def print_warning(log):
         def wrapper(*args, **kwargs):
             try:
                 return f(*args, **kwargs)
-            except Exception as e:
+            except Exception:
                 log.warning(
-                    "Note: exception below is being caught: it's printed for visibility. However OpenLineage events aren't being emitted. If you see that, task has completed successfully despite not getting OL events."
+                    "OpenLineage event emission failed. Exception below is being caught: it's printed for visibility. This has no impact on actual task execution status.",
+                    exc_info=True,
                 )
-                log.warning(e)
 
         return wrapper
 
