@@ -17,12 +17,11 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import select
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -44,6 +43,7 @@ extra_links_router = AirflowRouter(
 @extra_links_router.get(
     "",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    tags=["TaskInstances"],
 )
 def get_extra_links(
     dag_id: str,

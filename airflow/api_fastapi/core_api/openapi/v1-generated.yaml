@@ -2903,6 +2903,7 @@ paths:
     get:
       tags:
       - Extra Links
+      - TaskInstances
       summary: Get Extra Links
       description: Get extra links for task instance.
       operationId: get_extra_links

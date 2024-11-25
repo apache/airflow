@@ -22,6 +22,7 @@ import {
   PoolService,
   ProviderService,
   TaskInstanceService,
+  TaskInstancesService,
   TaskService,
   VariableService,
   VersionService,
@@ -785,6 +786,30 @@ export const UseExtraLinksServiceGetExtraLinksKeyFn = (
   queryKey?: Array<unknown>,
 ) => [
   useExtraLinksServiceGetExtraLinksKey,
+  ...(queryKey ?? [{ dagId, dagRunId, taskId }]),
+];
+export type TaskInstancesServiceGetExtraLinksDefaultResponse = Awaited<
+  ReturnType<typeof TaskInstancesService.getExtraLinks>
+>;
+export type TaskInstancesServiceGetExtraLinksQueryResult<
+  TData = TaskInstancesServiceGetExtraLinksDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useTaskInstancesServiceGetExtraLinksKey =
+  "TaskInstancesServiceGetExtraLinks";
+export const UseTaskInstancesServiceGetExtraLinksKeyFn = (
+  {
+    dagId,
+    dagRunId,
+    taskId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    taskId: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useTaskInstancesServiceGetExtraLinksKey,
   ...(queryKey ?? [{ dagId, dagRunId, taskId }]),
 ];
 export type ImportErrorServiceGetImportErrorDefaultResponse = Awaited<

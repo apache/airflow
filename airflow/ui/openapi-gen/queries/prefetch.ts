@@ -22,6 +22,7 @@ import {
   PoolService,
   ProviderService,
   TaskInstanceService,
+  TaskInstancesService,
   TaskService,
   VariableService,
   VersionService,
@@ -1022,6 +1023,37 @@ export const prefetchUseExtraLinksServiceGetExtraLinks = (
       taskId,
     }),
     queryFn: () => ExtraLinksService.getExtraLinks({ dagId, dagRunId, taskId }),
+  });
+/**
+ * Get Extra Links
+ * Get extra links for task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @returns ExtraLinksResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseTaskInstancesServiceGetExtraLinks = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+    taskId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    taskId: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseTaskInstancesServiceGetExtraLinksKeyFn({
+      dagId,
+      dagRunId,
+      taskId,
+    }),
+    queryFn: () =>
+      TaskInstancesService.getExtraLinks({ dagId, dagRunId, taskId }),
   });
 /**
  * Get Import Error

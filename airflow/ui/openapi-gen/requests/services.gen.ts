@@ -1629,6 +1629,38 @@ export class ExtraLinksService {
   }
 }
 
+export class TaskInstancesService {
+  /**
+   * Get Extra Links
+   * Get extra links for task instance.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @returns ExtraLinksResponse Successful Response
+   * @throws ApiError
+   */
+  public static getExtraLinks(
+    data: GetExtraLinksData,
+  ): CancelablePromise<GetExtraLinksResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
 export class ImportErrorService {
   /**
    * Get Import Error

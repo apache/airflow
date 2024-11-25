@@ -27,6 +27,7 @@ import {
   PoolService,
   ProviderService,
   TaskInstanceService,
+  TaskInstancesService,
   TaskService,
   VariableService,
   VersionService,
@@ -1253,6 +1254,42 @@ export const useExtraLinksServiceGetExtraLinks = <
     ),
     queryFn: () =>
       ExtraLinksService.getExtraLinks({ dagId, dagRunId, taskId }) as TData,
+    ...options,
+  });
+/**
+ * Get Extra Links
+ * Get extra links for task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @returns ExtraLinksResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstancesServiceGetExtraLinks = <
+  TData = Common.TaskInstancesServiceGetExtraLinksDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    taskId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    taskId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseTaskInstancesServiceGetExtraLinksKeyFn(
+      { dagId, dagRunId, taskId },
+      queryKey,
+    ),
+    queryFn: () =>
+      TaskInstancesService.getExtraLinks({ dagId, dagRunId, taskId }) as TData,
     ...options,
   });
 /**
