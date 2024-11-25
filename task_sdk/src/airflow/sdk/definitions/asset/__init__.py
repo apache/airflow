@@ -44,6 +44,8 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm.session import Session
 
+    from airflow.triggers.base import BaseTrigger
+
 
 __all__ = [
     "Asset",
@@ -223,20 +225,43 @@ class Asset(os.PathLike, BaseAsset):
     uri: str
     group: str
     extra: dict[str, Any]
+    watchers: list[BaseTrigger]
 
     asset_type: ClassVar[str] = "asset"
     __version__: ClassVar[int] = 1
 
     @overload
-    def __init__(self, name: str, uri: str, *, group: str = "", extra: dict | None = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        uri: str,
+        *,
+        group: str = "",
+        extra: dict | None = None,
+        watchers: list[BaseTrigger] | None = None,
+    ) -> None:
         """Canonical; both name and uri are provided."""
 
     @overload
-    def __init__(self, name: str, *, group: str = "", extra: dict | None = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        *,
+        group: str = "",
+        extra: dict | None = None,
+        watchers: list[BaseTrigger] | None = None,
+    ) -> None:
         """It's possible to only provide the name, either by keyword or as the only positional argument."""
 
     @overload
-    def __init__(self, *, uri: str, group: str = "", extra: dict | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        uri: str,
+        group: str = "",
+        extra: dict | None = None,
+        watchers: list[BaseTrigger] | None = None,
+    ) -> None:
         """It's possible to only provide the URI as a keyword argument."""
 
     def __init__(
@@ -246,6 +271,7 @@ class Asset(os.PathLike, BaseAsset):
         *,
         group: str = "",
         extra: dict | None = None,
+        watchers: list[BaseTrigger] | None = None,
     ) -> None:
         if name is None and uri is None:
             raise TypeError("Asset() requires either 'name' or 'uri'")
@@ -258,6 +284,7 @@ class Asset(os.PathLike, BaseAsset):
         self.uri = _sanitize_uri(_validate_non_empty_identifier(self, fields["uri"], uri))
         self.group = _validate_identifier(self, fields["group"], group) if group else self.asset_type
         self.extra = _set_extra_default(extra)
+        self.watchers = watchers or []
 
     def __fspath__(self) -> str:
         return self.uri

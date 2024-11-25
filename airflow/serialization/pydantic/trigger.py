@@ -44,7 +44,7 @@ class TriggerPydantic(BaseModelPydantic):
         #   created_date
         if "kwargs" in kwargs:
             self.classpath = kwargs.pop("classpath")
-            self.encrypted_kwargs = Trigger._encrypt_kwargs(kwargs.pop("kwargs"))
+            self.encrypted_kwargs = Trigger.encrypt_kwargs(kwargs.pop("kwargs"))
             self.created_date = kwargs.pop("created_date", timezone.utcnow())
         super().__init__(**kwargs)
 
@@ -60,4 +60,4 @@ class TriggerPydantic(BaseModelPydantic):
         """Set the encrypted kwargs of the trigger."""
         from airflow.models import Trigger
 
-        self.encrypted_kwargs = Trigger._encrypt_kwargs(kwargs)
+        self.encrypted_kwargs = Trigger.encrypt_kwargs(kwargs)

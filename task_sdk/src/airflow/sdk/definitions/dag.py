@@ -552,9 +552,9 @@ class DAG:
     def __hash__(self):
         hash_components: list[Any] = [type(self)]
         for c in _DAG_HASH_ATTRS:
-            # task_ids returns a list and lists can't be hashed
-            if c == "task_ids":
-                val = tuple(self.task_dict)
+            # If it is a list, convert to tuple because lists can't be hashed
+            if isinstance(getattr(self, c, None), list):
+                val = tuple(getattr(self, c))
             else:
                 val = getattr(self, c, None)
             try:
