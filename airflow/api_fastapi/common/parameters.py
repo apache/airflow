@@ -45,7 +45,6 @@ from airflow.models.asset import AssetEvent, AssetModel, DagScheduleAssetReferen
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
-from airflow.models.errors import ParseImportError
 from airflow.models.taskinstance import TaskInstance
 from airflow.typing_compat import Self
 from airflow.utils import timezone
@@ -219,7 +218,6 @@ class SortParam(BaseParam[str]):
     """Order result by the attribute."""
 
     attr_mapping = {
-        "import_error_id": ParseImportError.id,
         "dag_run_id": DagRun.run_id,
     }
 
