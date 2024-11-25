@@ -740,3 +740,22 @@ QuerySourceRunIdFilter = Annotated[
 QuerySourceMapIndexFilter = Annotated[
     _SourceMapIndexFilter, Depends(_SourceMapIndexFilter(AssetEvent.source_map_index).depends)
 ]
+QueryAssetSort = Annotated[
+    SortParam,
+    Depends(SortParam(["id", "uri", "created_at", "updated_at"], AssetModel).dynamic_depends()),
+]
+QueryAssetEventSort = Annotated[
+    SortParam,
+    Depends(
+        SortParam(
+            [
+                "source_task_id",
+                "source_dag_id",
+                "source_run_id",
+                "source_map_index",
+                "timestamp",
+            ],
+            AssetEvent,
+        ).dynamic_depends("timestamp")
+    ),
+]
