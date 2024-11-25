@@ -391,10 +391,12 @@ class TaskDeferred(BaseException):
         self.trigger = trigger
         self.method_name = method_name
         self.kwargs = kwargs
-        self.timeout = timeout
+        self.timeout: timedelta | None
         # Check timeout type at runtime
-        if isinstance(self.timeout, (int, float)):
-            self.timeout = timedelta(seconds=self.timeout)
+        if isinstance(timeout, (int, float)):
+            self.timeout = timedelta(seconds=timeout)
+        else:
+            self.timeout = timeout
         if self.timeout is not None and not hasattr(self.timeout, "total_seconds"):
             raise ValueError("Timeout value must be a timedelta")
 

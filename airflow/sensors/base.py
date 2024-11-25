@@ -175,7 +175,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         super().__init__(**kwargs)
         self.poke_interval = self._coerce_poke_interval(poke_interval).total_seconds()
         self.soft_fail = soft_fail
-        self.timeout = self._coerce_timeout(timeout).total_seconds()
+        self.timeout: int | float = self._coerce_timeout(timeout).total_seconds()
         self.mode = mode
         self.exponential_backoff = exponential_backoff
         self.max_wait = self._coerce_max_wait(max_wait)
