@@ -18,6 +18,16 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Callable
+from uuid import uuid4
+
+from azure.core.exceptions import ResourceExistsError, ResourceNotFoundError
+from azure.servicebus import ServiceBusMessage
+from azure.servicebus.management import (
+    AuthorizationRule,
+    CorrelationRuleFilter,
+    ServiceBusAdministrationClient,
+    SqlRuleFilter,
+)
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.asb import AdminClientHook, MessageHook
@@ -369,6 +379,7 @@ class AzureServiceBusSubscriptionCreateOperator(BaseOperator):
     :param filter_rule_name: Optional rule name to use applying the rule filter to the subscription
     :param azure_service_bus_conn_id: Reference to the
         :ref:`Azure Service Bus connection<howto/connection:azure_service_bus>`.
+    :param filter: The filter expression used to match messages. For SQLFilter, the expression
     """
 
     template_fields: Sequence[str] = ("topic_name", "subscription_name")
@@ -638,3 +649,182 @@ class AzureServiceBusTopicDeleteOperator(BaseOperator):
                 self.log.info("Topic %s deleted.", self.topic_name)
             else:
                 self.log.info("Topic %s does not exist.", self.topic_name)
+
+
+class AzureServiceBusRequestReplyOperator(BaseOperator):
+    """
+    Implement request-reply pattern using Azure Service Bus.
+
+    Send a message to an Azure Service Bus Queue and receive a reply by message id from an Azure Service Bus
+    Topic. This implements the Request-Reply pattern from Enterprise Integration Patterns, Hohpe, Woolf,
+    Addison-Wesley, 2003: https://www.enterpriseintegrationpatterns.com/patterns/messaging/RequestReply.html
+
+    Steps are:
+    1. Generate a unique ID for the message. The subscription needs to exist before the request message is
+       sent or there will be a race condition where the reply message is sent before the subscription is
+       created. A UUID is used for the unique ID and this should be reasonably unique over the life of the
+       universe.
+    2. Create a subscription on the reply topic for that unique ID.
+    3. Send the message to the request queue with (a) the reply-to property set to the reply topic, (b) the
+       reply type property set to topic, and (c) the message ID property set to the unique ID.
+    4. Wait for a reply message on the reply topic with the message ID set to the unique ID.
+    5. Remove the subscription on the reply topic.
+
+    The caller can pass in a generator function to create the request message body (request_body_generator)
+    from the context and a callback is provided to process the reply message (reply_message_callback). This
+    callback could either detect errors and abort processing by throwing an exception or could process the
+    message body and add information into XComs for downstream tasks to use.
+
+    :param request_queue_name: Name of the queue to send the request to. This queue must be reachable through
+        a connection from the connection name specified in the param ```azure_service_bus_conn_id```.
+    :param request_body_generator: A method to generate the request message body from the context.
+    :param reply_topic_name: Name of the topic to send the reply to. This topic must be reachable through
+        a connection from the connection name specified in the param ```azure_service_bus_conn_id```.
+    :param reply_correlation_id: a string to use to correlate the request and reply. This will also be the
+        message ID of the request message. If not specified, a UUID will be generated and used. Generally,
+        the default behavior should be used.
+    :param max_wait_time: maximum wait for a reply in seconds. This should be set to some small multiple of
+        the expected processing time. Perhaps 3x the expected processing time. Default is 60 seconds.
+    :param reply_message_callback: A callback to handle the response message. This takes the service bus
+        message and the context as parameters and can raise an exception to abort processing or insert values
+        into the XCOM for downstream tasks to use.
+    :param azure_service_bus_conn_id: ID of the airflow connection to the Azure Service Bus. It defaults to
+        "azure_service_bus_default",
+    """
+
+    REPLY_SUBSCRIPTION_PREFIX = "reply-"
+    REPLY_RULE_SUFFIX = "-rule"
+
+    def __init__(
+        self,
+        *,
+        request_queue_name: str,
+        request_body_generator: Callable[[Context], str],
+        reply_topic_name: str,
+        reply_correlation_id: str | None = None,
+        max_wait_time: float = 60,
+        reply_message_callback: MessageCallback | None = None,
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.request_queue_name = request_queue_name
+        self.request_body_generator = request_body_generator
+        self.reply_topic_name = reply_topic_name
+        self.reply_correlation_id = reply_correlation_id
+        self.max_wait_time = max_wait_time
+        self.reply_message_callback = reply_message_callback
+        self.azure_service_bus_conn_id = azure_service_bus_conn_id
+
+        if not self.reply_correlation_id:
+            self.reply_correlation_id = str(uuid4())
+        self.subscription_name = self.REPLY_SUBSCRIPTION_PREFIX + self.reply_correlation_id
+
+    def execute(self, context: Context) -> None:
+        """Implement the request-reply pattern using existing hooks."""
+        self._validate_params()
+        admin_hook = AdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
+        self._create_reply_subscription_for_correlation_id(admin_hook, context)
+
+        message_hook = MessageHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
+        try:
+            # send the request message
+            self._send_request_message(message_hook, context)
+
+            # Wait for and receive the reply message
+            message_hook.receive_subscription_message(
+                self.reply_topic_name,
+                self.subscription_name,
+                context,
+                max_message_count=1,
+                max_wait_time=self.max_wait_time,
+                message_callback=self.reply_message_callback,
+            )
+        finally:
+            # Remove the subscription on the reply topic
+            self._remove_reply_subscription(admin_hook)
+
+    def _send_request_message(self, message_hook: MessageHook, context: Context) -> None:
+        with message_hook.get_conn() as service_bus_client:
+            message = ServiceBusMessage(
+                self.request_body_generator(context),
+                application_properties={"reply_type": "topic"},
+                message_id=self.reply_correlation_id,
+                reply_to=self.reply_topic_name,
+            )
+            with service_bus_client.get_queue_sender(queue_name=self.request_queue_name) as sender:
+                sender.send_messages(message, timeout=60)  # don't wait forever for send.
+                self.log.info(
+                    "Sent request with id %s to queue %s", self.reply_correlation_id, self.request_queue_name
+                )
+
+    def _create_reply_subscription_for_correlation_id(
+        self, admin_hook: AdminClientHook, context: Context
+    ) -> None:
+        """Create subscription on the reply topic for the correlation ID."""
+        with admin_hook.get_conn() as admin_asb_conn:
+            self.log.info(
+                "Creating subscription %s on topic %s", self.subscription_name, self.reply_topic_name
+            )
+            try:
+                self._create_subscription(admin_asb_conn, context)
+            except ResourceExistsError:
+                # subscription already created, so return
+                self.log.info(
+                    "Subscription %s on topic %s already existed.",
+                    self.subscription_name,
+                    self.reply_topic_name,
+                )
+                return
+
+            # remove default rule (which accepts all messages)
+            try:
+                admin_asb_conn.delete_rule(self.reply_topic_name, self.subscription_name, "$Default")
+            except ResourceNotFoundError:
+                # as long as it is gone :)
+                self.log.debug("Could not find default rule '$Default' to delete; ignoring")
+
+            # add a rule to filter on the correlation ID
+            rule_name = self.subscription_name + self.REPLY_RULE_SUFFIX
+            filter = CorrelationRuleFilter(correlation_id=self.reply_correlation_id)
+            admin_asb_conn.create_rule(
+                self.reply_topic_name, self.subscription_name, rule_name, filter=filter
+            )
+            self.log.info(
+                "Created subscription %s on topic %s", self.subscription_name, self.reply_topic_name
+            )
+
+    def _create_subscription(self, admin_asb_conn: ServiceBusAdministrationClient, context: Context):
+        return admin_asb_conn.create_subscription(
+            topic_name=self.reply_topic_name,
+            subscription_name=self.subscription_name,
+            default_message_time_to_live="PT1H",  # 1 hour
+            dead_lettering_on_message_expiration=True,
+            dead_lettering_on_filter_evaluation_exceptions=True,
+            enable_batched_operations=False,
+            user_metadata=f"Subscription for reply to {self.reply_correlation_id} for task ID {context['task'].task_id}",
+            auto_delete_on_idle="PT6H",  # 6 hours
+        )
+
+    def _remove_reply_subscription(self, admin_hook: AdminClientHook) -> None:
+        try:
+            admin_hook.delete_subscription(self.subscription_name, self.reply_topic_name)
+            self.log.debug("Subscription removed!")
+        except ResourceNotFoundError:
+            # already deleted, ignore.
+            self.log.debug("Subscription already removed!")
+        self.log.info("Removed subscription %s", self.subscription_name)
+
+    def _validate_params(self):
+        error_message: str = ""
+
+        if not self.request_queue_name:
+            error_message += "Request queue name is required. "
+        if not self.request_body_generator:
+            error_message += "Request body creator is required. "
+        if not self.reply_topic_name:
+            error_message += "Reply topic name is required. "
+
+        if error_message:
+            self.log.error(error_message)
+            raise TypeError(error_message)
