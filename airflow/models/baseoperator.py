@@ -73,6 +73,7 @@ from airflow.models.base import _sentinel
 from airflow.models.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DependencyMixin
+from airflow.models.trigger import TRIGGER_FAIL_REPR, TriggerFailureReason
 from airflow.sdk.definitions.baseoperator import (
     BaseOperatorMeta as TaskSDKBaseOperatorMeta,
     get_merged_defaults,
@@ -123,13 +124,6 @@ TaskPostExecuteHook = Callable[[Context, Any], None]
 T = TypeVar("T", bound=FunctionType)
 
 logger = logging.getLogger("airflow.models.baseoperator.BaseOperator")
-
-TRIGGER_TIMEOUT_REPR = "__trigger_timeout__"
-"""
-String to represent that this trigger timed out.
-
-:meta private:
-"""
 
 
 def parse_retries(retries: Any) -> int | None:
@@ -998,12 +992,12 @@ class BaseOperator(TaskSDKBaseOperator, AbstractOperator, metaclass=BaseOperator
         """Call this method when a deferred task is resumed."""
         # __fail__ is a special signal value for next_method that indicates
         # this task was scheduled specifically to fail.
-        if next_method == "__fail__":
+        if next_method == TRIGGER_FAIL_REPR:
             next_kwargs = next_kwargs or {}
             traceback = next_kwargs.get("traceback")
             if traceback is not None:
                 self.log.error("Trigger failed:\n%s", "\n".join(traceback))
-            if (error := next_kwargs.get("error", "Unknown")) == TRIGGER_TIMEOUT_REPR:
+            if (error := next_kwargs.get("error", "Unknown")) == TriggerFailureReason.TRIGGER_TIMEOUT:
                 raise TaskDeferralTimeout(error)
             else:
                 raise TaskDeferralError(error)

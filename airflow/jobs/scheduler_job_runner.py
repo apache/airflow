@@ -59,13 +59,13 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.backfill import Backfill
-from airflow.models.baseoperator import TRIGGER_TIMEOUT_REPR
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+from airflow.models.trigger import TRIGGER_FAIL_REPR, TriggerFailureReason
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
@@ -2058,8 +2058,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                     .values(
                         state=TaskInstanceState.SCHEDULED,
-                        next_method="__fail__",
-                        next_kwargs={"error": TRIGGER_TIMEOUT_REPR},
+                        next_method=TRIGGER_FAIL_REPR,
+                        next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
                         trigger_id=None,
                     )
                 ).rowcount
