@@ -15,6 +15,7 @@ import {
   DashboardService,
   EventLogService,
   ImportErrorService,
+  JobService,
   MonitorService,
   PluginService,
   PoolService,
@@ -804,6 +805,62 @@ export const UseImportErrorServiceGetImportErrorsKeyFn = (
 ) => [
   useImportErrorServiceGetImportErrorsKey,
   ...(queryKey ?? [{ limit, offset, orderBy }]),
+];
+export type JobServiceGetJobsDefaultResponse = Awaited<
+  ReturnType<typeof JobService.getJobs>
+>;
+export type JobServiceGetJobsQueryResult<
+  TData = JobServiceGetJobsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useJobServiceGetJobsKey = "JobServiceGetJobs";
+export const UseJobServiceGetJobsKeyFn = (
+  {
+    endDateGte,
+    endDateLte,
+    executorClass,
+    hostname,
+    isAlive,
+    jobState,
+    jobType,
+    limit,
+    offset,
+    orderBy,
+    startDateGte,
+    startDateLte,
+  }: {
+    endDateGte?: string;
+    endDateLte?: string;
+    executorClass?: string;
+    hostname?: string;
+    isAlive?: boolean;
+    jobState?: string;
+    jobType?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    startDateGte?: string;
+    startDateLte?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useJobServiceGetJobsKey,
+  ...(queryKey ?? [
+    {
+      endDateGte,
+      endDateLte,
+      executorClass,
+      hostname,
+      isAlive,
+      jobState,
+      jobType,
+      limit,
+      offset,
+      orderBy,
+      startDateGte,
+      startDateLte,
+    },
+  ]),
 ];
 export type PluginServiceGetPluginsDefaultResponse = Awaited<
   ReturnType<typeof PluginService.getPlugins>
