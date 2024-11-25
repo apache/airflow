@@ -20,7 +20,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from asyncio import AbstractEventLoop, Semaphore, ensure_future, iscoroutinefunction, wait_for
+from asyncio import AbstractEventLoop, TimeoutError, iscoroutinefunction, wait_for
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager, suppress
 from math import ceil
@@ -295,9 +295,9 @@ class StreamedOperator(BaseOperator):
                         result = await wait_for(
                             future, timeout=self.execution_timeout.total_seconds()
                         )
-                        self.log.info("result: %s", result)
+                        self.log.debug("result: %s", result)
                         results.append(result)
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         self.log.warning(
                             "Task timed out after %s seconds: %s",
                             self.execution_timeout.total_seconds(),
