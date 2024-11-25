@@ -125,7 +125,7 @@ class SFTPHook(SSHHook):
 
     def __exit__(self, exc_type, exc_value, traceback):
         """Close the SFTP connection when exiting the context."""
-        self.close_conn()
+        self.close()
 
     def get_conn(self) -> paramiko.SFTPClient:  # type: ignore[override]
         """Open an SFTP connection to the remote host."""
@@ -138,7 +138,14 @@ class SFTPHook(SSHHook):
         return self.conn
 
     def close_conn(self) -> None:
-        """Close the SFTP connection."""
+        warnings.warn(
+            "close_conn() method is deprecated and will be removed in the future.  Please use the close method.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self.close()
+
+    def close(self) -> None:
         if self.conn is not None:
             self.conn.close()
             self.conn = None
