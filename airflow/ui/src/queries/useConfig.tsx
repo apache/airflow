@@ -19,8 +19,8 @@
 import { useConfigServiceGetConfigs } from "openapi/queries";
 import type { ConfigResponse } from "openapi/requests/types.gen";
 
-export const useConfig = (configKey: string) => {
+export const useConfig = (configKey: keyof ConfigResponse) => {
   const { data: config } = useConfigServiceGetConfigs();
 
-  return config?.[configKey as keyof ConfigResponse];
+  return config?.[configKey];
 };

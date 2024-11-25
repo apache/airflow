@@ -21,15 +21,11 @@ import { MdOutlineHealthAndSafety } from "react-icons/md";
 
 import { useMonitorServiceGetHealth } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
-import { useConfig } from "src/queries/useConfig";
 
 import { HealthTag } from "./HealthTag";
 
 export const Health = () => {
   const { data, error, isLoading } = useMonitorServiceGetHealth();
-
-  const isStandaloneDagProcessor =
-    useConfig("standalone_dag_processor") === "True";
 
   return (
     <Box>
@@ -58,14 +54,15 @@ export const Health = () => {
           status={data?.triggerer.status}
           title="Triggerer"
         />
-        {isStandaloneDagProcessor ? (
+        {/* TODO: Update this to match the API when we move the config check to the API level */}
+        {data?.dag_processor.status === undefined ? undefined : (
           <HealthTag
             isLoading={isLoading}
-            latestHeartbeat={data?.dag_processor.latest_dag_processor_heartbeat}
-            status={data?.dag_processor.status}
+            latestHeartbeat={data.dag_processor.latest_dag_processor_heartbeat}
+            status={data.dag_processor.status}
             title="Dag Processor"
           />
-        ) : undefined}
+        )}
       </HStack>
     </Box>
   );
