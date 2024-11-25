@@ -27,9 +27,9 @@ from typing import TYPE_CHECKING, Any
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.standard.hooks.filesystem import FSHook
+from airflow.providers.standard.triggers.file import FileTrigger
 from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.base import StartTriggerArgs
-from airflow.triggers.file import FileTrigger
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -64,7 +64,7 @@ class FileSensor(BaseSensorOperator):
     template_fields: Sequence[str] = ("filepath",)
     ui_color = "#91818a"
     start_trigger_args = StartTriggerArgs(
-        trigger_cls="airflow.triggers.file.FileTrigger",
+        trigger_cls="airflow.providers.standard.triggers.file.FileTrigger",
         trigger_kwargs={},
         next_method="execute_complete",
         next_kwargs=None,
