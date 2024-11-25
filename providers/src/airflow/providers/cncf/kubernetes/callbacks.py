@@ -57,6 +57,7 @@ class KubernetesPodOperatorCallback:
         :param pod_request: the kubernetes pod manifest
         :param mode: the current execution mode, it's one of (`sync`, `async`).
         """
+        pass
 
     @staticmethod
     def on_pod_creation(*, pod: k8s.V1Pod, client: client_type, mode: str, **kwargs) -> None:
@@ -100,6 +101,7 @@ class KubernetesPodOperatorCallback:
         :param client: the Kubernetes client that can be used in the callback.
         :param mode: the current execution mode, it's one of (`sync`, `async`).
         """
+        pass
 
     @staticmethod
     def on_pod_cleanup(*, pod: k8s.V1Pod, client: client_type, mode: str, **kwargs):
