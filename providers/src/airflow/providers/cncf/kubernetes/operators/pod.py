@@ -387,9 +387,7 @@ class KubernetesPodOperator(BaseOperator):
         self.skip_on_exit_code = (
             skip_on_exit_code
             if isinstance(skip_on_exit_code, Container)
-            else [skip_on_exit_code]
-            if skip_on_exit_code is not None
-            else []
+            else [skip_on_exit_code] if skip_on_exit_code is not None else []
         )
         self.deferrable = deferrable
         self.poll_interval = poll_interval
@@ -509,7 +507,7 @@ class KubernetesPodOperator(BaseOperator):
         client = self.hook.core_v1_client
 
         for callback in self.callbacks:
-            callback.on_sync_client_creation(client=client)
+            callback.on_sync_client_creation(client=client, operator=self)
         return client
 
     def find_pod(self, namespace: str, context: Context, *, exclude_checked: bool = True) -> k8s.V1Pod | None:
@@ -584,7 +582,9 @@ class KubernetesPodOperator(BaseOperator):
             if self.pod_request_obj is None:
                 self.pod_request_obj = self.build_pod_request_obj(context)
             for callback in self.callbacks:
-                callback.on_manifest_finalization(pod_request=self.pod_request_obj, mode=ExecutionMode.SYNC)
+                callback.on_manifest_finalization(
+                    pod_request=self.pod_request_obj, mode=ExecutionMode.SYNC, context=context, operator=self
+                )
             if self.pod is None:
                 self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
                     pod_request_obj=self.pod_request_obj,
@@ -598,7 +598,13 @@ class KubernetesPodOperator(BaseOperator):
             # get remote pod for use in cleanup methods
             self.remote_pod = self.find_pod(self.pod.metadata.namespace, context=context)
             for callback in self.callbacks:
-                callback.on_pod_creation(pod=self.remote_pod, client=self.client, mode=ExecutionMode.SYNC)
+                callback.on_pod_creation(
+                    pod=self.remote_pod,
+                    client=self.client,
+                    mode=ExecutionMode.SYNC,
+                    context=context,
+                    operator=self,
+                )
             self.await_pod_start(pod=self.pod)
             if self.callbacks:
                 pod = self.find_pod(self.pod.metadata.namespace, context=context)
@@ -607,6 +613,8 @@ class KubernetesPodOperator(BaseOperator):
                         pod=pod,
                         client=self.client,
                         mode=ExecutionMode.SYNC,
+                        context=context,
+                        operator=self,
                     )
 
             self.await_pod_completion(pod=self.pod)
@@ -617,12 +625,16 @@ class KubernetesPodOperator(BaseOperator):
                         pod=pod,
                         client=self.client,
                         mode=ExecutionMode.SYNC,
+                        context=context,
+                        operator=self,
                     )
                 for callback in self.callbacks:
                     callback.on_pod_wrapup(
                         pod=pod,
                         client=self.client,
                         mode=ExecutionMode.SYNC,
+                        context=context,
+                        operator=self,
                     )
 
             if self.do_xcom_push:
@@ -639,7 +651,13 @@ class KubernetesPodOperator(BaseOperator):
                 remote_pod=self.remote_pod,
             )
             for callback in self.callbacks:
-                callback.on_pod_cleanup(pod=pod_to_clean, client=self.client, mode=ExecutionMode.SYNC)
+                callback.on_pod_cleanup(
+                    pod=pod_to_clean,
+                    client=self.client,
+                    mode=ExecutionMode.SYNC,
+                    context=context,
+                    operator=self,
+                )
 
         if self.do_xcom_push:
             return result
@@ -691,6 +709,8 @@ class KubernetesPodOperator(BaseOperator):
                     pod=pod,
                     client=self.client,
                     mode=ExecutionMode.SYNC,
+                    context=context,
+                    operator=self,
                 )
         ti = context["ti"]
         ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
@@ -755,7 +775,12 @@ class KubernetesPodOperator(BaseOperator):
             if event["status"] != "running":
                 for callback in self.callbacks:
                     callback.on_operator_resuming(
-                        pod=self.pod, event=event, client=self.client, mode=ExecutionMode.SYNC
+                        pod=self.pod,
+                        event=event,
+                        client=self.client,
+                        mode=ExecutionMode.SYNC,
+                        context=context,
+                        operator=self,
                     )
 
             follow = self.logging_interval is None
@@ -799,9 +824,9 @@ class KubernetesPodOperator(BaseOperator):
         except TaskDeferred:
             raise
         finally:
-            self._clean(event)
+            self._clean(event, context)
 
-    def _clean(self, event: dict[str, Any]) -> None:
+    def _clean(self, event: dict[str, Any], context: Context) -> None:
         if event["status"] == "running":
             return
         istio_enabled = self.is_istio_enabled(self.pod)
@@ -824,6 +849,7 @@ class KubernetesPodOperator(BaseOperator):
             self.post_complete_action(
                 pod=self.pod,
                 remote_pod=self.pod,
+                context=context,
             )
 
     def _write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None) -> None:
@@ -853,14 +879,16 @@ class KubernetesPodOperator(BaseOperator):
                 e if not isinstance(e, ApiException) else e.reason,
             )
 
-    def post_complete_action(self, *, pod, remote_pod, **kwargs) -> None:
+    def post_complete_action(self, *, pod, remote_pod, context: Context, **kwargs) -> None:
         """Actions that must be done after operator finishes logic of the deferrable_execution."""
         self.cleanup(
             pod=pod,
             remote_pod=remote_pod,
         )
         for callback in self.callbacks:
-            callback.on_pod_cleanup(pod=pod, client=self.client, mode=ExecutionMode.SYNC)
+            callback.on_pod_cleanup(
+                pod=pod, client=self.client, mode=ExecutionMode.SYNC, operator=self, context=context
+            )
 
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
         # Skip cleaning the pod in the following scenarios.
