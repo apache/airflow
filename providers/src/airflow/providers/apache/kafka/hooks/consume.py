@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from confluent_kafka import Consumer
+from confluent_kafka import Consumer, KafkaError
 
 from airflow.providers.apache.kafka.hooks.base import KafkaBaseHook
 
@@ -31,8 +31,11 @@ class KafkaAuthenticationError(Exception):
 
 def error_callback(err):
     """Handle kafka errors."""
-    print("Exception received: ", err)
-    raise KafkaAuthenticationError(f"Authentication failed: {err}")
+    if err.code() == KafkaError.NO_ERROR:
+        return
+    else:
+        print("Exception received: ", err)
+        raise KafkaAuthenticationError(f"Authentication failed: {err}")
 
 
 class KafkaConsumerHook(KafkaBaseHook):
@@ -48,8 +51,9 @@ class KafkaConsumerHook(KafkaBaseHook):
         self.topics = topics
 
     def _get_client(self, config) -> Consumer:
-        config["error_cb"] = error_callback
-        return Consumer(config)
+        config_shallow = config.copy()
+        config_shallow["error_cb"] = error_callback
+        return Consumer(config_shallow)
 
     def get_consumer(self) -> Consumer:
         """Return a Consumer that has been subscribed to topics."""
