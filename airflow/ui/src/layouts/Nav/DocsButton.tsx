@@ -40,7 +40,7 @@ const links = [
 ];
 
 export const DocsButton = () => {
-  const showAPIDocs = useConfig("webserver", "enable_swagger_ui") === "True";
+  const showAPIDocs = useConfig("enable_swagger_ui") === "True";
 
   return (
     <Menu.Root positioning={{ placement: "right" }}>

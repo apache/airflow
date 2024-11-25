@@ -33,7 +33,7 @@ export const TimezoneContext = createContext<TimezoneContextType | undefined>(
 const TIMEZONE_KEY = "timezone";
 
 export const TimezoneProvider = ({ children }: PropsWithChildren) => {
-  const defaultUITimezone = useConfig("webserver", "default_ui_timezone");
+  const defaultUITimezone = useConfig("default_ui_timezone");
 
   const [selectedTimezone, setSelectedTimezone] = useLocalStorage(
     TIMEZONE_KEY,

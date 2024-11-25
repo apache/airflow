@@ -29,7 +29,7 @@ export const Health = () => {
   const { data, error, isLoading } = useMonitorServiceGetHealth();
 
   const isStandaloneDagProcessor =
-    useConfig("scheduler", "standalone_dag_processor") === "True";
+    useConfig("standalone_dag_processor") === "True";
 
   return (
     <Box>

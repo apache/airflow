@@ -27,7 +27,7 @@ import type { TableState } from "./types";
 export const useTableURLState = (defaultState?: Partial<TableState>) => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const configPageSize = useConfig("webserver", "page_size");
+  const configPageSize = useConfig("page_size");
   const pageSize =
     typeof configPageSize === "string" ? parseInt(configPageSize, 10) : 50;
 

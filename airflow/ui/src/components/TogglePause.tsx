@@ -61,7 +61,7 @@ export const TogglePause = ({
   });
 
   const showConfirmation =
-    useConfig("webserver", "require_confirmation_dag_change") === "True";
+    useConfig("require_confirmation_dag_change") === "True";
 
   const onToggle = useCallback(() => {
     mutate({

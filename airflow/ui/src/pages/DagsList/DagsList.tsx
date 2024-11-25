@@ -159,10 +159,7 @@ export const DagsList = () => {
     "card",
   );
 
-  const hidePausedDagsByDefault = useConfig(
-    "webserver",
-    "hide_paused_dags_by_default",
-  );
+  const hidePausedDagsByDefault = useConfig("hide_paused_dags_by_default");
   const defaultShowPaused =
     hidePausedDagsByDefault === "True" ? false : undefined;
 
