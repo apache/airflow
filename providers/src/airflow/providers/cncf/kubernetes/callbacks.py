@@ -50,6 +50,15 @@ class KubernetesPodOperatorCallback:
         pass
 
     @staticmethod
+    def on_manifest_finalization(*, pod_request: k8s.V1Pod, mode: str, **kwargs) -> None:
+        """
+        Invoke this callback after KPO creates the V1Pod manifest but before the pod is created.
+
+        :param pod_request: the kubernetes pod manifest
+        :param mode: the current execution mode, it's one of (`sync`, `async`).
+        """
+
+    @staticmethod
     def on_pod_creation(*, pod: k8s.V1Pod, client: client_type, mode: str, **kwargs) -> None:
         """
         Invoke this callback after creating the pod.
@@ -81,6 +90,16 @@ class KubernetesPodOperatorCallback:
         :param mode: the current execution mode, it's one of (`sync`, `async`).
         """
         pass
+
+    @staticmethod
+    def on_pod_wrapup(*, pod: k8s.V1Pod, client: client_type, mode: str, **kwargs) -> None:
+        """
+        Invoked after all pod completion callbacks but before the pod is deleted.
+
+        :param pod: the completed pod.
+        :param client: the Kubernetes client that can be used in the callback.
+        :param mode: the current execution mode, it's one of (`sync`, `async`).
+        """
 
     @staticmethod
     def on_pod_cleanup(*, pod: k8s.V1Pod, client: client_type, mode: str, **kwargs):

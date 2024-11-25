@@ -1519,6 +1519,7 @@ class TestKubernetesPodOperator:
         mock_callbacks.on_sync_client_creation.assert_called_once()
         assert mock_callbacks.on_sync_client_creation.call_args.kwargs == {"client": k.client}
 
+
         # check on_pod_creation callback
         mock_callbacks.on_pod_creation.assert_called_once()
         assert mock_callbacks.on_pod_creation.call_args.kwargs == {
@@ -1538,6 +1539,13 @@ class TestKubernetesPodOperator:
         # check on_pod_completion callback
         mock_callbacks.on_pod_completion.assert_called_once()
         assert mock_callbacks.on_pod_completion.call_args.kwargs == {
+            "client": k.client,
+            "mode": ExecutionMode.SYNC,
+            "pod": found_pods[2],
+        }
+
+        mock_callbacks.on_pod_wrapup.assert_called_once()
+        assert mock_callbacks.on_pod_wrapup.call_args.kwargs == {
             "client": k.client,
             "mode": ExecutionMode.SYNC,
             "pod": found_pods[2],

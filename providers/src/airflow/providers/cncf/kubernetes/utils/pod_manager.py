@@ -300,7 +300,7 @@ class PodManager(LoggingMixin):
     def __init__(
         self,
         kube_client: client.CoreV1Api,
-        callbacks: type[KubernetesPodOperatorCallback] | None = None,
+        callbacks: list[KubernetesPodOperatorCallback] | None = None,
     ):
         """
         Create the launcher.
@@ -311,7 +311,7 @@ class PodManager(LoggingMixin):
         super().__init__()
         self._client = kube_client
         self._watch = watch.Watch()
-        self._callbacks = callbacks
+        self._callbacks = callbacks or []
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
         """Run POD asynchronously."""
@@ -446,8 +446,8 @@ class PodManager(LoggingMixin):
                                 progress_callback_lines.append(line)
                             else:  # previous log line is complete
                                 for line in progress_callback_lines:
-                                    if self._callbacks:
-                                        self._callbacks.progress_callback(
+                                    for callback in self._callbacks:
+                                        callback.progress_callback(
                                             line=line, client=self._client, mode=ExecutionMode.SYNC
                                         )
                                 if message_to_log is not None:
@@ -462,8 +462,8 @@ class PodManager(LoggingMixin):
                 finally:
                     # log the last line and update the last_captured_timestamp
                     for line in progress_callback_lines:
-                        if self._callbacks:
-                            self._callbacks.progress_callback(
+                        for callback in self._callbacks:
+                            callback.progress_callback(
                                 line=line, client=self._client, mode=ExecutionMode.SYNC
                             )
                     if message_to_log is not None:
