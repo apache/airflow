@@ -225,6 +225,11 @@ labelPRBasedOnFilePath:
     - providers/tests/docker/**/*
     - providers/tests/system/docker/**/*
 
+  provider:edge:
+    - providers/src/airflow/edge/docker/**/*
+    - docs/apache-airflow-providers-edge/**/*
+    - providers/tests/edge/**/*
+
   provider:elasticsearch:
     - providers/src/airflow/providers/elasticsearch/**/*
     - docs/apache-airflow-providers-elasticsearch/**/*
