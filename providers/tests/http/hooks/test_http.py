@@ -602,7 +602,7 @@ class TestHttpHook:
 
     def test_adapter_invalid_type(self):
         """Test that providing an invalid adapter type raises TypeError."""
-        with pytest.raises(TypeError, match="adapter must be an instance of requests.adapters.BaseAdapter"):
+        with pytest.raises(TypeError, match="adapter must be an instance of requests.adapters.HTTPAdapter"):
             HttpHook(adapter="not_an_adapter")
 
 

@@ -26,7 +26,7 @@ import requests
 import tenacity
 from aiohttp import ClientResponseError
 from asgiref.sync import sync_to_async
-from requests.adapters import BaseAdapter
+from requests.adapters import HTTPAdapter
 from requests.auth import HTTPBasicAuth
 from requests.models import DEFAULT_REDIRECT_LIMIT
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
@@ -56,7 +56,7 @@ class HttpHook(BaseHook):
         API url i.e https://www.google.com/ and optional authentication credentials. Default
         headers can also be specified in the Extra field in json format.
     :param auth_type: The auth type for the service
-    :param adapter: An optional instance of `requests.adapters.BaseAdapter` to mount for the session.
+    :param adapter: An optional instance of `requests.adapters.HTTPAdapter` to mount for the session.
     :param tcp_keep_alive: Enable TCP Keep Alive for the connection.
     :param tcp_keep_alive_idle: The TCP Keep Alive Idle parameter (corresponds to ``socket.TCP_KEEPIDLE``).
     :param tcp_keep_alive_count: The TCP Keep Alive count parameter (corresponds to ``socket.TCP_KEEPCNT``)
@@ -75,7 +75,7 @@ class HttpHook(BaseHook):
         method: str = "POST",
         http_conn_id: str = default_conn_name,
         auth_type: Any = None,
-        adapter: BaseAdapter | None = None,
+        adapter: HTTPAdapter | None = None,
         tcp_keep_alive: bool = True,
         tcp_keep_alive_idle: int = 120,
         tcp_keep_alive_count: int = 20,
@@ -88,10 +88,10 @@ class HttpHook(BaseHook):
         self._retry_obj: Callable[..., Any]
         self._auth_type: Any = auth_type
 
-        if adapter is not None and not isinstance(adapter, BaseAdapter):
-            raise TypeError("adapter must be an instance of requests.adapters.BaseAdapter")
-        self.adapter = adapter
+        if adapter is not None and not isinstance(adapter, HTTPAdapter):
+            raise TypeError("adapter must be an instance of requests.adapters.HTTPAdapter")
 
+        self.adapter = adapter
         self.tcp_keep_alive = tcp_keep_alive
         self.keep_alive_idle = tcp_keep_alive_idle
         self.keep_alive_count = tcp_keep_alive_count
@@ -129,23 +129,30 @@ class HttpHook(BaseHook):
         self._set_base_url(connection)
         self._set_auth(session, connection)
         self._set_extra(session, connection)
+        self._mount_adapters(session)
 
         if headers:
             session.headers.update(headers)
 
-        self._mount_adapters(session)
-
         return session
 
     def _set_base_url(self, connection) -> None:
-        if connection.host and "://" in connection.host:
-            self.base_url = connection.host
+        host = connection.host or ""
+        schema = connection.schema or "http"
+
+        # If host includes scheme, use it directly
+        if "://" in host:
+            self.base_url = host
         else:
-            schema = connection.schema or "http"
-            host = connection.host or ""
-            self.base_url = f"{schema}://{host}"
+            # If no host is provided, construct minimal base URL with only schema
+            self.base_url = f"{schema}://{host}" if host else f"{schema}://"
             if connection.port:
                 self.base_url += f":{connection.port}"
+
+        # Validate constructed URL
+        parsed = urlparse(self.base_url)
+        if not parsed.scheme:
+            raise ValueError(f"Invalid base URL: Missing scheme in {self.base_url}")
 
     def _set_auth(self, session: requests.Session, connection) -> None:
         if connection.login:
@@ -171,10 +178,17 @@ class HttpHook(BaseHook):
                 self.log.warning("Connection to %s has invalid extra field.", connection.host)
 
     def _mount_adapters(self, session: requests.Session) -> None:
+        # Ensure the scheme is valid (guaranteed by _set_base_url)
+        scheme = urlparse(self.base_url).scheme
+
+        if not scheme:
+            raise ValueError("Cannot mount adapters: base_url must include a valid scheme (http or https).")
+
+        # Use user-defined adapter if provided
         if self.adapter:
-            scheme = urlparse(self.base_url).scheme or "https"
             session.mount(f"{scheme}://", self.adapter)
         elif self.keep_alive_adapter:
+            # Fallback to keep-alive adapter for both http and https
             session.mount("http://", self.keep_alive_adapter)
             session.mount("https://", self.keep_alive_adapter)
 
