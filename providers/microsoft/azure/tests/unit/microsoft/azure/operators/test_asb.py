@@ -19,6 +19,7 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from azure.core.exceptions import ResourceExistsError
 from azure.servicebus import ServiceBusMessage
 
 try:
@@ -26,11 +27,15 @@ try:
 except ImportError:
     pytest.skip("Azure Service Bus not available", allow_module_level=True)
 
+from azure.core.exceptions import ResourceNotFoundError
+
+from airflow.providers.microsoft.azure.hooks.asb import MessageHook
 from airflow.providers.microsoft.azure.operators.asb import (
     ASBReceiveSubscriptionMessageOperator,
     AzureServiceBusCreateQueueOperator,
     AzureServiceBusDeleteQueueOperator,
     AzureServiceBusReceiveMessageOperator,
+    AzureServiceBusRequestReplyOperator,
     AzureServiceBusSendMessageOperator,
     AzureServiceBusSubscriptionCreateOperator,
     AzureServiceBusSubscriptionDeleteOperator,
@@ -593,3 +598,356 @@ class TestASBTopicDeleteOperator:
         )
         with pytest.raises(TypeError):
             asb_delete_topic_exception.execute(None)
+
+
+class TestAzureServiceBusRequestReplyOperator:
+    # tests for AzureServiceBusRequestReplyOperator._remove_reply_subscription
+    # use mock for the admin_hook passed into _remove_reply_subscription to
+    # ensure delete_subscription is called with correct parameters
+    def test_remove_reply_subscription(self):
+        with mock.patch("airflow.providers.microsoft.azure.operators.asb.AdminClientHook") as mock_admin_hook:
+            operator = AzureServiceBusRequestReplyOperator(
+                task_id="test_task",
+                request_queue_name="test_queue",
+                request_body_generator=lambda: "test_body",
+                reply_topic_name="reply-topic-name",
+            )
+
+            # Set the subscription_name attribute for the operator
+            operator.subscription_name = "test_subscription"
+
+            operator._remove_reply_subscription(mock_admin_hook)
+
+            mock_admin_hook.delete_subscription.assert_called_once_with(
+                operator.subscription_name, operator.reply_topic_name
+            )
+
+    def test_remove_reply_subscription_ignores_resource_not_found_error(self):
+        with mock.patch("airflow.providers.microsoft.azure.operators.asb.AdminClientHook") as mock_admin_hook:
+            operator = AzureServiceBusRequestReplyOperator(
+                task_id="test_task",
+                request_queue_name="test_queue",
+                request_body_generator=lambda: "test_body",
+                reply_topic_name="reply-topic-name",
+            )
+
+            # Set the subscription_name attribute for the operator
+            operator.subscription_name = "test_subscription"
+
+            # Mock the delete_subscription method to raise ResourceNotFoundError
+            mock_admin_hook.delete_subscription.side_effect = ResourceNotFoundError
+
+            operator._remove_reply_subscription(mock_admin_hook)
+
+            mock_admin_hook.delete_subscription.assert_called_once_with(
+                operator.subscription_name, operator.reply_topic_name
+            )
+
+    # tests for AzureServiceBusRequestReplyOperator._validate_params with different combinations of parameters
+    # and expected results
+    @pytest.mark.parametrize(
+        "request_queue_name, request_body_generator, reply_topic_name, expected_exception, expected_message",
+        [
+            (None, lambda: "test_body", "test_topic", TypeError, "Request queue name is required. "),
+            ("test_queue", None, "test_topic", TypeError, "Request body creator is required. "),
+            ("test_queue", lambda: "test_body", None, TypeError, "Reply topic name is required. "),
+            (
+                None,
+                None,
+                None,
+                TypeError,
+                "Request queue name is required. Request body creator is required. Reply topic name is required. ",
+            ),
+            ("test_queue", lambda: "test_body", "test_topic", None, None),
+        ],
+    )
+    def test_validate_params(
+        self,
+        request_queue_name,
+        request_body_generator,
+        reply_topic_name,
+        expected_exception,
+        expected_message,
+    ):
+        operator = AzureServiceBusRequestReplyOperator(
+            task_id="test_task",
+            request_queue_name=request_queue_name,
+            request_body_generator=request_body_generator,
+            reply_topic_name=reply_topic_name,
+        )
+
+        if expected_exception:
+            with pytest.raises(expected_exception) as exc_info:
+                operator._validate_params()
+            assert str(exc_info.value) == expected_message
+        else:
+            operator._validate_params()  # Should not raise any exception
+
+    @mock.patch("airflow.providers.microsoft.azure.operators.asb.ServiceBusAdministrationClient")
+    def test_create_subscription(self, mock_admin_asb_conn):
+        operator = AzureServiceBusRequestReplyOperator(
+            task_id="test_task",
+            request_queue_name="test_queue",
+            request_body_generator=lambda: "test message body",
+            reply_topic_name="reply-topic-name",
+        )
+
+        context = mock.MagicMock()
+        context["task"] = mock.MagicMock()
+        context["task"].task_id = 987
+        operator._create_subscription(mock_admin_asb_conn, context)
+
+        mock_admin_asb_conn.create_subscription.assert_called_once_with(
+            topic_name="reply-topic-name",
+            subscription_name=operator.subscription_name,
+            default_message_time_to_live="PT1H",  # 1 hour
+            dead_lettering_on_message_expiration=True,
+            dead_lettering_on_filter_evaluation_exceptions=True,
+            enable_batched_operations=False,
+            user_metadata=f"Subscription for reply to {operator.reply_correlation_id} for task ID {context['task'].task_id}",
+            auto_delete_on_idle="PT6H",  # 6 hours
+        )
+
+    @mock.patch("airflow.providers.microsoft.azure.operators.asb.ServiceBusAdministrationClient")
+    def test_create_subscription_already_exists(self, mock_admin_asb_conn):
+        operator = AzureServiceBusRequestReplyOperator(
+            task_id="test_task",
+            request_queue_name="test_queue",
+            request_body_generator=lambda: "test_body",
+            reply_topic_name="reply-topic-name",
+        )
+
+        context = mock.MagicMock()
+        context["task"] = mock.MagicMock()
+        context["task"].task_id = 234
+        mock_admin_asb_conn.create_subscription.side_effect = ResourceExistsError
+
+        with pytest.raises(ResourceExistsError):
+            operator._create_subscription(mock_admin_asb_conn, context)
+
+        mock_admin_asb_conn.create_subscription.assert_called_once_with(
+            topic_name="reply-topic-name",
+            subscription_name=operator.subscription_name,
+            default_message_time_to_live="PT1H",  # 1 hour
+            dead_lettering_on_message_expiration=True,
+            dead_lettering_on_filter_evaluation_exceptions=True,
+            enable_batched_operations=False,
+            user_metadata=f"Subscription for reply to {operator.reply_correlation_id} for task ID {context['task'].task_id}",
+            auto_delete_on_idle="PT6H",  # 6 hours
+        )
+
+    @mock.patch("airflow.providers.microsoft.azure.operators.asb.AdminClientHook")
+    def test_create_reply_subscription_for_correlation_id(self, mock_admin_hook):
+        operator = AzureServiceBusRequestReplyOperator(
+            task_id="test_task",
+            request_queue_name="test_queue",
+            request_body_generator=lambda: "test_body",
+            reply_topic_name="reply-topic-name",
+        )
+
+        context = mock.MagicMock()
+        context["task"] = mock.MagicMock()
+        context["task"].task_id = 345
+
+        operator._create_reply_subscription_for_correlation_id(mock_admin_hook, context)
+
+        mock_admin_hook.get_conn.return_value.__enter__.return_value.create_subscription.assert_called_once_with(
+            topic_name="reply-topic-name",
+            subscription_name=operator.subscription_name,
+            default_message_time_to_live="PT1H",  # 1 hour
+            dead_lettering_on_message_expiration=True,
+            dead_lettering_on_filter_evaluation_exceptions=True,
+            enable_batched_operations=False,
+            user_metadata=f"Subscription for reply to {operator.reply_correlation_id} for task ID {context['task'].task_id}",
+            auto_delete_on_idle="PT6H",  # 6 hours
+        )
+
+        mock_admin_hook.get_conn.return_value.__enter__.return_value.delete_rule.assert_called_once_with(
+            "reply-topic-name", operator.subscription_name, "$Default"
+        )
+
+        mock_admin_hook.get_conn.return_value.__enter__.return_value.create_rule.assert_called_once_with(
+            "reply-topic-name",
+            operator.subscription_name,
+            operator.subscription_name + operator.REPLY_RULE_SUFFIX,
+            filter=mock.ANY,
+        )
+
+    @mock.patch("airflow.providers.microsoft.azure.operators.asb.AdminClientHook")
+    def test_create_reply_subscription_for_correlation_id_subscription_exists(self, mock_admin_hook):
+        operator = AzureServiceBusRequestReplyOperator(
+            task_id="test_task",
+            request_queue_name="test_queue",
+            request_body_generator=lambda: "test_body",
+            reply_topic_name="reply-topic-name",
+        )
+
+        context = mock.MagicMock()
+        context["task"] = mock.MagicMock()
+        context["task"].task_id = 987
+
+        mock_admin_hook.get_conn.return_value.__enter__.return_value.create_subscription.side_effect = (
+            ResourceExistsError
+        )
+
+        operator._create_reply_subscription_for_correlation_id(mock_admin_hook, context)
+
+        mock_admin_hook.get_conn.return_value.__enter__.return_value.create_subscription.assert_called_once_with(
+            topic_name="reply-topic-name",
+            subscription_name=operator.subscription_name,
+            default_message_time_to_live="PT1H",  # 1 hour
+            dead_lettering_on_message_expiration=True,
+            dead_lettering_on_filter_evaluation_exceptions=True,
+            enable_batched_operations=False,
+            user_metadata=f"Subscription for reply to {operator.reply_correlation_id} for task ID {context['task'].task_id}",
+            auto_delete_on_idle="PT6H",  # 6 hours
+        )
+
+        mock_admin_hook.get_conn.return_value.__enter__.return_value.delete_rule.assert_not_called()
+        mock_admin_hook.get_conn.return_value.__enter__.return_value.create_rule.assert_not_called()
+
+    @mock.patch("airflow.providers.microsoft.azure.operators.asb.AdminClientHook")
+    def test_create_reply_subscription_for_correlation_id_delete_rule_not_found(self, mock_admin_hook):
+        operator = AzureServiceBusRequestReplyOperator(
+            task_id="test_task",
+            request_queue_name="test_queue",
+            request_body_generator=lambda: "test_body",
+            reply_topic_name="reply-topic-name",
+        )
+
+        context = mock.MagicMock()
+        context["task"] = mock.MagicMock()
+        context["task"].task_id = 789
+
+        mock_admin_hook.get_conn.return_value.__enter__.return_value.delete_rule.side_effect = (
+            ResourceNotFoundError
+        )
+
+        operator._create_reply_subscription_for_correlation_id(mock_admin_hook, context)
+
+        mock_admin_hook.get_conn.return_value.__enter__.return_value.create_subscription.assert_called_once_with(
+            topic_name="reply-topic-name",
+            subscription_name=operator.subscription_name,
+            default_message_time_to_live="PT1H",  # 1 hour
+            dead_lettering_on_message_expiration=True,
+            dead_lettering_on_filter_evaluation_exceptions=True,
+            enable_batched_operations=False,
+            user_metadata=f"Subscription for reply to {operator.reply_correlation_id} for task ID {context['task'].task_id}",
+            auto_delete_on_idle="PT6H",  # 6 hours
+        )
+
+        mock_admin_hook.get_conn.return_value.__enter__.return_value.delete_rule.assert_called_once_with(
+            "reply-topic-name", operator.subscription_name, "$Default"
+        )
+
+        mock_admin_hook.get_conn.return_value.__enter__.return_value.create_rule.assert_called_once_with(
+            "reply-topic-name",
+            operator.subscription_name,
+            operator.subscription_name + operator.REPLY_RULE_SUFFIX,
+            filter=mock.ANY,
+        )
+
+    @mock.patch("airflow.providers.microsoft.azure.operators.asb.MessageHook.get_conn")
+    def test_send_request_message(self, mock_get_conn):
+        TEST_MESSAGE_BODY = '{"fake-field": "fake-value"}'
+        operator = AzureServiceBusRequestReplyOperator(
+            task_id="test_task",
+            request_queue_name="test_queue",
+            request_body_generator=lambda context: TEST_MESSAGE_BODY,
+            reply_topic_name="reply-topic-name",
+        )
+
+        context = mock.MagicMock()
+        mock_service_bus_client = mock_get_conn.return_value.__enter__.return_value
+        mock_sender = mock_service_bus_client.get_queue_sender.return_value.__enter__.return_value
+
+        operator._send_request_message(MessageHook(), context)
+
+        mock_service_bus_client.get_queue_sender.assert_called_once_with(queue_name="test_queue")
+        mock_sender.send_messages.assert_called_once()
+        sent_message = mock_sender.send_messages.call_args[0][0]
+        assert str(sent_message) == TEST_MESSAGE_BODY
+        assert sent_message.application_properties["reply_type"] == "topic"
+        assert sent_message.message_id == operator.reply_correlation_id
+        assert sent_message.reply_to == "reply-topic-name"
+
+    @mock.patch("airflow.providers.microsoft.azure.operators.asb.AdminClientHook")
+    @mock.patch("airflow.providers.microsoft.azure.operators.asb.MessageHook")
+    def test_execute(self, mock_message_hook, mock_admin_hook):
+        operator = AzureServiceBusRequestReplyOperator(
+            task_id="test_task",
+            request_queue_name="test_queue",
+            request_body_generator=lambda context: "test_body",
+            reply_topic_name="reply-topic-name",
+        )
+
+        context = mock.MagicMock()
+        context["task"] = mock.MagicMock()
+        context["task"].task_id = 837
+
+        mock_message_hook_instance = mock_message_hook.return_value
+        mock_admin_hook_instance = mock_admin_hook.return_value
+
+        operator.execute(context)
+
+        # Check if the reply subscription was created
+        mock_admin_hook_instance.get_conn.return_value.__enter__.return_value.create_subscription.assert_called_once_with(
+            topic_name="reply-topic-name",
+            subscription_name=operator.subscription_name,
+            default_message_time_to_live="PT1H",  # 1 hour
+            dead_lettering_on_message_expiration=True,
+            dead_lettering_on_filter_evaluation_exceptions=True,
+            enable_batched_operations=False,
+            user_metadata=f"Subscription for reply to {operator.reply_correlation_id} for task ID {context['task'].task_id}",
+            auto_delete_on_idle="PT6H",  # 6 hours
+        )
+
+        # Check if the request message was sent
+        mock_message_hook_instance.get_conn.return_value.__enter__.return_value.get_queue_sender.return_value.__enter__.return_value.send_messages.assert_called_once_with(
+            mock.ANY, timeout=60
+        )
+
+        # Check if the reply message was received
+        mock_message_hook_instance.receive_subscription_message.assert_called_once_with(
+            "reply-topic-name",
+            operator.subscription_name,
+            context,
+            max_message_count=1,
+            max_wait_time=60,
+            message_callback=None,
+        )
+
+        # Check if the reply subscription was removed
+        mock_admin_hook_instance.delete_subscription.assert_called_once_with(
+            operator.subscription_name, operator.reply_topic_name
+        )
+
+    @mock.patch("airflow.providers.microsoft.azure.operators.asb.AdminClientHook")
+    @mock.patch("airflow.providers.microsoft.azure.operators.asb.MessageHook")
+    def test_execute_with_exception(self, mock_message_hook, mock_admin_hook):
+        operator = AzureServiceBusRequestReplyOperator(
+            task_id="test_task",
+            request_queue_name="test_queue",
+            request_body_generator=lambda context: "test_body",
+            reply_topic_name="reply-topic-name",
+        )
+
+        context = mock.MagicMock()
+        context["task"] = mock.MagicMock()
+        context["task"].task_id = 123
+
+        mock_message_hook_instance = mock_message_hook.return_value
+        mock_admin_hook_instance = mock_admin_hook.return_value
+
+        # Simulate an exception during message sending
+        mock_message_hook_instance.get_conn.return_value.__enter__.return_value.get_queue_sender.return_value.__enter__.return_value.send_messages.side_effect = Exception(
+            "Test exception"
+        )
+
+        with pytest.raises(Exception, match="Test exception"):
+            operator.execute(context)
+
+        # Check if the reply subscription was still removed despite the exception
+        mock_admin_hook_instance.delete_subscription.assert_called_once_with(
+            operator.subscription_name, operator.reply_topic_name
+        )
