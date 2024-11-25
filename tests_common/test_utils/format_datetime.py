@@ -18,26 +18,12 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.api_fastapi.core_api.base import BaseModel
+
+def datetime_zulu_format(dt: datetime) -> str:
+    """Format a datetime object to a string in Zulu time."""
+    return dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
-class JobResponse(BaseModel):
-    """Job serializer for responses."""
-
-    id: int
-    dag_id: str | None
-    state: str | None
-    job_type: str | None
-    start_date: datetime | None
-    end_date: datetime | None
-    latest_heartbeat: datetime | None
-    executor_class: datetime | None
-    hostname: str | None
-    unixname: str | None
-
-
-class JobCollectionResponse(BaseModel):
-    """Job Collection Response."""
-
-    jobs: list[JobResponse]
-    total_entries: int
+def datetime_zulu_format_without_ms(dt: datetime) -> str:
+    """Format a datetime object to a string in Zulu time without milliseconds."""
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
