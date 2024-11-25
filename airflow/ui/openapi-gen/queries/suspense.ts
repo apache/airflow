@@ -1737,7 +1737,6 @@ export const useTaskInstanceServiceGetTaskInstanceDependencies1Suspense = <
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
- * @param data.mapIndex
  * @returns TaskInstanceHistoryCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -1749,12 +1748,10 @@ export const useTaskInstanceServiceGetTaskInstanceTriesSuspense = <
   {
     dagId,
     dagRunId,
-    mapIndex,
     taskId,
   }: {
     dagId: string;
     dagRunId: string;
-    mapIndex?: number;
     taskId: string;
   },
   queryKey?: TQueryKey,
@@ -1762,57 +1759,13 @@ export const useTaskInstanceServiceGetTaskInstanceTriesSuspense = <
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTriesKeyFn(
-      { dagId, dagRunId, mapIndex, taskId },
+      { dagId, dagRunId, taskId },
       queryKey,
     ),
     queryFn: () =>
       TaskInstanceService.getTaskInstanceTries({
         dagId,
         dagRunId,
-        mapIndex,
-        taskId,
-      }) as TData,
-    ...options,
-  });
-/**
- * Get Mapped Task Instance Tries
- * @param data The data for the request.
- * @param data.dagId
- * @param data.dagRunId
- * @param data.taskId
- * @param data.mapIndex
- * @returns TaskInstanceHistoryCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useTaskInstanceServiceGetMappedTaskInstanceTriesSuspense = <
-  TData = Common.TaskInstanceServiceGetMappedTaskInstanceTriesDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    dagId,
-    dagRunId,
-    mapIndex,
-    taskId,
-  }: {
-    dagId: string;
-    dagRunId: string;
-    mapIndex: number;
-    taskId: string;
-  },
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceTriesKeyFn(
-      { dagId, dagRunId, mapIndex, taskId },
-      queryKey,
-    ),
-    queryFn: () =>
-      TaskInstanceService.getMappedTaskInstanceTries({
-        dagId,
-        dagRunId,
-        mapIndex,
         taskId,
       }) as TData,
     ...options,

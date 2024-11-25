@@ -126,8 +126,6 @@ import type {
   GetTaskInstanceDependencies1Response,
   GetTaskInstanceTriesData,
   GetTaskInstanceTriesResponse,
-  GetMappedTaskInstanceTriesData,
-  GetMappedTaskInstanceTriesResponse,
   GetMappedTaskInstanceData,
   GetMappedTaskInstanceResponse,
   GetTaskInstancesData,
@@ -2100,7 +2098,6 @@ export class TaskInstanceService {
    * @param data.dagId
    * @param data.dagRunId
    * @param data.taskId
-   * @param data.mapIndex
    * @returns TaskInstanceHistoryCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -2114,40 +2111,6 @@ export class TaskInstanceService {
         dag_id: data.dagId,
         dag_run_id: data.dagRunId,
         task_id: data.taskId,
-      },
-      query: {
-        map_index: data.mapIndex,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Get Mapped Task Instance Tries
-   * @param data The data for the request.
-   * @param data.dagId
-   * @param data.dagRunId
-   * @param data.taskId
-   * @param data.mapIndex
-   * @returns TaskInstanceHistoryCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static getMappedTaskInstanceTries(
-    data: GetMappedTaskInstanceTriesData,
-  ): CancelablePromise<GetMappedTaskInstanceTriesResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries",
-      path: {
-        dag_id: data.dagId,
-        dag_run_id: data.dagRunId,
-        task_id: data.taskId,
-        map_index: data.mapIndex,
       },
       errors: {
         401: "Unauthorized",
