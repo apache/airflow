@@ -1347,3 +1347,41 @@ def test_task_instances(admin_client):
             "dag_version_id": None,
         },
     }
+
+
+def test_trigger_dag_after_deletion(admin_client, dag_maker, session):
+    from airflow.models import DagRun
+
+    # Create a DAG and serialize it to the database
+    with dag_maker(dag_id="test_dag_to_trigger") as dag:
+        EmptyOperator(task_id="dummy_task")
+    dag.sync_to_db(session=session)
+    SerializedDagModel.write_dag(dag)
+    session.commit()
+
+    # Simulate deleting the DAG file by creating an empty DagBag
+    from airflow.models import DagBag
+
+    empty_dag_bag = DagBag(dag_folder="/dev/null", include_examples=False)
+
+    # Patch the application's dag_bag to simulate that the DAG file has been deleted
+    with unittest.mock.patch.object(admin_client.application.app, "dag_bag", empty_dag_bag):
+        # Trigger the DAG via the web UI
+        url = f"/dags/{dag.dag_id}/trigger"
+        resp = admin_client.post(url, data={}, follow_redirects=True)
+
+        # Check that the response is successful and no errors are displayed
+        assert resp.status_code == 200
+        check_content_not_in_response("Error", resp)
+
+        # Verify that a DagRun has been created and is in the correct state
+        dagrun = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).first()
+        assert dagrun is not None
+        assert dagrun.state in [DagRunState.QUEUED, DagRunState.RUNNING]
+
+        # Verify that the task instances are created correctly
+        tis = dagrun.get_task_instances(session=session)
+        assert len(tis) == 1
+        ti = tis[0]
+        assert ti.task_id == "dummy_task"
+        assert ti.state is None  # Task has not started yet
