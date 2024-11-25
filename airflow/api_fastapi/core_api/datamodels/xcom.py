@@ -50,9 +50,9 @@ class XComResponseString(XComResponse):
     def value_to_string(cls, v):
         return str(v) if v is not None else None
 
+
 class XComCollection(BaseModel):
     """List of XCom items."""
 
-    xcom_entries: List[XComResponse]
+    xcom_entries: list[XComResponse]
     total_entries: int
-

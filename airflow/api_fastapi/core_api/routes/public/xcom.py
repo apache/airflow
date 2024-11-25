@@ -19,19 +19,19 @@ from __future__ import annotations
 import copy
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, status, SortParam
+from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
+from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.xcom import (
+    XComCollection,
+    XComResponse,
     XComResponseNative,
     XComResponseString,
-    XComCollection
 )
-
-from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models import DagRun as DR, XCom
 from airflow.settings import conf
@@ -95,8 +95,9 @@ def get_xcom_entry(
         return XComResponseString.model_validate(item)
     return XComResponseNative.model_validate(item)
 
+
 @xcom_router.get(
-    "/{xcom_key}",
+    "",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
@@ -111,20 +112,19 @@ def get_xcom_entries(
     limit: QueryLimit,
     offset: QueryOffset,
     session: Annotated[Session, Depends(get_session)],
-    stringify: Annotated[bool, Query()] = True,
     xcom_key: Annotated[str | None, Query()] = None,
-    map_index: Annotated[int | None, Query()] = None,
+    map_index: Annotated[int | None, Query(ge=-1)] = None,
 ) -> XComCollection:
     """
     Get all XCom entries.
-    
+
     This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all DAGs.
     """
     query = select(XCom)
     if dag_id != "~":
         query = query.where(XCom.dag_id == dag_id)
     query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.run_id == DR.run_id))
-    
+
     if task_id != "~":
         query = query.where(XCom.task_id == task_id)
     if dag_run_id != "~":
@@ -135,15 +135,14 @@ def get_xcom_entries(
         query = query.where(XCom.key == xcom_key)
 
     query, total_entries = paginated_select(
-        query,
-        [],
-        SortParam(["dag_id", "task_id", "run_id", "map_index", "key"], XCom),
-        offset,
-        limit,
-        session
+        select=query,
+        filters=[],
+        order_by=SortParam(["dag_id", "task_id", "run_id", "map_index", "key"], XCom),
+        offset=offset,
+        limit=limit,
+        session=session,
     )
     xcoms = session.scalars(query)
     return XComCollection(
-        xcom_entries=[XComResponse.model_validate(xcom) for xcom in xcoms], 
-        total_entries=total_entries
+        xcom_entries=[XComResponse.model_validate(xcom) for xcom in xcoms], total_entries=total_entries
     )
