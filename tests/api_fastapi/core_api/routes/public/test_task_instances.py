@@ -2617,7 +2617,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
 
         response2 = test_client.get(self.ENDPOINT_URL)
         assert response2.status_code == 200
-        assert response2.json()["state"] == "running" # no change in state
+        assert response2.json()["state"] == "running"  # no change in state
 
     def test_should_update_mapped_task_instance_state(self, test_client, session):
         map_index = 1
