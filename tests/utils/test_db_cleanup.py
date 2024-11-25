@@ -301,6 +301,7 @@ class TestDBCleanup:
             )
             model = config_dict["dag_run"].orm_model
             assert len(session.query(model).all()) == 5
+            # Check the archived table
             assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
 
     def test_no_models_missing(self):
