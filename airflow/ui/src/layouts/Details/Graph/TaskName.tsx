@@ -16,9 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text, type TextProps } from "@chakra-ui/react";
+import { type LinkProps, Link } from "@chakra-ui/react";
 import type { CSSProperties } from "react";
 import { FiArrowUpRight, FiArrowDownRight } from "react-icons/fi";
+import {
+  useParams,
+  useSearchParams,
+  Link as RouterLink,
+} from "react-router-dom";
 
 import type { NodeResponse } from "openapi/requests/types.gen";
 
@@ -30,7 +35,13 @@ type Props = {
   readonly isZoomedOut?: boolean;
   readonly label: string;
   readonly setupTeardownType?: NodeResponse["setup_teardown_type"];
-} & TextProps;
+} & LinkProps;
+
+const iconStyle: CSSProperties = {
+  display: "inline",
+  position: "relative",
+  verticalAlign: "middle",
+};
 
 export const TaskName = ({
   id,
@@ -42,20 +53,32 @@ export const TaskName = ({
   setupTeardownType,
   ...rest
 }: Props) => {
-  const iconStyle: CSSProperties = {
-    display: "inline",
-    position: "relative",
-    verticalAlign: "middle",
-  };
+  const { dagId = "", runId } = useParams();
+  const [searchParams] = useSearchParams();
 
   return (
-    <Text data-testid={id} fontSize={isZoomedOut ? 24 : undefined} {...rest}>
-      {label}
-      {isMapped ? " [ ]" : undefined}
-      {setupTeardownType === "setup" && <FiArrowUpRight size={isZoomedOut ? 24 : 15} style={iconStyle} />}
-      {setupTeardownType === "teardown" && (
-        <FiArrowDownRight size={isZoomedOut ? 24 : 15} style={iconStyle} />
-      )}
-    </Text>
+    <Link
+      asChild
+      data-testid={id}
+      fontSize={isZoomedOut ? "lg" : "md"}
+      fontWeight="bold"
+      {...rest}
+    >
+      <RouterLink
+        to={{
+          pathname: `/dags/${dagId}/${runId === undefined ? "" : `runs/${runId}/`}tasks/${id}`,
+          search: searchParams.toString(),
+        }}
+      >
+        {label}
+        {isMapped ? " [ ]" : undefined}
+        {setupTeardownType === "setup" && (
+          <FiArrowUpRight size={isZoomedOut ? 24 : 15} style={iconStyle} />
+        )}
+        {setupTeardownType === "teardown" && (
+          <FiArrowDownRight size={isZoomedOut ? 24 : 15} style={iconStyle} />
+        )}
+      </RouterLink>
+    </Link>
   );
 };

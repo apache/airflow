@@ -222,14 +222,18 @@ paths:
         in: query
         required: false
         schema:
-          type: boolean
+          anyOf:
+          - type: boolean
+          - type: 'null'
           default: false
           title: Include Upstream
       - name: include_downstream
         in: query
         required: false
         schema:
-          type: boolean
+          anyOf:
+          - type: boolean
+          - type: 'null'
           default: false
           title: Include Downstream
       - name: root
@@ -349,14 +353,18 @@ paths:
         in: query
         required: false
         schema:
-          type: boolean
+          anyOf:
+          - type: boolean
+          - type: 'null'
           default: false
           title: Include Upstream
       - name: include_downstream
         in: query
         required: false
         schema:
-          type: boolean
+          anyOf:
+          - type: boolean
+          - type: 'null'
           default: false
           title: Include Downstream
       - name: logical_date_gte
@@ -383,14 +391,6 @@ paths:
           - type: string
           - type: 'null'
           title: Root
-      - name: offset
-        in: query
-        required: false
-        schema:
-          type: integer
-          minimum: 0
-          default: 0
-          title: Offset
       - name: run_type
         in: query
         required: false
@@ -407,6 +407,14 @@ paths:
           items:
             type: string
           title: State
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
       - name: limit
         in: query
         required: false
@@ -5869,12 +5877,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '409':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Conflict
         '422':
           description: Validation Error
           content:
@@ -9757,7 +9759,6 @@ components:
       properties:
         key:
           type: string
-          maxLength: 250
           title: Key
         value:
           type: string

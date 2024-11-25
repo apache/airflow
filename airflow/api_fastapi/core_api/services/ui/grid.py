@@ -25,18 +25,47 @@ from typing_extensions import Any
 from airflow import DAG
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.parameters import (
-    state_priority,
+    SortParam,
 )
 from airflow.api_fastapi.core_api.datamodels.ui.grid import (
     GridTaskInstanceSummary,
 )
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.models import MappedOperator
+from airflow.models import DagRun, MappedOperator
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskmap import TaskMap
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup, TaskGroup
+
+
+def get_dag_run_sort_param(dag: DAG, request_order_by: SortParam) -> SortParam:
+    """
+    Get the Sort Param for the DAG Run.
+
+    Data interval columns are NULL for runs created before 2.3, but SQL's
+    NULL-sorting logic would make those old runs always appear first. In a
+    perfect world we'd want to sort by ``get_run_data_interval()``, but that's
+    not efficient, so instead if the run_ordering is data_interval_start or data_interval_end,
+    we sort by logical_date instead.
+
+    :param dag: DAG
+    :param request_order_by: Request Order By
+
+    :return: Sort Param
+    """
+    if request_order_by and request_order_by.value != request_order_by.get_primary_key_string():
+        return request_order_by
+
+    sort_param = SortParam(
+        allowed_attrs=["logical_date", "data_interval_start", "data_interval_end"], model=DagRun
+    )
+
+    for name in dag.timetable.run_ordering:
+        if name in ("data_interval_start", "data_interval_end"):
+            return sort_param.set_value(name)
+
+    return sort_param.set_value("logical_date")
 
 
 @cache
@@ -163,15 +192,26 @@ def fill_task_instance_summaries(
 
     :return: None
     """
-    # Additional logic to calculate the overall states to cascade recursive task states
+    ## Additional logic to calculate the overall state and task count dict of states
+    priority: list[None | TaskInstanceState] = [
+        TaskInstanceState.FAILED,
+        TaskInstanceState.UPSTREAM_FAILED,
+        TaskInstanceState.UP_FOR_RETRY,
+        TaskInstanceState.UP_FOR_RESCHEDULE,
+        TaskInstanceState.QUEUED,
+        TaskInstanceState.SCHEDULED,
+        TaskInstanceState.DEFERRED,
+        TaskInstanceState.RUNNING,
+        TaskInstanceState.RESTARTING,
+        None,
+        TaskInstanceState.SUCCESS,
+        TaskInstanceState.SKIPPED,
+        TaskInstanceState.REMOVED,
+    ]
+
     overall_states: dict[tuple[str, str], str] = {
         (task_id, run_id): next(
-            (
-                str(state.value)
-                for state in state_priority
-                for ti in tis
-                if state is not None and ti.state == state
-            ),
+            (str(state.value) for state in priority for ti in tis if state is not None and ti.state == state),
             "no_status",
         )
         for (task_id, run_id), tis in grouped_task_instances.items()
@@ -183,11 +223,9 @@ def fill_task_instance_summaries(
         ti_queued_dttm = min([ti.queued_dttm for ti in tis if ti.queued_dttm], default=None)
         ti_note = min([ti.note for ti in tis if ti.note], default=None)
 
-        # Calculate the child states for the task
-        # Initialize the child states with 0
-        child_states = {"no_status" if state is None else state.name.lower(): 0 for state in state_priority}
+        all_states = {"no_status" if state is None else state.name.lower(): 0 for state in priority}
         # Update Task States for non-grouped tasks
-        child_states.update(
+        all_states.update(
             {
                 "no_status" if state is None else state.name.lower(): len(
                     [ti for ti in tis if ti.state == state]
@@ -198,30 +236,19 @@ def fill_task_instance_summaries(
                         if ti.state == state and ti.task_id in get_child_task_map(task_id, task_node_map)
                     ]
                 )
-                for state in state_priority
+                for state in priority
             }
         )
-        # Update Nested Task Group States by aggregating the child states
-        child_states.update(
+        # Update Nested Task Group
+        all_states.update(
             {
-                overall_states[(task_node_id, run_id)].lower(): child_states.get(
+                overall_states[(task_node_id, run_id)].lower(): all_states.get(
                     overall_states[(task_node_id, run_id)].lower(), 0
                 )
                 + 1
                 for task_node_id in get_child_task_map(task_id, task_node_map)
                 if task_node_map[task_node_id]["is_group"]
             }
-        )
-
-        # Get the overall state for the task
-        overall_ti_state = next(
-            (
-                state
-                for state in state_priority
-                for state_name, state_count in child_states.items()
-                if state_count > 0 and state_name == state
-            ),
-            "no_status",
         )
 
         # Task Count is either integer or a TaskGroup to get the task count
@@ -232,10 +259,10 @@ def fill_task_instance_summaries(
                 start_date=ti_start_date,
                 end_date=ti_end_date,
                 queued_dttm=ti_queued_dttm,
-                child_states=child_states,
+                child_states=all_states,
                 task_count=_get_total_task_count(run_id, task_node_map[task_id]["task_count"], session),
-                state=TaskInstanceState[overall_ti_state.upper()]
-                if overall_ti_state != "no_status"
+                state=TaskInstanceState[overall_states[(task_id, run_id)].upper()]
+                if overall_states[(task_id, run_id)] != "no_status"
                 else None,
                 note=ti_note,
             )
