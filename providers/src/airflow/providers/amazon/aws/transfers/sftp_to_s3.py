@@ -94,9 +94,8 @@ class SFTPToS3Operator(BaseOperator):
         except FileNotFoundError:
             if self.fail_on_file_not_exist:
                 raise
-            else:
-                self.log.info("File %s not found on SFTP server. Skipping transfer.", self.sftp_path)
-                return
+            self.log.info("File %s not found on SFTP server. Skipping transfer.", self.sftp_path)
+            return
 
         if self.use_temp_file:
             with NamedTemporaryFile("w") as f:
