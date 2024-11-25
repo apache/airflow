@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from airflow.models import BaseOperator
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook

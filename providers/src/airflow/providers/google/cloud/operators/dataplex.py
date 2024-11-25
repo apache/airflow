@@ -19,7 +19,8 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.triggers.dataplex import (
@@ -686,38 +687,43 @@ class DataplexCreateOrUpdateDataQualityScanOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        self.log.info("Creating Dataplex Data Quality scan %s", self.data_scan_id)
-        try:
-            operation = hook.create_data_scan(
-                project_id=self.project_id,
-                region=self.region,
-                data_scan_id=self.data_scan_id,
-                body=self.body,
-                retry=self.retry,
-                timeout=self.timeout,
-                metadata=self.metadata,
-            )
-            hook.wait_for_operation(timeout=self.timeout, operation=operation)
-            self.log.info("Dataplex Data Quality scan %s created successfully!", self.data_scan_id)
-        except AlreadyExists:
-            self.log.info("Dataplex Data Quality scan already exists: %s", {self.data_scan_id})
-
-            operation = hook.update_data_scan(
-                project_id=self.project_id,
-                region=self.region,
-                data_scan_id=self.data_scan_id,
-                body=self.body,
-                update_mask=self.update_mask,
-                retry=self.retry,
-                timeout=self.timeout,
-                metadata=self.metadata,
-            )
-            hook.wait_for_operation(timeout=self.timeout, operation=operation)
-            self.log.info("Dataplex Data Quality scan %s updated successfully!", self.data_scan_id)
-        except GoogleAPICallError as e:
-            raise AirflowException(f"Error creating Data Quality scan {self.data_scan_id}", e)
+        if self.update_mask is not None:
+            self._update_data_scan(hook)
+        else:
+            self.log.info("Creating Dataplex Data Quality scan %s", self.data_scan_id)
+            try:
+                operation = hook.create_data_scan(
+                    project_id=self.project_id,
+                    region=self.region,
+                    data_scan_id=self.data_scan_id,
+                    body=self.body,
+                    retry=self.retry,
+                    timeout=self.timeout,
+                    metadata=self.metadata,
+                )
+                hook.wait_for_operation(timeout=self.timeout, operation=operation)
+                self.log.info("Dataplex Data Quality scan %s created successfully!", self.data_scan_id)
+            except AlreadyExists:
+                self._update_data_scan(hook)
+            except GoogleAPICallError as e:
+                raise AirflowException(f"Error creating Data Quality scan {self.data_scan_id}", e)
 
         return self.data_scan_id
+
+    def _update_data_scan(self, hook: DataplexHook):
+        self.log.info("Dataplex Data Quality scan already exists: %s", {self.data_scan_id})
+        operation = hook.update_data_scan(
+            project_id=self.project_id,
+            region=self.region,
+            data_scan_id=self.data_scan_id,
+            body=self.body,
+            update_mask=self.update_mask,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+        hook.wait_for_operation(timeout=self.timeout, operation=operation)
+        self.log.info("Dataplex Data Quality scan %s updated successfully!", self.data_scan_id)
 
 
 class DataplexGetDataQualityScanOperator(GoogleCloudBaseOperator):

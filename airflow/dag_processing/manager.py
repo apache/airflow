@@ -31,10 +31,11 @@ import sys
 import time
 import zipfile
 from collections import defaultdict, deque
+from collections.abc import Iterator
 from datetime import datetime, timedelta
 from importlib import import_module
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Iterator, NamedTuple, cast
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple, cast
 
 from setproctitle import setproctitle
 from sqlalchemy import delete, select, update

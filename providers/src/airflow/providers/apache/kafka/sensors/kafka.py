@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Callable, Sequence
+from collections.abc import Sequence
+from typing import Any, Callable
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.kafka.triggers.await_message import AwaitMessageTrigger

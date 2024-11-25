@@ -28,8 +28,9 @@ import sys
 import traceback
 import warnings
 from enum import Enum
-from inspect import isclass
+from inspect import isabstract, isclass
 from pathlib import Path
+from types import GenericAlias
 from typing import NamedTuple
 
 from rich.console import Console
@@ -200,11 +201,23 @@ def import_all_classes(
                     for attribute_name in dir(_module):
                         class_name = modinfo.name + "." + attribute_name
                         attribute = getattr(_module, attribute_name)
-                        if isclass(attribute):
-                            imported_classes.append(class_name)
-                        if isclass(attribute) and (
-                            issubclass(attribute, logging.Handler)
-                            or issubclass(attribute, BaseSecretsBackend)
+
+                        # Skip
+                        #   - parameterized generics like Sequence[tuple[str, str]]
+                        #   - builtins like str, int, etc.
+                        #   - non-class objects
+                        if (
+                            isinstance(attribute, GenericAlias)
+                            or (hasattr(attribute, "__module__") and attribute.__module__ == "builtins")
+                            or not isclass(attribute)
+                        ):
+                            continue
+
+                        imported_classes.append(class_name)
+
+                        # Handle circular imports for specific subclasses
+                        if issubclass(attribute, logging.Handler) or (
+                            isabstract(attribute) and issubclass(attribute, BaseSecretsBackend)
                         ):
                             classes_with_potential_circular_import.append(class_name)
             except AirflowOptionalProviderFeatureException:
