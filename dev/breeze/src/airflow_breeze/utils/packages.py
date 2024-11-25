@@ -449,7 +449,7 @@ def apply_version_suffix(install_clause: str, version_suffix: str) -> str:
     return install_clause
 
 
-def get_install_requirements(provider_id: str, version_suffix: str) -> str:
+def get_install_requirements(provider_id: str, version_suffix: str):
     """
     Returns install requirements for the package.
 
@@ -465,7 +465,7 @@ def get_install_requirements(provider_id: str, version_suffix: str) -> str:
     install_requires = [
         apply_version_suffix(clause, version_suffix).replace('"', '\\"') for clause in dependencies
     ]
-    return "".join(f'\n    "{ir}",' for ir in install_requires)
+    return "".join(f'\n    "{ir}",' for ir in install_requires), install_requires
 
 
 def get_package_extras(provider_id: str, version_suffix: str) -> dict[str, list[str]]:
@@ -474,14 +474,43 @@ def get_package_extras(provider_id: str, version_suffix: str) -> dict[str, list[
 
     :param provider_id: id of the package
     """
+
     if provider_id == "providers":
         return {}
     if provider_id in get_removed_provider_ids():
         return {}
+
+    deps_list = get_install_requirements(provider_id=provider_id, version_suffix=version_suffix)[1]
+
+    for i in range(len(deps_list)):
+        if ">" in deps_list[i]:
+            deps_list[i] = deps_list[i].split(">")[0]
+        elif "<" in deps_list[i]:
+            deps_list[i] = deps_list[i].split("<")[0]
+        elif "==" in deps_list[i]:
+            deps_list[i] = deps_list[i].split("==")[0]
+
+    deps = list(filter(lambda x: x.startswith("apache-airflow-providers"), deps_list))
+
+    print("deps is", deps)
+
     extras_dict: dict[str, list[str]] = {
         module: [get_pip_package_name(module)]
         for module in PROVIDER_DEPENDENCIES.get(provider_id)["cross-providers-deps"]
     }
+
+    print("extras is ", extras_dict)
+
+    to_pop_extras = []
+
+    # remove the keys from extras_dict if the provider is already a required dependency
+    for k, v in extras_dict.items():
+        if v and v[0] in deps:
+            to_pop_extras.append(k)
+
+    for k in to_pop_extras:
+        del extras_dict[k]
+
     provider_yaml_dict = get_provider_packages_metadata().get(provider_id)
     additional_extras = provider_yaml_dict.get("additional-extras") if provider_yaml_dict else None
     if additional_extras:
@@ -502,6 +531,7 @@ def get_package_extras(provider_id: str, version_suffix: str) -> dict[str, list[
                 extras_dict[name] = dependencies
     for extra, dependencies in extras_dict.items():
         extras_dict[extra] = [apply_version_suffix(clause, version_suffix) for clause in dependencies]
+    print("EXTRAS ARE", extras_dict)
     return extras_dict
 
 
@@ -640,7 +670,7 @@ def get_provider_jinja_context(
         "PROVIDER_DESCRIPTION": provider_details.provider_description,
         "INSTALL_REQUIREMENTS": get_install_requirements(
             provider_id=provider_details.provider_id, version_suffix=version_suffix
-        ),
+        )[0],
         "EXTRAS_REQUIREMENTS": get_package_extras(
             provider_id=provider_details.provider_id, version_suffix=version_suffix
         ),
