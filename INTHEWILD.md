@@ -365,6 +365,7 @@ Currently, **officially** using Airflow:
 1. [Oisix ra daichi, Inc.](https://en.oisixradaichi.co.jp/) [[@morihaya](https://github.com/morihaya)]
 1. [OK.ru](https://ok.ru/) [[@Mikhail-M](https://github.com/Mikhail-M)]
 1. [OneFineStay](https://www.onefinestay.com) [[@slangwald](https://github.com/slangwald)]
+1. [OpenBlock Labs](https://www.openblocklabs.com/) [[@melotik](https://github.com/melotik), [@l-jhon](https://github.com/l-jhon) & [@nitish-91](https://github.com/nitish-91)]
 1. [Open Knowledge International](https://okfn.org) [@vitorbaptista](https://github.com/vitorbaptista)
 1. [Opensignal](https://www.opensignal.com) [@harrisjoseph](https://github.com/harrisjoseph)
 1. [OpenSlate](https://openslate.com) [@marcusianlevine](https://github.com/marcusianlevine)
