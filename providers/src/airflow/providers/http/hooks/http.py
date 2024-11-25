@@ -139,17 +139,12 @@ class HttpHook(BaseHook):
     def _set_base_url(self, connection) -> None:
         host = connection.host or ""
         schema = connection.schema or "http"
-
-        # If host includes scheme, use it directly
         if "://" in host:
             self.base_url = host
         else:
-            # If no host is provided, construct minimal base URL with only schema
             self.base_url = f"{schema}://{host}" if host else f"{schema}://"
             if connection.port:
                 self.base_url += f":{connection.port}"
-
-        # Validate constructed URL
         parsed = urlparse(self.base_url)
         if not parsed.scheme:
             raise ValueError(f"Invalid base URL: Missing scheme in {self.base_url}")
@@ -178,17 +173,12 @@ class HttpHook(BaseHook):
                 self.log.warning("Connection to %s has invalid extra field.", connection.host)
 
     def _mount_adapters(self, session: requests.Session) -> None:
-        # Ensure the scheme is valid (guaranteed by _set_base_url)
         scheme = urlparse(self.base_url).scheme
-
         if not scheme:
             raise ValueError("Cannot mount adapters: base_url must include a valid scheme (http or https).")
-
-        # Use user-defined adapter if provided
         if self.adapter:
             session.mount(f"{scheme}://", self.adapter)
         elif self.keep_alive_adapter:
-            # Fallback to keep-alive adapter for both http and https
             session.mount("http://", self.keep_alive_adapter)
             session.mount("https://", self.keep_alive_adapter)
 
