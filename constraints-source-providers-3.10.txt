@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-24T07:42:00.803504
+# This constraints file was automatically generated on 2024-11-25T02:13:44.535470
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -586,7 +586,7 @@ tomli==2.1.0
 tomlkit==0.13.2
 tornado==6.4.2
 towncrier==24.8.0
-tqdm==4.67.0
+tqdm==4.67.1
 traitlets==5.14.3
 trino==0.330.0
 twine==5.1.1
@@ -626,7 +626,7 @@ uvloop==0.21.0
 validators==0.33.0
 vertica-python==1.4.0
 vine==5.1.0
-watchfiles==0.24.0
+watchfiles==1.0.0
 watchtower==3.3.1
 wcwidth==0.2.13
 weaviate-client==4.8.0
