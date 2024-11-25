@@ -1448,7 +1448,7 @@ def get_query_count(query_stmt: Select, *, session: Session) -> int:
     return session.scalar(count_stmt)
 
 
-async def get_query_count_async(query: Select, *, session: AsyncSession) -> int:
+async def get_query_count_async(statement: Select, *, session: AsyncSession) -> int:
     """
     Get count of a query.
 
@@ -1459,7 +1459,7 @@ async def get_query_count_async(query: Select, *, session: AsyncSession) -> int:
 
     :meta private:
     """
-    count_stmt = select(func.count()).select_from(query.order_by(None).subquery())
+    count_stmt = select(func.count()).select_from(statement.order_by(None).subquery())
     return await session.scalar(count_stmt)
 
 
