@@ -45,7 +45,7 @@ extra_links_router = AirflowRouter(
     "",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
-async def get_extra_links(
+def get_extra_links(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
