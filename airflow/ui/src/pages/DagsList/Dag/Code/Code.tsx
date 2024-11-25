@@ -60,7 +60,7 @@ export const Code = () => {
     dagId: dagId ?? "",
   });
 
-  const defaultWrap = useConfig("default_wrap") === "True";
+  const defaultWrap = Boolean(useConfig("default_wrap"));
 
   const [wrap, setWrap] = useState(defaultWrap);
 

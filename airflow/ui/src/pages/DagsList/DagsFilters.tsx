@@ -70,9 +70,10 @@ export const DagsFilters = () => {
     orderBy: "name",
   });
 
-  const hidePausedDagsByDefault = useConfig("hide_paused_dags_by_default");
-  const defaultShowPaused =
-    hidePausedDagsByDefault === "True" ? "false" : "all";
+  const hidePausedDagsByDefault = Boolean(
+    useConfig("hide_paused_dags_by_default"),
+  );
+  const defaultShowPaused = hidePausedDagsByDefault ? "false" : "all";
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
