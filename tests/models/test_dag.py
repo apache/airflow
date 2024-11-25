@@ -36,7 +36,6 @@ import time_machine
 from sqlalchemy import inspect, select
 
 from airflow import settings
-from airflow.assets import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.configuration import conf
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.exceptions import (
@@ -71,6 +70,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import TaskGroup
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.sdk.definitions.contextmanager import TaskGroupContext
 from airflow.security import permissions
 from airflow.templates import NativeEnvironment, SandboxedEnvironment
@@ -274,9 +274,10 @@ class TestDag:
         ],
     )
     def test_dag_task_custom_weight_strategy(self, cls, expected):
-        with mock_plugin_manager(plugins=[TestPriorityWeightStrategyPlugin]), DAG(
-            "dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"}
-        ) as dag:
+        with (
+            mock_plugin_manager(plugins=[TestPriorityWeightStrategyPlugin]),
+            DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"}) as dag,
+        ):
             task = EmptyOperator(
                 task_id="empty_task",
                 weight_rule=cls(),
@@ -2613,13 +2614,10 @@ class TestDagDecorator:
 
 
 @pytest.mark.parametrize(
-    "run_id, logical_date",
-    [
-        (None, datetime_tz(2020, 1, 1)),
-        ("test-run-id", None),
-    ],
+    "run_id",
+    ["test-run-id"],
 )
-def test_set_task_instance_state(run_id, logical_date, session, dag_maker):
+def test_set_task_instance_state(run_id, session, dag_maker):
     """Test that set_task_instance_state updates the TaskInstance state and clear downstream failed"""
 
     start_date = datetime_tz(2020, 1, 1)
@@ -2633,7 +2631,6 @@ def test_set_task_instance_state(run_id, logical_date, session, dag_maker):
 
     dagrun = dag_maker.create_dagrun(
         run_id=run_id,
-        logical_date=logical_date,
         state=State.FAILED,
         run_type=DagRunType.SCHEDULED,
     )
@@ -2654,12 +2651,12 @@ def test_set_task_instance_state(run_id, logical_date, session, dag_maker):
     get_ti_from_db(task_3).state = State.UPSTREAM_FAILED
     get_ti_from_db(task_4).state = State.FAILED
     get_ti_from_db(task_5).state = State.SKIPPED
+
     session.flush()
 
     altered = dag.set_task_instance_state(
         task_id=task_1.task_id,
         run_id=run_id,
-        logical_date=logical_date,
         state=State.SUCCESS,
         session=session,
     )

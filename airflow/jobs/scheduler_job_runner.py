@@ -25,12 +25,13 @@ import signal
 import sys
 import time
 from collections import Counter, defaultdict, deque
+from collections.abc import Collection, Iterable, Iterator
 from contextlib import suppress
 from datetime import timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
+from typing import TYPE_CHECKING, Any, Callable
 
 from deprecated import deprecated
 from sqlalchemy import and_, delete, exists, func, not_, select, text, update
@@ -1073,9 +1074,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
         for loop_count in itertools.count(start=1):
-            with Trace.start_span(
-                span_name="scheduler_job_loop", component="SchedulerJobRunner"
-            ) as span, Stats.timer("scheduler.scheduler_loop_duration") as timer:
+            with (
+                Trace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as span,
+                Stats.timer("scheduler.scheduler_loop_duration") as timer,
+            ):
                 span.set_attributes(
                     {
                         "category": "scheduler",
@@ -1800,6 +1802,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ti=ti,
                         session=session,
                     )
+                    session.commit()
             except NotImplementedError:
                 # this block only gets entered if the executor has not implemented `revoke_task`.
                 # in which case, we try the fallback logic
@@ -1838,7 +1841,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ),
                 )
             )
-            self._reschedule_stuck_task(ti)
+            self._reschedule_stuck_task(ti, session=session)
         else:
             self.log.info(
                 "Task requeue attempts exceeded max; marking failed. task_instance=%s",
@@ -1875,8 +1878,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ti_repr,
                 )
 
-    @provide_session
-    def _reschedule_stuck_task(self, ti, session=NEW_SESSION):
+    def _reschedule_stuck_task(self, ti: TaskInstance, session: Session):
         session.execute(
             update(TI)
             .where(TI.filter_for_tis([ti]))
@@ -1890,7 +1892,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @provide_session
     def _get_num_times_stuck_in_queued(self, ti: TaskInstance, session: Session = NEW_SESSION) -> int:
         """
-        Check the Log table to see how many times a taskinstance has been stuck in queued.
+        Check the Log table to see how many times a task instance has been stuck in queued.
 
         We can then use this information to determine whether to reschedule a task or fail it.
         """

@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger

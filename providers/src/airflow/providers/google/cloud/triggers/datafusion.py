@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Sequence
+from typing import Any
 
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionAsyncHook
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType

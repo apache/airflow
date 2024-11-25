@@ -22,7 +22,7 @@ from fastapi import Depends, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from airflow.api_fastapi.common.parameters import DateTimeQuery
+from airflow.api_fastapi.common.parameters import DateTimeQuery, OptionalDateTimeQuery
 from airflow.api_fastapi.core_api.datamodels.ui.dashboard import HistoricalMetricDataResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models.dagrun import DagRun, DagRunType
@@ -44,17 +44,18 @@ dashboard_router = AirflowRouter(tags=["Dashboard"])
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]),
 )
 def historical_metrics(
-    start_date: DateTimeQuery,
-    end_date: DateTimeQuery,
     session: Annotated[Session, Depends(get_session)],
+    start_date: DateTimeQuery,
+    end_date: OptionalDateTimeQuery = None,
 ) -> HistoricalMetricDataResponse:
     """Return cluster activity historical metrics."""
+    current_time = timezone.utcnow()
     # DagRuns
     dag_run_types = session.execute(
         select(DagRun.run_type, func.count(DagRun.run_id))
         .where(
             DagRun.start_date >= start_date,
-            func.coalesce(DagRun.end_date, timezone.utcnow()) <= end_date,
+            func.coalesce(DagRun.end_date, current_time) <= func.coalesce(end_date, current_time),
         )
         .group_by(DagRun.run_type)
     ).all()
@@ -63,7 +64,7 @@ def historical_metrics(
         select(DagRun.state, func.count(DagRun.run_id))
         .where(
             DagRun.start_date >= start_date,
-            func.coalesce(DagRun.end_date, timezone.utcnow()) <= end_date,
+            func.coalesce(DagRun.end_date, current_time) <= func.coalesce(end_date, current_time),
         )
         .group_by(DagRun.state)
     ).all()
@@ -74,7 +75,7 @@ def historical_metrics(
         .join(TaskInstance.dag_run)
         .where(
             DagRun.start_date >= start_date,
-            func.coalesce(DagRun.end_date, timezone.utcnow()) <= end_date,
+            func.coalesce(DagRun.end_date, current_time) <= func.coalesce(end_date, current_time),
         )
         .group_by(TaskInstance.state)
     ).all()
@@ -96,4 +97,4 @@ def historical_metrics(
         },
     }
 
-    return HistoricalMetricDataResponse.model_validate(historical_metrics_response, from_attributes=True)
+    return HistoricalMetricDataResponse.model_validate(historical_metrics_response)

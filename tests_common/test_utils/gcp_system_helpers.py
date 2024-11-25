@@ -19,10 +19,10 @@ from __future__ import annotations
 
 import os
 import tempfile
+from collections.abc import Sequence
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Sequence
 from unittest import mock
 
 import pytest
@@ -84,10 +84,10 @@ def provide_gcp_context(
     key_file_path = resolve_full_gcp_key_path(key_file_path)  # type: ignore
     if project_id is None:
         project_id = os.environ.get("GCP_PROJECT_ID")
-    with provide_gcp_conn_and_credentials(
-        key_file_path, scopes, project_id
-    ), tempfile.TemporaryDirectory() as gcloud_config_tmp, mock.patch.dict(
-        "os.environ", {CLOUD_SDK_CONFIG_DIR: gcloud_config_tmp}
+    with (
+        provide_gcp_conn_and_credentials(key_file_path, scopes, project_id),
+        tempfile.TemporaryDirectory() as gcloud_config_tmp,
+        mock.patch.dict("os.environ", {CLOUD_SDK_CONFIG_DIR: gcloud_config_tmp}),
     ):
         executor = CommandExecutor()
 

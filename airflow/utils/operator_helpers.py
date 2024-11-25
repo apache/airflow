@@ -19,11 +19,12 @@ from __future__ import annotations
 
 import inspect
 import logging
+from collections.abc import Collection, Mapping
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Collection, Mapping, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Protocol, TypeVar
 
 from airflow import settings
-from airflow.assets.metadata import Metadata
+from airflow.sdk.definitions.asset.metadata import Metadata
 from airflow.typing_compat import ParamSpec
 from airflow.utils.context import Context, lazy_mapping_from_context
 from airflow.utils.types import NOTSET

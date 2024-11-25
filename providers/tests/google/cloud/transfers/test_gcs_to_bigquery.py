@@ -1439,12 +1439,6 @@ class TestGCSToBigQueryOperator:
         hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
         hook.return_value.get_client.return_value.get_table.return_value = TEST_EMPTY_TABLE
 
-        expected_output_dataset_facets = {
-            "schema": SchemaDatasetFacet(fields=[]),
-            "documentation": DocumentationDatasetFacet(description=""),
-            "columnLineage": ColumnLineageDatasetFacet(fields={}),
-        }
-
         operator = GCSToBigQueryOperator(
             project_id=JOB_PROJECT_ID,
             task_id=TASK_ID,
@@ -1461,18 +1455,17 @@ class TestGCSToBigQueryOperator:
         assert lineage.outputs[0] == Dataset(
             namespace="bigquery",
             name=TEST_EXPLICIT_DEST,
-            facets=expected_output_dataset_facets,
+            facets={},
         )
         assert lineage.inputs[0] == Dataset(
             namespace=f"gs://{TEST_BUCKET}",
             name=TEST_OBJECT_NO_WILDCARD,
-            facets={"schema": SchemaDatasetFacet(fields=[])},
+            facets={},
         )
         assert lineage.inputs[1] == Dataset(
             namespace=f"gs://{TEST_BUCKET}",
             name="/",
             facets={
-                "schema": SchemaDatasetFacet(fields=[]),
                 "symlink": SymlinksDatasetFacet(
                     identifiers=[
                         Identifier(

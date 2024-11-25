@@ -20,9 +20,9 @@ from __future__ import annotations
 import inspect
 import json
 import warnings
+from collections.abc import Iterator
 from datetime import datetime, timedelta
 from importlib import import_module
-from typing import Iterator
 
 import pendulum
 import pytest
@@ -31,7 +31,6 @@ from kubernetes.client import models as k8s
 from pendulum.tz.timezone import Timezone
 from pydantic import BaseModel
 
-from airflow.assets import Asset, AssetAlias, AssetAliasEvent
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -50,6 +49,7 @@ from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.pydantic.asset import AssetEventPydantic, AssetPydantic
 from airflow.serialization.pydantic.dag import DagModelPydantic, DagTagPydantic

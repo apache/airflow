@@ -20,7 +20,8 @@
 from __future__ import annotations
 
 import base64
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.kms_v1 import KeyManagementServiceClient

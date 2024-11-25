@@ -22,7 +22,7 @@ import ast
 import itertools
 import pathlib
 import sys
-from typing import Iterator
+from collections.abc import Iterator
 
 
 def iter_decorated_operators(source: pathlib.Path) -> Iterator[ast.ClassDef]:

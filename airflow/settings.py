@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import pluggy
 from packaging.version import Version
 from sqlalchemy import create_engine, exc, text
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession as SAAsyncSession, create_async_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -105,8 +105,13 @@ Mapping of sync scheme to async scheme.
 
 engine: Engine
 Session: Callable[..., SASession]
+# NonScopedSession creates global sessions and is not safe to use in multi-threaded environment without
+# additional precautions. The only use case is when the session lifecycle needs
+# custom handling. Most of the time we only want one unique thread local session object,
+# this is achieved by the Session factory above.
+NonScopedSession: Callable[..., SASession]
 async_engine: AsyncEngine
-create_async_session: Callable[..., AsyncSession]
+AsyncSession: Callable[..., SAAsyncSession]
 
 # The JSON library to use for DAG Serialization and De-Serialization
 json = json
@@ -129,7 +134,7 @@ STATE_COLORS = {
 }
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _get_rich_console(file):
     # Delay imports until we need it
     import rich.console
@@ -464,7 +469,8 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     global Session
     global engine
     global async_engine
-    global create_async_session
+    global AsyncSession
+    global NonScopedSession
 
     if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Skip DB initialization in unit tests, if DB tests are skipped
@@ -484,7 +490,7 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     else:
         connect_args = {}
 
-    if os.environ.get("AIRFLOW__CORE__UNIT_TEST_MODE") == "True" and SQL_ALCHEMY_CONN.startswith("sqlite"):
+    if SQL_ALCHEMY_CONN.startswith("sqlite"):
         # FastAPI runs sync endpoints in a separate thread. SQLite does not allow
         # to use objects created in another threads by default. Allowing that in test
         # to so the `test` thread and the tested endpoints can use common objects.
@@ -492,11 +498,11 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
     engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args, future=True)
     async_engine = create_async_engine(SQL_ALCHEMY_CONN_ASYNC, future=True)
-    create_async_session = sessionmaker(
+    AsyncSession = sessionmaker(
         bind=async_engine,
         autocommit=False,
         autoflush=False,
-        class_=AsyncSession,
+        class_=SAAsyncSession,
         expire_on_commit=False,
     )
     mask_secret(engine.url.password)
@@ -515,7 +521,8 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
                 expire_on_commit=False,
             )
 
-    Session = scoped_session(_session_maker(engine))
+    NonScopedSession = _session_maker(engine)
+    Session = scoped_session(NonScopedSession)
 
 
 def force_traceback_session_for_untrusted_components(allow_tests_to_use_db=False):

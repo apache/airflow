@@ -23,9 +23,9 @@ import logging
 import os
 import sys
 from collections import Counter, deque
+from collections.abc import Generator
 from datetime import timedelta
 from importlib import reload
-from typing import Generator
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 from uuid import uuid4
@@ -39,7 +39,6 @@ from sqlalchemy import func, select, update
 
 import airflow.example_dags
 from airflow import settings
-from airflow.assets import Asset
 from airflow.assets.manager import AssetManager
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
@@ -66,6 +65,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.sdk.definitions.asset import Asset
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
@@ -2276,8 +2276,7 @@ class TestSchedulerJob:
         scheduler._task_queued_timeout = -300  # always in violation of timeout
 
         with _loader_mock(mock_executors):
-            scheduler._handle_tasks_stuck_in_queued(session=session)
-
+            scheduler._handle_tasks_stuck_in_queued()
         # If the task gets stuck in queued once, we reset it to scheduled
         tis = dr.get_task_instances(session=session)
         assert [x.state for x in tis] == ["scheduled", "scheduled"]
@@ -2291,8 +2290,7 @@ class TestSchedulerJob:
         ]
 
         with _loader_mock(mock_executors):
-            scheduler._handle_tasks_stuck_in_queued(session=session)
-        session.commit()
+            scheduler._handle_tasks_stuck_in_queued()
 
         log_events = [x.event for x in session.scalars(select(Log).where(Log.run_id == run_id)).all()]
         assert log_events == [
@@ -2307,8 +2305,7 @@ class TestSchedulerJob:
         _queue_tasks(tis=tis)
 
         with _loader_mock(mock_executors):
-            scheduler._handle_tasks_stuck_in_queued(session=session)
-        session.commit()
+            scheduler._handle_tasks_stuck_in_queued()
         log_events = [x.event for x in session.scalars(select(Log).where(Log.run_id == run_id)).all()]
         assert log_events == [
             "stuck in queued reschedule",
@@ -2774,9 +2771,10 @@ class TestSchedulerJob:
         ti = dr.get_task_instance("dummy")
         ti.set_state(State.SUCCESS, session)
 
-        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False), mock.patch(
-            "airflow.jobs.scheduler_job_runner.prohibit_commit"
-        ) as mock_guard:
+        with (
+            mock.patch.object(settings, "USE_JOB_SCHEDULE", False),
+            mock.patch("airflow.jobs.scheduler_job_runner.prohibit_commit") as mock_guard,
+        ):
             mock_guard.return_value.__enter__.return_value.commit.side_effect = session.commit
 
             def mock_schedule_dag_run(*args, **kwargs):
@@ -4288,9 +4286,12 @@ class TestSchedulerJob:
 
         caplog.set_level("FATAL")
         caplog.clear()
-        with create_session() as session, caplog.at_level(
-            "ERROR",
-            logger="airflow.jobs.scheduler_job_runner",
+        with (
+            create_session() as session,
+            caplog.at_level(
+                "ERROR",
+                logger="airflow.jobs.scheduler_job_runner",
+            ),
         ):
             self.job_runner._create_dag_runs([dag_maker.dag_model], session)
             assert caplog.messages == [
@@ -6571,26 +6572,29 @@ class TestSchedulerJobQueriesCount:
         ],
     )
     def test_execute_queries_count_with_harvested_dags(self, expected_query_count, dag_count, task_count):
-        with mock.patch.dict(
-            "os.environ",
-            {
-                "PERF_DAGS_COUNT": str(dag_count),
-                "PERF_TASKS_COUNT": str(task_count),
-                "PERF_START_AGO": "1d",
-                "PERF_SCHEDULE_INTERVAL": "30m",
-                "PERF_SHAPE": "no_structure",
-            },
-        ), conf_vars(
-            {
-                ("scheduler", "use_job_schedule"): "True",
-                ("core", "load_examples"): "False",
-                # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
-                # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
-                # This will increase the count of serliazied_dag.py.get() count.
-                # That's why we keep the values high
-                ("core", "min_serialized_dag_update_interval"): "100",
-                ("core", "min_serialized_dag_fetch_interval"): "100",
-            }
+        with (
+            mock.patch.dict(
+                "os.environ",
+                {
+                    "PERF_DAGS_COUNT": str(dag_count),
+                    "PERF_TASKS_COUNT": str(task_count),
+                    "PERF_START_AGO": "1d",
+                    "PERF_SCHEDULE_INTERVAL": "30m",
+                    "PERF_SHAPE": "no_structure",
+                },
+            ),
+            conf_vars(
+                {
+                    ("scheduler", "use_job_schedule"): "True",
+                    ("core", "load_examples"): "False",
+                    # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
+                    # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
+                    # This will increase the count of serliazied_dag.py.get() count.
+                    # That's why we keep the values high
+                    ("core", "min_serialized_dag_update_interval"): "100",
+                    ("core", "min_serialized_dag_fetch_interval"): "100",
+                }
+            ),
         ):
             dagruns = []
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False, read_dags_from_db=False)
@@ -6666,25 +6670,28 @@ class TestSchedulerJobQueriesCount:
     def test_process_dags_queries_count(
         self, expected_query_counts, dag_count, task_count, start_ago, schedule, shape
     ):
-        with mock.patch.dict(
-            "os.environ",
-            {
-                "PERF_DAGS_COUNT": str(dag_count),
-                "PERF_TASKS_COUNT": str(task_count),
-                "PERF_START_AGO": start_ago,
-                "PERF_SCHEDULE_INTERVAL": schedule,
-                "PERF_SHAPE": shape,
-            },
-        ), conf_vars(
-            {
-                ("scheduler", "use_job_schedule"): "True",
-                # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
-                # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
-                # This will increase the count of serliazied_dag.py.get() count.
-                # That's why we keep the values high
-                ("core", "min_serialized_dag_update_interval"): "100",
-                ("core", "min_serialized_dag_fetch_interval"): "100",
-            }
+        with (
+            mock.patch.dict(
+                "os.environ",
+                {
+                    "PERF_DAGS_COUNT": str(dag_count),
+                    "PERF_TASKS_COUNT": str(task_count),
+                    "PERF_START_AGO": start_ago,
+                    "PERF_SCHEDULE_INTERVAL": schedule,
+                    "PERF_SHAPE": shape,
+                },
+            ),
+            conf_vars(
+                {
+                    ("scheduler", "use_job_schedule"): "True",
+                    # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
+                    # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
+                    # This will increase the count of serliazied_dag.py.get() count.
+                    # That's why we keep the values high
+                    ("core", "min_serialized_dag_update_interval"): "100",
+                    ("core", "min_serialized_dag_fetch_interval"): "100",
+                }
+            ),
         ):
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
             dagbag.sync_to_db()

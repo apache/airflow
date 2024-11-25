@@ -26,12 +26,12 @@
 # declare "these are defined, but don't error if others are accessed" someday.
 from __future__ import annotations
 
-from typing import Any, Collection, Container, Iterable, Iterator, Mapping, Sequence, overload
+from collections.abc import Collection, Container, Iterable, Iterator, Mapping, Sequence
+from typing import Any, overload
 
 from pendulum import DateTime
 from sqlalchemy.orm import Session
 
-from airflow.assets import Asset, AssetAlias, AssetAliasEvent
 from airflow.configuration import AirflowConfigParser
 from airflow.models.asset import AssetEvent
 from airflow.models.baseoperator import BaseOperator
@@ -39,6 +39,7 @@ from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent
 from airflow.serialization.pydantic.asset import AssetEventPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic

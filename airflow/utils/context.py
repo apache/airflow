@@ -23,32 +23,26 @@ import contextlib
 import copy
 import functools
 import warnings
+from collections.abc import Container, ItemsView, Iterator, KeysView, Mapping, MutableMapping, ValuesView
 from typing import (
     TYPE_CHECKING,
     Any,
-    Container,
-    ItemsView,
-    Iterator,
-    KeysView,
-    Mapping,
-    MutableMapping,
     SupportsIndex,
-    ValuesView,
 )
 
 import attrs
 import lazy_object_proxy
 from sqlalchemy import select
 
-from airflow.assets import (
+from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel, _fetch_active_assets_by_name
+from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
     AssetAliasEvent,
     AssetRef,
-    extract_event_key,
 )
-from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel, _fetch_active_assets_by_name
+from airflow.sdk.definitions.asset.metadata import extract_event_key
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.types import NOTSET
 

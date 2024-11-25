@@ -35,14 +35,14 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from airflow.assets import Asset, AssetAlias
 from airflow.models.base import Base, StringID
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
-    from typing import Sequence
+    from collections.abc import Sequence
 
     from sqlalchemy.orm import Session
 

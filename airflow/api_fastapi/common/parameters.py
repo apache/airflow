@@ -18,10 +18,21 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Any, Callable, Generic, List, Optional, TypeVar, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    Callable,
+    Generic,
+    Optional,
+    TypeVar,
+    Union,
+    overload,
+)
 
-from fastapi import Depends, HTTPException, Query
+from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
 from sqlalchemy import Column, case, or_
@@ -211,6 +222,7 @@ class SortParam(BaseParam[str]):
         "last_run_start_date": DagRun.start_date,
         "connection_id": Connection.conn_id,
         "import_error_id": ParseImportError.id,
+        "dag_run_id": DagRun.run_id,
     }
 
     def __init__(
@@ -275,7 +287,7 @@ class SortParam(BaseParam[str]):
         return inner
 
 
-class _TagsFilter(BaseParam[List[str]]):
+class _TagsFilter(BaseParam[list[str]]):
     """Filter on tags."""
 
     def to_orm(self, select: Select) -> Select:
@@ -292,7 +304,7 @@ class _TagsFilter(BaseParam[List[str]]):
         return self.set_value(tags)
 
 
-class _OwnersFilter(BaseParam[List[str]]):
+class _OwnersFilter(BaseParam[list[str]]):
     """Filter on owners."""
 
     def to_orm(self, select: Select) -> Select:
@@ -309,7 +321,37 @@ class _OwnersFilter(BaseParam[List[str]]):
         return self.set_value(owners)
 
 
-class TIStateFilter(BaseParam[List[Optional[TaskInstanceState]]]):
+class DagRunStateFilter(BaseParam[list[Optional[DagRunState]]]):
+    """Filter on Dag Run state."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.skip_none is False:
+            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
+
+        if not self.value:
+            return select
+
+        conditions = [DagRun.state == state for state in self.value]
+        return select.where(or_(*conditions))
+
+    @staticmethod
+    def _convert_dag_run_states(states: Iterable[str] | None) -> list[DagRunState | None] | None:
+        try:
+            if not states:
+                return None
+            return [None if s in ("none", None) else DagRunState(s) for s in states]
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid value for state. Valid values are {', '.join(DagRunState)}",
+            )
+
+    def depends(self, state: list[str] = Query(default_factory=list)) -> DagRunStateFilter:
+        states = self._convert_dag_run_states(state)
+        return self.set_value(states)
+
+
+class TIStateFilter(BaseParam[list[Optional[TaskInstanceState]]]):
     """Filter on task instance state."""
 
     def to_orm(self, select: Select) -> Select:
@@ -323,11 +365,17 @@ class TIStateFilter(BaseParam[List[Optional[TaskInstanceState]]]):
         return select.where(or_(*conditions))
 
     def depends(self, state: list[str] = Query(default_factory=list)) -> TIStateFilter:
-        states = _convert_ti_states(state)
+        try:
+            states = _convert_ti_states(state)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid value for state. Valid values are {', '.join(TaskInstanceState)}",
+            )
         return self.set_value(states)
 
 
-class TIPoolFilter(BaseParam[List[str]]):
+class TIPoolFilter(BaseParam[list[str]]):
     """Filter on task instance pool."""
 
     def to_orm(self, select: Select) -> Select:
@@ -344,7 +392,7 @@ class TIPoolFilter(BaseParam[List[str]]):
         return self.set_value(pool)
 
 
-class TIQueueFilter(BaseParam[List[str]]):
+class TIQueueFilter(BaseParam[list[str]]):
     """Filter on task instance queue."""
 
     def to_orm(self, select: Select) -> Select:
@@ -361,7 +409,7 @@ class TIQueueFilter(BaseParam[List[str]]):
         return self.set_value(queue)
 
 
-class TIExecutorFilter(BaseParam[List[str]]):
+class TIExecutorFilter(BaseParam[list[str]]):
     """Filter on task instance executor."""
 
     def to_orm(self, select: Select) -> Select:
@@ -656,6 +704,7 @@ QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter().depends)]
 # DagRun
 QueryLastDagRunStateFilter = Annotated[_LastDagRunStateFilter, Depends(_LastDagRunStateFilter().depends)]
 QueryDagIdsFilter = Annotated[DagIdsFilter, Depends(DagIdsFilter(DagRun).depends)]
+QueryDagRunStateFilter = Annotated[DagRunStateFilter, Depends(DagRunStateFilter().depends)]
 
 # DAGWarning
 QueryDagIdInDagWarningFilter = Annotated[_DagIdFilter, Depends(_DagIdFilter(DagWarning.dag_id).depends)]

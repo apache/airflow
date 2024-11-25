@@ -27,11 +27,12 @@ import operator
 import os
 import signal
 from collections import defaultdict
+from collections.abc import Collection, Generator, Iterable, Mapping
 from contextlib import nullcontext
 from datetime import timedelta
 from enum import Enum
 from functools import cache
-from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Mapping, Tuple
+from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import quote
 
 import dill
@@ -73,7 +74,6 @@ from sqlalchemy_utils import UUIDType
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
-from airflow.assets import Asset, AssetAlias
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
 from airflow.exceptions import (
@@ -102,6 +102,7 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.plugins_manager import integrate_macros_plugins
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sentry import Sentry
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
@@ -2891,8 +2892,9 @@ class TaskInstance(Base, LoggingMixin):
         if not self.next_method:
             self.clear_xcom_data()
 
-        with Stats.timer(f"dag.{self.task.dag_id}.{self.task.task_id}.duration"), Stats.timer(
-            "task.duration", tags=self.stats_tags
+        with (
+            Stats.timer(f"dag.{self.task.dag_id}.{self.task.task_id}.duration"),
+            Stats.timer("task.duration", tags=self.stats_tags),
         ):
             # Set the validated/merged params on the task object.
             self.task.params = context["params"]
@@ -3742,7 +3744,7 @@ def _is_further_mapped_inside(operator: Operator, container: TaskGroup) -> bool:
 
 # State of the task instance.
 # Stores string version of the task state.
-TaskInstanceStateType = Tuple[TaskInstanceKey, TaskInstanceState]
+TaskInstanceStateType = tuple[TaskInstanceKey, TaskInstanceState]
 
 
 class SimpleTaskInstance:

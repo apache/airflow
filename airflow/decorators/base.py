@@ -20,17 +20,14 @@ import inspect
 import itertools
 import textwrap
 import warnings
+from collections.abc import Collection, Iterator, Mapping, Sequence
 from functools import cached_property, update_wrapper
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
-    Collection,
     Generic,
-    Iterator,
-    Mapping,
-    Sequence,
     TypeVar,
     cast,
     overload,
@@ -40,7 +37,6 @@ import attr
 import re2
 import typing_extensions
 
-from airflow.assets import Asset
 from airflow.models.baseoperator import (
     BaseOperator,
     coerce_resources,
@@ -56,6 +52,7 @@ from airflow.models.expandinput import (
 )
 from airflow.models.mappedoperator import MappedOperator, ensure_xcomarg_return_value
 from airflow.models.xcom_arg import XComArg
+from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
 from airflow.sdk.definitions.contextmanager import DagContext, TaskGroupContext
 from airflow.typing_compat import ParamSpec, Protocol

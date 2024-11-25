@@ -4,6 +4,7 @@ import { UseQueryResult } from "@tanstack/react-query";
 import {
   AssetService,
   BackfillService,
+  ConfigService,
   ConnectionService,
   DagRunService,
   DagService,
@@ -113,6 +114,28 @@ export const UseAssetServiceGetAssetEventsKeyFn = (
     },
   ]),
 ];
+export type AssetServiceGetAssetQueuedEventsDefaultResponse = Awaited<
+  ReturnType<typeof AssetService.getAssetQueuedEvents>
+>;
+export type AssetServiceGetAssetQueuedEventsQueryResult<
+  TData = AssetServiceGetAssetQueuedEventsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useAssetServiceGetAssetQueuedEventsKey =
+  "AssetServiceGetAssetQueuedEvents";
+export const UseAssetServiceGetAssetQueuedEventsKeyFn = (
+  {
+    before,
+    uri,
+  }: {
+    before?: string;
+    uri: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useAssetServiceGetAssetQueuedEventsKey,
+  ...(queryKey ?? [{ before, uri }]),
+];
 export type AssetServiceGetAssetDefaultResponse = Awaited<
   ReturnType<typeof AssetService.getAsset>
 >;
@@ -189,7 +212,7 @@ export const UseDashboardServiceHistoricalMetricsKeyFn = (
     endDate,
     startDate,
   }: {
-    endDate: string;
+    endDate?: string;
     startDate: string;
   },
   queryKey?: Array<unknown>,
@@ -246,6 +269,59 @@ export const UseDagsServiceRecentDagRunsKeyFn = (
       tags,
     },
   ]),
+];
+export type ConfigServiceGetConfigsDefaultResponse = Awaited<
+  ReturnType<typeof ConfigService.getConfigs>
+>;
+export type ConfigServiceGetConfigsQueryResult<
+  TData = ConfigServiceGetConfigsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useConfigServiceGetConfigsKey = "ConfigServiceGetConfigs";
+export const UseConfigServiceGetConfigsKeyFn = (queryKey?: Array<unknown>) => [
+  useConfigServiceGetConfigsKey,
+  ...(queryKey ?? []),
+];
+export type ConfigServiceGetConfigDefaultResponse = Awaited<
+  ReturnType<typeof ConfigService.getConfig>
+>;
+export type ConfigServiceGetConfigQueryResult<
+  TData = ConfigServiceGetConfigDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useConfigServiceGetConfigKey = "ConfigServiceGetConfig";
+export const UseConfigServiceGetConfigKeyFn = (
+  {
+    accept,
+    section,
+  }: {
+    accept?: "application/json" | "text/plain" | "*/*";
+    section?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [useConfigServiceGetConfigKey, ...(queryKey ?? [{ accept, section }])];
+export type ConfigServiceGetConfigValueDefaultResponse = Awaited<
+  ReturnType<typeof ConfigService.getConfigValue>
+>;
+export type ConfigServiceGetConfigValueQueryResult<
+  TData = ConfigServiceGetConfigValueDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useConfigServiceGetConfigValueKey = "ConfigServiceGetConfigValue";
+export const UseConfigServiceGetConfigValueKeyFn = (
+  {
+    accept,
+    option,
+    section,
+  }: {
+    accept?: "application/json" | "text/plain" | "*/*";
+    option: string;
+    section: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useConfigServiceGetConfigValueKey,
+  ...(queryKey ?? [{ accept, option, section }]),
 ];
 export type BackfillServiceListBackfillsDefaultResponse = Awaited<
   ReturnType<typeof BackfillService.listBackfills>
@@ -373,6 +449,65 @@ export const UseDagRunServiceGetUpstreamAssetEventsKeyFn = (
   useDagRunServiceGetUpstreamAssetEventsKey,
   ...(queryKey ?? [{ dagId, dagRunId }]),
 ];
+export type DagRunServiceGetDagRunsDefaultResponse = Awaited<
+  ReturnType<typeof DagRunService.getDagRuns>
+>;
+export type DagRunServiceGetDagRunsQueryResult<
+  TData = DagRunServiceGetDagRunsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagRunServiceGetDagRunsKey = "DagRunServiceGetDagRuns";
+export const UseDagRunServiceGetDagRunsKeyFn = (
+  {
+    dagId,
+    endDateGte,
+    endDateLte,
+    limit,
+    logicalDateGte,
+    logicalDateLte,
+    offset,
+    orderBy,
+    startDateGte,
+    startDateLte,
+    state,
+    updatedAtGte,
+    updatedAtLte,
+  }: {
+    dagId: string;
+    endDateGte?: string;
+    endDateLte?: string;
+    limit?: number;
+    logicalDateGte?: string;
+    logicalDateLte?: string;
+    offset?: number;
+    orderBy?: string;
+    startDateGte?: string;
+    startDateLte?: string;
+    state?: string[];
+    updatedAtGte?: string;
+    updatedAtLte?: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useDagRunServiceGetDagRunsKey,
+  ...(queryKey ?? [
+    {
+      dagId,
+      endDateGte,
+      endDateLte,
+      limit,
+      logicalDateGte,
+      logicalDateLte,
+      offset,
+      orderBy,
+      startDateGte,
+      startDateLte,
+      state,
+      updatedAtGte,
+      updatedAtLte,
+    },
+  ]),
+];
 export type DagSourceServiceGetDagSourceDefaultResponse = Awaited<
   ReturnType<typeof DagSourceService.getDagSource>
 >;
@@ -385,15 +520,17 @@ export const useDagSourceServiceGetDagSourceKey =
 export const UseDagSourceServiceGetDagSourceKeyFn = (
   {
     accept,
-    fileToken,
+    dagId,
+    versionNumber,
   }: {
-    accept?: string;
-    fileToken: string;
+    accept?: "application/json" | "text/plain" | "*/*";
+    dagId: string;
+    versionNumber?: number;
   },
   queryKey?: Array<unknown>,
 ) => [
   useDagSourceServiceGetDagSourceKey,
-  ...(queryKey ?? [{ accept, fileToken }]),
+  ...(queryKey ?? [{ accept, dagId, versionNumber }]),
 ];
 export type DagStatsServiceGetDagStatsDefaultResponse = Awaited<
   ReturnType<typeof DagStatsService.getDagStats>
@@ -999,6 +1136,106 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     },
   ]),
 ];
+export type TaskInstanceServiceGetTaskInstanceTryDetailsDefaultResponse =
+  Awaited<ReturnType<typeof TaskInstanceService.getTaskInstanceTryDetails>>;
+export type TaskInstanceServiceGetTaskInstanceTryDetailsQueryResult<
+  TData = TaskInstanceServiceGetTaskInstanceTryDetailsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useTaskInstanceServiceGetTaskInstanceTryDetailsKey =
+  "TaskInstanceServiceGetTaskInstanceTryDetails";
+export const UseTaskInstanceServiceGetTaskInstanceTryDetailsKeyFn = (
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+    taskTryNumber,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    taskId: string;
+    taskTryNumber: number;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useTaskInstanceServiceGetTaskInstanceTryDetailsKey,
+  ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId, taskTryNumber }]),
+];
+export type TaskInstanceServiceGetMappedTaskInstanceTryDetailsDefaultResponse =
+  Awaited<
+    ReturnType<typeof TaskInstanceService.getMappedTaskInstanceTryDetails>
+  >;
+export type TaskInstanceServiceGetMappedTaskInstanceTryDetailsQueryResult<
+  TData = TaskInstanceServiceGetMappedTaskInstanceTryDetailsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useTaskInstanceServiceGetMappedTaskInstanceTryDetailsKey =
+  "TaskInstanceServiceGetMappedTaskInstanceTryDetails";
+export const UseTaskInstanceServiceGetMappedTaskInstanceTryDetailsKeyFn = (
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+    taskTryNumber,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    taskId: string;
+    taskTryNumber: number;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useTaskInstanceServiceGetMappedTaskInstanceTryDetailsKey,
+  ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId, taskTryNumber }]),
+];
+export type TaskInstanceServiceGetLogDefaultResponse = Awaited<
+  ReturnType<typeof TaskInstanceService.getLog>
+>;
+export type TaskInstanceServiceGetLogQueryResult<
+  TData = TaskInstanceServiceGetLogDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useTaskInstanceServiceGetLogKey = "TaskInstanceServiceGetLog";
+export const UseTaskInstanceServiceGetLogKeyFn = (
+  {
+    accept,
+    dagId,
+    dagRunId,
+    fullContent,
+    mapIndex,
+    taskId,
+    token,
+    tryNumber,
+  }: {
+    accept?: "application/json" | "text/plain" | "*/*";
+    dagId: string;
+    dagRunId: string;
+    fullContent?: boolean;
+    mapIndex?: number;
+    taskId: string;
+    token?: string;
+    tryNumber: number;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useTaskInstanceServiceGetLogKey,
+  ...(queryKey ?? [
+    {
+      accept,
+      dagId,
+      dagRunId,
+      fullContent,
+      mapIndex,
+      taskId,
+      token,
+      tryNumber,
+    },
+  ]),
+];
 export type TaskServiceGetTasksDefaultResponse = Awaited<
   ReturnType<typeof TaskService.getTasks>
 >;
@@ -1149,8 +1386,14 @@ export type DagRunServiceClearDagRunMutationResult = Awaited<
 export type PoolServicePostPoolMutationResult = Awaited<
   ReturnType<typeof PoolService.postPool>
 >;
+export type PoolServicePostPoolsMutationResult = Awaited<
+  ReturnType<typeof PoolService.postPools>
+>;
 export type TaskInstanceServiceGetTaskInstancesBatchMutationResult = Awaited<
   ReturnType<typeof TaskInstanceService.getTaskInstancesBatch>
+>;
+export type TaskInstanceServicePostClearTaskInstancesMutationResult = Awaited<
+  ReturnType<typeof TaskInstanceService.postClearTaskInstances>
 >;
 export type VariableServicePostVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.postVariable>
@@ -1182,14 +1425,14 @@ export type PoolServicePatchPoolMutationResult = Awaited<
 export type VariableServicePatchVariableMutationResult = Awaited<
   ReturnType<typeof VariableService.patchVariable>
 >;
+export type AssetServiceDeleteAssetQueuedEventsMutationResult = Awaited<
+  ReturnType<typeof AssetService.deleteAssetQueuedEvents>
+>;
 export type AssetServiceDeleteDagAssetQueuedEventsMutationResult = Awaited<
   ReturnType<typeof AssetService.deleteDagAssetQueuedEvents>
 >;
 export type AssetServiceDeleteDagAssetQueuedEventMutationResult = Awaited<
   ReturnType<typeof AssetService.deleteDagAssetQueuedEvent>
->;
-export type AssetServiceDeleteAssetQueuedEventsMutationResult = Awaited<
-  ReturnType<typeof AssetService.deleteAssetQueuedEvents>
 >;
 export type ConnectionServiceDeleteConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.deleteConnection>

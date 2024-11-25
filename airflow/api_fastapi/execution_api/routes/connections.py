@@ -66,7 +66,7 @@ def get_connection(
                 "message": f"Connection with ID {connection_id} not found",
             },
         )
-    return ConnectionResponse.model_validate(connection, from_attributes=True)
+    return ConnectionResponse.model_validate(connection)
 
 
 def has_connection_access(connection_id: str, token: TIToken) -> bool:

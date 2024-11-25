@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 import datetime
+from collections.abc import Iterable
 from traceback import format_exception
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Column, Integer, String, Text, delete, func, or_, select, update
 from sqlalchemy.orm import relationship, selectinload

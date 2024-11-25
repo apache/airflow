@@ -34,7 +34,6 @@ from unittest.mock import sentinel
 
 import pendulum
 import pytest
-import sqlalchemy.exc
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
@@ -184,8 +183,9 @@ class TestCliTasks:
         # should be able to find the dag.
         new_file_path = tmp_path / orig_file_path.name
         new_dags_folder = new_file_path.parent
-        with move_back(orig_file_path, new_file_path), conf_vars(
-            {("core", "dags_folder"): new_dags_folder.as_posix()}
+        with (
+            move_back(orig_file_path, new_file_path),
+            conf_vars({("core", "dags_folder"): new_dags_folder.as_posix()}),
         ):
             ser_dag = (
                 session.query(SerializedDagModel)
@@ -228,18 +228,29 @@ class TestCliTasks:
         assert ti.xcom_pull(ti.task_id) == new_file_path.as_posix()
 
     @mock.patch("airflow.cli.commands.task_command.select")
-    @mock.patch("sqlalchemy.orm.session.Session.scalars")
-    @mock.patch("airflow.cli.commands.task_command.DagRun")
-    def test_task_render_with_custom_timetable(self, mock_dagrun, mock_scalars, mock_select):
+    @mock.patch("sqlalchemy.orm.session.Session.scalar")
+    def test_task_render_with_custom_timetable(self, mock_scalar, mock_select):
         """
-        when calling `tasks render` on dag with custom timetable, the DagRun object should be created with
-         data_intervals.
+        Test that the `tasks render` CLI command queries the database correctly
+        for a DAG with a custom timetable. Verifies that a query is executed to
+        fetch the appropriate DagRun and that the database interaction occurs as expected.
         """
-        mock_scalars.side_effect = sqlalchemy.exc.NoResultFound
+        from sqlalchemy import select
+
+        from airflow.models.dagrun import DagRun
+
+        mock_query = (
+            select(DagRun).where(DagRun.dag_id == "example_workday_timetable").order_by(DagRun.id.desc())
+        )
+        mock_select.return_value = mock_query
+
+        mock_scalar.return_value = None
+
         task_command.task_render(
             self.parser.parse_args(["tasks", "render", "example_workday_timetable", "run_this", "2022-01-01"])
         )
-        assert "data_interval" in mock_dagrun.call_args.kwargs
+
+        mock_select.assert_called_once()
 
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test_with_existing_dag_run(self, caplog):
@@ -477,11 +488,12 @@ class TestCliTasks:
         from airflow.cli.commands import task_command
 
         with dag_maker(dag_id="test_executor", schedule="@daily") as dag:
-            with mock.patch(
-                "airflow.executors.executor_loader.ExecutorLoader.load_executor"
-            ) as loader_mock, mock.patch(
-                "airflow.executors.executor_loader.ExecutorLoader.get_default_executor"
-            ) as get_default_mock:
+            with (
+                mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock,
+                mock.patch(
+                    "airflow.executors.executor_loader.ExecutorLoader.get_default_executor"
+                ) as get_default_mock,
+            ):
                 EmptyOperator(task_id="task1")
                 EmptyOperator(task_id="task2", executor="foo_executor_alias")
 

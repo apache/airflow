@@ -37,6 +37,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import Time from "src/components/Time";
 import { ProgressBar } from "src/components/ui";
 import { useColorMode } from "src/context/colorMode";
+import { useConfig } from "src/queries/useConfig";
 
 SyntaxHighlighter.registerLanguage("python", python);
 
@@ -55,16 +56,13 @@ export const Code = () => {
     data: code,
     error: codeError,
     isLoading: isCodeLoading,
-  } = useDagSourceServiceGetDagSource(
-    {
-      fileToken: dag?.file_token ?? "",
-    },
-    undefined,
-    { enabled: Boolean(dag?.file_token) },
-  );
+  } = useDagSourceServiceGetDagSource({
+    dagId: dagId ?? "",
+  });
 
-  // TODO: get default_wrap from config
-  const [wrap, setWrap] = useState(false);
+  const defaultWrap = useConfig("webserver", "default_wrap") === "True";
+
+  const [wrap, setWrap] = useState(defaultWrap);
 
   const toggleWrap = () => setWrap(!wrap);
   const { colorMode } = useColorMode();

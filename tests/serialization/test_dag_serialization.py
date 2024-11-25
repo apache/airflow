@@ -24,16 +24,19 @@ import dataclasses
 import importlib
 import importlib.util
 import json
+import logging
+import logging.config
 import multiprocessing
 import os
 import pickle
 import re
 import sys
+from collections.abc import Generator
 from datetime import datetime, timedelta, timezone as dt_timezone
 from glob import glob
 from pathlib import Path
 from textwrap import dedent
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import attr
@@ -43,7 +46,7 @@ from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
 
 import airflow
-from airflow.assets import Asset
+from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.decorators import teardown
 from airflow.decorators.base import DecoratedOperator
 from airflow.exceptions import (
@@ -65,6 +68,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.sensors.bash import BashSensor
+from airflow.sdk.definitions.asset import Asset
 from airflow.security import permissions
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
@@ -78,6 +82,7 @@ from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.simple import NullTimetable, OnceTimetable
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils import timezone
+from airflow.utils.module_loading import qualname
 from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.xcom import XCOM_RETURN_KEY
@@ -375,6 +380,9 @@ def timetable_plugin(monkeypatch):
 
 class TestStringifiedDAGs:
     """Unit tests for stringified DAGs."""
+
+    def setup_method(self):
+        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
 
     @pytest.fixture(autouse=True)
     def setup_test_cases(self):
@@ -1059,10 +1067,13 @@ class TestStringifiedDAGs:
         assert "https://www.google.com" == link
 
     @pytest.mark.usefixtures("clear_all_logger_handlers")
-    def test_extra_operator_links_logs_error_for_non_registered_extra_links(self, caplog):
+    def test_extra_operator_links_logs_error_for_non_registered_extra_links(self):
         """
         Assert OperatorLinks not registered via Plugins and if it is not an inbuilt Operator Link,
-        it can still deserialize the DAG (does not error) but just logs an error
+        it can still deserialize the DAG (does not error) but just logs an error.
+
+        We test NOT using caplog as this is flaky, we check that the task after deserialize
+        is missing the extra links.
         """
 
         class TaskStateLink(BaseOperatorLink):
@@ -1086,13 +1097,8 @@ class TestStringifiedDAGs:
 
         serialized_dag = SerializedDAG.to_dict(dag)
 
-        with caplog.at_level("ERROR", logger="airflow.serialization.serialized_objects"):
-            SerializedDAG.from_dict(serialized_dag)
-
-        expected_err_msg = (
-            "Operator Link class 'tests.serialization.test_dag_serialization.TaskStateLink' not registered"
-        )
-        assert expected_err_msg in caplog.text
+        sdag = SerializedDAG.from_dict(serialized_dag)
+        assert sdag.task_dict["blah"].operator_extra_links == []
 
     class ClassWithCustomAttributes:
         """
@@ -1805,7 +1811,7 @@ class TestStringifiedDAGs:
         Tests DAG dependency detection for operators, including derived classes
         """
         from airflow.operators.empty import EmptyOperator
-        from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 
         class DerivedOperator(TriggerDagRunOperator):
             pass
@@ -2631,6 +2637,7 @@ def test_taskflow_expand_serde():
         "template_fields_renderers": {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"},
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "op_kwargs_expand_input",
+        "python_callable_name": qualname(x),
         "start_trigger_args": None,
         "start_from_trigger": False,
     }
@@ -2702,6 +2709,7 @@ def test_taskflow_expand_kwargs_serde(strict):
         "_task_module": "airflow.decorators.python",
         "task_type": "_PythonDecoratedOperator",
         "_operator_name": "@task",
+        "python_callable_name": qualname(x),
         "start_trigger_args": None,
         "start_from_trigger": False,
         "downstream_task_ids": [],

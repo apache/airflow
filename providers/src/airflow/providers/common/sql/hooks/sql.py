@@ -31,7 +31,6 @@ from typing import (
     Mapping,
     MutableMapping,
     Protocol,
-    Sequence,
     TypeVar,
     cast,
     overload,
@@ -203,7 +202,7 @@ class DbApiHook(BaseHook):
         return getattr(self, self.conn_name_attr)
 
     @cached_property
-    def placeholder(self):
+    def placeholder(self) -> str:
         """Return SQL placeholder."""
         placeholder = self.connection_extra.get("placeholder")
         if placeholder:
@@ -262,8 +261,9 @@ class DbApiHook(BaseHook):
 
         :return: the extracted uri.
         """
-        conn = self.get_connection(self.get_conn_id())
-        conn.schema = self.__schema or conn.schema
+        conn = self.connection
+        if self.__schema:
+            conn.schema = self.__schema
         return conn.get_uri()
 
     @property
@@ -607,7 +607,7 @@ class DbApiHook(BaseHook):
             )
 
         if isinstance(result, Sequence):
-            return cast(List[tuple], result)
+            return cast(list[tuple], result)
         return cast(tuple, result)
 
     def _run_command(self, cur, sql_statement, parameters):

@@ -103,11 +103,19 @@ def recent_dag_runs(
         .order_by(recent_runs_subquery.c.logical_date.desc())
     )
     dags_with_recent_dag_runs_select_filter, _ = paginated_select(
-        dags_with_recent_dag_runs_select,
-        [only_active, paused, dag_id_pattern, dag_display_name_pattern, tags, owners, last_dag_run_state],
-        None,
-        offset,
-        limit,
+        select=dags_with_recent_dag_runs_select,
+        filters=[
+            only_active,
+            paused,
+            dag_id_pattern,
+            dag_display_name_pattern,
+            tags,
+            owners,
+            last_dag_run_state,
+        ],
+        order_by=None,
+        offset=offset,
+        limit=limit,
     )
     dags_with_recent_dag_runs = session.execute(dags_with_recent_dag_runs_select_filter)
     # aggregate rows by dag_id
@@ -116,9 +124,9 @@ def recent_dag_runs(
     for row in dags_with_recent_dag_runs:
         dag_run, dag, *_ = row
         dag_id = dag.dag_id
-        dag_run_response = DAGRunResponse.model_validate(dag_run, from_attributes=True)
+        dag_run_response = DAGRunResponse.model_validate(dag_run)
         if dag_id not in dag_runs_by_dag_id:
-            dag_response = DAGResponse.model_validate(dag, from_attributes=True)
+            dag_response = DAGResponse.model_validate(dag)
             dag_runs_by_dag_id[dag_id] = DAGWithLatestDagRunsResponse.model_validate(
                 {
                     **dag_response.dict(),

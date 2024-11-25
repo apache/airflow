@@ -22,18 +22,21 @@ import logging
 import os
 import signal
 import sys
+from io import BytesIO
+from operator import attrgetter
 from time import sleep
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
-from uuid import UUID
 
 import pytest
 import structlog
-import structlog.testing
+from uuid6 import uuid7
 
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.datamodels._generated import TaskInstance
-from airflow.sdk.execution_time.supervisor import WatchedSubprocess
+from airflow.sdk.api.datamodels.activities import ExecuteTaskActivity
+from airflow.sdk.execution_time.comms import ConnectionResult, GetConnection, GetVariable, VariableResult
+from airflow.sdk.execution_time.supervisor import WatchedSubprocess, supervise
 from airflow.utils import timezone as tz
 
 if TYPE_CHECKING:
@@ -51,29 +54,29 @@ class TestWatchedSubprocess:
         # Ignore anything lower than INFO for this test. Captured_logs resets things for us afterwards
         structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
 
-        line = lineno()
-
         def subprocess_main():
             # This is run in the subprocess!
 
             # Ensure we follow the "protocol" and get the startup message before we do anything
             sys.stdin.readline()
 
-            # Flush calls are to ensure ordering of output for predictable tests
             import logging
             import warnings
 
             print("I'm a short message")
             sys.stdout.write("Message ")
-            sys.stdout.write("split across two writes\n")
-            sys.stdout.flush()
-
             print("stderr message", file=sys.stderr)
-            sys.stderr.flush()
+            # We need a short sleep for the main process to process things. I worry this timining will be
+            # fragile, but I can't think of a better way. This lets the stdout be read (partial line) and the
+            # stderr full line be read
+            sleep(0.1)
+            sys.stdout.write("split across two writes\n")
 
             logging.getLogger("airflow.foobar").error("An error message")
 
             warnings.warn("Warning should be captured too", stacklevel=1)
+
+        line = lineno() - 2  # Line the error should be on
 
         instant = tz.datetime(2024, 11, 7, 12, 34, 56, 78901)
         time_machine.move_to(instant, tick=False)
@@ -103,16 +106,16 @@ class TestWatchedSubprocess:
                 "timestamp": "2024-11-07T12:34:56.078901Z",
             },
             {
-                "chan": "stdout",
-                "event": "Message split across two writes",
-                "level": "info",
+                "chan": "stderr",
+                "event": "stderr message",
+                "level": "error",
                 "logger": "task",
                 "timestamp": "2024-11-07T12:34:56.078901Z",
             },
             {
-                "chan": "stderr",
-                "event": "stderr message",
-                "level": "error",
+                "chan": "stdout",
+                "event": "Message split across two writes",
+                "level": "info",
                 "logger": "task",
                 "timestamp": "2024-11-07T12:34:56.078901Z",
             },
@@ -127,7 +130,7 @@ class TestWatchedSubprocess:
                 "event": "Warning should be captured too",
                 "filename": __file__,
                 "level": "warning",
-                "lineno": line + 22,
+                "lineno": line,
                 "logger": "py.warnings",
                 "timestamp": instant.replace(tzinfo=None),
             },
@@ -160,6 +163,36 @@ class TestWatchedSubprocess:
 
         assert rc == -9
 
+    def test_last_chance_exception_handling(self, capfd):
+        # Ignore anything lower than INFO for this test. Captured_logs resets things for us afterwards
+        structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
+
+        def subprocess_main():
+            # The real main() in task_runner catches exceptions! This is what would happen if we had a syntax
+            # or import error for instance - a very early exception
+            raise RuntimeError("Fake syntax error")
+
+        proc = WatchedSubprocess.start(
+            path=os.devnull,
+            ti=TaskInstance(
+                id=uuid7(),
+                task_id="b",
+                dag_id="c",
+                run_id="d",
+                try_number=1,
+            ),
+            client=MagicMock(spec=sdk_client.Client),
+            target=subprocess_main,
+        )
+
+        rc = proc.wait()
+
+        assert rc == 126
+
+        captured = capfd.readouterr()
+        assert "Last chance exception handler" in captured.err
+        assert "RuntimeError: Fake syntax error" in captured.err
+
     def test_regular_heartbeat(self, spy_agency: kgb.SpyAgency, monkeypatch):
         """Test that the WatchedSubprocess class regularly sends heartbeat requests, up to a certain frequency"""
         import airflow.sdk.execution_time.supervisor
@@ -173,12 +206,12 @@ class TestWatchedSubprocess:
                 print("output", flush=True)
                 sleep(0.05)
 
-        id = UUID("4d828a62-a417-4936-a7a6-2b3fabacecab")
+        ti_id = uuid7()
         spy = spy_agency.spy_on(sdk_client.TaskInstanceOperations.heartbeat)
         proc = WatchedSubprocess.start(
             path=os.devnull,
             ti=TaskInstance(
-                id=id,
+                id=ti_id,
                 task_id="b",
                 dag_id="c",
                 run_id="d",
@@ -188,6 +221,111 @@ class TestWatchedSubprocess:
             target=subprocess_main,
         )
         assert proc.wait() == 0
-        assert spy.called_with(id, pid=proc.pid)  # noqa: PGH005
+        assert spy.called_with(ti_id, pid=proc.pid)  # noqa: PGH005
         # The exact number we get will depend on timing behaviour, so be a little lenient
-        assert 2 <= len(spy.calls) <= 4
+        assert 1 <= len(spy.calls) <= 4
+
+    def test_run_simple_dag(self, test_dags_dir, captured_logs, time_machine):
+        """Test running a simple DAG in a subprocess and capturing the output."""
+
+        # Ignore anything lower than INFO for this test.
+        structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
+
+        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 78901)
+        time_machine.move_to(instant, tick=False)
+
+        dagfile_path = test_dags_dir / "super_basic_run.py"
+        task_activity = ExecuteTaskActivity(
+            ti=TaskInstance(
+                id=uuid7(),
+                task_id="hello",
+                dag_id="super_basic_run",
+                run_id="c",
+                try_number=1,
+            ),
+            path=dagfile_path,
+            token="",
+        )
+        # Assert Exit Code is 0
+        assert supervise(activity=task_activity, server="", dry_run=True) == 0
+
+        # We should have a log from the task!
+        assert {
+            "chan": "stdout",
+            "event": "Hello World hello!",
+            "level": "info",
+            "logger": "task",
+            "timestamp": "2024-11-07T12:34:56.078901Z",
+        } in captured_logs
+
+
+class TestHandleRequest:
+    @pytest.fixture
+    def watched_subprocess(self, mocker):
+        """Fixture to provide a WatchedSubprocess instance."""
+        return WatchedSubprocess(
+            ti_id=uuid7(),
+            pid=12345,
+            stdin=BytesIO(),
+            client=mocker.Mock(),
+            process=mocker.Mock(),
+        )
+
+    @pytest.mark.parametrize(
+        ["message", "expected_buffer", "client_attr_path", "method_arg", "mock_response"],
+        [
+            pytest.param(
+                GetConnection(conn_id="test_conn"),
+                b'{"conn_id":"test_conn","conn_type":"mysql"}',
+                "connections.get",
+                "test_conn",
+                ConnectionResult(conn_id="test_conn", conn_type="mysql"),
+                id="get_connection",
+            ),
+            pytest.param(
+                GetVariable(key="test_key"),
+                b'{"key":"test_key","value":"test_value"}',
+                "variables.get",
+                "test_key",
+                VariableResult(key="test_key", value="test_value"),
+                id="get_variable",
+            ),
+        ],
+    )
+    def test_handle_requests(
+        self,
+        watched_subprocess,
+        mocker,
+        message,
+        expected_buffer,
+        client_attr_path,
+        method_arg,
+        mock_response,
+    ):
+        """
+        Test handling of different messages to the subprocess. For any new message type, add a
+        new parameter set to the `@pytest.mark.parametrize` decorator.
+
+        For each message type, this test:
+
+            1. Sends the message to the subprocess.
+            2. Verifies that the correct client method is called with the expected argument.
+            3. Checks that the buffer is updated with the expected response.
+        """
+
+        # Mock the client method. E.g. `client.variables.get` or `client.connections.get`
+        mock_client_method = attrgetter(client_attr_path)(watched_subprocess.client)
+        mock_client_method.return_value = mock_response
+
+        # Simulate the generator
+        generator = watched_subprocess.handle_requests(log=mocker.Mock())
+        # Initialize the generator
+        next(generator)
+        msg = message.model_dump_json().encode() + b"\n"
+        generator.send(msg)
+
+        # Verify the correct client method was called
+        mock_client_method.assert_called_once_with(method_arg)
+
+        # Verify the response was added to the buffer
+        assert watched_subprocess.stdin.getvalue() == expected_buffer + b"\n"

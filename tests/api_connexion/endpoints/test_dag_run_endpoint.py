@@ -24,12 +24,12 @@ import pytest
 import time_machine
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.assets import Asset
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.param import Param
 from airflow.operators.empty import EmptyOperator
+from airflow.sdk.definitions.asset import Asset
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State
@@ -1079,7 +1079,6 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
 
 class TestPostDagRun(TestDagRunEndpoint):
     @time_machine.travel(timezone.utcnow(), tick=False)
-    @pytest.mark.parametrize("logical_date_field_name", ["logical_date"])
     @pytest.mark.parametrize(
         "dag_run_id, logical_date, note, data_interval_start, data_interval_end",
         [
@@ -1101,7 +1100,6 @@ class TestPostDagRun(TestDagRunEndpoint):
     def test_should_respond_200(
         self,
         session,
-        logical_date_field_name,
         dag_run_id,
         logical_date,
         note,
@@ -1117,7 +1115,7 @@ class TestPostDagRun(TestDagRunEndpoint):
 
         request_json = {}
         if logical_date is not None:
-            request_json[logical_date_field_name] = logical_date
+            request_json["logical_date"] = logical_date
         if dag_run_id is not None:
             request_json["dag_run_id"] = dag_run_id
         if data_interval_start is not None:

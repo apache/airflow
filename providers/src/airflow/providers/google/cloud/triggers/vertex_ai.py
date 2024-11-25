@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import AsyncIterator, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence
+from typing import TYPE_CHECKING, Any
 
 from google.cloud.aiplatform_v1 import (
     BatchPredictionJob,

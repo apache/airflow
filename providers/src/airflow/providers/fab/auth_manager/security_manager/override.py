@@ -24,13 +24,12 @@ import logging
 import os
 import random
 import uuid
-import warnings
-from typing import TYPE_CHECKING, Any, Callable, Collection, Container, Iterable, Mapping, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 import jwt
 import packaging.version
 import re2
-from deprecated import deprecated
 from flask import flash, g, has_request_context, session
 from flask_appbuilder import const
 from flask_appbuilder.const import (
@@ -70,13 +69,12 @@ from itsdangerous import want_bytes
 from markupsafe import Markup
 from sqlalchemy import and_, func, inspect, literal, or_, select
 from sqlalchemy.exc import MultipleResultsFound
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from airflow import __version__ as airflow_version
-from airflow.auth.managers.utils.fab import get_method_from_fab_action_map
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel
 from airflow.providers.fab.auth_manager.models import (
     Action,
@@ -109,13 +107,11 @@ from airflow.providers.fab.auth_manager.views.user_edit import (
 )
 from airflow.providers.fab.auth_manager.views.user_stats import CustomUserStatsChartView
 from airflow.security import permissions
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.security_manager import AirflowSecurityManagerV2
 from airflow.www.session import AirflowDatabaseSessionInterface
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
     from airflow.security.permissions import RESOURCE_ASSET
 else:
     from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
@@ -773,14 +769,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """Get the admin role."""
         return self.appbuilder.get_app.config["AUTH_ROLE_ADMIN"]
 
-    @property
-    @deprecated(
-        reason="The 'oauth_whitelists' property is deprecated. Please use 'oauth_allow_list' instead.",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def oauth_whitelists(self):
-        return self.oauth_allow_list
-
     def create_builtin_roles(self):
         """Return FAB builtin roles."""
         return self.appbuilder.get_app.config.get("FAB_ROLES", {})
@@ -885,15 +873,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         :meta private:
         """
         app = self.appbuilder.get_app
-        if self.auth_type == AUTH_OID:
-            from flask_openid import OpenID
-
-            log.warning(
-                "AUTH_OID is deprecated and will be removed in version 5. "
-                "Migrate to other authentication methods."
-            )
-            self.oid = OpenID(app)
-
         if self.auth_type == AUTH_OAUTH:
             from authlib.integrations.flask_client import OAuth
 
@@ -966,70 +945,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             log.exception(const.LOGMSG_ERR_SEC_CREATE_DB)
             exit(1)
 
-    def get_readable_dags(self, user) -> Iterable[DagModel]:
-        """Get the DAGs readable by authenticated user."""
-        warnings.warn(
-            "`get_readable_dags` has been deprecated. Please use `get_auth_manager().get_permitted_dag_ids` "
-            "instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
-            return self.get_accessible_dags([permissions.ACTION_CAN_READ], user)
-
-    def get_editable_dags(self, user) -> Iterable[DagModel]:
-        """Get the DAGs editable by authenticated user."""
-        warnings.warn(
-            "`get_editable_dags` has been deprecated. Please use `get_auth_manager().get_permitted_dag_ids` "
-            "instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
-            return self.get_accessible_dags([permissions.ACTION_CAN_EDIT], user)
-
-    @provide_session
-    def get_accessible_dags(
-        self,
-        user_actions: Container[str] | None,
-        user,
-        session: Session = NEW_SESSION,
-    ) -> Iterable[DagModel]:
-        warnings.warn(
-            "`get_accessible_dags` has been deprecated. Please use "
-            "`get_auth_manager().get_permitted_dag_ids` instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=3,
-        )
-
-        dag_ids = self.get_accessible_dag_ids(user, user_actions, session)
-        return session.scalars(select(DagModel).where(DagModel.dag_id.in_(dag_ids)))
-
-    @provide_session
-    def get_accessible_dag_ids(
-        self,
-        user,
-        user_actions: Container[str] | None = None,
-        session: Session = NEW_SESSION,
-    ) -> set[str]:
-        warnings.warn(
-            "`get_accessible_dag_ids` has been deprecated. Please use "
-            "`get_auth_manager().get_permitted_dag_ids` instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=3,
-        )
-        if not user_actions:
-            user_actions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
-        method_from_fab_action_map = get_method_from_fab_action_map()
-        user_methods: Container[ResourceMethod] = [
-            method_from_fab_action_map[action]
-            for action in method_from_fab_action_map
-            if action in user_actions
-        ]
-        return get_auth_manager().get_permitted_dag_ids(user=user, methods=user_methods, session=session)
-
     @staticmethod
     def get_readable_dag_ids(user=None) -> set[str]:
         """Get the DAG IDs readable by authenticated user."""
@@ -1087,17 +1002,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
             if dag.access_control is not None:
                 self.sync_perm_for_dag(root_dag_id, dag.access_control)
-
-    def prefixed_dag_id(self, dag_id: str) -> str:
-        """Return the permission name for a DAG id."""
-        warnings.warn(
-            "`prefixed_dag_id` has been deprecated. "
-            "Please use `airflow.security.permissions.resource_name` instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        root_dag_id = self._get_root_dag_id(dag_id)
-        return self._resource_name(root_dag_id, permissions.RESOURCE_DAG)
 
     def is_dag_resource(self, resource_name: str) -> bool:
         """Determine if a resource belongs to a DAG or all DAGs."""
@@ -1431,20 +1335,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def perms_include_action(self, perms, action_name):
         return any(perm.action and perm.action.name == action_name for perm in perms)
-
-    def init_role(self, role_name, perms) -> None:
-        """
-        Initialize the role with actions and related resources.
-
-        :param role_name:
-        :param perms:
-        """
-        warnings.warn(
-            "`init_role` has been deprecated. Please use `bulk_sync_roles` instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        self.bulk_sync_roles([{"role": role_name, "perms": perms}])
 
     def bulk_sync_roles(self, roles: Iterable[dict[str, Any]]) -> None:
         """Sync the provided roles and permissions."""

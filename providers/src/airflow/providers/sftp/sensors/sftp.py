@@ -20,8 +20,9 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 from paramiko.sftp import SFTP_NO_SUCH_FILE
 

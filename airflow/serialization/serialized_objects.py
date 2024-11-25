@@ -24,10 +24,11 @@ import enum
 import itertools
 import logging
 import weakref
+from collections.abc import Collection, Iterable, Mapping
 from functools import cache
 from inspect import signature
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple, Union, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, Union, cast
 
 import attrs
 import lazy_object_proxy
@@ -35,15 +36,6 @@ from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow import macros
-from airflow.assets import (
-    Asset,
-    AssetAlias,
-    AssetAll,
-    AssetAny,
-    AssetRef,
-    BaseAsset,
-    _AssetAliasCondition,
-)
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.exceptions import AirflowException, SerializationError, TaskDeferred
 from airflow.jobs.job import Job
@@ -60,6 +52,15 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom_arg import XComArg, deserialize_xcom_arg, serialize_xcom_arg
 from airflow.providers_manager import ProvidersManager
+from airflow.sdk.definitions.asset import (
+    Asset,
+    AssetAlias,
+    AssetAliasCondition,
+    AssetAll,
+    AssetAny,
+    AssetRef,
+    BaseAsset,
+)
 from airflow.sdk.definitions.baseoperator import BaseOperator as TaskSDKBaseOperator
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
@@ -110,16 +111,16 @@ if TYPE_CHECKING:
 
     HAS_KUBERNETES: bool
     try:
-        from kubernetes.client import models as k8s  # noqa: TCH004
+        from kubernetes.client import models as k8s  # noqa: TC004
 
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator  # noqa: TCH004
+        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator  # noqa: TC004
     except ImportError:
         pass
 
 log = logging.getLogger(__name__)
 
 _OPERATOR_EXTRA_LINKS: set[str] = {
-    "airflow.operators.trigger_dagrun.TriggerDagRunLink",
+    "airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunLink",
     "airflow.sensors.external_task.ExternalDagLink",
     # Deprecated names, so that existing serialized dags load straight away.
     "airflow.sensors.external_task.ExternalTaskSensorLink",
@@ -1020,7 +1021,7 @@ class DependencyDetector:
     @staticmethod
     def detect_task_dependencies(task: Operator) -> list[DagDependency]:
         """Detect dependencies caused by tasks."""
-        from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
         from airflow.sensors.external_task import ExternalTaskSensor
 
         deps = []
@@ -1053,7 +1054,7 @@ class DependencyDetector:
                     )
                 )
             elif isinstance(obj, AssetAlias):
-                cond = _AssetAliasCondition(obj.name)
+                cond = AssetAliasCondition(obj.name)
 
                 deps.extend(cond.iter_dag_dependencies(source=task.dag_id, target=""))
         return deps
@@ -1160,6 +1161,12 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     def _serialize_node(cls, op: BaseOperator | MappedOperator, include_deps: bool) -> dict[str, Any]:
         """Serialize operator into a JSON object."""
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
+
+        # Detect if there's a change in python callable name
+        python_callable = getattr(op, "python_callable", None)
+        if python_callable:
+            callable_name = qualname(python_callable)
+            serialize_op["python_callable_name"] = callable_name
 
         serialize_op["task_type"] = getattr(op, "task_type", type(op).__name__)
         serialize_op["_task_module"] = getattr(op, "_task_module", type(op).__module__)
@@ -1279,6 +1286,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
 
         for k, v in encoded_op.items():
+            # python_callable_name only serves to detect function name changes
+            if k == "python_callable_name":
+                continue
             if k in ("_outlets", "_inlets"):
                 # `_outlets` -> `outlets`
                 k = k[1:]

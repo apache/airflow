@@ -50,9 +50,11 @@ paths:
           title: Start Date
       - name: end_date
         in: query
-        required: true
+        required: false
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: End Date
       responses:
         '200':
@@ -172,6 +174,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/config:
+    get:
+      tags:
+      - Config
+      summary: Get Configs
+      description: Get configs for UI.
+      operationId: get_configs
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfigResponse'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
   /public/assets:
     get:
       tags:
@@ -395,6 +417,107 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/assets/queuedEvents/{uri}:
+    get:
+      tags:
+      - Asset
+      summary: Get Asset Queued Events
+      description: Get queued asset events for an asset.
+      operationId: get_asset_queued_events
+      parameters:
+      - name: uri
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Uri
+      - name: before
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Before
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueuedEventCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Asset
+      summary: Delete Asset Queued Events
+      description: Delete queued asset events for an asset.
+      operationId: delete_asset_queued_events
+      parameters:
+      - name: uri
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Uri
+      - name: before
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Before
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/assets/{uri}:
     get:
       tags:
@@ -440,7 +563,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/assets/queuedEvent:
+  /public/dags/{dag_id}/assets/queuedEvents:
     get:
       tags:
       - Asset
@@ -546,7 +669,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/assets/queuedEvent/{uri}:
+  /public/dags/{dag_id}/assets/queuedEvents/{uri}:
     get:
       tags:
       - Asset
@@ -665,56 +788,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/assets/queuedEvent/{uri}:
-    delete:
-      tags:
-      - Asset
-      summary: Delete Asset Queued Events
-      description: Delete queued asset events for an asset.
-      operationId: delete_asset_queued_events
-      parameters:
-      - name: uri
-        in: path
-        required: true
-        schema:
-          type: string
-          title: Uri
-      - name: before
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Before
-      responses:
-        '204':
-          description: Successful Response
-        '401':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unauthorized
-        '403':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Forbidden
-        '404':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Not Found
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /public/backfills/:
+  /public/backfills:
     get:
       tags:
       - Backfill
@@ -1165,7 +1239,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/connections/:
+  /public/connections:
     get:
       tags:
       - Connection
@@ -1602,7 +1676,159 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dagSources/{file_token}:
+  /public/dags/{dag_id}/dagRuns:
+    get:
+      tags:
+      - DagRun
+      summary: Get Dag Runs
+      description: 'Get all DAG Runs.
+
+
+        This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for
+        all DAGs.'
+      operationId: get_dag_runs
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      - name: logical_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Gte
+      - name: logical_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date Lte
+      - name: start_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gte
+      - name: start_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lte
+      - name: end_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gte
+      - name: end_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lte
+      - name: updated_at_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At Gte
+      - name: updated_at_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At Lte
+      - name: state
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: State
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: id
+          title: Order By
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRunCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dagSources/{dag_id}:
     get:
       tags:
       - DagSource
@@ -1610,17 +1836,29 @@ paths:
       description: Get source code using file token.
       operationId: get_dag_source
       parameters:
-      - name: file_token
+      - name: dag_id
         in: path
         required: true
         schema:
           type: string
-          title: File Token
+          title: Dag Id
+      - name: version_number
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Version Number
       - name: accept
         in: header
         required: false
         schema:
           type: string
+          enum:
+          - application/json
+          - text/plain
+          - '*/*'
           default: '*/*'
           title: Accept
       responses:
@@ -1670,7 +1908,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dagStats/:
+  /public/dagStats:
     get:
       tags:
       - DagStats
@@ -1717,6 +1955,163 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/config:
+    get:
+      tags:
+      - Config
+      summary: Get Config
+      operationId: get_config
+      parameters:
+      - name: section
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Section
+      - name: accept
+        in: header
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/json
+          - text/plain
+          - '*/*'
+          default: '*/*'
+          title: Accept
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+            text/plain:
+              schema:
+                type: string
+                example: '[core]
+
+                  dags_folder = /opt/airflow/dags
+
+                  base_log_folder = /opt/airflow/logs
+
+
+                  [smtp]
+
+                  smtp_host = localhost
+
+                  smtp_mail_from = airflow@example.com
+
+                  '
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Acceptable
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/config/section/{section}/option/{option}:
+    get:
+      tags:
+      - Config
+      summary: Get Config Value
+      operationId: get_config_value
+      parameters:
+      - name: section
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Section
+      - name: option
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Option
+      - name: accept
+        in: header
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/json
+          - text/plain
+          - '*/*'
+          default: '*/*'
+          title: Accept
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+            text/plain:
+              schema:
+                type: string
+                example: '[core]
+
+                  dags_folder = /opt/airflow/dags
+
+                  base_log_folder = /opt/airflow/logs
+
+                  '
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '406':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Acceptable
         '422':
           description: Validation Error
           content:
@@ -1795,7 +2190,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/:
+  /public/dags:
     get:
       tags:
       - DAG
@@ -2354,7 +2749,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/eventLogs/:
+  /public/eventLogs:
     get:
       tags:
       - Event Log
@@ -2549,7 +2944,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/importErrors/:
+  /public/importErrors:
     get:
       tags:
       - Import Error
@@ -2605,7 +3000,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/plugins/:
+  /public/plugins:
     get:
       tags:
       - Plugin
@@ -2810,7 +3205,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/pools/:
+  /public/pools:
     get:
       tags:
       - Pool
@@ -2903,13 +3298,63 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Conflict
         '422':
           description: Validation Error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/providers/:
+  /public/pools/bulk:
+    post:
+      tags:
+      - Pool
+      summary: Post Pools
+      description: Create multiple pools.
+      operationId: post_pools
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PoolPostBulkBody'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolCollectionResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/providers:
     get:
       tags:
       - Provider
@@ -3405,7 +3850,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/:
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances:
     get:
       tags:
       - Task Instance
@@ -3612,12 +4057,27 @@ paths:
       summary: Get Task Instances Batch
       description: Get list of task instances.
       operationId: get_task_instances_batch
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          const: '~'
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          const: '~'
+          type: string
+          title: Dag Run Id
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/TaskInstancesBatchBody'
-        required: true
       responses:
         '200':
           description: Successful Response
@@ -3626,30 +4086,219 @@ paths:
               schema:
                 $ref: '#/components/schemas/TaskInstanceCollectionResponse'
         '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
         '404':
-          description: Not Found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/tasks/:
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}:
+    get:
+      tags:
+      - Task Instance
+      summary: Get Task Instance Try Details
+      description: Get task instance details by try number.
+      operationId: get_task_instance_try_details
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: task_try_number
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Task Try Number
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceHistoryResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries/{task_try_number}:
+    get:
+      tags:
+      - Task Instance
+      summary: Get Mapped Task Instance Try Details
+      operationId: get_mapped_task_instance_try_details
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: task_try_number
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Task Try Number
+      - name: map_index
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Map Index
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceHistoryResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/clearTaskInstances:
+    post:
+      tags:
+      - Task Instance
+      summary: Post Clear Task Instances
+      description: Clear task instances.
+      operationId: post_clear_task_instances
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClearTaskInstancesBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceReferenceCollectionResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/tasks:
     get:
       tags:
       - Task
@@ -3914,7 +4563,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/variables/:
+  /public/variables:
     get:
       tags:
       - Variable
@@ -4101,6 +4750,109 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}:
+    get:
+      tags:
+      - Task Instance
+      summary: Get Log
+      description: Get logs for a specific task instance.
+      operationId: get_log
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: try_number
+        in: path
+        required: true
+        schema:
+          type: integer
+          exclusiveMinimum: 0
+          title: Try Number
+      - name: full_content
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Full Content
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
+      - name: token
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Token
+      - name: accept
+        in: header
+        required: false
+        schema:
+          type: string
+          enum:
+          - application/json
+          - text/plain
+          - '*/*'
+          default: '*/*'
+          title: Accept
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstancesLogResponse'
+            text/plain:
+              schema:
+                type: string
+                example: 'content
+
+                  '
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/monitor/health:
     get:
       tags:
@@ -4114,7 +4866,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthInfoSchema'
-  /public/version/:
+  /public/version:
     get:
       tags:
       - Version
@@ -4442,6 +5194,202 @@ components:
       - status
       title: BaseInfoSchema
       description: Base status field for metadatabase and scheduler.
+    ClearTaskInstancesBody:
+      properties:
+        dry_run:
+          type: boolean
+          title: Dry Run
+          default: true
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        only_failed:
+          type: boolean
+          title: Only Failed
+          default: true
+        only_running:
+          type: boolean
+          title: Only Running
+          default: false
+        reset_dag_runs:
+          type: boolean
+          title: Reset Dag Runs
+          default: false
+        task_ids:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Task Ids
+        dag_run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Run Id
+        include_upstream:
+          type: boolean
+          title: Include Upstream
+          default: false
+        include_downstream:
+          type: boolean
+          title: Include Downstream
+          default: false
+        include_future:
+          type: boolean
+          title: Include Future
+          default: false
+        include_past:
+          type: boolean
+          title: Include Past
+          default: false
+      type: object
+      title: ClearTaskInstancesBody
+      description: Request body for Clear Task Instances endpoint.
+    Config:
+      properties:
+        sections:
+          items:
+            $ref: '#/components/schemas/ConfigSection'
+          type: array
+          title: Sections
+      type: object
+      required:
+      - sections
+      title: Config
+      description: List of config sections with their options.
+    ConfigOption:
+      properties:
+        key:
+          type: string
+          title: Key
+        value:
+          anyOf:
+          - type: string
+          - prefixItems:
+            - type: string
+            - type: string
+            type: array
+            maxItems: 2
+            minItems: 2
+          title: Value
+      type: object
+      required:
+      - key
+      - value
+      title: ConfigOption
+      description: Config option.
+    ConfigResponse:
+      properties:
+        navbar_color:
+          type: string
+          title: Navbar Color
+        navbar_text_color:
+          type: string
+          title: Navbar Text Color
+        navbar_hover_color:
+          type: string
+          title: Navbar Hover Color
+        navbar_text_hover_color:
+          type: string
+          title: Navbar Text Hover Color
+        navbar_logo_text_color:
+          type: string
+          title: Navbar Logo Text Color
+        page_size:
+          type: integer
+          title: Page Size
+        auto_refresh_interval:
+          type: integer
+          title: Auto Refresh Interval
+        default_ui_timezone:
+          type: string
+          title: Default Ui Timezone
+        hide_paused_dags_by_default:
+          type: boolean
+          title: Hide Paused Dags By Default
+        instance_name:
+          type: string
+          title: Instance Name
+        instance_name_has_markup:
+          type: boolean
+          title: Instance Name Has Markup
+        enable_swagger_ui:
+          type: boolean
+          title: Enable Swagger Ui
+        require_confirmation_dag_change:
+          type: boolean
+          title: Require Confirmation Dag Change
+        default_wrap:
+          type: boolean
+          title: Default Wrap
+        warn_deployment_exposure:
+          type: boolean
+          title: Warn Deployment Exposure
+        audit_view_excluded_events:
+          type: string
+          title: Audit View Excluded Events
+        audit_view_included_events:
+          type: string
+          title: Audit View Included Events
+        is_k8s:
+          type: boolean
+          title: Is K8S
+        test_connection:
+          type: string
+          title: Test Connection
+        state_color_mapping:
+          type: object
+          title: State Color Mapping
+      type: object
+      required:
+      - navbar_color
+      - navbar_text_color
+      - navbar_hover_color
+      - navbar_text_hover_color
+      - navbar_logo_text_color
+      - page_size
+      - auto_refresh_interval
+      - default_ui_timezone
+      - hide_paused_dags_by_default
+      - instance_name
+      - instance_name_has_markup
+      - enable_swagger_ui
+      - require_confirmation_dag_change
+      - default_wrap
+      - warn_deployment_exposure
+      - audit_view_excluded_events
+      - audit_view_included_events
+      - is_k8s
+      - test_connection
+      - state_color_mapping
+      title: ConfigResponse
+      description: configuration serializer.
+    ConfigSection:
+      properties:
+        name:
+          type: string
+          title: Name
+        options:
+          items:
+            $ref: '#/components/schemas/ConfigOption'
+          type: array
+          title: Options
+      type: object
+      required:
+      - name
+      - options
+      title: ConfigSection
+      description: Config Section Schema.
     ConnectionBody:
       properties:
         connection_id:
@@ -4970,6 +5918,22 @@ components:
       type: object
       title: DAGRunClearBody
       description: DAG Run serializer for clear endpoint body.
+    DAGRunCollectionResponse:
+      properties:
+        dag_runs:
+          items:
+            $ref: '#/components/schemas/DAGRunResponse'
+          type: array
+          title: Dag Runs
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - dag_runs
+      - total_entries
+      title: DAGRunCollectionResponse
+      description: DAG Run Collection serializer for responses.
     DAGRunPatchBody:
       properties:
         state:
@@ -4995,11 +5959,11 @@ components:
       description: Enum for DAG Run states when updating a DAG Run.
     DAGRunResponse:
       properties:
-        run_id:
+        dag_run_id:
           anyOf:
           - type: string
           - type: 'null'
-          title: Run Id
+          title: Dag Run Id
         dag_id:
           type: string
           title: Dag Id
@@ -5064,7 +6028,7 @@ components:
           title: Note
       type: object
       required:
-      - run_id
+      - dag_run_id
       - dag_id
       - logical_date
       - queued_at
@@ -5132,9 +6096,19 @@ components:
           - type: string
           - type: 'null'
           title: Content
+        dag_id:
+          type: string
+          title: Dag Id
+        version_number:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Version Number
       type: object
       required:
       - content
+      - dag_id
+      - version_number
       title: DAGSourceResponse
       description: DAG Source serializer for responses.
     DAGTagCollectionResponse:
@@ -5937,6 +6911,7 @@ components:
       properties:
         name:
           type: string
+          maxLength: 256
           title: Name
         slots:
           type: integer
@@ -5956,6 +6931,18 @@ components:
       - slots
       title: PoolPostBody
       description: Pool serializer for post bodies.
+    PoolPostBulkBody:
+      properties:
+        pools:
+          items:
+            $ref: '#/components/schemas/PoolPostBody'
+          type: array
+          title: Pools
+      type: object
+      required:
+      - pools
+      title: PoolPostBulkBody
+      description: Pools serializer for post bodies.
     PoolResponse:
       properties:
         name:
@@ -6160,6 +7147,160 @@ components:
       - total_entries
       title: TaskInstanceCollectionResponse
       description: Task Instance Collection serializer for responses.
+    TaskInstanceHistoryResponse:
+      properties:
+        task_id:
+          type: string
+          title: Task Id
+        dag_id:
+          type: string
+          title: Dag Id
+        dag_run_id:
+          type: string
+          title: Dag Run Id
+        map_index:
+          type: integer
+          title: Map Index
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        duration:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration
+        state:
+          anyOf:
+          - $ref: '#/components/schemas/TaskInstanceState'
+          - type: 'null'
+        try_number:
+          type: integer
+          title: Try Number
+        max_tries:
+          type: integer
+          title: Max Tries
+        task_display_name:
+          type: string
+          title: Task Display Name
+        hostname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hostname
+        unixname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Unixname
+        pool:
+          type: string
+          title: Pool
+        pool_slots:
+          type: integer
+          title: Pool Slots
+        queue:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Queue
+        priority_weight:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Priority Weight
+        operator:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Operator
+        queued_when:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Queued When
+        pid:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Pid
+        executor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Executor
+        executor_config:
+          type: string
+          title: Executor Config
+      type: object
+      required:
+      - task_id
+      - dag_id
+      - dag_run_id
+      - map_index
+      - start_date
+      - end_date
+      - duration
+      - state
+      - try_number
+      - max_tries
+      - task_display_name
+      - hostname
+      - unixname
+      - pool
+      - pool_slots
+      - queue
+      - priority_weight
+      - operator
+      - queued_when
+      - pid
+      - executor
+      - executor_config
+      title: TaskInstanceHistoryResponse
+      description: TaskInstanceHistory serializer for responses.
+    TaskInstanceReferenceCollectionResponse:
+      properties:
+        task_instances:
+          items:
+            $ref: '#/components/schemas/TaskInstanceReferenceResponse'
+          type: array
+          title: Task Instances
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - task_instances
+      - total_entries
+      title: TaskInstanceReferenceCollectionResponse
+      description: Task Instance Reference collection serializer for responses.
+    TaskInstanceReferenceResponse:
+      properties:
+        task_id:
+          type: string
+          title: Task Id
+        dag_run_id:
+          type: string
+          title: Dag Run Id
+        dag_id:
+          type: string
+          title: Dag Id
+      type: object
+      required:
+      - task_id
+      - dag_run_id
+      - dag_id
+      title: TaskInstanceReferenceResponse
+      description: Task Instance Reference serializer for responses.
     TaskInstanceResponse:
       properties:
         id:
@@ -6510,6 +7651,22 @@ components:
       type: object
       title: TaskInstancesBatchBody
       description: Task Instance body for get batch.
+    TaskInstancesLogResponse:
+      properties:
+        content:
+          type: string
+          title: Content
+        continuation_token:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Continuation Token
+      type: object
+      required:
+      - content
+      - continuation_token
+      title: TaskInstancesLogResponse
+      description: Log serializer for responses.
     TaskOutletAssetReference:
       properties:
         dag_id:
@@ -6706,7 +7863,7 @@ components:
       properties:
         __type:
           type: string
-          title: '  Type'
+          title: Type
           default: TimeDelta
         days:
           type: integer

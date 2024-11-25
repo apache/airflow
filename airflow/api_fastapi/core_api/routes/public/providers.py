@@ -39,7 +39,7 @@ def _provider_mapper(provider: ProviderInfo) -> ProviderResponse:
     )
 
 
-@providers_router.get("/")
+@providers_router.get("")
 def get_providers(
     limit: QueryLimit,
     offset: QueryOffset,

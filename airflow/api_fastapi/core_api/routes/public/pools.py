@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import Depends, HTTPException, Query, status
 from fastapi.exceptions import RequestValidationError
@@ -32,6 +32,7 @@ from airflow.api_fastapi.core_api.datamodels.pools import (
     PoolCollectionResponse,
     PoolPatchBody,
     PoolPostBody,
+    PoolPostBulkBody,
     PoolResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -77,14 +78,12 @@ def get_pool(
     if pool is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Pool with name: `{pool_name}` was not found")
 
-    return PoolResponse.model_validate(pool, from_attributes=True)
+    return pool
 
 
 @pools_router.get(
-    "/",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    "",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_pools(
     limit: QueryLimit,
@@ -97,18 +96,17 @@ def get_pools(
 ) -> PoolCollectionResponse:
     """Get all pools entries."""
     pools_select, total_entries = paginated_select(
-        select(Pool),
-        [],
+        select=select(Pool),
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
     )
 
-    pools = session.scalars(pools_select).all()
+    pools = session.scalars(pools_select)
 
     return PoolCollectionResponse(
-        pools=[PoolResponse.model_validate(pool, from_attributes=True) for pool in pools],
+        pools=pools,
         total_entries=total_entries,
     )
 
@@ -118,8 +116,6 @@ def get_pools(
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
         ]
     ),
@@ -159,21 +155,43 @@ def patch_pool(
     for key, value in data.items():
         setattr(pool, key, value)
 
-    return PoolResponse.model_validate(pool, from_attributes=True)
+    return pool
 
 
 @pools_router.post(
-    "/",
+    "",
     status_code=status.HTTP_201_CREATED,
-    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
+    responses=create_openapi_http_exception_doc(
+        [status.HTTP_409_CONFLICT]
+    ),  # handled by global exception handler
 )
 def post_pool(
-    post_body: PoolPostBody,
+    body: PoolPostBody,
     session: Annotated[Session, Depends(get_session)],
 ) -> PoolResponse:
     """Create a Pool."""
-    pool = Pool(**post_body.model_dump())
-
+    pool = Pool(**body.model_dump())
     session.add(pool)
+    return pool
 
-    return PoolResponse.model_validate(pool, from_attributes=True)
+
+@pools_router.post(
+    "/bulk",
+    status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_409_CONFLICT,  # handled by global exception handler
+        ]
+    ),
+)
+def post_pools(
+    body: PoolPostBulkBody,
+    session: Annotated[Session, Depends(get_session)],
+) -> PoolCollectionResponse:
+    """Create multiple pools."""
+    pools = [Pool(**body.model_dump()) for body in body.pools]
+    session.add_all(pools)
+    return PoolCollectionResponse(
+        pools=cast(list[PoolResponse], pools),
+        total_entries=len(pools),
+    )

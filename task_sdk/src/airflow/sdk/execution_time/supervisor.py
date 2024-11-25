@@ -32,7 +32,7 @@ from collections.abc import Generator
 from contextlib import suppress
 from datetime import datetime, timezone
 from socket import socket, socketpair
-from typing import TYPE_CHECKING, BinaryIO, Callable, ClassVar, Literal, NoReturn, cast, overload
+from typing import TYPE_CHECKING, BinaryIO, Callable, ClassVar, Literal, NoReturn, TextIO, cast, overload
 from uuid import UUID
 
 import attrs
@@ -45,8 +45,8 @@ from pydantic import TypeAdapter
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
-    ConnectionResponse,
     GetConnection,
+    GetVariable,
     StartupDetails,
     ToSupervisor,
 )
@@ -131,17 +131,17 @@ def _reopen_std_io_handles(child_stdin, child_stdout, child_stderr):
     # Ensure that sys.stdout et al (and the underlying filehandles for C libraries etc) are connected to the
     # pipes from the supervisor
 
-    for handle_name, sock, mode, close in (
-        ("stdin", child_stdin, "r", True),
-        ("stdout", child_stdout, "w", True),
-        ("stderr", child_stderr, "w", False),
+    for handle_name, sock, mode in (
+        ("stdin", child_stdin, "r"),
+        ("stdout", child_stdout, "w"),
+        ("stderr", child_stderr, "w"),
     ):
         handle = getattr(sys, handle_name)
         try:
             fd = handle.fileno()
             os.dup2(sock.fileno(), fd)
-            if close:
-                handle.close()
+            # dup2 creates another open copy of the fd, we can close the "socket" copy of it.
+            sock.close()
         except io.UnsupportedOperation:
             if "PYTEST_CURRENT_TEST" in os.environ:
                 # When we're running under pytest, the stdin is not a real filehandle with an fd, so we need
@@ -149,8 +149,20 @@ def _reopen_std_io_handles(child_stdin, child_stdout, child_stderr):
                 fd = sock.fileno()
             else:
                 raise
+        # We can't open text mode fully unbuffered (python throws an exception if we try), but we can make it line buffered with `buffering=1`
+        handle = os.fdopen(fd, mode, buffering=1)
+        setattr(sys, handle_name, handle)
 
-        setattr(sys, handle_name, os.fdopen(fd, mode))
+
+def _get_last_chance_stderr() -> TextIO:
+    stream = sys.__stderr__ or sys.stderr
+
+    try:
+        # We want to open another copy of the underlying filedescriptor if we can, to ensure it stays open!
+        return os.fdopen(os.dup(stream.fileno()), "w", buffering=1)
+    except Exception:
+        # If that didn't work, do the best we can
+        return stream
 
 
 def _fork_main(
@@ -179,7 +191,7 @@ def _fork_main(
     # TODO: Make this process a session leader
 
     # Store original stderr for last-chance exception handling
-    last_chance_stderr = sys.__stderr__ or sys.stderr
+    last_chance_stderr = _get_last_chance_stderr()
 
     _reset_signals()
     if log_fd:
@@ -243,8 +255,7 @@ class WatchedSubprocess:
     pid: int
 
     stdin: BinaryIO
-    stdout: socket
-    stderr: socket
+    """The handle connected to stdin of the child process"""
 
     client: Client
 
@@ -283,15 +294,13 @@ class WatchedSubprocess:
         if pid == 0:
             # Parent ends of the sockets are closed by the OS as they are set as non-inheritable
 
-            # Run the child entryoint
+            # Run the child entrypoint
             _fork_main(child_stdin, child_stdout, child_stderr, child_logs.fileno(), target)
 
         proc = cls(
             ti_id=ti.id,
             pid=pid,
             stdin=feed_stdin,
-            stdout=read_stdout,
-            stderr=read_stderr,
             process=psutil.Process(pid),
             client=client,
         )
@@ -307,40 +316,56 @@ class WatchedSubprocess:
             proc.kill(signal.SIGKILL)
             raise
 
-        # TODO: Use logging providers to handle the chunked upload for us
-        task_logger: FilteringBoundLogger = structlog.get_logger(logger_name="task").bind()
-
-        # proc.selector is a way of registering a handler/callback to be called when the given IO channel has
-        # activity to read on (https://www.man7.org/linux/man-pages/man2/select.2.html etc, but better
-        # alternatives are used automatically) -- this is a way of having "event-based" code, but without
-        # needing full async, to read and process output from each socket as it is received.
-
-        cb = make_buffered_socket_reader(forward_to_log(task_logger.bind(chan="stdout"), level=logging.INFO))
-        proc.selector.register(read_stdout, selectors.EVENT_READ, cb)
-
-        cb = make_buffered_socket_reader(forward_to_log(task_logger.bind(chan="stderr"), level=logging.ERROR))
-        proc.selector.register(read_stderr, selectors.EVENT_READ, cb)
-
-        proc.selector.register(
-            read_logs,
-            selectors.EVENT_READ,
-            make_buffered_socket_reader(process_log_messages_from_subprocess(task_logger)),
-        )
-        proc.selector.register(
-            read_msgs,
-            selectors.EVENT_READ,
-            make_buffered_socket_reader(proc.handle_requests(log=log)),
+        proc._register_pipe_readers(
+            stdout=read_stdout, stderr=read_stderr, requests=read_msgs, logs=read_logs
         )
 
         # Close the remaining parent-end of the sockets we've passed to the child via fork. We still have the
         # other end of the pair open
-        child_stdout.close()
-        child_stdin.close()
-        child_comms.close()
-        child_logs.close()
+        proc._close_unused_sockets(child_stdin, child_stdout, child_stderr, child_comms, child_logs)
 
         # Tell the task process what it needs to do!
+        proc._send_startup_message(ti, path, child_comms)
+        return proc
 
+    def _register_pipe_readers(self, stdout: socket, stderr: socket, requests: socket, logs: socket):
+        """Register handlers for subprocess communication channels."""
+        # self.selector is a way of registering a handler/callback to be called when the given IO channel has
+        # activity to read on (https://www.man7.org/linux/man-pages/man2/select.2.html etc, but better
+        # alternatives are used automatically) -- this is a way of having "event-based" code, but without
+        # needing full async, to read and process output from each socket as it is received.
+
+        # TODO: Use logging providers to handle the chunked upload for us
+        logger: FilteringBoundLogger = structlog.get_logger(logger_name="task").bind()
+
+        self.selector.register(stdout, selectors.EVENT_READ, self._create_socket_handler(logger, "stdout"))
+        self.selector.register(
+            stderr,
+            selectors.EVENT_READ,
+            self._create_socket_handler(logger, "stderr", log_level=logging.ERROR),
+        )
+        self.selector.register(
+            logs,
+            selectors.EVENT_READ,
+            make_buffered_socket_reader(process_log_messages_from_subprocess(logger)),
+        )
+        self.selector.register(
+            requests, selectors.EVENT_READ, make_buffered_socket_reader(self.handle_requests(log))
+        )
+
+    @staticmethod
+    def _create_socket_handler(logger, channel, log_level=logging.INFO) -> Callable[[socket], bool]:
+        """Create a socket handler that forwards logs to a logger."""
+        return make_buffered_socket_reader(forward_to_log(logger.bind(chan=channel), level=log_level))
+
+    @staticmethod
+    def _close_unused_sockets(*sockets):
+        """Close unused ends of sockets after fork."""
+        for sock in sockets:
+            sock.close()
+
+    def _send_startup_message(self, ti: TaskInstance, path: str | os.PathLike[str], child_comms: socket):
+        """Send startup message to the subprocess."""
         msg = StartupDetails(
             ti=ti,
             file=str(path),
@@ -349,10 +374,8 @@ class WatchedSubprocess:
 
         # Send the message to tell the process what it needs to execute
         log.debug("Sending", msg=msg)
-        feed_stdin.write(msg.model_dump_json().encode())
-        feed_stdin.write(b"\n")
-
-        return proc
+        self.stdin.write(msg.model_dump_json().encode())
+        self.stdin.write(b"\n")
 
     def kill(self, signal: signal.Signals = signal.SIGINT):
         if self._exit_code is not None:
@@ -365,57 +388,77 @@ class WatchedSubprocess:
         if self._exit_code is not None:
             return self._exit_code
 
-        # Until we have a selector for the process, don't poll for more than 10s, just in case it exists but
-        # doesn't produce any output
-        max_poll_interval = 10
-
         try:
-            while self._exit_code is None or len(self.selector.get_map()):
-                last_heartbeat_ago = time.monotonic() - self._last_heartbeat
-                # Monitor the task to see if it's done. Wait in a syscall (`select`) for as long as possible
-                # so we notice the subprocess finishing as quick as we can.
-                max_wait_time = max(
-                    0,  # Make sure this value is never negative,
-                    min(
-                        # Ensure we heartbeat _at most_ 75% through time the zombie threshold time
-                        SLOWEST_HEARTBEAT_INTERVAL - last_heartbeat_ago * 0.75,
-                        max_poll_interval,
-                    ),
-                )
-                events = self.selector.select(timeout=max_wait_time)
-                for key, _ in events:
-                    socket_handler = key.data
-                    need_more = socket_handler(key.fileobj)
-
-                    if not need_more:
-                        self.selector.unregister(key.fileobj)
-                        key.fileobj.close()  # type: ignore[union-attr]
-
-                if self._exit_code is None:
-                    try:
-                        self._exit_code = self._process.wait(timeout=0)
-                        log.debug("Task process exited", exit_code=self._exit_code)
-                    except psutil.TimeoutExpired:
-                        pass
-
-                if last_heartbeat_ago < FASTEST_HEARTBEAT_INTERVAL:
-                    # Avoid heartbeating too frequently
-                    continue
-
-                try:
-                    self.client.task_instances.heartbeat(self.ti_id, pid=self._process.pid)
-                    self._last_heartbeat = time.monotonic()
-                except Exception:
-                    log.warning("Couldn't heartbeat", exc_info=True)
-                    # TODO: If we couldn't heartbeat for X times the interval, kill ourselves
-                    pass
+            self._monitor_subprocess()
         finally:
             self.selector.close()
+
+        # self._monitor_subprocess() will set the exit code when the process has finished
+        # If it hasn't, assume it's failed
+        self._exit_code = self._exit_code if self._exit_code is not None else 1
 
         self.client.task_instances.finish(
             id=self.ti_id, state=self.final_state, when=datetime.now(tz=timezone.utc)
         )
         return self._exit_code
+
+    def _monitor_subprocess(self):
+        """
+        Monitor the subprocess until it exits.
+
+        This function:
+
+        - Polls the subprocess for output
+        - Sends heartbeats to the client to keep the task alive
+        - Checks if the subprocess has exited
+        """
+        # Until we have a selector for the process, don't poll for more than 10s, just in case it exists but
+        # doesn't produce any output
+        max_poll_interval = 10
+
+        while self._exit_code is None or len(self.selector.get_map()):
+            last_heartbeat_ago = time.monotonic() - self._last_heartbeat
+            # Monitor the task to see if it's done. Wait in a syscall (`select`) for as long as possible
+            # so we notice the subprocess finishing as quick as we can.
+            max_wait_time = max(
+                0,  # Make sure this value is never negative,
+                min(
+                    # Ensure we heartbeat _at most_ 75% through time the zombie threshold time
+                    SLOWEST_HEARTBEAT_INTERVAL - last_heartbeat_ago * 0.75,
+                    max_poll_interval,
+                ),
+            )
+            events = self.selector.select(timeout=max_wait_time)
+            for key, _ in events:
+                socket_handler = key.data
+                need_more = socket_handler(key.fileobj)
+
+                if not need_more:
+                    self.selector.unregister(key.fileobj)
+                    key.fileobj.close()  # type: ignore[union-attr]
+
+            self._check_subprocess_exit()
+            self._send_heartbeat_if_needed()
+
+    def _check_subprocess_exit(self):
+        """Check if the subprocess has exited."""
+        if self._exit_code is None:
+            try:
+                self._exit_code = self._process.wait(timeout=0)
+                log.debug("Task process exited", exit_code=self._exit_code)
+            except psutil.TimeoutExpired:
+                pass
+
+    def _send_heartbeat_if_needed(self):
+        """Send a heartbeat to the client if heartbeat interval has passed."""
+        if time.monotonic() - self._last_heartbeat >= FASTEST_HEARTBEAT_INTERVAL:
+            try:
+                self.client.task_instances.heartbeat(self.ti_id, pid=self._process.pid)
+                self._last_heartbeat = time.monotonic()
+            except Exception:
+                log.warning("Failed to send heartbeat", exc_info=True)
+                # TODO: If we couldn't heartbeat for X times the interval, kill ourselves
+                pass
 
     @property
     def final_state(self):
@@ -433,22 +476,21 @@ class WatchedSubprocess:
         return TerminalTIState.FAILED
 
     def __rich_repr__(self):
+        yield "ti_id", self.ti_id
         yield "pid", self.pid
+        # only include this if it's not the default (third argument)
         yield "exit_code", self._exit_code, None
 
     __rich_repr__.angular = True  # type: ignore[attr-defined]
 
     def __repr__(self) -> str:
-        rep = f"<WatchedSubprocess pid={self.pid}"
+        rep = f"<WatchedSubprocess ti_id={self.ti_id} pid={self.pid}"
         if self._exit_code is not None:
             rep += f" exit_code={self._exit_code}"
         return rep + " >"
 
     def handle_requests(self, log: FilteringBoundLogger) -> Generator[None, bytes, None]:
-        encoder = ConnectionResponse.model_dump_json
-        # Use a buffer to avoid small allocations
-        buffer = bytearray(64)
-
+        """Handle incoming requests from the task process, respond with the appropriate data."""
         decoder = TypeAdapter[ToSupervisor](ToSupervisor)
 
         while True:
@@ -460,28 +502,23 @@ class WatchedSubprocess:
                 log.exception("Unable to decode message", line=line)
                 continue
 
-            # if isinstnace(msg, TaskState):
+            # if isinstance(msg, TaskState):
             #     self._terminal_state = msg.state
             # elif isinstance(msg, ReadXCom):
             #     resp = XComResponse(key="secret", value=True)
             #     encoder.encode_into(resp, buffer)
             #     self.stdin.write(buffer + b"\n")
             if isinstance(msg, GetConnection):
-                conn = self.client.connections.get(msg.id)
-                resp = ConnectionResponse(conn=conn)
-                encoded_resp = encoder(resp)
-                buffer.extend(encoded_resp.encode())
+                conn = self.client.connections.get(msg.conn_id)
+                resp = conn.model_dump_json(exclude_unset=True).encode()
+            elif isinstance(msg, GetVariable):
+                var = self.client.variables.get(msg.key)
+                resp = var.model_dump_json(exclude_unset=True).encode()
             else:
                 log.error("Unhandled request", msg=msg)
                 continue
 
-            buffer.extend(b"\n")
-            self.stdin.write(buffer)
-
-            # Ensure the buffer doesn't grow and stay large if a large payload is used. This won't grow it
-            # larger than it is, but it will shrink it
-            if len(buffer) > 1024:
-                buffer = buffer[:1024]
+            self.stdin.write(resp + b"\n")
 
 
 # Sockets, even the `.makefile()` function don't correctly do line buffering on reading. If a chunk is read

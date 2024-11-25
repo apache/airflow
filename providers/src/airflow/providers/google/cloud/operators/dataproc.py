@@ -23,12 +23,12 @@ import inspect
 import re
 import time
 import warnings
-from collections.abc import MutableSequence
+from collections.abc import MutableSequence, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -818,7 +818,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         try:
             # First try to create a new cluster
             operation = self._create_cluster(hook)
-            if not self.deferrable:
+            if not self.deferrable and type(operation) is not str:
                 cluster = hook.wait_for_operation(
                     timeout=self.timeout, result_retry=self.retry, operation=operation
                 )

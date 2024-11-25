@@ -308,3 +308,13 @@ class TestDbApiHook:
             raise AirflowProviderDeprecationWarning(
                 f"Check TODO's to remove obsolete code in resolve_dialects method:\n\r\n\r\t\t\t{method_source}"
             )
+
+    @pytest.mark.db_test
+    def test_uri(self):
+        dbapi_hook = mock_hook(DbApiHook)
+        assert dbapi_hook.get_uri() == "//login:password@host:1234/schema"
+
+    @pytest.mark.db_test
+    def test_uri_with_schema(self):
+        dbapi_hook = mock_hook(DbApiHook, conn_params={"schema": "other_schema"})
+        assert dbapi_hook.get_uri() == "//login:password@host:1234/other_schema"

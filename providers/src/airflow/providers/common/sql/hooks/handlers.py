@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
 
 def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):

@@ -21,10 +21,11 @@ name: Standard
 description: |
     Airflow Standard Provider
 state: ready
-source-date-epoch: 1718603992
+source-date-epoch: 1732434919
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 0.0.2
   - 0.0.1
 
 dependencies:
@@ -48,6 +49,7 @@ operators:
       - airflow.providers.standard.operators.bash
       - airflow.providers.standard.operators.python
       - airflow.providers.standard.operators.generic_transfer
+      - airflow.providers.standard.operators.trigger_dagrun
 
 sensors:
   - integration-name: Standard

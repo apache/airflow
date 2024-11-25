@@ -38,7 +38,7 @@ variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
 
 @variables_router.delete(
     "/{variable_key}",
-    status_code=204,
+    status_code=status.HTTP_204_NO_CONTENT,
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def delete_variable(
@@ -68,11 +68,11 @@ def get_variable(
             status.HTTP_404_NOT_FOUND, f"The Variable with key: `{variable_key}` was not found"
         )
 
-    return VariableResponse.model_validate(variable, from_attributes=True)
+    return variable
 
 
 @variables_router.get(
-    "/",
+    "",
 )
 def get_variables(
     limit: QueryLimit,
@@ -90,18 +90,17 @@ def get_variables(
 ) -> VariableCollectionResponse:
     """Get all Variables entries."""
     variable_select, total_entries = paginated_select(
-        select(Variable),
-        [],
+        select=select(Variable),
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
     )
 
-    variables = session.scalars(variable_select).all()
+    variables = session.scalars(variable_select)
 
     return VariableCollectionResponse(
-        variables=[VariableResponse.model_validate(variable, from_attributes=True) for variable in variables],
+        variables=variables,
         total_entries=total_entries,
     )
 
@@ -140,11 +139,11 @@ def patch_variable(
         data = patch_body.model_dump(exclude=non_update_fields, by_alias=True, exclude_none=True)
     for key, val in data.items():
         setattr(variable, key, val)
-    return VariableResponse.model_validate(variable, from_attributes=True)
+    return variable
 
 
 @variables_router.post(
-    "/",
+    "",
     status_code=status.HTTP_201_CREATED,
 )
 def post_variable(
@@ -156,4 +155,4 @@ def post_variable(
 
     variable = session.scalar(select(Variable).where(Variable.key == post_body.key).limit(1))
 
-    return VariableResponse.model_validate(variable, from_attributes=True)
+    return variable
