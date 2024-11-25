@@ -627,6 +627,13 @@ export type EventLogResponse = {
 };
 
 /**
+ * Extra Links Response.
+ */
+export type ExtraLinksResponse = {
+  [key: string]: string | null;
+};
+
+/**
  * Serializer for Plugin FastAPI App responses.
  */
 export type FastAPIAppResponse = {
@@ -1543,90 +1550,13 @@ export type GetEventLogsData = {
 
 export type GetEventLogsResponse = EventLogCollectionResponse;
 
-export type GetImportErrorData = {
-  importErrorId: number;
+export type GetExtraLinksData = {
+  dagId: string;
+  dagRunId: string;
+  taskId: string;
 };
 
-export type GetImportErrorResponse = ImportErrorResponse;
-
-export type GetImportErrorsData = {
-  limit?: number;
-  offset?: number;
-  orderBy?: string;
-};
-
-export type GetImportErrorsResponse = ImportErrorCollectionResponse;
-
-export type GetJobsData = {
-  endDateGte?: string | null;
-  endDateLte?: string | null;
-  executorClass?: string | null;
-  hostname?: string | null;
-  isAlive?: boolean | null;
-  jobState?: string | null;
-  jobType?: string | null;
-  limit?: number;
-  offset?: number;
-  orderBy?: string;
-  startDateGte?: string | null;
-  startDateLte?: string | null;
-};
-
-export type GetJobsResponse = JobCollectionResponse;
-
-export type GetPluginsData = {
-  limit?: number;
-  offset?: number;
-};
-
-export type GetPluginsResponse = PluginCollectionResponse;
-
-export type DeletePoolData = {
-  poolName: string;
-};
-
-export type DeletePoolResponse = void;
-
-export type GetPoolData = {
-  poolName: string;
-};
-
-export type GetPoolResponse = PoolResponse;
-
-export type PatchPoolData = {
-  poolName: string;
-  requestBody: PoolPatchBody;
-  updateMask?: Array<string> | null;
-};
-
-export type PatchPoolResponse = PoolResponse;
-
-export type GetPoolsData = {
-  limit?: number;
-  offset?: number;
-  orderBy?: string;
-};
-
-export type GetPoolsResponse = PoolCollectionResponse;
-
-export type PostPoolData = {
-  requestBody: PoolPostBody;
-};
-
-export type PostPoolResponse = PoolResponse;
-
-export type PostPoolsData = {
-  requestBody: PoolPostBulkBody;
-};
-
-export type PostPoolsResponse = PoolCollectionResponse;
-
-export type GetProvidersData = {
-  limit?: number;
-  offset?: number;
-};
-
-export type GetProvidersResponse = ProviderCollectionResponse;
+export type GetExtraLinksResponse = ExtraLinksResponse;
 
 export type GetTaskInstanceData = {
   dagId: string;
@@ -1763,6 +1693,91 @@ export type GetLogData = {
 };
 
 export type GetLogResponse = TaskInstancesLogResponse;
+
+export type GetImportErrorData = {
+  importErrorId: number;
+};
+
+export type GetImportErrorResponse = ImportErrorResponse;
+
+export type GetImportErrorsData = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+};
+
+export type GetImportErrorsResponse = ImportErrorCollectionResponse;
+
+export type GetJobsData = {
+  endDateGte?: string | null;
+  endDateLte?: string | null;
+  executorClass?: string | null;
+  hostname?: string | null;
+  isAlive?: boolean | null;
+  jobState?: string | null;
+  jobType?: string | null;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  startDateGte?: string | null;
+  startDateLte?: string | null;
+};
+
+export type GetJobsResponse = JobCollectionResponse;
+
+export type GetPluginsData = {
+  limit?: number;
+  offset?: number;
+};
+
+export type GetPluginsResponse = PluginCollectionResponse;
+
+export type DeletePoolData = {
+  poolName: string;
+};
+
+export type DeletePoolResponse = void;
+
+export type GetPoolData = {
+  poolName: string;
+};
+
+export type GetPoolResponse = PoolResponse;
+
+export type PatchPoolData = {
+  poolName: string;
+  requestBody: PoolPatchBody;
+  updateMask?: Array<string> | null;
+};
+
+export type PatchPoolResponse = PoolResponse;
+
+export type GetPoolsData = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+};
+
+export type GetPoolsResponse = PoolCollectionResponse;
+
+export type PostPoolData = {
+  requestBody: PoolPostBody;
+};
+
+export type PostPoolResponse = PoolResponse;
+
+export type PostPoolsData = {
+  requestBody: PoolPostBulkBody;
+};
+
+export type PostPoolsResponse = PoolCollectionResponse;
+
+export type GetProvidersData = {
+  limit?: number;
+  offset?: number;
+};
+
+export type GetProvidersResponse = ProviderCollectionResponse;
 
 export type GetTasksData = {
   dagId: string;
@@ -3054,14 +3069,14 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/importErrors/{import_error_id}": {
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links": {
     get: {
-      req: GetImportErrorData;
+      req: GetExtraLinksData;
       res: {
         /**
          * Successful Response
          */
-        200: ImportErrorResponse;
+        200: ExtraLinksResponse;
         /**
          * Unauthorized
          */
@@ -3074,266 +3089,6 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/importErrors": {
-    get: {
-      req: GetImportErrorsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: ImportErrorCollectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/jobs": {
-    get: {
-      req: GetJobsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: JobCollectionResponse;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/plugins": {
-    get: {
-      req: GetPluginsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: PluginCollectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/pools/{pool_name}": {
-    delete: {
-      req: DeletePoolData;
-      res: {
-        /**
-         * Successful Response
-         */
-        204: void;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-    get: {
-      req: GetPoolData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: PoolResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-    patch: {
-      req: PatchPoolData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: PoolResponse;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/pools": {
-    get: {
-      req: GetPoolsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: PoolCollectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-    post: {
-      req: PostPoolData;
-      res: {
-        /**
-         * Successful Response
-         */
-        201: PoolResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Conflict
-         */
-        409: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/pools/bulk": {
-    post: {
-      req: PostPoolsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        201: PoolCollectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Conflict
-         */
-        409: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/providers": {
-    get: {
-      req: GetProvidersData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: ProviderCollectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -3631,6 +3386,293 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/importErrors/{import_error_id}": {
+    get: {
+      req: GetImportErrorData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ImportErrorResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/importErrors": {
+    get: {
+      req: GetImportErrorsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ImportErrorCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/jobs": {
+    get: {
+      req: GetJobsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: JobCollectionResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/plugins": {
+    get: {
+      req: GetPluginsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: PluginCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/pools/{pool_name}": {
+    delete: {
+      req: DeletePoolData;
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    get: {
+      req: GetPoolData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: PoolResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: PatchPoolData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: PoolResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/pools": {
+    get: {
+      req: GetPoolsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: PoolCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    post: {
+      req: PostPoolData;
+      res: {
+        /**
+         * Successful Response
+         */
+        201: PoolResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/pools/bulk": {
+    post: {
+      req: PostPoolsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        201: PoolCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/providers": {
+    get: {
+      req: GetProvidersData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ProviderCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */

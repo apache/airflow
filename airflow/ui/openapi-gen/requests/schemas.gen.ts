@@ -2591,6 +2591,22 @@ export const $EventLogResponse = {
   description: "Event Log Response.",
 } as const;
 
+export const $ExtraLinksResponse = {
+  additionalProperties: {
+    anyOf: [
+      {
+        type: "string",
+      },
+      {
+        type: "null",
+      },
+    ],
+  },
+  type: "object",
+  title: "ExtraLinksResponse",
+  description: "Extra Links Response.",
+} as const;
+
 export const $FastAPIAppResponse = {
   properties: {
     app: {
