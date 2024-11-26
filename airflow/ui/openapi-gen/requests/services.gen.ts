@@ -70,6 +70,8 @@ import type {
   ClearDagRunResponse,
   GetDagRunsData,
   GetDagRunsResponse,
+  GetListDagRunsBatchData,
+  GetListDagRunsBatchResponse,
   GetDagSourceData,
   GetDagSourceResponse,
   GetDagStatsData,
@@ -94,6 +96,36 @@ import type {
   GetEventLogResponse,
   GetEventLogsData,
   GetEventLogsResponse,
+  GetExtraLinksData,
+  GetExtraLinksResponse,
+  GetTaskInstanceData,
+  GetTaskInstanceResponse,
+  PatchTaskInstanceData,
+  PatchTaskInstanceResponse,
+  GetMappedTaskInstancesData,
+  GetMappedTaskInstancesResponse,
+  GetTaskInstanceDependenciesData,
+  GetTaskInstanceDependenciesResponse,
+  GetTaskInstanceDependencies1Data,
+  GetTaskInstanceDependencies1Response,
+  GetTaskInstanceTriesData,
+  GetTaskInstanceTriesResponse,
+  GetMappedTaskInstanceData,
+  GetMappedTaskInstanceResponse,
+  PatchTaskInstance1Data,
+  PatchTaskInstance1Response,
+  GetTaskInstancesData,
+  GetTaskInstancesResponse,
+  GetTaskInstancesBatchData,
+  GetTaskInstancesBatchResponse,
+  GetTaskInstanceTryDetailsData,
+  GetTaskInstanceTryDetailsResponse,
+  GetMappedTaskInstanceTryDetailsData,
+  GetMappedTaskInstanceTryDetailsResponse,
+  PostClearTaskInstancesData,
+  PostClearTaskInstancesResponse,
+  GetLogData,
+  GetLogResponse,
   GetImportErrorData,
   GetImportErrorResponse,
   GetImportErrorsData,
@@ -116,28 +148,6 @@ import type {
   PostPoolsResponse,
   GetProvidersData,
   GetProvidersResponse,
-  GetTaskInstanceData,
-  GetTaskInstanceResponse,
-  GetMappedTaskInstancesData,
-  GetMappedTaskInstancesResponse,
-  GetTaskInstanceDependenciesData,
-  GetTaskInstanceDependenciesResponse,
-  GetTaskInstanceDependencies1Data,
-  GetTaskInstanceDependencies1Response,
-  GetMappedTaskInstanceData,
-  GetMappedTaskInstanceResponse,
-  GetTaskInstancesData,
-  GetTaskInstancesResponse,
-  GetTaskInstancesBatchData,
-  GetTaskInstancesBatchResponse,
-  GetTaskInstanceTryDetailsData,
-  GetTaskInstanceTryDetailsResponse,
-  GetMappedTaskInstanceTryDetailsData,
-  GetMappedTaskInstanceTryDetailsResponse,
-  PostClearTaskInstancesData,
-  PostClearTaskInstancesResponse,
-  GetLogData,
-  GetLogResponse,
   GetTasksData,
   GetTasksResponse,
   GetTaskData,
@@ -1178,6 +1188,35 @@ export class DagRunService {
       },
     });
   }
+
+  /**
+   * Get List Dag Runs Batch
+   * Get a list of DAG Runs.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.requestBody
+   * @returns DAGRunCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getListDagRunsBatch(
+    data: GetListDagRunsBatchData,
+  ): CancelablePromise<GetListDagRunsBatchResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/dags/{dag_id}/dagRuns/list",
+      path: {
+        dag_id: data.dagId,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
 }
 
 export class DagSourceService {
@@ -1595,6 +1634,612 @@ export class EventLogService {
   }
 }
 
+export class ExtraLinksService {
+  /**
+   * Get Extra Links
+   * Get extra links for task instance.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @returns ExtraLinksResponse Successful Response
+   * @throws ApiError
+   */
+  public static getExtraLinks(
+    data: GetExtraLinksData,
+  ): CancelablePromise<GetExtraLinksResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class TaskInstanceService {
+  /**
+   * Get Extra Links
+   * Get extra links for task instance.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @returns ExtraLinksResponse Successful Response
+   * @throws ApiError
+   */
+  public static getExtraLinks(
+    data: GetExtraLinksData,
+  ): CancelablePromise<GetExtraLinksResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Task Instance
+   * Get task instance.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @returns TaskInstanceResponse Successful Response
+   * @throws ApiError
+   */
+  public static getTaskInstance(
+    data: GetTaskInstanceData,
+  ): CancelablePromise<GetTaskInstanceResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Patch Task Instance
+   * Update the state of a task instance.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.requestBody
+   * @param data.mapIndex
+   * @param data.updateMask
+   * @returns TaskInstanceResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchTaskInstance(
+    data: PatchTaskInstanceData,
+  ): CancelablePromise<PatchTaskInstanceResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      query: {
+        map_index: data.mapIndex,
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Mapped Task Instances
+   * Get list of mapped task instances.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.logicalDateGte
+   * @param data.logicalDateLte
+   * @param data.startDateGte
+   * @param data.startDateLte
+   * @param data.endDateGte
+   * @param data.endDateLte
+   * @param data.updatedAtGte
+   * @param data.updatedAtLte
+   * @param data.durationGte
+   * @param data.durationLte
+   * @param data.state
+   * @param data.pool
+   * @param data.queue
+   * @param data.executor
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @returns TaskInstanceCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getMappedTaskInstances(
+    data: GetMappedTaskInstancesData,
+  ): CancelablePromise<GetMappedTaskInstancesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      query: {
+        logical_date_gte: data.logicalDateGte,
+        logical_date_lte: data.logicalDateLte,
+        start_date_gte: data.startDateGte,
+        start_date_lte: data.startDateLte,
+        end_date_gte: data.endDateGte,
+        end_date_lte: data.endDateLte,
+        updated_at_gte: data.updatedAtGte,
+        updated_at_lte: data.updatedAtLte,
+        duration_gte: data.durationGte,
+        duration_lte: data.durationLte,
+        state: data.state,
+        pool: data.pool,
+        queue: data.queue,
+        executor: data.executor,
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Task Instance Dependencies
+   * Get dependencies blocking task from getting scheduled.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.mapIndex
+   * @returns TaskDependencyCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getTaskInstanceDependencies(
+    data: GetTaskInstanceDependenciesData,
+  ): CancelablePromise<GetTaskInstanceDependenciesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+        map_index: data.mapIndex,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Task Instance Dependencies
+   * Get dependencies blocking task from getting scheduled.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.mapIndex
+   * @returns TaskDependencyCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getTaskInstanceDependencies1(
+    data: GetTaskInstanceDependencies1Data,
+  ): CancelablePromise<GetTaskInstanceDependencies1Response> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      query: {
+        map_index: data.mapIndex,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Task Instance Tries
+   * Get list of task instances history.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @returns TaskInstanceHistoryCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getTaskInstanceTries(
+    data: GetTaskInstanceTriesData,
+  ): CancelablePromise<GetTaskInstanceTriesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Mapped Task Instance
+   * Get task instance.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.mapIndex
+   * @returns TaskInstanceResponse Successful Response
+   * @throws ApiError
+   */
+  public static getMappedTaskInstance(
+    data: GetMappedTaskInstanceData,
+  ): CancelablePromise<GetMappedTaskInstanceResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+        map_index: data.mapIndex,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Patch Task Instance
+   * Update the state of a task instance.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.mapIndex
+   * @param data.requestBody
+   * @param data.updateMask
+   * @returns TaskInstanceResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchTaskInstance1(
+    data: PatchTaskInstance1Data,
+  ): CancelablePromise<PatchTaskInstance1Response> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+        map_index: data.mapIndex,
+      },
+      query: {
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Task Instances
+   * Get list of task instances.
+   *
+   * This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
+   * and DAG runs.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.logicalDateGte
+   * @param data.logicalDateLte
+   * @param data.startDateGte
+   * @param data.startDateLte
+   * @param data.endDateGte
+   * @param data.endDateLte
+   * @param data.updatedAtGte
+   * @param data.updatedAtLte
+   * @param data.durationGte
+   * @param data.durationLte
+   * @param data.state
+   * @param data.pool
+   * @param data.queue
+   * @param data.executor
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @returns TaskInstanceCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getTaskInstances(
+    data: GetTaskInstancesData,
+  ): CancelablePromise<GetTaskInstancesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+      },
+      query: {
+        logical_date_gte: data.logicalDateGte,
+        logical_date_lte: data.logicalDateLte,
+        start_date_gte: data.startDateGte,
+        start_date_lte: data.startDateLte,
+        end_date_gte: data.endDateGte,
+        end_date_lte: data.endDateLte,
+        updated_at_gte: data.updatedAtGte,
+        updated_at_lte: data.updatedAtLte,
+        duration_gte: data.durationGte,
+        duration_lte: data.durationLte,
+        state: data.state,
+        pool: data.pool,
+        queue: data.queue,
+        executor: data.executor,
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Task Instances Batch
+   * Get list of task instances.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.requestBody
+   * @returns TaskInstanceCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getTaskInstancesBatch(
+    data: GetTaskInstancesBatchData,
+  ): CancelablePromise<GetTaskInstancesBatchResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Task Instance Try Details
+   * Get task instance details by try number.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.taskTryNumber
+   * @param data.mapIndex
+   * @returns TaskInstanceHistoryResponse Successful Response
+   * @throws ApiError
+   */
+  public static getTaskInstanceTryDetails(
+    data: GetTaskInstanceTryDetailsData,
+  ): CancelablePromise<GetTaskInstanceTryDetailsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+        task_try_number: data.taskTryNumber,
+      },
+      query: {
+        map_index: data.mapIndex,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Mapped Task Instance Try Details
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.taskTryNumber
+   * @param data.mapIndex
+   * @returns TaskInstanceHistoryResponse Successful Response
+   * @throws ApiError
+   */
+  public static getMappedTaskInstanceTryDetails(
+    data: GetMappedTaskInstanceTryDetailsData,
+  ): CancelablePromise<GetMappedTaskInstanceTryDetailsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries/{task_try_number}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+        task_try_number: data.taskTryNumber,
+        map_index: data.mapIndex,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Post Clear Task Instances
+   * Clear task instances.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.requestBody
+   * @returns TaskInstanceReferenceCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static postClearTaskInstances(
+    data: PostClearTaskInstancesData,
+  ): CancelablePromise<PostClearTaskInstancesResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/dags/{dag_id}/clearTaskInstances",
+      path: {
+        dag_id: data.dagId,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Log
+   * Get logs for a specific task instance.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.tryNumber
+   * @param data.fullContent
+   * @param data.mapIndex
+   * @param data.token
+   * @param data.accept
+   * @returns TaskInstancesLogResponse Successful Response
+   * @throws ApiError
+   */
+  public static getLog(data: GetLogData): CancelablePromise<GetLogResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+        try_number: data.tryNumber,
+      },
+      headers: {
+        accept: data.accept,
+      },
+      query: {
+        full_content: data.fullContent,
+        map_index: data.mapIndex,
+        token: data.token,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
 export class ImportErrorService {
   /**
    * Get Import Error
@@ -1920,440 +2565,6 @@ export class ProviderService {
       errors: {
         401: "Unauthorized",
         403: "Forbidden",
-        422: "Validation Error",
-      },
-    });
-  }
-}
-
-export class TaskInstanceService {
-  /**
-   * Get Task Instance
-   * Get task instance.
-   * @param data The data for the request.
-   * @param data.dagId
-   * @param data.dagRunId
-   * @param data.taskId
-   * @returns TaskInstanceResponse Successful Response
-   * @throws ApiError
-   */
-  public static getTaskInstance(
-    data: GetTaskInstanceData,
-  ): CancelablePromise<GetTaskInstanceResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}",
-      path: {
-        dag_id: data.dagId,
-        dag_run_id: data.dagRunId,
-        task_id: data.taskId,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Get Mapped Task Instances
-   * Get list of mapped task instances.
-   * @param data The data for the request.
-   * @param data.dagId
-   * @param data.dagRunId
-   * @param data.taskId
-   * @param data.logicalDateGte
-   * @param data.logicalDateLte
-   * @param data.startDateGte
-   * @param data.startDateLte
-   * @param data.endDateGte
-   * @param data.endDateLte
-   * @param data.updatedAtGte
-   * @param data.updatedAtLte
-   * @param data.durationGte
-   * @param data.durationLte
-   * @param data.state
-   * @param data.pool
-   * @param data.queue
-   * @param data.executor
-   * @param data.limit
-   * @param data.offset
-   * @param data.orderBy
-   * @returns TaskInstanceCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static getMappedTaskInstances(
-    data: GetMappedTaskInstancesData,
-  ): CancelablePromise<GetMappedTaskInstancesResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped",
-      path: {
-        dag_id: data.dagId,
-        dag_run_id: data.dagRunId,
-        task_id: data.taskId,
-      },
-      query: {
-        logical_date_gte: data.logicalDateGte,
-        logical_date_lte: data.logicalDateLte,
-        start_date_gte: data.startDateGte,
-        start_date_lte: data.startDateLte,
-        end_date_gte: data.endDateGte,
-        end_date_lte: data.endDateLte,
-        updated_at_gte: data.updatedAtGte,
-        updated_at_lte: data.updatedAtLte,
-        duration_gte: data.durationGte,
-        duration_lte: data.durationLte,
-        state: data.state,
-        pool: data.pool,
-        queue: data.queue,
-        executor: data.executor,
-        limit: data.limit,
-        offset: data.offset,
-        order_by: data.orderBy,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Get Task Instance Dependencies
-   * Get dependencies blocking task from getting scheduled.
-   * @param data The data for the request.
-   * @param data.dagId
-   * @param data.dagRunId
-   * @param data.taskId
-   * @param data.mapIndex
-   * @returns TaskDependencyCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static getTaskInstanceDependencies(
-    data: GetTaskInstanceDependenciesData,
-  ): CancelablePromise<GetTaskInstanceDependenciesResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies",
-      path: {
-        dag_id: data.dagId,
-        dag_run_id: data.dagRunId,
-        task_id: data.taskId,
-        map_index: data.mapIndex,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Get Task Instance Dependencies
-   * Get dependencies blocking task from getting scheduled.
-   * @param data The data for the request.
-   * @param data.dagId
-   * @param data.dagRunId
-   * @param data.taskId
-   * @param data.mapIndex
-   * @returns TaskDependencyCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static getTaskInstanceDependencies1(
-    data: GetTaskInstanceDependencies1Data,
-  ): CancelablePromise<GetTaskInstanceDependencies1Response> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies",
-      path: {
-        dag_id: data.dagId,
-        dag_run_id: data.dagRunId,
-        task_id: data.taskId,
-      },
-      query: {
-        map_index: data.mapIndex,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Get Mapped Task Instance
-   * Get task instance.
-   * @param data The data for the request.
-   * @param data.dagId
-   * @param data.dagRunId
-   * @param data.taskId
-   * @param data.mapIndex
-   * @returns TaskInstanceResponse Successful Response
-   * @throws ApiError
-   */
-  public static getMappedTaskInstance(
-    data: GetMappedTaskInstanceData,
-  ): CancelablePromise<GetMappedTaskInstanceResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}",
-      path: {
-        dag_id: data.dagId,
-        dag_run_id: data.dagRunId,
-        task_id: data.taskId,
-        map_index: data.mapIndex,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Get Task Instances
-   * Get list of task instances.
-   *
-   * This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
-   * and DAG runs.
-   * @param data The data for the request.
-   * @param data.dagId
-   * @param data.dagRunId
-   * @param data.logicalDateGte
-   * @param data.logicalDateLte
-   * @param data.startDateGte
-   * @param data.startDateLte
-   * @param data.endDateGte
-   * @param data.endDateLte
-   * @param data.updatedAtGte
-   * @param data.updatedAtLte
-   * @param data.durationGte
-   * @param data.durationLte
-   * @param data.state
-   * @param data.pool
-   * @param data.queue
-   * @param data.executor
-   * @param data.limit
-   * @param data.offset
-   * @param data.orderBy
-   * @returns TaskInstanceCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static getTaskInstances(
-    data: GetTaskInstancesData,
-  ): CancelablePromise<GetTaskInstancesResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
-      path: {
-        dag_id: data.dagId,
-        dag_run_id: data.dagRunId,
-      },
-      query: {
-        logical_date_gte: data.logicalDateGte,
-        logical_date_lte: data.logicalDateLte,
-        start_date_gte: data.startDateGte,
-        start_date_lte: data.startDateLte,
-        end_date_gte: data.endDateGte,
-        end_date_lte: data.endDateLte,
-        updated_at_gte: data.updatedAtGte,
-        updated_at_lte: data.updatedAtLte,
-        duration_gte: data.durationGte,
-        duration_lte: data.durationLte,
-        state: data.state,
-        pool: data.pool,
-        queue: data.queue,
-        executor: data.executor,
-        limit: data.limit,
-        offset: data.offset,
-        order_by: data.orderBy,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Get Task Instances Batch
-   * Get list of task instances.
-   * @param data The data for the request.
-   * @param data.dagId
-   * @param data.dagRunId
-   * @param data.requestBody
-   * @returns TaskInstanceCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static getTaskInstancesBatch(
-    data: GetTaskInstancesBatchData,
-  ): CancelablePromise<GetTaskInstancesBatchResponse> {
-    return __request(OpenAPI, {
-      method: "POST",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list",
-      path: {
-        dag_id: data.dagId,
-        dag_run_id: data.dagRunId,
-      },
-      body: data.requestBody,
-      mediaType: "application/json",
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Get Task Instance Try Details
-   * Get task instance details by try number.
-   * @param data The data for the request.
-   * @param data.dagId
-   * @param data.dagRunId
-   * @param data.taskId
-   * @param data.taskTryNumber
-   * @param data.mapIndex
-   * @returns TaskInstanceHistoryResponse Successful Response
-   * @throws ApiError
-   */
-  public static getTaskInstanceTryDetails(
-    data: GetTaskInstanceTryDetailsData,
-  ): CancelablePromise<GetTaskInstanceTryDetailsResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}",
-      path: {
-        dag_id: data.dagId,
-        dag_run_id: data.dagRunId,
-        task_id: data.taskId,
-        task_try_number: data.taskTryNumber,
-      },
-      query: {
-        map_index: data.mapIndex,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Get Mapped Task Instance Try Details
-   * @param data The data for the request.
-   * @param data.dagId
-   * @param data.dagRunId
-   * @param data.taskId
-   * @param data.taskTryNumber
-   * @param data.mapIndex
-   * @returns TaskInstanceHistoryResponse Successful Response
-   * @throws ApiError
-   */
-  public static getMappedTaskInstanceTryDetails(
-    data: GetMappedTaskInstanceTryDetailsData,
-  ): CancelablePromise<GetMappedTaskInstanceTryDetailsResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries/{task_try_number}",
-      path: {
-        dag_id: data.dagId,
-        dag_run_id: data.dagRunId,
-        task_id: data.taskId,
-        task_try_number: data.taskTryNumber,
-        map_index: data.mapIndex,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Post Clear Task Instances
-   * Clear task instances.
-   * @param data The data for the request.
-   * @param data.dagId
-   * @param data.requestBody
-   * @returns TaskInstanceReferenceCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static postClearTaskInstances(
-    data: PostClearTaskInstancesData,
-  ): CancelablePromise<PostClearTaskInstancesResponse> {
-    return __request(OpenAPI, {
-      method: "POST",
-      url: "/public/dags/{dag_id}/clearTaskInstances",
-      path: {
-        dag_id: data.dagId,
-      },
-      body: data.requestBody,
-      mediaType: "application/json",
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
-        422: "Validation Error",
-      },
-    });
-  }
-
-  /**
-   * Get Log
-   * Get logs for a specific task instance.
-   * @param data The data for the request.
-   * @param data.dagId
-   * @param data.dagRunId
-   * @param data.taskId
-   * @param data.tryNumber
-   * @param data.fullContent
-   * @param data.mapIndex
-   * @param data.token
-   * @param data.accept
-   * @returns TaskInstancesLogResponse Successful Response
-   * @throws ApiError
-   */
-  public static getLog(data: GetLogData): CancelablePromise<GetLogResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}",
-      path: {
-        dag_id: data.dagId,
-        dag_run_id: data.dagRunId,
-        task_id: data.taskId,
-        try_number: data.tryNumber,
-      },
-      headers: {
-        accept: data.accept,
-      },
-      query: {
-        full_content: data.fullContent,
-        map_index: data.mapIndex,
-        token: data.token,
-      },
-      errors: {
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
         422: "Validation Error",
       },
     });

@@ -424,6 +424,23 @@ export type DAGRunTypes = {
 };
 
 /**
+ * List DAG Runs body for batch endpoint.
+ */
+export type DAGRunsBatchBody = {
+  order_by?: string | null;
+  page_offset?: number;
+  page_limit?: number;
+  dag_ids?: Array<string> | null;
+  states?: Array<DagRunState | null> | null;
+  logical_date_gte?: string | null;
+  logical_date_lte?: string | null;
+  start_date_gte?: string | null;
+  start_date_lte?: string | null;
+  end_date_gte?: string | null;
+  end_date_lte?: string | null;
+};
+
+/**
  * DAG Source serializer for responses.
  */
 export type DAGSourceResponse = {
@@ -627,6 +644,13 @@ export type EventLogResponse = {
 };
 
 /**
+ * Extra Links Response.
+ */
+export type ExtraLinksResponse = {
+  [key: string]: string | null;
+};
+
+/**
  * Serializer for Plugin FastAPI App responses.
  */
 export type FastAPIAppResponse = {
@@ -710,6 +734,19 @@ export type JobResponse = {
   executor_class: string | null;
   hostname: string | null;
   unixname: string | null;
+};
+
+/**
+ * Request body for Clear Task Instances endpoint.
+ */
+export type PatchTaskInstanceBody = {
+  dry_run?: boolean;
+  new_state?: string | null;
+  note?: string | null;
+  include_upstream?: boolean;
+  include_downstream?: boolean;
+  include_future?: boolean;
+  include_past?: boolean;
 };
 
 /**
@@ -866,6 +903,14 @@ export type TaskDependencyResponse = {
  */
 export type TaskInstanceCollectionResponse = {
   task_instances: Array<TaskInstanceResponse>;
+  total_entries: number;
+};
+
+/**
+ * TaskInstanceHistory Collection serializer for responses.
+ */
+export type TaskInstanceHistoryCollectionResponse = {
+  task_instances: Array<TaskInstanceHistoryResponse>;
   total_entries: number;
 };
 
@@ -1429,6 +1474,13 @@ export type GetDagRunsData = {
 
 export type GetDagRunsResponse = DAGRunCollectionResponse;
 
+export type GetListDagRunsBatchData = {
+  dagId: "~";
+  requestBody: DAGRunsBatchBody;
+};
+
+export type GetListDagRunsBatchResponse = DAGRunCollectionResponse;
+
 export type GetDagSourceData = {
   accept?: "application/json" | "text/plain" | "*/*";
   dagId: string;
@@ -1543,6 +1595,181 @@ export type GetEventLogsData = {
 
 export type GetEventLogsResponse = EventLogCollectionResponse;
 
+export type GetExtraLinksData = {
+  dagId: string;
+  dagRunId: string;
+  taskId: string;
+};
+
+export type GetExtraLinksResponse = ExtraLinksResponse;
+
+export type GetTaskInstanceData = {
+  dagId: string;
+  dagRunId: string;
+  taskId: string;
+};
+
+export type GetTaskInstanceResponse = TaskInstanceResponse;
+
+export type PatchTaskInstanceData = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  requestBody: PatchTaskInstanceBody;
+  taskId: string;
+  updateMask?: Array<string> | null;
+};
+
+export type PatchTaskInstanceResponse = TaskInstanceResponse;
+
+export type GetMappedTaskInstancesData = {
+  dagId: string;
+  dagRunId: string;
+  durationGte?: number | null;
+  durationLte?: number | null;
+  endDateGte?: string | null;
+  endDateLte?: string | null;
+  executor?: Array<string>;
+  limit?: number;
+  logicalDateGte?: string | null;
+  logicalDateLte?: string | null;
+  offset?: number;
+  orderBy?: string;
+  pool?: Array<string>;
+  queue?: Array<string>;
+  startDateGte?: string | null;
+  startDateLte?: string | null;
+  state?: Array<string>;
+  taskId: string;
+  updatedAtGte?: string | null;
+  updatedAtLte?: string | null;
+};
+
+export type GetMappedTaskInstancesResponse = TaskInstanceCollectionResponse;
+
+export type GetTaskInstanceDependenciesData = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  taskId: string;
+};
+
+export type GetTaskInstanceDependenciesResponse =
+  TaskDependencyCollectionResponse;
+
+export type GetTaskInstanceDependencies1Data = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  taskId: string;
+};
+
+export type GetTaskInstanceDependencies1Response =
+  TaskDependencyCollectionResponse;
+
+export type GetTaskInstanceTriesData = {
+  dagId: string;
+  dagRunId: string;
+  taskId: string;
+};
+
+export type GetTaskInstanceTriesResponse =
+  TaskInstanceHistoryCollectionResponse;
+
+export type GetMappedTaskInstanceData = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  taskId: string;
+};
+
+export type GetMappedTaskInstanceResponse = TaskInstanceResponse;
+
+export type PatchTaskInstance1Data = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  requestBody: PatchTaskInstanceBody;
+  taskId: string;
+  updateMask?: Array<string> | null;
+};
+
+export type PatchTaskInstance1Response = TaskInstanceResponse;
+
+export type GetTaskInstancesData = {
+  dagId: string;
+  dagRunId: string;
+  durationGte?: number | null;
+  durationLte?: number | null;
+  endDateGte?: string | null;
+  endDateLte?: string | null;
+  executor?: Array<string>;
+  limit?: number;
+  logicalDateGte?: string | null;
+  logicalDateLte?: string | null;
+  offset?: number;
+  orderBy?: string;
+  pool?: Array<string>;
+  queue?: Array<string>;
+  startDateGte?: string | null;
+  startDateLte?: string | null;
+  state?: Array<string>;
+  updatedAtGte?: string | null;
+  updatedAtLte?: string | null;
+};
+
+export type GetTaskInstancesResponse = TaskInstanceCollectionResponse;
+
+export type GetTaskInstancesBatchData = {
+  dagId: "~";
+  dagRunId: "~";
+  requestBody: TaskInstancesBatchBody;
+};
+
+export type GetTaskInstancesBatchResponse = TaskInstanceCollectionResponse;
+
+export type GetTaskInstanceTryDetailsData = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  taskId: string;
+  taskTryNumber: number;
+};
+
+export type GetTaskInstanceTryDetailsResponse = TaskInstanceHistoryResponse;
+
+export type GetMappedTaskInstanceTryDetailsData = {
+  dagId: string;
+  dagRunId: string;
+  mapIndex: number;
+  taskId: string;
+  taskTryNumber: number;
+};
+
+export type GetMappedTaskInstanceTryDetailsResponse =
+  TaskInstanceHistoryResponse;
+
+export type PostClearTaskInstancesData = {
+  dagId: string;
+  requestBody: ClearTaskInstancesBody;
+};
+
+export type PostClearTaskInstancesResponse =
+  TaskInstanceReferenceCollectionResponse;
+
+export type GetLogData = {
+  accept?: "application/json" | "text/plain" | "*/*";
+  dagId: string;
+  dagRunId: string;
+  fullContent?: boolean;
+  mapIndex?: number;
+  taskId: string;
+  token?: string | null;
+  tryNumber: number;
+};
+
+export type GetLogResponse = TaskInstancesLogResponse;
+
 export type GetImportErrorData = {
   importErrorId: number;
 };
@@ -1627,142 +1854,6 @@ export type GetProvidersData = {
 };
 
 export type GetProvidersResponse = ProviderCollectionResponse;
-
-export type GetTaskInstanceData = {
-  dagId: string;
-  dagRunId: string;
-  taskId: string;
-};
-
-export type GetTaskInstanceResponse = TaskInstanceResponse;
-
-export type GetMappedTaskInstancesData = {
-  dagId: string;
-  dagRunId: string;
-  durationGte?: number | null;
-  durationLte?: number | null;
-  endDateGte?: string | null;
-  endDateLte?: string | null;
-  executor?: Array<string>;
-  limit?: number;
-  logicalDateGte?: string | null;
-  logicalDateLte?: string | null;
-  offset?: number;
-  orderBy?: string;
-  pool?: Array<string>;
-  queue?: Array<string>;
-  startDateGte?: string | null;
-  startDateLte?: string | null;
-  state?: Array<string>;
-  taskId: string;
-  updatedAtGte?: string | null;
-  updatedAtLte?: string | null;
-};
-
-export type GetMappedTaskInstancesResponse = TaskInstanceCollectionResponse;
-
-export type GetTaskInstanceDependenciesData = {
-  dagId: string;
-  dagRunId: string;
-  mapIndex: number;
-  taskId: string;
-};
-
-export type GetTaskInstanceDependenciesResponse =
-  TaskDependencyCollectionResponse;
-
-export type GetTaskInstanceDependencies1Data = {
-  dagId: string;
-  dagRunId: string;
-  mapIndex?: number;
-  taskId: string;
-};
-
-export type GetTaskInstanceDependencies1Response =
-  TaskDependencyCollectionResponse;
-
-export type GetMappedTaskInstanceData = {
-  dagId: string;
-  dagRunId: string;
-  mapIndex: number;
-  taskId: string;
-};
-
-export type GetMappedTaskInstanceResponse = TaskInstanceResponse;
-
-export type GetTaskInstancesData = {
-  dagId: string;
-  dagRunId: string;
-  durationGte?: number | null;
-  durationLte?: number | null;
-  endDateGte?: string | null;
-  endDateLte?: string | null;
-  executor?: Array<string>;
-  limit?: number;
-  logicalDateGte?: string | null;
-  logicalDateLte?: string | null;
-  offset?: number;
-  orderBy?: string;
-  pool?: Array<string>;
-  queue?: Array<string>;
-  startDateGte?: string | null;
-  startDateLte?: string | null;
-  state?: Array<string>;
-  updatedAtGte?: string | null;
-  updatedAtLte?: string | null;
-};
-
-export type GetTaskInstancesResponse = TaskInstanceCollectionResponse;
-
-export type GetTaskInstancesBatchData = {
-  dagId: "~";
-  dagRunId: "~";
-  requestBody: TaskInstancesBatchBody;
-};
-
-export type GetTaskInstancesBatchResponse = TaskInstanceCollectionResponse;
-
-export type GetTaskInstanceTryDetailsData = {
-  dagId: string;
-  dagRunId: string;
-  mapIndex?: number;
-  taskId: string;
-  taskTryNumber: number;
-};
-
-export type GetTaskInstanceTryDetailsResponse = TaskInstanceHistoryResponse;
-
-export type GetMappedTaskInstanceTryDetailsData = {
-  dagId: string;
-  dagRunId: string;
-  mapIndex: number;
-  taskId: string;
-  taskTryNumber: number;
-};
-
-export type GetMappedTaskInstanceTryDetailsResponse =
-  TaskInstanceHistoryResponse;
-
-export type PostClearTaskInstancesData = {
-  dagId: string;
-  requestBody: ClearTaskInstancesBody;
-};
-
-export type PostClearTaskInstancesResponse =
-  TaskInstanceReferenceCollectionResponse;
-
-export type GetLogData = {
-  accept?: "application/json" | "text/plain" | "*/*";
-  dagId: string;
-  dagRunId: string;
-  fullContent?: boolean;
-  mapIndex?: number;
-  taskId: string;
-  token?: string | null;
-  tryNumber: number;
-};
-
-export type GetLogResponse = TaskInstancesLogResponse;
 
 export type GetTasksData = {
   dagId: string;
@@ -2720,6 +2811,33 @@ export type $OpenApiTs = {
       };
     };
   };
+  "/public/dags/{dag_id}/dagRuns/list": {
+    post: {
+      req: GetListDagRunsBatchData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGRunCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
   "/public/dagSources/{dag_id}": {
     get: {
       req: GetDagSourceData;
@@ -3054,6 +3172,415 @@ export type $OpenApiTs = {
       };
     };
   };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links": {
+    get: {
+      req: GetExtraLinksData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: ExtraLinksResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}": {
+    get: {
+      req: GetTaskInstanceData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: PatchTaskInstanceData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped": {
+    get: {
+      req: GetMappedTaskInstancesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies": {
+    get: {
+      req: GetTaskInstanceDependenciesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskDependencyCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies": {
+    get: {
+      req: GetTaskInstanceDependencies1Data;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskDependencyCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries": {
+    get: {
+      req: GetTaskInstanceTriesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceHistoryCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}": {
+    get: {
+      req: GetMappedTaskInstanceData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: PatchTaskInstance1Data;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances": {
+    get: {
+      req: GetTaskInstancesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list": {
+    post: {
+      req: GetTaskInstancesBatchData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}": {
+    get: {
+      req: GetTaskInstanceTryDetailsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceHistoryResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries/{task_try_number}": {
+    get: {
+      req: GetMappedTaskInstanceTryDetailsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceHistoryResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/clearTaskInstances": {
+    post: {
+      req: PostClearTaskInstancesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstanceReferenceCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}": {
+    get: {
+      req: GetLogData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: TaskInstancesLogResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
   "/public/importErrors/{import_error_id}": {
     get: {
       req: GetImportErrorData;
@@ -3334,303 +3861,6 @@ export type $OpenApiTs = {
          * Forbidden
          */
         403: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}": {
-    get: {
-      req: GetTaskInstanceData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: TaskInstanceResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped": {
-    get: {
-      req: GetMappedTaskInstancesData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: TaskInstanceCollectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies": {
-    get: {
-      req: GetTaskInstanceDependenciesData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: TaskDependencyCollectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies": {
-    get: {
-      req: GetTaskInstanceDependencies1Data;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: TaskDependencyCollectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}": {
-    get: {
-      req: GetMappedTaskInstanceData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: TaskInstanceResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances": {
-    get: {
-      req: GetTaskInstancesData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: TaskInstanceCollectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/list": {
-    post: {
-      req: GetTaskInstancesBatchData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: TaskInstanceCollectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}": {
-    get: {
-      req: GetTaskInstanceTryDetailsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: TaskInstanceHistoryResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries/{task_try_number}": {
-    get: {
-      req: GetMappedTaskInstanceTryDetailsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: TaskInstanceHistoryResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/dags/{dag_id}/clearTaskInstances": {
-    post: {
-      req: PostClearTaskInstancesData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: TaskInstanceReferenceCollectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/logs/{try_number}": {
-    get: {
-      req: GetLogData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: TaskInstancesLogResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
         /**
          * Validation Error
          */

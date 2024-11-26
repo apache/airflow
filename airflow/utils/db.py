@@ -41,7 +41,6 @@ from typing import (
 import attrs
 from sqlalchemy import (
     Table,
-    delete,
     exc,
     func,
     inspect,
@@ -924,9 +923,7 @@ def check_and_run_migrations():
 
 def _reserialize_dags(*, session: Session) -> None:
     from airflow.models.dagbag import DagBag
-    from airflow.models.serialized_dag import SerializedDagModel
 
-    session.execute(delete(SerializedDagModel).execution_options(synchronize_session=False))
     dagbag = DagBag(collect_dags=False)
     dagbag.collect_dags(only_if_updated=False)
     dagbag.sync_to_db(session=session)
@@ -1225,19 +1222,6 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
 
 
 @provide_session
-def bootstrap_dagbag(session: Session = NEW_SESSION):
-    from airflow.models.dag import DAG
-    from airflow.models.dagbag import DagBag
-
-    dagbag = DagBag()
-    # Save DAGs in the ORM
-    dagbag.sync_to_db(session=session)
-
-    # Deactivate the unknown ones
-    DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
-
-
-@provide_session
 def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: Session = NEW_SESSION):
     """
     Downgrade the airflow metastore schema to a prior version.
@@ -1448,7 +1432,7 @@ def get_query_count(query_stmt: Select, *, session: Session) -> int:
     return session.scalar(count_stmt)
 
 
-async def get_query_count_async(query: Select, *, session: AsyncSession) -> int:
+async def get_query_count_async(statement: Select, *, session: AsyncSession) -> int:
     """
     Get count of a query.
 
@@ -1459,7 +1443,7 @@ async def get_query_count_async(query: Select, *, session: AsyncSession) -> int:
 
     :meta private:
     """
-    count_stmt = select(func.count()).select_from(query.order_by(None).subquery())
+    count_stmt = select(func.count()).select_from(statement.order_by(None).subquery())
     return await session.scalar(count_stmt)
 
 

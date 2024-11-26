@@ -846,6 +846,7 @@
     "plugins": [],
     "cross-providers-deps": [
       "amazon",
+      "common.compat",
       "google",
       "oracle",
       "sftp"

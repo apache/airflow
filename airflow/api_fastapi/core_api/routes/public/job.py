@@ -16,10 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import (
     get_session,
@@ -95,7 +96,7 @@ def get_jobs(
     # TODO: Refactor using the `FilterParam` class in commit `574b72e41cc5ed175a2bbf4356522589b836bb11`
 
     jobs_select, total_entries = paginated_select(
-        select=base_select,
+        statement=base_select,
         filters=[
             start_date_range,
             end_date_range,
