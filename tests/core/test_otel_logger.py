@@ -370,42 +370,23 @@ class TestOtelMetrics:
             name=full_name(name), callbacks=ANY
         )
 
-    def test_get_name_invalid_cases(self):
-        invalid_name = "invalid/metric/name"
+    @pytest.mark.parametrize(
+        "name, tags, expected_error_message",
+        [
+            ("invalid/metric/name", None, "composed of ASCII alphabets, numbers, or the underscore"),
+            ("invalid@name!", None, "composed of ASCII alphabets, numbers, or the underscore"),
+            ("", None, "The stat name cannot be None or an empty string."),
+            ("", {}, "The stat name cannot be None or an empty string."),
+            ("", {"key": "value"}, "The stat name cannot be None or an empty string."),
+        ],
+    )
+    def test_get_name_invalid_cases(self, name, tags, expected_error_message):
+        # Prepare the method call
+        if tags is None:
+            func_to_call = lambda: self.stats.get_name(name)
+        else:
+            func_to_call = lambda: self.stats.get_name(name, tags=tags)
 
-        # Expect the method to raise InvalidStatsNameException for invalid characters
-        with pytest.raises(InvalidStatsNameException):
-            self.stats.get_name(invalid_name)
-
-    def test_get_name_special_characters(self):
-        # Edge case: Name contains invalid special characters
-        invalid_name = "invalid@name!"
-        with pytest.raises(
-            InvalidStatsNameException, match="composed of ASCII alphabets, numbers, or the underscore"
-        ):
-            self.stats.get_name(invalid_name)
-
-    def test_get_name_empty_string(self):
-        # Edge case: Empty string as name
-        empty_name = ""
-        with pytest.raises(
-            InvalidStatsNameException, match="The stat name cannot be None or an empty string."
-        ):
-            self.stats.get_name(empty_name)
-
-    def test_get_name_empty_string_no_tags(self):
-        # Edge case: Empty string as name, no tags provided
-        empty_name = ""
-        with pytest.raises(
-            InvalidStatsNameException, match="The stat name cannot be None or an empty string."
-        ):
-            self.stats.get_name(empty_name)
-
-    def test_get_name_empty_string_with_tags(self):
-        # Edge case: Empty string as name, with tags provided
-        empty_name = ""
-        tags = {"key": "value"}
-        with pytest.raises(
-            InvalidStatsNameException, match="The stat name cannot be None or an empty string."
-        ):
-            self.stats.get_name(empty_name, tags=tags)
+        # Test the exception
+        with pytest.raises(InvalidStatsNameException, match=expected_error_message):
+            func_to_call()
