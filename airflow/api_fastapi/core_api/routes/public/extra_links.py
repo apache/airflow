@@ -14,50 +14,55 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
-from sqlalchemy import select
+from fastapi import Depends, HTTPException, Request, status
+from sqlalchemy.orm import Session
+from sqlalchemy.sql import select
 
-from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import NotFound
-from airflow.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.common.db.common import get_session
+from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinksResponse
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.exceptions import TaskNotFound
-from airflow.utils.airflow_flask_app import get_airflow_app
-from airflow.utils.api_migration import mark_fastapi_migration_done
-from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
-    from airflow import DAG
-    from airflow.api_connexion.types import APIResponse
-    from airflow.models.dagbag import DagBag
+    from airflow.models import DAG
 
 
-@mark_fastapi_migration_done
-@security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-@provide_session
+extra_links_router = AirflowRouter(
+    tags=["Extra Links"], prefix="/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/links"
+)
+
+
+@extra_links_router.get(
+    "",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    tags=["Task Instance"],
+)
 def get_extra_links(
-    *,
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    session: Session = NEW_SESSION,
-) -> APIResponse:
+    session: Annotated[Session, Depends(get_session)],
+    request: Request,
+) -> ExtraLinksResponse:
     """Get extra links for task instance."""
     from airflow.models.taskinstance import TaskInstance
 
-    dagbag: DagBag = get_airflow_app().dag_bag
-    dag: DAG = dagbag.get_dag(dag_id)
+    dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
     if not dag:
-        raise NotFound("DAG not found", detail=f'DAG with ID = "{dag_id}" not found')
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with ID = {dag_id} not found")
 
     try:
         task = dag.get_task(task_id)
     except TaskNotFound:
-        raise NotFound("Task not found", detail=f'Task with ID = "{task_id}" not found')
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task with ID = {task_id} not found")
 
     ti = session.scalar(
         select(TaskInstance).where(
@@ -68,10 +73,13 @@ def get_extra_links(
     )
 
     if not ti:
-        raise NotFound("DAG Run not found", detail=f'DAG Run with ID = "{dag_run_id}" not found')
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"DAG Run with ID = {dag_run_id} not found",
+        )
 
     all_extra_link_pairs = (
         (link_name, task.get_extra_links(ti, link_name)) for link_name in task.extra_links
     )
     all_extra_links = {link_name: link_url or None for link_name, link_url in sorted(all_extra_link_pairs)}
-    return all_extra_links
+    return ExtraLinksResponse.model_validate(all_extra_links)
