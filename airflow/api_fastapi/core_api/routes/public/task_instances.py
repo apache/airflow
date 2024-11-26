@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated, Literal, cast
 
 from fastapi import Depends, HTTPException, Query, Request, status
 from sqlalchemy import or_, select
@@ -264,20 +264,16 @@ def get_task_instance_tries(
     tis = session.scalars(
         _query(TI).where(or_(TI.state != TaskInstanceState.UP_FOR_RETRY, TI.state.is_(None)))
     ).all()
-    task_instance_select = session.scalars(_query(TIH)).all() + tis
+    task_instances = session.scalars(_query(TIH)).all() + tis
 
-    if not task_instance_select:
+    if not task_instances:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
         )
 
-    task_instances = [
-        TaskInstanceHistoryResponse.model_validate(task_instance, from_attributes=True)
-        for task_instance in task_instance_select
-    ]
     return TaskInstanceHistoryCollectionResponse(
-        task_instances=task_instances,
+        task_instances=cast(list[TaskInstanceHistoryResponse], task_instances),
         total_entries=len(task_instances),
     )
 
