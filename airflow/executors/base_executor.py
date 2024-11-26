@@ -352,6 +352,7 @@ class BaseExecutor(LoggingMixin):
                         span_name=f"{ti.task_id}{CTX_PROP_SUFFIX}",
                         parent_context=parent_context,
                         component=f"task{CTX_PROP_SUFFIX}",
+                        start_time=ti.queued_dttm,
                         start_as_current=False,
                     )
                     self.active_spans.set(key, span)

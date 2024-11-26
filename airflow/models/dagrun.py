@@ -1088,7 +1088,7 @@ class DagRun(Base, LoggingMixin):
                         span = Trace.start_root_span(
                             span_name=f"{self.dag_id}{CTX_PROP_SUFFIX}",
                             component=f"dag{CTX_PROP_SUFFIX}",
-                            start_time=self.queued_at,
+                            start_time=self.queued_at,  # This is later converted to nano.
                             start_as_current=False,
                         )
                     elif self.span_status == SpanStatus.NEEDS_CONTINUANCE:
@@ -1189,7 +1189,7 @@ class DagRun(Base, LoggingMixin):
                         )
 
                         self.set_dagrun_span_attrs(span=active_span, dag_run=self, dagv=dagv)
-                        active_span.end()
+                        active_span.end(end_time=datetime_to_nano(self.end_date))
                         # Remove the span from the dict.
                         self.active_dagrun_spans.delete(self.run_id)
                         self.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
