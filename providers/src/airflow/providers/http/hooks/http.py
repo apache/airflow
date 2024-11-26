@@ -75,11 +75,11 @@ class HttpHook(BaseHook):
         method: str = "POST",
         http_conn_id: str = default_conn_name,
         auth_type: Any = None,
-        adapter: HTTPAdapter | None = None,
         tcp_keep_alive: bool = True,
         tcp_keep_alive_idle: int = 120,
         tcp_keep_alive_count: int = 20,
         tcp_keep_alive_interval: int = 30,
+        adapter: HTTPAdapter | None = None,
     ) -> None:
         super().__init__()
         self.http_conn_id = http_conn_id
@@ -127,18 +127,22 @@ class HttpHook(BaseHook):
         connection = self.get_connection(self.http_conn_id)
 
         self._set_base_url(connection)
-        self._set_auth(session, connection)
-        self._set_extra(session, connection)
-        self._mount_adapters(session)
+        self._configure_session_from_auth(session, connection)
+
+        if connection.extra:
+            self._configure_session_from_extra(session, connection)
+
+        self._configure_session_from_mount_adapters(session)
 
         if headers:
             session.headers.update(headers)
 
         return session
 
-    def _set_base_url(self, connection) -> None:
+    def _set_base_url(self, connection: Connection) -> None:
         host = connection.host or ""
         schema = connection.schema or "http"
+        # RFC 3986 (https://www.rfc-editor.org/rfc/rfc3986.html#page-16)
         if "://" in host:
             self.base_url = host
         else:
@@ -149,33 +153,34 @@ class HttpHook(BaseHook):
         if not parsed.scheme:
             raise ValueError(f"Invalid base URL: Missing scheme in {self.base_url}")
 
-    def _set_auth(self, session: requests.Session, connection) -> None:
+    def _configure_session_from_auth(self, session: requests.Session, connection: Connection) -> None:
         if connection.login:
             session.auth = self.auth_type(connection.login, connection.password)
         elif self._auth_type:
             session.auth = self.auth_type()
 
-    def _set_extra(self, session: requests.Session, connection) -> None:
-        if connection.extra:
-            extra = connection.extra_dejson
-            extra.pop("timeout", None)
-            extra.pop("allow_redirects", None)
-            session.proxies = extra.pop("proxies", extra.pop("proxy", {}))
-            session.stream = extra.pop("stream", False)
-            session.verify = extra.pop("verify", extra.pop("verify_ssl", True))
-            session.cert = extra.pop("cert", None)
-            session.max_redirects = extra.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
-            session.trust_env = extra.pop("trust_env", True)
+    def _configure_session_from_extra(self, session: requests.Session, connection: Connection) -> None:
+        extra = connection.extra_dejson
+        extra.pop("timeout", None)
+        extra.pop("allow_redirects", None)
+        session.proxies = extra.pop("proxies", extra.pop("proxy", {}))
+        session.stream = extra.pop("stream", False)
+        session.verify = extra.pop("verify", extra.pop("verify_ssl", True))
+        session.cert = extra.pop("cert", None)
+        session.max_redirects = extra.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
+        session.trust_env = extra.pop("trust_env", True)
 
-            try:
-                session.headers.update(extra)
-            except TypeError:
-                self.log.warning("Connection to %s has invalid extra field.", connection.host)
+        try:
+            session.headers.update(extra)
+        except TypeError:
+            self.log.warning("Connection to %s has invalid extra field.", connection.host)
 
-    def _mount_adapters(self, session: requests.Session) -> None:
+    def _configure_session_from_mount_adapters(self, session: requests.Session) -> None:
         scheme = urlparse(self.base_url).scheme
         if not scheme:
-            raise ValueError("Cannot mount adapters: base_url must include a valid scheme (http or https).")
+            raise ValueError(
+                f"Cannot mount adapters: {self.base_url} does not include a valid scheme (http or https)."
+            )
         if self.adapter:
             session.mount(f"{scheme}://", self.adapter)
         elif self.keep_alive_adapter:
