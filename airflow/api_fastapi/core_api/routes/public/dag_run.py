@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import Annotated, cast
+from typing import Annotated, Literal, cast
 
 from fastapi import Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
@@ -30,9 +30,13 @@ from airflow.api.common.mark_tasks import (
 )
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
 from airflow.api_fastapi.common.parameters import (
+    DagIdsFilter,
+    LimitFilter,
+    OffsetFilter,
     QueryDagRunStateFilter,
     QueryLimit,
     QueryOffset,
+    Range,
     RangeFilter,
     SortParam,
     datetime_range_filter_factory,
@@ -45,6 +49,7 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import (
     DAGRunPatchBody,
     DAGRunPatchStates,
     DAGRunResponse,
+    DAGRunsBatchBody,
 )
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskInstanceCollectionResponse,
@@ -292,6 +297,64 @@ def get_dag_runs(
         session=session,
     )
     dag_runs = session.scalars(dag_run_select)
+    return DAGRunCollectionResponse(
+        dag_runs=dag_runs,
+        total_entries=total_entries,
+    )
+
+
+@dag_run_router.post("/list", responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]))
+def get_list_dag_runs_batch(
+    dag_id: Literal["~"], body: DAGRunsBatchBody, session: Annotated[Session, Depends(get_session)]
+) -> DAGRunCollectionResponse:
+    """Get a list of DAG Runs."""
+    dag_ids = DagIdsFilter(DagRun, body.dag_ids)
+    logical_date = RangeFilter(
+        Range(lower_bound=body.logical_date_gte, upper_bound=body.logical_date_lte),
+        attribute=DagRun.logical_date,
+    )
+    start_date = RangeFilter(
+        Range(lower_bound=body.start_date_gte, upper_bound=body.start_date_lte),
+        attribute=DagRun.start_date,
+    )
+    end_date = RangeFilter(
+        Range(lower_bound=body.end_date_gte, upper_bound=body.end_date_lte),
+        attribute=DagRun.end_date,
+    )
+
+    state = QueryDagRunStateFilter(body.states)
+
+    offset = OffsetFilter(body.page_offset)
+    limit = LimitFilter(body.page_limit)
+
+    order_by = SortParam(
+        [
+            "id",
+            "state",
+            "dag_id",
+            "logical_date",
+            "dag_run_id",
+            "start_date",
+            "end_date",
+            "updated_at",
+            "external_trigger",
+            "conf",
+        ],
+        DagRun,
+    ).set_value(body.order_by)
+
+    base_query = select(DagRun)
+    dag_runs_select, total_entries = paginated_select(
+        statement=base_query,
+        filters=[dag_ids, logical_date, start_date, end_date, state],
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
+    )
+
+    dag_runs = session.scalars(dag_runs_select)
+
     return DAGRunCollectionResponse(
         dag_runs=dag_runs,
         total_entries=total_entries,

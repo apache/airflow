@@ -70,6 +70,8 @@ import type {
   ClearDagRunResponse,
   GetDagRunsData,
   GetDagRunsResponse,
+  GetListDagRunsBatchData,
+  GetListDagRunsBatchResponse,
   GetDagSourceData,
   GetDagSourceResponse,
   GetDagStatsData,
@@ -98,6 +100,8 @@ import type {
   GetExtraLinksResponse,
   GetTaskInstanceData,
   GetTaskInstanceResponse,
+  PatchTaskInstanceData,
+  PatchTaskInstanceResponse,
   GetMappedTaskInstancesData,
   GetMappedTaskInstancesResponse,
   GetTaskInstanceDependenciesData,
@@ -108,6 +112,8 @@ import type {
   GetTaskInstanceTriesResponse,
   GetMappedTaskInstanceData,
   GetMappedTaskInstanceResponse,
+  PatchTaskInstance1Data,
+  PatchTaskInstance1Response,
   GetTaskInstancesData,
   GetTaskInstancesResponse,
   GetTaskInstancesBatchData,
@@ -1182,6 +1188,35 @@ export class DagRunService {
       },
     });
   }
+
+  /**
+   * Get List Dag Runs Batch
+   * Get a list of DAG Runs.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.requestBody
+   * @returns DAGRunCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static getListDagRunsBatch(
+    data: GetListDagRunsBatchData,
+  ): CancelablePromise<GetListDagRunsBatchResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/dags/{dag_id}/dagRuns/list",
+      path: {
+        dag_id: data.dagId,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
 }
 
 export class DagSourceService {
@@ -1693,6 +1728,46 @@ export class TaskInstanceService {
   }
 
   /**
+   * Patch Task Instance
+   * Update the state of a task instance.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.requestBody
+   * @param data.mapIndex
+   * @param data.updateMask
+   * @returns TaskInstanceResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchTaskInstance(
+    data: PatchTaskInstanceData,
+  ): CancelablePromise<PatchTaskInstanceResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      query: {
+        map_index: data.mapIndex,
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
    * Get Mapped Task Instances
    * Get list of mapped task instances.
    * @param data The data for the request.
@@ -1878,6 +1953,46 @@ export class TaskInstanceService {
         map_index: data.mapIndex,
       },
       errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Patch Task Instance
+   * Update the state of a task instance.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.mapIndex
+   * @param data.requestBody
+   * @param data.updateMask
+   * @returns TaskInstanceResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchTaskInstance1(
+    data: PatchTaskInstance1Data,
+  ): CancelablePromise<PatchTaskInstance1Response> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+        map_index: data.mapIndex,
+      },
+      query: {
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
