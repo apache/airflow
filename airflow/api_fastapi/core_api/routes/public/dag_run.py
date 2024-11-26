@@ -334,7 +334,7 @@ def get_list_dag_runs_batch(
             "state",
             "dag_id",
             "logical_date",
-            "dag_run_id",
+            "run_id",
             "start_date",
             "end_date",
             "updated_at",
@@ -342,6 +342,7 @@ def get_list_dag_runs_batch(
             "conf",
         ],
         DagRun,
+        {"dag_run_id": "run_id"},
     ).set_value(body.order_by)
 
     base_query = select(DagRun)
