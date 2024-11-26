@@ -1552,6 +1552,12 @@ export type DagServicePatchDagsMutationResult = Awaited<
 export type DagServicePatchDagMutationResult = Awaited<
   ReturnType<typeof DagService.patchDag>
 >;
+export type TaskInstanceServicePatchTaskInstanceMutationResult = Awaited<
+  ReturnType<typeof TaskInstanceService.patchTaskInstance>
+>;
+export type TaskInstanceServicePatchTaskInstance1MutationResult = Awaited<
+  ReturnType<typeof TaskInstanceService.patchTaskInstance1>
+>;
 export type PoolServicePatchPoolMutationResult = Awaited<
   ReturnType<typeof PoolService.patchPool>
 >;
