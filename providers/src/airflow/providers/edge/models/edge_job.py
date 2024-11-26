@@ -172,9 +172,10 @@ class EdgeJob(BaseModel, LoggingMixin):
             EdgeJobModel.try_number == task.try_number,
         )
         job: EdgeJobModel = session.scalar(query)
-        job.state = state
-        job.last_update = timezone.utcnow()
-        session.commit()
+        if job:
+            job.state = state
+            job.last_update = timezone.utcnow()
+            session.commit()
 
     def __hash__(self):
         return f"{self.dag_id}|{self.task_id}|{self.run_id}|{self.map_index}|{self.try_number}".__hash__()
