@@ -103,7 +103,7 @@ class asset:
 
     schedule: ScheduleArg
     uri: str | ObjectStoragePath | None = None
-    group: str = ""
+    group: str = Asset.asset_type
     extra: dict[str, Any] = attrs.field(factory=dict)
     watchers: list[BaseTrigger] = attrs.field(factory=list)
 
