@@ -502,6 +502,7 @@ def get_package_extras(provider_id: str, version_suffix: str) -> dict[str, list[
             to_pop_extras.append(k)
 
     for k in to_pop_extras:
+        get_console().print(f"[warning]Removing {k} from extras as it is already a required dependency")
         del extras_dict[k]
 
     provider_yaml_dict = get_provider_packages_metadata().get(provider_id)
@@ -524,7 +525,6 @@ def get_package_extras(provider_id: str, version_suffix: str) -> dict[str, list[
                 extras_dict[name] = dependencies
     for extra, dependencies in extras_dict.items():
         extras_dict[extra] = [apply_version_suffix(clause, version_suffix) for clause in dependencies]
-    print("EXTRAS ARE", extras_dict)
     return extras_dict
 
 
