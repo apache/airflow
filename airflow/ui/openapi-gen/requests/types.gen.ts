@@ -1419,8 +1419,8 @@ export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
 
 export type GraphDataData = {
   dagId: string;
-  filterDownstream?: boolean;
-  filterUpstream?: boolean;
+  includeDownstream?: boolean;
+  includeUpstream?: boolean;
   root?: string | null;
 };
 
@@ -2436,7 +2436,7 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/ui/graph_data": {
+  "/ui/graph/graph_data": {
     get: {
       req: GraphDataData;
       res: {

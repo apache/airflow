@@ -503,8 +503,8 @@ export const useDashboardServiceHistoricalMetricsSuspense = <
  * @param data The data for the request.
  * @param data.dagId
  * @param data.root
- * @param data.filterUpstream
- * @param data.filterDownstream
+ * @param data.includeUpstream
+ * @param data.includeDownstream
  * @returns GraphDataResponse Successful Response
  * @throws ApiError
  */
@@ -515,13 +515,13 @@ export const useGraphServiceGraphDataSuspense = <
 >(
   {
     dagId,
-    filterDownstream,
-    filterUpstream,
+    includeDownstream,
+    includeUpstream,
     root,
   }: {
     dagId: string;
-    filterDownstream?: boolean;
-    filterUpstream?: boolean;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
     root?: string;
   },
   queryKey?: TQueryKey,
@@ -529,14 +529,14 @@ export const useGraphServiceGraphDataSuspense = <
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseGraphServiceGraphDataKeyFn(
-      { dagId, filterDownstream, filterUpstream, root },
+      { dagId, includeDownstream, includeUpstream, root },
       queryKey,
     ),
     queryFn: () =>
       GraphService.graphData({
         dagId,
-        filterDownstream,
-        filterUpstream,
+        includeDownstream,
+        includeUpstream,
         root,
       }) as TData,
     ...options,

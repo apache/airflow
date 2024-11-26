@@ -194,7 +194,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /ui/graph_data:
+  /ui/graph/graph_data:
     get:
       tags:
       - Graph
@@ -216,20 +216,20 @@ paths:
           - type: string
           - type: 'null'
           title: Root
-      - name: filter_upstream
+      - name: include_upstream
         in: query
         required: false
         schema:
           type: boolean
           default: false
-          title: Filter Upstream
-      - name: filter_downstream
+          title: Include Upstream
+      - name: include_downstream
         in: query
         required: false
         schema:
           type: boolean
           default: false
-          title: Filter Downstream
+          title: Include Downstream
       responses:
         '200':
           description: Successful Response

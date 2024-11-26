@@ -668,8 +668,8 @@ export class GraphService {
    * @param data The data for the request.
    * @param data.dagId
    * @param data.root
-   * @param data.filterUpstream
-   * @param data.filterDownstream
+   * @param data.includeUpstream
+   * @param data.includeDownstream
    * @returns GraphDataResponse Successful Response
    * @throws ApiError
    */
@@ -678,12 +678,12 @@ export class GraphService {
   ): CancelablePromise<GraphDataResponse2> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/ui/graph_data",
+      url: "/ui/graph/graph_data",
       query: {
         dag_id: data.dagId,
         root: data.root,
-        filter_upstream: data.filterUpstream,
-        filter_downstream: data.filterDownstream,
+        include_upstream: data.includeUpstream,
+        include_downstream: data.includeDownstream,
       },
       errors: {
         400: "Bad Request",

@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
 
-graph_data_router = AirflowRouter(tags=["Graph"])
+graph_data_router = AirflowRouter(tags=["Graph"], prefix="/graph")
 
 
 @graph_data_router.get(
@@ -44,14 +44,14 @@ def graph_data(
     dag_id: str,
     request: Request,
     root: str | None = None,
-    filter_upstream: bool = False,
-    filter_downstream: bool = False,
+    include_upstream: bool = False,
+    include_downstream: bool = False,
 ) -> GraphDataResponse:
     """Get Graph Data."""
     dag = request.app.state.dag_bag.get_dag(dag_id)
     if root:
         dag = dag.partial_subset(
-            task_ids_or_regex=root, include_upstream=filter_upstream, include_downstream=filter_downstream
+            task_ids_or_regex=root, include_upstream=include_upstream, include_downstream=include_downstream
         )
 
     nodes = task_group_to_dict(dag.task_group)
@@ -63,6 +63,4 @@ def graph_data(
         "edges": edges,
     }
 
-    print(data)
-
-    return GraphDataResponse.model_validate(data)
+    return GraphDataResponse(**data)

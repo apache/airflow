@@ -337,19 +337,19 @@ export const useGraphServiceGraphDataKey = "GraphServiceGraphData";
 export const UseGraphServiceGraphDataKeyFn = (
   {
     dagId,
-    filterDownstream,
-    filterUpstream,
+    includeDownstream,
+    includeUpstream,
     root,
   }: {
     dagId: string;
-    filterDownstream?: boolean;
-    filterUpstream?: boolean;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
     root?: string;
   },
   queryKey?: Array<unknown>,
 ) => [
   useGraphServiceGraphDataKey,
-  ...(queryKey ?? [{ dagId, filterDownstream, filterUpstream, root }]),
+  ...(queryKey ?? [{ dagId, includeDownstream, includeUpstream, root }]),
 ];
 export type BackfillServiceListBackfillsDefaultResponse = Awaited<
   ReturnType<typeof BackfillService.listBackfills>

@@ -412,8 +412,8 @@ export const prefetchUseDashboardServiceHistoricalMetrics = (
  * @param data The data for the request.
  * @param data.dagId
  * @param data.root
- * @param data.filterUpstream
- * @param data.filterDownstream
+ * @param data.includeUpstream
+ * @param data.includeDownstream
  * @returns GraphDataResponse Successful Response
  * @throws ApiError
  */
@@ -421,25 +421,30 @@ export const prefetchUseGraphServiceGraphData = (
   queryClient: QueryClient,
   {
     dagId,
-    filterDownstream,
-    filterUpstream,
+    includeDownstream,
+    includeUpstream,
     root,
   }: {
     dagId: string;
-    filterDownstream?: boolean;
-    filterUpstream?: boolean;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
     root?: string;
   },
 ) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseGraphServiceGraphDataKeyFn({
       dagId,
-      filterDownstream,
-      filterUpstream,
+      includeDownstream,
+      includeUpstream,
       root,
     }),
     queryFn: () =>
-      GraphService.graphData({ dagId, filterDownstream, filterUpstream, root }),
+      GraphService.graphData({
+        dagId,
+        includeDownstream,
+        includeUpstream,
+        root,
+      }),
   });
 /**
  * List Backfills
