@@ -40,8 +40,10 @@ import {
   DAGPatchBody,
   DAGRunClearBody,
   DAGRunPatchBody,
+  DAGRunsBatchBody,
   DagRunState,
   DagWarningType,
+  PatchTaskInstanceBody,
   PoolPatchBody,
   PoolPostBody,
   PoolPostBulkBody,
@@ -2620,6 +2622,49 @@ export const useDagRunServiceClearDagRun = <
     ...options,
   });
 /**
+ * Get List Dag Runs Batch
+ * Get a list of DAG Runs.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.requestBody
+ * @returns DAGRunCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagRunServiceGetListDagRunsBatch = <
+  TData = Common.DagRunServiceGetListDagRunsBatchMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: "~";
+        requestBody: DAGRunsBatchBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: "~";
+      requestBody: DAGRunsBatchBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, requestBody }) =>
+      DagRunService.getListDagRunsBatch({
+        dagId,
+        requestBody,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Get Task Instances Batch
  * Get list of task instances.
  * @param data The data for the request.
@@ -3163,6 +3208,138 @@ export const useDagServicePatchDag = <
       DagService.patchDag({
         dagId,
         requestBody,
+        updateMask,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Patch Task Instance
+ * Update the state of a task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.requestBody
+ * @param data.mapIndex
+ * @param data.updateMask
+ * @returns TaskInstanceResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServicePatchTaskInstance = <
+  TData = Common.TaskInstanceServicePatchTaskInstanceMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+        mapIndex?: number;
+        requestBody: PatchTaskInstanceBody;
+        taskId: string;
+        updateMask?: string[];
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+      mapIndex?: number;
+      requestBody: PatchTaskInstanceBody;
+      taskId: string;
+      updateMask?: string[];
+    },
+    TContext
+  >({
+    mutationFn: ({
+      dagId,
+      dagRunId,
+      mapIndex,
+      requestBody,
+      taskId,
+      updateMask,
+    }) =>
+      TaskInstanceService.patchTaskInstance({
+        dagId,
+        dagRunId,
+        mapIndex,
+        requestBody,
+        taskId,
+        updateMask,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Patch Task Instance
+ * Update the state of a task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.mapIndex
+ * @param data.requestBody
+ * @param data.updateMask
+ * @returns TaskInstanceResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServicePatchTaskInstance1 = <
+  TData = Common.TaskInstanceServicePatchTaskInstance1MutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+        mapIndex: number;
+        requestBody: PatchTaskInstanceBody;
+        taskId: string;
+        updateMask?: string[];
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+      mapIndex: number;
+      requestBody: PatchTaskInstanceBody;
+      taskId: string;
+      updateMask?: string[];
+    },
+    TContext
+  >({
+    mutationFn: ({
+      dagId,
+      dagRunId,
+      mapIndex,
+      requestBody,
+      taskId,
+      updateMask,
+    }) =>
+      TaskInstanceService.patchTaskInstance1({
+        dagId,
+        dagRunId,
+        mapIndex,
+        requestBody,
+        taskId,
         updateMask,
       }) as unknown as Promise<TData>,
     ...options,
