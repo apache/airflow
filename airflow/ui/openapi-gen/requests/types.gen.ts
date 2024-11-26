@@ -424,6 +424,23 @@ export type DAGRunTypes = {
 };
 
 /**
+ * List DAG Runs body for batch endpoint.
+ */
+export type DAGRunsBatchBody = {
+  order_by?: string | null;
+  page_offset?: number;
+  page_limit?: number;
+  dag_ids?: Array<string> | null;
+  states?: Array<DagRunState | null> | null;
+  logical_date_gte?: string | null;
+  logical_date_lte?: string | null;
+  start_date_gte?: string | null;
+  start_date_lte?: string | null;
+  end_date_gte?: string | null;
+  end_date_lte?: string | null;
+};
+
+/**
  * DAG Source serializer for responses.
  */
 export type DAGSourceResponse = {
@@ -1443,6 +1460,13 @@ export type GetDagRunsData = {
 };
 
 export type GetDagRunsResponse = DAGRunCollectionResponse;
+
+export type GetListDagRunsBatchData = {
+  dagId: "~";
+  requestBody: DAGRunsBatchBody;
+};
+
+export type GetListDagRunsBatchResponse = DAGRunCollectionResponse;
 
 export type GetDagSourceData = {
   accept?: "application/json" | "text/plain" | "*/*";
@@ -2728,6 +2752,33 @@ export type $OpenApiTs = {
   "/public/dags/{dag_id}/dagRuns": {
     get: {
       req: GetDagRunsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGRunCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/list": {
+    post: {
+      req: GetListDagRunsBatchData;
       res: {
         /**
          * Successful Response
