@@ -25,8 +25,7 @@ import string
 import warnings
 from collections.abc import Iterable
 from functools import partial, wraps
-from re import Pattern
-from typing import Callable, cast
+from typing import Callable, Iterable, cast
 
 import re2
 
@@ -82,7 +81,6 @@ BACK_COMPAT_METRIC_NAME_PATTERNS: set[str] = {
     r"^dagrun\.schedule_delay\.(?P<dag_id>.*)$",
     r"^dagrun\.(?P<dag_id>.*)\.first_task_scheduling_delay$",
 }
-BACK_COMPAT_METRIC_NAMES: set[Pattern[str]] = {re2.compile(name) for name in BACK_COMPAT_METRIC_NAME_PATTERNS}
 
 OTEL_NAME_MAX_LENGTH = 63
 DEFAULT_VALIDATOR_TYPE = "allow"
