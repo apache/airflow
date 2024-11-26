@@ -22,7 +22,6 @@ from typing import Annotated, Literal, cast
 import pendulum
 from fastapi import Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from airflow.api.common.mark_tasks import (
@@ -368,11 +367,6 @@ def trigger_dag_run(
         return dag_run
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
-    except IntegrityError:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"DAGRun with DAG ID: '{dag_id}' and DAGRun ID: '{run_id}' already exists",
-        )
     except ParamValidationError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 

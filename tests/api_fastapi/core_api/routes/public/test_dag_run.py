@@ -1348,7 +1348,4 @@ class TestTriggerDagRun:
     def test_response_409(self, test_client):
         response = test_client.post(f"/public/dags/{DAG1_ID}/dagRuns", json={"dag_run_id": DAG1_RUN1_ID})
         assert response.status_code == 409
-        assert (
-            response.json()["detail"]
-            == "DAGRun with DAG ID: 'test_dag1' and DAGRun ID: 'dag_run_1' already exists"
-        )
+        assert response.json()["detail"] == "Unique constraint violation"
