@@ -38,6 +38,7 @@ from airflow.traces.tracer import Trace, add_span, gen_context
 from airflow.traces.utils import gen_span_id_from_ti_key, gen_trace_id
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
+from airflow.utils.thread_safe_dict import ThreadSafeDict
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
@@ -51,7 +52,6 @@ if TYPE_CHECKING:
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.utils.thread_safe_dict import ThreadSafeDict
 
     # Command to execute - list of strings
     # the first element is always "airflow".
@@ -114,7 +114,7 @@ class BaseExecutor(LoggingMixin):
     :param parallelism: how many jobs should run at one time. Set to ``0`` for infinity.
     """
 
-    active_spans = None
+    active_spans = ThreadSafeDict()
 
     supports_ad_hoc_ti_run: bool = False
     supports_sentry: bool = False

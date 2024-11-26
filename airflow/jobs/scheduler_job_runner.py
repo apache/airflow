@@ -70,6 +70,7 @@ from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import (
     is_lock_not_available_error,
     prohibit_commit,
@@ -222,6 +223,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _exit_gracefully(self, signum: int, frame: FrameType | None) -> None:
         """Clean up processor_agent to avoid leaving orphan processes."""
+        self._cleanup_active_spans_before_process_exit()
+
         if not _is_parent_process():
             # Only the parent process should perform the cleanup.
             return
@@ -803,12 +806,28 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.pid,
             )
 
+            # Each scheduler processes its own executor events.
+            # If the executor of the scheduler has run the task,
+            # then only that scheduler will mark the task as finished
+            # unless the process dies and the task has to be adopted by another scheduler.
+            # There is no point in notifying another scheduler that the task span has to be ended.
+            # But because the span might not be ended immediately,
+            # the task end time must be set as the span end time.
             active_ti_span = cls.active_ti_spans.get(ti.key)
-            if conf.getboolean("traces", "otel_use_context_propagation") and active_ti_span is not None:
-                cls._set_span_attrs__process_executor_events(span=active_ti_span, state=state, ti=ti)
-                # End the span and remove it from the active_spans dict.
-                active_ti_span.end()
-                cls.active_ti_spans.delete(ti.key)
+            if conf.getboolean("traces", "otel_use_context_propagation"):
+                if active_ti_span is not None:
+                    cls._set_span_attrs__process_executor_events(span=active_ti_span, state=state, ti=ti)
+                    # End the span and remove it from the active_ti_spans dict.
+                    active_ti_span.end(end_time=datetime_to_nano(ti.end_date))
+                    cls.active_ti_spans.delete(ti.key)
+                    ti.set_span_status(status=SpanStatus.ENDED, session=session)
+                else:
+                    # TODO: check if this is needed in case the task is adopted or
+                    #  finished not by the executor that started it.
+                    if ti.span_status == SpanStatus.ACTIVE:
+                        # Another scheduler has started the span.
+                        # Update the SpanStatus to let the process know that it must end it.
+                        ti.set_span_status(status=SpanStatus.SHOULD_END, session=session)
 
             with Trace.start_span_from_taskinstance(ti=ti) as span:
                 cls._set_span_attrs__process_executor_events(span, state, ti)
@@ -1029,6 +1048,85 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         except Exception as e:  # should not fail the scheduler
             self.log.exception("Failed to update dag run state for paused dags due to %s", e)
 
+    @provide_session
+    def _cleanup_active_spans_before_process_exit(self, session: Session = NEW_SESSION):
+        # No need to do a commit for every update. The annotation will commit all of them once at the end.
+        for run_id, span in self.active_dagrun_spans.get_all().items():
+            span.end()
+            dag_run: DagRun = session.scalars(select(DagRun).where(DagRun.run_id == run_id)).one()
+            if dag_run.state in State.finished_dr_states:
+                dag_run.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
+            else:
+                dag_run.set_span_status(
+                    status=SpanStatus.NEEDS_CONTINUANCE, session=session, with_commit=False
+                )
+                initial_dag_run_context = Trace.extract(dag_run.context_carrier)
+                with Trace.start_child_span(
+                    span_name="current_scheduler_exited", parent_context=initial_dag_run_context
+                ) as s:
+                    s.set_attribute("trace_status", "needs continuance")
+
+        for key, span in self.active_ti_spans.get_all().items():
+            span.end()
+            # Can't compare the key directly because the try_number or the map_index might not be the same.
+            ti: TaskInstance = session.scalars(
+                select(TaskInstance).where(
+                    TaskInstance.dag_id == key.dag_id,
+                    TaskInstance.task_id == key.task_id,
+                    TaskInstance.run_id == key.run_id,
+                )
+            ).one()
+            if ti.state in State.finished:
+                ti.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
+            else:
+                ti.set_span_status(status=SpanStatus.NEEDS_CONTINUANCE, session=session, with_commit=False)
+
+        self.active_dagrun_spans.clear()
+        self.active_ti_spans.clear()
+
+    @provide_session
+    def _end_spans_of_externally_ended_ops(self, session: Session = NEW_SESSION):
+        # The scheduler that starts a dag_run or a task is also the one that starts the spans.
+        # Each scheduler should end the spans that it has started.
+        #
+        # Otel spans are designed so that only the process that starts them,
+        # has full control over their lifecycle.
+        # This also means that the process that started them, is the only one that can end them.
+        #
+        # If another scheduler has finished processing a dag_run or a task and there is a reference
+        # on the active_spans dictionary, then that means that the current scheduler started
+        # the span, and therefore must end it.
+        dag_runs_should_end: list[DagRun] = session.scalars(
+            select(DagRun).where(DagRun.span_status == SpanStatus.SHOULD_END)
+        ).all()
+        tis_should_end: list[TaskInstance] = session.scalars(
+            select(TaskInstance).where(TaskInstance.span_status == SpanStatus.SHOULD_END)
+        ).all()
+
+        for dag_run in dag_runs_should_end:
+            active_dagrun_span = self.active_dagrun_spans.get(dag_run.run_id)
+            if active_dagrun_span is not None:
+                if dag_run.state in State.finished_dr_states:
+                    dagv = session.scalar(select(DagVersion).where(DagVersion.id == dag_run.dag_version_id))
+                    DagRun.set_dagrun_span_attrs(span=active_dagrun_span, dag_run=dag_run, dagv=dagv)
+
+                    active_dagrun_span.end(end_time=datetime_to_nano(dag_run.end_date))
+                else:
+                    active_dagrun_span.end()
+                self.active_dagrun_spans.delete(dag_run.run_id)
+                dag_run.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
+
+        for ti in tis_should_end:
+            active_ti_span = self.active_ti_spans.get(ti.key)
+            if active_ti_span is not None:
+                if ti.state in State.finished:
+                    self._set_span_attrs__process_executor_events(span=active_ti_span, state=ti.state, ti=ti)
+                    active_ti_span.end(end_time=datetime_to_nano(ti.end_date))
+                else:
+                    active_ti_span.end()
+                self.active_ti_spans.delete(ti.key)
+                ti.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
+
     def _run_scheduler_loop(self) -> None:
         """
         Harvest DAG parsing results, queue tasks, and perform executor heartbeat; the actual scheduler loop.
@@ -1108,9 +1206,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self.log.debug("Waiting for processors to finish since we're using sqlite")
                     self.processor_agent.wait_until_finished()
 
-                # This is passing a reference to the dictionary, making it shared.
-                # Any changes made by a dag_run instance, will also be reflected to the dictionary of this class.
-                DagRun.set_active_spans(active_spans=self.active_dagrun_spans)
+                # This is using a new session. It's not done under the session block below
+                # because the changes need to be committed and the block runs expunge_all before the commit.
+                self._end_spans_of_externally_ended_ops()
+
+                # Pass a reference to the dictionary.
+                # Any changes made by a dag_run instance, will be reflected to the dictionaries of this class.
+                DagRun.set_active_spans(
+                    active_dagrun_spans=self.active_dagrun_spans, active_ti_spans=self.active_ti_spans
+                )
 
                 # local import due to type_checking.
                 from airflow.executors.base_executor import BaseExecutor

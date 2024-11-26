@@ -59,6 +59,7 @@ class DagRunPydantic(BaseModelPydantic):
     log_template_id: Optional[int]
     triggered_by: Optional[DagRunTriggeredByType]
     context_carrier: Optional[dict]
+    span_status: Optional[str]
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 

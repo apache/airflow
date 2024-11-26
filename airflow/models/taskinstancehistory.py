@@ -38,6 +38,7 @@ from sqlalchemy_utils import UUIDType
 from airflow.models.base import Base, StringID
 from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
     ExtendedJSON,
@@ -85,6 +86,7 @@ class TaskInstanceHistory(Base):
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
     rendered_map_index = Column(String(250))
     context_carrier = Column(MutableDict.as_mutable(ExtendedJSON))
+    span_status = Column(String(50), default=SpanStatus.NOT_STARTED)
 
     external_executor_id = Column(StringID())
     trigger_id = Column(Integer)

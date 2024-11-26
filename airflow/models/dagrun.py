@@ -87,6 +87,7 @@ from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import (
     ExtendedJSON,
     UtcDateTime,
@@ -145,7 +146,8 @@ class DagRun(Base, LoggingMixin):
     external trigger (i.e. manual runs).
     """
 
-    active_spans = ThreadSafeDict()
+    active_dagrun_spans = ThreadSafeDict()
+    active_ti_spans = ThreadSafeDict()
 
     __tablename__ = "dag_run"
 
@@ -193,6 +195,7 @@ class DagRun(Base, LoggingMixin):
 
     # Span context carrier, used for context propagation.
     context_carrier = Column(MutableDict.as_mutable(ExtendedJSON))
+    span_status = Column(String(50), default=SpanStatus.NOT_STARTED)
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
@@ -321,8 +324,9 @@ class DagRun(Base, LoggingMixin):
         return self.execution_date
 
     @classmethod
-    def set_active_spans(cls, active_spans: ThreadSafeDict):
-        cls.active_spans = active_spans
+    def set_active_spans(cls, active_dagrun_spans: ThreadSafeDict, active_ti_spans: ThreadSafeDict):
+        cls.active_dagrun_spans = active_dagrun_spans
+        cls.active_ti_spans = active_ti_spans
 
     def get_state(self):
         return self._state
@@ -887,7 +891,7 @@ class DagRun(Base, LoggingMixin):
         return leaf_tis
 
     @staticmethod
-    def _set_dagrun_span_attrs(span: Span | EmptySpan, dag_run: DagRun, dagv: DagVersion):
+    def set_dagrun_span_attrs(span: Span | EmptySpan, dag_run: DagRun, dagv: DagVersion):
         if dag_run._state is DagRunState.FAILED:
             span.set_attribute("airflow.dag_run.error", True)
 
@@ -945,6 +949,7 @@ class DagRun(Base, LoggingMixin):
         """
         # Callback to execute in case of Task Failures
         callback: DagCallbackRequest | None = None
+        print(f"x: dag_state: {self._state} | span_status: {self.span_status}")
 
         class _UnfinishedStates(NamedTuple):
             tis: Sequence[TI]
@@ -1067,26 +1072,79 @@ class DagRun(Base, LoggingMixin):
 
         # finally, if the leaves aren't done, the dag is still running
         else:
-            # If there is no value in active_spans, then the span hasn't already been started.
+            # If there is no value in active_dagrun_spans, then the span hasn't already been started.
             if (
                 self.otel_use_context_propagation
-                and self.active_spans is not None
-                and (self.active_spans.get(self.run_id) is None)
+                and self.active_dagrun_spans is not None
+                and self.active_dagrun_spans.get(self.run_id) is None
             ):
-                span = Trace.start_root_span(
-                    span_name=f"{self.dag_id}{CTX_PROP_SUFFIX}",
-                    component=f"dag{CTX_PROP_SUFFIX}",
-                    start_time=self.queued_at,
-                    start_as_current=False,
-                )
-                carrier = Trace.inject()
-                self.set_context_carrier(context_carrier=carrier, session=session, with_commit=False)
-                # Set the span in a synchronized dictionary, so that the variable can be used to end the span.
-                self.active_spans.set(self.run_id, span)
-                self.log.debug(
-                    "DagRun span has been started and the injected context_carrier is: %s",
-                    self.context_carrier,
-                )
+                if (
+                    self.span_status == SpanStatus.NOT_STARTED
+                    or self.span_status == SpanStatus.NEEDS_CONTINUANCE
+                ):
+                    span = None
+                    continue_ti_spans = False
+                    if self.span_status == SpanStatus.NOT_STARTED:
+                        span = Trace.start_root_span(
+                            span_name=f"{self.dag_id}{CTX_PROP_SUFFIX}",
+                            component=f"dag{CTX_PROP_SUFFIX}",
+                            start_time=self.queued_at,
+                            start_as_current=False,
+                        )
+                    elif self.span_status == SpanStatus.NEEDS_CONTINUANCE:
+                        # Use the existing context_carrier to set the initial dag_run span as the parent.
+                        parent_context = Trace.extract(self.context_carrier)
+                        with Trace.start_child_span(
+                            span_name="new_scheduler", parent_context=parent_context
+                        ) as s:
+                            s.set_attribute("trace_status", "continued")
+
+                        span = Trace.start_child_span(
+                            span_name=f"{self.dag_id}_continued{CTX_PROP_SUFFIX}",
+                            parent_context=parent_context,
+                            component=f"dag{CTX_PROP_SUFFIX}",
+                            # No start time
+                            start_as_current=False,
+                        )
+                        # After this span is started, the context_carrier will be replaced by the new one.
+                        # New task span will use this span as the parent.
+                        continue_ti_spans = True
+                    carrier = Trace.inject()
+                    self.set_context_carrier(context_carrier=carrier, session=session, with_commit=False)
+                    self.set_span_status(status=SpanStatus.ACTIVE, session=session, with_commit=False)
+                    # Set the span in a synchronized dictionary, so that the variable can be used to end the span.
+                    self.active_dagrun_spans.set(self.run_id, span)
+                    self.log.debug(
+                        "DagRun span has been started and the injected context_carrier is: %s",
+                        self.context_carrier,
+                    )
+                    # Start TI spans that also need continuance.
+                    if continue_ti_spans:
+                        new_dagrun_context = Trace.extract(self.context_carrier)
+                        for ti in tis:
+                            if ti.span_status == SpanStatus.NEEDS_CONTINUANCE:
+                                ti_span = Trace.start_child_span(
+                                    span_name=f"{ti.task_id}_continued{CTX_PROP_SUFFIX}",
+                                    parent_context=new_dagrun_context,
+                                    start_as_current=False,
+                                )
+                                ti_carrier = Trace.inject()
+                                ti.set_context_carrier(
+                                    context_carrier=ti_carrier, session=session, with_commit=False
+                                )
+                                ti.set_span_status(
+                                    status=SpanStatus.ACTIVE, session=session, with_commit=False
+                                )
+                                self.active_ti_spans.set(ti.key, ti_span)
+                else:
+                    self.log.info(
+                        "Found span_status '%s', while updating state for dag_run '%s'",
+                        self.span_status,
+                        self.run_id,
+                    )
+
+            for ti in schedulable_tis:
+                ti.dag_run = self
 
             self.set_state(DagRunState.RUNNING)
 
@@ -1119,8 +1177,8 @@ class DagRun(Base, LoggingMixin):
             )
 
             if self.otel_use_context_propagation:
-                if self.active_spans is not None:
-                    active_span = self.active_spans.get(self.run_id)
+                if self.active_dagrun_spans is not None:
+                    active_span = self.active_dagrun_spans.get(self.run_id)
                     if active_span is not None:
                         self.log.debug(
                             "Found active span with span_id: %s, for dag_id: %s, run_id: %s, state: %s",
@@ -1130,20 +1188,29 @@ class DagRun(Base, LoggingMixin):
                             self.state,
                         )
 
-                        self._set_dagrun_span_attrs(span=active_span, dag_run=self, dagv=dagv)
+                        self.set_dagrun_span_attrs(span=active_span, dag_run=self, dagv=dagv)
                         active_span.end()
                         # Remove the span from the dict.
-                        self.active_spans.delete(self.run_id)
+                        self.active_dagrun_spans.delete(self.run_id)
+                        self.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
                     else:
-                        self.log.debug(
-                            "No active span has been found for dag_id: %s, run_id: %s, state: %s",
-                            self.dag_id,
-                            self.run_id,
-                            self.state,
-                        )
+                        if self.span_status == SpanStatus.ACTIVE:
+                            # Another scheduler has started the span.
+                            # Update the DB SpanStatus to notify the owner to end it.
+                            self.set_span_status(
+                                status=SpanStatus.SHOULD_END, session=session, with_commit=False
+                            )
+                        else:
+                            self.log.debug(
+                                "No active span has been found for dag_id: %s, run_id: %s, state: %s",
+                                self.dag_id,
+                                self.run_id,
+                                self.state,
+                            )
 
             with Trace.start_span_from_dagrun(dagrun=self) as span:
-                self._set_dagrun_span_attrs(span=span, dag_run=self, dagv=dagv)
+                if span is not None:  # To avoid a static-code check error.
+                    self.set_dagrun_span_attrs(span=span, dag_run=self, dagv=dagv)
 
             session.flush()
 
@@ -1246,6 +1313,44 @@ class DagRun(Base, LoggingMixin):
         return self._set_context_carrier(
             dag_run=self, context_carrier=context_carrier, session=session, with_commit=with_commit
         )
+
+    @staticmethod
+    @internal_api_call
+    def _set_span_status(dag_run: DagRun, status: SpanStatus, session: Session, with_commit: bool) -> bool:
+        if not isinstance(dag_run, DagRun):
+            dag_run = session.scalars(
+                select(DagRun).where(
+                    DagRun.dag_id == dag_run.dag_id,
+                    DagRun.run_id == dag_run.run_id,
+                )
+            ).one()
+
+        if dag_run.span_status == status:
+            return False
+
+        dag_run.log.debug("Setting dag_run span_status for run_id: %s", dag_run.run_id)
+        dag_run.span_status = status
+
+        session.merge(dag_run)
+
+        if with_commit:
+            session.commit()
+
+        return True
+
+    @provide_session
+    def set_span_status(
+        self, status: SpanStatus, session: Session = NEW_SESSION, with_commit: bool = False
+    ) -> bool:
+        """
+        Set DagRun span_status.
+
+        :param status: dict with the injected carrier to set for the dag_run
+        :param session: SQLAlchemy ORM Session
+        :param with_commit: should the status be committed?
+        :return: has the span_status been changed?
+        """
+        return self._set_span_status(dag_run=self, status=status, session=session, with_commit=with_commit)
 
     def notify_dagrun_state_changed(self, msg: str = ""):
         if self.state == DagRunState.RUNNING:

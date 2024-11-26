@@ -129,6 +129,7 @@ from airflow.utils.operator_helpers import ExecutionCallableRunner, context_to_a
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.span_status import SpanStatus
 from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
     ExtendedJSON,
@@ -829,6 +830,7 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.next_method = source.next_method
     target.next_kwargs = source.next_kwargs
     target.dag_version_id = source.dag_version_id
+    target.context_carrier = source.context_carrier
 
     if include_dag_run:
         target.execution_date = source.execution_date
@@ -850,6 +852,7 @@ def _set_ti_attrs(target, source, include_dag_run=False):
         target.dag_run.dag_version_id = source.dag_run.dag_version_id
         target.dag_run.updated_at = source.dag_run.updated_at
         target.dag_run.log_template_id = source.dag_run.log_template_id
+        target.dag_run.context_carrier = source.dag_run.context_carrier
 
 
 def _refresh_from_db(
@@ -890,6 +893,14 @@ def _refresh_from_db(
         # to also update dag_run information as it might not be available. We cannot always do it in
         # case ti is TaskInstance, because it might be detached/ not loaded yet and dag_run might
         # not be available.
+        if not include_dag_run:
+            inspector = inspect(ti)
+            # Check if the ti is detached or the dag_run isn't loaded.
+            if not inspector.detached and "dag_run" not in inspector.unloaded:
+                # It's best to include the dag_run whenever possible,
+                # in case there are changes to the span context_carrier.
+                include_dag_run = True
+
         _set_ti_attrs(task_instance, ti, include_dag_run=include_dag_run)
     else:
         task_instance.state = None
@@ -1867,6 +1878,7 @@ class TaskInstance(Base, LoggingMixin):
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
     rendered_map_index = Column(String(250))
     context_carrier = Column(MutableDict.as_mutable(ExtendedJSON))
+    span_status = Column(String(50), default=SpanStatus.NOT_STARTED)
 
     external_executor_id = Column(StringID())
 
@@ -2418,6 +2430,47 @@ class TaskInstance(Base, LoggingMixin):
         return self._set_context_carrier(
             ti=self, context_carrier=context_carrier, session=session, with_commit=with_commit
         )
+
+    @staticmethod
+    @internal_api_call
+    def _set_span_status(
+        ti: TaskInstance | TaskInstancePydantic, status: SpanStatus, session: Session, with_commit: bool
+    ) -> bool:
+        if not isinstance(ti, TaskInstance):
+            ti = session.scalars(
+                select(TaskInstance).where(
+                    TaskInstance.task_id == ti.task_id,
+                    TaskInstance.dag_id == ti.dag_id,
+                    TaskInstance.run_id == ti.run_id,
+                )
+            ).one()
+
+        if ti.span_status == status:
+            return False
+
+        ti.log.debug("Setting task span_status for %s", ti.task_id)
+        ti.span_status = status
+
+        session.merge(ti)
+
+        if with_commit:
+            session.commit()
+
+        return True
+
+    @provide_session
+    def set_span_status(
+        self, status: SpanStatus, session: Session = NEW_SESSION, with_commit: bool = False
+    ) -> bool:
+        """
+        Set TaskInstance span_status.
+
+        :param status: dict with the injected carrier to set for the dag_run
+        :param session: SQLAlchemy ORM Session
+        :param with_commit: should the status be committed?
+        :return: has the span_status been changed?
+        """
+        return self._set_span_status(ti=self, status=status, session=session, with_commit=with_commit)
 
     @property
     def is_premature(self) -> bool:
@@ -3901,6 +3954,7 @@ class SimpleTaskInstance:
         run_as_user: str | None = None,
         priority_weight: int | None = None,
         context_carrier: dict | None = None,
+        span_status: str | None = None,
     ):
         self.dag_id = dag_id
         self.task_id = task_id
@@ -3918,6 +3972,7 @@ class SimpleTaskInstance:
         self.queue = queue
         self.key = key
         self.context_carrier = context_carrier
+        self.span_status = span_status
 
     def __repr__(self) -> str:
         attrs = ", ".join(f"{k}={v!r}" for k, v in self.__dict__.items())

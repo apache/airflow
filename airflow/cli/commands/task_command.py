@@ -66,6 +66,7 @@ from airflow.utils.log.secrets_masker import RedactedIO
 from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import DagRunState
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.types import DagRunTriggeredByType
@@ -449,7 +450,8 @@ def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
         log.info("Found args.carrier: %s. Setting the value in the ti instance.", args.carrier)
         # The arg value is a dict string, and it needs to be converted back to a dict.
         carrier_dict = json.loads(args.carrier)
-        ti.set_context_carrier(carrier_dict, with_commit=True)
+        ti.set_context_carrier(context_carrier=carrier_dict, with_commit=True)
+        ti.set_span_status(status=SpanStatus.ACTIVE, with_commit=True)
 
     if not InternalApiConfig.get_use_internal_api():
         # IMPORTANT, have to re-configure ORM with the NullPool, otherwise, each "run" command may leave
