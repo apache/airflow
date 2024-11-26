@@ -4847,7 +4847,7 @@ export const $TimeDelta = {
   properties: {
     __type: {
       type: "string",
-      title: "  Type",
+      title: "Type",
       default: "TimeDelta",
     },
     days: {
