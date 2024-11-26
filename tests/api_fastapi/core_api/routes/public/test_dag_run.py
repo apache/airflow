@@ -541,32 +541,41 @@ class TestListDagRunsBatch:
         )
 
     @pytest.mark.parametrize(
-        "order_by, expected_dag_id_order",
+        "order_by,expected_order",
         [
-            ("id", DAG_RUNS_LIST),
-            ("state", [DAG1_RUN2_ID, DAG1_RUN1_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]),
-            ("dag_id", DAG_RUNS_LIST),
-            ("logical_date", DAG_RUNS_LIST),
-            ("dag_run_id", DAG_RUNS_LIST),
-            ("start_date", DAG_RUNS_LIST),
-            ("end_date", DAG_RUNS_LIST),
-            ("updated_at", DAG_RUNS_LIST),
-            ("external_trigger", DAG_RUNS_LIST),
-            ("conf", DAG_RUNS_LIST),
+            pytest.param("id", DAG_RUNS_LIST, id="order_by_id"),
+            pytest.param(
+                "state", [DAG1_RUN2_ID, DAG1_RUN1_ID, DAG2_RUN1_ID, DAG2_RUN2_ID], id="order_by_state"
+            ),
+            pytest.param("dag_id", DAG_RUNS_LIST, id="order_by_dag_id"),
+            pytest.param("logical_date", DAG_RUNS_LIST, id="order_by_logical_date"),
+            pytest.param("dag_run_id", DAG_RUNS_LIST, id="order_by_dag_run_id"),
+            pytest.param("start_date", DAG_RUNS_LIST, id="order_by_start_date"),
+            pytest.param("end_date", DAG_RUNS_LIST, id="order_by_end_date"),
+            pytest.param("updated_at", DAG_RUNS_LIST, id="order_by_updated_at"),
+            pytest.param("external_trigger", DAG_RUNS_LIST, id="order_by_external_trigger"),
+            pytest.param("conf", DAG_RUNS_LIST, id="order_by_conf"),
         ],
     )
-    def test_return_correct_results_with_order_by(self, test_client, order_by, expected_dag_id_order):
+    def test_dag_runs_ordering(self, test_client, order_by, expected_order):
+        """Test DAG runs list endpoint ordering functionality.
+
+        Verifies that the endpoint correctly orders results by different fields
+        in both ascending and descending order.
+        """
+        # Test ascending order
         response = test_client.post("/public/dags/~/dagRuns/list", json={"order_by": order_by})
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 4
-        assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_order
+        assert [run["dag_run_id"] for run in body["dag_runs"]] == expected_order
 
-        reverse_response = test_client.post("/public/dags/~/dagRuns/list", json={"order_by": "-" + order_by})
-        assert reverse_response.status_code == 200
-        reverse_body = reverse_response.json()
-        assert reverse_body["total_entries"] == 4
-        assert [each["dag_run_id"] for each in reverse_body["dag_runs"]] == expected_dag_id_order[::-1]
+        # Test descending order
+        response = test_client.post("/public/dags/~/dagRuns/list", json={"order_by": f"-{order_by}"})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 4
+        assert [run["dag_run_id"] for run in body["dag_runs"]] == expected_order[::-1]
 
     @pytest.mark.parametrize(
         "post_body, expected_dag_id_order",
