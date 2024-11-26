@@ -36,8 +36,8 @@ repository and project.
 
 It has also some disadvantages as this introduces some coupling between those - so contributing to providers might
 interfere with contributing to Airflow. Python ecosystem does not yet have proper monorepo support for keeping
-several packages in one repository and being able to work on multiple of them at the same time. The tool ``uv`` is 
-recommended to help mange this through it's ``workspace`` feature. While developing, dependencies and extras for a
+several packages in one repository and being able to work on more than one of them at the same time. The tool ``uv`` is
+recommended to help manage this through it's ``workspace`` feature. While developing, dependencies and extras for a
 provider can be installed using ``uv``'s ``sync`` command. Here is an example for the microsoft.azure provider:
 
 .. code:: bash
