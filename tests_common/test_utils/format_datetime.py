@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,21 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -euxo pipefail
+from __future__ import annotations
 
-cd "$( dirname "${BASH_SOURCE[0]}" )/../../"
+from datetime import datetime
 
-PYTHON_ARG=""
 
-PIP_VERSION="24.3.1"
-UV_VERSION="0.5.4"
-if [[ ${PYTHON_VERSION=} != "" ]]; then
-    PYTHON_ARG="--python=$(which python"${PYTHON_VERSION}") "
-fi
+def datetime_zulu_format(dt: datetime) -> str:
+    """Format a datetime object to a string in Zulu time."""
+    return dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
-python -m pip install --upgrade "pip==${PIP_VERSION}"
-python -m pip install "uv==${UV_VERSION}"
-uv tool uninstall apache-airflow-breeze >/dev/null 2>&1 || true
-# shellcheck disable=SC2086
-uv tool install ${PYTHON_ARG} --force --editable ./dev/breeze/
-echo '/home/runner/.local/bin' >> "${GITHUB_PATH}"
+
+def datetime_zulu_format_without_ms(dt: datetime) -> str:
+    """Format a datetime object to a string in Zulu time without milliseconds."""
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")

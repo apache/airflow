@@ -17,11 +17,12 @@
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated, Literal, cast
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy.sql import select
+from sqlalchemy.sql import or_, select
+from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
 from airflow.api_fastapi.common.parameters import (
@@ -51,6 +52,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     ClearTaskInstancesBody,
     TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
+    TaskInstanceHistoryCollectionResponse,
     TaskInstanceHistoryResponse,
     TaskInstanceReferenceCollectionResponse,
     TaskInstanceReferenceResponse,
@@ -133,13 +135,13 @@ def get_mapped_task_instances(
     session: Annotated[Session, Depends(get_session)],
 ) -> TaskInstanceCollectionResponse:
     """Get list of mapped task instances."""
-    base_query = (
+    query = (
         select(TI)
         .where(TI.dag_id == dag_id, TI.run_id == dag_run_id, TI.task_id == task_id, TI.map_index >= 0)
         .join(TI.dag_run)
     )
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
-    unfiltered_total_count = get_query_count(base_query, session=session)
+    unfiltered_total_count = get_query_count(query, session=session)
     if unfiltered_total_count == 0:
         dag = request.app.state.dag_bag.get_dag(dag_id)
         if not dag:
@@ -155,7 +157,7 @@ def get_mapped_task_instances(
             raise HTTPException(status.HTTP_404_NOT_FOUND, error_message)
 
     task_instance_select, total_entries = paginated_select(
-        select=base_query,
+        statement=query,
         filters=[
             logical_date_range,
             start_date_range,
@@ -235,6 +237,46 @@ def get_task_instance_dependencies(
 
 
 @task_instances_router.get(
+    task_instances_prefix + "/{task_id}/tries",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+)
+def get_task_instance_tries(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    session: Annotated[Session, Depends(get_session)],
+) -> TaskInstanceHistoryCollectionResponse:
+    """Get list of task instances history."""
+    map_index = -1
+
+    def _query(orm_object: Base) -> Select:
+        query = select(orm_object).where(
+            orm_object.dag_id == dag_id,
+            orm_object.run_id == dag_run_id,
+            orm_object.task_id == task_id,
+            orm_object.map_index == map_index,
+        )
+        return query
+
+    # Exclude TaskInstance with state UP_FOR_RETRY since they have been recorded in TaskInstanceHistory
+    tis = session.scalars(
+        _query(TI).where(or_(TI.state != TaskInstanceState.UP_FOR_RETRY, TI.state.is_(None)))
+    ).all()
+    task_instances = session.scalars(_query(TIH)).all() + tis
+
+    if not task_instances:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The Task Instance with dag_id: `{dag_id}`, run_id: `{dag_run_id}`, task_id: `{task_id}` and map_index: `{map_index}` was not found",
+        )
+
+    return TaskInstanceHistoryCollectionResponse(
+        task_instances=cast(list[TaskInstanceHistoryResponse], task_instances),
+        total_entries=len(task_instances),
+    )
+
+
+@task_instances_router.get(
     task_instances_prefix + "/{task_id}/{map_index}",
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
@@ -299,13 +341,13 @@ def get_task_instances(
     This endpoint allows specifying `~` as the dag_id, dag_run_id to retrieve Task Instances for all DAGs
     and DAG runs.
     """
-    base_query = select(TI).join(TI.dag_run)
+    query = select(TI).join(TI.dag_run)
 
     if dag_id != "~":
         dag = request.app.state.dag_bag.get_dag(dag_id)
         if not dag:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with dag_id: `{dag_id}` was not found")
-        base_query = base_query.where(TI.dag_id == dag_id)
+        query = query.where(TI.dag_id == dag_id)
 
     if dag_run_id != "~":
         dag_run = session.scalar(select(DagRun).filter_by(run_id=dag_run_id))
@@ -314,10 +356,10 @@ def get_task_instances(
                 status.HTTP_404_NOT_FOUND,
                 f"DagRun with run_id: `{dag_run_id}` was not found",
             )
-        base_query = base_query.where(TI.run_id == dag_run_id)
+        query = query.where(TI.run_id == dag_run_id)
 
     task_instance_select, total_entries = paginated_select(
-        select=base_query,
+        statement=query,
         filters=[
             logical_date,
             start_date_range,
@@ -384,9 +426,9 @@ def get_task_instances_batch(
         TI,
     ).set_value(body.order_by)
 
-    base_query = select(TI).join(TI.dag_run)
+    query = select(TI).join(TI.dag_run)
     task_instance_select, total_entries = paginated_select(
-        select=base_query,
+        statement=query,
         filters=[
             dag_ids,
             dag_run_ids,

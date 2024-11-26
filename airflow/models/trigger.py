@@ -39,7 +39,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
-    from airflow.serialization.pydantic.trigger import TriggerPydantic
     from airflow.triggers.base import BaseTrigger
 
 
@@ -89,7 +88,7 @@ class Trigger(Base):
     ) -> None:
         super().__init__()
         self.classpath = classpath
-        self.encrypted_kwargs = self._encrypt_kwargs(kwargs)
+        self.encrypted_kwargs = self.encrypt_kwargs(kwargs)
         self.created_date = created_date or timezone.utcnow()
 
     @property
@@ -100,10 +99,10 @@ class Trigger(Base):
     @kwargs.setter
     def kwargs(self, kwargs: dict[str, Any]) -> None:
         """Set the encrypted kwargs of the trigger."""
-        self.encrypted_kwargs = self._encrypt_kwargs(kwargs)
+        self.encrypted_kwargs = self.encrypt_kwargs(kwargs)
 
     @staticmethod
-    def _encrypt_kwargs(kwargs: dict[str, Any]) -> str:
+    def encrypt_kwargs(kwargs: dict[str, Any]) -> str:
         """Encrypt the kwargs of the trigger."""
         import json
 
@@ -141,8 +140,7 @@ class Trigger(Base):
 
     @classmethod
     @internal_api_call
-    @provide_session
-    def from_object(cls, trigger: BaseTrigger, session=NEW_SESSION) -> Trigger | TriggerPydantic:
+    def from_object(cls, trigger: BaseTrigger) -> Trigger:
         """Alternative constructor that creates a trigger row based directly off of a Trigger object."""
         classpath, kwargs = trigger.serialize()
         return cls(classpath=classpath, kwargs=kwargs)
