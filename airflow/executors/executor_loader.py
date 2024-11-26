@@ -52,8 +52,6 @@ _module_to_executors: dict[str, ExecutorName] = {}
 _classname_to_executors: dict[str, ExecutorName] = {}
 # Used to cache the computed ExecutorNames so that we don't need to read/parse config more than once
 _executor_names: list[ExecutorName] = []
-# Used to cache executors so that we don't construct executor objects unnecessarily
-_loaded_executors: dict[ExecutorName, BaseExecutor] = {}
 
 
 class ExecutorLoader:
@@ -166,22 +164,6 @@ class ExecutorLoader:
         return default_executor
 
     @classmethod
-    def set_default_executor(cls, executor: BaseExecutor) -> None:
-        """
-        Externally set an executor to be the default.
-
-        This is used in rare cases such as dag.test which allows, as a user convenience, to provide
-        the executor by cli/argument instead of Airflow configuration
-        """
-        exec_class_name = executor.__class__.__qualname__
-        exec_name = ExecutorName(f"{executor.__module__}.{exec_class_name}")
-
-        _module_to_executors[exec_name.module_path] = exec_name
-        _classname_to_executors[exec_class_name] = exec_name
-        _executor_names.insert(0, exec_name)
-        _loaded_executors[exec_name] = executor
-
-    @classmethod
     def init_executors(cls) -> list[BaseExecutor]:
         """Create a new instance of all configured executors if not cached already."""
         executor_names = cls._get_executor_names()
@@ -229,10 +211,6 @@ class ExecutorLoader:
         else:
             _executor_name = executor_name
 
-        # Check if the executor has been previously loaded. Avoid constructing a new object
-        if _executor_name in _loaded_executors:
-            return _loaded_executors[_executor_name]
-
         try:
             if _executor_name.alias == CELERY_KUBERNETES_EXECUTOR:
                 executor = cls.__load_celery_kubernetes_executor()
@@ -255,9 +233,6 @@ class ExecutorLoader:
         # instance. This makes it easier for the Scheduler, Backfill, etc to
         # know how we refer to this executor.
         executor.name = _executor_name
-        # Cache this executor by name here, so we can look it up later if it is
-        # requested again, and not have to construct a new object
-        _loaded_executors[_executor_name] = executor
 
         return executor
 
