@@ -39,7 +39,7 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     clear_db_serialized_dags,
 )
-from tests_common.test_utils.format_datetime import datetime_zulu_format, datetime_zulu_format_without_ms
+from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
 
 pytestmark = pytest.mark.db_test
 
@@ -198,13 +198,13 @@ class TestGetDagRuns:
         return {
             "dag_run_id": run.run_id,
             "dag_id": run.dag_id,
-            "logical_date": datetime_zulu_format_without_ms(run.logical_date),
-            "queued_at": datetime_zulu_format(run.queued_at) if run.queued_at else None,
-            "start_date": datetime_zulu_format_without_ms(run.start_date),
-            "end_date": datetime_zulu_format(run.end_date),
-            "data_interval_start": datetime_zulu_format_without_ms(run.data_interval_start),
-            "data_interval_end": datetime_zulu_format_without_ms(run.data_interval_end),
-            "last_scheduling_decision": datetime_zulu_format(run.last_scheduling_decision)
+            "logical_date": from_datetime_to_zulu_without_ms(run.logical_date),
+            "queued_at": from_datetime_to_zulu(run.queued_at) if run.queued_at else None,
+            "start_date": from_datetime_to_zulu_without_ms(run.start_date),
+            "end_date": from_datetime_to_zulu(run.end_date),
+            "data_interval_start": from_datetime_to_zulu_without_ms(run.data_interval_start),
+            "data_interval_end": from_datetime_to_zulu_without_ms(run.data_interval_end),
+            "last_scheduling_decision": from_datetime_to_zulu(run.last_scheduling_decision)
             if run.last_scheduling_decision
             else None,
             "run_type": run.run_type,
@@ -975,7 +975,7 @@ class TestGetDagRunAssetTriggerEvents:
         expected_response = {
             "asset_events": [
                 {
-                    "timestamp": datetime_zulu_format(event.timestamp),
+                    "timestamp": from_datetime_to_zulu(event.timestamp),
                     "asset_id": asset1_id,
                     "uri": asset1.uri,
                     "extra": {},
@@ -988,11 +988,11 @@ class TestGetDagRunAssetTriggerEvents:
                         {
                             "dag_id": "TEST_DAG_ID",
                             "run_id": "TEST_DAG_RUN_ID",
-                            "data_interval_end": datetime_zulu_format_without_ms(dr.data_interval_end),
-                            "data_interval_start": datetime_zulu_format_without_ms(dr.data_interval_start),
+                            "data_interval_end": from_datetime_to_zulu_without_ms(dr.data_interval_end),
+                            "data_interval_start": from_datetime_to_zulu_without_ms(dr.data_interval_start),
                             "end_date": None,
-                            "logical_date": datetime_zulu_format_without_ms(dr.logical_date),
-                            "start_date": datetime_zulu_format_without_ms(dr.start_date),
+                            "logical_date": from_datetime_to_zulu_without_ms(dr.logical_date),
+                            "start_date": from_datetime_to_zulu_without_ms(dr.start_date),
                             "state": "running",
                         }
                     ],
