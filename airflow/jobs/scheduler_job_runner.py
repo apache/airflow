@@ -26,7 +26,7 @@ import sys
 import time
 from collections import Counter, defaultdict, deque
 from collections.abc import Collection, Iterable, Iterator
-from contextlib import suppress
+from contextlib import ExitStack, suppress
 from datetime import timedelta
 from functools import lru_cache, partial
 from itertools import groupby
@@ -43,7 +43,7 @@ from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning, UnknownExecutorException
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
@@ -219,14 +219,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
         Stats.incr("scheduler_heartbeat", 1, 1)
 
-    def register_signals(self) -> None:
+    def register_signals(self) -> ExitStack:
         """Register signals that stop child processes."""
-        signal.signal(signal.SIGINT, self._exit_gracefully)
-        signal.signal(signal.SIGTERM, self._exit_gracefully)
-        signal.signal(signal.SIGUSR2, self._debug_dump)
+        resetter = ExitStack()
+        prev_int = signal.signal(signal.SIGINT, self._exit_gracefully)
+        prev_term = signal.signal(signal.SIGTERM, self._exit_gracefully)
+        prev_usr2 = signal.signal(signal.SIGUSR2, self._debug_dump)
+
+        resetter.callback(signal.signal, signal.SIGINT, prev_int)
+        resetter.callback(signal.signal, signal.SIGTERM, prev_term)
+        resetter.callback(signal.signal, signal.SIGUSR2, prev_usr2)
 
         if self._enable_tracemalloc:
-            signal.signal(signal.SIGUSR1, self._log_memory_usage)
+            prev = signal.signal(signal.SIGUSR1, self._log_memory_usage)
+            resetter.callback(signal.signal, signal.SIGUSR1, prev)
+
+        return resetter
 
     def _exit_gracefully(self, signum: int, frame: FrameType | None) -> None:
         """Clean up processor_agent to avoid leaving orphan processes."""
@@ -927,6 +935,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 async_mode=async_mode,
             )
 
+        reset_signals = self.register_signals()
         try:
             callback_sink: PipeCallbackSink | DatabaseCallbackSink
 
@@ -943,8 +952,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 executor.job_id = self.job.id
                 executor.callback_sink = callback_sink
                 executor.start()
-
-            self.register_signals()
 
             if self.processor_agent:
                 self.processor_agent.start()
@@ -981,6 +988,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self.processor_agent.end()
                 except Exception:
                     self.log.exception("Exception when executing DagFileProcessorAgent.end")
+
+            # Under normal execution, this doesn't metter, but by resetting signals it lets us run more things
+            # in the same process under testing without leaking global state
+            reset_signals.close()
             self.log.info("Exited execute loop")
         return None
 
@@ -2282,13 +2293,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         In this context, we don't want to fail if the executor does not exist. Catch the exception and
         log to the user.
         """
-        try:
-            return ExecutorLoader.load_executor(executor_name)
-        except UnknownExecutorException:
-            # This case should not happen unless some (as of now unknown) edge case occurs or direct DB
-            # modification, since the DAG parser will validate the tasks in the DAG and ensure the executor
-            # they request is available and if not, disallow the DAG to be scheduled.
-            # Keeping this exception handling because this is a critical issue if we do somehow find
-            # ourselves here and the user should get some feedback about that.
-            self.log.warning("Executor, %s, was not found but a Task was configured to use it", executor_name)
-            return None
+        if executor_name is None:
+            return self.job.executor
+
+        for e in self.job.executors:
+            if e.name.alias == executor_name or e.name.module_path == executor_name:
+                return e
+
+        # This case should not happen unless some (as of now unknown) edge case occurs or direct DB
+        # modification, since the DAG parser will validate the tasks in the DAG and ensure the executor
+        # they request is available and if not, disallow the DAG to be scheduled.
+        # Keeping this exception handling because this is a critical issue if we do somehow find
+        # ourselves here and the user should get some feedback about that.
+        self.log.warning("Executor, %s, was not found but a Task was configured to use it", executor_name)
+        return None

@@ -189,13 +189,12 @@ def _create_listener_and_task_instance() -> tuple[OpenLineageListener, TaskInsta
     """
 
     def mock_dag_id(dag_id, logical_date):
-        return f"{logical_date}.{dag_id}"
+        return f"{logical_date.isoformat()}.{dag_id}"
 
-    def mock_task_id(dag_id, task_id, try_number, logical_date):
-        return f"{logical_date}.{dag_id}.{task_id}.{try_number}"
+    def mock_task_id(dag_id, task_id, try_number, logical_date, map_index):
+        return f"{logical_date.isoformat()}.{dag_id}.{task_id}.{try_number}.{map_index}"
 
     listener = OpenLineageListener()
-    listener.log = mock.Mock()
     listener.extractor_manager = mock.Mock()
 
     metadata = mock.Mock()
@@ -216,22 +215,25 @@ def _create_listener_and_task_instance() -> tuple[OpenLineageListener, TaskInsta
     task_instance.dag_run.data_interval_start = None
     task_instance.dag_run.data_interval_end = None
     if AIRFLOW_V_3_0_PLUS:
-        task_instance.dag_run.logical_date = "2020-01-01T01:01:01"
+        task_instance.dag_run.logical_date = dt.datetime(2020, 1, 1, 1, 1, 1)
     else:
-        task_instance.dag_run.execution_date = "2020-01-01T01:01:01"
+        task_instance.dag_run.execution_date = dt.datetime(2020, 1, 1, 1, 1, 1)
     task_instance.task = mock.Mock()
     task_instance.task.task_id = "task_id"
     task_instance.task.dag = mock.Mock()
     task_instance.task.dag.dag_id = "dag_id"
     task_instance.task.dag.description = "Test DAG Description"
     task_instance.task.dag.owner = "Test Owner"
+    task_instance.task.inlets = []
+    task_instance.task.outlets = []
     task_instance.dag_id = "dag_id"
     task_instance.run_id = "dag_run_run_id"
     task_instance.try_number = 1
     task_instance.state = State.RUNNING
     task_instance.start_date = dt.datetime(2023, 1, 1, 13, 1, 1)
     task_instance.end_date = dt.datetime(2023, 1, 3, 13, 1, 1)
-    task_instance.logical_date = "2020-01-01T01:01:01"
+    task_instance.logical_date = dt.datetime(2020, 1, 1, 1, 1, 1)
+    task_instance.map_index = -1
     task_instance.next_method = None  # Ensure this is None to reach start_task
 
     return listener, task_instance
@@ -258,8 +260,8 @@ def test_adapter_start_task_is_called_with_proper_arguments(
     correctly passed to the adapter. It also verifies that custom facets and Airflow run facets are
     correctly retrieved and included in the call. This ensures that all relevant data, including custom
     and Airflow-specific metadata, is accurately conveyed to the adapter during the initialization of a task,
-    reflecting the comprehensive tracking of task execution contexts.
-    """
+    reflecting the comprehensive tracking of task execution contexts."""
+
     listener, task_instance = _create_listener_and_task_instance()
     mock_get_job_name.return_value = "job_name"
     mock_get_airflow_mapped_task_facet.return_value = {"mapped_facet": 1}
@@ -269,7 +271,7 @@ def test_adapter_start_task_is_called_with_proper_arguments(
 
     listener.on_task_instance_running(None, task_instance, None)
     listener.adapter.start_task.assert_called_once_with(
-        run_id="2020-01-01T01:01:01.dag_id.task_id.1",
+        run_id="2020-01-01T01:01:01.dag_id.task_id.1.-1",
         job_name="job_name",
         job_description="Test DAG Description",
         event_time="2023-01-01T13:01:01",
@@ -291,7 +293,6 @@ def test_adapter_start_task_is_called_with_proper_arguments(
 
 @mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
 @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
-@mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter")
 @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
 @mock.patch("airflow.providers.openlineage.plugins.listener.get_user_provided_run_facets")
 @mock.patch("airflow.providers.openlineage.plugins.listener.get_job_name")
@@ -300,7 +301,6 @@ def test_adapter_fail_task_is_called_with_proper_arguments(
     mock_get_job_name,
     mock_get_user_provided_run_facets,
     mock_get_airflow_run_facet,
-    mocked_adapter,
     mock_disabled,
     mock_debug_mode,
 ):
@@ -312,17 +312,9 @@ def test_adapter_fail_task_is_called_with_proper_arguments(
     failure events, thus confirming that the adapter's failure handling is functioning as expected.
     """
 
-    def mock_dag_id(dag_id, logical_date):
-        return f"{logical_date}.{dag_id}"
-
-    def mock_task_id(dag_id, task_id, try_number, logical_date):
-        return f"{logical_date}.{dag_id}.{task_id}.{try_number}"
-
     listener, task_instance = _create_listener_and_task_instance()
-    task_instance.logical_date = "2020-01-01T01:01:01"
+    task_instance.logical_date = dt.datetime(2020, 1, 1, 1, 1, 1)
     mock_get_job_name.return_value = "job_name"
-    mocked_adapter.build_dag_run_id.side_effect = mock_dag_id
-    mocked_adapter.build_task_instance_run_id.side_effect = mock_task_id
     mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
     mock_get_airflow_run_facet.return_value = {"airflow": {"task": "..."}}
     mock_disabled.return_value = False
@@ -339,7 +331,7 @@ def test_adapter_fail_task_is_called_with_proper_arguments(
         job_name="job_name",
         parent_job_name="dag_id",
         parent_run_id="2020-01-01T01:01:01.dag_id",
-        run_id="2020-01-01T01:01:01.dag_id.task_id.1",
+        run_id="2020-01-01T01:01:01.dag_id.task_id.1.-1",
         task=listener.extractor_manager.extract_metadata(),
         run_facets={
             "custom_user_facet": 2,
@@ -372,16 +364,8 @@ def test_adapter_complete_task_is_called_with_proper_arguments(
     during the task's lifecycle events.
     """
 
-    def mock_dag_id(dag_id, logical_date):
-        return f"{logical_date}.{dag_id}"
-
-    def mock_task_id(dag_id, task_id, try_number, logical_date):
-        return f"{logical_date}.{dag_id}.{task_id}.{try_number}"
-
     listener, task_instance = _create_listener_and_task_instance()
     mock_get_job_name.return_value = "job_name"
-    listener.adapter.build_dag_run_id.side_effect = mock_dag_id
-    listener.adapter.build_task_instance_run_id.side_effect = mock_task_id
     mock_get_user_provided_run_facets.return_value = {"custom_user_facet": 2}
     mock_get_airflow_run_facet.return_value = {"airflow": {"task": "..."}}
     mock_disabled.return_value = False
@@ -396,7 +380,7 @@ def test_adapter_complete_task_is_called_with_proper_arguments(
         job_name="job_name",
         parent_job_name="dag_id",
         parent_run_id="2020-01-01T01:01:01.dag_id",
-        run_id=f"2020-01-01T01:01:01.dag_id.task_id.{EXPECTED_TRY_NUMBER_1}",
+        run_id=f"2020-01-01T01:01:01.dag_id.task_id.{EXPECTED_TRY_NUMBER_1}.-1",
         task=listener.extractor_manager.extract_metadata(),
         run_facets={
             "custom_user_facet": 2,
@@ -419,8 +403,9 @@ def test_on_task_instance_running_correctly_calls_openlineage_adapter_run_id_met
     listener.adapter.build_task_instance_run_id.assert_called_once_with(
         dag_id="dag_id",
         task_id="task_id",
-        logical_date="2020-01-01T01:01:01",
+        logical_date=dt.datetime(2020, 1, 1, 1, 1, 1),
         try_number=1,
+        map_index=-1,
     )
 
 
@@ -441,8 +426,9 @@ def test_on_task_instance_failed_correctly_calls_openlineage_adapter_run_id_meth
     listener.adapter.build_task_instance_run_id.assert_called_once_with(
         dag_id="dag_id",
         task_id="task_id",
-        logical_date="2020-01-01T01:01:01",
+        logical_date=dt.datetime(2020, 1, 1, 1, 1, 1),
         try_number=1,
+        map_index=-1,
     )
 
 
@@ -459,8 +445,9 @@ def test_on_task_instance_success_correctly_calls_openlineage_adapter_run_id_met
     listener.adapter.build_task_instance_run_id.assert_called_once_with(
         dag_id="dag_id",
         task_id="task_id",
-        logical_date="2020-01-01T01:01:01",
+        logical_date=dt.datetime(2020, 1, 1, 1, 1, 1),
         try_number=EXPECTED_TRY_NUMBER_1,
+        map_index=-1,
     )
 
 
@@ -701,8 +688,8 @@ class TestOpenLineageSelectiveEnable:
             run_id=run_id,
             **triggered_by_kwargs,
         )  # type: ignore
-        self.task_instance_1 = TaskInstance(self.task_1, run_id=run_id)
-        self.task_instance_2 = TaskInstance(self.task_2, run_id=run_id)
+        self.task_instance_1 = TaskInstance(self.task_1, run_id=run_id, map_index=-1)
+        self.task_instance_2 = TaskInstance(self.task_2, run_id=run_id, map_index=-1)
         self.task_instance_1.dag_run = self.task_instance_2.dag_run = self.dagrun
 
     @pytest.mark.parametrize(

@@ -558,6 +558,7 @@ def set_mapped_task_instance_note(
     return set_task_instance_note(dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
 @action_logging
 @provide_session
@@ -780,6 +781,7 @@ def get_mapped_task_instance_try_details(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_task_instance_tries(

@@ -25,7 +25,7 @@ import { useConfig } from "src/queries/useConfig";
 import { Nav } from "./Nav";
 
 export const BaseLayout = ({ children }: PropsWithChildren) => {
-  const instanceName = useConfig("webserver", "instance_name");
+  const instanceName = useConfig("instance_name");
   // const instanceNameHasMarkup =
   //   webserverConfig?.options.find(
   //     ({ key }) => key === "instance_name_has_markup",
