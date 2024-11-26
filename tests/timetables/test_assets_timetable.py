@@ -23,8 +23,8 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from pendulum import DateTime
 
-from airflow.assets import Asset, AssetAlias
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.timetables.assets import AssetOrTimeSchedule
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import AssetTriggeredTimetable
@@ -134,7 +134,7 @@ def test_serialization(asset_timetable: AssetOrTimeSchedule, monkeypatch: Any) -
         "timetable": "mock_serialized_timetable",
         "asset_condition": {
             "__type": "asset_all",
-            "objects": [{"__type": "asset", "uri": "test_asset", "extra": {}}],
+            "objects": [{"__type": "asset", "uri": "test_asset", "name": "test_asset", "extra": {}}],
         },
     }
 
@@ -152,7 +152,7 @@ def test_deserialization(monkeypatch: Any) -> None:
         "timetable": "mock_serialized_timetable",
         "asset_condition": {
             "__type": "asset_all",
-            "objects": [{"__type": "asset", "uri": "test_asset", "extra": None}],
+            "objects": [{"__type": "asset", "name": "test_asset", "uri": "test_asset", "extra": None}],
         },
     }
     deserialized = AssetOrTimeSchedule.deserialize(mock_serialized_data)

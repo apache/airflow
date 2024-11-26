@@ -23,6 +23,7 @@ from typing import cast
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from starlette.requests import Request
 from starlette.responses import HTMLResponse
 from starlette.staticfiles import StaticFiles
@@ -113,4 +114,17 @@ def init_config(app: FastAPI) -> None:
             allow_headers=allow_headers,
         )
 
+    # Compress responses greater than 1kB with optimal compression level as 5
+    # with level ranging from 1 to 9 with 1 (fastest, least compression)
+    # and 9 (slowest, most compression)
+    app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=5)
+
     app.state.secret_key = conf.get("webserver", "secret_key")
+
+
+def init_error_handlers(app: FastAPI) -> None:
+    from airflow.api_fastapi.common.exceptions import DatabaseErrorHandlers
+
+    # register database error handlers
+    for handler in DatabaseErrorHandlers:
+        app.add_exception_handler(handler.exception_cls, handler.exception_handler)

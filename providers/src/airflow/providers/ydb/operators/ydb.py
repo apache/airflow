@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Iterable, Mapping
+from collections.abc import Iterable, Mapping
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
@@ -50,35 +50,5 @@ class YDBExecuteQueryOperator(SQLExecuteQueryOperator):
         if is_ddl:
             hook_params = kwargs.pop("hook_params", {})
             kwargs["hook_params"] = {"is_ddl": is_ddl, **hook_params}
-
-        super().__init__(conn_id=ydb_conn_id, sql=sql, parameters=parameters, **kwargs)
-
-
-class YDBScanQueryOperator(SQLExecuteQueryOperator):
-    """
-    Executes scan query in a specific YDB database.
-
-    :param sql: the SQL code to be executed as a single string, or
-        a list of str (sql statements), or a reference to a template file.
-        Template references are recognized by str ending in '.sql'
-    :param ydb_conn_id: The :ref:`ydb conn id <howto/connection:ydb>`
-        reference to a specific YDB cluster and database.
-    :param parameters: (optional) the parameters to render the SQL query with.
-    """
-
-    ui_color = "#ededed"
-
-    def __init__(
-        self,
-        sql: str | list[str],
-        ydb_conn_id: str = "ydb_default",
-        parameters: Mapping | Iterable | None = None,
-        **kwargs,
-    ) -> None:
-        if parameters is not None:
-            raise AirflowException("parameters are not supported yet")
-
-        hook_params = kwargs.pop("hook_params", {})
-        kwargs["hook_params"] = {"use_scan_query": True, **hook_params}
 
         super().__init__(conn_id=ydb_conn_id, sql=sql, parameters=parameters, **kwargs)

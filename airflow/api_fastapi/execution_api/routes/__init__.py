@@ -17,9 +17,11 @@
 from __future__ import annotations
 
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.execution_api.routes.health import health_router
-from airflow.api_fastapi.execution_api.routes.task_instance import ti_router
+from airflow.api_fastapi.execution_api.routes import connections, health, task_instances, variables, xcoms
 
 execution_api_router = AirflowRouter()
-execution_api_router.include_router(health_router)
-execution_api_router.include_router(ti_router)
+execution_api_router.include_router(connections.router, prefix="/connections", tags=["Connections"])
+execution_api_router.include_router(health.router, tags=["Health"])
+execution_api_router.include_router(task_instances.router, prefix="/task-instances", tags=["Task Instances"])
+execution_api_router.include_router(variables.router, prefix="/variables", tags=["Variables"])
+execution_api_router.include_router(xcoms.router, prefix="/xcoms", tags=["XComs"])

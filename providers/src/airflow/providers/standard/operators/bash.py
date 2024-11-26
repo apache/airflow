@@ -21,8 +21,9 @@ import os
 import shutil
 import tempfile
 import warnings
+from collections.abc import Container, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Container, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, cast
 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.baseoperator import BaseOperator
@@ -97,7 +98,7 @@ class BashOperator(BaseOperator):
 
         .. code-block:: python
 
-            bash_command = "set -e; python3 script.py '{{ next_execution_date }}'"
+            bash_command = "set -e; python3 script.py '{{ data_interval_end }}'"
 
     .. note::
 

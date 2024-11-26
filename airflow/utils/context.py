@@ -23,31 +23,26 @@ import contextlib
 import copy
 import functools
 import warnings
+from collections.abc import Container, ItemsView, Iterator, KeysView, Mapping, MutableMapping, ValuesView
 from typing import (
     TYPE_CHECKING,
     Any,
-    Container,
-    ItemsView,
-    Iterator,
-    KeysView,
-    Mapping,
-    MutableMapping,
     SupportsIndex,
-    ValuesView,
 )
 
 import attrs
 import lazy_object_proxy
 from sqlalchemy import select
 
-from airflow.assets import (
+from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel, _fetch_active_assets_by_name
+from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
     AssetAliasEvent,
-    extract_event_key,
+    AssetRef,
 )
-from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
+from airflow.sdk.definitions.asset.metadata import extract_event_key
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.types import NOTSET
 
@@ -70,7 +65,6 @@ KNOWN_CONTEXT_KEYS: set[str] = {
     "data_interval_start",
     "ds",
     "ds_nodash",
-    "execution_date",
     "expanded_ti_count",
     "exception",
     "inlets",
@@ -78,18 +72,11 @@ KNOWN_CONTEXT_KEYS: set[str] = {
     "logical_date",
     "macros",
     "map_index_template",
-    "next_ds",
-    "next_ds_nodash",
-    "next_execution_date",
     "outlets",
     "outlet_events",
     "params",
     "prev_data_interval_start_success",
     "prev_data_interval_end_success",
-    "prev_ds",
-    "prev_ds_nodash",
-    "prev_execution_date",
-    "prev_execution_date_success",
     "prev_start_date_success",
     "prev_end_date_success",
     "reason",
@@ -100,16 +87,12 @@ KNOWN_CONTEXT_KEYS: set[str] = {
     "test_mode",
     "templates_dict",
     "ti",
-    "tomorrow_ds",
-    "tomorrow_ds_nodash",
     "triggering_asset_events",
     "ts",
     "ts_nodash",
     "ts_nodash_with_tz",
     "try_number",
     "var",
-    "yesterday_ds",
-    "yesterday_ds_nodash",
 }
 
 
@@ -257,11 +240,18 @@ class InletEventsAccessors(Mapping[str, LazyAssetEventSelectSequence]):
         self._assets = {}
         self._asset_aliases = {}
 
+        _asset_ref_names: list[str] = []
         for inlet in inlets:
             if isinstance(inlet, Asset):
-                self._assets[inlet.uri] = inlet
+                self._assets[inlet.name] = inlet
             elif isinstance(inlet, AssetAlias):
                 self._asset_aliases[inlet.name] = inlet
+            elif isinstance(inlet, AssetRef):
+                _asset_ref_names.append(inlet.name)
+
+        if _asset_ref_names:
+            for asset_name, asset in _fetch_active_assets_by_name(_asset_ref_names, self._session).items():
+                self._assets[asset_name] = asset
 
     def __iter__(self) -> Iterator[str]:
         return iter(self._inlets)
@@ -272,7 +262,7 @@ class InletEventsAccessors(Mapping[str, LazyAssetEventSelectSequence]):
     def __getitem__(self, key: int | str | Asset | AssetAlias) -> LazyAssetEventSelectSequence:
         if isinstance(key, int):  # Support index access; it's easier for trivial cases.
             obj = self._inlets[key]
-            if not isinstance(obj, (Asset, AssetAlias)):
+            if not isinstance(obj, (Asset, AssetAlias, AssetRef)):
                 raise IndexError(key)
         else:
             obj = key
@@ -281,10 +271,13 @@ class InletEventsAccessors(Mapping[str, LazyAssetEventSelectSequence]):
             asset_alias = self._asset_aliases[obj.name]
             join_clause = AssetEvent.source_aliases
             where_clause = AssetAliasModel.name == asset_alias.name
-        elif isinstance(obj, (Asset, str)):
+        elif isinstance(obj, (Asset, AssetRef)):
+            join_clause = AssetEvent.asset
+            where_clause = AssetModel.name == self._assets[obj.name].name
+        elif isinstance(obj, str):
             asset = self._assets[extract_event_key(obj)]
             join_clause = AssetEvent.asset
-            where_clause = AssetModel.uri == asset.uri
+            where_clause = AssetModel.name == asset.name
         else:
             raise ValueError(key)
 
@@ -319,20 +312,7 @@ class Context(MutableMapping[str, Any]):
     (and only when) deprecated context keys are accessed.
     """
 
-    _DEPRECATION_REPLACEMENTS: dict[str, list[str]] = {
-        "execution_date": ["data_interval_start", "logical_date"],
-        "next_ds": ["{{ data_interval_end | ds }}"],
-        "next_ds_nodash": ["{{ data_interval_end | ds_nodash }}"],
-        "next_execution_date": ["data_interval_end"],
-        "prev_ds": [],
-        "prev_ds_nodash": [],
-        "prev_execution_date": [],
-        "prev_execution_date_success": ["prev_data_interval_start_success"],
-        "tomorrow_ds": [],
-        "tomorrow_ds_nodash": [],
-        "yesterday_ds": [],
-        "yesterday_ds_nodash": [],
-    }
+    _DEPRECATION_REPLACEMENTS: dict[str, list[str]] = {}
 
     def __init__(self, context: MutableMapping[str, Any] | None = None, **kwargs: Any) -> None:
         self._context: MutableMapping[str, Any] = context or {}

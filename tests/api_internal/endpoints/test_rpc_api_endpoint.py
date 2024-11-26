@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Generator
+from collections.abc import Generator
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
@@ -101,7 +102,7 @@ class TestRpcApiEndpoint:
         from airflow.api_internal.endpoints.rpc_api_endpoint import initialize_method_map
 
         method_map = initialize_method_map()
-        assert len(method_map) > 70
+        assert len(method_map) > 69
 
     @pytest.mark.parametrize(
         "input_params, method_result, result_cmp_func, method_params",

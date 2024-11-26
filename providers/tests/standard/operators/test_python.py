@@ -27,12 +27,13 @@ import sys
 import tempfile
 import warnings
 from collections import namedtuple
+from collections.abc import Generator
 from datetime import date, datetime, timedelta, timezone as _timezone
 from functools import partial
 from importlib.util import find_spec
 from subprocess import CalledProcessError
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -72,12 +73,8 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, DagRunType
 
 from tests_common.test_utils import AIRFLOW_MAIN_FOLDER
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS, AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_runs
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
-
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
@@ -96,6 +93,10 @@ CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
 CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
 
 USE_AIRFLOW_CONTEXT_MARKER = pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is not enabled")
+
+AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE = (
+    r"The `use_airflow_context=True` is only supported in Airflow 3.0.0 and later."
+)
 
 
 class BasePythonTest:
@@ -144,15 +145,13 @@ class BasePythonTest:
         return kwargs
 
     def create_dag_run(self) -> DagRun:
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         return self.dag_maker.create_dagrun(
             state=DagRunState.RUNNING,
             start_date=self.dag_maker.start_date,
             session=self.dag_maker.session,
-            execution_date=self.default_date,
+            logical_date=self.default_date,
             run_type=DagRunType.MANUAL,
             data_interval=(self.default_date, self.default_date),
-            **triggered_by_kwargs,  # type: ignore
         )
 
     def create_ti(self, fn, **kwargs) -> TI:
@@ -163,7 +162,7 @@ class BasePythonTest:
             **self.default_kwargs(**kwargs),
             dag_id=self.dag_id,
             task_id=self.task_id,
-            execution_date=self.default_date,
+            logical_date=self.default_date,
         )
 
     def run_as_operator(self, fn, **kwargs):
@@ -509,7 +508,7 @@ class TestBranchOperator(BasePythonTest):
         ti = self.create_ti(f)
         with pytest.raises(
             AirflowException,
-            match="'branch_task_ids' expected all task IDs are strings.",
+            match=r"'branch_task_ids'.*task.*",
         ):
             ti.run()
 
@@ -518,7 +517,9 @@ class TestBranchOperator(BasePythonTest):
             return "some_task_id"
 
         ti = self.create_ti(f)
-        with pytest.raises(AirflowException, match="Invalid tasks found: {'some_task_id'}"):
+        with pytest.raises(
+            AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}.|'branch_task_ids'.*task.*"
+        ):
             ti.run()
 
     @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, can not run in isolation mode
@@ -898,14 +899,19 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         # These are intentionally NOT serialized into the virtual environment:
         # * Variables pointing to the task instance itself.
         # * Variables that are accessor instances.
-        intentionally_excluded_context_keys = [
+        intentionally_excluded_context_keys = {
             "task_instance",
             "ti",
             "var",  # Accessor for Variable; var->json and var->value.
             "conn",  # Accessor for Connection.
-            "inlet_events",  # Accessor for inlet AssetEvent.
-            "outlet_events",  # Accessor for outlet AssetEvent.
-        ]
+        }
+        if AIRFLOW_V_2_9_PLUS:
+            intentionally_excluded_context_keys.add("map_index_template")
+        if AIRFLOW_V_2_10_PLUS:
+            intentionally_excluded_context_keys |= {
+                "inlet_events",
+                "outlet_events",
+            }
 
         ti = create_task_instance(dag_id=self.dag_id, task_id=self.task_id, schedule=None)
         context = ti.get_template_context()
@@ -916,6 +922,25 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             *PythonVirtualenvOperator.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS,
             *intentionally_excluded_context_keys,
         }
+        if AIRFLOW_V_3_0_PLUS:
+            declared_keys -= {
+                "execution_date",
+                "next_ds",
+                "next_ds_nodash",
+                "prev_ds",
+                "prev_ds_nodash",
+                "tomorrow_ds",
+                "tomorrow_ds_nodash",
+                "triggering_dataset_events",
+                "yesterday_ds",
+                "yesterday_ds_nodash",
+                "next_execution_date",
+                "prev_execution_date",
+                "prev_execution_date_success",
+            }
+        else:
+            declared_keys.remove("triggering_asset_events")
+
         assert set(context) == declared_keys
 
     @pytest.mark.parametrize(
@@ -1035,13 +1060,17 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
             context = get_current_context()
             if not isinstance(context, Context):  # type: ignore[misc]
-                error_msg = f"Expected Context, got {type(context)}"
+                error_msg = f"Expected Context, got {type(context)}:{context!r}"
                 raise TypeError(error_msg)
 
             return []
 
-        ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
-        assert ti.state == TaskInstanceState.SUCCESS
+        if AIRFLOW_V_3_0_PLUS:
+            ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
+            assert ti.state == TaskInstanceState.SUCCESS
+        else:
+            with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE):
+                self.run_as_task(f, return_ti=True, use_airflow_context=True)
 
     @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_not_found_error(self):
@@ -1051,21 +1080,32 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             get_current_context()
             return []
 
-        with pytest.raises(
-            AirflowException,
-            match="Current context was requested but no context was found! "
-            "Are you running within an airflow task?",
-        ):
-            self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=False)
+        if AIRFLOW_V_2_9_PLUS:
+            with pytest.raises(
+                AirflowException,
+                match="Current context was requested but no context was found! "
+                "Are you running within an airflow task?",
+            ):
+                self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=False)
+        else:
+            with pytest.raises(
+                AirflowException,
+                match="Current context was requested but no context was found! "
+                "Are you running within an airflow task?",
+            ):
+                self.run_as_task(f, return_ti=True, use_airflow_context=False)
 
     @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_airflow_not_found_error(self):
         airflow_flag: dict[str, bool] = {"expect_airflow": False}
-        error_msg = "use_airflow_context is set to True, but expect_airflow is set to False."
+        error_msg = r"The `use_airflow_context` parameter is set to True, but expect_airflow is set to False."
 
         if not issubclass(self.opcls, ExternalPythonOperator):
             airflow_flag["system_site_packages"] = False
-            error_msg = "use_airflow_context is set to True, but expect_airflow and system_site_packages are set to False."
+            error_msg = (
+                r"The `use_airflow_context` parameter is set to True, but "
+                r"expect_airflow and system_site_packages are set to False."
+            )
 
         def f():
             from airflow.providers.standard.operators.python import get_current_context
@@ -1073,10 +1113,14 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             get_current_context()
             return []
 
-        with pytest.raises(AirflowException, match=error_msg):
-            self.run_as_task(
-                f, return_ti=True, multiple_outputs=False, use_airflow_context=True, **airflow_flag
-            )
+        if AIRFLOW_V_3_0_PLUS:
+            with pytest.raises(AirflowException, match=error_msg):
+                self.run_as_task(
+                    f, return_ti=True, multiple_outputs=False, use_airflow_context=True, **airflow_flag
+                )
+        else:
+            with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE):
+                self.run_as_task(f, return_ti=True, use_airflow_context=True, **airflow_flag)
 
     @USE_AIRFLOW_CONTEXT_MARKER
     def test_use_airflow_context_touch_other_variables(self):
@@ -1086,13 +1130,17 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
 
             context = get_current_context()
             if not isinstance(context, Context):  # type: ignore[misc]
-                error_msg = f"Expected Context, got {type(context)}"
+                error_msg = f"Expected Context, got {type(context)}:{context!r}"
                 raise TypeError(error_msg)
 
             return []
 
-        ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
-        assert ti.state == TaskInstanceState.SUCCESS
+        if AIRFLOW_V_3_0_PLUS:
+            ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
+            assert ti.state == TaskInstanceState.SUCCESS
+        else:
+            with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE):
+                self.run_as_task(f, return_ti=True, use_airflow_context=True)
 
     @pytest.mark.skipif(_ENABLE_AIP_44, reason="AIP-44 is enabled")
     def test_use_airflow_context_without_aip_44_error(self):
@@ -1103,8 +1151,12 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             return []
 
         error_msg = "`get_current_context()` needs to be used with AIP-44 enabled."
-        with pytest.raises(AirflowException, match=re.escape(error_msg)):
-            self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
+        if AIRFLOW_V_3_0_PLUS:
+            with pytest.raises(AirflowException, match=re.escape(error_msg)):
+                self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
+        else:
+            with pytest.raises(AirflowException, match=re.escape(AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE)):
+                self.run_as_task(f, return_ti=True, use_airflow_context=True)
 
 
 venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
@@ -1397,27 +1449,16 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             # basic
             ds_nodash,
             inlets,
-            next_ds,
-            next_ds_nodash,
             outlets,
             params,
-            prev_ds,
-            prev_ds_nodash,
             run_id,
             task_instance_key_str,
             test_mode,
-            tomorrow_ds,
-            tomorrow_ds_nodash,
             ts,
             ts_nodash,
             ts_nodash_with_tz,
-            yesterday_ds,
-            yesterday_ds_nodash,
             # pendulum-specific
-            execution_date,
-            next_execution_date,
-            prev_execution_date,
-            prev_execution_date_success,
+            logical_date,
             prev_start_date_success,
             prev_end_date_success,
             # airflow-specific
@@ -1446,26 +1487,15 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             # basic
             ds_nodash,
             inlets,
-            next_ds,
-            next_ds_nodash,
             outlets,
-            prev_ds,
-            prev_ds_nodash,
             run_id,
             task_instance_key_str,
             test_mode,
-            tomorrow_ds,
-            tomorrow_ds_nodash,
             ts,
             ts_nodash,
             ts_nodash_with_tz,
-            yesterday_ds,
-            yesterday_ds_nodash,
             # pendulum-specific
-            execution_date,
-            next_execution_date,
-            prev_execution_date,
-            prev_execution_date_success,
+            logical_date,
             prev_start_date_success,
             prev_end_date_success,
             # other
@@ -1490,21 +1520,13 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             # basic
             ds_nodash,
             inlets,
-            next_ds,
-            next_ds_nodash,
             outlets,
-            prev_ds,
-            prev_ds_nodash,
             run_id,
             task_instance_key_str,
             test_mode,
-            tomorrow_ds,
-            tomorrow_ds_nodash,
             ts,
             ts_nodash,
             ts_nodash_with_tz,
-            yesterday_ds,
-            yesterday_ds_nodash,
             # other
             **context,
         ):
@@ -1520,21 +1542,32 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
             context = get_current_context()
             if not isinstance(context, Context):  # type: ignore[misc]
-                error_msg = f"Expected Context, got {type(context)}"
+                error_msg = f"Expected Context, got {type(context)}:{context!r}"
                 raise TypeError(error_msg)
 
             return []
 
-        ti = self.run_as_task(
-            f,
-            return_ti=True,
-            multiple_outputs=False,
-            use_airflow_context=True,
-            session=session,
-            expect_airflow=False,
-            system_site_packages=True,
-        )
-        assert ti.state == TaskInstanceState.SUCCESS
+        if AIRFLOW_V_3_0_PLUS:
+            ti = self.run_as_task(
+                f,
+                return_ti=True,
+                multiple_outputs=False,
+                use_airflow_context=True,
+                session=session,
+                expect_airflow=False,
+                system_site_packages=True,
+            )
+            assert ti.state == TaskInstanceState.SUCCESS
+        else:
+            with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE):
+                self.run_as_task(
+                    f,
+                    return_ti=True,
+                    use_airflow_context=True,
+                    session=session,
+                    expect_airflow=False,
+                    system_site_packages=True,
+                )
 
 
 # when venv tests are run in parallel to other test they create new processes and this might take
@@ -1627,21 +1660,25 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             else:
                 raise RuntimeError
 
-        with pytest.raises(AirflowException, match=r"Invalid tasks found: {\((True|False), 'bool'\)}"):
+        with pytest.raises(
+            AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}.|'branch_task_ids'.*task.*"
+        ):
             self.run_as_task(f, op_args=[0, 1], op_kwargs={"c": True})
 
     def test_return_false(self):
         def f():
             return False
 
-        with pytest.raises(AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}."):
+        with pytest.raises(
+            AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}.|'branch_task_ids'.*task.*"
+        ):
             self.run_as_task(f)
 
     def test_context(self):
         def f(templates_dict):
             return templates_dict["ds"]
 
-        with pytest.raises(AirflowException, match="Invalid tasks found:"):
+        with pytest.raises(AirflowException, match="Invalid tasks found:|'branch_task_ids'.*task.*"):
             self.run_as_task(f, templates_dict={"ds": "{{ ds }}"})
 
     def test_environment_variables(self):
@@ -1652,7 +1689,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         with pytest.raises(
             AirflowException,
-            match=r"'branch_task_ids' must contain only valid task_ids. Invalid tasks found: {'ABCDE'}",
+            match=r"'branch_task_ids'.*task.*",
         ):
             self.run_as_task(f, env_vars={"MY_ENV_VAR": "ABCDE"})
 
@@ -1666,7 +1703,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         with pytest.raises(
             AirflowException,
-            match=r"'branch_task_ids' must contain only valid task_ids. Invalid tasks found: {'QWERT'}",
+            match=r"'branch_task_ids'.*task.*",
         ):
             self.run_as_task(f, inherit_env=True)
 
@@ -1691,7 +1728,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         with pytest.raises(
             AirflowException,
-            match=r"'branch_task_ids' must contain only valid task_ids. Invalid tasks found: {'EFGHI'}",
+            match=r"'branch_task_ids'.*task.*",
         ):
             self.run_as_task(f, env_vars={"MY_ENV_VAR": "EFGHI"}, inherit_env=True)
 
@@ -1706,7 +1743,9 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         def f():
             return False
 
-        with pytest.raises(AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}."):
+        with pytest.raises(
+            AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}.|'branch_task_ids'.*task.*"
+        ):
             self.run_as_task(f, do_not_use_caching=True)
 
     def test_with_dag_run(self):
@@ -1827,7 +1866,7 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         ti = self.create_ti(f)
         with pytest.raises(
             AirflowException,
-            match="'branch_task_ids' expected all task IDs are strings.",
+            match=r"'branch_task_ids'.*task.*",
         ):
             ti.run()
 
@@ -1836,7 +1875,9 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             return "some_task_id"
 
         ti = self.create_ti(f)
-        with pytest.raises(AirflowException, match="Invalid tasks found: {'some_task_id'}"):
+        with pytest.raises(
+            AirflowException, match=r"Invalid tasks found: {\(False, 'bool'\)}.|'branch_task_ids'.*task.*"
+        ):
             ti.run()
 
 
@@ -1866,21 +1907,32 @@ class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator)
 
             context = get_current_context()
             if not isinstance(context, Context):  # type: ignore[misc]
-                error_msg = f"Expected Context, got {type(context)}"
+                error_msg = f"Expected Context, got {type(context)}:{context!r}"
                 raise TypeError(error_msg)
 
             return []
 
-        ti = self.run_as_task(
-            f,
-            return_ti=True,
-            multiple_outputs=False,
-            use_airflow_context=True,
-            session=session,
-            expect_airflow=False,
-            system_site_packages=True,
-        )
-        assert ti.state == TaskInstanceState.SUCCESS
+        if AIRFLOW_V_3_0_PLUS:
+            ti = self.run_as_task(
+                f,
+                return_ti=True,
+                multiple_outputs=False,
+                use_airflow_context=True,
+                session=session,
+                expect_airflow=False,
+                system_site_packages=True,
+            )
+            assert ti.state == TaskInstanceState.SUCCESS
+        else:
+            with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE):
+                self.run_as_task(
+                    f,
+                    return_ti=True,
+                    use_airflow_context=True,
+                    session=session,
+                    expect_airflow=False,
+                    system_site_packages=True,
+                )
 
 
 # when venv tests are run in parallel to other test they create new processes and this might take

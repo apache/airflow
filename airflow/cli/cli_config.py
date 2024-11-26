@@ -24,7 +24,8 @@ import argparse
 import json
 import os
 import textwrap
-from typing import Callable, Iterable, NamedTuple, Union
+from collections.abc import Iterable
+from typing import Callable, NamedTuple, Union
 
 import lazy_object_proxy
 
@@ -144,17 +145,17 @@ def string_lower_type(val):
 # Shared
 ARG_DAG_ID = Arg(("dag_id",), help="The id of the dag")
 ARG_TASK_ID = Arg(("task_id",), help="The id of the task")
-ARG_EXECUTION_DATE = Arg(("execution_date",), help="The execution date of the DAG", type=parsedate)
-ARG_EXECUTION_DATE_OPTIONAL = Arg(
-    ("execution_date",), nargs="?", help="The execution date of the DAG (optional)", type=parsedate
+ARG_LOGICAL_DATE = Arg(("logical_date",), help="The logical date of the DAG", type=parsedate)
+ARG_LOGICAL_DATE_OPTIONAL = Arg(
+    ("logical_date",), nargs="?", help="The logical date of the DAG (optional)", type=parsedate
 )
-ARG_EXECUTION_DATE_OR_RUN_ID = Arg(
-    ("execution_date_or_run_id",), help="The execution_date of the DAG or run_id of the DAGRun"
+ARG_LOGICAL_DATE_OR_RUN_ID = Arg(
+    ("logical_date_or_run_id",), help="The logical date of the DAG or run_id of the DAGRun"
 )
-ARG_EXECUTION_DATE_OR_RUN_ID_OPTIONAL = Arg(
-    ("execution_date_or_run_id",),
+ARG_LOGICAL_DATE_OR_RUN_ID_OPTIONAL = Arg(
+    ("logical_date_or_run_id",),
     nargs="?",
-    help="The execution_date of the DAG or run_id of the DAGRun (optional)",
+    help="The logical date of the DAG or run_id of the DAGRun (optional)",
 )
 ARG_TASK_REGEX = Arg(("-t", "--task-regex"), help="The regex to filter specific task_ids (optional)")
 ARG_SUBDIR = Arg(
@@ -261,7 +262,7 @@ ARG_NUM_EXECUTIONS = Arg(
     ("-n", "--num-executions"),
     default=1,
     type=positive_int(allow_zero=False),
-    help="The number of next execution datetimes to show",
+    help="The number of next logical date times to show",
 )
 
 # misc
@@ -410,7 +411,7 @@ ARG_IMGCAT = Arg(("--imgcat",), help="Displays graph using the imgcat tool.", ac
 # trigger_dag
 ARG_RUN_ID = Arg(("-r", "--run-id"), help="Helps to identify this run")
 ARG_CONF = Arg(("-c", "--conf"), help="JSON string that gets pickled into the DagRun's conf attribute")
-ARG_EXEC_DATE = Arg(("-e", "--exec-date"), help="The execution date of the DAG", type=parsedate)
+ARG_EXEC_DATE = Arg(("-e", "--exec-date"), help="The logical date of the DAG", type=parsedate)
 ARG_REPLACE_MICRO = Arg(
     ("--no-replace-microseconds",),
     help="whether microseconds should be zeroed",
@@ -966,13 +967,6 @@ ARG_CAPACITY = Arg(
     help="The maximum number of triggers that a Triggerer will run at one time.",
 )
 
-# reserialize
-ARG_CLEAR_ONLY = Arg(
-    ("--clear-only",),
-    action="store_true",
-    help="If passed, serialized DAGs will be cleared but not reserialized.",
-)
-
 ARG_DAG_LIST_COLUMNS = Arg(
     ("--columns",),
     type=string_list_type,
@@ -1089,13 +1083,13 @@ DAGS_COMMANDS = (
         name="state",
         help="Get the status of a dag run",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_state"),
-        args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_LOGICAL_DATE, ARG_SUBDIR, ARG_VERBOSE),
     ),
     ActionCommand(
         name="next-execution",
-        help="Get the next execution datetimes of a DAG",
+        help="Get the next logical datetimes of a DAG",
         description=(
-            "Get the next execution datetimes of a DAG. It returns one execution unless the "
+            "Get the next logical datetimes of a DAG. It returns one execution unless the "
             "num-executions option is given"
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_next_execution"),
@@ -1208,7 +1202,7 @@ DAGS_COMMANDS = (
         name="test",
         help="Execute one single DagRun",
         description=(
-            "Execute one single DagRun for a given DAG and execution date.\n"
+            "Execute one single DagRun for a given DAG and logical date.\n"
             "\n"
             "The --imgcat-dagrun option only works in iTerm.\n"
             "\n"
@@ -1221,15 +1215,15 @@ DAGS_COMMANDS = (
             "see: https://www.graphviz.org/doc/info/output.html\n"
             "\n"
             "If you want to create a PNG file then you should execute the following command:\n"
-            "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.png\n"
+            "airflow dags test <DAG_ID> <LOGICAL_DATE> --save-dagrun output.png\n"
             "\n"
             "If you want to create a DOT file then you should execute the following command:\n"
-            "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.dot\n"
+            "airflow dags test <DAG_ID> <LOGICAL_DATE> --save-dagrun output.dot\n"
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_test"),
         args=(
             ARG_DAG_ID,
-            ARG_EXECUTION_DATE_OPTIONAL,
+            ARG_LOGICAL_DATE_OPTIONAL,
             ARG_CONF,
             ARG_SUBDIR,
             ARG_SHOW_DAGRUN,
@@ -1242,15 +1236,14 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name="reserialize",
-        help="Reserialize all DAGs by parsing the DagBag files",
+        help="Reserialize DAGs by parsing the DagBag files",
         description=(
-            "Drop all serialized dags from the metadata DB. This will cause all DAGs to be reserialized "
-            "from the DagBag folder. This can be helpful if your serialized DAGs get out of sync with the "
-            "version of Airflow that you are running."
+            "Reserialize DAGs in the metadata DB. This can be "
+            "particularly useful if your serialized DAGs become out of sync with the Airflow "
+            "version you are using."
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_reserialize"),
         args=(
-            ARG_CLEAR_ONLY,
             ARG_SUBDIR,
             ARG_VERBOSE,
         ),
@@ -1289,7 +1282,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_RUN_ID,
+            ARG_LOGICAL_DATE_OR_RUN_ID,
             ARG_SUBDIR,
             ARG_VERBOSE,
             ARG_MAP_INDEX,
@@ -1304,7 +1297,7 @@ TASKS_COMMANDS = (
             "and then run by an executor."
         ),
         func=lazy_load_command("airflow.cli.commands.task_command.task_failed_deps"),
-        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE_OR_RUN_ID, ARG_SUBDIR, ARG_MAP_INDEX, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_LOGICAL_DATE_OR_RUN_ID, ARG_SUBDIR, ARG_MAP_INDEX, ARG_VERBOSE),
     ),
     ActionCommand(
         name="render",
@@ -1313,7 +1306,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_RUN_ID,
+            ARG_LOGICAL_DATE_OR_RUN_ID,
             ARG_SUBDIR,
             ARG_VERBOSE,
             ARG_MAP_INDEX,
@@ -1326,7 +1319,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_RUN_ID,
+            ARG_LOGICAL_DATE_OR_RUN_ID,
             ARG_SUBDIR,
             ARG_MARK_SUCCESS,
             ARG_FORCE,
@@ -1355,7 +1348,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_RUN_ID_OPTIONAL,
+            ARG_LOGICAL_DATE_OR_RUN_ID_OPTIONAL,
             ARG_SUBDIR,
             ARG_DRY_RUN,
             ARG_TASK_PARAMS,
@@ -1369,7 +1362,7 @@ TASKS_COMMANDS = (
         name="states-for-dag-run",
         help="Get the status of all task instances in a dag run",
         func=lazy_load_command("airflow.cli.commands.task_command.task_states_for_dag_run"),
-        args=(ARG_DAG_ID, ARG_EXECUTION_DATE_OR_RUN_ID, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_LOGICAL_DATE_OR_RUN_ID, ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
 POOLS_COMMANDS = (
@@ -1817,7 +1810,7 @@ KUBERNETES_COMMANDS = (
         help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
         "launching into a cluster",
         func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.generate_pod_yaml"),
-        args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_LOGICAL_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH, ARG_VERBOSE),
     ),
 )
 

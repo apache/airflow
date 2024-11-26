@@ -30,11 +30,13 @@ from airflow.exceptions import TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger
+from airflow.providers.amazon.aws.utils.waiter import WAITER_POLICY_NAME_MAPPING, WaitPolicy
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
 from providers.tests.amazon.aws.utils.test_waiter import assert_expected_waiter_type
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 TASK_ID = "test_task"
 
@@ -96,12 +98,20 @@ class TestEmrCreateJobFlowOperator:
     @pytest.mark.db_test
     def test_render_template(self, session, clean_dags_and_dagruns):
         self.operator.job_flow_overrides = self._config
-        dag_run = DagRun(
-            dag_id=self.operator.dag_id,
-            execution_date=DEFAULT_DATE,
-            run_id="test",
-            run_type=DagRunType.MANUAL,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=self.operator.dag_id,
+                logical_date=DEFAULT_DATE,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=self.operator.dag_id,
+                execution_date=DEFAULT_DATE,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
         ti = TaskInstance(task=self.operator)
         ti.dag_run = dag_run
         session.add(ti)
@@ -134,12 +144,20 @@ class TestEmrCreateJobFlowOperator:
         self.operator.job_flow_overrides = "job.j2.json"
         self.operator.params = {"releaseLabel": "5.11.0"}
 
-        dag_run = DagRun(
-            dag_id=self.operator.dag_id,
-            execution_date=DEFAULT_DATE,
-            run_id="test",
-            run_type=DagRunType.MANUAL,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            dag_run = DagRun(
+                dag_id=self.operator.dag_id,
+                logical_date=DEFAULT_DATE,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
+        else:
+            dag_run = DagRun(
+                dag_id=self.operator.dag_id,
+                execution_date=DEFAULT_DATE,
+                run_id="test",
+                run_type=DagRunType.MANUAL,
+            )
         ti = TaskInstance(task=self.operator)
         ti.dag_run = dag_run
         session.add(ti)
@@ -176,17 +194,24 @@ class TestEmrCreateJobFlowOperator:
         mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
         assert self.operator.execute(self.mock_context) == JOB_FLOW_ID
 
+    @pytest.mark.parametrize(
+        "wait_policy",
+        [
+            pytest.param(WaitPolicy.WAIT_FOR_COMPLETION, id="with wait for completion"),
+            pytest.param(WaitPolicy.WAIT_FOR_STEPS_COMPLETION, id="with wait for steps completion policy"),
+        ],
+    )
     @mock.patch("botocore.waiter.get_service_module_name", return_value="emr")
     @mock.patch.object(Waiter, "wait")
-    def test_execute_with_wait(self, mock_waiter, _, mocked_hook_client):
+    def test_execute_with_wait_policy(self, mock_waiter, _, mocked_hook_client, wait_policy: WaitPolicy):
         mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
 
         # Mock out the emr_client creator
-        self.operator.wait_for_completion = True
+        self.operator.wait_policy = wait_policy
 
         assert self.operator.execute(self.mock_context) == JOB_FLOW_ID
         mock_waiter.assert_called_once_with(mock.ANY, ClusterId=JOB_FLOW_ID, WaiterConfig=mock.ANY)
-        assert_expected_waiter_type(mock_waiter, "job_flow_waiting")
+        assert_expected_waiter_type(mock_waiter, WAITER_POLICY_NAME_MAPPING[wait_policy])
 
     def test_create_job_flow_deferrable(self, mocked_hook_client):
         """

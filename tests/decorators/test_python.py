@@ -16,9 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 import sys
+import typing
 from collections import namedtuple
 from datetime import date, timedelta
-from typing import TYPE_CHECKING, Dict, Tuple, Union
+from typing import Union
 
 import pytest
 
@@ -49,7 +50,7 @@ if AIRFLOW_V_3_0_PLUS:
 pytestmark = pytest.mark.db_test
 
 
-if TYPE_CHECKING:
+if typing.TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -85,8 +86,8 @@ class TestAirflowTaskDecorator(BasePythonTest):
                     reason="PEP 585 is implemented in Python 3.9",
                 ),
             ),
-            "Dict",
-            "Dict[str, int]",
+            "typing.Dict",
+            "dict[str, int]",
         ],
     )
     def test_infer_multiple_outputs_using_dict_typing(self, resolve, annotation):
@@ -137,20 +138,20 @@ class TestAirflowTaskDecorator(BasePythonTest):
         assert t1().operator.multiple_outputs is False
 
     def test_infer_multiple_outputs_forward_annotation(self):
-        if TYPE_CHECKING:
+        if typing.TYPE_CHECKING:
 
             class FakeTypeCheckingOnlyClass: ...
 
             class UnresolveableName: ...
 
         @task_decorator
-        def t1(x: "FakeTypeCheckingOnlyClass", y: int) -> Dict[int, int]:  # type: ignore[empty-body]
+        def t1(x: "FakeTypeCheckingOnlyClass", y: int) -> dict[int, int]:  # type: ignore[empty-body]
             ...
 
         assert t1(5, 5).operator.multiple_outputs is True
 
         @task_decorator
-        def t2(x: "FakeTypeCheckingOnlyClass", y: int) -> "Dict[int, int]":  # type: ignore[empty-body]
+        def t2(x: "FakeTypeCheckingOnlyClass", y: int) -> "dict[int, int]":  # type: ignore[empty-body]
             ...
 
         assert t2(5, 5).operator.multiple_outputs is True
@@ -176,7 +177,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
     def test_infer_multiple_outputs_using_other_typing(self):
         @task_decorator
-        def identity_tuple(x: int, y: int) -> Tuple[int, int]:
+        def identity_tuple(x: int, y: int) -> tuple[int, int]:
             return x, y
 
         assert identity_tuple(5, 5).operator.multiple_outputs is False
@@ -195,7 +196,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         # The following cases ensure invoking ``@task_decorator.__call__()`` yields the correct inference.
         @task_decorator()
-        def identity_tuple_with_decorator_call(x: int, y: int) -> Tuple[int, int]:
+        def identity_tuple_with_decorator_call(x: int, y: int) -> tuple[int, int]:
             return x, y
 
         assert identity_tuple_with_decorator_call(5, 5).operator.multiple_outputs is False
@@ -215,7 +216,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_manual_multiple_outputs_false_with_typings(self):
         @task_decorator(multiple_outputs=False)
-        def identity2(x: int, y: int) -> Tuple[int, int]:
+        def identity2(x: int, y: int) -> tuple[int, int]:
             return x, y
 
         with self.dag_non_serialized:
@@ -234,7 +235,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_multiple_outputs_ignore_typing(self):
         @task_decorator
-        def identity_tuple(x: int, y: int) -> Tuple[int, int]:
+        def identity_tuple(x: int, y: int) -> tuple[int, int]:
             return x, y
 
         with self.dag_non_serialized:
@@ -458,7 +459,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         dr = self.dag_non_serialized.create_dagrun(
             run_id=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=self.dag_non_serialized.timetable.infer_manual_data_interval(
                 run_after=DEFAULT_DATE
@@ -523,7 +524,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         dr = self.dag_non_serialized.create_dagrun(
             run_id=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=self.dag_non_serialized.timetable.infer_manual_data_interval(
                 run_after=DEFAULT_DATE
@@ -985,7 +986,7 @@ def test_no_warnings(reset_logging_config, caplog):
 
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_task_decorator_asset(dag_maker, session):
-    from airflow.assets import Asset
+    from airflow.sdk.definitions.asset import Asset
 
     result = None
     uri = "s3://bucket/name"

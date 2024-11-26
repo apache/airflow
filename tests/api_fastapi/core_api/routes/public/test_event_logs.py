@@ -24,6 +24,7 @@ from airflow.models.log import Log
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.db import clear_db_logs, clear_db_runs
+from tests_common.test_utils.format_datetime import datetime_zulu_format, datetime_zulu_format_without_ms
 
 pytestmark = pytest.mark.db_test
 
@@ -68,7 +69,7 @@ class TestEventLogsEndpoint:
             dag_id=DAG_ID,
             task_id=TASK_ID,
             run_id=DAG_RUN_ID,
-            execution_date=DAG_EXECUTION_DATE,
+            logical_date=DAG_EXECUTION_DATE,
         )
         normal_log = Log(
             event=EVENT_NORMAL,
@@ -160,15 +161,15 @@ class TestGetEventLog(TestEventLogsEndpoint):
 
         expected_json = {
             "event_log_id": event_log_id,
-            "when": event_log.dttm.isoformat().replace("+00:00", "Z") if event_log.dttm else None,
+            "when": datetime_zulu_format(event_log.dttm) if event_log.dttm else None,
             "dag_id": expected_body.get("dag_id"),
             "task_id": expected_body.get("task_id"),
             "run_id": expected_body.get("run_id"),
             "map_index": event_log.map_index,
             "try_number": event_log.try_number,
             "event": expected_body.get("event"),
-            "logical_date": event_log.execution_date.isoformat().replace("+00:00", "Z")
-            if event_log.execution_date
+            "logical_date": datetime_zulu_format_without_ms(event_log.logical_date)
+            if event_log.logical_date
             else None,
             "owner": expected_body.get("owner"),
             "extra": expected_body.get("extra"),
@@ -267,7 +268,7 @@ class TestGetEventLogs(TestEventLogsEndpoint):
                 [EVENT_WITH_OWNER_AND_TASK_INSTANCE, TASK_INSTANCE_EVENT, EVENT_WITH_OWNER, EVENT_NORMAL],
             ),
             (
-                {"order_by": "execution_date"},
+                {"order_by": "logical_date"},
                 200,
                 4,
                 [TASK_INSTANCE_EVENT, EVENT_WITH_OWNER_AND_TASK_INSTANCE, EVENT_NORMAL, EVENT_WITH_OWNER],

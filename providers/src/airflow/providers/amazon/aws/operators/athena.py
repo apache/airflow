@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 from airflow.configuration import conf
@@ -311,7 +312,9 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
             }
             fields = [
                 SchemaDatasetFacetFields(
-                    name=column["Name"], type=column["Type"], description=column["Comment"]
+                    name=column["Name"],
+                    type=column["Type"],
+                    description=column.get("Comment"),
                 )
                 for column in table_metadata["TableMetadata"]["Columns"]
             ]

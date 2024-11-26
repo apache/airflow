@@ -24,12 +24,12 @@
 requires = [
     "GitPython==3.1.43",
     "gitdb==4.0.11",
-    "hatchling==1.25.0",
-    "packaging==24.1",
+    "hatchling==1.26.3",
+    "packaging==24.2",
     "pathspec==0.12.1",
     "pluggy==1.5.0",
     "smmap==5.0.1",
-    "tomli==2.0.2; python_version < '3.11'",
+    "tomli==2.1.0; python_version < '3.11'",
     "trove-classifiers==2024.10.21.16",
 ]
 build-backend = "hatchling.build"
@@ -155,37 +155,6 @@ Homepage = "https://airflow.apache.org/"
 Twitter = "https://twitter.com/ApacheAirflow"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
-[tool.hatch.envs.default]
-python = "3.9"
-platforms = ["linux", "macos"]
-description = "Default environment with Python 3.9 for maximum compatibility"
-features = []
-
-[tool.hatch.envs.airflow-39]
-python = "3.9"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.9. No devel installed."
-features = []
-
-[tool.hatch.envs.airflow-310]
-python = "3.10"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.10. No devel installed."
-features = []
-
-[tool.hatch.envs.airflow-311]
-python = "3.11"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.11. No devel installed"
-features = []
-
-[tool.hatch.envs.airflow-312]
-python = "3.12"
-platforms = ["linux", "macos"]
-description = "Environment with Python 3.12. No devel installed"
-features = []
-
-
 [tool.hatch.version]
 path = "airflow/__init__.py"
 
@@ -212,7 +181,6 @@ artifacts = [
     "/generated/",
 ]
 
-
 [tool.hatch.build.targets.wheel]
 include = [
     "/airflow",
@@ -225,12 +193,12 @@ artifacts = [
 ## black settings ##
 [tool.black]
 line-length = 110
-target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+target-version = ['py39', 'py310', 'py311', 'py312']
 
 
 ## ruff settings ##
 [tool.ruff]
-target-version = "py38"
+target-version = "py39"
 line-length = 110
 extend-exclude = [
     ".eggs",
@@ -248,7 +216,7 @@ extend-select = [
     "UP", # Pyupgrade
     "ASYNC", # subset of flake8-async rules
     "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
-    "TCH", # Rules around TYPE_CHECKING blocks
+    "TC", # Rules around TYPE_CHECKING blocks
     "G", # flake8-logging-format rules
     "LOG", # flake8-logging rules, most of them autofixable
     "PT", # flake8-pytest-style rules
@@ -292,8 +260,7 @@ ignore = [
     "D203",
     "D212", # Conflicts with D213.  Both can not be enabled.
     "E731", # Do not assign a lambda expression, use a def
-    "TCH003", # Do not move imports from stdlib to TYPE_CHECKING block
-    "PT004", # Fixture does not return anything, add leading underscore
+    "TC003", # Do not move imports from stdlib to TYPE_CHECKING block
     "PT006", # Wrong type of names in @pytest.mark.parametrize
     "PT007", # Wrong type of values in @pytest.mark.parametrize
     "PT013", # silly rule prohibiting e.g. `from pytest import param`
@@ -345,10 +312,11 @@ section-order = [
 testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 
 [tool.ruff.lint.extend-per-file-ignores]
-"airflow/__init__.py" = ["F401", "TCH004", "I002"]
-"airflow/models/__init__.py" = ["F401", "TCH004"]
+"airflow/__init__.py" = ["F401", "TC004", "I002"]
+"airflow/models/__init__.py" = ["F401", "TC004"]
 "airflow/models/sqla_models.py" = ["F401"]
 "providers/src/airflow/providers/__init__.py" = ["I002"]
+"providers/src/airflow/__init__.py" = ["I002"]
 
 # The test_python.py is needed because adding __future__.annotations breaks runtime checks that are
 # needed for the test to work
@@ -357,12 +325,12 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 # The Pydantic representations of SqlAlchemy Models are not parsed well with Pydantic
 # when __future__.annotations is used so we need to skip them from upgrading
 # Pydantic also require models to be imported during execution
-"airflow/serialization/pydantic/*.py" = ["I002", "UP007", "TCH001"]
+"airflow/serialization/pydantic/*.py" = ["I002", "UP007", "TC001"]
 
 # Failing to detect types and functions used in `Annotated[...]` syntax as required at runtime.
 # Annotated is central for FastAPI dependency injection, skipping rules for FastAPI folders.
-"airflow/api_fastapi/*" = ["TCH001", "TCH002"]
-"tests/api_fastapi/*" = ["TCH001", "TCH002"]
+"airflow/api_fastapi/*" = ["TC001", "TC002"]
+"tests/api_fastapi/*" = ["T001", "TC002"]
 
 # Ignore pydoc style from these
 "*.pyi" = ["D"]

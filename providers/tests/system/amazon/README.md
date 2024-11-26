@@ -21,7 +21,7 @@
 
 ## Tests structure
 
-All AWS-related system tests are located inside `tests/system/providers/amazon/aws/`.
+All AWS-related system tests are located inside `providers/tests/system/amazon/aws/`.
 In this directory you will find test files in the form of Example DAGs, one DAG per file.
 Each test should be self-contained but in the case where additional resources are required,
 they can be found in the `resources` directory on the same level as tests or noted in the
@@ -30,15 +30,12 @@ test's docstring.  Each test file should start with prefix `example_*`.
 Example directory structure:
 
 ```
-tests/system/providers/amazon/aws
-├── resources
-│   ├── example_athena_data.csv
-│   └── example_sagemaker_constants.py
-├── example_athena.py
-├── example_batch.py
-.
-├── example_step_functions.py
-└── *
+providers/tests/system/amazon/aws/tests
+                                      ├── example_athena.py
+                                      ├── example_batch.py
+                                      .
+                                      ├── example_step_functions.py
+                                      └── *
 ```
 
 ## Initial configuration
@@ -52,7 +49,7 @@ When manually running tests using pytest, you can define them inline with the co
 For example:
 
 ```commandline
-NAME_OF_ENV_VAR=value pytest --system amazon tests/system/providers/amazon/aws/example_test.py
+NAME_OF_ENV_VAR=value pytest --system tests/system/providers/amazon/aws/example_test.py
 ```
 
 ### Required environment variables

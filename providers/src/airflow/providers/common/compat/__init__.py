@@ -23,17 +23,21 @@
 #
 from __future__ import annotations
 
-import packaging.version
+from packaging.version import Version
 
-from airflow import __version__ as airflow_version
+from airflow import __version__ as AIRFLOW_VERSION
 
 __all__ = ["__version__"]
 
-__version__ = "1.2.1"
+__version__ = "1.2.2"
 
-if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
-    "2.8.0"
-):
+
+AIRFLOW_V_3_0_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("3.0.0")
+AIRFLOW_V_2_10_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
+AIRFLOW_V_2_9_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.9.0")
+AIRFLOW_V_2_8_PLUS = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.8.0")
+
+if not AIRFLOW_V_2_8_PLUS:
     raise RuntimeError(
         f"The package `apache-airflow-providers-common-compat:{__version__}` needs Apache Airflow 2.8.0+"
     )

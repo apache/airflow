@@ -16,10 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import (
     get_session,
@@ -31,11 +32,11 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.import_error import (
+from airflow.api_fastapi.core_api.datamodels.import_error import (
     ImportErrorCollectionResponse,
     ImportErrorResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models.errors import ParseImportError
 
 import_error_router = AirflowRouter(tags=["Import Error"], prefix="/importErrors")
@@ -43,30 +44,27 @@ import_error_router = AirflowRouter(tags=["Import Error"], prefix="/importErrors
 
 @import_error_router.get(
     "/{import_error_id}",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
-async def get_import_error(
+def get_import_error(
     import_error_id: int,
     session: Annotated[Session, Depends(get_session)],
 ) -> ImportErrorResponse:
     """Get an import error."""
     error = session.scalar(select(ParseImportError).where(ParseImportError.id == import_error_id))
     if error is None:
-        raise HTTPException(404, f"The ImportError with import_error_id: `{import_error_id}` was not found")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"The ImportError with import_error_id: `{import_error_id}` was not found",
+        )
 
-    return ImportErrorResponse.model_validate(
-        error,
-        from_attributes=True,
-    )
+    return error
 
 
 @import_error_router.get(
-    "/",
-    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
+    "",
 )
-async def get_import_errors(
+def get_import_errors(
     limit: QueryLimit,
     offset: QueryOffset,
     order_by: Annotated[
@@ -88,18 +86,15 @@ async def get_import_errors(
 ) -> ImportErrorCollectionResponse:
     """Get all import errors."""
     import_errors_select, total_entries = paginated_select(
-        select(ParseImportError),
-        [],
-        order_by,
-        offset,
-        limit,
-        session,
+        statement=select(ParseImportError),
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
-    import_errors = session.scalars(import_errors_select).all()
+    import_errors = session.scalars(import_errors_select)
 
     return ImportErrorCollectionResponse(
-        import_errors=[
-            ImportErrorResponse.model_validate(error, from_attributes=True) for error in import_errors
-        ],
+        import_errors=import_errors,
         total_entries=total_entries,
     )

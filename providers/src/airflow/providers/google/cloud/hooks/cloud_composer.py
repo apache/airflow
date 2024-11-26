@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import TYPE_CHECKING, MutableSequence, Sequence
+from collections.abc import MutableSequence, Sequence
+from typing import TYPE_CHECKING
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -56,14 +57,6 @@ class CloudComposerHook(GoogleBaseHook):
     """Hook for Google Cloud Composer APIs."""
 
     client_options = ClientOptions(api_endpoint="composer.googleapis.com:443")
-
-    def __init__(self, **kwargs):
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
-        super().__init__(**kwargs)
 
     def get_environment_client(self) -> EnvironmentsClient:
         """Retrieve client library object that allow access Environments service."""
@@ -424,14 +417,6 @@ class CloudComposerHook(GoogleBaseHook):
 
 class CloudComposerAsyncHook(GoogleBaseHook):
     """Hook for Google Cloud Composer async APIs."""
-
-    def __init__(self, **kwargs):
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
-        super().__init__(**kwargs)
 
     client_options = ClientOptions(api_endpoint="composer.googleapis.com:443")
 

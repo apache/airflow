@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import asyncio
 import os
+from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import Any, AsyncIterator
+from typing import Any
 
 from aiohttp import ClientSession
 
@@ -122,7 +123,7 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
     :param target_date: context datetime to compare with blob object updated time
     :param poke_interval: polling period in seconds to check for file/folder
     :param google_cloud_conn_id: reference to the Google Connection
-    :param hook_params: dict object that has delegate_to and impersonation_chain
+    :param hook_params: dict object that has impersonation_chain
     """
 
     def __init__(

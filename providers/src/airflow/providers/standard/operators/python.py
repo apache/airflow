@@ -28,16 +28,14 @@ import textwrap
 import types
 import warnings
 from abc import ABCMeta, abstractmethod
-from collections.abc import Container
+from collections.abc import Collection, Container, Iterable, Mapping, Sequence
 from functools import cache
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple, cast
 
 import lazy_object_proxy
-from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
@@ -51,19 +49,17 @@ from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.models.variable import Variable
 from airflow.operators.branch import BranchMixIn
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
+from airflow.providers.standard.utils.version_references import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 from airflow.settings import _ENABLE_AIP_44
 from airflow.typing_compat import Literal
 from airflow.utils import hashlib_wrapper
-from airflow.utils.context import context_copy_partial, context_get_outlet_events, context_merge
+from airflow.utils.context import context_copy_partial, context_merge
 from airflow.utils.file import get_unique_dag_module_name
-from airflow.utils.operator_helpers import ExecutionCallableRunner, KeywordParameters
-from airflow.utils.process_utils import execute_in_subprocess
+from airflow.utils.operator_helpers import KeywordParameters
+from airflow.utils.process_utils import execute_in_subprocess, execute_in_subprocess_with_kwargs
 from airflow.utils.session import create_session
 
 log = logging.getLogger(__name__)
-
-AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 if TYPE_CHECKING:
     from pendulum.datetime import DateTime
@@ -118,13 +114,13 @@ class PythonOperator(BaseOperator):
     function. This set of kwargs correspond exactly to what you can use in your jinja templates.
     For this to work, you need to define ``**kwargs`` in your function header, or you can add directly the
     keyword arguments you would like to get - for example with the below code your callable will get
-    the values of ``ti`` and ``next_ds`` context variables.
+    the values of ``ti`` context variables.
 
     With explicit arguments:
 
     .. code-block:: python
 
-       def my_python_callable(ti, next_ds):
+       def my_python_callable(ti):
            pass
 
     With kwargs:
@@ -133,7 +129,6 @@ class PythonOperator(BaseOperator):
 
        def my_python_callable(**kwargs):
            ti = kwargs["ti"]
-           next_ds = kwargs["next_ds"]
 
 
     :param python_callable: A reference to an object that is callable
@@ -187,7 +182,15 @@ class PythonOperator(BaseOperator):
     def execute(self, context: Context) -> Any:
         context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
         self.op_kwargs = self.determine_kwargs(context)
-        self._asset_events = context_get_outlet_events(context)
+
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.utils.context import context_get_outlet_events
+
+            self._asset_events = context_get_outlet_events(context)
+        elif AIRFLOW_V_2_10_PLUS:
+            from airflow.utils.context import context_get_outlet_events
+
+            self._dataset_events = context_get_outlet_events(context)
 
         return_value = self.execute_callable()
         if self.show_return_value_in_logs:
@@ -206,7 +209,15 @@ class PythonOperator(BaseOperator):
 
         :return: the return value of the call.
         """
-        runner = ExecutionCallableRunner(self.python_callable, self._asset_events, logger=self.log)
+        try:
+            from airflow.utils.operator_helpers import ExecutionCallableRunner
+
+            asset_events = self._asset_events if AIRFLOW_V_3_0_PLUS else self._dataset_events
+
+            runner = ExecutionCallableRunner(self.python_callable, asset_events, logger=self.log)
+        except ImportError:
+            # Handle Pre Airflow 3.10 case where ExecutionCallableRunner was not available
+            return self.python_callable(*self.op_args, **self.op_kwargs)
         return runner.run(*self.op_args, **self.op_kwargs)
 
 
@@ -298,7 +309,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
             self.skip(
                 dag_run=dag_run,
                 tasks=to_skip,
-                execution_date=cast("DateTime", dag_run.execution_date),  # type: ignore[call-arg]
+                execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg, union-attr]
                 map_index=context["ti"].map_index,
             )
 
@@ -348,35 +359,36 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "ds_nodash",
         "expanded_ti_count",
         "inlets",
-        "map_index_template",
-        "next_ds",
-        "next_ds_nodash",
         "outlets",
-        "prev_ds",
-        "prev_ds_nodash",
         "run_id",
         "task_instance_key_str",
         "test_mode",
-        "tomorrow_ds",
-        "tomorrow_ds_nodash",
         "ts",
         "ts_nodash",
         "ts_nodash_with_tz",
+        # The following should be removed when Airflow 2 support is dropped.
+        "next_ds",
+        "next_ds_nodash",
+        "prev_ds",
+        "prev_ds_nodash",
+        "tomorrow_ds",
+        "tomorrow_ds_nodash",
         "yesterday_ds",
         "yesterday_ds_nodash",
     }
     PENDULUM_SERIALIZABLE_CONTEXT_KEYS = {
         "data_interval_end",
         "data_interval_start",
-        "execution_date",
         "logical_date",
-        "next_execution_date",
         "prev_data_interval_end_success",
         "prev_data_interval_start_success",
-        "prev_execution_date",
-        "prev_execution_date_success",
         "prev_start_date_success",
         "prev_end_date_success",
+        # The following should be removed when Airflow 2 support is dropped.
+        "execution_date",
+        "next_execution_date",
+        "prev_execution_date",
+        "prev_execution_date_success",
     }
 
     AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {
@@ -386,7 +398,9 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "dag_run",
         "task",
         "params",
-        "triggering_asset_events" if AIRFLOW_V_3_0_PLUS else "triggering_dataset_events",
+        "triggering_asset_events",
+        # The following should be removed when Airflow 2 support is dropped.
+        "triggering_dataset_events",
     }
 
     def __init__(
@@ -551,18 +565,25 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 env_vars.update(self.env_vars)
 
             try:
-                execute_in_subprocess(
-                    cmd=[
-                        os.fspath(python_path),
-                        os.fspath(script_path),
-                        os.fspath(input_path),
-                        os.fspath(output_path),
-                        os.fspath(string_args_path),
-                        os.fspath(termination_log_path),
-                        os.fspath(airflow_context_path),
-                    ],
-                    env=env_vars,
-                )
+                cmd: list[str] = [
+                    os.fspath(python_path),
+                    os.fspath(script_path),
+                    os.fspath(input_path),
+                    os.fspath(output_path),
+                    os.fspath(string_args_path),
+                    os.fspath(termination_log_path),
+                    os.fspath(airflow_context_path),
+                ]
+                if AIRFLOW_V_2_10_PLUS:
+                    execute_in_subprocess(
+                        cmd=cmd,
+                        env=env_vars,
+                    )
+                else:
+                    execute_in_subprocess_with_kwargs(
+                        cmd=cmd,
+                        env=env_vars,
+                    )
             except subprocess.CalledProcessError as e:
                 if e.returncode in self.skip_on_exit_code:
                     raise AirflowSkipException(f"Process exited with code {e.returncode}. Skipping.")
@@ -697,10 +718,15 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             raise AirflowException(
                 "Passing non-string types (e.g. int or float) as python_version not supported"
             )
-
+        if use_airflow_context and not AIRFLOW_V_3_0_PLUS:
+            raise AirflowException(
+                "The `use_airflow_context=True` is only supported in Airflow 3.0.0 and later."
+            )
         if use_airflow_context and (not expect_airflow and not system_site_packages):
-            error_msg = "use_airflow_context is set to True, but expect_airflow and system_site_packages are set to False."
-            raise AirflowException(error_msg)
+            raise AirflowException(
+                "The `use_airflow_context` parameter is set to True, but "
+                "expect_airflow and system_site_packages are set to False."
+            )
         if not requirements:
             self.requirements: list[str] = []
         elif isinstance(requirements, str):
@@ -976,9 +1002,14 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
     ):
         if not python:
             raise ValueError("Python Path must be defined in ExternalPythonOperator")
+        if use_airflow_context and not AIRFLOW_V_3_0_PLUS:
+            raise AirflowException(
+                "The `use_airflow_context=True` is only supported in Airflow 3.0.0 and later."
+            )
         if use_airflow_context and not expect_airflow:
-            error_msg = "use_airflow_context is set to True, but expect_airflow is set to False."
-            raise AirflowException(error_msg)
+            raise AirflowException(
+                "The `use_airflow_context` parameter is set to True, but expect_airflow is set to False."
+            )
         self.python = python
         self.expect_pendulum = expect_pendulum
         super().__init__(

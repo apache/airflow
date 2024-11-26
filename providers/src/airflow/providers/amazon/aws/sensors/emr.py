@@ -17,9 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Iterable, Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import (

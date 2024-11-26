@@ -17,9 +17,10 @@
 
 from __future__ import annotations
 
-from fastapi import Depends
+from typing import Annotated
+
+from fastapi import Depends, status
 from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.common.db.common import (
     get_session,
@@ -28,28 +29,33 @@ from airflow.api_fastapi.common.db.common import (
 from airflow.api_fastapi.common.db.dag_runs import dagruns_select_with_state_count
 from airflow.api_fastapi.common.parameters import QueryDagIdsFilter
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.dag_stats import (
+from airflow.api_fastapi.core_api.datamodels.dag_stats import (
     DagStatsCollectionResponse,
     DagStatsResponse,
     DagStatsStateResponse,
 )
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.utils.state import DagRunState
 
 dag_stats_router = AirflowRouter(tags=["DagStats"], prefix="/dagStats")
 
 
 @dag_stats_router.get(
-    "/",
-    responses=create_openapi_http_exception_doc([400, 401, 403, 404]),
+    "",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+        ]
+    ),
 )
-async def get_dag_stats(
+def get_dag_stats(
     session: Annotated[Session, Depends(get_session)],
     dag_ids: QueryDagIdsFilter,
 ) -> DagStatsCollectionResponse:
     """Get Dag statistics."""
     dagruns_select, _ = paginated_select(
-        base_select=dagruns_select_with_state_count,
+        statement=dagruns_select_with_state_count,
         filters=[dag_ids],
         session=session,
         return_total_entries=False,

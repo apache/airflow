@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.10.2"
+defaultAirflowTag: "2.10.3"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.10.2"
+airflowVersion: "2.10.3"
 
 # Images
 images:
@@ -324,6 +324,7 @@ rbac:
 
 # Airflow executor
 # One of: LocalExecutor, LocalKubernetesExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
+# Specify executors in a prioritized list to leverage multiple execution environments as needed.
 executor: "CeleryExecutor"
 
 # If this is true and using LocalExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the scheduler's
@@ -655,7 +656,8 @@ workers:
       SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
       FROM task_instance
       WHERE (state='running' OR state='queued')
-      {{- if eq .Values.executor "CeleryKubernetesExecutor" }}
+      {{- if or (contains "CeleryKubernetesExecutor" .Values.executor)
+      (contains "KubernetesExecutor" .Values.executor) }}
       AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
       {{- end }}
 

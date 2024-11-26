@@ -360,7 +360,7 @@ repos:
         types_or: [python, pyi]
         args: [--fix]
         require_serial: true
-        additional_dependencies: ["ruff==0.7.2"]
+        additional_dependencies: ["ruff==0.8.0"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^performance/tests/test_.*.py
       - id: ruff-format
         name: Run 'ruff format'
@@ -370,7 +370,7 @@ repos:
         types_or: [python, pyi]
         args: []
         require_serial: true
-        additional_dependencies: ["ruff==0.7.2"]
+        additional_dependencies: ["ruff==0.8.0"]
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py$
       - id: replace-bad-characters
         name: Replace bad characters
@@ -477,21 +477,21 @@ repos:
         files: ^docs/apache-airflow/extra-packages-ref\.rst$|^hatch_build.py
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/check_extra_packages_ref.py
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.25.0', 'tabulate']
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.26.3', 'tabulate']
       - id: check-hatch-build-order
         name: Check order of dependencies in hatch_build.py
         language: python
         files: ^hatch_build.py$
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/check_order_hatch_build.py
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.25.0']
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.26.3']
       - id: update-extras
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/insert_extras.py
         language: python
         files: ^contributing-docs/12_airflow_dependencies_and_extras.rst$|^INSTALL$|^providers/src/airflow/providers/.*/provider\.yaml$|^Dockerfile.*
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.25.0']
+        additional_dependencies: ['rich>=12.4.4', 'hatchling==1.26.3']
       - id: check-extras-order
         name: Check order of extras in Dockerfile
         entry: ./scripts/ci/pre_commit/check_order_dockerfile_extras.py
@@ -667,7 +667,8 @@ repos:
           ^.*RELEASE_NOTES\.rst$|
           ^contributing-docs/03_contributors_quick_start.rst$|
           ^.*\.(png|gif|jp[e]?g|tgz|lock)$|
-          git
+          git|
+          ^newsfragments/43368\.significant\.rst$
       - id: check-base-operator-partial-arguments
         name: Check BaseOperator and partial() arguments
         language: python
@@ -797,7 +798,7 @@ repos:
         entry: ./scripts/ci/pre_commit/boring_cyborg.py
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['pyyaml', 'termcolor==1.1.0', 'wcmatch==8.2']
+        additional_dependencies: ['pyyaml', 'termcolor==2.5.0', 'wcmatch==8.2']
       - id: update-in-the-wild-to-be-sorted
         name: Sort INTHEWILD.md alphabetically
         entry: ./scripts/ci/pre_commit/sort_in_the_wild.py
@@ -1188,7 +1189,13 @@ repos:
         files: \.py$
         exclude: |
           (?x)
+          ^airflow/configuration.py$ |
+          ^airflow/metrics/validators.py$ |
+          ^airflow/models/dag.py$ |
+          ^airflow/serialization/serde.py$ |
+          ^airflow/utils/file.py$ |
           ^airflow/utils/helpers.py$ |
+          ^airflow/utils/log/secrets_masker.py$ |
           ^providers/src/airflow/providers/ |
           ^(providers/)?tests/ |
           task_sdk/src/airflow/sdk/definitions/dag.py$ |
@@ -1267,13 +1274,14 @@ repos:
         # These migrations contain FAB related changes but existed before moving FAB auth manager
         # to its own provider
         exclude: >
-          (?ix)
-          ^airflow/migrations/versions/00.*\.py$|
-          ^airflow/migrations/versions/0106.*\.py$|
-          ^airflow/migrations/versions/0118.*\.py$|
-          ^airflow/migrations/versions/0119.*\.py$|
-          ^airflow/migrations/versions/0121.*\.py$|
-          ^airflow/migrations/versions/0124.*\.py$
+          (?ix)^(
+            airflow/migrations/versions/00.*\.py|
+            airflow/migrations/versions/0106.*\.py|
+            airflow/migrations/versions/0118.*\.py|
+            airflow/migrations/versions/0119.*\.py|
+            airflow/migrations/versions/0121.*\.py|
+            airflow/migrations/versions/0124.*\.py
+          )$
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev
@@ -1291,36 +1299,37 @@ repos:
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
-        additional_dependencies: [ 'rich>=12.4.4' ]
+        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-airflow
         name: Run mypy for airflow
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py
         files: \.py$
         exclude: |
-          (?x)
-          ^.*/.*_vendor/ |
-          ^airflow/migrations |
-          ^providers/ |
-          ^task_sdk/ |
-          ^dev |
-          ^scripts |
-          ^docs |
-          ^provider_packages |
-          ^performance/ |
-          ^tests/dags/test_imports.py |
-          ^clients/python/test_.*\.py
+          (?x)^(
+            .*/.*_vendor/|
+            airflow/migrations|
+            clients/python/test_.*\.py|
+            dev|
+            docs|
+            performance/|
+            provider_packages|
+            providers/|
+            scripts|
+            task_sdk/|
+            tests/dags/test_imports\.py
+          )
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-airflow
-        stages: [ 'manual' ]
+        stages: ['manual']
         name: Run mypy for airflow (manual)
         language: python
         entry: ./scripts/ci/pre_commit/mypy_folder.py airflow
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
-        additional_dependencies: [ 'rich>=12.4.4' ]
+        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-providers
         name: Run mypy for providers
         language: python

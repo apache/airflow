@@ -241,7 +241,7 @@ class TestRenderedTaskInstanceFields:
             rtif_list = []
             for num in range(rtif_num):
                 dr = dag_maker.create_dagrun(
-                    run_id=str(num), execution_date=dag.start_date + timedelta(days=num)
+                    run_id=str(num), logical_date=dag.start_date + timedelta(days=num)
                 )
                 ti = dr.task_instances[0]
                 ti.task = task
@@ -283,7 +283,7 @@ class TestRenderedTaskInstanceFields:
                 mapped = BashOperator.partial(task_id="mapped").expand(bash_command=["a", "b"])
             for num in range(num_runs):
                 dr = dag_maker.create_dagrun(
-                    run_id=f"run_{num}", execution_date=dag.start_date + timedelta(days=num)
+                    run_id=f"run_{num}", logical_date=dag.start_date + timedelta(days=num)
                 )
 
                 mapped.expand_mapped_task(dr.run_id, session=dag_maker.session)
@@ -408,9 +408,9 @@ class TestRenderedTaskInstanceFields:
 
         def run_task(date):
             run_id = f"abc_{date.to_date_string()}"
-            dr = session.scalar(select(DagRun).where(DagRun.execution_date == date, DagRun.run_id == run_id))
+            dr = session.scalar(select(DagRun).where(DagRun.logical_date == date, DagRun.run_id == run_id))
             if not dr:
-                dr = dag_maker.create_dagrun(execution_date=date, run_id=run_id)
+                dr = dag_maker.create_dagrun(logical_date=date, run_id=run_id)
             ti = dr.task_instances[0]
             ti.state = None
             ti.try_number += 1
@@ -429,7 +429,7 @@ class TestRenderedTaskInstanceFields:
 
         # find oldest date
         date = session.scalar(
-            select(DagRun.execution_date).join(RTIF.dag_run).order_by(DagRun.execution_date).limit(1)
+            select(DagRun.logical_date).join(RTIF.dag_run).order_by(DagRun.logical_date).limit(1)
         )
         date = pendulum.instance(date)
         # rerun the old date. this will fail

@@ -21,10 +21,11 @@ import json
 import random
 import re
 import string
+from collections.abc import Iterable
 from inspect import currentframe
 from json import JSONDecodeError
 from os.path import dirname, join
-from typing import TYPE_CHECKING, Any, Iterable, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 from unittest.mock import MagicMock
 
 import pytest
@@ -137,6 +138,7 @@ def mock_context(task) -> Context:
             key: str = XCOM_RETURN_KEY,
             include_prior_dates: bool = False,
             session: Session = NEW_SESSION,
+            run_id: str | None = None,
             *,
             map_indexes: Iterable[int] | int | None = None,
             default: Any | None = None,

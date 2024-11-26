@@ -35,14 +35,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.11.2
+......
+
+Latest change: 2024-11-08
+
+=================================================================================================  ===========  ========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================
+`340a70bfe7 <https://github.com/apache/airflow/commit/340a70bfe7289e01898ddd75f8edfaf7772e9d09>`_  2024-11-08   ``Added condition to check if it is a scheduled save or rerun (#43453)``
+=================================================================================================  ===========  ========================================================================
+
 3.11.1
 ......
 
-Latest change: 2024-10-15
+Latest change: 2024-10-27
 
 =================================================================================================  ===========  ========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================
+`78ff0a9970 <https://github.com/apache/airflow/commit/78ff0a99700125121b7f0647023503750f14a11b>`_  2024-10-27   ``Prepare docs for Oct 2nd wave of providers (#43409)``
+`8e6d396a30 <https://github.com/apache/airflow/commit/8e6d396a3064f5433db09667470d750dd2f93f46>`_  2024-10-17   ``Doc: Update example for dbt Cloud connection string (#43094)``
 `c941484066 <https://github.com/apache/airflow/commit/c9414840660f58996cd86351538e6ac77afd696b>`_  2024-10-15   ``pin in  providers (#43001)``
 `857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
 =================================================================================================  ===========  ========================================================================================
@@ -111,6 +124,7 @@ Commit                                                                          
 `34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
 `2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
 `2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`6455f7f92f <https://github.com/apache/airflow/commit/6455f7f92f0c208303fb56a0f6bd629a7c6f85ec>`_  2024-05-09   ``Resolve DbtCloudJobRunAsyncSensor deprecation in system tests (#39525)``
 `3938f71dfa <https://github.com/apache/airflow/commit/3938f71dfae21c84a3518625543a28ad02edf641>`_  2024-05-08   ``Scheduler to handle incrementing of try_number (#39336)``
 `73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
 `7550a11f1d <https://github.com/apache/airflow/commit/7550a11f1d094b768942f28698b87c4f69fad7f5>`_  2024-05-07   ``Add (optional) dependency between dbt-cloud and openlineage providers (#39366)``
@@ -225,6 +239,8 @@ Commit                                                                          
 `99df205f42 <https://github.com/apache/airflow/commit/99df205f42a754aa67f80b5983e1d228ff23267f>`_  2023-11-16   ``Fix and reapply templates for provider documentation (#35686)``
 `a8bc6c551d <https://github.com/apache/airflow/commit/a8bc6c551d84dea4f57cd6d2a9807250cb187997>`_  2023-11-13   ``added cancelled handling in dbt deferred (#35597)``
 `1b059c57d6 <https://github.com/apache/airflow/commit/1b059c57d6d57d198463e5388138bee8a08591b1>`_  2023-11-08   ``Prepare docs 1st wave of Providers November 2023 (#35537)``
+`706878ec35 <https://github.com/apache/airflow/commit/706878ec354cf867440c367a95c85753c19e54de>`_  2023-11-04   ``Remove empty lines in generated changelog (#35436)``
+`052e26ad47 <https://github.com/apache/airflow/commit/052e26ad473a9d50f0b96456ed094f2087ee4434>`_  2023-11-04   ``Change security.rst to use includes in providers (#35435)``
 `d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
 `3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
 `dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
@@ -267,13 +283,14 @@ Commit                                                                          
 
 Latest change: 2023-08-26
 
-=================================================================================================  ===========  ============================================================
+=================================================================================================  ===========  ===============================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ============================================================
+=================================================================================================  ===========  ===============================================================
 `c077d19060 <https://github.com/apache/airflow/commit/c077d190609f931387c1fcd7b8cc34f12e2372b9>`_  2023-08-26   ``Prepare docs for Aug 2023 3rd wave of Providers (#33730)``
 `85acbb4ae9 <https://github.com/apache/airflow/commit/85acbb4ae9bc26248ca624fa4d289feccba00836>`_  2023-08-24   ``Refactor: Remove useless str() calls (#33629)``
 `a91ee7ac2f <https://github.com/apache/airflow/commit/a91ee7ac2fe29f460a4e4b0d8c1346f40672be43>`_  2023-08-20   ``Refactor: Simplify code in smaller providers (#33234)``
-=================================================================================================  ===========  ============================================================
+`73b90c48b1 <https://github.com/apache/airflow/commit/73b90c48b1933b49086d34176527947bd727ec85>`_  2023-07-21   ``Allow configuration to be contributed by providers (#32604)``
+=================================================================================================  ===========  ===============================================================
 
 3.2.2
 .....
@@ -296,16 +313,17 @@ Commit                                                                          
 
 Latest change: 2023-06-20
 
-=================================================================================================  ===========  ==============================================================
+=================================================================================================  ===========  ===============================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ==============================================================
+=================================================================================================  ===========  ===============================================================
 `79bcc2e668 <https://github.com/apache/airflow/commit/79bcc2e668e648098aad6eaa87fe8823c76bc69a>`_  2023-06-20   ``Prepare RC1 docs for June 2023 wave of Providers (#32001)``
 `8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
+`9e268e13b1 <https://github.com/apache/airflow/commit/9e268e13b147401a5665e497aee87ac107ade8d1>`_  2023-06-07   ``Replace spelling directive with spelling:word-list (#31752)``
 `9276310a43 <https://github.com/apache/airflow/commit/9276310a43d17a9e9e38c2cb83686a15656896b2>`_  2023-06-05   ``Improve docstrings in providers (#31681)``
 `dc5bf3fd02 <https://github.com/apache/airflow/commit/dc5bf3fd02c589578209cb0dd5b7d005b1516ae9>`_  2023-06-02   ``Add discoverability for triggers in provider.yaml (#31576)``
 `a59076eaee <https://github.com/apache/airflow/commit/a59076eaeed03dd46e749ad58160193b4ef3660c>`_  2023-06-02   ``Add D400 pydocstyle check - Providers (#31427)``
 `9fa75aaf7a <https://github.com/apache/airflow/commit/9fa75aaf7a391ebf0e6b6949445c060f6de2ceb9>`_  2023-05-29   ``Remove Python 3.7 support (#30963)``
-=================================================================================================  ===========  ==============================================================
+=================================================================================================  ===========  ===============================================================
 
 3.2.0
 .....
@@ -318,6 +336,7 @@ Commit                                                                          
 `45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
 `abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
 `f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`7ebda3898d <https://github.com/apache/airflow/commit/7ebda3898db2eee72d043a9565a674dea72cd8fa>`_  2023-05-17   ``Fix missing line in index.rst for provider documentation (#31343)``
 `d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
 `bb4a0b39e8 <https://github.com/apache/airflow/commit/bb4a0b39e8c021772830c9d44e72e492e0fef4bb>`_  2023-05-15   ``Optimize deferred execution mode for DbtCloudRunJobOperator (#31188)``
 `0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
@@ -348,12 +367,13 @@ Commit                                                                          
 
 Latest change: 2023-03-03
 
-=================================================================================================  ===========  =======================================================
+=================================================================================================  ===========  ========================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  =======================================================
+=================================================================================================  ===========  ========================================================================
 `fcd3c0149f <https://github.com/apache/airflow/commit/fcd3c0149f17b364dfb94c0523d23e3145976bbe>`_  2023-03-03   ``Prepare docs for 03/2023 wave of Providers (#29878)``
+`b33b11bf9f <https://github.com/apache/airflow/commit/b33b11bf9fdbbedbd31699428853896f4db478cb>`_  2023-03-02   ``Update ref anchor for env var link in Connection how-to doc (#29816)``
 `e6d3176082 <https://github.com/apache/airflow/commit/e6d317608251d2725627ac2da0e60d5c5b206c1e>`_  2023-02-23   ``Add 'DbtCloudJobRunAsyncSensor' (#29695)``
-=================================================================================================  ===========  =======================================================
+=================================================================================================  ===========  ========================================================================
 
 3.0.0
 .....
@@ -375,12 +395,13 @@ Commit                                                                          
 
 Latest change: 2023-01-14
 
-=================================================================================================  ===========  ==================================================================
+=================================================================================================  ===========  =====================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ==================================================================
+=================================================================================================  ===========  =====================================================================
 `911b708ffd <https://github.com/apache/airflow/commit/911b708ffddd4e7cb6aaeac84048291891eb0f1f>`_  2023-01-14   ``Prepare docs for Jan 2023 mid-month wave of Providers (#28929)``
 `141338b24e <https://github.com/apache/airflow/commit/141338b24efeddb9460b53b8501654b50bc6b86e>`_  2023-01-12   ``Use entire tenant domain name in dbt Cloud connection (#28890)``
-=================================================================================================  ===========  ==================================================================
+`c8e348dcb0 <https://github.com/apache/airflow/commit/c8e348dcb0bae27e98d68545b59388c9f91fc382>`_  2022-12-05   ``Add automated version replacement in example dag indexes (#28090)``
+=================================================================================================  ===========  =====================================================================
 
 2.3.0
 .....
@@ -429,9 +450,11 @@ Latest change: 2022-07-13
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================
 `d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
+`fee77824ec <https://github.com/apache/airflow/commit/fee77824ece3332a92c0fbf09d8307677acc38f7>`_  2022-07-11   ``Add tenant specification to dbt Cloud conn doc (#24907)``
 `0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
 `510a6bab45 <https://github.com/apache/airflow/commit/510a6bab4595cce8bd5b1447db957309d70f35d9>`_  2022-06-28   ``Remove 'hook-class-names' from provider.yaml (#24702)``
 `9c59831ee7 <https://github.com/apache/airflow/commit/9c59831ee78f14de96421c74986933c494407afa>`_  2022-06-21   ``Update providers to use functools compat for ''cached_property'' (#24582)``
+`08b675cf66 <https://github.com/apache/airflow/commit/08b675cf6642171cb1c5ddfb09607b541db70b29>`_  2022-06-13   ``Fix links to sources for examples (#24386)``
 =================================================================================================  ===========  =============================================================================
 
 2.0.0
@@ -452,6 +475,7 @@ Commit                                                                          
 `75c60923e0 <https://github.com/apache/airflow/commit/75c60923e01375ffc5f71c4f2f7968f489e2ca2f>`_  2022-05-12   ``Prepare provider documentation 2022.05.11 (#23631)``
 `8b6b0848a3 <https://github.com/apache/airflow/commit/8b6b0848a3cacf9999477d6af4d2a87463f03026>`_  2022-04-23   ``Use new Breese for building, pulling and verifying the images. (#23104)``
 `f935c9f163 <https://github.com/apache/airflow/commit/f935c9f163bbc2de9034ddf4c0a0cc960a031661>`_  2022-04-23   ``Fix typo in dbt Cloud provider description (#23179)``
+`647c155893 <https://github.com/apache/airflow/commit/647c1558931ea55d982dc311d6ea99e7c79a6305>`_  2022-04-19   ``fix link to dbt docs by removing extra h (#23086)``
 `49e336ae03 <https://github.com/apache/airflow/commit/49e336ae0302b386a2f47269a6d13988382d975f>`_  2022-04-13   ``Replace usage of 'DummyOperator' with 'EmptyOperator' (#22974)``
 `6933022e94 <https://github.com/apache/airflow/commit/6933022e94acf139b2dea9a589bb8b25c62a5d20>`_  2022-04-10   ``Fix new MyPy errors in main (#22884)``
 =================================================================================================  ===========  ==================================================================================
@@ -480,6 +504,7 @@ Commit                                                                          
 `d08284ed25 <https://github.com/apache/airflow/commit/d08284ed251b7c5712190181623b500a38cd640d>`_  2022-03-11   `` Add map_index to XCom model and interface (#22112)``
 `f8c01317ef <https://github.com/apache/airflow/commit/f8c01317ef35110217b0054d472d9a276d2924b0>`_  2022-03-10   ``Pass explicit overrides in 'DbtCloudJobRunOperator' to 'DbtCloudHook' (#22136)``
 `4388808e0e <https://github.com/apache/airflow/commit/4388808e0e81beb78d48e125c7f51a1283cf1084>`_  2022-03-10   ``Add more template fields to 'DbtCloudJobRunOperator' (#22126)``
+`f5b96315fe <https://github.com/apache/airflow/commit/f5b96315fe65b99c0e2542831ff73a3406c4232d>`_  2022-03-07   ``Add documentation for Feb Providers release (#22056)``
 `08575ddd8a <https://github.com/apache/airflow/commit/08575ddd8a72f96a3439f73e973ee9958188eb83>`_  2022-03-01   ``Change BaseOperatorLink interface to take a ti_key, not a datetime (#21798)``
 `e782b37a3f <https://github.com/apache/airflow/commit/e782b37a3fdf58e60cdefea33b5b865deb69b1d7>`_  2022-02-27   ``Add dbt Cloud provider (#20998)``
 =================================================================================================  ===========  ==================================================================================

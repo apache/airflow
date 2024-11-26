@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Collection
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Collection
+from typing import TYPE_CHECKING
 
 import pendulum
 from connexion import NoContent
@@ -115,6 +116,7 @@ def get_dag_run(
         raise BadRequest("DAGRunSchema error", detail=str(e))
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
 @security.requires_access_asset("GET")
 @provide_session
@@ -157,11 +159,11 @@ def _fetch_dag_runs(
         query = query.where(DagRun.start_date >= start_date_gte)
     if start_date_lte:
         query = query.where(DagRun.start_date <= start_date_lte)
-    # filter execution date
+    # filter logical date
     if execution_date_gte:
-        query = query.where(DagRun.execution_date >= execution_date_gte)
+        query = query.where(DagRun.logical_date >= execution_date_gte)
     if execution_date_lte:
-        query = query.where(DagRun.execution_date <= execution_date_lte)
+        query = query.where(DagRun.logical_date <= execution_date_lte)
     # filter end date
     if end_date_gte:
         query = query.where(DagRun.end_date >= end_date_gte)
@@ -174,12 +176,12 @@ def _fetch_dag_runs(
         query = query.where(DagRun.updated_at <= updated_at_lte)
 
     total_entries = get_query_count(query, session=session)
-    to_replace = {"dag_run_id": "run_id", "execution_date": "logical_date"}
+    to_replace = {"dag_run_id": "run_id", "logical_date": "logical_date"}
     allowed_sort_attrs = [
         "id",
         "state",
         "dag_id",
-        "execution_date",
+        "logical_date",
         "dag_run_id",
         "start_date",
         "end_date",
@@ -191,6 +193,7 @@ def _fetch_dag_runs(
     return session.scalars(query.offset(offset).limit(limit)).all(), total_entries
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
 @format_parameters(
     {
@@ -262,6 +265,7 @@ def get_dag_runs(
         raise BadRequest("DAGRunCollectionSchema error", detail=str(e))
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
 @provide_session
 def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
@@ -319,13 +323,13 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
-    logical_date = pendulum.instance(post_body["execution_date"])
+    logical_date = pendulum.instance(post_body["logical_date"])
     run_id = post_body["run_id"]
     dagrun_instance = session.scalar(
         select(DagRun)
         .where(
             DagRun.dag_id == dag_id,
-            or_(DagRun.run_id == run_id, DagRun.execution_date == logical_date),
+            or_(DagRun.run_id == run_id, DagRun.logical_date == logical_date),
         )
         .limit(1)
     )
@@ -346,7 +350,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
             dag_run = dag.create_dagrun(
                 run_type=DagRunType.MANUAL,
                 run_id=run_id,
-                execution_date=logical_date,
+                logical_date=logical_date,
                 data_interval=data_interval,
                 state=DagRunState.QUEUED,
                 conf=post_body.get("conf"),
@@ -363,7 +367,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
         except (ValueError, ParamValidationError) as ve:
             raise BadRequest(detail=str(ve))
 
-    if dagrun_instance.execution_date == logical_date:
+    if dagrun_instance.logical_date == logical_date:
         raise AlreadyExists(
             detail=(
                 f"DAGRun with DAG ID: '{dag_id}' and "
@@ -403,6 +407,7 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
     return dagrun_schema.dump(dag_run)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("PUT", DagAccessEntity.RUN)
 @action_logging
 @provide_session

@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.10.2",
+            "default": "2.10.3",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.10.2",
+            "default": "2.10.3",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -687,15 +687,7 @@
             "type": "string",
             "x-docsSection": "Common",
             "default": "CeleryExecutor",
-            "enum": [
-                "LocalExecutor",
-                "LocalKubernetesExecutor",
-                "CeleryExecutor",
-                "KubernetesExecutor",
-                "CeleryKubernetesExecutor",
-                "airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor",
-                "airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor"
-            ]
+            "pattern": "^(LocalExecutor|LocalKubernetesExecutor|CeleryExecutor|KubernetesExecutor|CeleryKubernetesExecutor|airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor|airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor)(,(LocalExecutor|LocalKubernetesExecutor|CeleryExecutor|KubernetesExecutor|CeleryKubernetesExecutor|airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor|airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor))*$"
         },
         "allowPodLaunching": {
             "description": "Whether various Airflow components launch pods.",
@@ -1717,7 +1709,7 @@
                         "query": {
                             "description": "Query to use for KEDA autoscaling. Must return a single integer.",
                             "type": "string",
-                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if eq .Values.executor \"CeleryKubernetesExecutor\" }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- end }}"
+                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if or (contains \"CeleryKubernetesExecutor\" .Values.executor) (contains \"KubernetesExecutor\" .Values.executor) }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- end }}"
                         },
                         "usePgbouncer": {
                             "description": "Weather to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
@@ -7983,7 +7975,7 @@
             "additionalProperties": false,
             "properties": {
                 "secretName": {
-                    "description": "Registry connection string secret.",
+                    "description": "Name of the Kubernetes secret containing Base64 encoded credentials to connect to a private registry (will get passed to imagePullSecrets).",
                     "type": [
                         "string",
                         "null"
@@ -7991,7 +7983,7 @@
                     "default": null
                 },
                 "connection": {
-                    "description": "Registry connection configuration.",
+                    "description": "Credentials to connect to a private registry, these will get Base64 encoded and stored in a secret (will get passed to imagePullSecrets).",
                     "type": "object",
                     "default": {},
                     "additionalProperties": false,
@@ -8007,12 +7999,12 @@
                             "default": ""
                         },
                         "host": {
-                            "description": "Host",
+                            "description": "Registry Server URL (e.g. https://index.docker.io/v1/ for DockerHub)",
                             "type": "string",
                             "default": ""
                         },
                         "email": {
-                            "description": "Email",
+                            "description": "Email Address",
                             "type": "string",
                             "default": ""
                         }

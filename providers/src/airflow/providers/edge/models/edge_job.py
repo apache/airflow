@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from ast import literal_eval
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import (
@@ -112,7 +112,7 @@ class EdgeJob(BaseModel, LoggingMixin):
     try_number: int
     state: TaskInstanceState
     queue: str
-    command: List[str]  # noqa: UP006 - prevent Sphinx failing
+    command: list[str]
     queued_dttm: datetime
     edge_worker: Optional[str]  # noqa: UP007 - prevent Sphinx failing
     last_update: Optional[datetime]  # noqa: UP007 - prevent Sphinx failing
@@ -172,9 +172,10 @@ class EdgeJob(BaseModel, LoggingMixin):
             EdgeJobModel.try_number == task.try_number,
         )
         job: EdgeJobModel = session.scalar(query)
-        job.state = state
-        job.last_update = timezone.utcnow()
-        session.commit()
+        if job:
+            job.state = state
+            job.last_update = timezone.utcnow()
+            session.commit()
 
     def __hash__(self):
         return f"{self.dag_id}|{self.task_id}|{self.run_id}|{self.map_index}|{self.try_number}".__hash__()

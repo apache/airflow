@@ -21,10 +21,11 @@ from __future__ import annotations
 
 import os
 import socket
+from collections.abc import Sequence
 from ftplib import FTP_PORT  # nosec: B402
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 from airflow.models import BaseOperator
 from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook

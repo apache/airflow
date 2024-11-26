@@ -23,9 +23,10 @@ import datetime
 import subprocess
 import sys
 import warnings
+from collections.abc import Sequence
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 import pendulum
 
@@ -683,7 +684,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
     :param source_bucket: The bucket to fetch data from. (templated)
     :param source_prefix: Prefix string which filters objects whose name begin with
-           this prefix. Can interpolate execution date and time components. (templated)
+           this prefix. Can interpolate logical date and time components. (templated)
     :param source_gcp_conn_id: The connection ID to use connecting to Google Cloud
            to download files to be processed.
     :param source_impersonation_chain: Optional service account to impersonate using short-term
@@ -697,7 +698,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
     :param destination_bucket: The bucket to write data to. (templated)
     :param destination_prefix: Prefix string for the upload location.
-        Can interpolate execution date and time components. (templated)
+        Can interpolate logical date and time components. (templated)
     :param destination_gcp_conn_id: The connection ID to use connecting to Google Cloud
            to upload processed files.
     :param destination_impersonation_chain: Optional service account to impersonate using short-term
@@ -794,7 +795,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
             orig_start = context["data_interval_start"]
             orig_end = context["data_interval_end"]
         except KeyError:
-            orig_start = pendulum.instance(context["execution_date"])
+            orig_start = pendulum.instance(context["logical_date"])
             next_dagrun = context["dag"].next_dagrun_info(last_automated_dagrun=None, restricted=False)
             if next_dagrun and next_dagrun.data_interval and next_dagrun.data_interval.end:
                 orig_end = next_dagrun.data_interval.end

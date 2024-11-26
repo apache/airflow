@@ -20,7 +20,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -450,98 +451,6 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
                 self.export_evaluated_data_items_override_destination
             ),
             sync=self.sync,
-        )
-
-        if model:
-            result = Model.to_dict(model)
-            model_id = self.hook.extract_model_id(result)
-            self.xcom_push(context, key="model_id", value=model_id)
-            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
-        else:
-            result = model  # type: ignore
-        self.xcom_push(context, key="training_id", value=training_id)
-        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
-        return result
-
-
-@deprecated(
-    planned_removal_date="September 15, 2024",
-    use_instead="SupervisedFineTuningTrainOperator",
-    instructions=(
-        "Please consider using Fine Tuning over the Gemini model. "
-        "More info: https://cloud.google.com/vertex-ai/docs/start/automl-gemini-comparison"
-    ),
-    category=AirflowProviderDeprecationWarning,
-)
-class CreateAutoMLTextTrainingJobOperator(AutoMLTrainingJobBaseOperator):
-    """
-    Create Auto ML Text Training job.
-
-    WARNING: Text creation API is deprecated since September 15, 2024
-        (https://cloud.google.com/vertex-ai/docs/tutorials/text-classification-automl/overview).
-    """
-
-    template_fields = [
-        "parent_model",
-        "dataset_id",
-        "region",
-        "impersonation_chain",
-    ]
-    operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
-
-    def __init__(
-        self,
-        *,
-        dataset_id: str,
-        prediction_type: str,
-        multi_label: bool = False,
-        sentiment_max: int = 10,
-        validation_fraction_split: float | None = None,
-        training_filter_split: str | None = None,
-        validation_filter_split: str | None = None,
-        test_filter_split: str | None = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.dataset_id = dataset_id
-        self.prediction_type = prediction_type
-        self.multi_label = multi_label
-        self.sentiment_max = sentiment_max
-        self.validation_fraction_split = validation_fraction_split
-        self.training_filter_split = training_filter_split
-        self.validation_filter_split = validation_filter_split
-        self.test_filter_split = test_filter_split
-
-    def execute(self, context: Context):
-        self.hook = AutoMLHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-        self.parent_model = self.parent_model.split("@")[0] if self.parent_model else None
-        model, training_id = self.hook.create_auto_ml_text_training_job(
-            project_id=self.project_id,
-            region=self.region,
-            display_name=self.display_name,
-            dataset=datasets.TextDataset(dataset_name=self.dataset_id),
-            prediction_type=self.prediction_type,
-            multi_label=self.multi_label,
-            sentiment_max=self.sentiment_max,
-            labels=self.labels,
-            training_encryption_spec_key_name=self.training_encryption_spec_key_name,
-            model_encryption_spec_key_name=self.model_encryption_spec_key_name,
-            training_fraction_split=self.training_fraction_split,
-            validation_fraction_split=self.validation_fraction_split,
-            test_fraction_split=self.test_fraction_split,
-            training_filter_split=self.training_filter_split,
-            validation_filter_split=self.validation_filter_split,
-            test_filter_split=self.test_filter_split,
-            model_display_name=self.model_display_name,
-            model_labels=self.model_labels,
-            sync=self.sync,
-            parent_model=self.parent_model,
-            is_default_version=self.is_default_version,
-            model_version_aliases=self.model_version_aliases,
-            model_version_description=self.model_version_description,
         )
 
         if model:

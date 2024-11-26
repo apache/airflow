@@ -24,7 +24,7 @@ inputs:
     default: 3.9
   uv-version:
     description: 'uv version to use'
-    default: 0.4.30
+    default: 0.5.3
   pre-commit-version:
     description: 'pre-commit version to use'
     default: 4.0.1
@@ -36,11 +36,10 @@ runs:
   steps:
     - name: Install pre-commit, uv, and pre-commit-uv
       shell: bash
-      run: >
-        pip install
-        pre-commit==${{inputs.pre-commit-version}}
-        uv==${{inputs.uv-version}}
-        pre-commit-uv==${{inputs.pre-commit-uv-version}}
+      run: |
+        pip install uv==${{inputs.uv-version}} || true
+        uv tool install pre-commit==${{inputs.pre-commit-version}} --with uv==${{inputs.uv-version}} \
+        --with pre-commit-uv==${{inputs.pre-commit-uv-version}}
     - name: Cache pre-commit envs
       uses: actions/cache@v4
       with:

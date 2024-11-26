@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from functools import partial
-from typing import Any, Callable, Sequence
+from typing import Any, Callable
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator

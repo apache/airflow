@@ -29,9 +29,11 @@ description: |
     - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1730012771
+source-date-epoch: 1732429547
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 11.0.0
+  - 10.26.0
   - 10.25.0
   - 10.24.0
   - 10.23.0
@@ -99,7 +101,7 @@ versions:
 dependencies:
   - apache-airflow>=2.8.0
   - apache-airflow-providers-common-compat>=1.2.1
-  - apache-airflow-providers-common-sql>=1.7.2
+  - apache-airflow-providers-common-sql>=1.20.0
   - asgiref>=3.5.2
   - dill>=0.2.3
   - gcloud-aio-auth>=5.2.0
@@ -124,7 +126,7 @@ dependencies:
   - google-cloud-build>=3.22.0
   - google-cloud-compute>=1.10.0
   - google-cloud-container>=2.17.4
-  - google-cloud-datacatalog>=3.11.1
+  - google-cloud-datacatalog>=3.23.0
   - google-cloud-dataflow-client>=0.8.6
   - google-cloud-dataform>=0.5.0
   - google-cloud-dataplex>=1.10.0
@@ -149,7 +151,7 @@ dependencies:
   - google-cloud-storage-transfer>=1.4.1
   - google-cloud-tasks>=2.13.0
   - google-cloud-texttospeech>=2.14.1
-  - google-cloud-translate>=3.11.0
+  - google-cloud-translate>=3.16.0
   - google-cloud-videointelligence>=2.11.0
   - google-cloud-vision>=3.4.0
   - google-cloud-workflows>=1.10.0
@@ -206,12 +208,6 @@ integrations:
     logo: /integration-logos/gcp/Google-Analytics.png
     how-to-guide:
       - /docs/apache-airflow-providers-google/operators/marketing_platform/analytics_admin.rst
-    tags: [gmp]
-  - integration-name: Google Analytics360
-    external-doc-url: https://analytics.google.com/
-    logo: /integration-logos/gcp/Google-Analytics.png
-    how-to-guide:
-      - /docs/apache-airflow-providers-google/operators/marketing_platform/analytics.rst
     tags: [gmp]
   - integration-name: Google Ads
     external-doc-url: https://ads.google.com/
@@ -670,9 +666,6 @@ operators:
   - integration-name: Google Analytics (GA4)
     python-modules:
       - airflow.providers.google.marketing_platform.operators.analytics_admin
-  - integration-name: Google Analytics360
-    python-modules:
-      - airflow.providers.google.marketing_platform.operators.analytics
   - integration-name: Google Campaign Manager
     python-modules:
       - airflow.providers.google.marketing_platform.operators.campaign_manager
@@ -936,9 +929,6 @@ hooks:
   - integration-name: Google Analytics (GA4)
     python-modules:
       - airflow.providers.google.marketing_platform.hooks.analytics_admin
-  - integration-name: Google Analytics360
-    python-modules:
-      - airflow.providers.google.marketing_platform.hooks.analytics
   - integration-name: Google Campaign Manager
     python-modules:
       - airflow.providers.google.marketing_platform.hooks.campaign_manager
@@ -1189,8 +1179,6 @@ connection-types:
     connection-type: leveldb
 
 extra-links:
-  - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleLink
-  - airflow.providers.google.cloud.operators.bigquery.BigQueryConsoleIndexableLink
   - airflow.providers.google.cloud.links.dataform.DataformRepositoryLink
   - airflow.providers.google.cloud.links.dataform.DataformWorkspaceLink
   - airflow.providers.google.cloud.links.dataform.DataformWorkflowInvocationLink
@@ -1304,6 +1292,9 @@ extra-links:
   - airflow.providers.google.cloud.links.translate.TranslationLegacyModelLink
   - airflow.providers.google.cloud.links.translate.TranslationLegacyModelTrainLink
   - airflow.providers.google.cloud.links.translate.TranslationLegacyModelPredictLink
+  - airflow.providers.google.cloud.links.translate.TranslateTextBatchLink
+  - airflow.providers.google.cloud.links.translate.TranslationNativeDatasetLink
+  - airflow.providers.google.cloud.links.translate.TranslationDatasetsListLink
 
 
 secrets-backends:

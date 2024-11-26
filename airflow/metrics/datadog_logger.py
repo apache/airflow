@@ -19,12 +19,10 @@ from __future__ import annotations
 
 import datetime
 import logging
-import warnings
 from functools import wraps
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.metrics.base_stats_logger import StatsLogger
 from airflow.metrics.protocols import Timer
 from airflow.metrics.validators import (
@@ -45,14 +43,6 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 T = TypeVar("T", bound=Callable)
-
-metrics_consistency_on = conf.getboolean("metrics", "metrics_consistency_on", fallback=True)
-if not metrics_consistency_on:
-    warnings.warn(
-        "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
-        AirflowProviderDeprecationWarning,
-        stacklevel=2,
-    )
 
 
 def prepare_metric_name_with_tags(fn: T) -> T:
@@ -157,11 +147,9 @@ class SafeDogStatsdLogger(StatsLogger):
 
         if self.metrics_validator.test(full_metric_name):
             if isinstance(dt, datetime.timedelta):
-                if metrics_consistency_on:
-                    dt = dt.total_seconds() * 1000.0
-                else:
-                    dt = dt.total_seconds()
+                dt = dt.total_seconds() * 1000.0
             return self.dogstatsd.timing(metric=full_metric_name, value=dt, tags=tags)
+
         return None
 
     @prepare_metric_name_with_tags

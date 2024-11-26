@@ -16,9 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Button, Tabs } from "@chakra-ui/react";
+import { Box, Button } from "@chakra-ui/react";
 import { FiChevronsLeft } from "react-icons/fi";
-import { Link as RouterLink, useParams } from "react-router-dom";
+import { Outlet, Link as RouterLink, useParams } from "react-router-dom";
 
 import {
   useDagServiceGetDagDetails,
@@ -26,8 +26,10 @@ import {
 } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ProgressBar } from "src/components/ui";
+import { OpenGroupsProvider } from "src/context/openGroups";
 
 import { Header } from "./Header";
+import { DagTabs } from "./Tabs";
 
 export const Dag = () => {
   const { dagId } = useParams();
@@ -45,47 +47,34 @@ export const Dag = () => {
     data: runsData,
     error: runsError,
     isLoading: isLoadingRuns,
-  } = useDagsServiceRecentDagRuns({ dagIdPattern: dagId ?? "" });
+  } = useDagsServiceRecentDagRuns({ dagIdPattern: dagId ?? "" }, undefined, {
+    enabled: Boolean(dagId),
+  });
 
   const runs =
     runsData?.dags.find((dagWithRuns) => dagWithRuns.dag_id === dagId)
       ?.latest_dag_runs ?? [];
 
   return (
-    <Box>
-      <Button asChild colorPalette="blue" variant="ghost">
-        <RouterLink to="/dags">
-          <FiChevronsLeft />
-          Back to all dags
-        </RouterLink>
-      </Button>
-      <Header dag={dag} dagId={dagId} latestRun={runs[0]} />
-      <ErrorAlert error={error ?? runsError} />
-      <ProgressBar
-        size="xs"
-        visibility={isLoading || isLoadingRuns ? "visible" : "hidden"}
-      />
-      <Tabs.Root>
-        <Tabs.List>
-          <Tabs.Trigger value="overview">Overview</Tabs.Trigger>
-          <Tabs.Trigger value="runs">Runs</Tabs.Trigger>
-          <Tabs.Trigger value="tasks">Tasks</Tabs.Trigger>
-          <Tabs.Trigger value="events">Events</Tabs.Trigger>
-        </Tabs.List>
-
-        <Tabs.Content value="overview">
-          <p>one!</p>
-        </Tabs.Content>
-        <Tabs.Content value="runs">
-          <p>two!</p>
-        </Tabs.Content>
-        <Tabs.Content value="tasks">
-          <p>three!</p>
-        </Tabs.Content>
-        <Tabs.Content value="events">
-          <p>four!</p>
-        </Tabs.Content>
-      </Tabs.Root>
-    </Box>
+    <OpenGroupsProvider dagId={dagId ?? ""}>
+      <Box>
+        <Button asChild colorPalette="blue" variant="ghost">
+          <RouterLink to="/dags">
+            <FiChevronsLeft />
+            Back to all dags
+          </RouterLink>
+        </Button>
+        <Header dag={dag} dagId={dagId} latestRun={runs[0]} />
+        <ErrorAlert error={error ?? runsError} />
+        <ProgressBar
+          size="xs"
+          visibility={isLoading || isLoadingRuns ? "visible" : "hidden"}
+        />
+        <DagTabs dag={dag} />
+      </Box>
+      <Box overflow="auto">
+        <Outlet />
+      </Box>
+    </OpenGroupsProvider>
   );
 };

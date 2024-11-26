@@ -31,12 +31,14 @@ import subprocess
 import sys
 import warnings
 from base64 import b64encode
+from collections.abc import Generator, Iterable
 from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
 from copy import deepcopy
 from io import StringIO
 from json.decoder import JSONDecodeError
-from typing import IO, TYPE_CHECKING, Any, Dict, Generator, Iterable, Pattern, Set, Tuple, Union
+from re import Pattern
+from typing import IO, TYPE_CHECKING, Any, Union
 from urllib.parse import urlsplit
 
 import re2
@@ -65,9 +67,9 @@ if not sys.warnoptions:
 _SQLITE3_VERSION_PATTERN = re2.compile(r"(?P<version>^\d+(?:\.\d+)*)\D?.*$")
 
 ConfigType = Union[str, int, float, bool]
-ConfigOptionsDictType = Dict[str, ConfigType]
-ConfigSectionSourcesType = Dict[str, Union[str, Tuple[str, str]]]
-ConfigSourcesType = Dict[str, ConfigSectionSourcesType]
+ConfigOptionsDictType = dict[str, ConfigType]
+ConfigSectionSourcesType = dict[str, Union[str, tuple[str, str]]]
+ConfigSourcesType = dict[str, ConfigSectionSourcesType]
 
 ENV_VAR_PREFIX = "AIRFLOW__"
 
@@ -300,7 +302,7 @@ class AirflowConfigParser(ConfigParser):
     # These configs can also be fetched from Secrets backend
     # following the "{section}__{name}__secret" pattern
     @functools.cached_property
-    def sensitive_config_values(self) -> Set[tuple[str, str]]:  # noqa: UP006
+    def sensitive_config_values(self) -> set[tuple[str, str]]:
         if self.configuration_description is None:
             return (
                 _get_empty_set_for_configuration()
@@ -376,7 +378,7 @@ class AirflowConfigParser(ConfigParser):
         },
         "elasticsearch": {
             "log_id_template": (
-                re2.compile("^" + re2.escape("{dag_id}-{task_id}-{execution_date}-{try_number}") + "$"),
+                re2.compile("^" + re2.escape("{dag_id}-{task_id}-{logical_date}-{try_number}") + "$"),
                 "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
                 "3.0",
             )
@@ -777,7 +779,8 @@ class AirflowConfigParser(ConfigParser):
 
         for section, key in self.sensitive_config_values:
             try:
-                value = self.get(section, key, suppress_warnings=True)
+                with self.suppress_future_warnings():
+                    value = self.get(section, key, suppress_warnings=True)
             except AirflowConfigException:
                 log.debug(
                     "Could not retrieve value from section %s, for key %s. Skipping redaction of this conf.",
@@ -2142,6 +2145,7 @@ else:
     TEST_PLUGINS_FOLDER = os.path.join(AIRFLOW_HOME, "plugins")
 
 SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
+JWT_SECRET_KEY = b64encode(os.urandom(16)).decode("utf-8")
 FERNET_KEY = ""  # Set only if needed when generating a new file
 WEBSERVER_CONFIG = ""  # Set by initialize_config
 

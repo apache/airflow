@@ -21,7 +21,8 @@ import json
 import logging
 import textwrap
 import time
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import urlencode
 
 from flask import request, url_for
@@ -88,8 +89,8 @@ def get_mapped_instances(task_instance, session):
 def get_instance_with_map(task_instance, session):
     if task_instance.map_index == -1:
         data = alchemy_to_dict(task_instance)
-        # Fetch execution_date explicitly since it's not a column and a proxy
-        data["execution_date"] = task_instance.execution_date
+        # Fetch logical_date explicitly since it's not a column and a proxy
+        data["logical_date"] = task_instance.logical_date
         return data
     mapped_instances = get_mapped_instances(task_instance, session)
     return get_mapped_summary(task_instance, mapped_instances)
@@ -141,7 +142,7 @@ def get_mapped_summary(parent_instance, task_instances):
         "end_date": group_end_date,
         "mapped_states": mapped_states,
         "try_number": parent_instance.try_number,
-        "execution_date": parent_instance.execution_date,
+        "logical_date": parent_instance.logical_date,
     }
 
 
@@ -174,7 +175,7 @@ def encode_dag_run(
             "start_date": datetime_to_string(dag_run.start_date),
             "end_date": datetime_to_string(dag_run.end_date),
             "state": dag_run.state,
-            "execution_date": datetime_to_string(dag_run.execution_date),
+            "logical_date": datetime_to_string(dag_run.logical_date),
             "data_interval_start": datetime_to_string(dag_run.data_interval_start),
             "data_interval_end": datetime_to_string(dag_run.data_interval_end),
             "run_type": dag_run.run_type,
@@ -401,7 +402,7 @@ def task_instance_link(attr):
     task_id = attr.get("task_id")
     run_id = attr.get("run_id")
     map_index = attr.get("map_index", None)
-    execution_date = attr.get("execution_date") or attr.get("dag_run.execution_date")
+    logical_date = attr.get("logical_date") or attr.get("dag_run.logical_date")
 
     if map_index == -1:
         map_index = None
@@ -412,7 +413,7 @@ def task_instance_link(attr):
         task_id=task_id,
         dag_run_id=run_id,
         map_index=map_index,
-        execution_date=execution_date,
+        logical_date=logical_date,
         tab="graph",
     )
     url_root = url_for(
@@ -422,7 +423,7 @@ def task_instance_link(attr):
         root=task_id,
         dag_run_id=run_id,
         map_index=map_index,
-        execution_date=execution_date,
+        logical_date=logical_date,
         tab="graph",
     )
     return Markup(
@@ -502,10 +503,10 @@ def json_f(attr_name):
 def dag_link(attr):
     """Generate a URL to the Graph view for a Dag."""
     dag_id = attr.get("dag_id")
-    execution_date = attr.get("execution_date") or attr.get("dag_run.execution_date")
+    logical_date = attr.get("logical_date") or attr.get("dag_run.logical_date")
     if not dag_id:
         return Markup("None")
-    url = url_for("Airflow.grid", dag_id=dag_id, execution_date=execution_date)
+    url = url_for("Airflow.grid", dag_id=dag_id, logical_date=logical_date)
     return Markup('<a href="{}">{}</a>').format(url, dag_id)
 
 
@@ -513,7 +514,7 @@ def dag_run_link(attr):
     """Generate a URL to the Graph view for a DagRun."""
     dag_id = attr.get("dag_id")
     run_id = attr.get("run_id")
-    execution_date = attr.get("execution_date") or attr.get("dag_run.execution_date")
+    logical_date = attr.get("logical_date") or attr.get("dag_run.logical_date")
 
     if not dag_id:
         return Markup("None")
@@ -521,7 +522,7 @@ def dag_run_link(attr):
     url = url_for(
         "Airflow.grid",
         dag_id=dag_id,
-        execution_date=execution_date,
+        logical_date=logical_date,
         dag_run_id=run_id,
         tab="graph",
     )
@@ -533,10 +534,10 @@ def _get_run_ordering_expr(name: str) -> ColumnOperators:
     # Data interval columns are NULL for runs created before 2.3, but SQL's
     # NULL-sorting logic would make those old runs always appear first. In a
     # perfect world we'd want to sort by ``get_run_data_interval()``, but that's
-    # not efficient, so instead the columns are coalesced into execution_date,
+    # not efficient, so instead the columns are coalesced into logical_date,
     # which is good enough in most cases.
     if name in ("data_interval_start", "data_interval_end"):
-        expr = func.coalesce(expr, DagRun.execution_date)
+        expr = func.coalesce(expr, DagRun.logical_date)
     return expr.desc()
 
 
@@ -765,10 +766,8 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
         ),
         # FAB will try to create filters for extendedjson fields even though we
         # exclude them from all UI, so we add this here to make it ignore them.
-        (
-            "is_extendedjson",
-            [],
-        ),
+        ("is_extendedjson", []),
+        ("is_json", []),
         *fab_sqlafilters.SQLAFilterConverter.conversion_table,
     )
 
@@ -830,6 +829,17 @@ class CustomSQLAInterface(SQLAInterface):
                 isinstance(obj, ExtendedJSON)
                 or isinstance(obj, types.TypeDecorator)
                 and isinstance(obj.impl, ExtendedJSON)
+            )
+        return False
+
+    def is_json(self, col_name):
+        """Check if it is a JSON type."""
+        from sqlalchemy import JSON
+
+        if col_name in self.list_columns:
+            obj = self.list_columns[col_name].type
+            return (
+                isinstance(obj, JSON) or isinstance(obj, types.TypeDecorator) and isinstance(obj.impl, JSON)
             )
         return False
 

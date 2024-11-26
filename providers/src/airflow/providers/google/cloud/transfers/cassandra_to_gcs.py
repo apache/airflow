@@ -21,10 +21,11 @@ from __future__ import annotations
 
 import json
 from base64 import b64encode
+from collections.abc import Iterable, Sequence
 from datetime import datetime
 from decimal import Decimal
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Any, Iterable, NewType, Sequence
+from typing import TYPE_CHECKING, Any, NewType
 from uuid import UUID
 
 from cassandra.util import Date, OrderedMapSerializedKey, SortedSet, Time

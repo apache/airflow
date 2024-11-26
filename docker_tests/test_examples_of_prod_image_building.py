@@ -19,7 +19,7 @@ from __future__ import annotations
 import glob
 import os
 import re
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 
 import pytest
@@ -40,7 +40,7 @@ QUARANTINED_DOCKER_EXAMPLES: dict[str, str] = {
 }
 
 
-@lru_cache(maxsize=None)
+@cache
 def get_latest_airflow_image():
     response = requests.get("https://pypi.org/pypi/apache-airflow/json")
     response.raise_for_status()

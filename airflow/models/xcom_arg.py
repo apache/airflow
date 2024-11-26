@@ -20,7 +20,8 @@ from __future__ import annotations
 import contextlib
 import inspect
 import itertools
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Mapping, Sequence, Union, overload
+from collections.abc import Iterable, Iterator, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Union, overload
 
 from sqlalchemy import func, or_, select
 
@@ -41,9 +42,9 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    # from airflow.models.dag import DAG
     from airflow.models.operator import Operator
-    from airflow.sdk import DAG, BaseOperator
+    from airflow.sdk.definitions.baseoperator import BaseOperator
+    from airflow.sdk.definitions.dag import DAG
     from airflow.utils.context import Context
     from airflow.utils.edgemodifier import EdgeModifier
 

@@ -18,11 +18,12 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable, Mapping
 from contextlib import closing, contextmanager
 from functools import cached_property
 from io import StringIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, overload
 from urllib.parse import urlparse
 
 from cryptography.hazmat.backends import default_backend
@@ -278,6 +279,14 @@ class SnowflakeHook(DbApiHook):
             conn_config["client_secret"] = conn.password
             conn_config.pop("login", None)
             conn_config.pop("password", None)
+
+        # configure custom target hostname and port, if specified
+        snowflake_host = extra_dict.get("host")
+        snowflake_port = extra_dict.get("port")
+        if snowflake_host:
+            conn_config["host"] = snowflake_host
+        if snowflake_port:
+            conn_config["port"] = snowflake_port
 
         return conn_config
 

@@ -29,7 +29,7 @@ class TestCustomBatchServiceWaiters:
     JOB_ID = "test_job_id"
 
     @pytest.fixture(autouse=True)
-    def setup_test_cases(self, monkeypatch):
+    def _setup_test_cases(self, monkeypatch):
         self.client = boto3.client("batch", region_name="eu-west-3")
         monkeypatch.setattr(BatchClientHook, "conn", self.client)
 

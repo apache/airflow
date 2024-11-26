@@ -113,6 +113,7 @@ def get_connections(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_connection("PUT")
 @provide_session
 @action_logging(
@@ -181,6 +182,7 @@ def post_connection(*, session: Session = NEW_SESSION) -> APIResponse:
     raise AlreadyExists(detail=f"Connection already exist. ID: {conn_id}")
 
 
+@mark_fastapi_migration_done
 @security.requires_access_connection("POST")
 def test_connection() -> APIResponse:
     """

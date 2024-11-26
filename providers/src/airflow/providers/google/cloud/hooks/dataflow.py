@@ -27,8 +27,9 @@ import subprocess
 import time
 import uuid
 import warnings
+from collections.abc import Generator, Sequence
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 from google.cloud.dataflow_v1beta3 import (
     GetJobRequest,
@@ -562,11 +563,6 @@ class DataflowHook(GoogleBaseHook):
         expected_terminal_state: str | None = None,
         **kwargs,
     ) -> None:
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
         self.poll_sleep = poll_sleep
         self.drain_pipeline = drain_pipeline
         self.cancel_timeout = cancel_timeout
@@ -577,6 +573,7 @@ class DataflowHook(GoogleBaseHook):
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
+            **kwargs,
         )
 
     def get_conn(self) -> Resource:
@@ -1564,14 +1561,6 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
     """Async hook class for dataflow service."""
 
     sync_hook_class = DataflowHook
-
-    def __init__(self, **kwargs):
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
-        super().__init__(**kwargs)
 
     async def initialize_client(self, client_class):
         """

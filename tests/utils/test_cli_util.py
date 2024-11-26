@@ -45,8 +45,7 @@ repo_root = Path(airflow.__file__).parent.parent
 class TestCliUtil:
     def test_metrics_build(self):
         func_name = "test"
-        exec_date = timezone.utcnow()
-        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", execution_date=exec_date)
+        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test")
         metrics = cli._build_metrics(func_name, namespace)
 
         expected = {
@@ -54,7 +53,6 @@ class TestCliUtil:
             "sub_command": "test",
             "dag_id": "foo",
             "task_id": "bar",
-            "execution_date": exec_date,
         }
         for k, v in expected.items():
             assert v == metrics.get(k)
@@ -132,10 +130,11 @@ class TestCliUtil:
         expected_command = expected_masked_command.split()
 
         exec_date = timezone.utcnow()
-        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", execution_date=exec_date)
-        with mock.patch.object(sys, "argv", args), mock.patch(
-            "airflow.utils.session.create_session"
-        ) as mock_create_session:
+        namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", logical_date=exec_date)
+        with (
+            mock.patch.object(sys, "argv", args),
+            mock.patch("airflow.utils.session.create_session") as mock_create_session,
+        ):
             metrics = cli._build_metrics(args[1], namespace)
             # Make it so the default_action_log doesn't actually commit the txn, by giving it a next txn
             # instead
@@ -191,9 +190,10 @@ class TestCliUtil:
 
         exec_date = timezone.utcnow()
         namespace = Namespace(dag_id="foo", task_id="bar", subcommand="test", execution_date=exec_date)
-        with mock.patch.object(sys, "argv", args), mock.patch(
-            "airflow.utils.session.create_session"
-        ) as mock_create_session:
+        with (
+            mock.patch.object(sys, "argv", args),
+            mock.patch("airflow.utils.session.create_session") as mock_create_session,
+        ):
             metrics = cli._build_metrics(args[1], namespace)
             # Make it so the default_action_log doesn't actually commit the txn, by giving it a next txn
             # instead

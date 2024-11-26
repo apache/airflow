@@ -19,9 +19,9 @@ from __future__ import annotations
 
 from airflow.api_fastapi.common.router import AirflowRouter
 
-health_router = AirflowRouter(tags=["Health"])
+router = AirflowRouter()
 
 
-@health_router.get("/health")
-async def health() -> dict:
+@router.get("/health")
+def health() -> dict:
     return {"status": "healthy"}

@@ -50,10 +50,10 @@
 {% set dag_is_paused = dag.get_is_paused() %}
 {% set base_date_arg = request.args.get('base_date') %}
 {% set num_runs_arg = request.args.get('num_runs') %}
-{% if execution_date is defined %}
-  {% set execution_date_arg = execution_date %}
+{% if logical_date is defined %}
+  {% set execution_date_arg = logical_date %}
 {% else %}
-  {% set execution_date_arg = request.args.get('execution_date') %}
+  {% set execution_date_arg = request.args.get('logical_date') %}
 {% endif %}
 
 {% block head_meta %}
@@ -98,7 +98,7 @@
   <meta name="set_mapped_task_instance_note" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_set_mapped_task_instance_note', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_', map_index=0 ) }}">
   <meta name="set_dag_run_note" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_run_endpoint_set_dag_run_note', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_') }}">
   <meta name="dag_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_endpoint_get_dag', dag_id=dag.dag_id) }}">
-  <meta name="dag_source_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_source_endpoint_get_dag_source', file_token='_FILE_TOKEN_') }}">
+  <meta name="dag_source_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_source_endpoint_get_dag_source', dag_id=dag.dag_id) }}">
   <meta name="dag_details_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_endpoint_get_dag_details', dag_id=dag.dag_id) }}">
   <meta name="assets_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_asset_endpoint_get_assets') }}">
   <meta name="event_logs_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_event_log_endpoint_get_event_logs') }}">

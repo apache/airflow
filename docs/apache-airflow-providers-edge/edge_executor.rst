@@ -28,13 +28,14 @@ Edge Executor
 
 .. note::
 
-    As of Airflow 2.10.0, you can install the ``edge`` provider package to use this executor.
-    This can be done by installing ``apache-airflow-providers-edge`` or by installing Airflow
-    with the ``edge`` extra: ``pip install 'apache-airflow[edge]'``.
+    As of Airflow 2.10.3, the ``edge`` provider package is not included in normal release cycle.
+    Thus you can not directly install it via: ``pip install 'apache-airflow[edge]'`` as the dependency
+    can not be downloaded.
 
     While it is in not-ready state, a wheel release package must be manually built from source tree
     via ``breeze release-management prepare-provider-packages --include-not-ready-providers edge``
-    and then installed via pip from the generated wheel file.
+    and then installed via pip or uv from the generated wheel file. like:
+    ``pip install apache_airflow_providers_edge-<version>-py3-none-any.whl``.
 
 
 ``EdgeExecutor`` is an option if you want to distribute tasks to workers distributed in different locations.
@@ -45,7 +46,7 @@ The configuration parameters of the Edge Executor can be found in the Edge provi
 
 Here are a few imperative requirements for your workers:
 
-- ``airflow`` needs to be installed, and the CLI needs to be in the path
+- ``airflow`` needs to be installed, and the airflow CLI needs to be in the path
 - Airflow configuration settings should be homogeneous across the cluster
 - Operators that are executed on the Edge Worker need to have their dependencies
   met in that context. Please take a look to the respective provider package
@@ -232,12 +233,13 @@ The following features are known missing and will be implemented in increments:
 - Edge Worker CLI
 
   - Use WebSockets instead of HTTP calls for communication
-  - Handle SIG-INT/CTRL+C and gracefully terminate and complete job (``airflow edge stop`` is working though)
   - Send logs also to TaskFileHandler if external logging services are used
   - Integration into telemetry to send metrics from remote site
   - Allow ``airflow edge stop`` to wait until completed to terminated
   - Publish system metrics with heartbeats (CPU, Disk space, RAM, Load)
   - Be more liberal e.g. on patch version. MVP requires exact version match
+    (In current state if versions do not match, the worker will gracefully shut
+    down when jobs are completed, no new jobs will be started)
 
 - Tests
 

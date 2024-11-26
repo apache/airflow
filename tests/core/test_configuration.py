@@ -975,9 +975,14 @@ class TestDeprecatedConf:
     def test_deprecated_options_cmd(self):
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
-        with set_deprecated_options(
-            deprecated_options={("celery", "result_backend"): ("celery", "celery_result_backend", "2.0.0")}
-        ), set_sensitive_config_values(sensitive_config_values={("celery", "celery_result_backend")}):
+        with (
+            set_deprecated_options(
+                deprecated_options={
+                    ("celery", "result_backend"): ("celery", "celery_result_backend", "2.0.0")
+                }
+            ),
+            set_sensitive_config_values(sensitive_config_values={("celery", "celery_result_backend")}),
+        ):
             conf.remove_option("celery", "result_backend")
             with conf_vars({("celery", "celery_result_backend_cmd"): "/bin/echo 99"}):
                 with pytest.warns(DeprecationWarning):
@@ -1584,6 +1589,7 @@ def test_sensitive_values():
         ("database", "sql_alchemy_conn"),
         ("core", "fernet_key"),
         ("core", "internal_api_secret_key"),
+        ("api", "auth_jwt_secret"),
         ("webserver", "secret_key"),
         ("secrets", "backend_kwargs"),
         ("sentry", "sentry_dsn"),

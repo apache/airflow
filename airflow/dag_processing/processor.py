@@ -23,9 +23,10 @@ import signal
 import threading
 import time
 import zipfile
+from collections.abc import Generator, Iterable
 from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Generator, Iterable
+from typing import TYPE_CHECKING
 
 from setproctitle import setproctitle
 from sqlalchemy import delete, event, select
@@ -189,9 +190,11 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
                 # The following line ensures that stdout goes to the same destination as the logs. If stdout
                 # gets sent to logs and logs are sent to stdout, this leads to an infinite loop. This
                 # necessitates this conditional based on the value of DAG_PROCESSOR_LOG_TARGET.
-                with redirect_stdout(StreamLogWriter(log, logging.INFO)), redirect_stderr(
-                    StreamLogWriter(log, logging.WARNING)
-                ), Stats.timer() as timer:
+                with (
+                    redirect_stdout(StreamLogWriter(log, logging.INFO)),
+                    redirect_stderr(StreamLogWriter(log, logging.WARNING)),
+                    Stats.timer() as timer,
+                ):
                     _handle_dag_file_processing()
             log.info("Processing %s took %.3f seconds", file_path, timer.duration)
         except Exception:
@@ -608,7 +611,7 @@ class DagFileProcessor(LoggingMixin):
         dag = dagbag.dags[request.dag_id]
         callbacks, context = DAG.fetch_callback(
             dag=dag,
-            dag_run_id=request.run_id,
+            run_id=request.run_id,
             success=not request.is_failure_callback,
             reason=request.msg,
             session=session,

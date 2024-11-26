@@ -83,7 +83,7 @@ class Output(NamedTuple):
 
     @property
     def file(self) -> TextIO:
-        return open(self.file_name, "a+t")
+        return open(self.file_name, "a+")
 
     @property
     def escaped_title(self) -> str:

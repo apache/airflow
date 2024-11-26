@@ -19,8 +19,9 @@ from __future__ import annotations
 import argparse
 import warnings
 from collections import defaultdict
+from collections.abc import Container, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Container, Sequence, cast
+from typing import TYPE_CHECKING, cast
 
 from flask import session, url_for
 
@@ -430,7 +431,8 @@ class AwsAuthManager(BaseAuthManager):
         ]
 
     def register_views(self) -> None:
-        self.appbuilder.add_view_no_menu(AwsAuthManagerAuthenticationViews())
+        if self.appbuilder:
+            self.appbuilder.add_view_no_menu(AwsAuthManagerAuthenticationViews())
 
     @staticmethod
     def _get_menu_item_request(resource_name: str) -> IsAuthorizedRequest:

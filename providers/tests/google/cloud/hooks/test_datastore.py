@@ -37,10 +37,6 @@ def mock_init(
 
 
 class TestDatastoreHook:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            DatastoreHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
-
     def setup_method(self):
         with patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__", new=mock_init
