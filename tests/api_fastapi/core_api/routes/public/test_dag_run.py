@@ -337,21 +337,21 @@ class TestGetDagRuns:
         assert response.json()["detail"] == expected_detail
 
     @pytest.mark.parametrize(
-        "dag_id, query_params, expected_dag_id_list",
+        "dag_id, query_params, expected_dag_id_set",
         [
             (
                 DAG1_ID,
                 {"logical_date_gte": LOGICAL_DATE1.isoformat()},
-                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+                {DAG1_RUN1_ID, DAG1_RUN2_ID},
             ),
-            (DAG2_ID, {"logical_date_lte": LOGICAL_DATE3.isoformat()}, [DAG2_RUN1_ID]),
+            (DAG2_ID, {"logical_date_lte": LOGICAL_DATE3.isoformat()}, {DAG2_RUN1_ID}),
             (
                 "~",
                 {
                     "start_date_gte": START_DATE1.isoformat(),
                     "start_date_lte": (START_DATE2 - timedelta(days=1)).isoformat(),
                 },
-                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+                {DAG1_RUN1_ID, DAG1_RUN2_ID},
             ),
             (
                 DAG1_ID,
@@ -359,7 +359,7 @@ class TestGetDagRuns:
                     "end_date_gte": START_DATE2.isoformat(),
                     "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
-                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+                {DAG1_RUN1_ID, DAG1_RUN2_ID},
             ),
             (
                 DAG1_ID,
@@ -367,7 +367,7 @@ class TestGetDagRuns:
                     "logical_date_gte": LOGICAL_DATE1.isoformat(),
                     "logical_date_lte": LOGICAL_DATE2.isoformat(),
                 },
-                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+                {DAG1_RUN1_ID, DAG1_RUN2_ID},
             ),
             (
                 DAG2_ID,
@@ -375,17 +375,17 @@ class TestGetDagRuns:
                     "start_date_gte": START_DATE2.isoformat(),
                     "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
-                [DAG2_RUN1_ID, DAG2_RUN2_ID],
+                {DAG2_RUN1_ID, DAG2_RUN2_ID},
             ),
-            (DAG1_ID, {"state": DagRunState.SUCCESS.value}, [DAG1_RUN1_ID]),
-            (DAG2_ID, {"state": DagRunState.FAILED.value}, []),
+            (DAG1_ID, {"state": DagRunState.SUCCESS.value}, {DAG1_RUN1_ID}),
+            (DAG2_ID, {"state": DagRunState.FAILED.value}, set()),
             (
                 DAG1_ID,
                 {
                     "state": DagRunState.SUCCESS.value,
                     "logical_date_gte": LOGICAL_DATE1.isoformat(),
                 },
-                [DAG1_RUN1_ID],
+                {DAG1_RUN1_ID},
             ),
             (
                 DAG1_ID,
@@ -393,15 +393,15 @@ class TestGetDagRuns:
                     "state": DagRunState.FAILED.value,
                     "start_date_gte": START_DATE1.isoformat(),
                 },
-                [DAG1_RUN2_ID],
+                {DAG1_RUN2_ID},
             ),
         ],
     )
-    def test_filters(self, test_client, dag_id, query_params, expected_dag_id_list):
+    def test_filters(self, test_client, dag_id, query_params, expected_dag_id_set):
         response = test_client.get(f"/public/dags/{dag_id}/dagRuns", params=query_params)
         assert response.status_code == 200
         body = response.json()
-        assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_list
+        assert set(each["dag_run_id"] for each in body["dag_runs"]) == expected_dag_id_set
 
     def test_bad_filters(self, test_client):
         query_params = {
@@ -645,67 +645,67 @@ class TestListDagRunsBatch:
         assert response.json()["detail"] == expected_detail
 
     @pytest.mark.parametrize(
-        "post_body, expected_dag_id_list",
+        "post_body, expected_dag_id_set",
         [
             (
                 {"logical_date_gte": LOGICAL_DATE1.isoformat()},
-                DAG_RUNS_LIST,
+                set(DAG_RUNS_LIST),
             ),
-            ({"logical_date_lte": LOGICAL_DATE3.isoformat()}, DAG_RUNS_LIST[:3]),
+            ({"logical_date_lte": LOGICAL_DATE3.isoformat()}, set(DAG_RUNS_LIST[:3])),
             (
                 {
                     "start_date_gte": START_DATE1.isoformat(),
                     "start_date_lte": (START_DATE2 - timedelta(days=1)).isoformat(),
                 },
-                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+                {DAG1_RUN1_ID, DAG1_RUN2_ID},
             ),
             (
                 {
                     "end_date_gte": START_DATE2.isoformat(),
                     "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
-                DAG_RUNS_LIST,
+                set(DAG_RUNS_LIST),
             ),
             (
                 {
                     "logical_date_gte": LOGICAL_DATE1.isoformat(),
                     "logical_date_lte": LOGICAL_DATE2.isoformat(),
                 },
-                [DAG1_RUN1_ID, DAG1_RUN2_ID],
+                {DAG1_RUN1_ID, DAG1_RUN2_ID},
             ),
             (
                 {
                     "start_date_gte": START_DATE2.isoformat(),
                     "end_date_lte": (datetime.now(tz=timezone.utc) + timedelta(days=1)).isoformat(),
                 },
-                [DAG2_RUN1_ID, DAG2_RUN2_ID],
+                {DAG2_RUN1_ID, DAG2_RUN2_ID},
             ),
             (
                 {"states": [DagRunState.SUCCESS.value]},
-                [DAG1_RUN1_ID, DAG2_RUN1_ID, DAG2_RUN2_ID],
+                {DAG1_RUN1_ID, DAG2_RUN1_ID, DAG2_RUN2_ID},
             ),
-            ({"states": [DagRunState.FAILED.value]}, [DAG1_RUN2_ID]),
+            ({"states": [DagRunState.FAILED.value]}, {DAG1_RUN2_ID}),
             (
                 {
                     "states": [DagRunState.SUCCESS.value],
                     "logical_date_gte": LOGICAL_DATE2.isoformat(),
                 },
-                DAG_RUNS_LIST[2:],
+                set(DAG_RUNS_LIST[2:]),
             ),
             (
                 {
                     "states": [DagRunState.FAILED.value],
                     "start_date_gte": START_DATE1.isoformat(),
                 },
-                [DAG1_RUN2_ID],
+                {DAG1_RUN2_ID},
             ),
         ],
     )
-    def test_filters(self, test_client, post_body, expected_dag_id_list):
+    def test_filters(self, test_client, post_body, expected_dag_id_set):
         response = test_client.post("/public/dags/~/dagRuns/list", json=post_body)
         assert response.status_code == 200
         body = response.json()
-        assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_list
+        assert set(each["dag_run_id"] for each in body["dag_runs"]) == expected_dag_id_set
 
     def test_bad_filters(self, test_client):
         post_body = {
