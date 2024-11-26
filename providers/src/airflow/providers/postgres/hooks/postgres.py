@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import os
 import warnings
+from collections.abc import Iterable
 from contextlib import closing
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Iterable, Union
+from typing import TYPE_CHECKING, Any, Union
 
 import psycopg2
 import psycopg2.extensions

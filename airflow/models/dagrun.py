@@ -20,7 +20,8 @@ from __future__ import annotations
 import itertools
 import os
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, NamedTuple, Sequence, TypeVar, overload
+from collections.abc import Iterable, Iterator, Sequence
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple, TypeVar, overload
 
 import re2
 from sqlalchemy import (
@@ -876,8 +877,9 @@ class DagRun(Base, LoggingMixin):
 
         start_dttm = timezone.utcnow()
         self.last_scheduling_decision = start_dttm
-        with Stats.timer(f"dagrun.dependency-check.{self.dag_id}"), Stats.timer(
-            "dagrun.dependency-check", tags=self.stats_tags
+        with (
+            Stats.timer(f"dagrun.dependency-check.{self.dag_id}"),
+            Stats.timer("dagrun.dependency-check", tags=self.stats_tags),
         ):
             dag = self.get_dag()
             info = self.task_instance_scheduling_decisions(session)

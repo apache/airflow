@@ -28,6 +28,7 @@ import contextlib
 import copy
 import functools
 import logging
+from collections.abc import Collection, Iterable, Sequence
 from datetime import datetime, timedelta
 from functools import wraps
 from threading import local
@@ -36,10 +37,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Collection,
-    Iterable,
     NoReturn,
-    Sequence,
     TypeVar,
 )
 

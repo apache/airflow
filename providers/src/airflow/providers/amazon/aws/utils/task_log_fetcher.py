@@ -18,9 +18,10 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Generator
 from datetime import datetime, timedelta, timezone
 from threading import Event, Thread
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
 
 from botocore.exceptions import ClientError, ConnectionClosedError
 

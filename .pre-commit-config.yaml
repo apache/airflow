@@ -1189,7 +1189,13 @@ repos:
         files: \.py$
         exclude: |
           (?x)
+          ^airflow/configuration.py$ |
+          ^airflow/metrics/validators.py$ |
+          ^airflow/models/dag.py$ |
+          ^airflow/serialization/serde.py$ |
+          ^airflow/utils/file.py$ |
           ^airflow/utils/helpers.py$ |
+          ^airflow/utils/log/secrets_masker.py$ |
           ^providers/src/airflow/providers/ |
           ^(providers/)?tests/ |
           task_sdk/src/airflow/sdk/definitions/dag.py$ |
@@ -1268,13 +1274,14 @@ repos:
         # These migrations contain FAB related changes but existed before moving FAB auth manager
         # to its own provider
         exclude: >
-          (?ix)
-          ^airflow/migrations/versions/00.*\.py$|
-          ^airflow/migrations/versions/0106.*\.py$|
-          ^airflow/migrations/versions/0118.*\.py$|
-          ^airflow/migrations/versions/0119.*\.py$|
-          ^airflow/migrations/versions/0121.*\.py$|
-          ^airflow/migrations/versions/0124.*\.py$
+          (?ix)^(
+            airflow/migrations/versions/00.*\.py|
+            airflow/migrations/versions/0106.*\.py|
+            airflow/migrations/versions/0118.*\.py|
+            airflow/migrations/versions/0119.*\.py|
+            airflow/migrations/versions/0121.*\.py|
+            airflow/migrations/versions/0124.*\.py
+          )$
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev
@@ -1292,36 +1299,37 @@ repos:
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
-        additional_dependencies: [ 'rich>=12.4.4' ]
+        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-airflow
         name: Run mypy for airflow
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py
         files: \.py$
         exclude: |
-          (?x)
-          ^.*/.*_vendor/ |
-          ^airflow/migrations |
-          ^providers/ |
-          ^task_sdk/ |
-          ^dev |
-          ^scripts |
-          ^docs |
-          ^provider_packages |
-          ^performance/ |
-          ^tests/dags/test_imports.py |
-          ^clients/python/test_.*\.py
+          (?x)^(
+            .*/.*_vendor/|
+            airflow/migrations|
+            clients/python/test_.*\.py|
+            dev|
+            docs|
+            performance/|
+            provider_packages|
+            providers/|
+            scripts|
+            task_sdk/|
+            tests/dags/test_imports\.py
+          )
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-airflow
-        stages: [ 'manual' ]
+        stages: ['manual']
         name: Run mypy for airflow (manual)
         language: python
         entry: ./scripts/ci/pre_commit/mypy_folder.py airflow
         pass_filenames: false
         files: ^.*\.py$
         require_serial: true
-        additional_dependencies: [ 'rich>=12.4.4' ]
+        additional_dependencies: ['rich>=12.4.4']
       - id: mypy-providers
         name: Run mypy for providers
         language: python

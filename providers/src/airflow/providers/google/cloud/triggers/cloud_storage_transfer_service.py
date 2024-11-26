@@ -18,7 +18,8 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, AsyncIterator, Iterable
+from collections.abc import AsyncIterator, Iterable
+from typing import Any
 
 from google.api_core.exceptions import GoogleAPIError
 from google.cloud.storage_transfer_v1.types import TransferOperation

@@ -27,16 +27,13 @@ import os
 import sys
 import time
 import warnings
+from collections.abc import Generator, Iterable, Iterator, Sequence
 from tempfile import gettempdir
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Generator,
-    Iterable,
-    Iterator,
     Protocol,
-    Sequence,
     TypeVar,
     overload,
 )
@@ -858,10 +855,13 @@ def _configured_alembic_environment() -> Generator[EnvironmentContext, None, Non
     config = _get_alembic_config()
     script = _get_script_object(config)
 
-    with EnvironmentContext(
-        config,
-        script,
-    ) as env, settings.engine.connect() as connection:
+    with (
+        EnvironmentContext(
+            config,
+            script,
+        ) as env,
+        settings.engine.connect() as connection,
+    ):
         alembic_logger = logging.getLogger("alembic")
         level = alembic_logger.level
         alembic_logger.setLevel(logging.WARNING)
@@ -1448,7 +1448,7 @@ def get_query_count(query_stmt: Select, *, session: Session) -> int:
     return session.scalar(count_stmt)
 
 
-async def get_query_count_async(query: Select, *, session: AsyncSession) -> int:
+async def get_query_count_async(statement: Select, *, session: AsyncSession) -> int:
     """
     Get count of a query.
 
@@ -1459,7 +1459,7 @@ async def get_query_count_async(query: Select, *, session: AsyncSession) -> int:
 
     :meta private:
     """
-    count_stmt = select(func.count()).select_from(query.order_by(None).subquery())
+    count_stmt = select(func.count()).select_from(statement.order_by(None).subquery())
     return await session.scalar(count_stmt)
 
 

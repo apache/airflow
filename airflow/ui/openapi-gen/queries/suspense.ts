@@ -14,7 +14,9 @@ import {
   DagsService,
   DashboardService,
   EventLogService,
+  ExtraLinksService,
   ImportErrorService,
+  JobService,
   MonitorService,
   PluginService,
   PoolService,
@@ -1198,193 +1200,75 @@ export const useEventLogServiceGetEventLogsSuspense = <
     ...options,
   });
 /**
- * Get Import Error
- * Get an import error.
+ * Get Extra Links
+ * Get extra links for task instance.
  * @param data The data for the request.
- * @param data.importErrorId
- * @returns ImportErrorResponse Successful Response
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @returns ExtraLinksResponse Successful Response
  * @throws ApiError
  */
-export const useImportErrorServiceGetImportErrorSuspense = <
-  TData = Common.ImportErrorServiceGetImportErrorDefaultResponse,
+export const useExtraLinksServiceGetExtraLinksSuspense = <
+  TData = Common.ExtraLinksServiceGetExtraLinksDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    importErrorId,
+    dagId,
+    dagRunId,
+    taskId,
   }: {
-    importErrorId: number;
+    dagId: string;
+    dagRunId: string;
+    taskId: string;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseImportErrorServiceGetImportErrorKeyFn(
-      { importErrorId },
+    queryKey: Common.UseExtraLinksServiceGetExtraLinksKeyFn(
+      { dagId, dagRunId, taskId },
       queryKey,
     ),
     queryFn: () =>
-      ImportErrorService.getImportError({ importErrorId }) as TData,
+      ExtraLinksService.getExtraLinks({ dagId, dagRunId, taskId }) as TData,
     ...options,
   });
 /**
- * Get Import Errors
- * Get all import errors.
+ * Get Extra Links
+ * Get extra links for task instance.
  * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @returns ImportErrorCollectionResponse Successful Response
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @returns ExtraLinksResponse Successful Response
  * @throws ApiError
  */
-export const useImportErrorServiceGetImportErrorsSuspense = <
-  TData = Common.ImportErrorServiceGetImportErrorsDefaultResponse,
+export const useTaskInstanceServiceGetExtraLinksSuspense = <
+  TData = Common.TaskInstanceServiceGetExtraLinksDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    limit,
-    offset,
-    orderBy,
+    dagId,
+    dagRunId,
+    taskId,
   }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  } = {},
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn(
-      { limit, offset, orderBy },
-      queryKey,
-    ),
-    queryFn: () =>
-      ImportErrorService.getImportErrors({ limit, offset, orderBy }) as TData,
-    ...options,
-  });
-/**
- * Get Plugins
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @returns PluginCollectionResponse Successful Response
- * @throws ApiError
- */
-export const usePluginServiceGetPluginsSuspense = <
-  TData = Common.PluginServiceGetPluginsDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    limit,
-    offset,
-  }: {
-    limit?: number;
-    offset?: number;
-  } = {},
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useSuspenseQuery<TData, TError>({
-    queryKey: Common.UsePluginServiceGetPluginsKeyFn(
-      { limit, offset },
-      queryKey,
-    ),
-    queryFn: () => PluginService.getPlugins({ limit, offset }) as TData,
-    ...options,
-  });
-/**
- * Get Pool
- * Get a pool.
- * @param data The data for the request.
- * @param data.poolName
- * @returns PoolResponse Successful Response
- * @throws ApiError
- */
-export const usePoolServiceGetPoolSuspense = <
-  TData = Common.PoolServiceGetPoolDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    poolName,
-  }: {
-    poolName: string;
+    dagId: string;
+    dagRunId: string;
+    taskId: string;
   },
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UsePoolServiceGetPoolKeyFn({ poolName }, queryKey),
-    queryFn: () => PoolService.getPool({ poolName }) as TData,
-    ...options,
-  });
-/**
- * Get Pools
- * Get all pools entries.
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @returns PoolCollectionResponse Successful Response
- * @throws ApiError
- */
-export const usePoolServiceGetPoolsSuspense = <
-  TData = Common.PoolServiceGetPoolsDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    limit,
-    offset,
-    orderBy,
-  }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-  } = {},
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useSuspenseQuery<TData, TError>({
-    queryKey: Common.UsePoolServiceGetPoolsKeyFn(
-      { limit, offset, orderBy },
+    queryKey: Common.UseTaskInstanceServiceGetExtraLinksKeyFn(
+      { dagId, dagRunId, taskId },
       queryKey,
     ),
-    queryFn: () => PoolService.getPools({ limit, offset, orderBy }) as TData,
-    ...options,
-  });
-/**
- * Get Providers
- * Get providers.
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @returns ProviderCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useProviderServiceGetProvidersSuspense = <
-  TData = Common.ProviderServiceGetProvidersDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    limit,
-    offset,
-  }: {
-    limit?: number;
-    offset?: number;
-  } = {},
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseProviderServiceGetProvidersKeyFn(
-      { limit, offset },
-      queryKey,
-    ),
-    queryFn: () => ProviderService.getProviders({ limit, offset }) as TData,
+    queryFn: () =>
+      TaskInstanceService.getExtraLinks({ dagId, dagRunId, taskId }) as TData,
     ...options,
   });
 /**
@@ -1636,6 +1520,46 @@ export const useTaskInstanceServiceGetTaskInstanceDependencies1Suspense = <
         dagId,
         dagRunId,
         mapIndex,
+        taskId,
+      }) as TData,
+    ...options,
+  });
+/**
+ * Get Task Instance Tries
+ * Get list of task instances history.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @returns TaskInstanceHistoryCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceGetTaskInstanceTriesSuspense = <
+  TData = Common.TaskInstanceServiceGetTaskInstanceTriesDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    taskId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    taskId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTriesKeyFn(
+      { dagId, dagRunId, taskId },
+      queryKey,
+    ),
+    queryFn: () =>
+      TaskInstanceService.getTaskInstanceTries({
+        dagId,
+        dagRunId,
         taskId,
       }) as TData,
     ...options,
@@ -1973,6 +1897,285 @@ export const useTaskInstanceServiceGetLogSuspense = <
         token,
         tryNumber,
       }) as TData,
+    ...options,
+  });
+/**
+ * Get Import Error
+ * Get an import error.
+ * @param data The data for the request.
+ * @param data.importErrorId
+ * @returns ImportErrorResponse Successful Response
+ * @throws ApiError
+ */
+export const useImportErrorServiceGetImportErrorSuspense = <
+  TData = Common.ImportErrorServiceGetImportErrorDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    importErrorId,
+  }: {
+    importErrorId: number;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseImportErrorServiceGetImportErrorKeyFn(
+      { importErrorId },
+      queryKey,
+    ),
+    queryFn: () =>
+      ImportErrorService.getImportError({ importErrorId }) as TData,
+    ...options,
+  });
+/**
+ * Get Import Errors
+ * Get all import errors.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns ImportErrorCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useImportErrorServiceGetImportErrorsSuspense = <
+  TData = Common.ImportErrorServiceGetImportErrorsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseImportErrorServiceGetImportErrorsKeyFn(
+      { limit, offset, orderBy },
+      queryKey,
+    ),
+    queryFn: () =>
+      ImportErrorService.getImportErrors({ limit, offset, orderBy }) as TData,
+    ...options,
+  });
+/**
+ * Get Jobs
+ * Get all jobs.
+ * @param data The data for the request.
+ * @param data.isAlive
+ * @param data.startDateGte
+ * @param data.startDateLte
+ * @param data.endDateGte
+ * @param data.endDateLte
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @param data.jobState
+ * @param data.jobType
+ * @param data.hostname
+ * @param data.executorClass
+ * @returns JobCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useJobServiceGetJobsSuspense = <
+  TData = Common.JobServiceGetJobsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    endDateGte,
+    endDateLte,
+    executorClass,
+    hostname,
+    isAlive,
+    jobState,
+    jobType,
+    limit,
+    offset,
+    orderBy,
+    startDateGte,
+    startDateLte,
+  }: {
+    endDateGte?: string;
+    endDateLte?: string;
+    executorClass?: string;
+    hostname?: string;
+    isAlive?: boolean;
+    jobState?: string;
+    jobType?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    startDateGte?: string;
+    startDateLte?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseJobServiceGetJobsKeyFn(
+      {
+        endDateGte,
+        endDateLte,
+        executorClass,
+        hostname,
+        isAlive,
+        jobState,
+        jobType,
+        limit,
+        offset,
+        orderBy,
+        startDateGte,
+        startDateLte,
+      },
+      queryKey,
+    ),
+    queryFn: () =>
+      JobService.getJobs({
+        endDateGte,
+        endDateLte,
+        executorClass,
+        hostname,
+        isAlive,
+        jobState,
+        jobType,
+        limit,
+        offset,
+        orderBy,
+        startDateGte,
+        startDateLte,
+      }) as TData,
+    ...options,
+  });
+/**
+ * Get Plugins
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @returns PluginCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const usePluginServiceGetPluginsSuspense = <
+  TData = Common.PluginServiceGetPluginsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    limit,
+    offset,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UsePluginServiceGetPluginsKeyFn(
+      { limit, offset },
+      queryKey,
+    ),
+    queryFn: () => PluginService.getPlugins({ limit, offset }) as TData,
+    ...options,
+  });
+/**
+ * Get Pool
+ * Get a pool.
+ * @param data The data for the request.
+ * @param data.poolName
+ * @returns PoolResponse Successful Response
+ * @throws ApiError
+ */
+export const usePoolServiceGetPoolSuspense = <
+  TData = Common.PoolServiceGetPoolDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    poolName,
+  }: {
+    poolName: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UsePoolServiceGetPoolKeyFn({ poolName }, queryKey),
+    queryFn: () => PoolService.getPool({ poolName }) as TData,
+    ...options,
+  });
+/**
+ * Get Pools
+ * Get all pools entries.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @returns PoolCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const usePoolServiceGetPoolsSuspense = <
+  TData = Common.PoolServiceGetPoolsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    limit,
+    offset,
+    orderBy,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UsePoolServiceGetPoolsKeyFn(
+      { limit, offset, orderBy },
+      queryKey,
+    ),
+    queryFn: () => PoolService.getPools({ limit, offset, orderBy }) as TData,
+    ...options,
+  });
+/**
+ * Get Providers
+ * Get providers.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @returns ProviderCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useProviderServiceGetProvidersSuspense = <
+  TData = Common.ProviderServiceGetProvidersDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    limit,
+    offset,
+  }: {
+    limit?: number;
+    offset?: number;
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseProviderServiceGetProvidersKeyFn(
+      { limit, offset },
+      queryKey,
+    ),
+    queryFn: () => ProviderService.getProviders({ limit, offset }) as TData,
     ...options,
   });
 /**

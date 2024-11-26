@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable, Sequence, TypeVar
+from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from flask import g
 from marshmallow import ValidationError
@@ -779,6 +780,7 @@ def get_mapped_task_instance_try_details(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_task_instance_tries(
