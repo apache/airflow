@@ -38,17 +38,15 @@ It has also some disadvantages as this introduces some coupling between those - 
 interfere with contributing to Airflow. Python ecosystem does not yet have proper monorepo support for keeping
 several packages in one repository and being able to work on multiple of them at the same time. The tool ``uv`` is 
 recommended to help mange this through it's ``workspace`` feature. While developing, dependencies and extras for a
-provider can be installed using ``uv``'s ``sync`` command:
+provider can be installed using ``uv``'s ``sync`` command. Here is an example for the microsoft.azure provider:
 
 .. code:: bash
 
-    uv sync --extra devel --extra devel-tests --extra google
+    uv sync --extra devel --extra devel-tests --extra microsoft.azure
 
 This will synchronize all extras that you need for development and testing of Airflow and google provider
-dependencies - including their runtime dependencies.
-
-See `local virtualenv <../07_local_virtualenv.rst>`_ or the uv proejct for more information.
-
+dependencies - including their runtime dependencies. See `local virtualenv <../07_local_virtualenv.rst>`_ or the uv
+proejct for more information.
 
 Therefore, until we can introduce multiple ``pyproject.toml`` for providers information/meta-data about the providers
 is kept in ``provider.yaml`` file in the right sub-directory of ``airflow\providers``. This file contains:
