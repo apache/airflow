@@ -500,7 +500,7 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      is-special-tests-require: ${{
+      special-tests-required: ${{
         needs.build-info.outputs.run-tests == 'true' &&
         (needs.build-info.outputs.canary-run == 'true' ||
         needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' ||
