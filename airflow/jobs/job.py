@@ -123,7 +123,6 @@ class Job(Base, LoggingMixin):
         self.heartbeat_failed = False
         self.hostname = get_hostname()
         if executor:
-            self.executor = executor
             self.executors = [executor]
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
@@ -135,9 +134,9 @@ class Job(Base, LoggingMixin):
         get_listener_manager().hook.on_starting(component=self)
         super().__init__(**kwargs)
 
-    @cached_property
+    @property
     def executor(self):
-        return ExecutorLoader.get_default_executor()
+        return self.executors[0]
 
     @cached_property
     def executors(self):
