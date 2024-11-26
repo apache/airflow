@@ -26,5 +26,6 @@
     // for users who use non-standard git config patterns
     // https://github.com/microsoft/vscode-remote-release/issues/2084#issuecomment-989756268
     "initializeCommand": "cd \"${localWorkspaceFolder}\" && git config --local user.email \"$(git config user.email)\" && git config --local user.name \"$(git config user.name)\"",
+    "postCreateCommand": "./scripts/ci/docker-compose/link-workspaces-on-local-docker.sh",
     "overrideCommand": true
 }
