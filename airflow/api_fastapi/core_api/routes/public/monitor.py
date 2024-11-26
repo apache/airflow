@@ -25,7 +25,7 @@ monitor_router = AirflowRouter(tags=["Monitor"], prefix="/monitor")
 
 
 @monitor_router.get("/health")
-def get_health() -> HealthInfoSchemaWithDagProcessor | HealthInfoSchema:
+def get_health() -> HealthInfoSchema | HealthInfoSchemaWithDagProcessor:
     airflow_health_status = get_airflow_health()
     if "dag_processor" not in airflow_health_status:
         return HealthInfoSchema.model_validate(airflow_health_status, from_attributes=True)

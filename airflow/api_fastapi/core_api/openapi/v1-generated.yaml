@@ -5344,8 +5344,8 @@ paths:
             application/json:
               schema:
                 anyOf:
-                - $ref: '#/components/schemas/HealthInfoSchemaWithDagProcessor'
                 - $ref: '#/components/schemas/HealthInfoSchema'
+                - $ref: '#/components/schemas/HealthInfoSchemaWithDagProcessor'
                 title: Response Get Health
   /public/version:
     get:
