@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -26,8 +25,15 @@ import pytest
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 
-def MockRow(*args: Any, **kwargs: Any) -> MagicMock:
-    return MagicMock()
+class MockRow:
+    def __init__(self, **kwargs):
+        self.__dict__.update(kwargs)
+
+    def __eq__(self, other):
+        return isinstance(other, MockRow) and self.__dict__ == other.__dict__
+
+    def __repr__(self):
+        return f"MockRow({self.__dict__})"
 
 
 from airflow.models.connection import Connection
