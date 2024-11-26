@@ -7969,7 +7969,6 @@ components:
           - type: string
           - type: 'null'
           title: Note
-      additionalProperties: false
       type: object
       title: TriggerDAGRunPostBody
       description: Trigger DAG Run Serializer for POST body.

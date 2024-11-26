@@ -22,6 +22,7 @@ from typing import Annotated, cast
 import pendulum
 from fastapi import Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from airflow.api.common.mark_tasks import (
@@ -53,6 +54,7 @@ from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskInstanceResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.exceptions import ParamValidationError
 from airflow.models import DAG, DagModel, DagRun
 from airflow.models.dag_version import DagVersion
 from airflow.timetables.base import DataInterval
@@ -330,43 +332,41 @@ def trigger_dag_run(
 
     run_id = body.dag_run_id
     logical_date = pendulum.instance(body.logical_date)
-    dagrun_instance = session.scalar(
-        select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id).limit(1)
-    )
 
-    if not dagrun_instance:
-        try:
-            dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+    try:
+        dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
 
-            if body.data_interval_start and body.data_interval_end:
-                data_interval = DataInterval(
-                    start=pendulum.instance(body.data_interval_start),
-                    end=pendulum.instance(body.data_interval_end),
-                )
-            else:
-                data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
-            dag_version = DagVersion.get_latest_version(dag.dag_id)
-            dag_run = dag.create_dagrun(
-                run_type=DagRunType.MANUAL,
-                run_id=run_id,
-                logical_date=logical_date,
-                data_interval=data_interval,
-                state=DagRunState.QUEUED,
-                conf=body.conf,
-                external_trigger=True,
-                dag_version=dag_version,
-                session=session,
-                triggered_by=DagRunTriggeredByType.REST_API,
+        if body.data_interval_start and body.data_interval_end:
+            data_interval = DataInterval(
+                start=pendulum.instance(body.data_interval_start),
+                end=pendulum.instance(body.data_interval_end),
             )
-            dag_run_note = body.note
-            if dag_run_note:
-                current_user_id = None  # refer to https://github.com/apache/airflow/issues/43534
-                dag_run.note = (dag_run_note, current_user_id)
-            return dag_run
-        except ValueError as e:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
-
-    raise HTTPException(
-        status.HTTP_409_CONFLICT,
-        f"DAGRun with DAG ID: '{dag_id}' and DAGRun ID: '{body.dag_run_id}' already exists",
-    )
+        else:
+            data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
+        dag_run = dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            run_id=run_id,
+            logical_date=logical_date,
+            data_interval=data_interval,
+            state=DagRunState.QUEUED,
+            conf=body.conf,
+            external_trigger=True,
+            dag_version=dag_version,
+            session=session,
+            triggered_by=DagRunTriggeredByType.REST_API,
+        )
+        dag_run_note = body.note
+        if dag_run_note:
+            current_user_id = None  # refer to https://github.com/apache/airflow/issues/43534
+            dag_run.note = (dag_run_note, current_user_id)
+        return dag_run
+    except ValueError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+    except IntegrityError:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"DAGRun with DAG ID: '{dag_id}' and DAGRun ID: '{run_id}' already exists",
+        )
+    except ParamValidationError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))

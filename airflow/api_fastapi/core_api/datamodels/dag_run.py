@@ -20,7 +20,6 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 
-from fastapi import HTTPException, status
 from pydantic import AwareDatetime, Field, computed_field, model_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
@@ -88,14 +87,11 @@ class TriggerDAGRunPostBody(BaseModel):
     conf: dict = Field(default_factory=dict)
     note: str | None = None
 
-    model_config = {"extra": "forbid"}
-
     @model_validator(mode="after")
     def check_data_intervals(cls, values):
         if (values.data_interval_start is None) != (values.data_interval_end is None):
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
-                "Either both data_interval_start and data_interval_end must be provided or both must be None",
+            raise ValueError(
+                "Either both data_interval_start and data_interval_end must be provided or both must be None"
             )
         return values
 

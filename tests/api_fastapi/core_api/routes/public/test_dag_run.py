@@ -26,6 +26,7 @@ from sqlalchemy import select
 
 from airflow.models import DagModel, DagRun
 from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.param import Param
 from airflow.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.utils import timezone
@@ -62,6 +63,7 @@ START_DATE2 = datetime(2024, 4, 15, 0, 0, tzinfo=timezone.utc)
 LOGICAL_DATE3 = datetime(2024, 5, 16, 0, 0, tzinfo=timezone.utc)
 LOGICAL_DATE4 = datetime(2024, 5, 25, 0, 0, tzinfo=timezone.utc)
 DAG1_RUN1_NOTE = "test_note"
+DAG2_PARAM = {"validated_number": Param(1, minimum=1, maximum=10)}
 
 
 @pytest.fixture(autouse=True)
@@ -102,11 +104,7 @@ def setup(request, dag_maker, session=None):
         logical_date=LOGICAL_DATE2,
     )
 
-    with dag_maker(
-        DAG2_ID,
-        schedule=None,
-        start_date=START_DATE2,
-    ):
+    with dag_maker(DAG2_ID, schedule=None, start_date=START_DATE2, params=DAG2_PARAM):
         EmptyOperator(task_id="task_2")
     dag_maker.create_dagrun(
         run_id=DAG2_RUN1_ID,
@@ -660,7 +658,6 @@ class TestClearDagRun:
         assert body["detail"][0]["loc"][0] == "body"
 
 
-# @pytest.mark.no_setup
 class TestTriggerDagRun:
     def _dags_for_trigger_tests(self, session=None):
         inactive_dag = DagModel(
@@ -721,12 +718,7 @@ class TestTriggerDagRun:
 
         response = test_client.post(
             f"/public/dags/{DAG1_ID}/dagRuns",
-            json={
-                "dag_run_id": dag_run_id,
-                "note": note,
-                "data_interval_start": data_interval_start,
-                "data_interval_end": data_interval_end,
-            },
+            json=request_json,
         )
         assert response.status_code == 200
 
@@ -764,32 +756,33 @@ class TestTriggerDagRun:
     @pytest.mark.parametrize(
         "post_body, expected_detail",
         [
-            (
-                {"executiondate": "2020-11-10T08:25:56Z"},
-                {
-                    "detail": [
-                        {
-                            "input": "2020-11-10T08:25:56Z",
-                            "loc": ["body", "executiondate"],
-                            "msg": "Extra inputs are not permitted",
-                            "type": "extra_forbidden",
-                        }
-                    ]
-                },
-            ),
-            (
-                {"logical_date": "2020-11-10T08:25:56"},
-                {
-                    "detail": [
-                        {
-                            "input": "2020-11-10T08:25:56",
-                            "loc": ["body", "logical_date"],
-                            "msg": "Extra inputs are not permitted",
-                            "type": "extra_forbidden",
-                        }
-                    ]
-                },
-            ),
+            # Uncomment these 2 test cases once https://github.com/apache/airflow/pull/44306 is merged
+            # (
+            #     {"executiondate": "2020-11-10T08:25:56Z"},
+            #     {
+            #         "detail": [
+            #             {
+            #                 "input": "2020-11-10T08:25:56Z",
+            #                 "loc": ["body", "executiondate"],
+            #                 "msg": "Extra inputs are not permitted",
+            #                 "type": "extra_forbidden",
+            #             }
+            #         ]
+            #     },
+            # ),
+            # (
+            #     {"logical_date": "2020-11-10T08:25:56"},
+            #     {
+            #         "detail": [
+            #             {
+            #                 "input": "2020-11-10T08:25:56",
+            #                 "loc": ["body", "logical_date"],
+            #                 "msg": "Extra inputs are not permitted",
+            #                 "type": "extra_forbidden",
+            #             }
+            #         ]
+            #     },
+            # ),
             (
                 {"data_interval_start": "2020-11-10T08:25:56"},
                 {
@@ -947,9 +940,18 @@ class TestTriggerDagRun:
         )
         assert response.status_code == 422
         assert (
-            response.json()["detail"]
-            == "Either both data_interval_start and data_interval_end must be provided or both must be None"
+            response.json()["detail"][0]["msg"]
+            == "Value error, Either both data_interval_start and data_interval_end must be provided or both must be None"
         )
+
+    def test_raises_validation_error_for_invalid_params(self, test_client):
+        response = test_client.post(
+            f"/public/dags/{DAG2_ID}/dagRuns",
+            json={"conf": {"validated_number": 5000}},
+        )
+        # breakpoint()
+        assert response.status_code == 400
+        assert "Invalid input for param validated_number" in response.json()["detail"]
 
     def test_response_404(self, test_client):
         response = test_client.post("/public/dags/randoms/dagRuns", json={})
