@@ -4146,6 +4146,13 @@ paths:
         schema:
           type: string
           title: Task Id
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
       responses:
         '200':
           description: Successful Response
@@ -4677,6 +4684,13 @@ paths:
         schema:
           type: integer
           title: Task Try Number
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
       responses:
         '200':
           description: Successful Response

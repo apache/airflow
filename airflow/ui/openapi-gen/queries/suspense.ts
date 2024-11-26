@@ -1531,6 +1531,7 @@ export const useTaskInstanceServiceGetTaskInstanceDependencies1Suspense = <
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
+ * @param data.mapIndex
  * @returns TaskInstanceHistoryCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -1542,10 +1543,12 @@ export const useTaskInstanceServiceGetTaskInstanceTriesSuspense = <
   {
     dagId,
     dagRunId,
+    mapIndex,
     taskId,
   }: {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     taskId: string;
   },
   queryKey?: TQueryKey,
@@ -1553,13 +1556,14 @@ export const useTaskInstanceServiceGetTaskInstanceTriesSuspense = <
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTriesKeyFn(
-      { dagId, dagRunId, taskId },
+      { dagId, dagRunId, mapIndex, taskId },
       queryKey,
     ),
     queryFn: () =>
       TaskInstanceService.getTaskInstanceTries({
         dagId,
         dagRunId,
+        mapIndex,
         taskId,
       }) as TData,
     ...options,
@@ -1786,6 +1790,7 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
  * @param data.dagRunId
  * @param data.taskId
  * @param data.taskTryNumber
+ * @param data.mapIndex
  * @returns TaskInstanceHistoryResponse Successful Response
  * @throws ApiError
  */
@@ -1797,11 +1802,13 @@ export const useTaskInstanceServiceGetTaskInstanceTryDetailsSuspense = <
   {
     dagId,
     dagRunId,
+    mapIndex,
     taskId,
     taskTryNumber,
   }: {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     taskId: string;
     taskTryNumber: number;
   },
@@ -1810,13 +1817,14 @@ export const useTaskInstanceServiceGetTaskInstanceTryDetailsSuspense = <
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTryDetailsKeyFn(
-      { dagId, dagRunId, taskId, taskTryNumber },
+      { dagId, dagRunId, mapIndex, taskId, taskTryNumber },
       queryKey,
     ),
     queryFn: () =>
       TaskInstanceService.getTaskInstanceTryDetails({
         dagId,
         dagRunId,
+        mapIndex,
         taskId,
         taskTryNumber,
       }) as TData,

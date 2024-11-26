@@ -1553,6 +1553,7 @@ export const useTaskInstanceServiceGetTaskInstanceDependencies1 = <
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
+ * @param data.mapIndex
  * @returns TaskInstanceHistoryCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -1564,10 +1565,12 @@ export const useTaskInstanceServiceGetTaskInstanceTries = <
   {
     dagId,
     dagRunId,
+    mapIndex,
     taskId,
   }: {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     taskId: string;
   },
   queryKey?: TQueryKey,
@@ -1575,13 +1578,14 @@ export const useTaskInstanceServiceGetTaskInstanceTries = <
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTriesKeyFn(
-      { dagId, dagRunId, taskId },
+      { dagId, dagRunId, mapIndex, taskId },
       queryKey,
     ),
     queryFn: () =>
       TaskInstanceService.getTaskInstanceTries({
         dagId,
         dagRunId,
+        mapIndex,
         taskId,
       }) as TData,
     ...options,
@@ -1808,6 +1812,7 @@ export const useTaskInstanceServiceGetTaskInstances = <
  * @param data.dagRunId
  * @param data.taskId
  * @param data.taskTryNumber
+ * @param data.mapIndex
  * @returns TaskInstanceHistoryResponse Successful Response
  * @throws ApiError
  */
@@ -1819,11 +1824,13 @@ export const useTaskInstanceServiceGetTaskInstanceTryDetails = <
   {
     dagId,
     dagRunId,
+    mapIndex,
     taskId,
     taskTryNumber,
   }: {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     taskId: string;
     taskTryNumber: number;
   },
@@ -1832,13 +1839,14 @@ export const useTaskInstanceServiceGetTaskInstanceTryDetails = <
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTryDetailsKeyFn(
-      { dagId, dagRunId, taskId, taskTryNumber },
+      { dagId, dagRunId, mapIndex, taskId, taskTryNumber },
       queryKey,
     ),
     queryFn: () =>
       TaskInstanceService.getTaskInstanceTryDetails({
         dagId,
         dagRunId,
+        mapIndex,
         taskId,
         taskTryNumber,
       }) as TData,

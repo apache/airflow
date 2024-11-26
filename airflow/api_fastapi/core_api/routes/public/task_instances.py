@@ -247,7 +247,7 @@ def get_task_instance_tries(
     dag_run_id: str,
     task_id: str,
     session: Annotated[Session, Depends(get_session)],
-    map_index: Annotated[int, Depends(lambda: -1)],
+    map_index: int = -1,
 ) -> TaskInstanceHistoryCollectionResponse:
     """Get list of task instances history."""
 
@@ -491,7 +491,7 @@ def get_task_instance_try_details(
     task_id: str,
     task_try_number: int,
     session: Annotated[Session, Depends(get_session)],
-    map_index: Annotated[int, Depends(lambda: -1)],
+    map_index: int = -1,
 ) -> TaskInstanceHistoryResponse:
     """Get task instance details by try number."""
 

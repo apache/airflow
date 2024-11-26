@@ -1670,6 +1670,7 @@ export type GetTaskInstanceDependencies1Response =
 export type GetTaskInstanceTriesData = {
   dagId: string;
   dagRunId: string;
+  mapIndex?: number;
   taskId: string;
 };
 
@@ -1741,6 +1742,7 @@ export type GetTaskInstancesBatchResponse = TaskInstanceCollectionResponse;
 export type GetTaskInstanceTryDetailsData = {
   dagId: string;
   dagRunId: string;
+  mapIndex?: number;
   taskId: string;
   taskTryNumber: number;
 };
