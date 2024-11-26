@@ -68,10 +68,10 @@ authenticated_router.include_router(job_router)
 authenticated_router.include_router(plugins_router)
 authenticated_router.include_router(pools_router)
 authenticated_router.include_router(providers_router)
+authenticated_router.include_router(xcom_router)
 authenticated_router.include_router(task_instances_router)
 authenticated_router.include_router(tasks_router)
 authenticated_router.include_router(variables_router)
-authenticated_router.include_router(xcom_router)
 authenticated_router.include_router(task_instances_log_router)
 
 
