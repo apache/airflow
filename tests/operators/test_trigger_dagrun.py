@@ -31,8 +31,8 @@ from airflow.models.dagrun import DagRun
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.providers.standard.triggers.external_task import DagStateTrigger
 from airflow.settings import TracebackSessionForTests
-from airflow.triggers.external_task import DagStateTrigger
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -720,8 +720,9 @@ class TestDagRunOperator:
 
         # Simulate the TriggerDagRunOperator task being cleared (aka executed again). A DagRunAlreadyExists
         # exception should be raised because of the previous DAG run.
-        with mock.patch.object(TriggerDagRunOperator, "defer", mock_task_defer), pytest.raises(
-            (DagRunAlreadyExists, TaskDeferred)
+        with (
+            mock.patch.object(TriggerDagRunOperator, "defer", mock_task_defer),
+            pytest.raises((DagRunAlreadyExists, TaskDeferred)),
         ):
             task.execute({"task_instance": mock.MagicMock()})
 

@@ -97,4 +97,4 @@ def historical_metrics(
         },
     }
 
-    return HistoricalMetricDataResponse.model_validate(historical_metrics_response, from_attributes=True)
+    return HistoricalMetricDataResponse.model_validate(historical_metrics_response)

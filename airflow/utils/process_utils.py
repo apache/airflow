@@ -35,8 +35,8 @@ if not IS_WINDOWS:
     import termios
     import tty
 
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator
 
 import psutil
 from lockfile.pidlockfile import PIDLockFile

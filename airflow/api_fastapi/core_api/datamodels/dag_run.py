@@ -20,8 +20,9 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, Field, NonNegativeInt
 
+from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -50,7 +51,7 @@ class DAGRunClearBody(BaseModel):
 class DAGRunResponse(BaseModel):
     """DAG Run serializer for responses."""
 
-    dag_run_id: str | None = Field(alias="run_id")
+    dag_run_id: str | None = Field(validation_alias="run_id")
     dag_id: str
     logical_date: datetime | None
     queued_at: datetime | None
@@ -72,3 +73,19 @@ class DAGRunCollectionResponse(BaseModel):
 
     dag_runs: list[DAGRunResponse]
     total_entries: int
+
+
+class DAGRunsBatchBody(BaseModel):
+    """List DAG Runs body for batch endpoint."""
+
+    order_by: str | None = None
+    page_offset: NonNegativeInt = 0
+    page_limit: NonNegativeInt = 100
+    dag_ids: list[str] | None = None
+    states: list[DagRunState | None] | None = None
+    logical_date_gte: AwareDatetime | None = None
+    logical_date_lte: AwareDatetime | None = None
+    start_date_gte: AwareDatetime | None = None
+    start_date_lte: AwareDatetime | None = None
+    end_date_gte: AwareDatetime | None = None
+    end_date_lte: AwareDatetime | None = None

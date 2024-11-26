@@ -19,8 +19,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field, field_validator
 
+from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.utils.log.secrets_masker import redact
 
 

@@ -225,7 +225,7 @@ Github Actions to pass the list of parameters to a command to execute
 | postgres-exclude                               | Which versions of Postgres to exclude for tests as JSON array                                          | []                                      |      |
 | postgres-versions                              | Which versions of Postgres to use for tests as JSON array                                              | \['12'\]                                |      |
 | prod-image-build                               | Whether PROD image build is needed                                                                     | true                                    |      |
-| providers-compatibility-checks                 | List of dicts: (python_version, airflow_version, removed_providers) for compatibility checks           | \[{}\]                                  |      |
+| providers-compatibility-tests-matrix           | Matrix of providers compatibility tests: (python_version, airflow_version, removed_providers)          | \[{}\]                                  |      |
 | providers-test-types-list-as-string            | Which test types should be run for unit tests for providers                                            | Providers Providers\[-google\]          | *    |
 | pyproject-toml-changed                         | When pyproject.toml changed in the PR.                                                                 | false                                   |      |
 | python-versions                                | List of python versions to use for that build                                                          | \['3.9'\]                               |      |

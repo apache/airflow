@@ -20,16 +20,15 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Discriminator, Tag, WithJsonSchema
+from pydantic import Discriminator, Tag, WithJsonSchema
 
 from airflow.api_fastapi.common.types import UtcDateTime
+from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.utils.state import IntermediateTIState, TaskInstanceState as TIState, TerminalTIState
 
 
 class TIEnterRunningPayload(BaseModel):
     """Schema for updating TaskInstance to 'RUNNING' state with minimal required fields."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     state: Annotated[
         Literal[TIState.RUNNING],

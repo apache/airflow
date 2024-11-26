@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from enum import Enum
-from typing import Mapping
 
 from airflow.providers.google.cloud.operators.dataform import (
     DataformInstallNpmPackagesOperator,
