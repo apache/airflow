@@ -247,9 +247,9 @@ def get_task_instance_tries(
     dag_run_id: str,
     task_id: str,
     session: Annotated[Session, Depends(get_session)],
+    map_index: int = -1,
 ) -> TaskInstanceHistoryCollectionResponse:
     """Get list of task instances history."""
-    map_index = -1
 
     def _query(orm_object: Base) -> Select:
         query = select(orm_object).where(
@@ -275,6 +275,26 @@ def get_task_instance_tries(
     return TaskInstanceHistoryCollectionResponse(
         task_instances=cast(list[TaskInstanceHistoryResponse], task_instances),
         total_entries=len(task_instances),
+    )
+
+
+@task_instances_router.get(
+    task_instances_prefix + "/{task_id}/{map_index}/tries",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+)
+def get_mapped_task_instance_tries(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    session: Annotated[Session, Depends(get_session)],
+    map_index: int,
+) -> TaskInstanceHistoryCollectionResponse:
+    return get_task_instance_tries(
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
+        map_index=map_index,
+        session=session,
     )
 
 
