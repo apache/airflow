@@ -71,9 +71,9 @@ VIDEO_DATA_CONFIG = [
 with DAG(
     DAG_ID,
     schedule="@once",
-    start_date=datetime(2021, 1, 1),
+    start_date=datetime(2024, 1, 1),
     catchup=False,
-    tags=["example", "auto_ml", "video", "tracking"],
+    tags=["example", "vertex_ai", "auto_ml", "video", "tracking"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",
@@ -106,8 +106,7 @@ with DAG(
         project_id=PROJECT_ID,
         import_configs=VIDEO_DATA_CONFIG,
     )
-
-    # [START howto_cloud_create_video_tracking_training_job_operator]
+    # [START how_to_cloud_vertex_ai_create_auto_ml_video_tracking_job_operator]
     create_auto_ml_video_training_job = CreateAutoMLVideoTrainingJobOperator(
         task_id="auto_ml_video_task",
         display_name=VIDEO_DISPLAY_NAME,
@@ -118,7 +117,7 @@ with DAG(
         region=REGION,
         project_id=PROJECT_ID,
     )
-    # [END howto_cloud_create_video_tracking_training_job_operator]
+    # [END how_to_cloud_vertex_ai_create_auto_ml_video_tracking_job_operator]
 
     delete_auto_ml_video_training_job = DeleteAutoMLTrainingJobOperator(
         task_id="delete_auto_ml_video_training_job",

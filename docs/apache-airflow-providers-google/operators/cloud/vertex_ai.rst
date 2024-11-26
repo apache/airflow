@@ -245,6 +245,14 @@ put dataset id to ``dataset_id`` parameter in operator.
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_image_training_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_image_training_job_operator]
 
+To run AutoML image detection training job:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_image_object_detection.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_image_object_detection_training_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_image_object_detection_training_job_operator]
+
 How to run AutoML Tabular Training Job
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTabularTrainingJobOperator`
 
@@ -278,6 +286,15 @@ version of existing Model instead of new Model created in Model Registry. This c
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_video_training_job_v2_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_video_training_job_v2_operator]
+
+Also you can use vertex_ai AutoML model for video tracking.
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/vertex_ai/example_vertex_ai_auto_ml_video_tracking.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_video_tracking_job_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_video_tracking_job_operator]
+
 
 You can get a list of AutoML Training Jobs using
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.ListAutoMLTrainingJobOperator`.
