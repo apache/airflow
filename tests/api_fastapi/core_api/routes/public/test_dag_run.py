@@ -562,6 +562,12 @@ class TestListDagRunsBatch:
         assert body["total_entries"] == 4
         assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_order
 
+        reverse_response = test_client.post("/public/dags/~/dagRuns/list", json={"order_by": "-" + order_by})
+        assert reverse_response.status_code == 200
+        reverse_body = reverse_response.json()
+        assert reverse_body["total_entries"] == 4
+        assert [each["dag_run_id"] for each in reverse_body["dag_runs"]] == expected_dag_id_order[::-1]
+
     @pytest.mark.parametrize(
         "post_body, expected_dag_id_order",
         [
