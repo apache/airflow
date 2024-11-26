@@ -27,11 +27,9 @@ HEALTHY = "healthy"
 UNHEALTHY = "unhealthy"
 
 
-dag_processor_enabled = conf.getboolean("scheduler", "standalone_dag_processor")
-
-
 def get_airflow_health() -> dict[str, Any]:
     """Get the health for Airflow metadatabase, scheduler and triggerer."""
+    dag_processor_enabled = conf.getboolean("scheduler", "standalone_dag_processor")
     metadatabase_status = HEALTHY
     latest_scheduler_heartbeat = None
     latest_triggerer_heartbeat = None
