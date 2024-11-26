@@ -44,9 +44,9 @@ provider can be installed using ``uv``'s ``sync`` command. Here is an example fo
 
     uv sync --extra devel --extra devel-tests --extra microsoft.azure
 
-This will synchronize all extras that you need for development and testing of Airflow and google provider
-dependencies - including their runtime dependencies. See `local virtualenv <../07_local_virtualenv.rst>`_ or the uv
-proejct for more information.
+This will synchronize all extras that you need for development and testing of Airflow and the Microsoft Azure provider
+dependencies including runtime dependencies. See `local virtualenv <../07_local_virtualenv.rst>`_ or the uv project
+for more information.
 
 Therefore, until we can introduce multiple ``pyproject.toml`` for providers information/meta-data about the providers
 is kept in ``provider.yaml`` file in the right sub-directory of ``airflow\providers``. This file contains:
