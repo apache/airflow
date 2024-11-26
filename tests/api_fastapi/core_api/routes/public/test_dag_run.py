@@ -243,26 +243,34 @@ class TestGetDagRuns:
         )
 
     @pytest.mark.parametrize(
-        "order_by, expected_dag_id_order",
+        "order_by,expected_order",
         [
-            ("id", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
-            ("state", [DAG1_RUN2_ID, DAG1_RUN1_ID]),
-            ("dag_id", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
-            ("logical_date", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
-            ("dag_run_id", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
-            ("start_date", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
-            ("end_date", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
-            ("updated_at", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
-            ("external_trigger", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
-            ("conf", [DAG1_RUN1_ID, DAG1_RUN2_ID]),
+            pytest.param("id", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_id"),
+            pytest.param("state", [DAG1_RUN2_ID, DAG1_RUN1_ID], id="order_by_state"),
+            pytest.param("dag_id", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_dag_id"),
+            pytest.param("logical_date", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_logical_date"),
+            pytest.param("dag_run_id", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_dag_run_id"),
+            pytest.param("start_date", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_start_date"),
+            pytest.param("end_date", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_end_date"),
+            pytest.param("updated_at", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_updated_at"),
+            pytest.param("external_trigger", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_external_trigger"),
+            pytest.param("conf", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_conf"),
         ],
     )
-    def test_return_correct_results_with_order_by(self, test_client, order_by, expected_dag_id_order):
+    def test_return_correct_results_with_order_by(self, test_client, order_by, expected_order):
+        # Test ascending order
         response = test_client.get("/public/dags/test_dag1/dagRuns", params={"order_by": order_by})
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 2
-        assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_order
+        assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_order
+
+        # Test descending order
+        response = test_client.get("/public/dags/test_dag1/dagRuns", params={"order_by": f"-{order_by}"})
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 2
+        assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_order[::-1]
 
     @pytest.mark.parametrize(
         "query_params, expected_dag_id_order",
