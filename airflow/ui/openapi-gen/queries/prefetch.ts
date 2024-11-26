@@ -1482,7 +1482,6 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
  * @param data.dagRunId
  * @param data.taskId
  * @param data.taskTryNumber
- * @param data.mapIndex
  * @returns TaskInstanceHistoryResponse Successful Response
  * @throws ApiError
  */
@@ -1491,13 +1490,11 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceTryDetails = (
   {
     dagId,
     dagRunId,
-    mapIndex,
     taskId,
     taskTryNumber,
   }: {
     dagId: string;
     dagRunId: string;
-    mapIndex?: number;
     taskId: string;
     taskTryNumber: number;
   },
@@ -1506,7 +1503,6 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceTryDetails = (
     queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTryDetailsKeyFn({
       dagId,
       dagRunId,
-      mapIndex,
       taskId,
       taskTryNumber,
     }),
@@ -1514,7 +1510,6 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceTryDetails = (
       TaskInstanceService.getTaskInstanceTryDetails({
         dagId,
         dagRunId,
-        mapIndex,
         taskId,
         taskTryNumber,
       }),

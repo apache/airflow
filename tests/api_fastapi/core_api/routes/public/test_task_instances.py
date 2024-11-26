@@ -2486,7 +2486,7 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "duration": 10000.0,
                         "end_date": "2020-01-03T00:00:00Z",
                         "executor": None,
-                        "executor_config": "{}",    
+                        "executor_config": "{}",
                         "hostname": "",
                         "map_index": map_index,
                         "max_tries": 1,
@@ -2504,10 +2504,11 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
                         "try_number": 2,
                         "unixname": getuser(),
                         "dag_run_id": "TEST_DAG_RUN_ID",
-                    }
+                    },
                 ],
-                "total_entries": 2
+                "total_entries": 2,
             }
+
     def test_raises_404_for_nonexistent_task_instance(self, test_client, session):
         self.create_task_instances(session)
         response = test_client.get(

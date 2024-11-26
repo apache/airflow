@@ -1106,20 +1106,18 @@ export const UseTaskInstanceServiceGetTaskInstanceTryDetailsKeyFn = (
   {
     dagId,
     dagRunId,
-    mapIndex,
     taskId,
     taskTryNumber,
   }: {
     dagId: string;
     dagRunId: string;
-    mapIndex?: number;
     taskId: string;
     taskTryNumber: number;
   },
   queryKey?: Array<unknown>,
 ) => [
   useTaskInstanceServiceGetTaskInstanceTryDetailsKey,
-  ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId, taskTryNumber }]),
+  ...(queryKey ?? [{ dagId, dagRunId, taskId, taskTryNumber }]),
 ];
 export type TaskInstanceServiceGetMappedTaskInstanceTryDetailsDefaultResponse =
   Awaited<

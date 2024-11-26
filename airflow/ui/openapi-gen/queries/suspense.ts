@@ -1743,7 +1743,6 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
  * @param data.dagRunId
  * @param data.taskId
  * @param data.taskTryNumber
- * @param data.mapIndex
  * @returns TaskInstanceHistoryResponse Successful Response
  * @throws ApiError
  */
@@ -1755,13 +1754,11 @@ export const useTaskInstanceServiceGetTaskInstanceTryDetailsSuspense = <
   {
     dagId,
     dagRunId,
-    mapIndex,
     taskId,
     taskTryNumber,
   }: {
     dagId: string;
     dagRunId: string;
-    mapIndex?: number;
     taskId: string;
     taskTryNumber: number;
   },
@@ -1770,14 +1767,13 @@ export const useTaskInstanceServiceGetTaskInstanceTryDetailsSuspense = <
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTryDetailsKeyFn(
-      { dagId, dagRunId, mapIndex, taskId, taskTryNumber },
+      { dagId, dagRunId, taskId, taskTryNumber },
       queryKey,
     ),
     queryFn: () =>
       TaskInstanceService.getTaskInstanceTryDetails({
         dagId,
         dagRunId,
-        mapIndex,
         taskId,
         taskTryNumber,
       }) as TData,
