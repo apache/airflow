@@ -23,7 +23,7 @@ import sys
 from ast import Import, ImportFrom, NodeVisitor, parse
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, List
+from typing import Any
 
 import yaml
 from rich.console import Console
@@ -70,7 +70,7 @@ class ImportFinder(NodeVisitor):
 
     def __init__(self) -> None:
         self.imports: list[str] = []
-        self.handled_import_exception = List[str]
+        self.handled_import_exception = list[str]
         self.tried_imports: list[str] = []
 
     def process_import(self, import_name: str) -> None:

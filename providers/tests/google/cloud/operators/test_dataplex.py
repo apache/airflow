@@ -672,11 +672,33 @@ class TestDataplexCreateDataQualityScanOperator:
             api_version=API_VERSION,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+        update_operator = DataplexCreateOrUpdateDataQualityScanOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            data_scan_id=DATA_SCAN_ID,
+            body={},
+            update_mask={},
+            api_version=API_VERSION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        update_operator.execute(context=mock.MagicMock())
         hook_mock.return_value.create_data_scan.assert_called_once_with(
             project_id=PROJECT_ID,
             region=REGION,
             data_scan_id=DATA_SCAN_ID,
             body={},
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+        hook_mock.return_value.update_data_scan.assert_called_once_with(
+            project_id=PROJECT_ID,
+            region=REGION,
+            data_scan_id=DATA_SCAN_ID,
+            body={},
+            update_mask={},
             retry=DEFAULT,
             timeout=None,
             metadata=(),

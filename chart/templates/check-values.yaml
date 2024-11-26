@@ -27,7 +27,7 @@ The sole purpose of this yaml file is it to check the values file is consistent 
 #############################
 */ -}}
 
-  {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
+  {{- if or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) }}
     {{- if .Values.redis.enabled }}
 
       {{- if .Values.redis.passwordSecretName }}

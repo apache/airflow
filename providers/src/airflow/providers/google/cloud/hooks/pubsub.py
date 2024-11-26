@@ -28,8 +28,9 @@ from __future__ import annotations
 
 import warnings
 from base64 import b64decode
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError

@@ -26,11 +26,12 @@ import os
 import shutil
 import time
 import warnings
+from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from functools import partial
 from io import BytesIO
 from tempfile import NamedTemporaryFile
-from typing import IO, TYPE_CHECKING, Any, Callable, Generator, Sequence, TypeVar, cast, overload
+from typing import IO, TYPE_CHECKING, Any, Callable, TypeVar, cast, overload
 from urllib.parse import urlsplit
 
 from gcloud.aio.storage import Storage

@@ -23,17 +23,11 @@ import contextlib
 import copy
 import functools
 import warnings
+from collections.abc import Container, ItemsView, Iterator, KeysView, Mapping, MutableMapping, ValuesView
 from typing import (
     TYPE_CHECKING,
     Any,
-    Container,
-    ItemsView,
-    Iterator,
-    KeysView,
-    Mapping,
-    MutableMapping,
     SupportsIndex,
-    ValuesView,
 )
 
 import attrs

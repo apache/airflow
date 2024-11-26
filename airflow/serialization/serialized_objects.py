@@ -24,10 +24,11 @@ import enum
 import itertools
 import logging
 import weakref
+from collections.abc import Collection, Iterable, Mapping
 from functools import cache
 from inspect import signature
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple, Union, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, Union, cast
 
 import attrs
 import lazy_object_proxy
@@ -110,9 +111,9 @@ if TYPE_CHECKING:
 
     HAS_KUBERNETES: bool
     try:
-        from kubernetes.client import models as k8s  # noqa: TCH004
+        from kubernetes.client import models as k8s  # noqa: TC004
 
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator  # noqa: TCH004
+        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator  # noqa: TC004
     except ImportError:
         pass
 

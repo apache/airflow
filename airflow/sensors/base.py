@@ -22,8 +22,9 @@ import functools
 import hashlib
 import time
 import traceback
+from collections.abc import Iterable
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Callable, Iterable
+from typing import TYPE_CHECKING, Any, Callable
 
 from sqlalchemy import select
 
@@ -56,7 +57,7 @@ if TYPE_CHECKING:
 _MYSQL_TIMESTAMP_MAX = datetime.datetime(2038, 1, 19, 3, 14, 7, tzinfo=timezone.utc)
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _is_metadatabase_mysql() -> bool:
     if InternalApiConfig.get_use_internal_api():
         return False

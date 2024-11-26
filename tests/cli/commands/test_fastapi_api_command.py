@@ -101,8 +101,9 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
             raise
 
     def test_cli_fastapi_api_debug(self, app):
-        with mock.patch("subprocess.Popen") as Popen, mock.patch.object(
-            fastapi_api_command, "GunicornMonitor"
+        with (
+            mock.patch("subprocess.Popen") as Popen,
+            mock.patch.object(fastapi_api_command, "GunicornMonitor"),
         ):
             port = "9092"
             hostname = "somehost"
@@ -127,9 +128,11 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
         Test that AIRFLOW_API_APPS is set and unset in the environment when
         calling the airflow fastapi-api command
         """
-        with mock.patch("subprocess.Popen") as Popen, mock.patch.object(
-            fastapi_api_command, "GunicornMonitor"
-        ), mock.patch("os.environ", autospec=True) as mock_environ:
+        with (
+            mock.patch("subprocess.Popen") as Popen,
+            mock.patch.object(fastapi_api_command, "GunicornMonitor"),
+            mock.patch("os.environ", autospec=True) as mock_environ,
+        ):
             apps_value = "core,execution"
             port = "9092"
             hostname = "somehost"
@@ -168,8 +171,9 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
     def test_cli_fastapi_api_args(self, ssl_cert_and_key):
         cert_path, key_path = ssl_cert_and_key
 
-        with mock.patch("subprocess.Popen") as Popen, mock.patch.object(
-            fastapi_api_command, "GunicornMonitor"
+        with (
+            mock.patch("subprocess.Popen") as Popen,
+            mock.patch.object(fastapi_api_command, "GunicornMonitor"),
         ):
             args = self.parser.parse_args(
                 [

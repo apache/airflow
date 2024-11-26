@@ -20,7 +20,6 @@ import asyncio
 import datetime
 import os
 import typing
-import warnings
 from glob import glob
 from typing import Any
 
@@ -48,21 +47,12 @@ class FileTrigger(BaseTrigger):
         super().__init__()
         self.filepath = filepath
         self.recursive = recursive
-        if kwargs.get("poll_interval") is not None:
-            warnings.warn(
-                "`poll_interval` has been deprecated and will be removed in future."
-                "Please use `poke_interval` instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            self.poke_interval: float = kwargs["poll_interval"]
-        else:
-            self.poke_interval = poke_interval
+        self.poke_interval = poke_interval
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize FileTrigger arguments and classpath."""
         return (
-            "airflow.triggers.file.FileTrigger",
+            "airflow.providers.standard.triggers.file.FileTrigger",
             {
                 "filepath": self.filepath,
                 "recursive": self.recursive,

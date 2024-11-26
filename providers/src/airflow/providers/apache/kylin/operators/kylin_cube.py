@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Sequence
 from datetime import datetime
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from kylinpy import kylinpy
 

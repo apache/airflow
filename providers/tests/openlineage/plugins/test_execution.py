@@ -63,7 +63,6 @@ def get_sorted_events(event_dir: str) -> list[str]:
 
 def has_value_in_events(events, chain, value):
     x = [get_from_nullable_chain(event, chain) for event in events]
-    log.error(x)
     y = [z == value for z in x]
     return any(y)
 
