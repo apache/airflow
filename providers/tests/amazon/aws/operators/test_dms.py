@@ -489,7 +489,6 @@ class TestDmsDescribeReplicationConfigsOperator:
 
         dag_run = DagRun(
             dag_id=dag.dag_id,
-            execution_date=execution_date,
             run_id="test",
             run_type=DagRunType.MANUAL,
         )

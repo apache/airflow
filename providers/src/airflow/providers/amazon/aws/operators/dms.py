@@ -640,12 +640,7 @@ class DmsStartReplicationOperator(AwsBaseOperator[DmsHook]):
             filters=[{"Name": "replication-config-arn", "Values": [self.replication_config_arn]}]
         )
 
-        try:
-            current_status = result[0].get("Status", "")
-        except Exception as ex:
-            self.log.error("Error while getting replication status: %s. Unable to start replication", str(ex))
-            raise ex
-
+        current_status = result[0].get("Status", "")
         provision_status = self.hook.get_provision_status(replication_config_arn=self.replication_config_arn)
 
         if provision_status == "deprovisioning":
