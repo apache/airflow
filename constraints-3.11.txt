@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-25T19:47:19.965789
+# This constraints file was automatically generated on 2024-11-26T02:20:55.504006
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -476,7 +476,7 @@ multidict==6.1.0
 mypy-boto3-appflow==1.35.39
 mypy-boto3-rds==1.35.66
 mypy-boto3-redshift-data==1.35.51
-mypy-boto3-s3==1.35.67
+mypy-boto3-s3==1.35.69
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.1.0
@@ -531,7 +531,7 @@ pinecone-client==5.0.1
 pinecone-plugin-inference==1.1.0
 pinecone-plugin-interface==0.0.7
 pinotdb==5.6.0
-pipdeptree==2.23.4
+pipdeptree==2.24.0
 pkginfo==1.10.0
 platformdirs==4.3.6
 pluggy==1.5.0
