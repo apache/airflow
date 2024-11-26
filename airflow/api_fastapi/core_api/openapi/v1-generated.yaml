@@ -34,47 +34,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /ui/dashboard/historical_metrics_data:
+  /ui/config:
     get:
       tags:
-      - Dashboard
-      summary: Historical Metrics
-      description: Return cluster activity historical metrics.
-      operationId: historical_metrics
-      parameters:
-      - name: start_date
-        in: query
-        required: true
-        schema:
-          type: string
-          title: Start Date
-      - name: end_date
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: End Date
+      - Config
+      summary: Get Configs
+      description: Get configs for UI.
+      operationId: get_configs
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HistoricalMetricDataResponse'
-        '400':
+                $ref: '#/components/schemas/ConfigResponse'
+        '404':
+          description: Not Found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
   /ui/dags/recent_dag_runs:
     get:
       tags:
@@ -174,26 +153,102 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /ui/config:
+  /ui/dashboard/historical_metrics_data:
     get:
       tags:
-      - Config
-      summary: Get Configs
-      description: Get configs for UI.
-      operationId: get_configs
+      - Dashboard
+      summary: Historical Metrics
+      description: Return cluster activity historical metrics.
+      operationId: historical_metrics
+      parameters:
+      - name: start_date
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Start Date
+      - name: end_date
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: End Date
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConfigResponse'
-        '404':
-          description: Not Found
+                $ref: '#/components/schemas/HistoricalMetricDataResponse'
+        '400':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/graph_data:
+    get:
+      tags:
+      - Graph
+      summary: Graph Data
+      description: Get Graph Data.
+      operationId: graph_data
+      parameters:
+      - name: dag_id
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: root
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Root
+      - name: filter_upstream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Filter Upstream
+      - name: filter_downstream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Filter Downstream
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GraphDataResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/assets:
     get:
       tags:
@@ -7296,6 +7351,30 @@ components:
         This is the set of allowable values for the ``warning_type`` field
 
         in the DagWarning model.'
+    EdgeResponse:
+      properties:
+        is_setup_teardown:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Setup Teardown
+        label:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Label
+        source_id:
+          type: string
+          title: Source Id
+        target_id:
+          type: string
+          title: Target Id
+      type: object
+      required:
+      - source_id
+      - target_id
+      title: EdgeResponse
+      description: Edge serializer for responses.
     EventLogCollectionResponse:
       properties:
         event_logs:
@@ -7407,6 +7486,30 @@ components:
       - name
       title: FastAPIAppResponse
       description: Serializer for Plugin FastAPI App responses.
+    GraphDataResponse:
+      properties:
+        edges:
+          items:
+            $ref: '#/components/schemas/EdgeResponse'
+          type: array
+          title: Edges
+        nodes:
+          $ref: '#/components/schemas/NodeResponse'
+        arrange:
+          type: string
+          enum:
+          - BT
+          - LR
+          - RL
+          - TB
+          title: Arrange
+      type: object
+      required:
+      - edges
+      - nodes
+      - arrange
+      title: GraphDataResponse
+      description: Graph Data serializer for responses.
     HTTPExceptionResponse:
       properties:
         detail:
@@ -7584,6 +7687,80 @@ components:
       - unixname
       title: JobResponse
       description: Job serializer for responses.
+    NodeResponse:
+      properties:
+        children:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/NodeResponse'
+            type: array
+          - type: 'null'
+          title: Children
+        id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Id
+        value:
+          $ref: '#/components/schemas/NodeValueResponse'
+      type: object
+      required:
+      - id
+      - value
+      title: NodeResponse
+      description: Node serializer for responses.
+    NodeValueResponse:
+      properties:
+        isMapped:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Ismapped
+        label:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Label
+        labelStyle:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Labelstyle
+        style:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Style
+        tooltip:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tooltip
+        rx:
+          type: integer
+          title: Rx
+        ry:
+          type: integer
+          title: Ry
+        clusterLabelPos:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Clusterlabelpos
+        setupTeardownType:
+          anyOf:
+          - type: string
+            enum:
+            - setup
+            - teardown
+          - type: 'null'
+          title: Setupteardowntype
+      type: object
+      required:
+      - rx
+      - ry
+      title: NodeValueResponse
+      description: Graph Node Value responses.
     PatchTaskInstanceBody:
       properties:
         dry_run:
