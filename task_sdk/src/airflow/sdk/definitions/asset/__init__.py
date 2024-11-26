@@ -21,7 +21,6 @@ import logging
 import os
 import urllib.parse
 import warnings
-from collections.abc import Iterable, Iterator
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -40,6 +39,7 @@ from airflow.typing_compat import TypedDict
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Iterator
     from urllib.parse import SplitResult
 
     from sqlalchemy.orm.session import Session
@@ -221,11 +221,24 @@ class BaseAsset:
 class Asset(os.PathLike, BaseAsset):
     """A representation of data asset dependencies between workflows."""
 
-    name: str
-    uri: str
-    group: str
-    extra: dict[str, Any]
-    watchers: list[BaseTrigger]
+    name: str = attrs.field(
+        validator=[_validate_asset_name],
+    )
+    uri: str = attrs.field(
+        validator=[_validate_non_empty_identifier],
+        converter=_sanitize_uri,
+    )
+    group: str = attrs.field(
+        validator=[_validate_identifier],
+        default=attrs.Factory(lambda self: self.asset_type, takes_self=True),
+    )
+    extra: dict[str, Any] = attrs.field(
+        factory=dict,
+        converter=_set_extra_default,
+    )
+    watchers: list[BaseTrigger] = attrs.field(
+        factory=list,
+    )
 
     asset_type: ClassVar[str] = "asset"
     __version__: ClassVar[int] = 1
@@ -279,12 +292,10 @@ class Asset(os.PathLike, BaseAsset):
             name = uri
         elif uri is None:
             uri = name
-        fields = attrs.fields_dict(Asset)
-        self.name = _validate_asset_name(self, fields["name"], name)
-        self.uri = _sanitize_uri(_validate_non_empty_identifier(self, fields["uri"], uri))
-        self.group = _validate_identifier(self, fields["group"], group) if group else self.asset_type
-        self.extra = _set_extra_default(extra)
-        self.watchers = watchers or []
+        if TYPE_CHECKING:
+            assert name is not None
+            assert uri is not None
+        self.__attrs_init__(name=name, uri=uri, group=group, extra=extra, watchers=watchers or [])
 
     def __fspath__(self) -> str:
         return self.uri
