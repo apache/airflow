@@ -69,7 +69,7 @@ with DAG(
     schedule="@once",  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "automl", "vision", "object-detection"],
+    tags=["example", "vertex_ai", "automl", "vision", "object-detection"],
 ) as dag:
     create_image_dataset = CreateDatasetOperator(
         task_id="image_dataset",
@@ -86,8 +86,7 @@ with DAG(
         project_id=PROJECT_ID,
         import_configs=IMAGE_DATA_CONFIG,
     )
-
-    # [START howto_cloud_create_image_object_detection_training_job_operator]
+    # [START how_to_cloud_vertex_ai_create_auto_ml_image_object_detection_training_job_operator]
     create_auto_ml_image_training_job = CreateAutoMLImageTrainingJobOperator(
         task_id="auto_ml_image_task",
         display_name=IMAGE_DISPLAY_NAME,
@@ -104,7 +103,7 @@ with DAG(
         region=REGION,
         project_id=PROJECT_ID,
     )
-    # [END howto_cloud_create_image_object_detection_training_job_operator]
+    # [END how_to_cloud_vertex_ai_create_auto_ml_image_object_detection_training_job_operator]
 
     delete_auto_ml_image_training_job = DeleteAutoMLTrainingJobOperator(
         task_id="delete_auto_ml_training_job",
