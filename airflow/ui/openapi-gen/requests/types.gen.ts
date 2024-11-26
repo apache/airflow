@@ -1866,8 +1866,8 @@ export type GetXcomEntryData = {
 export type GetXcomEntryResponse = XComResponseNative | XComResponseString;
 
 export type GetHealthResponse =
-  | HealthInfoSchemaWithDagProcessor
-  | HealthInfoSchema;
+  | HealthInfoSchema
+  | HealthInfoSchemaWithDagProcessor;
 
 export type GetVersionResponse = VersionInfo;
 
@@ -3959,7 +3959,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: HealthInfoSchemaWithDagProcessor | HealthInfoSchema;
+        200: HealthInfoSchema | HealthInfoSchemaWithDagProcessor;
       };
     };
   };
