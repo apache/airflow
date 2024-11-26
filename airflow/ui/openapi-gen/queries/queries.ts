@@ -1553,6 +1553,7 @@ export const useTaskInstanceServiceGetTaskInstanceDependencies1 = <
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
+ * @param data.mapIndex
  * @returns TaskInstanceHistoryCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -1564,10 +1565,12 @@ export const useTaskInstanceServiceGetTaskInstanceTries = <
   {
     dagId,
     dagRunId,
+    mapIndex,
     taskId,
   }: {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     taskId: string;
   },
   queryKey?: TQueryKey,
@@ -1575,13 +1578,57 @@ export const useTaskInstanceServiceGetTaskInstanceTries = <
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTriesKeyFn(
-      { dagId, dagRunId, taskId },
+      { dagId, dagRunId, mapIndex, taskId },
       queryKey,
     ),
     queryFn: () =>
       TaskInstanceService.getTaskInstanceTries({
         dagId,
         dagRunId,
+        mapIndex,
+        taskId,
+      }) as TData,
+    ...options,
+  });
+/**
+ * Get Mapped Task Instance Tries
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.mapIndex
+ * @returns TaskInstanceHistoryCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceGetMappedTaskInstanceTries = <
+  TData = Common.TaskInstanceServiceGetMappedTaskInstanceTriesDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    taskId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceTriesKeyFn(
+      { dagId, dagRunId, mapIndex, taskId },
+      queryKey,
+    ),
+    queryFn: () =>
+      TaskInstanceService.getMappedTaskInstanceTries({
+        dagId,
+        dagRunId,
+        mapIndex,
         taskId,
       }) as TData,
     ...options,
