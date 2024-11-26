@@ -936,7 +936,6 @@ class DatabricksRunNowOperator(BaseOperator):
                 or is_repair_reason_match_exist(self, run_state)
             )
             _handle_deferrable_databricks_operator_completion(event, self.log)
-            
             if event["repair_run"]:
                 self.repair_run = False
                 self.run_id = event["run_id"]
