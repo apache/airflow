@@ -659,9 +659,18 @@ export type HTTPValidationError = {
 };
 
 /**
- * Schema for the Health endpoint.
+ * Schema for the Health endpoint without dag processor.
  */
 export type HealthInfoSchema = {
+  metadatabase: BaseInfoSchema;
+  scheduler: SchedulerInfoSchema;
+  triggerer: TriggererInfoSchema;
+};
+
+/**
+ * Schema for the Health endpoint with dag processor.
+ */
+export type HealthInfoSchemaWithDagProcessor = {
   metadatabase: BaseInfoSchema;
   scheduler: SchedulerInfoSchema;
   triggerer: TriggererInfoSchema;
@@ -1856,7 +1865,9 @@ export type GetXcomEntryData = {
 
 export type GetXcomEntryResponse = XComResponseNative | XComResponseString;
 
-export type GetHealthResponse = HealthInfoSchema;
+export type GetHealthResponse =
+  | HealthInfoSchemaWithDagProcessor
+  | HealthInfoSchema;
 
 export type GetVersionResponse = VersionInfo;
 
@@ -3948,7 +3959,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: HealthInfoSchema;
+        200: HealthInfoSchemaWithDagProcessor | HealthInfoSchema;
       };
     };
   };

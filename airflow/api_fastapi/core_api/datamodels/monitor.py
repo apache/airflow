@@ -44,9 +44,14 @@ class DagProcessorInfoSchema(BaseInfoSchema):
 
 
 class HealthInfoSchema(BaseModel):
-    """Schema for the Health endpoint."""
+    """Schema for the Health endpoint without dag processor."""
 
     metadatabase: BaseInfoSchema
     scheduler: SchedulerInfoSchema
     triggerer: TriggererInfoSchema
+
+
+class HealthInfoSchemaWithDagProcessor(HealthInfoSchema):
+    """Schema for the Health endpoint with dag processor."""
+
     dag_processor: DagProcessorInfoSchema

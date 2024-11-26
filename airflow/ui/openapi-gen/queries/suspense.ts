@@ -2359,7 +2359,7 @@ export const useXcomServiceGetXcomEntrySuspense = <
   });
 /**
  * Get Health
- * @returns HealthInfoSchema Successful Response
+ * @returns unknown Successful Response
  * @throws ApiError
  */
 export const useMonitorServiceGetHealthSuspense = <

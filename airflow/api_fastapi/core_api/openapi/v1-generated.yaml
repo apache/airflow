@@ -4315,6 +4315,8 @@ paths:
         in: path
         required: true
         schema:
+          enum:
+          - '~'
           const: '~'
           type: string
           title: Dag Id
@@ -4322,6 +4324,8 @@ paths:
         in: path
         required: true
         schema:
+          enum:
+          - '~'
           const: '~'
           type: string
           title: Dag Run Id
@@ -5118,7 +5122,10 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthInfoSchema'
+                anyOf:
+                - $ref: '#/components/schemas/HealthInfoSchemaWithDagProcessor'
+                - $ref: '#/components/schemas/HealthInfoSchema'
+                title: Response Get Health
   /public/version:
     get:
       tags:
@@ -6905,6 +6912,21 @@ components:
           $ref: '#/components/schemas/SchedulerInfoSchema'
         triggerer:
           $ref: '#/components/schemas/TriggererInfoSchema'
+      type: object
+      required:
+      - metadatabase
+      - scheduler
+      - triggerer
+      title: HealthInfoSchema
+      description: Schema for the Health endpoint without dag processor.
+    HealthInfoSchemaWithDagProcessor:
+      properties:
+        metadatabase:
+          $ref: '#/components/schemas/BaseInfoSchema'
+        scheduler:
+          $ref: '#/components/schemas/SchedulerInfoSchema'
+        triggerer:
+          $ref: '#/components/schemas/TriggererInfoSchema'
         dag_processor:
           $ref: '#/components/schemas/DagProcessorInfoSchema'
       type: object
@@ -6913,8 +6935,8 @@ components:
       - scheduler
       - triggerer
       - dag_processor
-      title: HealthInfoSchema
-      description: Schema for the Health endpoint.
+      title: HealthInfoSchemaWithDagProcessor
+      description: Schema for the Health endpoint with dag processor.
     HistoricalMetricDataResponse:
       properties:
         dag_run_types:
@@ -8156,7 +8178,7 @@ components:
       properties:
         __type:
           type: string
-          title: Type
+          title: '  Type'
           default: TimeDelta
         days:
           type: integer

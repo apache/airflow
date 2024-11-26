@@ -1996,7 +1996,7 @@ export const prefetchUseXcomServiceGetXcomEntry = (
   });
 /**
  * Get Health
- * @returns HealthInfoSchema Successful Response
+ * @returns unknown Successful Response
  * @throws ApiError
  */
 export const prefetchUseMonitorServiceGetHealth = (queryClient: QueryClient) =>
