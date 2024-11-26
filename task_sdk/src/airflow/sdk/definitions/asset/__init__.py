@@ -300,6 +300,15 @@ class Asset(os.PathLike, BaseAsset):
     def __fspath__(self) -> str:
         return self.uri
 
+    def __eq__(self, other: Any) -> bool:
+        # The Asset class can be subclassed, and we don't want fields added by a
+        # subclass to break equality. This explicitly filters out only fields
+        # defined by the Asset class for comparison.
+        if not isinstance(other, Asset):
+            return NotImplemented
+        f = attrs.filters.include(*attrs.fields_dict(Asset))
+        return attrs.asdict(self, filter=f) == attrs.asdict(other, filter=f)
+
     @property
     def normalized_uri(self) -> str | None:
         """
