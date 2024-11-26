@@ -24,7 +24,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.common.db.common import get_session, paginated_select
-from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
+from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.xcom import (
     XComCollection,
@@ -135,11 +135,10 @@ def get_xcom_entries(
 
     query, total_entries = paginated_select(
         statement=query,
-        filters=[],
-        order_by=SortParam(["dag_id", "task_id", "run_id", "map_index", "key"], XCom),
         offset=offset,
         limit=limit,
         session=session,
     )
+    query = query.order_by(XCom.dag_id, XCom.task_id, XCom.run_id, XCom.map_index, XCom.key)
     xcoms = session.scalars(query)
     return XComCollection(xcom_entries=xcoms, total_entries=total_entries)
