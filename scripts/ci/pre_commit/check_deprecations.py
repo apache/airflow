@@ -21,7 +21,7 @@ from __future__ import annotations
 import ast
 import sys
 from datetime import date
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -90,7 +90,7 @@ def get_decorator_argument(decorator: ast.Call, argument_name: str) -> ast.keywo
     return next(filter(lambda k: k and k.arg == argument_name, decorator.keywords), None)  # type: ignore[arg-type]
 
 
-@lru_cache(maxsize=None)
+@cache
 def allowed_group_warnings(group: str) -> tuple[str, tuple[str, ...]]:
     group_warnings = allowed_warnings[group]
     if len(group_warnings) == 1:

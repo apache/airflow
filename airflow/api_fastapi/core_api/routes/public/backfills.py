@@ -61,7 +61,7 @@ async def list_backfills(
     session: Annotated[AsyncSession, Depends(get_async_session)],
 ) -> BackfillCollectionResponse:
     select_stmt, total_entries = await paginated_select_async(
-        query=select(Backfill).where(Backfill.dag_id == dag_id),
+        statement=select(Backfill).where(Backfill.dag_id == dag_id),
         order_by=order_by,
         offset=offset,
         limit=limit,

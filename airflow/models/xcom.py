@@ -20,7 +20,8 @@ from __future__ import annotations
 import inspect
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Iterable, cast
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any, cast
 
 from sqlalchemy import (
     JSON,

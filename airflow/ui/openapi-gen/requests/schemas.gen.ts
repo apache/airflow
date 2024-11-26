@@ -2729,6 +2729,22 @@ export const $EventLogResponse = {
   description: "Event Log Response.",
 } as const;
 
+export const $ExtraLinksResponse = {
+  additionalProperties: {
+    anyOf: [
+      {
+        type: "string",
+      },
+      {
+        type: "null",
+      },
+    ],
+  },
+  type: "object",
+  title: "ExtraLinksResponse",
+  description: "Extra Links Response.",
+} as const;
+
 export const $FastAPIAppResponse = {
   properties: {
     app: {
@@ -2868,6 +2884,26 @@ export const $ImportErrorResponse = {
   required: ["import_error_id", "timestamp", "filename", "stack_trace"],
   title: "ImportErrorResponse",
   description: "Import Error Response.",
+} as const;
+
+export const $JobCollectionResponse = {
+  properties: {
+    jobs: {
+      items: {
+        $ref: "#/components/schemas/JobResponse",
+      },
+      type: "array",
+      title: "Jobs",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["jobs", "total_entries"],
+  title: "JobCollectionResponse",
+  description: "Job Collection Response.",
 } as const;
 
 export const $JobResponse = {
@@ -3501,6 +3537,26 @@ export const $TaskInstanceCollectionResponse = {
   required: ["task_instances", "total_entries"],
   title: "TaskInstanceCollectionResponse",
   description: "Task Instance Collection serializer for responses.",
+} as const;
+
+export const $TaskInstanceHistoryCollectionResponse = {
+  properties: {
+    task_instances: {
+      items: {
+        $ref: "#/components/schemas/TaskInstanceHistoryResponse",
+      },
+      type: "array",
+      title: "Task Instances",
+    },
+    total_entries: {
+      type: "integer",
+      title: "Total Entries",
+    },
+  },
+  type: "object",
+  required: ["task_instances", "total_entries"],
+  title: "TaskInstanceHistoryCollectionResponse",
+  description: "TaskInstanceHistory Collection serializer for responses.",
 } as const;
 
 export const $TaskInstanceHistoryResponse = {

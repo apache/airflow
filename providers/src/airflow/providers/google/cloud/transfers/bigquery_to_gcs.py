@@ -19,7 +19,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import Conflict
 from google.cloud.bigquery import DEFAULT_RETRY, UnknownJob

@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from confluent_kafka import KafkaException
 from confluent_kafka.admin import NewTopic

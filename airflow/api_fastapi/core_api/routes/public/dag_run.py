@@ -279,17 +279,17 @@ def get_dag_runs(
 
     This endpoint allows specifying `~` as the dag_id to retrieve Dag Runs for all DAGs.
     """
-    base_query = select(DagRun)
+    query = select(DagRun)
 
     if dag_id != "~":
         dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
         if not dag:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"The DAG with dag_id: `{dag_id}` was not found")
 
-        base_query = base_query.filter(DagRun.dag_id == dag_id)
+        query = query.filter(DagRun.dag_id == dag_id)
 
     dag_run_select, total_entries = paginated_select(
-        select=base_query,
+        statement=query,
         filters=[logical_date, start_date_range, end_date_range, update_at_range, state],
         order_by=order_by,
         offset=offset,
@@ -345,7 +345,7 @@ def get_list_dag_runs_batch(
 
     base_query = select(DagRun)
     dag_runs_select, total_entries = paginated_select(
-        select=base_query,
+        statement=base_query,
         filters=[dag_ids, logical_date, start_date, end_date, state],
         order_by=order_by,
         offset=offset,
