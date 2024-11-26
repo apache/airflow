@@ -736,7 +736,7 @@ class TestTriggerDagRun:
         expected_response_json = {
             "conf": {},
             "dag_id": DAG1_ID,
-            "run_id": expected_dag_run_id,
+            "dag_run_id": expected_dag_run_id,
             "end_date": None,
             "logical_date": fixed_now.replace("+00:00", "Z"),
             "external_trigger": True,
@@ -901,7 +901,7 @@ class TestTriggerDagRun:
 
         for each_run_id, each_body in [(RUN_ID_1, body1), (RUN_ID_2, body2)]:
             assert each_body == {
-                "run_id": each_run_id,
+                "dag_run_id": each_run_id,
                 "dag_id": DAG1_ID,
                 "logical_date": now,
                 "queued_at": now,
