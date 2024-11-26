@@ -159,7 +159,7 @@ def stat_name_otel_handler(
     # provided value is not valid or returns the value if it is.  We don't
     # need the return value but will make use of the validation checks. If
     # no exception is thrown, then the proposed name meets OTel requirements.
-    stat_name_default_handler(proposed_stat_name, max_length=999)
+    stat_name_default_handler(proposed_stat_name, max_length=256)
 
     # This warning is down here instead of up above because the exemption only
     # applies to the length and a name may still be invalid for other reasons.
