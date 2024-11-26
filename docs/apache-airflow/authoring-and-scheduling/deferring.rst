@@ -68,7 +68,7 @@ When writing a deferrable operators these are the main points to consider:
 
     from airflow.configuration import conf
     from airflow.sensors.base import BaseSensorOperator
-    from airflow.triggers.temporal import TimeDeltaTrigger
+    from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
     from airflow.utils.context import Context
 
 
@@ -122,7 +122,7 @@ This example shows the structure of a basic trigger, a very simplified version o
             self.moment = moment
 
         def serialize(self):
-            return ("airflow.triggers.temporal.DateTimeTrigger", {"moment": self.moment})
+            return ("airflow.providers.standard.triggers.temporal.DateTimeTrigger", {"moment": self.moment})
 
         async def run(self):
             while self.moment > timezone.utcnow():
@@ -177,7 +177,7 @@ Here's a basic example of how a sensor might trigger deferral:
     from typing import TYPE_CHECKING, Any
 
     from airflow.sensors.base import BaseSensorOperator
-    from airflow.triggers.temporal import TimeDeltaTrigger
+    from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
 
     if TYPE_CHECKING:
         from airflow.utils.context import Context
@@ -237,7 +237,7 @@ In the sensor part, we'll need to provide the path to ``TimeDeltaTrigger`` as ``
 
     class WaitOneHourSensor(BaseSensorOperator):
         start_trigger_args = StartTriggerArgs(
-            trigger_cls="airflow.triggers.temporal.TimeDeltaTrigger",
+            trigger_cls="airflow.providers.standard.triggers.temporal.TimeDeltaTrigger",
             trigger_kwargs={"moment": timedelta(hours=1)},
             next_method="execute_complete",
             next_kwargs=None,
@@ -268,7 +268,7 @@ In the sensor part, we'll need to provide the path to ``TimeDeltaTrigger`` as ``
 
     class WaitHoursSensor(BaseSensorOperator):
         start_trigger_args = StartTriggerArgs(
-            trigger_cls="airflow.triggers.temporal.TimeDeltaTrigger",
+            trigger_cls="airflow.providers.standard.triggers.temporal.TimeDeltaTrigger",
             trigger_kwargs={"moment": timedelta(hours=1)},
             next_method="execute_complete",
             next_kwargs=None,
@@ -307,7 +307,7 @@ After the trigger has finished executing, the task may be sent back to the worke
 
     class WaitHoursSensor(BaseSensorOperator):
         start_trigger_args = StartTriggerArgs(
-            trigger_cls="airflow.triggers.temporal.TimeDeltaTrigger",
+            trigger_cls="airflow.providers.standard.triggers.temporal.TimeDeltaTrigger",
             trigger_kwargs={"moment": timedelta(hours=1)},
             next_method="execute_complete",
             next_kwargs=None,

@@ -20,7 +20,8 @@ from __future__ import annotations
 import re
 import time
 from collections import namedtuple
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 from azure.mgmt.containerinstance.models import (
     Container,

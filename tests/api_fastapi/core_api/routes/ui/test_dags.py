@@ -85,7 +85,7 @@ class TestRecentDagRuns(TestPublicDagEndpoint):
         assert response.status_code == 200
         body = response.json()
         required_dag_run_key = [
-            "run_id",
+            "dag_run_id",
             "dag_id",
             "state",
             "logical_date",

@@ -22,7 +22,8 @@ import asyncio
 import json
 import os
 import time
-from typing import Any, Dict, Sequence
+from collections.abc import Sequence
+from typing import Any
 from urllib.parse import quote, urlencode, urljoin
 
 import google.auth
@@ -39,7 +40,7 @@ from airflow.providers.google.common.hooks.base_google import (
     GoogleBaseHook,
 )
 
-Operation = Dict[str, Any]
+Operation = dict[str, Any]
 
 
 class ConflictException(AirflowException):

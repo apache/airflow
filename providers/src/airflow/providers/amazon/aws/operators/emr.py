@@ -18,13 +18,15 @@
 from __future__ import annotations
 
 import ast
+import warnings
+from collections.abc import Sequence
 from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import (
@@ -49,7 +51,11 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrTerminateJobFlowTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
-from airflow.providers.amazon.aws.utils.waiter import waiter
+from airflow.providers.amazon.aws.utils.waiter import (
+    WAITER_POLICY_NAME_MAPPING,
+    WaitPolicy,
+    waiter,
+)
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.utils.helpers import exactly_one, prune_dict
 from airflow.utils.types import NOTSET, ArgNotSet
@@ -636,8 +642,14 @@ class EmrCreateJobFlowOperator(BaseOperator):
     :param job_flow_overrides: boto3 style arguments or reference to an arguments file
         (must be '.json') to override specific ``emr_conn_id`` extra parameters. (templated)
     :param region_name: Region named passed to EmrHook
-    :param wait_for_completion: Whether to finish task immediately after creation (False) or wait for jobflow
+    :param wait_for_completion: Deprecated - use `wait_policy` instead.
+        Whether to finish task immediately after creation (False) or wait for jobflow
         completion (True)
+        (default: None)
+    :param wait_policy: Whether to finish the task immediately after creation (None) or:
+        - wait for the jobflow completion (WaitPolicy.WAIT_FOR_COMPLETION)
+        - wait for the jobflow completion and cluster to terminate (WaitPolicy.WAIT_FOR_STEPS_COMPLETION)
+        (default: None)
     :param waiter_max_attempts: Maximum number of tries before failing.
     :param waiter_delay: Number of seconds between polling the state of the notebook.
     :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
@@ -665,7 +677,8 @@ class EmrCreateJobFlowOperator(BaseOperator):
         emr_conn_id: str | None = "emr_default",
         job_flow_overrides: str | dict[str, Any] | None = None,
         region_name: str | None = None,
-        wait_for_completion: bool = False,
+        wait_for_completion: bool | None = None,
+        wait_policy: WaitPolicy | None = None,
         waiter_max_attempts: int | None = None,
         waiter_delay: int | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -676,10 +689,19 @@ class EmrCreateJobFlowOperator(BaseOperator):
         self.emr_conn_id = emr_conn_id
         self.job_flow_overrides = job_flow_overrides or {}
         self.region_name = region_name
-        self.wait_for_completion = wait_for_completion
+        self.wait_policy = wait_policy
         self.waiter_max_attempts = waiter_max_attempts or 60
         self.waiter_delay = waiter_delay or 60
         self.deferrable = deferrable
+
+        if wait_for_completion is not None:
+            warnings.warn(
+                "`wait_for_completion` parameter is deprecated, please use `wait_policy` instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            # preserve previous behaviour
+            self.wait_policy = WaitPolicy.WAIT_FOR_COMPLETION if wait_for_completion else None
 
     @cached_property
     def _emr_hook(self) -> EmrHook:
@@ -733,8 +755,9 @@ class EmrCreateJobFlowOperator(BaseOperator):
                 # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
                 timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
             )
-        if self.wait_for_completion:
-            self._emr_hook.get_waiter("job_flow_waiting").wait(
+        if self.wait_policy:
+            waiter_name = WAITER_POLICY_NAME_MAPPING[self.wait_policy]
+            self._emr_hook.get_waiter(waiter_name).wait(
                 ClusterId=self._job_flow_id,
                 WaiterConfig=prune_dict(
                     {

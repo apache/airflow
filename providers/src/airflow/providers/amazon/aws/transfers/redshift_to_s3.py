@@ -20,7 +20,8 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator

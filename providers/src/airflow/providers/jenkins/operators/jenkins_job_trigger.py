@@ -21,8 +21,9 @@ import ast
 import json
 import socket
 import time
+from collections.abc import Iterable, Mapping, Sequence
 from functools import cached_property
-from typing import Any, Iterable, Mapping, Sequence, Union
+from typing import Any, Union
 from urllib.error import HTTPError, URLError
 
 import jenkins

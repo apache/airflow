@@ -298,7 +298,7 @@ class ExecutorLoader:
         return executor, source
 
     @classmethod
-    @functools.lru_cache(maxsize=None)
+    @functools.cache
     def validate_database_executor_compatibility(cls, executor: type[BaseExecutor]) -> None:
         """
         Validate database and executor compatibility.

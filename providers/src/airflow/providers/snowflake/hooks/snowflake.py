@@ -18,11 +18,12 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable, Mapping
 from contextlib import closing, contextmanager
 from functools import cached_property
 from io import StringIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, overload
 from urllib.parse import urlparse
 
 from cryptography.hazmat.backends import default_backend

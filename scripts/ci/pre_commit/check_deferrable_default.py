@@ -23,7 +23,7 @@ import glob
 import itertools
 import os
 import sys
-from typing import Iterator
+from collections.abc import Iterator
 
 import libcst as cst
 from libcst.codemod import CodemodContext

@@ -24,12 +24,21 @@ import pytest
 
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
+from airflow.providers.standard.triggers.external_task import DagStateTrigger, WorkflowTrigger
 from airflow.triggers.base import TriggerEvent
-from airflow.triggers.external_task import DagStateTrigger, WorkflowTrigger
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 
+from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS, AIRFLOW_V_3_0_PLUS
 
+_DATES = (
+    {"logical_dates": [timezone.datetime(2022, 1, 1)]}
+    if AIRFLOW_V_3_0_PLUS
+    else {"execution_dates": [timezone.datetime(2022, 1, 1)]}
+)
+
+
+@pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Test requires Airflow 2.9+")
 class TestWorkflowTrigger:
     DAG_ID = "external_task"
     TASK_ID = "external_task_op"
@@ -37,14 +46,15 @@ class TestWorkflowTrigger:
     STATES = ["success", "fail"]
 
     @pytest.mark.flaky(reruns=5)
-    @mock.patch("airflow.triggers.external_task._get_count")
+    @mock.patch("airflow.providers.standard.triggers.external_task._get_count")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_success(self, mock_get_count):
         """check the db count get called correctly."""
         mock_get_count.side_effect = mocked_get_count
+
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
-            logical_dates=[timezone.datetime(2022, 1, 1)],
+            **_DATES,
             external_task_ids=[self.TASK_ID],
             allowed_states=self.STATES,
             poke_interval=0.2,
@@ -70,13 +80,14 @@ class TestWorkflowTrigger:
             await gen.__anext__()
 
     @pytest.mark.flaky(reruns=5)
-    @mock.patch("airflow.triggers.external_task._get_count")
+    @mock.patch("airflow.providers.standard.triggers.external_task._get_count")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_failed(self, mock_get_count):
         mock_get_count.side_effect = mocked_get_count
+
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
-            logical_dates=[timezone.datetime(2022, 1, 1)],
+            **_DATES,
             external_task_ids=[self.TASK_ID],
             failed_states=self.STATES,
             poke_interval=0.2,
@@ -102,13 +113,14 @@ class TestWorkflowTrigger:
         with pytest.raises(StopAsyncIteration):
             await gen.__anext__()
 
-    @mock.patch("airflow.triggers.external_task._get_count")
+    @mock.patch("airflow.providers.standard.triggers.external_task._get_count")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_fail_count_eq_0(self, mock_get_count):
         mock_get_count.return_value = 0
+
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
-            logical_dates=[timezone.datetime(2022, 1, 1)],
+            **_DATES,
             external_task_ids=[self.TASK_ID],
             failed_states=self.STATES,
             poke_interval=0.2,
@@ -133,13 +145,14 @@ class TestWorkflowTrigger:
             await gen.__anext__()
 
     @pytest.mark.flaky(reruns=5)
-    @mock.patch("airflow.triggers.external_task._get_count")
+    @mock.patch("airflow.providers.standard.triggers.external_task._get_count")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_skipped(self, mock_get_count):
         mock_get_count.side_effect = mocked_get_count
+
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
-            logical_dates=[timezone.datetime(2022, 1, 1)],
+            **_DATES,
             external_task_ids=[self.TASK_ID],
             skipped_states=self.STATES,
             poke_interval=0.2,
@@ -162,14 +175,15 @@ class TestWorkflowTrigger:
             states=["success", "fail"],
         )
 
-    @mock.patch("airflow.triggers.external_task._get_count")
+    @mock.patch("airflow.providers.standard.triggers.external_task._get_count")
     @mock.patch("asyncio.sleep")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_sleep_success(self, mock_sleep, mock_get_count):
         mock_get_count.side_effect = [0, 1]
+
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
-            logical_dates=[timezone.datetime(2022, 1, 1)],
+            **_DATES,
             external_task_ids=[self.TASK_ID],
             poke_interval=0.2,
         )
@@ -197,16 +211,16 @@ class TestWorkflowTrigger:
         """
         trigger = WorkflowTrigger(
             external_dag_id=self.DAG_ID,
-            logical_dates=[timezone.datetime(2022, 1, 1)],
+            **_DATES,
             external_task_ids=[self.TASK_ID],
             allowed_states=self.STATES,
             poke_interval=5,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.triggers.external_task.WorkflowTrigger"
+        assert classpath == "airflow.providers.standard.triggers.external_task.WorkflowTrigger"
         assert kwargs == {
             "external_dag_id": self.DAG_ID,
-            "logical_dates": [timezone.datetime(2022, 1, 1)],
+            **_DATES,
             "external_task_ids": [self.TASK_ID],
             "external_task_group_id": None,
             "failed_states": None,
@@ -231,10 +245,15 @@ class TestDagStateTrigger:
         reaches an allowed state (i.e. SUCCESS).
         """
         dag = DAG(self.DAG_ID, schedule=None, start_date=timezone.datetime(2022, 1, 1))
+        logical_date_or_execution_date = (
+            {"logical_date": timezone.datetime(2022, 1, 1)}
+            if AIRFLOW_V_3_0_PLUS
+            else {"execution_date": timezone.datetime(2022, 1, 1)}
+        )
         dag_run = DagRun(
             dag_id=dag.dag_id,
             run_type="manual",
-            logical_date=timezone.datetime(2022, 1, 1),
+            **logical_date_or_execution_date,
             run_id=self.RUN_ID,
         )
         session.add(dag_run)
@@ -243,7 +262,7 @@ class TestDagStateTrigger:
         trigger = DagStateTrigger(
             dag_id=dag.dag_id,
             states=self.STATES,
-            logical_dates=[timezone.datetime(2022, 1, 1)],
+            **_DATES,
             poll_interval=0.2,
         )
 
@@ -267,15 +286,15 @@ class TestDagStateTrigger:
         trigger = DagStateTrigger(
             dag_id=self.DAG_ID,
             states=self.STATES,
-            logical_dates=[timezone.datetime(2022, 1, 1)],
+            **_DATES,
             poll_interval=5,
         )
         classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.triggers.external_task.DagStateTrigger"
+        assert classpath == "airflow.providers.standard.triggers.external_task.DagStateTrigger"
         assert kwargs == {
             "dag_id": self.DAG_ID,
             "states": self.STATES,
-            "logical_dates": [timezone.datetime(2022, 1, 1)],
+            **_DATES,
             "poll_interval": 5,
         }
 

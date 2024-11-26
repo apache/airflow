@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, ClassVar
 
 from airflow.models import BaseOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator

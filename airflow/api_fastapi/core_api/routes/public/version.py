@@ -25,10 +25,10 @@ from airflow.utils.platform import get_airflow_git_version
 version_router = AirflowRouter(tags=["Version"], prefix="/version")
 
 
-@version_router.get("/")
+@version_router.get("")
 def get_version() -> VersionInfo:
     """Get version information."""
     airflow_version = airflow.__version__
     git_version = get_airflow_git_version()
     version_info = VersionInfo(version=airflow_version, git_version=git_version)
-    return VersionInfo.model_validate(version_info)
+    return version_info

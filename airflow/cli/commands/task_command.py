@@ -26,8 +26,9 @@ import logging
 import os
 import sys
 import textwrap
+from collections.abc import Generator
 from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
-from typing import TYPE_CHECKING, Generator, Protocol, Union, cast
+from typing import TYPE_CHECKING, Protocol, Union, cast
 
 import pendulum
 from pendulum.parsing.exceptions import ParserError

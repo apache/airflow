@@ -30,8 +30,9 @@ from airflow.providers.teradata.utils.constants import Constants
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
+from collections.abc import Sequence
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Sequence, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from airflow.providers.teradata.triggers.teradata_compute_cluster import TeradataComputeClusterSyncTrigger
 

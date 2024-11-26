@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 ADOPTED = "adopted"
 if TYPE_CHECKING:
@@ -25,13 +25,13 @@ if TYPE_CHECKING:
     from airflow.utils.state import TaskInstanceState
 
     # TaskInstance key, command, configuration, pod_template_file
-    KubernetesJobType = Tuple[TaskInstanceKey, CommandType, Any, Optional[str]]
+    KubernetesJobType = tuple[TaskInstanceKey, CommandType, Any, Optional[str]]
 
     # key, pod state, pod_name, namespace, resource_version
-    KubernetesResultsType = Tuple[TaskInstanceKey, Optional[Union[TaskInstanceState, str]], str, str, str]
+    KubernetesResultsType = tuple[TaskInstanceKey, Optional[Union[TaskInstanceState, str]], str, str, str]
 
     # pod_name, namespace, pod state, annotations, resource_version
-    KubernetesWatchType = Tuple[str, str, Optional[Union[TaskInstanceState, str]], Dict[str, str], str]
+    KubernetesWatchType = tuple[str, str, Optional[Union[TaskInstanceState, str]], dict[str, str], str]
 
 ALL_NAMESPACES = "ALL_NAMESPACES"
 POD_EXECUTOR_DONE_KEY = "airflow_executor_done"

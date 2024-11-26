@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from operator import attrgetter
+from typing import cast
 
 from fastapi import HTTPException, Request, status
 
@@ -31,7 +32,7 @@ tasks_router = AirflowRouter(tags=["Task"], prefix="/dags/{dag_id}/tasks")
 
 
 @tasks_router.get(
-    "/",
+    "",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
@@ -53,8 +54,8 @@ def get_tasks(
     except AttributeError as err:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(err))
     return TaskCollectionResponse(
-        tasks=[TaskResponse.model_validate(task, from_attributes=True) for task in tasks],
-        total_entries=(len(tasks)),
+        tasks=cast(list[TaskResponse], tasks),
+        total_entries=len(tasks),
     )
 
 
@@ -76,4 +77,4 @@ def get_task(dag_id: str, task_id, request: Request) -> TaskResponse:
         task = dag.get_task(task_id=task_id)
     except TaskNotFound:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Task with id {task_id} was not found")
-    return TaskResponse.model_validate(task, from_attributes=True)
+    return cast(TaskResponse, task)

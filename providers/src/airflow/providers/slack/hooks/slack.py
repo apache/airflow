@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import json
 import warnings
+from collections.abc import Sequence
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Sequence, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict
 
 from deprecated import deprecated
 from slack_sdk import WebClient

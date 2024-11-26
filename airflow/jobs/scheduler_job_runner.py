@@ -25,12 +25,13 @@ import signal
 import sys
 import time
 from collections import Counter, defaultdict, deque
-from contextlib import suppress
+from collections.abc import Collection, Iterable, Iterator
+from contextlib import ExitStack, suppress
 from datetime import timedelta
 from functools import lru_cache, partial
 from itertools import groupby
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
+from typing import TYPE_CHECKING, Any, Callable
 
 from deprecated import deprecated
 from sqlalchemy import and_, delete, exists, func, not_, select, text, update
@@ -218,14 +219,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
         Stats.incr("scheduler_heartbeat", 1, 1)
 
-    def register_signals(self) -> None:
+    def register_signals(self) -> ExitStack:
         """Register signals that stop child processes."""
-        signal.signal(signal.SIGINT, self._exit_gracefully)
-        signal.signal(signal.SIGTERM, self._exit_gracefully)
-        signal.signal(signal.SIGUSR2, self._debug_dump)
+        resetter = ExitStack()
+        prev_int = signal.signal(signal.SIGINT, self._exit_gracefully)
+        prev_term = signal.signal(signal.SIGTERM, self._exit_gracefully)
+        prev_usr2 = signal.signal(signal.SIGUSR2, self._debug_dump)
+
+        resetter.callback(signal.signal, signal.SIGINT, prev_int)
+        resetter.callback(signal.signal, signal.SIGTERM, prev_term)
+        resetter.callback(signal.signal, signal.SIGUSR2, prev_usr2)
 
         if self._enable_tracemalloc:
-            signal.signal(signal.SIGUSR1, self._log_memory_usage)
+            prev = signal.signal(signal.SIGUSR1, self._log_memory_usage)
+            resetter.callback(signal.signal, signal.SIGUSR1, prev)
+
+        return resetter
 
     def _exit_gracefully(self, signum: int, frame: FrameType | None) -> None:
         """Clean up processor_agent to avoid leaving orphan processes."""
@@ -926,6 +935,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 async_mode=async_mode,
             )
 
+        reset_signals = self.register_signals()
         try:
             callback_sink: PipeCallbackSink | DatabaseCallbackSink
 
@@ -942,8 +952,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 executor.job_id = self.job.id
                 executor.callback_sink = callback_sink
                 executor.start()
-
-            self.register_signals()
 
             if self.processor_agent:
                 self.processor_agent.start()
@@ -980,6 +988,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     self.processor_agent.end()
                 except Exception:
                     self.log.exception("Exception when executing DagFileProcessorAgent.end")
+
+            # Under normal execution, this doesn't metter, but by resetting signals it lets us run more things
+            # in the same process under testing without leaking global state
+            reset_signals.close()
             self.log.info("Exited execute loop")
         return None
 
@@ -1073,9 +1085,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
         for loop_count in itertools.count(start=1):
-            with Trace.start_span(
-                span_name="scheduler_job_loop", component="SchedulerJobRunner"
-            ) as span, Stats.timer("scheduler.scheduler_loop_duration") as timer:
+            with (
+                Trace.start_span(span_name="scheduler_job_loop", component="SchedulerJobRunner") as span,
+                Stats.timer("scheduler.scheduler_loop_duration") as timer,
+            ):
                 span.set_attributes(
                     {
                         "category": "scheduler",

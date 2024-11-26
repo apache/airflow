@@ -23,10 +23,11 @@ import platform
 import re
 import subprocess
 import sys
+from collections.abc import Generator
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Generator, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Protocol, TypeVar
 
 import pytest
 import time_machine

@@ -28,6 +28,7 @@ import os
 import re
 import shutil
 import time
+from collections.abc import AsyncIterator
 from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
@@ -36,7 +37,7 @@ from inspect import signature
 from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile, gettempdir
-from typing import TYPE_CHECKING, Any, AsyncIterator, Callable
+from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import urlsplit
 from uuid import uuid4
 

@@ -23,8 +23,8 @@ import json
 import logging
 import os
 import tempfile
+from collections.abc import Collection, Generator, Sequence
 from contextlib import ExitStack, contextmanager
-from typing import Collection, Generator, Sequence
 from urllib.parse import urlencode
 
 import google.auth

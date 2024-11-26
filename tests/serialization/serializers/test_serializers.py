@@ -20,6 +20,7 @@ import datetime
 import decimal
 from importlib import metadata
 from unittest.mock import patch
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pendulum
@@ -29,7 +30,6 @@ from dateutil.tz import tzutc
 from packaging import version
 from pendulum import DateTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
-from zoneinfo import ZoneInfo
 
 from airflow.models.param import Param, ParamsDict
 from airflow.serialization.serde import DATA, deserialize, serialize
@@ -189,11 +189,12 @@ class TestSerializers:
         from pyiceberg.io import FileIO
         from pyiceberg.table import Table
 
-        with patch.object(Catalog, "__abstractmethods__", set()), patch.object(
-            FileIO, "__abstractmethods__", set()
-        ), patch("pyiceberg.catalog.Catalog.load_table") as mock_load_table, patch(
-            "pyiceberg.catalog.load_catalog"
-        ) as mock_load_catalog:
+        with (
+            patch.object(Catalog, "__abstractmethods__", set()),
+            patch.object(FileIO, "__abstractmethods__", set()),
+            patch("pyiceberg.catalog.Catalog.load_table") as mock_load_table,
+            patch("pyiceberg.catalog.load_catalog") as mock_load_catalog,
+        ):
             uri = "http://rest.no.where"
             catalog = Catalog("catalog", uri=uri)
             identifier = ("catalog", "schema", "table")
@@ -211,9 +212,12 @@ class TestSerializers:
     def test_deltalake(selfa):
         deltalake = pytest.importorskip("deltalake")
 
-        with patch("deltalake.table.Metadata"), patch("deltalake.table.RawDeltaTable"), patch.object(
-            deltalake.DeltaTable, "version", return_value=0
-        ), patch.object(deltalake.DeltaTable, "table_uri", new_callable=lambda: "/tmp/bucket/path"):
+        with (
+            patch("deltalake.table.Metadata"),
+            patch("deltalake.table.RawDeltaTable"),
+            patch.object(deltalake.DeltaTable, "version", return_value=0),
+            patch.object(deltalake.DeltaTable, "table_uri", new_callable=lambda: "/tmp/bucket/path"),
+        ):
             uri = "/tmp/bucket/path"
 
             i = deltalake.DeltaTable(uri, storage_options={"key": "value"})

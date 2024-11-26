@@ -18,7 +18,8 @@
 from __future__ import annotations
 
 import abc
-from typing import TYPE_CHECKING, Any, Sequence, TypeVar
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException

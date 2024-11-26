@@ -235,7 +235,7 @@ class VersionedFile(NamedTuple):
 
 
 AIRFLOW_PIP_VERSION = "24.3.1"
-AIRFLOW_UV_VERSION = "0.5.3"
+AIRFLOW_UV_VERSION = "0.5.4"
 AIRFLOW_USE_UV = False
 # TODO: automate these as well
 WHEEL_VERSION = "0.44.0"
@@ -2195,7 +2195,7 @@ def generate_issue_content_providers(
                     f"[warning]Skipping provider {provider_id}. "
                     "The changelog file doesn't contain any PRs for the release.\n"
                 )
-                return
+                continue
             provider_prs[provider_id] = [pr for pr in prs if pr not in excluded_prs]
             all_prs.update(provider_prs[provider_id])
         g = Github(github_token)
@@ -2245,6 +2245,8 @@ def generate_issue_content_providers(
                 progress.advance(task)
         providers: dict[str, ProviderPRInfo] = {}
         for provider_id in prepared_package_ids:
+            if provider_id not in provider_prs:
+                continue
             pull_request_list = [pull_requests[pr] for pr in provider_prs[provider_id] if pr in pull_requests]
             provider_yaml_dict = yaml.safe_load(
                 (

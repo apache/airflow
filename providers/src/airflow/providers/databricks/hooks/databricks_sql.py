@@ -19,6 +19,7 @@ from __future__ import annotations
 import threading
 import warnings
 from collections import namedtuple
+from collections.abc import Iterable, Mapping, Sequence
 from contextlib import closing
 from copy import copy
 from datetime import timedelta
@@ -26,10 +27,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Iterable,
-    List,
-    Mapping,
-    Sequence,
     TypeVar,
     cast,
     overload,
@@ -320,7 +317,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                 return []
             rows_fields = tuple(rows[0].__fields__)
             rows_object = namedtuple("Row", rows_fields, rename=True)  # type: ignore
-            return cast(List[tuple], [rows_object(*row) for row in rows])
+            return cast(list[tuple], [rows_object(*row) for row in rows])
         else:
             row: Row = result
             row_fields = tuple(row.__fields__)

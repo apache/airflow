@@ -32,10 +32,11 @@ import traceback
 import warnings
 from bisect import insort_left
 from collections import defaultdict
+from collections.abc import Collection, Iterator, Mapping, MutableMapping, Sequence
 from functools import cache, cached_property
 from json import JSONDecodeError
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Collection, Iterator, Mapping, MutableMapping, Sequence
+from typing import TYPE_CHECKING, Any
 from urllib.parse import unquote, urlencode, urljoin, urlparse, urlsplit
 
 import configupdater
@@ -317,7 +318,10 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
             TaskInstance.task_id,
             TaskInstance.run_id,
             TaskInstance.state,
-            TaskInstance.try_number,
+            case(
+                (TaskInstance.map_index == -1, TaskInstance.try_number),
+                else_=None,
+            ).label("try_number"),
             func.min(TaskInstanceNote.content).label("note"),
             func.count(func.coalesce(TaskInstance.state, sqla.literal("no_status"))).label("state_count"),
             func.min(TaskInstance.queued_dttm).label("queued_dttm"),
@@ -329,7 +333,15 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs]),
         )
-        .group_by(TaskInstance.task_id, TaskInstance.run_id, TaskInstance.state, TaskInstance.try_number)
+        .group_by(
+            TaskInstance.task_id,
+            TaskInstance.run_id,
+            TaskInstance.state,
+            case(
+                (TaskInstance.map_index == -1, TaskInstance.try_number),
+                else_=None,
+            ),
+        )
         .order_by(TaskInstance.task_id, TaskInstance.run_id)
     )
 
@@ -935,7 +947,7 @@ class Airflow(AirflowBaseView):
                 dag_run_subquery = (
                     select(
                         DagRun.dag_id,
-                        sqla.func.max(DagRun.logical_date).label("max_execution_date"),
+                        sqla.func.max(DagRun.logical_date).label("max_logical_date"),
                     )
                     .group_by(DagRun.dag_id)
                     .subquery()
@@ -943,13 +955,13 @@ class Airflow(AirflowBaseView):
                 current_dags = current_dags.outerjoin(
                     dag_run_subquery, and_(dag_run_subquery.c.dag_id == DagModel.dag_id)
                 )
-                null_case = case((dag_run_subquery.c.max_execution_date.is_(None), 1), else_=0)
+                null_case = case((dag_run_subquery.c.max_logical_date.is_(None), 1), else_=0)
                 if arg_sorting_direction == "desc":
                     current_dags = current_dags.order_by(
-                        null_case, dag_run_subquery.c.max_execution_date.desc()
+                        null_case, dag_run_subquery.c.max_logical_date.desc()
                     )
                 else:
-                    current_dags = current_dags.order_by(null_case, dag_run_subquery.c.max_execution_date)
+                    current_dags = current_dags.order_by(null_case, dag_run_subquery.c.max_logical_date)
             else:
                 sort_column = DagModel.__table__.c.get(arg_sorting_key)
                 if sort_column is not None:
@@ -1336,7 +1348,7 @@ class Airflow(AirflowBaseView):
         last_runs_subquery = (
             select(
                 DagRun.dag_id,
-                sqla.func.max(DagRun.logical_date).label("max_execution_date"),
+                sqla.func.max(DagRun.logical_date).label("max_logical_date"),
             )
             .group_by(DagRun.dag_id)
             .where(DagRun.dag_id.in_(filter_dag_ids))  # Only include accessible/selected DAGs.
@@ -1356,7 +1368,7 @@ class Airflow(AirflowBaseView):
                 last_runs_subquery,
                 and_(
                     last_runs_subquery.c.dag_id == DagRun.dag_id,
-                    last_runs_subquery.c.max_execution_date == DagRun.logical_date,
+                    last_runs_subquery.c.max_logical_date == DagRun.logical_date,
                 ),
             )
         )
@@ -3878,6 +3890,8 @@ class XComModelView(AirflowModelView):
         permissions.ACTION_CAN_DELETE,
         permissions.ACTION_CAN_ACCESS_MENU,
     ]
+
+    add_exclude_columns = edit_exclude_columns = ["value"]
 
     search_columns = ["key", "timestamp", "dag_id", "task_id", "run_id", "logical_date"]
     list_columns = ["key", "value", "timestamp", "dag_id", "task_id", "run_id", "map_index", "logical_date"]

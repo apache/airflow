@@ -21,8 +21,9 @@ from __future__ import annotations
 import logging
 import sys
 from collections import defaultdict, deque
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Optional
 
 import pendulum
 from deprecated import deprecated
@@ -55,20 +56,20 @@ if TYPE_CHECKING:
     # Command to execute - list of strings
     # the first element is always "airflow".
     # It should be result of TaskInstance.generate_command method.
-    CommandType = List[str]
+    CommandType = list[str]
 
     # Task that is queued. It contains all the information that is
     # needed to run the task.
     #
     # Tuple of: command, priority, queue name, TaskInstance
-    QueuedTaskInstanceType = Tuple[CommandType, int, Optional[str], TaskInstance]
+    QueuedTaskInstanceType = tuple[CommandType, int, Optional[str], TaskInstance]
 
     # Event_buffer dict value type
     # Tuple of: state, info
-    EventBufferValueType = Tuple[Optional[str], Any]
+    EventBufferValueType = tuple[Optional[str], Any]
 
     # Task tuple to send to be executed
-    TaskTuple = Tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
+    TaskTuple = tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
 
 log = logging.getLogger(__name__)
 

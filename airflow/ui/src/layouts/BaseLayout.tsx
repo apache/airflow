@@ -20,13 +20,27 @@ import { Flex } from "@chakra-ui/react";
 import type { PropsWithChildren } from "react";
 import { Outlet } from "react-router-dom";
 
+import { useConfig } from "src/queries/useConfig";
+
 import { Nav } from "./Nav";
 
-export const BaseLayout = ({ children }: PropsWithChildren) => (
-  <>
-    <Nav />
-    <Flex flexFlow="column" height="100%" ml={20} p={3}>
-      {children ?? <Outlet />}
-    </Flex>
-  </>
-);
+export const BaseLayout = ({ children }: PropsWithChildren) => {
+  const instanceName = useConfig("instance_name");
+  // const instanceNameHasMarkup =
+  //   webserverConfig?.options.find(
+  //     ({ key }) => key === "instance_name_has_markup",
+  //   )?.value === "True";
+
+  if (typeof instanceName === "string") {
+    document.title = instanceName;
+  }
+
+  return (
+    <>
+      <Nav />
+      <Flex flexFlow="column" height="100%" ml={20} p={3}>
+        {children ?? <Outlet />}
+      </Flex>
+    </>
+  );
+};

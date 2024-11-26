@@ -44,9 +44,9 @@ on:  # yamllint disable-line rule:truthy
         description: "List of affected providers as string"
         required: false
         type: string
-      providers-compatibility-checks:
+      providers-compatibility-tests-matrix:
         description: >
-          JSON-formatted array of providers compatibility checks in the form of array of dicts
+          JSON-formatted array of providers compatibility tests in the form of array of dicts
           (airflow-version, python-versions, remove-providers, run-tests)
         required: true
         type: string
@@ -63,10 +63,14 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
 jobs:
-  prepare-install-verify-provider-packages-wheel:
+  prepare-install-verify-provider-packages:
     timeout-minutes: 80
-    name: "Provider packages wheel build and verify"
+    name: "Providers ${{ matrix.package-format }} tests"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        package-format: ["wheel", "sdist"]
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -94,120 +98,65 @@ jobs:
         run: >
           breeze release-management prepare-provider-documentation --include-not-ready-providers
           --non-interactive
-      - name: "Prepare provider packages: wheel"
+        if: matrix.package-format == 'wheel'
+      - name: "Prepare provider packages: ${{ matrix.package-format }}"
         run: >
           breeze release-management prepare-provider-packages --include-not-ready-providers
-          --version-suffix-for-pypi dev0 --package-format wheel
-      - name: "Prepare airflow package: wheel"
-        run: breeze release-management prepare-airflow-package --version-suffix-for-pypi dev0
-      - name: "Verify wheel packages with twine"
+          --version-suffix-for-pypi dev0 --package-format ${{ matrix.package-format }}
+      - name: "Prepare airflow package: ${{ matrix.package-format }}"
+        run: >
+          breeze release-management prepare-airflow-package --version-suffix-for-pypi dev0
+          --package-format ${{ matrix.package-format }}
+      - name: "Verify ${{ matrix.package-format }} packages with twine"
         run: |
           uv tool uninstall twine || true
-          uv tool install twine && twine check dist/*.whl
+          uv tool install twine && twine check dist/*
       - name: "Test providers issue generation automatically"
         run: >
           breeze release-management generate-issue-content-providers
           --only-available-in-dist --disable-progress
+        if: matrix.package-format == 'wheel'
       - name: Remove Python 3.9-incompatible provider packages
         run: |
           echo "Removing Python 3.9-incompatible provider: cloudant"
-          rm -vf dist/apache_airflow_providers_cloudant*
+          rm -vf dist/*cloudant*
       - name: "Generate source constraints from CI image"
         shell: bash
         run: >
           breeze release-management generate-constraints
           --airflow-constraints-mode constraints-source-providers --answer yes
-      - name: "Install and verify all provider packages and airflow via wheel files"
+      - name: "Install and verify wheel provider packages"
         run: >
           breeze release-management verify-provider-packages
           --use-packages-from-dist
-          --package-format wheel
-          --use-airflow-version wheel
+          --package-format ${{ matrix.package-format }}
+          --use-airflow-version ${{ matrix.package-format }}
           --airflow-constraints-reference default
           --providers-constraints-location
           /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
         env:
           AIRFLOW_SKIP_CONSTRAINTS: "${{ inputs.upgrade-to-newer-dependencies }}"
-      - name: "Prepare airflow package: wheel without suffix and skipping the tag check"
-        run: >
-          breeze release-management prepare-provider-packages --skip-tag-check --package-format wheel
-
-  prepare-install-provider-packages-sdist:
-    timeout-minutes: 80
-    name: "Provider packages sdist build and install"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
-    env:
-      GITHUB_REPOSITORY: ${{ github.repository }}
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GITHUB_USERNAME: ${{ github.actor }}
-      IMAGE_TAG: "${{ inputs.image-tag }}"
-      INCLUDE_NOT_READY_PROVIDERS: "true"
-      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
-      VERBOSE: "true"
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: >
-          Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}
-        uses: ./.github/actions/prepare_breeze_and_image
-      - name: "Cleanup dist files"
-        run: rm -fv ./dist/*
-      - name: "Prepare provider packages: sdist"
-        run: >
-          breeze release-management prepare-provider-packages --include-not-ready-providers
-          --version-suffix-for-pypi dev0 --package-format sdist
-          ${{ inputs.selected-providers-list-as-string }}
-      - name: "Prepare airflow package: sdist"
-        run: >
-          breeze release-management prepare-airflow-package
-          --version-suffix-for-pypi dev0 --package-format sdist
-      - name: "Verify sdist packages with twine"
-        run: |
-          uv tool uninstall twine || true
-          uv tool install twine && twine check dist/*.tar.gz
-      - name: "Generate source constraints from CI image"
-        shell: bash
-        run: >
-          breeze release-management generate-constraints
-          --airflow-constraints-mode constraints-source-providers --answer yes
-      - name: "Install all provider packages and airflow via sdist files"
+        if: matrix.package-format == 'wheel'
+      - name: "Install all sdist provider packages and airflow"
         run: >
           breeze release-management install-provider-packages
           --use-packages-from-dist
-          --package-format sdist
-          --use-airflow-version sdist
+          --package-format ${{ matrix.package-format }}
+          --use-airflow-version ${{ matrix.package-format }}
           --airflow-constraints-reference default
           --providers-constraints-location
           /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
           --run-in-parallel
-        if: inputs.selected-providers-list-as-string == ''
-      - name: "Install affected provider packages and airflow via sdist files"
-        run: >
-          breeze release-management install-provider-packages
-          --use-packages-from-dist
-          --package-format sdist
-          --use-airflow-version sdist
-          --airflow-constraints-reference default
-          --providers-constraints-location
-          /files/constraints-${{env.PYTHON_MAJOR_MINOR_VERSION}}/constraints-source-providers-${{env.PYTHON_MAJOR_MINOR_VERSION}}.txt
-          --run-in-parallel
-        if: inputs.selected-providers-list-as-string != ''
+        if: matrix.package-format == 'sdist'
 
-  providers-compatibility-checks:
+  providers-compatibility-tests-matrix:
     timeout-minutes: 80
-    name: Compat ${{ matrix.airflow-version }}:P${{ matrix.python-version }} provider check
+    name: Compat ${{ matrix.airflow-version }}:P${{ matrix.python-version }} providers test
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     strategy:
       fail-fast: false
       matrix:
-        include: ${{fromJSON(inputs.providers-compatibility-checks)}}
+        include: ${{fromJSON(inputs.providers-compatibility-tests-matrix)}}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

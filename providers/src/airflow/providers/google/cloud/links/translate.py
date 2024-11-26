@@ -45,6 +45,11 @@ TRANSLATION_LEGACY_MODEL_PREDICT_LINK = (
 
 TRANSLATION_TRANSLATE_TEXT_BATCH = BASE_LINK + "/storage/browser/{output_uri_prefix}?project={project_id}"
 
+TRANSLATION_NATIVE_DATASET_LINK = (
+    TRANSLATION_BASE_LINK + "/locations/{location}/datasets/{dataset_id}/sentences?project={project_id}"
+)
+TRANSLATION_NATIVE_LIST_LINK = TRANSLATION_BASE_LINK + "/datasets?project={project_id}"
+
 
 class TranslationLegacyDatasetLink(BaseGoogleLink):
     """
@@ -212,5 +217,56 @@ class TranslateTextBatchLink(BaseGoogleLink):
             value={
                 "project_id": project_id,
                 "output_uri_prefix": TranslateTextBatchLink.extract_output_uri_prefix(output_config),
+            },
+        )
+
+
+class TranslationNativeDatasetLink(BaseGoogleLink):
+    """
+    Helper class for constructing Legacy Translation Dataset link.
+
+    Legacy Datasets are created and managed by AutoML API.
+    """
+
+    name = "Translation Native Dataset"
+    key = "translation_naive_dataset"
+    format_str = TRANSLATION_NATIVE_DATASET_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance,
+        dataset_id: str,
+        project_id: str,
+    ):
+        task_instance.xcom_push(
+            context,
+            key=TranslationNativeDatasetLink.key,
+            value={"location": task_instance.location, "dataset_id": dataset_id, "project_id": project_id},
+        )
+
+
+class TranslationDatasetsListLink(BaseGoogleLink):
+    """
+    Helper class for constructing Translation Datasets List link.
+
+    Both legacy and native datasets are available under this link.
+    """
+
+    name = "Translation Dataset List"
+    key = "translation_dataset_list"
+    format_str = TRANSLATION_DATASET_LIST_LINK
+
+    @staticmethod
+    def persist(
+        context: Context,
+        task_instance,
+        project_id: str,
+    ):
+        task_instance.xcom_push(
+            context,
+            key=TranslationDatasetsListLink.key,
+            value={
+                "project_id": project_id,
             },
         )

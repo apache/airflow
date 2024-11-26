@@ -20,9 +20,10 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from googleapiclient.errors import HttpError
 

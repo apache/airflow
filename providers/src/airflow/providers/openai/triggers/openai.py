@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 from airflow.providers.openai.hooks.openai import BatchStatus, OpenAIHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent

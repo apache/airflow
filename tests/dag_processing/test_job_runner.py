@@ -1054,7 +1054,7 @@ class TestDagProcessorJobRunner:
         # Assert dag not deleted in SDM
         assert SerializedDagModel.has_dag("test_zip_dag")
         # assert code not deleted
-        assert DagCode.has_dag(dag.fileloc)
+        assert DagCode.has_dag(dag.dag_id)
         # assert dag still active
         assert dag.get_is_active()
 
@@ -1087,7 +1087,7 @@ class TestDagProcessorJobRunner:
         # Deleting the python file should not delete SDM for versioning sake
         assert SerializedDagModel.has_dag("test_zip_dag")
         # assert code not deleted for versioning sake
-        assert DagCode.has_dag(dag.fileloc)
+        assert DagCode.has_dag(dag.dag_id)
         # assert dagversion was not deleted
         assert DagVersion.get_latest_version(dag.dag_id)
         # assert dag deactivated
@@ -1106,7 +1106,7 @@ class TestDagProcessorJobRunner:
 
         assert SerializedDagModel.has_dag("miscellaneous_test_dag")
         assert dag.get_is_active()
-        assert DagCode.has_dag(dag.fileloc)
+        assert DagCode.has_dag(dag.dag_id)
 
         manager = DagProcessorJobRunner(
             job=Job(),
@@ -1125,7 +1125,7 @@ class TestDagProcessorJobRunner:
 
         assert SerializedDagModel.has_dag("miscellaneous_test_dag")
         assert dag.get_is_active()
-        assert DagCode.has_dag(dag.fileloc)
+        assert DagCode.has_dag(dag.dag_id)
 
     @conf_vars(
         {

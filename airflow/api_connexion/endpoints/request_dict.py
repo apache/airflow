@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Mapping, cast
+from collections.abc import Mapping
+from typing import Any, cast
 
 
 def get_json_request_dict() -> Mapping[str, Any]:

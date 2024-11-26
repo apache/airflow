@@ -29,7 +29,8 @@ import multiprocessing
 import os
 import sys
 from collections import defaultdict
-from typing import Any, Callable, Iterable, NamedTuple, TypeVar
+from collections.abc import Iterable
+from typing import Any, Callable, NamedTuple, TypeVar
 
 from rich.console import Console
 from tabulate import tabulate

@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import logging
 from base64 import b64encode
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException

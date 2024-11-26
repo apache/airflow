@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from functools import wraps
-from typing import Callable, Sequence, TypeVar, cast
+from typing import Callable, TypeVar, cast
 
 from flask import current_app, render_template, request
 

@@ -23,9 +23,9 @@ import logging
 import os
 import sys
 from collections import Counter, deque
+from collections.abc import Generator
 from datetime import timedelta
 from importlib import reload
-from typing import Generator
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 from uuid import uuid4
@@ -2771,9 +2771,10 @@ class TestSchedulerJob:
         ti = dr.get_task_instance("dummy")
         ti.set_state(State.SUCCESS, session)
 
-        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False), mock.patch(
-            "airflow.jobs.scheduler_job_runner.prohibit_commit"
-        ) as mock_guard:
+        with (
+            mock.patch.object(settings, "USE_JOB_SCHEDULE", False),
+            mock.patch("airflow.jobs.scheduler_job_runner.prohibit_commit") as mock_guard,
+        ):
             mock_guard.return_value.__enter__.return_value.commit.side_effect = session.commit
 
             def mock_schedule_dag_run(*args, **kwargs):
@@ -4285,9 +4286,12 @@ class TestSchedulerJob:
 
         caplog.set_level("FATAL")
         caplog.clear()
-        with create_session() as session, caplog.at_level(
-            "ERROR",
-            logger="airflow.jobs.scheduler_job_runner",
+        with (
+            create_session() as session,
+            caplog.at_level(
+                "ERROR",
+                logger="airflow.jobs.scheduler_job_runner",
+            ),
         ):
             self.job_runner._create_dag_runs([dag_maker.dag_model], session)
             assert caplog.messages == [
@@ -6568,26 +6572,29 @@ class TestSchedulerJobQueriesCount:
         ],
     )
     def test_execute_queries_count_with_harvested_dags(self, expected_query_count, dag_count, task_count):
-        with mock.patch.dict(
-            "os.environ",
-            {
-                "PERF_DAGS_COUNT": str(dag_count),
-                "PERF_TASKS_COUNT": str(task_count),
-                "PERF_START_AGO": "1d",
-                "PERF_SCHEDULE_INTERVAL": "30m",
-                "PERF_SHAPE": "no_structure",
-            },
-        ), conf_vars(
-            {
-                ("scheduler", "use_job_schedule"): "True",
-                ("core", "load_examples"): "False",
-                # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
-                # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
-                # This will increase the count of serliazied_dag.py.get() count.
-                # That's why we keep the values high
-                ("core", "min_serialized_dag_update_interval"): "100",
-                ("core", "min_serialized_dag_fetch_interval"): "100",
-            }
+        with (
+            mock.patch.dict(
+                "os.environ",
+                {
+                    "PERF_DAGS_COUNT": str(dag_count),
+                    "PERF_TASKS_COUNT": str(task_count),
+                    "PERF_START_AGO": "1d",
+                    "PERF_SCHEDULE_INTERVAL": "30m",
+                    "PERF_SHAPE": "no_structure",
+                },
+            ),
+            conf_vars(
+                {
+                    ("scheduler", "use_job_schedule"): "True",
+                    ("core", "load_examples"): "False",
+                    # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
+                    # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
+                    # This will increase the count of serliazied_dag.py.get() count.
+                    # That's why we keep the values high
+                    ("core", "min_serialized_dag_update_interval"): "100",
+                    ("core", "min_serialized_dag_fetch_interval"): "100",
+                }
+            ),
         ):
             dagruns = []
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False, read_dags_from_db=False)
@@ -6663,25 +6670,28 @@ class TestSchedulerJobQueriesCount:
     def test_process_dags_queries_count(
         self, expected_query_counts, dag_count, task_count, start_ago, schedule, shape
     ):
-        with mock.patch.dict(
-            "os.environ",
-            {
-                "PERF_DAGS_COUNT": str(dag_count),
-                "PERF_TASKS_COUNT": str(task_count),
-                "PERF_START_AGO": start_ago,
-                "PERF_SCHEDULE_INTERVAL": schedule,
-                "PERF_SHAPE": shape,
-            },
-        ), conf_vars(
-            {
-                ("scheduler", "use_job_schedule"): "True",
-                # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
-                # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
-                # This will increase the count of serliazied_dag.py.get() count.
-                # That's why we keep the values high
-                ("core", "min_serialized_dag_update_interval"): "100",
-                ("core", "min_serialized_dag_fetch_interval"): "100",
-            }
+        with (
+            mock.patch.dict(
+                "os.environ",
+                {
+                    "PERF_DAGS_COUNT": str(dag_count),
+                    "PERF_TASKS_COUNT": str(task_count),
+                    "PERF_START_AGO": start_ago,
+                    "PERF_SCHEDULE_INTERVAL": schedule,
+                    "PERF_SHAPE": shape,
+                },
+            ),
+            conf_vars(
+                {
+                    ("scheduler", "use_job_schedule"): "True",
+                    # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
+                    # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
+                    # This will increase the count of serliazied_dag.py.get() count.
+                    # That's why we keep the values high
+                    ("core", "min_serialized_dag_update_interval"): "100",
+                    ("core", "min_serialized_dag_fetch_interval"): "100",
+                }
+            ),
         ):
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
             dagbag.sync_to_db()

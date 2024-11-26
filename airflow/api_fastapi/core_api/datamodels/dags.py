@@ -18,19 +18,20 @@
 from __future__ import annotations
 
 from collections import abc
+from collections.abc import Iterable
 from datetime import datetime, timedelta
-from typing import Any, Iterable
+from typing import Any
 
 from itsdangerous import URLSafeSerializer
 from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic import (
     AliasGenerator,
-    BaseModel,
     ConfigDict,
     computed_field,
     field_validator,
 )
 
+from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.configuration import conf
 from airflow.serialization.pydantic.dag import DagTagPydantic
 
@@ -107,6 +108,17 @@ class DAGCollectionResponse(BaseModel):
 class DAGDetailsResponse(DAGResponse):
     """Specific serializer for DAG Details responses."""
 
+    model_config = ConfigDict(
+        from_attributes=True,
+        alias_generator=AliasGenerator(
+            validation_alias=lambda field_name: {
+                "dag_run_timeout": "dagrun_timeout",
+                "last_parsed": "last_loaded",
+                "template_search_path": "template_searchpath",
+            }.get(field_name, field_name),
+        ),
+    )
+
     catchup: bool
     dag_run_timeout: timedelta | None
     asset_expression: dict | None
@@ -119,16 +131,6 @@ class DAGDetailsResponse(DAGResponse):
     template_search_path: Iterable[str] | None
     timezone: str | None
     last_parsed: datetime | None
-
-    model_config = ConfigDict(
-        alias_generator=AliasGenerator(
-            validation_alias=lambda field_name: {
-                "dag_run_timeout": "dagrun_timeout",
-                "last_parsed": "last_loaded",
-                "template_search_path": "template_searchpath",
-            }.get(field_name, field_name),
-        )
-    )
 
     @field_validator("timezone", mode="before")
     @classmethod
@@ -144,7 +146,7 @@ class DAGDetailsResponse(DAGResponse):
         """Convert params attribute to dict representation."""
         if params is None:
             return None
-        return {param_name: param_val.dump() for param_name, param_val in params.items()}
+        return {k: v.dump() for k, v in params.items()}
 
     # Mypy issue https://github.com/python/mypy/issues/1362
     @computed_field  # type: ignore[misc]

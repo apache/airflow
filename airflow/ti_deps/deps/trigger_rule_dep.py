@@ -20,7 +20,8 @@ from __future__ import annotations
 import collections.abc
 import functools
 from collections import Counter
-from typing import TYPE_CHECKING, Iterator, KeysView, NamedTuple
+from collections.abc import Iterator, KeysView
+from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy import and_, func, or_, select
 

@@ -28,7 +28,8 @@ import imaplib
 import os
 import re
 import ssl
-from typing import TYPE_CHECKING, Any, Iterable
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook

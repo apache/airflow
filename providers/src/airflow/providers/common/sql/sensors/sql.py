@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from operator import itemgetter
-from typing import TYPE_CHECKING, Any, Callable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook

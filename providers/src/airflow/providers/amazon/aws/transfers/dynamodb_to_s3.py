@@ -20,12 +20,13 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Sequence
 from copy import copy
 from datetime import datetime
 from decimal import Decimal
 from functools import cached_property
 from tempfile import NamedTemporaryFile
-from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
+from typing import IO, TYPE_CHECKING, Any, Callable
 from uuid import uuid4
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook

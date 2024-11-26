@@ -28,6 +28,7 @@ import contextlib
 import copy
 import functools
 import logging
+from collections.abc import Collection, Iterable, Sequence
 from datetime import datetime, timedelta
 from functools import wraps
 from threading import local
@@ -36,10 +37,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Collection,
-    Iterable,
     NoReturn,
-    Sequence,
     TypeVar,
 )
 
@@ -116,7 +114,7 @@ if TYPE_CHECKING:
 
 # Todo: AIP-44: Once we get rid of AIP-44 we can remove this. But without this here pydantic fails to resolve
 # types for serialization
-from airflow.utils.task_group import TaskGroup  # noqa: TCH001
+from airflow.utils.task_group import TaskGroup  # noqa: TC001
 
 TaskPreExecuteHook = Callable[[Context], None]
 TaskPostExecuteHook = Callable[[Context, Any], None]

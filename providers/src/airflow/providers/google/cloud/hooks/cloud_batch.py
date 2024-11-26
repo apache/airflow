@@ -20,7 +20,8 @@ from __future__ import annotations
 import itertools
 import json
 import time
-from typing import TYPE_CHECKING, Iterable, Sequence
+from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING
 
 from google.cloud.batch import ListJobsRequest, ListTasksRequest
 from google.cloud.batch_v1 import (

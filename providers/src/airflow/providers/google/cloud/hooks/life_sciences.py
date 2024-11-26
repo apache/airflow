@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 import time
-from typing import Sequence
+from collections.abc import Sequence
 
 import google.api_core.path_template
 from googleapiclient.discovery import build

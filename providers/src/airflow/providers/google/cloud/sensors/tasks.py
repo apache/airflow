@@ -19,7 +19,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID

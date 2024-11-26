@@ -26,7 +26,8 @@
 # declare "these are defined, but don't error if others are accessed" someday.
 from __future__ import annotations
 
-from typing import Any, Collection, Container, Iterable, Iterator, Mapping, Sequence, overload
+from collections.abc import Collection, Container, Iterable, Iterator, Mapping, Sequence
+from typing import Any, overload
 
 from pendulum import DateTime
 from sqlalchemy.orm import Session

@@ -22,7 +22,13 @@ from contextlib import AsyncExitStack, asynccontextmanager
 from fastapi import FastAPI
 from starlette.routing import Mount
 
-from airflow.api_fastapi.core_api.app import init_config, init_dag_bag, init_plugins, init_views
+from airflow.api_fastapi.core_api.app import (
+    init_config,
+    init_dag_bag,
+    init_error_handlers,
+    init_plugins,
+    init_views,
+)
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.configuration import conf
@@ -61,6 +67,7 @@ def create_app(apps: str = "all") -> FastAPI:
         init_dag_bag(app)
         init_views(app)
         init_plugins(app)
+        init_error_handlers(app)
         init_auth_manager()
 
     if "execution" in apps_list or "all" in apps_list:

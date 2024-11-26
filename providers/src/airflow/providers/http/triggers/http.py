@@ -19,7 +19,8 @@ from __future__ import annotations
 import asyncio
 import base64
 import pickle
-from typing import TYPE_CHECKING, Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING, Any
 
 import requests
 from requests.cookies import RequestsCookieJar

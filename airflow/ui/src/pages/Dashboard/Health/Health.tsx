@@ -54,13 +54,15 @@ export const Health = () => {
           status={data?.triggerer.status}
           title="Triggerer"
         />
-        {/* TODO add is_standalone to API to determine when to render this */}
-        <HealthTag
-          isLoading={isLoading}
-          latestHeartbeat={data?.dag_processor.latest_dag_processor_heartbeat}
-          status={data?.dag_processor.status}
-          title="Dag Processor"
-        />
+        {/* TODO: Update this to match the API when we move the config check to the API level */}
+        {data?.dag_processor.status === undefined ? undefined : (
+          <HealthTag
+            isLoading={isLoading}
+            latestHeartbeat={data.dag_processor.latest_dag_processor_heartbeat}
+            status={data.dag_processor.status}
+            title="Dag Processor"
+          />
+        )}
       </HStack>
     </Box>
   );

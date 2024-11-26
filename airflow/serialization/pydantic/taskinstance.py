@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Any, Iterable, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Optional
 from uuid import UUID
 
 from pydantic import (

@@ -20,7 +20,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import AsyncIterator, Sequence
+from collections.abc import AsyncIterator, Sequence
 
 from google.cloud.dataplex_v1.types import DataScanJob
 

@@ -156,7 +156,7 @@ class _EdgeWorkerCli:
 
     @staticmethod
     def signal_handler(sig, frame):
-        logger.info("Request to show down Edge Worker received, waiting for jobs to complete.")
+        logger.info("Request to shut down Edge Worker received, waiting for jobs to complete.")
         _EdgeWorkerCli.drain = True
 
     def shutdown_handler(self, sig, frame):

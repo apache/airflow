@@ -19,7 +19,7 @@ from __future__ import annotations
 import datetime
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.amazon.aws.executors.utils.base_config_keys import BaseConfigKeys
 from airflow.utils.state import State
@@ -27,8 +27,8 @@ from airflow.utils.state import State
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
 
-CommandType = List[str]
-ExecutorConfigType = Dict[str, Any]
+CommandType = list[str]
+ExecutorConfigType = dict[str, Any]
 
 CONFIG_GROUP_NAME = "aws_batch_executor"
 

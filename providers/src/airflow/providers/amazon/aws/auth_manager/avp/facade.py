@@ -17,9 +17,10 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Sequence, TypedDict
+from typing import TYPE_CHECKING, TypedDict
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException

@@ -21,7 +21,8 @@ import json
 import logging
 import textwrap
 import time
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import urlencode
 
 from flask import request, url_for
@@ -765,10 +766,8 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
         ),
         # FAB will try to create filters for extendedjson fields even though we
         # exclude them from all UI, so we add this here to make it ignore them.
-        (
-            "is_extendedjson",
-            [],
-        ),
+        ("is_extendedjson", []),
+        ("is_json", []),
         *fab_sqlafilters.SQLAFilterConverter.conversion_table,
     )
 
@@ -830,6 +829,17 @@ class CustomSQLAInterface(SQLAInterface):
                 isinstance(obj, ExtendedJSON)
                 or isinstance(obj, types.TypeDecorator)
                 and isinstance(obj.impl, ExtendedJSON)
+            )
+        return False
+
+    def is_json(self, col_name):
+        """Check if it is a JSON type."""
+        from sqlalchemy import JSON
+
+        if col_name in self.list_columns:
+            obj = self.list_columns[col_name].type
+            return (
+                isinstance(obj, JSON) or isinstance(obj, types.TypeDecorator) and isinstance(obj.impl, JSON)
             )
         return False
 

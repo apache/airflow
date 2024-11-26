@@ -36,3 +36,12 @@ def client():
         return TestClient(app)
 
     return create_test_client
+
+
+@pytest.fixture(scope="module")
+def dagbag():
+    from airflow.models import DagBag
+
+    dagbag_instance = DagBag(include_examples=True, read_dags_from_db=False)
+    dagbag_instance.sync_to_db()
+    return dagbag_instance

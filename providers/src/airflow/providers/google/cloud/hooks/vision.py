@@ -19,9 +19,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from copy import deepcopy
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.vision_v1 import (

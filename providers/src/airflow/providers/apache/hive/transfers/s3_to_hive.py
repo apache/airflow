@@ -289,8 +289,9 @@ def uncompress_file(input_file_name, file_extension, dest_dir):
         fmodule = gzip.GzipFile
     elif file_extension.lower() == ".bz2":
         fmodule = bz2.BZ2File
-    with fmodule(input_file_name, mode="rb") as f_compressed, NamedTemporaryFile(
-        dir=dest_dir, mode="wb", delete=False
-    ) as f_uncompressed:
+    with (
+        fmodule(input_file_name, mode="rb") as f_compressed,
+        NamedTemporaryFile(dir=dest_dir, mode="wb", delete=False) as f_uncompressed,
+    ):
         shutil.copyfileobj(f_compressed, f_uncompressed)
     return f_uncompressed.name

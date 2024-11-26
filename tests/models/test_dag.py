@@ -274,9 +274,10 @@ class TestDag:
         ],
     )
     def test_dag_task_custom_weight_strategy(self, cls, expected):
-        with mock_plugin_manager(plugins=[TestPriorityWeightStrategyPlugin]), DAG(
-            "dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"}
-        ) as dag:
+        with (
+            mock_plugin_manager(plugins=[TestPriorityWeightStrategyPlugin]),
+            DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"}) as dag,
+        ):
             task = EmptyOperator(
                 task_id="empty_task",
                 weight_rule=cls(),

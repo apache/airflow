@@ -17,9 +17,17 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from enum import Enum
 from typing import Annotated
 
-from pydantic import AfterValidator, AliasGenerator, AwareDatetime, BaseModel, BeforeValidator, ConfigDict
+from pydantic import (
+    AfterValidator,
+    AliasGenerator,
+    AwareDatetime,
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+)
 
 from airflow.utils import timezone
 
@@ -28,7 +36,7 @@ UtcDateTime = Annotated[AwareDatetime, AfterValidator(lambda d: d.astimezone(tim
 
 
 def _validate_timedelta_field(td: timedelta | None) -> TimeDelta | None:
-    """Validate the execution_timeout property."""
+    """Validate the timedelta field and return it."""
     if td is None:
         return None
     return TimeDelta(
@@ -56,3 +64,11 @@ class TimeDelta(BaseModel):
 
 
 TimeDeltaWithValidation = Annotated[TimeDelta, BeforeValidator(_validate_timedelta_field)]
+
+
+class Mimetype(str, Enum):
+    """Mimetype for the `Content-Type` header."""
+
+    TEXT = "text/plain"
+    JSON = "application/json"
+    ANY = "*/*"

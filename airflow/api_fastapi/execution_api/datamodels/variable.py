@@ -17,13 +17,13 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class VariableResponse(BaseModel):
     """Variable schema for responses with fields that are needed for Runtime."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     key: str
     val: str | None = Field(alias="value")

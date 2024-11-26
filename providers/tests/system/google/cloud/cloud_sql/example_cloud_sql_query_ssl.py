@@ -27,10 +27,11 @@ import logging
 import os
 import random
 import string
+from collections.abc import Iterable
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from googleapiclient import discovery
 

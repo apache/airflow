@@ -30,7 +30,6 @@ from airflow.decorators import task as task_decorator
 from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
-from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
@@ -71,10 +70,6 @@ class TestSerializedDagModel:
         with mock.patch("airflow.models.serialized_dag.COMPRESS_SERIALIZED_DAGS", request.param):
             yield
         db.clear_db_serialized_dags()
-
-    def test_dag_fileloc_hash(self):
-        """Verifies the correctness of hashing file path."""
-        assert DagCode.dag_fileloc_hash("/airflow/dags/test_dag.py") == 33826252060516589
 
     def _write_example_dags(self):
         example_dags = make_example_dags(example_dags_module)

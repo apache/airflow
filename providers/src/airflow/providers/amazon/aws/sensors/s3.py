@@ -21,9 +21,10 @@ import fnmatch
 import inspect
 import os
 import re
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, cast
 
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event

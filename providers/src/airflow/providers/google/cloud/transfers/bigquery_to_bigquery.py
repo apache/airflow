@@ -19,7 +19,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
@@ -110,6 +111,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.hook: BigQueryHook | None = None
+        self._job_conf: dict = {}
 
     def _prepare_job_configuration(self):
         self.source_project_dataset_tables = (
@@ -154,39 +156,94 @@ class BigQueryToBigQueryOperator(BaseOperator):
 
         return configuration
 
-    def _submit_job(
-        self,
-        hook: BigQueryHook,
-        configuration: dict,
-    ) -> str:
-        job = hook.insert_job(configuration=configuration, project_id=hook.project_id)
-        return job.job_id
-
     def execute(self, context: Context) -> None:
         self.log.info(
             "Executing copy of %s into: %s",
             self.source_project_dataset_tables,
             self.destination_project_dataset_table,
         )
-        hook = BigQueryHook(
+        self.hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
-        self.hook = hook
 
-        if not hook.project_id:
+        if not self.hook.project_id:
             raise ValueError("The project_id should be set")
 
         configuration = self._prepare_job_configuration()
-        job_id = self._submit_job(hook=hook, configuration=configuration)
+        self._job_conf = self.hook.insert_job(
+            configuration=configuration, project_id=self.hook.project_id
+        ).to_api_repr()
 
-        job = hook.get_job(job_id=job_id, location=self.location).to_api_repr()
-        conf = job["configuration"]["copy"]["destinationTable"]
+        dest_table_info = self._job_conf["configuration"]["copy"]["destinationTable"]
         BigQueryTableLink.persist(
             context=context,
             task_instance=self,
-            dataset_id=conf["datasetId"],
-            project_id=conf["projectId"],
-            table_id=conf["tableId"],
+            dataset_id=dest_table_info["datasetId"],
+            project_id=dest_table_info["projectId"],
+            table_id=dest_table_info["tableId"],
         )
+
+    def get_openlineage_facets_on_complete(self, task_instance):
+        """Implement on_complete as we will include final BQ job id."""
+        from airflow.providers.common.compat.openlineage.facet import (
+            Dataset,
+            ExternalQueryRunFacet,
+        )
+        from airflow.providers.google.cloud.openlineage.utils import (
+            BIGQUERY_NAMESPACE,
+            get_facets_from_bq_table,
+            get_identity_column_lineage_facet,
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        if not self.hook:
+            self.hook = BigQueryHook(
+                gcp_conn_id=self.gcp_conn_id,
+                location=self.location,
+                impersonation_chain=self.impersonation_chain,
+            )
+
+        if not self._job_conf:
+            self.log.debug("OpenLineage could not find BQ job configuration.")
+            return OperatorLineage()
+
+        bq_job_id = self._job_conf["jobReference"]["jobId"]
+        source_tables_info = self._job_conf["configuration"]["copy"]["sourceTables"]
+        dest_table_info = self._job_conf["configuration"]["copy"]["destinationTable"]
+
+        run_facets = {
+            "externalQuery": ExternalQueryRunFacet(externalQueryId=bq_job_id, source="bigquery"),
+        }
+
+        input_datasets = []
+        for in_table_info in source_tables_info:
+            table_id = ".".join(
+                (in_table_info["projectId"], in_table_info["datasetId"], in_table_info["tableId"])
+            )
+            table_object = self.hook.get_client().get_table(table_id)
+            input_datasets.append(
+                Dataset(
+                    namespace=BIGQUERY_NAMESPACE, name=table_id, facets=get_facets_from_bq_table(table_object)
+                )
+            )
+
+        out_table_id = ".".join(
+            (dest_table_info["projectId"], dest_table_info["datasetId"], dest_table_info["tableId"])
+        )
+        out_table_object = self.hook.get_client().get_table(out_table_id)
+        output_dataset_facets = {
+            **get_facets_from_bq_table(out_table_object),
+            **get_identity_column_lineage_facet(
+                dest_field_names=[field.name for field in out_table_object.schema],
+                input_datasets=input_datasets,
+            ),
+        }
+        output_dataset = Dataset(
+            namespace=BIGQUERY_NAMESPACE,
+            name=out_table_id,
+            facets=output_dataset_facets,
+        )
+
+        return OperatorLineage(inputs=input_datasets, outputs=[output_dataset], run_facets=run_facets)

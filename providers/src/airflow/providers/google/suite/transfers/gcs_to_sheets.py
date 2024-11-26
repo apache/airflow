@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 import csv
+from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
-from typing import Any, Sequence
+from typing import Any
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook

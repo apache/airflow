@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import urllib
-from typing import Generator
+from collections.abc import Generator
 from unittest import mock
 
 import pytest
