@@ -63,6 +63,11 @@ START_DATE2 = datetime(2024, 4, 15, 0, 0, tzinfo=timezone.utc)
 LOGICAL_DATE3 = datetime(2024, 5, 16, 0, 0, tzinfo=timezone.utc)
 LOGICAL_DATE4 = datetime(2024, 5, 25, 0, 0, tzinfo=timezone.utc)
 DAG1_RUN1_NOTE = "test_note"
+ZULU_STR_FORMAT = '%Y-%m-%dT%H:%M:%S%z'
+
+
+def format_datetime_zulu(dt):
+    return dt.strftime(ZULU_STR_FORMAT).replace('+0000', 'Z')
 
 DAG_RUNS_LIST = [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]
 
@@ -972,7 +977,7 @@ class TestGetDagRunAssetTriggerEvents:
         expected_response = {
             "asset_events": [
                 {
-                    "timestamp": event.timestamp.isoformat().replace("+00:00", "Z"),
+                    "timestamp": format_datetime_zulu(event.timestamp),
                     "asset_id": asset1_id,
                     "uri": asset1.uri,
                     "extra": {},
@@ -985,11 +990,11 @@ class TestGetDagRunAssetTriggerEvents:
                         {
                             "dag_id": "TEST_DAG_ID",
                             "run_id": "TEST_DAG_RUN_ID",
-                            "data_interval_end": dr.data_interval_end.isoformat().replace("+00:00", "Z"),
-                            "data_interval_start": dr.data_interval_start.isoformat().replace("+00:00", "Z"),
+                            "data_interval_end": format_datetime_zulu(dr.data_interval_end),
+                            "data_interval_start": format_datetime_zulu(dr.data_interval_start),
                             "end_date": None,
-                            "logical_date": dr.logical_date.isoformat().replace("+00:00", "Z"),
-                            "start_date": dr.start_date.isoformat().replace("+00:00", "Z"),
+                            "logical_date": format_datetime_zulu(dr.logical_date),
+                            "start_date": format_datetime_zulu(dr.start_date),
                             "state": "running",
                         }
                     ],
