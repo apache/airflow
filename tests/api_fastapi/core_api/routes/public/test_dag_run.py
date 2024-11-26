@@ -558,11 +558,6 @@ class TestListDagRunsBatch:
         ],
     )
     def test_dag_runs_ordering(self, test_client, order_by, expected_order):
-        """Test DAG runs list endpoint ordering functionality.
-
-        Verifies that the endpoint correctly orders results by different fields
-        in both ascending and descending order.
-        """
         # Test ascending order
         response = test_client.post("/public/dags/~/dagRuns/list", json={"order_by": order_by})
         assert response.status_code == 200
