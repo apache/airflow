@@ -211,6 +211,10 @@ class TestGetXComEntry(TestXComEndpoint):
 
 
 class TestGetXComEntries(TestXComEndpoint):
+    @pytest.fixture(autouse=True)
+    def setup(self) -> None:
+        self.clear_db()
+
     def test_should_respond_200(self, test_client):
         self._create_xcom_entries(TEST_DAG_ID, run_id, logical_date_parsed, TEST_TASK_ID)
         response = test_client.get(
@@ -416,10 +420,6 @@ class TestGetXComEntries(TestXComEndpoint):
                 dag_id=dag_id,
                 map_index=map_index,
             )
-
-    @pytest.fixture(autouse=True)
-    def setup(self) -> None:
-        self.clear_db()
 
 
 class TestPaginationGetXComEntries(TestXComEndpoint):

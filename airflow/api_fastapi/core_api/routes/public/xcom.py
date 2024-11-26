@@ -28,7 +28,6 @@ from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortP
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.xcom import (
     XComCollection,
-    XComResponse,
     XComResponseNative,
     XComResponseString,
 )
@@ -135,7 +134,7 @@ def get_xcom_entries(
         query = query.where(XCom.key == xcom_key)
 
     query, total_entries = paginated_select(
-        select=query,
+        statement=query,
         filters=[],
         order_by=SortParam(["dag_id", "task_id", "run_id", "map_index", "key"], XCom),
         offset=offset,
@@ -143,6 +142,4 @@ def get_xcom_entries(
         session=session,
     )
     xcoms = session.scalars(query)
-    return XComCollection(
-        xcom_entries=[XComResponse.model_validate(xcom) for xcom in xcoms], total_entries=total_entries
-    )
+    return XComCollection(xcom_entries=xcoms, total_entries=total_entries)
