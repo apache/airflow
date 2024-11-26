@@ -230,7 +230,7 @@ class SortParam(BaseParam[str]):
             raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
 
         if self.value is None:
-            return select
+            self.value = self.get_primary_key_string()
 
         lstriped_orderby = self.value.lstrip("-")
         column: Column | None = None
