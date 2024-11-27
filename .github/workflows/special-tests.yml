@@ -76,16 +76,11 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to debug resources or not (true/false)"
         required: true
         type: string
-      special-tests-required:
-        description: "Whether to run special tests or not (true/false)"
-        required: true
-        type: string
 
 jobs:
   tests-min-sqlalchemy:
     name: "Min SQLAlchemy test"
     uses: ./.github/workflows/run-unit-tests.yml
-    if: inputs.special-tests-required == 'true'
     permissions:
       contents: read
       packages: read
@@ -110,7 +105,6 @@ jobs:
   tests-boto:
     name: "Latest Boto test"
     uses: ./.github/workflows/run-unit-tests.yml
-    if: inputs.special-tests-required == 'true'
     permissions:
       contents: read
       packages: read
@@ -136,7 +130,6 @@ jobs:
   tests-pendulum-2:
     name: "Pendulum2 test"
     uses: ./.github/workflows/run-unit-tests.yml
-    if: inputs.special-tests-required == 'true'
     permissions:
       contents: read
       packages: read
@@ -162,7 +155,6 @@ jobs:
   tests-in-progress-disabled:
     name: "In progress disabled test"
     uses: ./.github/workflows/run-unit-tests.yml
-    if: inputs.special-tests-required == 'true'
     permissions:
       contents: read
       packages: read
@@ -188,7 +180,6 @@ jobs:
   tests-quarantined:
     name: "Quarantined test"
     uses: ./.github/workflows/run-unit-tests.yml
-    if: inputs.special-tests-required == 'true'
     permissions:
       contents: read
       packages: read
@@ -213,7 +204,6 @@ jobs:
   tests-arm-collection:
     name: "ARM Collection test"
     uses: ./.github/workflows/run-unit-tests.yml
-    if: inputs.special-tests-required == 'true'
     permissions:
       contents: read
       packages: read
@@ -238,7 +228,6 @@ jobs:
   tests-system:
     name: "System test: ${{ matrix.test-group }}"
     uses: ./.github/workflows/run-unit-tests.yml
-    if: inputs.special-tests-required == 'true'
     permissions:
       contents: read
       packages: read

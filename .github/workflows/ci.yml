@@ -508,12 +508,6 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      special-tests-required: ${{
-        needs.build-info.outputs.run-tests == 'true' &&
-        (needs.build-info.outputs.canary-run == 'true' ||
-        needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' ||
-        needs.build-info.outputs.full-tests-needed == 'true')
-        && 'true' || 'false' }}
 
   tests-integration-system:
     name: Integration and System Tests
