@@ -169,7 +169,7 @@ def should_skip_the_package(provider_id: str, version_suffix: str) -> tuple[bool
     ):
         return False, version_suffix
     if version_suffix == "":
-        current_tag = get_latest_provider_tag(provider_id, "")
+        current_tag = get_latest_provider_tag(provider_id, "") + "new"
         if tag_exists_for_provider(provider_id, current_tag):
             get_console().print(f"[warning]The 'final' tag {current_tag} exists. Skipping the package.[/]")
             return True, version_suffix
