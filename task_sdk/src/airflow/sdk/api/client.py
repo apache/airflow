@@ -36,6 +36,7 @@ from airflow.sdk.api.datamodels._generated import (
     TITerminalStatePayload,
     ValidationError as RemoteValidationError,
     VariableResponse,
+    XComResponse,
 )
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
@@ -148,6 +149,18 @@ class VariableOperations:
         return VariableResponse.model_validate_json(resp.read())
 
 
+class XComOperations:
+    __slots__ = ("client",)
+
+    def __init__(self, client: Client):
+        self.client = client
+
+    def get(self, dag_id: str, run_id: str, task_id: str, key: str, map_index: int = -1) -> XComResponse:
+        """Get a XCom value from the API server."""
+        resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params={"map_index": map_index})
+        return XComResponse.model_validate_json(resp.read())
+
+
 class BearerAuth(httpx.Auth):
     def __init__(self, token: str):
         self.token: str = token
@@ -207,6 +220,12 @@ class Client(httpx.Client):
     def variables(self) -> VariableOperations:
         """Operations related to Variables."""
         return VariableOperations(self)
+
+    @lru_cache()  # type: ignore[misc]
+    @property
+    def xcoms(self) -> XComOperations:
+        """Operations related to XComs."""
+        return XComOperations(self)
 
 
 # This is only used for parsing. ServerResponseError is raised instead

@@ -35,7 +35,14 @@ from uuid6 import uuid7
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.datamodels._generated import TaskInstance
 from airflow.sdk.api.datamodels.activities import ExecuteTaskActivity
-from airflow.sdk.execution_time.comms import ConnectionResult, GetConnection, GetVariable, VariableResult
+from airflow.sdk.execution_time.comms import (
+    ConnectionResult,
+    GetConnection,
+    GetVariable,
+    GetXCom,
+    VariableResult,
+    XComResult,
+)
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, supervise
 from airflow.utils import timezone as tz
 
@@ -278,7 +285,7 @@ class TestHandleRequest:
                 GetConnection(conn_id="test_conn"),
                 b'{"conn_id":"test_conn","conn_type":"mysql"}',
                 "connections.get",
-                "test_conn",
+                ("test_conn",),
                 ConnectionResult(conn_id="test_conn", conn_type="mysql"),
                 id="get_connection",
             ),
@@ -286,9 +293,17 @@ class TestHandleRequest:
                 GetVariable(key="test_key"),
                 b'{"key":"test_key","value":"test_value"}',
                 "variables.get",
-                "test_key",
+                ("test_key",),
                 VariableResult(key="test_key", value="test_value"),
                 id="get_variable",
+            ),
+            pytest.param(
+                GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
+                b'{"key":"test_key","value":"test_value"}',
+                "xcoms.get",
+                ("test_dag", "test_run", "test_task", "test_key", -1),
+                XComResult(key="test_key", value="test_value"),
+                id="get_xcom",
             ),
         ],
     )
@@ -325,7 +340,7 @@ class TestHandleRequest:
         generator.send(msg)
 
         # Verify the correct client method was called
-        mock_client_method.assert_called_once_with(method_arg)
+        mock_client_method.assert_called_once_with(*method_arg)
 
         # Verify the response was added to the buffer
         assert watched_subprocess.stdin.getvalue() == expected_buffer + b"\n"

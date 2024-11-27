@@ -47,6 +47,7 @@ from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetVariable,
+    GetXCom,
     StartupDetails,
     ToSupervisor,
 )
@@ -514,6 +515,9 @@ class WatchedSubprocess:
             elif isinstance(msg, GetVariable):
                 var = self.client.variables.get(msg.key)
                 resp = var.model_dump_json(exclude_unset=True).encode()
+            elif isinstance(msg, GetXCom):
+                xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+                resp = xcom.model_dump_json(exclude_unset=True).encode()
             else:
                 log.error("Unhandled request", msg=msg)
                 continue
