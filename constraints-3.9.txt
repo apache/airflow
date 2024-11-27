@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-26T13:54:04.537540
+# This constraints file was automatically generated on 2024-11-27T02:21:09.848342
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -245,7 +245,7 @@ cattrs==24.1.2
 celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
-cfn-lint==1.20.0
+cfn-lint==1.20.1
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.0
@@ -414,7 +414,7 @@ jaraco.context==6.0.1
 jaraco.functools==4.1.0
 jedi==0.19.2
 jeepney==0.8.0
-jiter==0.7.1
+jiter==0.8.0
 jmespath==0.10.0
 joserfc==1.0.0
 jpype1==1.5.1
