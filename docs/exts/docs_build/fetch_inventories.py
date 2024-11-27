@@ -24,8 +24,8 @@ import os
 import shutil
 import sys
 import traceback
+from collections.abc import Iterator
 from tempfile import NamedTemporaryFile
-from typing import Iterator
 
 import requests
 import urllib3.exceptions

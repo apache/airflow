@@ -24,10 +24,11 @@ from __future__ import annotations
 import logging
 import os
 from collections import namedtuple
+from collections.abc import Iterable
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from googleapiclient import discovery
 

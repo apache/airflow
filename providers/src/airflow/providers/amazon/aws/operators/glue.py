@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import os
 import urllib.parse
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from botocore.exceptions import ClientError
 

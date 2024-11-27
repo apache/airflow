@@ -25,7 +25,8 @@ This module contains AWS Athena hook.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Collection
+from collections.abc import Collection
+from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook

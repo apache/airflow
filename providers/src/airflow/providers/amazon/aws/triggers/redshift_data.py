@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
 from functools import cached_property
-from typing import Any, AsyncIterator
+from typing import Any
 
 from airflow.providers.amazon.aws.hooks.redshift_data import (
     ABORTED_STATE,

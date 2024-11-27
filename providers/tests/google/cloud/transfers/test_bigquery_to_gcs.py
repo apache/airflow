@@ -299,11 +299,6 @@ class TestBigQueryToGCSOperator:
     def test_get_openlineage_facets_on_complete_bq_dataset_empty_table(self, mock_hook):
         source_project_dataset_table = f"{PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}"
 
-        expected_input_dataset_facets = {
-            "schema": SchemaDatasetFacet(fields=[]),
-            "documentation": DocumentationDatasetFacet(description=""),
-        }
-
         mock_hook.return_value.split_tablename.return_value = (PROJECT_ID, TEST_DATASET, TEST_TABLE_ID)
         mock_hook.return_value.get_client.return_value.get_table.return_value = TEST_EMPTY_TABLE
 
@@ -320,7 +315,7 @@ class TestBigQueryToGCSOperator:
         assert lineage.inputs[0] == Dataset(
             namespace="bigquery",
             name=source_project_dataset_table,
-            facets=expected_input_dataset_facets,
+            facets={},
         )
 
     @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_gcs.BigQueryHook")
@@ -329,16 +324,6 @@ class TestBigQueryToGCSOperator:
         destination_cloud_storage_uris = [f"gs://{TEST_BUCKET}/{TEST_FOLDER}/{TEST_OBJECT_NO_WILDCARD}"]
         real_job_id = "123456_hash"
         bq_namespace = "bigquery"
-
-        expected_input_facets = {
-            "schema": SchemaDatasetFacet(fields=[]),
-            "documentation": DocumentationDatasetFacet(description=""),
-        }
-
-        expected_output_facets = {
-            "schema": SchemaDatasetFacet(fields=[]),
-            "columnLineage": ColumnLineageDatasetFacet(fields={}),
-        }
 
         mock_hook.return_value.split_tablename.return_value = (PROJECT_ID, TEST_DATASET, TEST_TABLE_ID)
         mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
@@ -357,12 +342,12 @@ class TestBigQueryToGCSOperator:
         assert len(lineage.inputs) == 1
         assert len(lineage.outputs) == 1
         assert lineage.inputs[0] == Dataset(
-            namespace=bq_namespace, name=source_project_dataset_table, facets=expected_input_facets
+            namespace=bq_namespace, name=source_project_dataset_table, facets={}
         )
         assert lineage.outputs[0] == Dataset(
             namespace=f"gs://{TEST_BUCKET}",
             name=f"{TEST_FOLDER}/{TEST_OBJECT_NO_WILDCARD}",
-            facets=expected_output_facets,
+            facets={},
         )
         assert lineage.run_facets == {
             "externalQuery": ExternalQueryRunFacet(externalQueryId=real_job_id, source=bq_namespace)

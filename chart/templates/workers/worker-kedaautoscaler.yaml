@@ -20,7 +20,7 @@
 ################################
 ## Airflow Worker KEDA Scaler
 #################################
-{{- if and .Values.workers.keda.enabled (has .Values.executor (list "CeleryExecutor" "CeleryKubernetesExecutor")) }}
+{{- if and .Values.workers.keda.enabled (or (contains "CeleryExecutor" .Values.executor) (contains "CeleryKubernetesExecutor" .Values.executor) ) }}
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:

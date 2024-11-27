@@ -19,8 +19,9 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 import tenacity
 import yaml

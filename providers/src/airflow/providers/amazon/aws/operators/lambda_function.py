@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException

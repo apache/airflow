@@ -21,8 +21,9 @@ from __future__ import annotations
 
 import csv
 import tempfile
+from collections.abc import Sequence
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator

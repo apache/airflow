@@ -28,11 +28,11 @@ import textwrap
 import types
 import warnings
 from abc import ABCMeta, abstractmethod
-from collections.abc import Container
+from collections.abc import Collection, Container, Iterable, Mapping, Sequence
 from functools import cache
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple, cast
 
 import lazy_object_proxy
 

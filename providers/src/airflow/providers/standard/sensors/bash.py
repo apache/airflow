@@ -18,9 +18,10 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Sequence
 from subprocess import PIPE, STDOUT, Popen
 from tempfile import NamedTemporaryFile, TemporaryDirectory, gettempdir
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowFailException
 from airflow.sensors.base import BaseSensorOperator
@@ -70,9 +71,10 @@ class BashSensor(BaseSensorOperator):
         """Execute the bash command in a temporary directory."""
         bash_command = self.bash_command
         self.log.info("Tmp dir root location: %s", gettempdir())
-        with TemporaryDirectory(prefix="airflowtmp") as tmp_dir, NamedTemporaryFile(
-            dir=tmp_dir, prefix=self.task_id
-        ) as f:
+        with (
+            TemporaryDirectory(prefix="airflowtmp") as tmp_dir,
+            NamedTemporaryFile(dir=tmp_dir, prefix=self.task_id) as f,
+        ):
             f.write(bytes(bash_command, "utf_8"))
             f.flush()
             fname = f.name

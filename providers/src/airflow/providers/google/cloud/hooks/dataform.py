@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.dataform_v1beta1 import DataformClient

@@ -73,12 +73,12 @@ def get_import_errors(
             SortParam(
                 [
                     "id",
-                    "import_error_id",
                     "timestamp",
                     "filename",
                     "stacktrace",
                 ],
                 ParseImportError,
+                {"import_error_id": "id"},
             ).dynamic_depends()
         ),
     ],
@@ -86,7 +86,7 @@ def get_import_errors(
 ) -> ImportErrorCollectionResponse:
     """Get all import errors."""
     import_errors_select, total_entries = paginated_select(
-        select=select(ParseImportError),
+        statement=select(ParseImportError),
         order_by=order_by,
         offset=offset,
         limit=limit,

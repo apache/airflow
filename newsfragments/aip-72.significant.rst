@@ -30,4 +30,8 @@ As part of this change the following breaking changes have occurred:
 
   The ``value`` field in the XCom table has been changed to a ``JSON`` type via DB migration. The XCom records that
   contains pickled data are archived in the ``_xcom_archive`` table. You can safely drop this table if you don't need
-  the data anymore.
+  the data anymore. To drop the table, you can use the following command or manually drop the table from the database.
+
+  .. code-block:: bash
+
+      airflow db drop-archived -t "_xcom_archive"

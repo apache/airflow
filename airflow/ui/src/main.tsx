@@ -47,11 +47,13 @@ const queryClient = new QueryClient({
 axios.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    if (error.response?.status === 403 || error.response?.status === 401) {
+    if (error.response?.status === 401) {
       const params = new URLSearchParams();
 
       params.set("next", globalThis.location.href);
-      globalThis.location.replace(`/login?${params.toString()}`);
+      globalThis.location.replace(
+        `${import.meta.env.VITE_LEGACY_API_URL}/login?${params.toString()}`,
+      );
     }
 
     return Promise.reject(error);

@@ -31,12 +31,14 @@ import subprocess
 import sys
 import warnings
 from base64 import b64encode
+from collections.abc import Generator, Iterable
 from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
 from copy import deepcopy
 from io import StringIO
 from json.decoder import JSONDecodeError
-from typing import IO, TYPE_CHECKING, Any, Dict, Generator, Iterable, Pattern, Set, Tuple, Union
+from re import Pattern
+from typing import IO, TYPE_CHECKING, Any, Union
 from urllib.parse import urlsplit
 
 import re2
@@ -65,9 +67,9 @@ if not sys.warnoptions:
 _SQLITE3_VERSION_PATTERN = re2.compile(r"(?P<version>^\d+(?:\.\d+)*)\D?.*$")
 
 ConfigType = Union[str, int, float, bool]
-ConfigOptionsDictType = Dict[str, ConfigType]
-ConfigSectionSourcesType = Dict[str, Union[str, Tuple[str, str]]]
-ConfigSourcesType = Dict[str, ConfigSectionSourcesType]
+ConfigOptionsDictType = dict[str, ConfigType]
+ConfigSectionSourcesType = dict[str, Union[str, tuple[str, str]]]
+ConfigSourcesType = dict[str, ConfigSectionSourcesType]
 
 ENV_VAR_PREFIX = "AIRFLOW__"
 
@@ -300,7 +302,7 @@ class AirflowConfigParser(ConfigParser):
     # These configs can also be fetched from Secrets backend
     # following the "{section}__{name}__secret" pattern
     @functools.cached_property
-    def sensitive_config_values(self) -> Set[tuple[str, str]]:  # noqa: UP006
+    def sensitive_config_values(self) -> set[tuple[str, str]]:
         if self.configuration_description is None:
             return (
                 _get_empty_set_for_configuration()

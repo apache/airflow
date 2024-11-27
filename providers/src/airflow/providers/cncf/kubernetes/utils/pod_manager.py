@@ -22,11 +22,11 @@ import enum
 import json
 import math
 import time
-from collections.abc import Iterable
+from collections.abc import Generator, Iterable
 from contextlib import closing, suppress
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Generator, Protocol, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 import pendulum
 import tenacity

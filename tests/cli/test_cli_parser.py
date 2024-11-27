@@ -349,9 +349,10 @@ class TestCli:
         ],
     )
     def test_executor_specific_commands_not_accessible(self, command):
-        with conf_vars({("core", "executor"): "SequentialExecutor"}), contextlib.redirect_stderr(
-            StringIO()
-        ) as stderr:
+        with (
+            conf_vars({("core", "executor"): "SequentialExecutor"}),
+            contextlib.redirect_stderr(StringIO()) as stderr,
+        ):
             reload(executor_loader)
             reload(cli_parser)
             parser = cli_parser.get_parser()
@@ -380,9 +381,10 @@ class TestCli:
     def test_cli_parser_executors(self, executor, expected_args):
         """Test that CLI commands for the configured executor are present"""
         for expected_arg in expected_args:
-            with conf_vars({("core", "executor"): executor}), contextlib.redirect_stderr(
-                StringIO()
-            ) as stderr:
+            with (
+                conf_vars({("core", "executor"): executor}),
+                contextlib.redirect_stderr(StringIO()) as stderr,
+            ):
                 reload(executor_loader)
                 reload(cli_parser)
                 parser = cli_parser.get_parser()

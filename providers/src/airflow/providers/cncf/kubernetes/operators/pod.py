@@ -26,11 +26,11 @@ import os
 import re
 import shlex
 import string
-from collections.abc import Container, Mapping
+from collections.abc import Container, Iterable, Mapping, Sequence
 from contextlib import AbstractContextManager
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Literal, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 import kubernetes
 import tenacity

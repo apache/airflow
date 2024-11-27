@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import itertools
-from typing import TYPE_CHECKING, Iterable
+from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 import pendulum
 

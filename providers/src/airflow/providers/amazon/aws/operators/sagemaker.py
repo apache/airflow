@@ -19,8 +19,9 @@ from __future__ import annotations
 import datetime
 import json
 import time
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Sequence
+from typing import TYPE_CHECKING, Any, Callable, ClassVar
 
 from botocore.exceptions import ClientError
 

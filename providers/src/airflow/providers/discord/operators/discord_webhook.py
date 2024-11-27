@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
 from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook

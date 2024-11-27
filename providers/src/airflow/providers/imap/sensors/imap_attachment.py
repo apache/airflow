@@ -19,7 +19,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from airflow.providers.imap.hooks.imap import ImapHook
 from airflow.sensors.base import BaseSensorOperator

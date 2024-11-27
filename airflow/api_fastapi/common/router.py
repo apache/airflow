@@ -17,8 +17,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from enum import Enum
-from typing import Any, Callable, Sequence
+from typing import Any, Callable
 
 from fastapi import APIRouter, params
 from fastapi.datastructures import Default

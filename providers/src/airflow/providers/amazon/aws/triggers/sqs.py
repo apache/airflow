@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, AsyncIterator, Collection
+from collections.abc import AsyncIterator, Collection
+from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook

@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.models import BaseOperator
 from airflow.providers.neo4j.hooks.neo4j import Neo4jHook

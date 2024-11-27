@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterable
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
@@ -25,8 +26,6 @@ from typing import (
     Any,
     Callable,
     Generic,
-    Iterable,
-    List,
     Optional,
     TypeVar,
     Union,
@@ -40,12 +39,12 @@ from sqlalchemy import Column, case, or_
 from sqlalchemy.inspection import inspect
 
 from airflow.api_connexion.endpoints.task_instance_endpoint import _convert_ti_states
-from airflow.models import Base, Connection
+from airflow.jobs.job import Job
+from airflow.models import Base
 from airflow.models.asset import AssetEvent, AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
 from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
-from airflow.models.errors import ParseImportError
 from airflow.models.taskinstance import TaskInstance
 from airflow.typing_compat import Self
 from airflow.utils import timezone
@@ -218,16 +217,8 @@ class _DagDisplayNamePatternSearch(_SearchParam):
 class SortParam(BaseParam[str]):
     """Order result by the attribute."""
 
-    attr_mapping = {
-        "last_run_state": DagRun.state,
-        "last_run_start_date": DagRun.start_date,
-        "connection_id": Connection.conn_id,
-        "import_error_id": ParseImportError.id,
-        "dag_run_id": DagRun.run_id,
-    }
-
     def __init__(
-        self, allowed_attrs: list[str], model: Base, to_replace: dict[str, str] | None = None
+        self, allowed_attrs: list[str], model: Base, to_replace: dict[str, str | Column] | None = None
     ) -> None:
         super().__init__()
         self.allowed_attrs = allowed_attrs
@@ -239,22 +230,25 @@ class SortParam(BaseParam[str]):
             raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
 
         if self.value is None:
-            return select
+            self.value = self.get_primary_key_string()
 
         lstriped_orderby = self.value.lstrip("-")
+        column: Column | None = None
         if self.to_replace:
-            lstriped_orderby = self.to_replace.get(lstriped_orderby, lstriped_orderby)
+            replacement = self.to_replace.get(lstriped_orderby, lstriped_orderby)
+            if isinstance(replacement, str):
+                lstriped_orderby = replacement
+            else:
+                column = replacement
 
-        if self.allowed_attrs and lstriped_orderby not in self.allowed_attrs:
+        if (self.allowed_attrs and lstriped_orderby not in self.allowed_attrs) and column is None:
             raise HTTPException(
                 400,
                 f"Ordering with '{lstriped_orderby}' is disallowed or "
                 f"the attribute does not exist on the model",
             )
-
-        column: Column = self.attr_mapping.get(lstriped_orderby, None) or getattr(
-            self.model, lstriped_orderby
-        )
+        if column is None:
+            column = getattr(self.model, lstriped_orderby)
 
         # MySQL does not support `nullslast`, and True/False ordering depends on the
         # database implementation.
@@ -288,7 +282,7 @@ class SortParam(BaseParam[str]):
         return inner
 
 
-class _TagsFilter(BaseParam[List[str]]):
+class _TagsFilter(BaseParam[list[str]]):
     """Filter on tags."""
 
     def to_orm(self, select: Select) -> Select:
@@ -305,7 +299,7 @@ class _TagsFilter(BaseParam[List[str]]):
         return self.set_value(tags)
 
 
-class _OwnersFilter(BaseParam[List[str]]):
+class _OwnersFilter(BaseParam[list[str]]):
     """Filter on owners."""
 
     def to_orm(self, select: Select) -> Select:
@@ -322,7 +316,7 @@ class _OwnersFilter(BaseParam[List[str]]):
         return self.set_value(owners)
 
 
-class DagRunStateFilter(BaseParam[List[Optional[DagRunState]]]):
+class DagRunStateFilter(BaseParam[list[Optional[DagRunState]]]):
     """Filter on Dag Run state."""
 
     def to_orm(self, select: Select) -> Select:
@@ -352,7 +346,7 @@ class DagRunStateFilter(BaseParam[List[Optional[DagRunState]]]):
         return self.set_value(states)
 
 
-class TIStateFilter(BaseParam[List[Optional[TaskInstanceState]]]):
+class TIStateFilter(BaseParam[list[Optional[TaskInstanceState]]]):
     """Filter on task instance state."""
 
     def to_orm(self, select: Select) -> Select:
@@ -376,7 +370,7 @@ class TIStateFilter(BaseParam[List[Optional[TaskInstanceState]]]):
         return self.set_value(states)
 
 
-class TIPoolFilter(BaseParam[List[str]]):
+class TIPoolFilter(BaseParam[list[str]]):
     """Filter on task instance pool."""
 
     def to_orm(self, select: Select) -> Select:
@@ -393,7 +387,7 @@ class TIPoolFilter(BaseParam[List[str]]):
         return self.set_value(pool)
 
 
-class TIQueueFilter(BaseParam[List[str]]):
+class TIQueueFilter(BaseParam[list[str]]):
     """Filter on task instance queue."""
 
     def to_orm(self, select: Select) -> Select:
@@ -410,7 +404,7 @@ class TIQueueFilter(BaseParam[List[str]]):
         return self.set_value(queue)
 
 
-class TIExecutorFilter(BaseParam[List[str]]):
+class TIExecutorFilter(BaseParam[list[str]]):
     """Filter on task instance executor."""
 
     def to_orm(self, select: Select) -> Select:
@@ -448,6 +442,54 @@ class _DagTagNamePatternSearch(_SearchParam):
     def depends(self, tag_name_pattern: str | None = None) -> _DagTagNamePatternSearch:
         tag_name_pattern = super().transform_aliases(tag_name_pattern)
         return self.set_value(tag_name_pattern)
+
+
+class _JobTypeFilter(BaseParam[str]):
+    """Filter on job_type."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(Job.job_type == self.value)
+
+    def depends(self, job_type: str | None = None) -> _JobTypeFilter:
+        return self.set_value(job_type)
+
+
+class _JobStateFilter(BaseParam[str]):
+    """Filter on job_state."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(Job.state == self.value)
+
+    def depends(self, job_state: str | None = None) -> _JobStateFilter:
+        return self.set_value(job_state)
+
+
+class _JobHostnameFilter(BaseParam[str]):
+    """Filter on hostname."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(Job.hostname == self.value)
+
+    def depends(self, hostname: str | None = None) -> _JobHostnameFilter:
+        return self.set_value(hostname)
+
+
+class _JobExecutorClassFilter(BaseParam[str]):
+    """Filter on executor_class."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+        return select.where(Job.executor_class == self.value)
+
+    def depends(self, executor_class: str | None = None) -> _JobExecutorClassFilter:
+        return self.set_value(executor_class)
 
 
 def _safe_parse_datetime(date_to_check: str) -> datetime:
@@ -719,6 +761,11 @@ QueryTIStateFilter = Annotated[TIStateFilter, Depends(TIStateFilter().depends)]
 QueryTIPoolFilter = Annotated[TIPoolFilter, Depends(TIPoolFilter().depends)]
 QueryTIQueueFilter = Annotated[TIQueueFilter, Depends(TIQueueFilter().depends)]
 QueryTIExecutorFilter = Annotated[TIExecutorFilter, Depends(TIExecutorFilter().depends)]
+# Job
+QueryJobTypeFilter = Annotated[_JobTypeFilter, Depends(_JobTypeFilter().depends)]
+QueryJobStateFilter = Annotated[_JobStateFilter, Depends(_JobStateFilter().depends)]
+QueryJobHostnameFilter = Annotated[_JobHostnameFilter, Depends(_JobHostnameFilter().depends)]
+QueryJobExecutorClassFilter = Annotated[_JobExecutorClassFilter, Depends(_JobExecutorClassFilter().depends)]
 
 # Assets
 QueryUriPatternSearch = Annotated[_UriPatternSearch, Depends(_UriPatternSearch().depends)]

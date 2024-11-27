@@ -21,10 +21,11 @@ import json
 import random
 import re
 import string
+from collections.abc import Iterable
 from inspect import currentframe
 from json import JSONDecodeError
 from os.path import dirname, join
-from typing import TYPE_CHECKING, Any, Iterable, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 from unittest.mock import MagicMock
 
 import pytest

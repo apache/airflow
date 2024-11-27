@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import ast
 import re
+from collections.abc import Iterable, Mapping, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, NoReturn, SupportsAbs
 
 from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook

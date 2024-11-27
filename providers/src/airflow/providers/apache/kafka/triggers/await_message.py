@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Sequence
 from functools import partial
-from typing import Any, Sequence
+from typing import Any
 
 from asgiref.sync import sync_to_async
 

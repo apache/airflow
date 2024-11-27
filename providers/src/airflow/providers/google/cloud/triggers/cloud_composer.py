@@ -20,8 +20,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Any, Sequence
+from typing import Any
 
 from dateutil import parser
 from google.cloud.orchestration.airflow.service_v1.types import ExecuteAirflowCommandResponse

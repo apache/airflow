@@ -50,6 +50,9 @@ mkdir "${AIRFLOW_HOME}/sqlite" -p || true
 
 ASSET_COMPILATION_WAIT_MULTIPLIER=${ASSET_COMPILATION_WAIT_MULTIPLIER:=1}
 
+# shellcheck disable=SC1091
+. "${IN_CONTAINER_DIR}/check_connectivity.sh"
+
 # Make sure that asset compilation is completed before we proceed
 function wait_for_asset_compilation() {
     if [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; then
@@ -316,7 +319,7 @@ function check_run_tests() {
     if [[ ${REMOVE_ARM_PACKAGES:="false"} == "true" ]]; then
         # Test what happens if we do not have ARM packages installed.
         # This is useful to see if pytest collection works without ARM packages which is important
-        # for the MacOS M1 users running tests in their ARM machines with `breeze testing tests` command
+        # for the MacOS M1 users running tests in their ARM machines with `breeze testing *-tests` command
         python "${IN_CONTAINER_DIR}/remove_arm_packages.py"
     fi
 
@@ -382,12 +385,61 @@ function check_force_lowest_dependencies() {
     set +x
 }
 
+function check_airflow_python_client_installation() {
+    if [[ ${INSTALL_AIRFLOW_PYTHON_CLIENT=} != "true" ]]; then
+        return
+    fi
+    python "${IN_CONTAINER_DIR}/install_airflow_python_client.py"
+}
+
+function start_webserver_with_examples(){
+    if [[ ${START_WEBSERVER_WITH_EXAMPLES=} != "true" ]]; then
+        return
+    fi
+    export AIRFLOW__CORE__LOAD_EXAMPLES=True
+    export AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
+    export AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
+    echo
+    echo "${COLOR_BLUE}Initializing database${COLOR_RESET}"
+    echo
+    airflow db migrate
+    echo
+    echo "${COLOR_BLUE}Database initialized${COLOR_RESET}"
+    echo
+    echo "${COLOR_BLUE}Parsing example dags${COLOR_RESET}"
+    echo
+    airflow scheduler --num-runs 100
+    echo "Example dags parsing finished"
+    echo "Create admin user"
+    airflow users create -u admin -p admin -f Thor -l Administrator -r Admin -e admin@email.domain
+    echo "Admin user created"
+    echo
+    echo "${COLOR_BLUE}Starting airflow webserver${COLOR_RESET}"
+    echo
+    airflow webserver --port 8080 --daemon
+    echo
+    echo "${COLOR_BLUE}Waiting for webserver to start${COLOR_RESET}"
+    echo
+    check_service_connection "Airflow webserver" "run_nc localhost 8080" 100
+    EXIT_CODE=$?
+    if [[ ${EXIT_CODE} != 0 ]]; then
+        echo
+        echo "${COLOR_RED}Webserver did not start properly${COLOR_RESET}"
+        echo
+        exit ${EXIT_CODE}
+    fi
+    echo
+    echo "${COLOR_BLUE}Airflow webserver started${COLOR_RESET}"
+}
+
 determine_airflow_to_use
 environment_initialization
 check_boto_upgrade
 check_downgrade_sqlalchemy
 check_downgrade_pendulum
 check_force_lowest_dependencies
+check_airflow_python_client_installation
+start_webserver_with_examples
 check_run_tests "${@}"
 
 # If we are not running tests - just exec to bash shell

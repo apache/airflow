@@ -20,7 +20,8 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink

@@ -19,7 +19,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence, Tuple
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -37,7 +38,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-MetaData = Sequence[Tuple[str, str]]
+MetaData = Sequence[tuple[str, str]]
 
 
 class CloudTasksQueueCreateOperator(GoogleCloudBaseOperator):

@@ -95,7 +95,7 @@ def get_assets(
 ) -> AssetCollectionResponse:
     """Get assets."""
     assets_select, total_entries = paginated_select(
-        select=select(AssetModel),
+        statement=select(AssetModel),
         filters=[uri_pattern, dag_ids],
         order_by=order_by,
         offset=offset,
@@ -145,7 +145,7 @@ def get_asset_events(
 ) -> AssetEventCollectionResponse:
     """Get asset events."""
     assets_event_select, total_entries = paginated_select(
-        select=select(AssetEvent),
+        statement=select(AssetEvent),
         filters=[asset_id, source_dag_id, source_task_id, source_run_id, source_map_index],
         order_by=order_by,
         offset=offset,
@@ -210,7 +210,7 @@ def get_asset_queued_events(
         .where(*where_clause)
     )
 
-    dag_asset_queued_events_select, total_entries = paginated_select(select=query)
+    dag_asset_queued_events_select, total_entries = paginated_select(statement=query)
     adrqs = session.execute(dag_asset_queued_events_select).all()
 
     if not adrqs:
@@ -269,7 +269,7 @@ def get_dag_asset_queued_events(
         .where(*where_clause)
     )
 
-    dag_asset_queued_events_select, total_entries = paginated_select(select=query)
+    dag_asset_queued_events_select, total_entries = paginated_select(statement=query)
     adrqs = session.execute(dag_asset_queued_events_select).all()
     if not adrqs:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with dag_id: `{dag_id}` was not found")

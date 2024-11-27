@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest

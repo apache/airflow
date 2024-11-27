@@ -23,7 +23,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 # Do not use anything outsdie of standard library in this file!
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 
 TEXT_RED = "\033[31m"
@@ -31,7 +31,7 @@ TEXT_YELLOW = "\033[33m"
 TEXT_RESET = "\033[0m"
 
 
-@lru_cache(maxsize=None)
+@cache
 def translate_classname(classname):
     # The pytest xunit output has "classname" in the python sense as 'dir.subdir.package.Class' -- we want to
     # convert that back in to a pytest "selector" of dir/subdir/package.py::Class

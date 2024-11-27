@@ -100,11 +100,96 @@ For parameter definition, take a look at
 :class:`~airflow.providers.google.cloud.operators.translate.TranslateTextBatchOperator`
 
 
+.. _howto/operator:TranslateCreateDatasetOperator:
+
+TranslateCreateDatasetOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Create a native translation dataset using Cloud Translate API (Advanced V3).
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateCreateDatasetOperator`
+
+Using the operator
+""""""""""""""""""
+
+Basic usage of the operator:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/translate/example_translate_dataset.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_translate_automl_create_dataset]
+    :end-before: [END howto_operator_translate_automl_create_dataset]
+
+
+.. _howto/operator:TranslateImportDataOperator:
+
+TranslateImportDataOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Import data to the existing native dataset, using Cloud Translate API (Advanced V3).
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateImportDataOperator`
+
+Using the operator
+""""""""""""""""""
+
+Basic usage of the operator:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/translate/example_translate_dataset.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_translate_automl_import_data]
+    :end-before: [END howto_operator_translate_automl_import_data]
+
+
+.. _howto/operator:TranslateDatasetsListOperator:
+
+TranslateDatasetsListOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Get list of translation datasets using Cloud Translate API (Advanced V3).
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateDatasetsListOperator`
+
+Using the operator
+""""""""""""""""""
+
+Basic usage of the operator:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/translate/example_translate_dataset.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_translate_automl_list_datasets]
+    :end-before: [END howto_operator_translate_automl_list_datasets]
+
+
+.. _howto/operator:TranslateDeleteDatasetOperator:
+
+TranslateDeleteDatasetOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Delete a native translation dataset using Cloud Translate API (Advanced V3).
+
+For parameter definition, take a look at
+:class:`~airflow.providers.google.cloud.operators.translate.TranslateDeleteDatasetOperator`
+
+Using the operator
+""""""""""""""""""
+
+Basic usage of the operator:
+
+.. exampleinclude:: /../../providers/tests/system/google/cloud/translate/example_translate_dataset.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_translate_automl_delete_dataset]
+    :end-before: [END howto_operator_translate_automl_delete_dataset]
+
+
 More information
 """"""""""""""""""
 See:
 Base (V2) `Google Cloud Translate documentation <https://cloud.google.com/translate/docs/translating-text>`_.
 Advanced (V3) `Google Cloud Translate (Advanced) documentation <https://cloud.google.com/translate/docs/advanced/translating-text-v3>`_.
+Datasets `Legacy and native dataset comparison <https://cloud.google.com/translate/docs/advanced/automl-upgrade>`_.
 
 
 Reference

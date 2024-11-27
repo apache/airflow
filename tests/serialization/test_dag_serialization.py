@@ -24,16 +24,19 @@ import dataclasses
 import importlib
 import importlib.util
 import json
+import logging
+import logging.config
 import multiprocessing
 import os
 import pickle
 import re
 import sys
+from collections.abc import Generator
 from datetime import datetime, timedelta, timezone as dt_timezone
 from glob import glob
 from pathlib import Path
 from textwrap import dedent
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import attr
@@ -43,6 +46,7 @@ from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
 
 import airflow
+from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.decorators import teardown
 from airflow.decorators.base import DecoratedOperator
 from airflow.exceptions import (
@@ -376,6 +380,9 @@ def timetable_plugin(monkeypatch):
 
 class TestStringifiedDAGs:
     """Unit tests for stringified DAGs."""
+
+    def setup_method(self):
+        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
 
     @pytest.fixture(autouse=True)
     def setup_test_cases(self):
@@ -1060,10 +1067,13 @@ class TestStringifiedDAGs:
         assert "https://www.google.com" == link
 
     @pytest.mark.usefixtures("clear_all_logger_handlers")
-    def test_extra_operator_links_logs_error_for_non_registered_extra_links(self, caplog):
+    def test_extra_operator_links_logs_error_for_non_registered_extra_links(self):
         """
         Assert OperatorLinks not registered via Plugins and if it is not an inbuilt Operator Link,
-        it can still deserialize the DAG (does not error) but just logs an error
+        it can still deserialize the DAG (does not error) but just logs an error.
+
+        We test NOT using caplog as this is flaky, we check that the task after deserialize
+        is missing the extra links.
         """
 
         class TaskStateLink(BaseOperatorLink):
@@ -1087,13 +1097,8 @@ class TestStringifiedDAGs:
 
         serialized_dag = SerializedDAG.to_dict(dag)
 
-        with caplog.at_level("ERROR", logger="airflow.serialization.serialized_objects"):
-            SerializedDAG.from_dict(serialized_dag)
-
-        expected_err_msg = (
-            "Operator Link class 'tests.serialization.test_dag_serialization.TaskStateLink' not registered"
-        )
-        assert expected_err_msg in caplog.text
+        sdag = SerializedDAG.from_dict(serialized_dag)
+        assert sdag.task_dict["blah"].operator_extra_links == []
 
     class ClassWithCustomAttributes:
         """
@@ -1506,7 +1511,7 @@ class TestStringifiedDAGs:
         Tests serialize_operator, make sure the deps is in order
         """
         from airflow.operators.empty import EmptyOperator
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
         logical_date = datetime(2020, 1, 1)
         with DAG(dag_id="test_deps_sorted", schedule=None, start_date=logical_date) as dag:
@@ -1621,7 +1626,7 @@ class TestStringifiedDAGs:
         Tests DAG dependency detection for sensors, including derived classes
         """
         from airflow.operators.empty import EmptyOperator
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
         class DerivedSensor(ExternalTaskSensor):
             pass
@@ -1652,7 +1657,7 @@ class TestStringifiedDAGs:
         """
         Check that dag_dependencies node is populated correctly for a DAG with duplicate assets.
         """
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
         d1 = Asset("d1")
         d2 = Asset("d2")
@@ -1741,7 +1746,7 @@ class TestStringifiedDAGs:
         """
         Check that dag_dependencies node is populated correctly for a DAG with assets.
         """
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
         d1 = Asset("d1")
         d2 = Asset("d2")
@@ -2199,7 +2204,7 @@ class TestStringifiedDAGs:
 
         class TestOperator(BaseOperator):
             start_trigger_args = StartTriggerArgs(
-                trigger_cls="airflow.triggers.temporal.TimeDeltaTrigger",
+                trigger_cls="airflow.providers.standard.triggers.temporal.TimeDeltaTrigger",
                 trigger_kwargs={"delta": timedelta(seconds=1)},
                 next_method="execute_complete",
                 next_kwargs=None,
@@ -2242,7 +2247,7 @@ class TestStringifiedDAGs:
 
         assert tasks[0]["__var"]["start_trigger_args"] == {
             "__type": "START_TRIGGER_ARGS",
-            "trigger_cls": "airflow.triggers.temporal.TimeDeltaTrigger",
+            "trigger_cls": "airflow.providers.standard.triggers.temporal.TimeDeltaTrigger",
             # "trigger_kwargs": {"__type": "dict", "__var": {"delta": {"__type": "timedelta", "__var": 2.0}}},
             "trigger_kwargs": {"__type": "dict", "__var": {"delta": {"__type": "timedelta", "__var": 2.0}}},
             "next_method": "execute_complete",

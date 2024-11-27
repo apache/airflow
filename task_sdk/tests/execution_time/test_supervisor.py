@@ -28,19 +28,33 @@ from time import sleep
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
+import httpx
 import pytest
 import structlog
 from uuid6 import uuid7
 
 from airflow.sdk.api import client as sdk_client
+from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import TaskInstance
 from airflow.sdk.api.datamodels.activities import ExecuteTaskActivity
-from airflow.sdk.execution_time.comms import ConnectionResult, GetConnection, GetVariable, VariableResult
+from airflow.sdk.execution_time.comms import (
+    ConnectionResult,
+    DeferTask,
+    GetConnection,
+    GetVariable,
+    GetXCom,
+    VariableResult,
+    XComResult,
+)
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, supervise
 from airflow.utils import timezone as tz
 
+from task_sdk.tests.api.test_client import make_client
+
 if TYPE_CHECKING:
     import kgb
+
+TI_ID = uuid7()
 
 
 def lineno():
@@ -66,7 +80,7 @@ class TestWatchedSubprocess:
             print("I'm a short message")
             sys.stdout.write("Message ")
             print("stderr message", file=sys.stderr)
-            # We need a short sleep for the main process to process things. I worry this timining will be
+            # We need a short sleep for the main process to process things. I worry this timing will be
             # fragile, but I can't think of a better way. This lets the stdout be read (partial line) and the
             # stderr full line be read
             sleep(0.1)
@@ -258,13 +272,45 @@ class TestWatchedSubprocess:
             "timestamp": "2024-11-07T12:34:56.078901Z",
         } in captured_logs
 
+    def test_supervisor_handles_already_running_task(self):
+        """Test that Supervisor prevents starting a Task Instance that is already running."""
+        ti = TaskInstance(id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1)
+
+        # Mock API Server response indicating the TI is already running
+        # The API Server would return a 409 Conflict status code if the TI is not
+        # in a "queued" state.
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti.id}/state":
+                return httpx.Response(
+                    409,
+                    json={
+                        "reason": "invalid_state",
+                        "message": "TI was not in a state where it could be marked as running",
+                        "previous_state": "running",
+                    },
+                )
+
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        with pytest.raises(ServerResponseError, match="Server returned error") as err:
+            WatchedSubprocess.start(path=os.devnull, ti=ti, client=client)
+
+        assert err.value.response.status_code == 409
+        assert err.value.detail == {
+            "reason": "invalid_state",
+            "message": "TI was not in a state where it could be marked as running",
+            "previous_state": "running",
+        }
+
 
 class TestHandleRequest:
     @pytest.fixture
     def watched_subprocess(self, mocker):
         """Fixture to provide a WatchedSubprocess instance."""
         return WatchedSubprocess(
-            ti_id=uuid7(),
+            ti_id=TI_ID,
             pid=12345,
             stdin=BytesIO(),
             client=mocker.Mock(),
@@ -276,19 +322,35 @@ class TestHandleRequest:
         [
             pytest.param(
                 GetConnection(conn_id="test_conn"),
-                b'{"conn_id":"test_conn","conn_type":"mysql"}',
+                b'{"conn_id":"test_conn","conn_type":"mysql"}\n',
                 "connections.get",
-                "test_conn",
+                ("test_conn",),
                 ConnectionResult(conn_id="test_conn", conn_type="mysql"),
                 id="get_connection",
             ),
             pytest.param(
                 GetVariable(key="test_key"),
-                b'{"key":"test_key","value":"test_value"}',
+                b'{"key":"test_key","value":"test_value"}\n',
                 "variables.get",
-                "test_key",
+                ("test_key",),
                 VariableResult(key="test_key", value="test_value"),
                 id="get_variable",
+            ),
+            pytest.param(
+                GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
+                b'{"key":"test_key","value":"test_value"}\n',
+                "xcoms.get",
+                ("test_dag", "test_run", "test_task", "test_key", -1),
+                XComResult(key="test_key", value="test_value"),
+                id="get_xcom",
+            ),
+            pytest.param(
+                DeferTask(next_method="execute_callback", classpath="my-classpath"),
+                b"",
+                "task_instances.defer",
+                (TI_ID, DeferTask(next_method="execute_callback", classpath="my-classpath")),
+                "",
+                id="patch_task_instance_to_deferred",
             ),
         ],
     )
@@ -325,7 +387,7 @@ class TestHandleRequest:
         generator.send(msg)
 
         # Verify the correct client method was called
-        mock_client_method.assert_called_once_with(method_arg)
+        mock_client_method.assert_called_once_with(*method_arg)
 
         # Verify the response was added to the buffer
-        assert watched_subprocess.stdin.getvalue() == expected_buffer + b"\n"
+        assert watched_subprocess.stdin.getvalue() == expected_buffer

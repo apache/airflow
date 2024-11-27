@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Sequence
+from collections.abc import Sequence
 
 from google.auth.exceptions import DefaultCredentialsError
 

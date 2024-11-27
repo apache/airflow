@@ -21,7 +21,8 @@ from __future__ import annotations
 
 import collections.abc
 import enum
-from typing import TYPE_CHECKING, Any, Collection
+from collections.abc import Collection
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, String
 

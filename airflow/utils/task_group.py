@@ -21,7 +21,8 @@ from __future__ import annotations
 
 import functools
 import operator
-from typing import TYPE_CHECKING, Iterator
+from collections.abc import Iterator
+from typing import TYPE_CHECKING
 
 import airflow.sdk.definitions.taskgroup
 

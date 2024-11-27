@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import ftplib  # nosec: B402
 import re
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook
 from airflow.sensors.base import BaseSensorOperator

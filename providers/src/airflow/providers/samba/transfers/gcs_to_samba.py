@@ -20,8 +20,9 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator

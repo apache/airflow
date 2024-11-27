@@ -24,7 +24,8 @@ import logging
 import os
 import random
 import uuid
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 import jwt
 import packaging.version

@@ -34,3 +34,10 @@ class JobResponse(BaseModel):
     executor_class: datetime | None
     hostname: str | None
     unixname: str | None
+
+
+class JobCollectionResponse(BaseModel):
+    """Job Collection Response."""
+
+    jobs: list[JobResponse]
+    total_entries: int

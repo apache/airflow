@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Sequence
 
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator

@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,22 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
-from airflow.models.dag import DAG
-from airflow.providers.standard.operators.bash import BashOperator
 
-default_args = {
-    "owner": "airflow",
-    "depends_on_past": False,
-    "start_date": datetime(2016, 10, 5, 19),
-    "email": ["airflow@example.com"],
-    "email_on_failure": False,
-    "email_on_retry": False,
-    "retries": 4,
-    "retry_delay": timedelta(seconds=0),
-}
+def from_datetime_to_zulu(dt: datetime) -> str:
+    """Format a datetime object to a string in Zulu time."""
+    return dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
-dag = DAG("test_retry_handling_job", default_args=default_args, schedule="@once")
 
-task1 = BashOperator(task_id="test_retry_handling_op", bash_command="exit 1", dag=dag)
+def from_datetime_to_zulu_without_ms(dt: datetime) -> str:
+    """Format a datetime object to a string in Zulu time without milliseconds."""
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")

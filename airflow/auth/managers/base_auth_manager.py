@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from collections.abc import Container, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Container, Generic, Literal, Sequence, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 from flask_appbuilder.menu import MenuItem
 from sqlalchemy import select

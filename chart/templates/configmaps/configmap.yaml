@@ -57,7 +57,7 @@ data:
     {{- .Values.dags.gitSync.knownHosts | nindent 4 }}
   {{- end }}
 
-{{- if or (eq $.Values.executor "LocalKubernetesExecutor") (eq $.Values.executor "KubernetesExecutor") (eq $.Values.executor "CeleryKubernetesExecutor") }}
+{{- if or (contains "LocalKubernetesExecutor" $.Values.executor) (contains "KubernetesExecutor" $.Values.executor) (contains "CeleryKubernetesExecutor" $.Values.executor) }}
 {{- if semverCompare ">=1.10.12" .Values.airflowVersion }}
   pod_template_file.yaml: |-
     {{- if .Values.podTemplate }}

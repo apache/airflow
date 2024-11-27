@@ -27,7 +27,8 @@ Hooks for Google Analytics (GA4) Admin service.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from google.analytics.admin_v1beta import (
     AnalyticsAdminServiceClient,

@@ -27,11 +27,12 @@ import operator
 import os
 import signal
 from collections import defaultdict
+from collections.abc import Collection, Generator, Iterable, Mapping
 from contextlib import nullcontext
 from datetime import timedelta
 from enum import Enum
 from functools import cache
-from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Mapping, Tuple
+from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import quote
 
 import dill
@@ -132,7 +133,6 @@ from airflow.utils.sqlalchemy import (
     ExtendedJSON,
     UtcDateTime,
     tuple_in_condition,
-    with_row_locks,
 )
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
@@ -1672,8 +1672,6 @@ def _handle_reschedule(
 
     ti = _coalesce_to_orm_ti(ti=ti, session=session)
 
-    from airflow.models.dagrun import DagRun  # Avoid circular import
-
     ti.refresh_from_db(session)
 
     if TYPE_CHECKING:
@@ -1682,16 +1680,16 @@ def _handle_reschedule(
     ti.end_date = timezone.utcnow()
     ti.set_duration()
 
-    # Lock DAG run to be sure not to get into a deadlock situation when trying to insert
-    # TaskReschedule which apparently also creates lock on corresponding DagRun entity
-    with_row_locks(
-        session.query(DagRun).filter_by(
-            dag_id=ti.dag_id,
-            run_id=ti.run_id,
-        ),
-        session=session,
-    ).one()
-    # Log reschedule request
+    # set state
+    ti.state = TaskInstanceState.UP_FOR_RESCHEDULE
+
+    ti.clear_next_method_args()
+
+    session.merge(ti)
+    session.commit()
+
+    # we add this in separate commit to reduce likelihood of deadlock
+    # see https://github.com/apache/airflow/pull/21362 for more info
     session.add(
         TaskReschedule(
             ti.task_id,
@@ -1704,13 +1702,6 @@ def _handle_reschedule(
             ti.map_index,
         )
     )
-
-    # set state
-    ti.state = TaskInstanceState.UP_FOR_RESCHEDULE
-
-    ti.clear_next_method_args()
-
-    session.merge(ti)
     session.commit()
     return ti
 
@@ -2891,8 +2882,9 @@ class TaskInstance(Base, LoggingMixin):
         if not self.next_method:
             self.clear_xcom_data()
 
-        with Stats.timer(f"dag.{self.task.dag_id}.{self.task.task_id}.duration"), Stats.timer(
-            "task.duration", tags=self.stats_tags
+        with (
+            Stats.timer(f"dag.{self.task.dag_id}.{self.task.task_id}.duration"),
+            Stats.timer("task.duration", tags=self.stats_tags),
         ):
             # Set the validated/merged params on the task object.
             self.task.params = context["params"]
@@ -3742,7 +3734,7 @@ def _is_further_mapped_inside(operator: Operator, container: TaskGroup) -> bool:
 
 # State of the task instance.
 # Stores string version of the task state.
-TaskInstanceStateType = Tuple[TaskInstanceKey, TaskInstanceState]
+TaskInstanceStateType = tuple[TaskInstanceKey, TaskInstanceState]
 
 
 class SimpleTaskInstance:

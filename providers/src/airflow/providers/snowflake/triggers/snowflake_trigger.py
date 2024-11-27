@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent

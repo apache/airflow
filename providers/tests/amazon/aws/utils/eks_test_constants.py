@@ -23,7 +23,8 @@ from __future__ import annotations
 
 import re
 from enum import Enum
-from typing import Any, Pattern
+from re import Pattern
+from typing import Any
 
 DEFAULT_CONN_ID: str = "aws_default"
 DEFAULT_NAMESPACE: str = "default_namespace"

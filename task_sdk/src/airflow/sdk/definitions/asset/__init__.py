@@ -18,10 +18,10 @@
 from __future__ import annotations
 
 import logging
+import operator
 import os
 import urllib.parse
 import warnings
-from collections.abc import Iterable, Iterator
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -40,9 +40,12 @@ from airflow.typing_compat import TypedDict
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Iterator
     from urllib.parse import SplitResult
 
     from sqlalchemy.orm.session import Session
+
+    from airflow.triggers.base import BaseTrigger
 
 
 __all__ = [
@@ -219,24 +222,60 @@ class BaseAsset:
 class Asset(os.PathLike, BaseAsset):
     """A representation of data asset dependencies between workflows."""
 
-    name: str
-    uri: str
-    group: str
-    extra: dict[str, Any]
+    name: str = attrs.field(
+        validator=[_validate_asset_name],
+    )
+    uri: str = attrs.field(
+        validator=[_validate_non_empty_identifier],
+        converter=_sanitize_uri,
+    )
+    group: str = attrs.field(
+        default=attrs.Factory(operator.attrgetter("asset_type"), takes_self=True),
+        validator=[_validate_identifier],
+    )
+    extra: dict[str, Any] = attrs.field(
+        factory=dict,
+        converter=_set_extra_default,
+    )
+    watchers: list[BaseTrigger] = attrs.field(
+        factory=list,
+    )
 
     asset_type: ClassVar[str] = "asset"
     __version__: ClassVar[int] = 1
 
     @overload
-    def __init__(self, name: str, uri: str, *, group: str = "", extra: dict | None = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        uri: str,
+        *,
+        group: str = ...,
+        extra: dict | None = None,
+        watchers: list[BaseTrigger] = ...,
+    ) -> None:
         """Canonical; both name and uri are provided."""
 
     @overload
-    def __init__(self, name: str, *, group: str = "", extra: dict | None = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        *,
+        group: str = ...,
+        extra: dict | None = None,
+        watchers: list[BaseTrigger] = ...,
+    ) -> None:
         """It's possible to only provide the name, either by keyword or as the only positional argument."""
 
     @overload
-    def __init__(self, *, uri: str, group: str = "", extra: dict | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        uri: str,
+        group: str = ...,
+        extra: dict | None = None,
+        watchers: list[BaseTrigger] = ...,
+    ) -> None:
         """It's possible to only provide the URI as a keyword argument."""
 
     def __init__(
@@ -244,8 +283,9 @@ class Asset(os.PathLike, BaseAsset):
         name: str | None = None,
         uri: str | None = None,
         *,
-        group: str = "",
+        group: str | None = None,
         extra: dict | None = None,
+        watchers: list[BaseTrigger] | None = None,
     ) -> None:
         if name is None and uri is None:
             raise TypeError("Asset() requires either 'name' or 'uri'")
@@ -253,14 +293,34 @@ class Asset(os.PathLike, BaseAsset):
             name = uri
         elif uri is None:
             uri = name
-        fields = attrs.fields_dict(Asset)
-        self.name = _validate_asset_name(self, fields["name"], name)
-        self.uri = _sanitize_uri(_validate_non_empty_identifier(self, fields["uri"], uri))
-        self.group = _validate_identifier(self, fields["group"], group) if group else self.asset_type
-        self.extra = _set_extra_default(extra)
+
+        if TYPE_CHECKING:
+            assert name is not None
+            assert uri is not None
+
+        # attrs default (and factory) does not kick in if any value is given to
+        # the argument. We need to exclude defaults from the custom ___init___.
+        kwargs: dict[str, Any] = {}
+        if group is not None:
+            kwargs["group"] = group
+        if extra is not None:
+            kwargs["extra"] = extra
+        if watchers is not None:
+            kwargs["watchers"] = watchers
+
+        self.__attrs_init__(name=name, uri=uri, **kwargs)
 
     def __fspath__(self) -> str:
         return self.uri
+
+    def __eq__(self, other: Any) -> bool:
+        # The Asset class can be subclassed, and we don't want fields added by a
+        # subclass to break equality. This explicitly filters out only fields
+        # defined by the Asset class for comparison.
+        if not isinstance(other, Asset):
+            return NotImplemented
+        f = attrs.filters.include(*attrs.fields_dict(Asset))
+        return attrs.asdict(self, filter=f) == attrs.asdict(other, filter=f)
 
     @property
     def normalized_uri(self) -> str | None:

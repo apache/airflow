@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from ast import literal_eval
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import (
@@ -59,6 +59,7 @@ class EdgeJobModel(Base, LoggingMixin):
     try_number = Column(Integer, primary_key=True, default=0)
     state = Column(String(20))
     queue = Column(String(256))
+    concurrency_slots = Column(Integer)
     command = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
     edge_worker = Column(String(64))
@@ -73,6 +74,7 @@ class EdgeJobModel(Base, LoggingMixin):
         try_number: int,
         state: str,
         queue: str,
+        concurrency_slots: int,
         command: str,
         queued_dttm: datetime | None = None,
         edge_worker: str | None = None,
@@ -85,6 +87,7 @@ class EdgeJobModel(Base, LoggingMixin):
         self.try_number = try_number
         self.state = state
         self.queue = queue
+        self.concurrency_slots = concurrency_slots
         self.command = command
         self.queued_dttm = queued_dttm or timezone.utcnow()
         self.edge_worker = edge_worker
@@ -112,7 +115,8 @@ class EdgeJob(BaseModel, LoggingMixin):
     try_number: int
     state: TaskInstanceState
     queue: str
-    command: List[str]  # noqa: UP006 - prevent Sphinx failing
+    concurrency_slots: int
+    command: list[str]
     queued_dttm: datetime
     edge_worker: Optional[str]  # noqa: UP007 - prevent Sphinx failing
     last_update: Optional[datetime]  # noqa: UP007 - prevent Sphinx failing
@@ -126,11 +130,17 @@ class EdgeJob(BaseModel, LoggingMixin):
     @internal_api_call
     @provide_session
     def reserve_task(
-        worker_name: str, queues: list[str] | None = None, session: Session = NEW_SESSION
+        worker_name: str,
+        free_concurrency: int,
+        queues: list[str] | None = None,
+        session: Session = NEW_SESSION,
     ) -> EdgeJob | None:
         query = (
             select(EdgeJobModel)
-            .where(EdgeJobModel.state == TaskInstanceState.QUEUED)
+            .where(
+                EdgeJobModel.state == TaskInstanceState.QUEUED,
+                EdgeJobModel.concurrency_slots <= free_concurrency,
+            )
             .order_by(EdgeJobModel.queued_dttm)
         )
         if queues:
@@ -152,6 +162,7 @@ class EdgeJob(BaseModel, LoggingMixin):
             try_number=job.try_number,
             state=job.state,
             queue=job.queue,
+            concurrency_slots=job.concurrency_slots,
             command=literal_eval(job.command),
             queued_dttm=job.queued_dttm,
             edge_worker=job.edge_worker,
@@ -172,9 +183,10 @@ class EdgeJob(BaseModel, LoggingMixin):
             EdgeJobModel.try_number == task.try_number,
         )
         job: EdgeJobModel = session.scalar(query)
-        job.state = state
-        job.last_update = timezone.utcnow()
-        session.commit()
+        if job:
+            job.state = state
+            job.last_update = timezone.utcnow()
+            session.commit()
 
     def __hash__(self):
         return f"{self.dag_id}|{self.task_id}|{self.run_id}|{self.map_index}|{self.try_number}".__hash__()

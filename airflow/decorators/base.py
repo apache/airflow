@@ -20,17 +20,14 @@ import inspect
 import itertools
 import textwrap
 import warnings
+from collections.abc import Collection, Iterator, Mapping, Sequence
 from functools import cached_property, update_wrapper
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
-    Collection,
     Generic,
-    Iterator,
-    Mapping,
-    Sequence,
     TypeVar,
     cast,
     overload,

@@ -37,8 +37,8 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.triggers.base import TriggerEvent
-from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import RedirectStdHandler

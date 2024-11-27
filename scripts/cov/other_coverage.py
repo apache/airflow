@@ -66,7 +66,6 @@ files_not_fully_covered = [
 other_tests = [
     "tests/dag_processing",
     "tests/jobs",
-    "tests/triggers",
 ]
 
 """
@@ -96,7 +95,6 @@ Other tests to potentially run against the source_file packages:
     "tests/template",
     "tests/testconfig",
     "tests/timetables",
-    "tests/triggers",
 """
 
 

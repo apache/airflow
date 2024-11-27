@@ -25,9 +25,9 @@ import pytest
 from rich.console import Console
 
 from airflow_breeze.global_constants import (
-    BASE_PROVIDERS_COMPATIBILITY_CHECKS,
     COMMITTERS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     GithubEvents,
 )
 from airflow_breeze.utils.packages import get_available_packages
@@ -1672,6 +1672,36 @@ def test_expected_output_push(
             },
             id="pre commit ts-compile-format-lint should not be ignored if openapi spec changed.",
         ),
+        pytest.param(
+            (
+                "airflow/assets/",
+                "airflow/models/assets/",
+                "task_sdk/src/airflow/sdk/definitions/asset/",
+                "airflow/datasets/",
+            ),
+            {
+                "selected-providers-list-as-string": "amazon common.compat common.io common.sql dbt.cloud ftp google mysql openlineage postgres sftp snowflake trino",
+                "all-python-versions": "['3.9']",
+                "all-python-versions-list-as-string": "3.9",
+                "ci-image-build": "true",
+                "prod-image-build": "false",
+                "needs-helm-tests": "false",
+                "run-tests": "true",
+                "skip-providers-tests": "false",
+                "test-groups": "['core', 'providers']",
+                "docs-build": "true",
+                "docs-list-as-string": "apache-airflow amazon common.compat common.io common.sql dbt.cloud ftp google mysql openlineage postgres sftp snowflake trino",
+                "skip-pre-commits": "check-provider-yaml-valid,flynt,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,mypy-task-sdk,"
+                "ts-compile-format-lint-ui,ts-compile-format-lint-www",
+                "run-kubernetes-tests": "false",
+                "upgrade-to-newer-dependencies": "false",
+                "core-test-types-list-as-string": "API Always CLI Core Operators Other Serialization WWW",
+                "providers-test-types-list-as-string": "Providers[amazon] Providers[common.compat,common.io,common.sql,dbt.cloud,ftp,mysql,openlineage,postgres,sftp,snowflake,trino] Providers[google]",
+                "needs-mypy": "false",
+                "mypy-checks": "[]",
+            },
+            id="Trigger openlineage and related providers tests when Assets files changed",
+        ),
     ],
 )
 def test_expected_output_pull_request_target(
@@ -2261,10 +2291,10 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
         pytest.param(
             (),
             {
-                "providers-compatibility-checks": json.dumps(
+                "providers-compatibility-tests-matrix": json.dumps(
                     [
                         check
-                        for check in BASE_PROVIDERS_COMPATIBILITY_CHECKS
+                        for check in PROVIDERS_COMPATIBILITY_TESTS_MATRIX
                         if check["python-version"] == DEFAULT_PYTHON_MAJOR_MINOR_VERSION
                     ]
                 ),
@@ -2273,7 +2303,7 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
         ),
         pytest.param(
             ("all versions",),
-            {"providers-compatibility-checks": json.dumps(BASE_PROVIDERS_COMPATIBILITY_CHECKS)},
+            {"providers-compatibility-tests-matrix": json.dumps(PROVIDERS_COMPATIBILITY_TESTS_MATRIX)},
             id="full tests",
         ),
     ],

@@ -20,9 +20,10 @@
 from __future__ import annotations
 
 import csv
+from collections.abc import Sequence
 from contextlib import closing
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 try:
     import MySQLdb

@@ -26,9 +26,10 @@ import json
 import logging
 import os
 import tempfile
+from collections.abc import Generator, Sequence
 from contextlib import ExitStack, contextmanager
 from subprocess import check_output
-from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 import google.auth
 import google.oauth2.service_account

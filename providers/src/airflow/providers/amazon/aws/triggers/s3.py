@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, AsyncIterator
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.triggers.base import BaseTrigger, TriggerEvent

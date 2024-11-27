@@ -31,9 +31,10 @@ import json
 import logging
 import time
 import warnings
+from collections.abc import Sequence
 from copy import deepcopy
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from google.cloud.storage_transfer_v1 import (
     ListTransferJobsRequest,

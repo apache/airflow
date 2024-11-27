@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import enum
 from collections import namedtuple
+from collections.abc import Iterable, Mapping, Sequence
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from typing_extensions import Literal
 

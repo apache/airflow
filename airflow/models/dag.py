@@ -25,18 +25,15 @@ import pathlib
 import sys
 import time
 from collections import defaultdict
+from collections.abc import Collection, Container, Iterable, Sequence
 from contextlib import ExitStack
 from datetime import datetime, timedelta
 from functools import cache
+from re import Pattern
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Collection,
-    Container,
-    Iterable,
-    Pattern,
-    Sequence,
     Union,
     cast,
     overload,
@@ -1089,7 +1086,7 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         if include_dependent_dags:
             # Recursively find external tasks indicated by ExternalTaskMarker
-            from airflow.sensors.external_task import ExternalTaskMarker
+            from airflow.providers.standard.sensors.external_task import ExternalTaskMarker
 
             query = tis
             if as_pk_tuple:
@@ -1866,6 +1863,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
         asset_op.add_dag_asset_alias_references(orm_dags, orm_asset_aliases, session=session)
         asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
+        asset_op.add_asset_trigger_references(orm_assets, session=session)
         session.flush()
 
     @provide_session

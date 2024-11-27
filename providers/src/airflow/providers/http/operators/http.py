@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import base64
 import pickle
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 from deprecated import deprecated
 from requests import Response

@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 from unittest import mock
 
 from airflow.utils.entry_points import entry_points_with_dist, metadata
