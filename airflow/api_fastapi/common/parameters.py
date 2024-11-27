@@ -150,36 +150,19 @@ class DagRunIdsFilter(BaseParam[list[str]]):
         return self.set_value(dag_run_ids)
 
 
-class DagRunRunTypesFilter(BaseParam[list[str]]):
+class DagRunRunTypesFilter(BaseParam[Optional[list[str]]]):
     """Filter on dag run run_types."""
 
-    def __init__(self, model: Base, value: list[str] | None = None, skip_none: bool = True) -> None:
+    def __init__(self, value: list[str] | None = None, skip_none: bool = True) -> None:
         super().__init__(value, skip_none)
-        self.model = model
 
     def to_orm(self, select: Select) -> Select:
         if self.value and self.skip_none:
-            return select.where(self.model.run_type.in_(self.value))
+            return select.where(DagRun.run_type.in_(self.value))
         return select
 
     def depends(self, run_types: list[str] = Query(None)) -> DagRunRunTypesFilter:
         return self.set_value(run_types)
-
-
-class DagRunRunStatesFilter(BaseParam[list[str]]):
-    """Filter on dag run_states."""
-
-    def __init__(self, model: Base, value: list[str] | None = None, skip_none: bool = True) -> None:
-        super().__init__(value, skip_none)
-        self.model = model
-
-    def to_orm(self, select: Select) -> Select:
-        if self.value and self.skip_none:
-            return select.where(self.model.state.in_(self.value))
-        return select
-
-    def depends(self, run_states: list[str] = Query(None)) -> DagRunRunStatesFilter:
-        return self.set_value(run_states)
 
 
 class TaskIdsFilter(BaseParam[list[str]]):
@@ -582,6 +565,7 @@ QueryLastDagRunStateFilter = Annotated[
     Depends(filter_param_factory(DagRun.state, Optional[DagRunState], filter_name="last_dag_run_state")),
 ]
 
+QueryDagRunRunTypesFilter = Annotated[DagRunRunTypesFilter, Depends(DagRunRunTypesFilter().depends)]
 
 def _transform_dag_run_states(states: Iterable[str] | None) -> list[DagRunState | None] | None:
     try:
