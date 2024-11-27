@@ -439,7 +439,8 @@ class _AssetBooleanCondition(BaseAsset):
             raise TypeError("expect asset expressions in condition")
 
         self.objects = [
-            AssetAliasCondition(obj.name) if isinstance(obj, AssetAlias) else obj for obj in objects
+            AssetAliasCondition(name=obj.name, group=obj.group) if isinstance(obj, AssetAlias) else obj
+            for obj in objects
         ]
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
@@ -515,8 +516,9 @@ class AssetAliasCondition(AssetAny):
     :meta private:
     """
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, group: str) -> None:
         self.name = name
+        self.group = group
         self.objects = expand_alias_to_assets(name)
 
     def __repr__(self) -> str:
@@ -528,7 +530,7 @@ class AssetAliasCondition(AssetAny):
 
         :meta private:
         """
-        return {"alias": self.name}
+        return {"alias": {"name": self.name, "group": self.group}}
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         yield self.name, AssetAlias(self.name)
