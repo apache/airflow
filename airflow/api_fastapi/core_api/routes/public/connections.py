@@ -92,7 +92,9 @@ def get_connections(
         SortParam,
         Depends(
             SortParam(
-                ["connection_id", "conn_type", "description", "host", "port", "id"], Connection
+                ["conn_id", "conn_type", "description", "host", "port", "id"],
+                Connection,
+                {"connection_id": "conn_id"},
             ).dynamic_depends()
         ),
     ],
@@ -100,7 +102,7 @@ def get_connections(
 ) -> ConnectionCollectionResponse:
     """Get all connection entries."""
     connection_select, total_entries = paginated_select(
-        select=select(Connection),
+        statement=select(Connection),
         order_by=order_by,
         offset=offset,
         limit=limit,

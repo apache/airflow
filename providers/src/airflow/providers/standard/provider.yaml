@@ -61,12 +61,20 @@ sensors:
       - airflow.providers.standard.sensors.bash
       - airflow.providers.standard.sensors.python
       - airflow.providers.standard.sensors.filesystem
+      - airflow.providers.standard.sensors.external_task
 hooks:
   - integration-name: Standard
     python-modules:
       - airflow.providers.standard.hooks.filesystem
       - airflow.providers.standard.hooks.package_index
       - airflow.providers.standard.hooks.subprocess
+
+triggers:
+  - integration-name: Standard
+    python-modules:
+      - airflow.providers.standard.triggers.external_task
+      - airflow.providers.standard.triggers.file
+      - airflow.providers.standard.triggers.temporal
 
 config:
   standard:
