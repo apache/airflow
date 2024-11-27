@@ -208,7 +208,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-pre-commit-information-consistent                   | Validate hook IDs & names and sync with docs           |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
-| check-provide-create-sessions-imports                     | Check provide_session and create_session imports       |         |
+| check-provide-create-sessions-imports                     | Check session util imports                             |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+
 | check-provider-docs-valid                                 | Validate provider doc files                            |         |
 +-----------------------------------------------------------+--------------------------------------------------------+---------+

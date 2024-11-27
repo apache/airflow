@@ -26,7 +26,9 @@ from pydantic import (
     ConfigDict,
     Field,
     NonNegativeInt,
+    StringConstraints,
     ValidationError,
+    field_validator,
     model_validator,
 )
 
@@ -191,6 +193,33 @@ class ClearTaskInstancesBody(BaseModel):
         if isinstance(data.get("task_ids"), list) and len(data.get("task_ids")) < 1:
             raise ValidationError("task_ids list should have at least 1 element.")
         return data
+
+
+class PatchTaskInstanceBody(BaseModel):
+    """Request body for Clear Task Instances endpoint."""
+
+    dry_run: bool = True
+    new_state: str | None = None
+    note: Annotated[str, StringConstraints(max_length=1000)] | None = None
+    include_upstream: bool = False
+    include_downstream: bool = False
+    include_future: bool = False
+    include_past: bool = False
+
+    @field_validator("new_state", mode="before")
+    @classmethod
+    def validate_new_state(cls, ns: str | None) -> str:
+        """Validate new_state."""
+        valid_states = [
+            vs.name.lower()
+            for vs in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED)
+        ]
+        if ns is None:
+            raise ValueError("'new_state' should not be empty")
+        ns = ns.lower()
+        if ns not in valid_states:
+            raise ValueError(f"'{ns}' is not one of {valid_states}")
+        return ns
 
 
 class TaskInstanceReferenceResponse(BaseModel):
