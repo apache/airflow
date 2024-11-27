@@ -113,6 +113,19 @@ MODEL_OBJ = {
         "health_route": "",
     },
 }
+MODEL_OBJ_V2 = {
+    "display_name": f"model-{ENV_ID}-v2",
+    "artifact_uri": "{{ti.xcom_pull('custom_task')['artifactUri']}}",
+    "container_spec": {
+        "image_uri": MODEL_SERVING_CONTAINER_URI,
+        "command": [],
+        "args": [],
+        "env": [],
+        "ports": [],
+        "predict_route": "",
+        "health_route": "",
+    },
+}
 
 
 with DAG(
@@ -166,7 +179,6 @@ with DAG(
         dataset_id=tabular_dataset_id,
         replica_count=1,
         model_display_name=MODEL_DISPLAY_NAME,
-        sync=False,
         region=REGION,
         project_id=PROJECT_ID,
     )
@@ -185,7 +197,6 @@ with DAG(
         dataset_id=tabular_dataset_id,
         replica_count=1,
         model_display_name=MODEL_DISPLAY_NAME,
-        sync=False,
         region=REGION,
         project_id=PROJECT_ID,
     )
@@ -229,13 +240,14 @@ with DAG(
         project_id=PROJECT_ID,
         model=MODEL_OBJ,
     )
+    upload_model_v1 = upload_model.output["model_id"]
     # [END how_to_cloud_vertex_ai_upload_model_operator]
     upload_model_with_parent_model = UploadModelOperator(
         task_id="upload_model_with_parent_model",
         region=REGION,
         project_id=PROJECT_ID,
-        model=MODEL_OBJ,
-        parent_model=MODEL_DISPLAY_NAME,
+        model=MODEL_OBJ_V2,
+        parent_model=upload_model_v1,
     )
 
     # [START how_to_cloud_vertex_ai_export_model_operator]

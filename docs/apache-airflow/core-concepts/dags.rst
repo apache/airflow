@@ -125,7 +125,7 @@ And if you want to chain together dependencies, you can use ``chain``::
     chain(op1, op2, op3, op4)
 
     # You can also do it dynamically
-    chain(*[EmptyOperator(task_id='op' + i) for i in range(1, 6)])
+    chain(*[EmptyOperator(task_id=f"op{i}") for i in range(1, 6)])
 
 Chain can also do *pairwise* dependencies for lists the same size (this is different from the *cross dependencies* created by ``cross_downstream``!)::
 
@@ -362,7 +362,7 @@ The ``@task.branch`` can also be used with XComs allowing branching context to d
 If you wish to implement your own operators with branching functionality, you can inherit from :class:`~airflow.operators.branch.BaseBranchOperator`, which behaves similarly to ``@task.branch`` decorator but expects you to provide an implementation of the method ``choose_branch``.
 
 .. note::
-    The ``@task.branch`` decorator is recommended over directly instantiating :class:`~airflow.operators.python.BranchPythonOperator` in a DAG. The latter should generally only be subclassed to implement a custom operator.
+    The ``@task.branch`` decorator is recommended over directly instantiating :class:`~airflow.providers.standard.operators.python.BranchPythonOperator` in a DAG. The latter should generally only be subclassed to implement a custom operator.
 
 As with the callable for ``@task.branch``, this method can return the ID of a downstream task, or a list of task IDs, which will be run, and all others will be skipped. It can also return None to skip all downstream task::
 
@@ -765,7 +765,7 @@ While dependencies between tasks in a DAG are explicitly defined through upstrea
 relationships, dependencies between DAGs are a bit more complex. In general, there are two ways
 in which one DAG can depend on another:
 
-- triggering - :class:`~airflow.operators.trigger_dagrun.TriggerDagRunOperator`
+- triggering - :class:`~airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator`
 - waiting - :class:`~airflow.sensors.external_task_sensor.ExternalTaskSensor`
 
 Additional difficulty is that one DAG could wait for or trigger several runs of the other DAG

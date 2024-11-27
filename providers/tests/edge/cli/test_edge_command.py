@@ -29,7 +29,7 @@ import time_machine
 from airflow.exceptions import AirflowException
 from airflow.providers.edge.cli.edge_command import _EdgeWorkerCli, _Job, _write_pid_to_pidfile
 from airflow.providers.edge.models.edge_job import EdgeJob
-from airflow.providers.edge.models.edge_worker import EdgeWorker, EdgeWorkerState
+from airflow.providers.edge.models.edge_worker import EdgeWorker, EdgeWorkerState, EdgeWorkerVersionException
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
@@ -234,15 +234,16 @@ class TestEdgeWorkerCli:
     def test_check_running_jobs_log_push_chunks(self, mock_push_logs, worker_with_job: _EdgeWorkerCli):
         job = worker_with_job.jobs[0]
         job.process.generated_returncode = None
-        job.logfile.write_text("log1log2log3")
+        job.logfile.write_bytes("log1log2ülog3".encode("latin-1"))
         with conf_vars({("edge", "api_url"): "https://mock.server", ("edge", "push_log_chunk_size"): "4"}):
             worker_with_job.check_running_jobs()
         assert len(worker_with_job.jobs) == 1
         calls = mock_push_logs.call_args_list
-        len(calls) == 3
+        assert len(calls) == 4
         assert calls[0] == call(task=job.edge_job.key, log_chunk_time=datetime.now(), log_chunk_data="log1")
         assert calls[1] == call(task=job.edge_job.key, log_chunk_time=datetime.now(), log_chunk_data="log2")
-        assert calls[2] == call(task=job.edge_job.key, log_chunk_time=datetime.now(), log_chunk_data="log3")
+        assert calls[2] == call(task=job.edge_job.key, log_chunk_time=datetime.now(), log_chunk_data="\\xfc")
+        assert calls[3] == call(task=job.edge_job.key, log_chunk_time=datetime.now(), log_chunk_data="log3")
 
     @pytest.mark.parametrize(
         "drain, jobs, expected_state",
@@ -265,6 +266,12 @@ class TestEdgeWorkerCli:
         assert len(queue_list) == 2
         assert "queue1" in (queue_list)
         assert "queue2" in (queue_list)
+
+    @patch("airflow.providers.edge.models.edge_worker.EdgeWorker.set_state")
+    def test_version_mismatch(self, mock_set_state, worker_with_job):
+        mock_set_state.side_effect = EdgeWorkerVersionException("")
+        worker_with_job.heartbeat()
+        assert worker_with_job.drain
 
     @patch("airflow.providers.edge.models.edge_worker.EdgeWorker.register_worker")
     def test_start_missing_apiserver(self, mock_register_worker, worker_with_job: _EdgeWorkerCli):

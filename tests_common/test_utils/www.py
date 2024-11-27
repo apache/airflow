@@ -52,9 +52,9 @@ def check_content_in_response(text, resp, resp_code=200):
     assert resp_code == resp.status_code
     if isinstance(text, list):
         for line in text:
-            assert line in resp_html, f"Couldn't find {line!r}"
+            assert line in resp_html, f"Couldn't find {line!r}\nThe response was:\n{resp_html!r}"
     else:
-        assert text in resp_html, f"Couldn't find {text!r}"
+        assert text in resp_html, f"Couldn't find {text!r}\nThe response was:\n{resp_html!r}"
 
 
 def check_content_not_in_response(text, resp, resp_code=200):
@@ -67,20 +67,20 @@ def check_content_not_in_response(text, resp, resp_code=200):
         assert text not in resp_html
 
 
-def _check_last_log(session, dag_id, event, execution_date, expected_extra=None):
+def _check_last_log(session, dag_id, event, logical_date, expected_extra=None):
     logs = (
         session.query(
             Log.dag_id,
             Log.task_id,
             Log.event,
-            Log.execution_date,
+            Log.logical_date,
             Log.owner,
             Log.extra,
         )
         .filter(
             Log.dag_id == dag_id,
             Log.event == event,
-            Log.execution_date == execution_date,
+            Log.logical_date == logical_date,
         )
         .order_by(Log.dttm.desc())
         .limit(5)
@@ -93,20 +93,20 @@ def _check_last_log(session, dag_id, event, execution_date, expected_extra=None)
     session.query(Log).delete()
 
 
-def _check_last_log_masked_connection(session, dag_id, event, execution_date):
+def _check_last_log_masked_connection(session, dag_id, event, logical_date):
     logs = (
         session.query(
             Log.dag_id,
             Log.task_id,
             Log.event,
-            Log.execution_date,
+            Log.logical_date,
             Log.owner,
             Log.extra,
         )
         .filter(
             Log.dag_id == dag_id,
             Log.event == event,
-            Log.execution_date == execution_date,
+            Log.logical_date == logical_date,
         )
         .order_by(Log.dttm.desc())
         .limit(5)
@@ -126,20 +126,20 @@ def _check_last_log_masked_connection(session, dag_id, event, execution_date):
     }
 
 
-def _check_last_log_masked_variable(session, dag_id, event, execution_date):
+def _check_last_log_masked_variable(session, dag_id, event, logical_date):
     logs = (
         session.query(
             Log.dag_id,
             Log.task_id,
             Log.event,
-            Log.execution_date,
+            Log.logical_date,
             Log.owner,
             Log.extra,
         )
         .filter(
             Log.dag_id == dag_id,
             Log.event == event,
-            Log.execution_date == execution_date,
+            Log.logical_date == logical_date,
         )
         .order_by(Log.dttm.desc())
         .limit(5)

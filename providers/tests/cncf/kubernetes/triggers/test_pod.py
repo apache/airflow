@@ -108,7 +108,6 @@ class TestKubernetesPodTrigger:
             "startup_check_interval": 5,
             "trigger_start_time": TRIGGER_START_TIME,
             "on_finish_action": ON_FINISH_ACTION,
-            "should_delete_pod": ON_FINISH_ACTION == "delete_pod",
             "last_log_time": None,
             "logging_interval": None,
         }

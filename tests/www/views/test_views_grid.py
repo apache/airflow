@@ -24,12 +24,12 @@ import pendulum
 import pytest
 from dateutil.tz import UTC
 
-from airflow.assets import Asset
 from airflow.decorators import task_group
 from airflow.lineage.entities import File
 from airflow.models import DagBag
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.operators.empty import EmptyOperator
+from airflow.sdk.definitions.asset import Asset
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
@@ -90,12 +90,12 @@ def dag_without_runs(dag_maker, session, app, monkeypatch):
 def dag_with_runs(dag_without_runs):
     date = dag_without_runs.dag.start_date
     run_1 = dag_without_runs.create_dagrun(
-        run_id="run_1", state=DagRunState.SUCCESS, run_type=DagRunType.SCHEDULED, execution_date=date
+        run_id="run_1", state=DagRunState.SUCCESS, run_type=DagRunType.SCHEDULED, logical_date=date
     )
     run_2 = dag_without_runs.create_dagrun(
         run_id="run_2",
         run_type=DagRunType.SCHEDULED,
-        execution_date=date + timedelta(days=1),
+        logical_date=date + timedelta(days=1),
     )
 
     return run_1, run_2
@@ -160,7 +160,7 @@ def test_no_runs(admin_client, dag_without_runs):
             "instances": [],
             "label": None,
         },
-        "ordering": ["data_interval_end", "execution_date"],
+        "ordering": ["data_interval_end", "logical_date"],
         "errors": [],
     }
 
@@ -231,7 +231,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                 "data_interval_end": "2016-01-02T00:00:00+00:00",
                 "data_interval_start": "2016-01-01T00:00:00+00:00",
                 "end_date": timezone.utcnow().isoformat(),
-                "execution_date": "2016-01-01T00:00:00+00:00",
+                "logical_date": "2016-01-01T00:00:00+00:00",
                 "external_trigger": False,
                 "last_scheduling_decision": None,
                 "note": None,
@@ -248,7 +248,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                 "data_interval_end": "2016-01-03T00:00:00+00:00",
                 "data_interval_start": "2016-01-02T00:00:00+00:00",
                 "end_date": None,
-                "execution_date": "2016-01-02T00:00:00+00:00",
+                "logical_date": "2016-01-02T00:00:00+00:00",
                 "external_trigger": False,
                 "last_scheduling_decision": None,
                 "note": None,
@@ -409,7 +409,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
             "instances": [],
             "label": None,
         },
-        "ordering": ["data_interval_end", "execution_date"],
+        "ordering": ["data_interval_end", "logical_date"],
         "errors": [],
     }
 
@@ -463,7 +463,7 @@ def test_has_outlet_asset_flag(admin_client, dag_maker, session, app, monkeypatc
             "instances": [],
             "label": None,
         },
-        "ordering": ["data_interval_end", "execution_date"],
+        "ordering": ["data_interval_end", "logical_date"],
         "errors": [],
     }
 
@@ -520,3 +520,47 @@ def test_next_run_assets_404(admin_client):
     resp = admin_client.get("/object/next_run_assets/missingdag", follow_redirects=True)
     assert resp.status_code == 404, resp.json
     assert resp.json == {"error": "can't find dag missingdag"}
+
+
+@pytest.mark.usefixtures("_freeze_time_for_dagruns")
+def test_dynamic_mapped_task_with_retries(admin_client, dag_with_runs: list[DagRun], session):
+    """
+    Test a DAG with a dynamic mapped task with retries
+    """
+    run1, run2 = dag_with_runs
+
+    for ti in run1.task_instances:
+        ti.state = TaskInstanceState.SUCCESS
+    for ti in sorted(run2.task_instances, key=lambda ti: (ti.task_id, ti.map_index)):
+        if ti.task_id == "task1":
+            ti.state = TaskInstanceState.SUCCESS
+        elif ti.task_id == "group.mapped":
+            if ti.map_index == 0:
+                ti.state = TaskInstanceState.FAILED
+                ti.start_date = pendulum.DateTime(2021, 7, 1, 1, 0, 0, tzinfo=pendulum.UTC)
+                ti.end_date = pendulum.DateTime(2021, 7, 1, 1, 2, 3, tzinfo=pendulum.UTC)
+            elif ti.map_index == 1:
+                ti.try_number = 1
+                ti.state = TaskInstanceState.SUCCESS
+                ti.start_date = pendulum.DateTime(2021, 7, 1, 2, 3, 4, tzinfo=pendulum.UTC)
+                ti.end_date = None
+            elif ti.map_index == 2:
+                ti.try_number = 2
+                ti.state = TaskInstanceState.FAILED
+                ti.start_date = pendulum.DateTime(2021, 7, 1, 2, 3, 4, tzinfo=pendulum.UTC)
+                ti.end_date = None
+            elif ti.map_index == 3:
+                ti.try_number = 3
+                ti.state = TaskInstanceState.SUCCESS
+                ti.start_date = pendulum.DateTime(2021, 7, 1, 2, 3, 4, tzinfo=pendulum.UTC)
+                ti.end_date = None
+    session.flush()
+
+    resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}", follow_redirects=True)
+
+    assert resp.status_code == 200, resp.json
+
+    assert resp.json["groups"]["children"][-1]["children"][-1]["instances"][-1]["mapped_states"] == {
+        "failed": 2,
+        "success": 2,
+    }

@@ -38,7 +38,7 @@ class DagWarning(Base):
     A table to store DAG warnings.
 
     DAG warnings are problems that don't rise to the level of failing the DAG parse
-    but which users should nonetheless be warned about.  These warnings are recorded
+    but which users should nonetheless be warned about. These warnings are recorded
     when parsing DAG and displayed on the Webserver in a flash message.
     """
 
@@ -58,10 +58,10 @@ class DagWarning(Base):
         Index("idx_dag_warning_dag_id", dag_id),
     )
 
-    def __init__(self, dag_id: str, error_type: str, message: str, **kwargs):
+    def __init__(self, dag_id: str, warning_type: str, message: str, **kwargs):
         super().__init__(**kwargs)
         self.dag_id = dag_id
-        self.warning_type = DagWarningType(error_type).value  # make sure valid type
+        self.warning_type = DagWarningType(warning_type).value  # make sure valid type
         self.message = message
 
     def __eq__(self, other) -> bool:
@@ -104,4 +104,5 @@ class DagWarningType(str, Enum):
     in the DagWarning model.
     """
 
+    ASSET_CONFLICT = "asset conflict"
     NONEXISTENT_POOL = "non-existent pool"

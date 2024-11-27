@@ -118,7 +118,12 @@ class PineconeHook(BaseHook):
         enable_curl_debug = extras.get("debug_curl")
         if enable_curl_debug:
             os.environ["PINECONE_DEBUG_CURL"] = "true"
-        return Pinecone(api_key=self.api_key, host=pinecone_host, project_id=pinecone_project_id)
+        return Pinecone(
+            api_key=self.api_key,
+            host=pinecone_host,
+            project_id=pinecone_project_id,
+            source_tag="apache_airflow",
+        )
 
     @cached_property
     def conn(self) -> Connection:
@@ -323,7 +328,7 @@ class PineconeHook(BaseHook):
         :param include_values: Whether to include the vector values in the result.
         :param include_metadata: Indicates whether metadata is included in the response as well as the ids.
         :param sparse_vector: sparse values of the query vector. Expected to be either a SparseValues object or a dict
-         of the form: {'indices': List[int], 'values': List[float]}, where the lists each have the same length.
+         of the form: {'indices': list[int], 'values': list[float]}, where the lists each have the same length.
         """
         index = self.pinecone_client.Index(index_name)
         return index.query(

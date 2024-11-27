@@ -20,7 +20,8 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 from google.api_core.exceptions import BadRequest, Conflict
 from google.cloud.bigquery import (
@@ -174,6 +175,7 @@ class GCSToBigQueryOperator(BaseOperator):
         destination table is newly created. If the table already exists and a value different than the
         current description is provided, the job will fail.
     :param deferrable: Run operator in the deferrable mode
+    :param force_delete: Force the destination table to be deleted if it already exists.
     """
 
     template_fields: Sequence[str] = (
@@ -231,6 +233,7 @@ class GCSToBigQueryOperator(BaseOperator):
         force_rerun: bool = True,
         reattach_states: set[str] | None = None,
         project_id: str = PROVIDE_PROJECT_ID,
+        force_delete: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -296,6 +299,7 @@ class GCSToBigQueryOperator(BaseOperator):
         self.force_rerun = force_rerun
         self.reattach_states: set[str] = reattach_states or set()
         self.cancel_on_kill = cancel_on_kill
+        self.force_delete = force_delete
 
         self.source_uris: list[str] = []
 
@@ -378,7 +382,11 @@ class GCSToBigQueryOperator(BaseOperator):
                 max_id = self._find_max_value_in_column()
                 return max_id
         else:
-            self.log.info("Using existing BigQuery table for storing data...")
+            if self.force_delete:
+                self.log.info("Deleting table %s", self.destination_project_dataset_table)
+                hook.delete_table(table_id=self.destination_project_dataset_table)
+            else:
+                self.log.info("Using existing BigQuery table for storing data...")
             self.configuration = self._use_existing_table()
 
             try:
@@ -391,17 +399,21 @@ class GCSToBigQueryOperator(BaseOperator):
                     location=self.location,
                     job_id=job_id,
                 )
-                if job.state in self.reattach_states:
-                    # We are reattaching to a job
-                    job._begin()
-                    self._handle_job_error(job)
-                else:
-                    # Same job configuration so we need force_rerun
+                if job.state not in self.reattach_states:
+                    # Same job configuration, so we need force_rerun
                     raise AirflowException(
                         f"Job with id: {job_id} already exists and is in {job.state} state. If you "
                         f"want to force rerun it consider setting `force_rerun=True`."
                         f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
                     )
+                else:
+                    # Job already reached state DONE
+                    if job.state == "DONE":
+                        raise AirflowException("Job is already in state DONE. Can not reattach to this job.")
+
+                    # We are reattaching to a job
+                    self.log.info("Reattaching to existing Job in state %s", job.state)
+                    self._handle_job_error(job)
 
             job_types = {
                 LoadJob._JOB_TYPE: ["sourceTable", "destinationTable"],
@@ -773,9 +785,10 @@ class GCSToBigQueryOperator(BaseOperator):
         source_objects = (
             self.source_objects if isinstance(self.source_objects, list) else [self.source_objects]
         )
-        input_dataset_facets = {
-            "schema": output_dataset_facets["schema"],
-        }
+        input_dataset_facets = {}
+        if "schema" in output_dataset_facets:
+            input_dataset_facets["schema"] = output_dataset_facets["schema"]
+
         input_datasets = []
         for blob in sorted(source_objects):
             additional_facets = {}
@@ -800,14 +813,16 @@ class GCSToBigQueryOperator(BaseOperator):
             )
             input_datasets.append(dataset)
 
-        output_dataset_facets["columnLineage"] = get_identity_column_lineage_facet(
-            field_names=[field.name for field in table_object.schema], input_datasets=input_datasets
-        )
-
         output_dataset = Dataset(
             namespace="bigquery",
             name=str(table_object.reference),
-            facets=output_dataset_facets,
+            facets={
+                **output_dataset_facets,
+                **get_identity_column_lineage_facet(
+                    dest_field_names=[field.name for field in table_object.schema],
+                    input_datasets=input_datasets,
+                ),
+            },
         )
 
         run_facets = {}

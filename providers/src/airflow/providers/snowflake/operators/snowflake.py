@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Iterable, List, Mapping, Sequence, SupportsAbs, cast
+from typing import TYPE_CHECKING, Any, ClassVar, SupportsAbs, cast
 
 from deprecated import deprecated
 
@@ -88,7 +89,7 @@ class SnowflakeOperator(SQLExecuteQueryOperator):
 
     template_fields: Sequence[str] = ("sql",)
     template_ext: Sequence[str] = (".sql",)
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
     ui_color = "#ededed"
 
     def __init__(
@@ -584,7 +585,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
                 raise AirflowException(msg)
             elif "status" in event and event["status"] == "success":
                 hook = SnowflakeSqlApiHook(snowflake_conn_id=self.snowflake_conn_id)
-                query_ids = cast(List[str], event["statement_query_ids"])
+                query_ids = cast(list[str], event["statement_query_ids"])
                 hook.check_query_output(query_ids)
                 self.log.info("%s completed successfully.", self.task_id)
         else:

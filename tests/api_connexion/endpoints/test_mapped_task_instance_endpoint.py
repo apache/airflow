@@ -67,7 +67,7 @@ class TestMappedTaskInstanceEndpoint:
     def setup_attrs(self, configured_app) -> None:
         self.default_time = DEFAULT_DATETIME_1
         self.ti_init = {
-            "execution_date": self.default_time,
+            "logical_date": self.default_time,
             "state": State.RUNNING,
         }
         self.ti_extras = {
@@ -77,7 +77,6 @@ class TestMappedTaskInstanceEndpoint:
             "duration": 10000,
             "pool": "default_pool",
             "queue": "default_queue",
-            "job_id": 0,
         }
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
@@ -211,7 +210,7 @@ class TestGetMappedTaskInstance(TestMappedTaskInstanceEndpoint):
             "dag_run_id": "run_mapped_tis",
             "duration": None,
             "end_date": None,
-            "execution_date": "2020-01-01T00:00:00+00:00",
+            "logical_date": "2020-01-01T00:00:00+00:00",
             "executor": "default",
             "executor_config": "{}",
             "hostname": "",

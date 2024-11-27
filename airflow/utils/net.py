@@ -18,13 +18,11 @@
 from __future__ import annotations
 
 import socket
-from functools import lru_cache
-
-from airflow.configuration import conf
+from functools import cache
 
 
 # patched version of socket.getfqdn() - see https://github.com/python/cpython/issues/49254
-@lru_cache(maxsize=None)
+@cache
 def getfqdn(name=""):
     """
     Get fully qualified domain name from name.
@@ -53,4 +51,6 @@ def get_host_ip_address():
 
 def get_hostname():
     """Fetch the hostname using the callable from config or use `airflow.utils.net.getfqdn` as a fallback."""
+    from airflow.configuration import conf
+
     return conf.getimport("core", "hostname_callable", fallback="airflow.utils.net.getfqdn")()

@@ -24,11 +24,11 @@ import os
 import pickle
 import tarfile
 import warnings
-from collections.abc import Container
+from collections.abc import Container, Iterable, Sequence
 from functools import cached_property
 from io import BytesIO, StringIO
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Iterable, Sequence
+from typing import TYPE_CHECKING
 
 from deprecated.classic import deprecated
 from docker.constants import DEFAULT_TIMEOUT_SECONDS
@@ -47,6 +47,8 @@ from airflow.providers.docker.hooks.docker import DockerHook
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
+    from logging import Logger
+
     from docker import APIClient
     from docker.types import DeviceRequest
 
@@ -60,6 +62,16 @@ def stringify(line: str | bytes):
         return decode_method(encoding="utf-8", errors="surrogateescape")
     else:
         return line
+
+
+def fetch_logs(log_stream, log: Logger):
+    log_lines = []
+    for log_chunk in log_stream:
+        log_chunk = stringify(log_chunk).rstrip()
+        log_lines.append(log_chunk)
+        for log_chunk_line in log_chunk.split("\n"):
+            log.info("%s", log_chunk_line)
+    return log_lines
 
 
 class DockerOperator(BaseOperator):
@@ -426,16 +438,11 @@ class DockerOperator(BaseOperator):
             tty=self.tty,
             hostname=self.hostname,
         )
-        logstream = self.cli.attach(container=self.container["Id"], stdout=True, stderr=True, stream=True)
+        log_stream = self.cli.attach(container=self.container["Id"], stdout=True, stderr=True, stream=True)
         try:
             self.cli.start(self.container["Id"])
 
-            log_lines = []
-            for log_chunk in logstream:
-                log_chunk = stringify(log_chunk).strip()
-                log_lines.append(log_chunk)
-                for log_chunk_line in log_chunk.split("\n"):
-                    self.log.info("%s", log_chunk_line)
+            log_lines = fetch_logs(log_stream, self.log)
 
             result = self.cli.wait(self.container["Id"])
             if result["StatusCode"] in self.skip_on_exit_code:

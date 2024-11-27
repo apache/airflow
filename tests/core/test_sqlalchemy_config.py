@@ -59,7 +59,9 @@ class TestSqlAlchemySettings:
         settings.configure_orm()
         mock_create_engine.assert_called_once_with(
             settings.SQL_ALCHEMY_CONN,
-            connect_args={},
+            connect_args={}
+            if not settings.SQL_ALCHEMY_CONN.startswith("sqlite")
+            else {"check_same_thread": False},
             encoding="utf-8",
             max_overflow=10,
             pool_pre_ping=True,

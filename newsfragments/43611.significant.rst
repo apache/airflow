@@ -1,0 +1,6 @@
+TaskInstance ``priority_weight`` is capped in 32-bit signed integer ranges.
+
+Some database engines are limited to 32-bit integer values. As some users reported errors in
+weight rolled-over to negative values, we decided to cap the value to the 32-bit integer. Even
+if internally in python smaller or larger values to 64 bit are supported, ``priority_weight`` is
+capped and only storing values from -2147483648 to 2147483647.

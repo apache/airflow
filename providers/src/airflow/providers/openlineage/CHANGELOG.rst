@@ -26,6 +26,47 @@
 Changelog
 ---------
 
+1.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+* ``Add ProcessingEngineRunFacet to OL DAG Start event (#43213)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``serialize asset/dataset timetable conditions in OpenLineage info also for Airflow 2 (#43434)``
+* ``OpenLineage: accept whole config when instantiating OpenLineageClient. (#43740)``
+
+Misc
+~~~~
+
+* ``Temporarily limit openlineage to <1.24.0 (#43732)``
+* ``Move python operator to Standard provider (#42081)``
+
+1.13.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat(providers/openlineage): Use asset in common provider (#43111)``
+
+Misc
+~~~~
+
+* ``Ignore attr-defined for compat import (#43301)``
+* ``nit: remove taskgroup's tooltip from OL's AirflowJobFacet (#43152)``
+* ``require 1.2.1 common.compat for openlineage provider (#43039)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+
 1.12.2
 ......
 

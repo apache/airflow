@@ -19,8 +19,9 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator, Sequence
 from functools import cached_property
-from typing import Any, AsyncIterator, Sequence
+from typing import Any
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
 

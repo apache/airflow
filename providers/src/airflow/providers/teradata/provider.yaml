@@ -22,9 +22,10 @@ description: |
     `Teradata <https://www.teradata.com/>`__
 
 state: ready
-source-date-epoch: 1723970618
+source-date-epoch: 1731571121
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 2.6.1
   - 2.6.0
   - 2.5.0
   - 2.4.0
@@ -36,7 +37,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.8.0
-  - apache-airflow-providers-common-sql>=1.14.1
+  - apache-airflow-providers-common-sql>=1.20.0
   - teradatasqlalchemy>=17.20.0.0
   - teradatasql>=17.20.0.28
 

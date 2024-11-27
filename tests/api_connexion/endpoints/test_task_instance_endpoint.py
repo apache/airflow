@@ -71,7 +71,7 @@ class TestTaskInstanceEndpoint:
     def setup_attrs(self, configured_app, dagbag) -> None:
         self.default_time = DEFAULT_DATETIME_1
         self.ti_init = {
-            "execution_date": self.default_time,
+            "logical_date": self.default_time,
             "state": State.RUNNING,
         }
         self.ti_extras = {
@@ -81,7 +81,6 @@ class TestTaskInstanceEndpoint:
             "duration": 10000,
             "pool": "default_pool",
             "queue": "default_queue",
-            "job_id": 0,
         }
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
@@ -107,7 +106,7 @@ class TestTaskInstanceEndpoint:
             counter = min(len(task_instances), counter)
 
         run_id = "TEST_DAG_RUN_ID"
-        execution_date = self.ti_init.pop("execution_date", self.default_time)
+        logical_date = self.ti_init.pop("logical_date", self.default_time)
         dr = None
 
         tis = []
@@ -119,16 +118,16 @@ class TestTaskInstanceEndpoint:
             else:
                 self.ti_init.update(task_instances[i])
 
-            if "execution_date" in self.ti_init:
+            if "logical_date" in self.ti_init:
                 run_id = f"TEST_DAG_RUN_ID_{i}"
-                execution_date = self.ti_init.pop("execution_date")
+                logical_date = self.ti_init.pop("logical_date")
                 dr = None
 
             if not dr:
                 dr = DagRun(
                     run_id=run_id,
                     dag_id=dag_id,
-                    execution_date=execution_date,
+                    logical_date=logical_date,
                     run_type=DagRunType.MANUAL,
                     state=dag_run_state,
                 )
@@ -183,7 +182,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "dag_id": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
-            "execution_date": "2020-01-01T00:00:00+00:00",
+            "logical_date": "2020-01-01T00:00:00+00:00",
             "executor": None,
             "executor_config": "{}",
             "hostname": "",
@@ -241,7 +240,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "dag_id": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
-            "execution_date": "2020-01-01T00:00:00+00:00",
+            "logical_date": "2020-01-01T00:00:00+00:00",
             "executor": None,
             "executor_config": "{}",
             "hostname": "",
@@ -288,7 +287,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "dag_id": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
-            "execution_date": "2020-01-01T00:00:00+00:00",
+            "logical_date": "2020-01-01T00:00:00+00:00",
             "executor": None,
             "executor_config": "{}",
             "hostname": "",
@@ -331,7 +330,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             "dag_id": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
-            "execution_date": "2020-01-01T00:00:00+00:00",
+            "logical_date": "2020-01-01T00:00:00+00:00",
             "executor": None,
             "executor_config": "{}",
             "hostname": "",
@@ -383,7 +382,7 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
                 "dag_id": "example_python_operator",
                 "duration": 10000.0,
                 "end_date": "2020-01-03T00:00:00+00:00",
-                "execution_date": "2020-01-01T00:00:00+00:00",
+                "logical_date": "2020-01-01T00:00:00+00:00",
                 "executor": None,
                 "executor_config": "{}",
                 "hostname": "",
@@ -465,9 +464,9 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         [
             pytest.param(
                 [
-                    {"execution_date": DEFAULT_DATETIME_1},
-                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
-                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
+                    {"logical_date": DEFAULT_DATETIME_1},
+                    {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
+                    {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
                 ],
                 False,
                 (
@@ -475,7 +474,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
                     f"taskInstances?execution_date_lte={QUOTED_DEFAULT_DATETIME_STR_1}"
                 ),
                 1,
-                id="test execution date filter",
+                id="test logical date filter",
             ),
             pytest.param(
                 [
@@ -656,7 +655,7 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
             self.create_task_instances(
                 session,
                 task_instances=[
-                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=i)}
+                    {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=i)}
                     for i in range(task_instances[dag_id])
                 ],
                 dag_id=dag_id,
@@ -811,12 +810,12 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
             ),
             pytest.param(
                 [
-                    {"execution_date": DEFAULT_DATETIME_1},
-                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
-                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
-                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3)},
-                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=4)},
-                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=5)},
+                    {"logical_date": DEFAULT_DATETIME_1},
+                    {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
+                    {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
+                    {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3)},
+                    {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=4)},
+                    {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=5)},
                 ],
                 False,
                 {
@@ -825,14 +824,14 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
                 },
                 3,
                 "test",
-                id="with execution date filter",
+                id="with logical date filter",
             ),
             pytest.param(
                 [
-                    {"execution_date": DEFAULT_DATETIME_1},
-                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
-                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
-                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3)},
+                    {"logical_date": DEFAULT_DATETIME_1},
+                    {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
+                    {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
+                    {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3)},
                 ],
                 False,
                 {
@@ -844,10 +843,10 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
             ),
             pytest.param(
                 [
-                    {"execution_date": DEFAULT_DATETIME_1},
-                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
-                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
-                    {"execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3)},
+                    {"logical_date": DEFAULT_DATETIME_1},
+                    {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1)},
+                    {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2)},
+                    {"logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3)},
                 ],
                 False,
                 {
@@ -1032,6 +1031,56 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         assert response.status_code == 400
         assert expected in response.json["detail"]
 
+    def test_should_respond_200_for_pagination(self, session):
+        dag_id = "example_python_operator"
+
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(10)
+            ],
+            dag_id=dag_id,
+        )
+
+        # First 5 items
+        response_batch1 = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": "test"},
+            json={"page_limit": 5, "page_offset": 0},
+        )
+        assert response_batch1.status_code == 200, response_batch1.json
+        num_entries_batch1 = len(response_batch1.json["task_instances"])
+        assert num_entries_batch1 == 5
+        assert len(response_batch1.json["task_instances"]) == 5
+
+        # 5 items after that
+        response_batch2 = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": "test"},
+            json={"page_limit": 5, "page_offset": 5},
+        )
+        assert response_batch2.status_code == 200, response_batch2.json
+        num_entries_batch2 = len(response_batch2.json["task_instances"])
+        assert num_entries_batch2 > 0
+        assert len(response_batch2.json["task_instances"]) > 0
+
+        # Match
+        ti_count = 9
+        assert response_batch1.json["total_entries"] == response_batch2.json["total_entries"] == ti_count
+        assert (num_entries_batch1 + num_entries_batch2) == ti_count
+        assert response_batch1 != response_batch2
+
+        # default limit and offset
+        response_batch3 = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": "test"},
+            json={},
+        )
+
+        num_entries_batch3 = len(response_batch3.json["task_instances"])
+        assert num_entries_batch3 == ti_count
+        assert len(response_batch3.json["task_instances"]) == ti_count
+
 
 class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
     @pytest.mark.parametrize(
@@ -1040,13 +1089,13 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             pytest.param(
                 "example_python_operator",
                 [
-                    {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
+                    {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},
                     {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
                         "state": State.FAILED,
                     },
                     {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
                         "state": State.FAILED,
                     },
                 ],
@@ -1062,13 +1111,13 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             pytest.param(
                 "example_python_operator",
                 [
-                    {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
+                    {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},
                     {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
                         "state": State.FAILED,
                     },
                     {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
                         "state": State.FAILED,
                     },
                 ],
@@ -1084,13 +1133,13 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             pytest.param(
                 "example_python_operator",
                 [
-                    {"execution_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
+                    {"logical_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
                     {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
                         "state": State.RUNNING,
                     },
                     {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
                         "state": State.FAILED,
                     },
                 ],
@@ -1102,13 +1151,13 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             pytest.param(
                 "example_python_operator",
                 [
-                    {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
+                    {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},
                     {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
                         "state": State.FAILED,
                     },
                     {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
                         "state": State.RUNNING,
                     },
                 ],
@@ -1123,17 +1172,17 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             pytest.param(
                 "example_python_operator",
                 [
-                    {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
+                    {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},
                     {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
                         "state": State.FAILED,
                     },
                     {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
                         "state": State.FAILED,
                     },
                     {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
                         "state": State.FAILED,
                     },
                 ],
@@ -1148,13 +1197,13 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             pytest.param(
                 "example_python_operator",
                 [
-                    {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
+                    {"logical_date": DEFAULT_DATETIME_1, "state": State.FAILED},
                     {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
                         "state": State.FAILED,
                     },
                     {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                        "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
                         "state": State.RUNNING,
                     },
                 ],
@@ -1187,7 +1236,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             session,
             dag_id=request_dag,
             event="api.post_clear_task_instances",
-            execution_date=None,
+            logical_date=None,
             expected_extra=payload,
         )
 
@@ -1207,7 +1256,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         mock_clearti.assert_called_once_with(
             [], session, dag=self.app.dag_bag.get_dag(dag_id), dag_run_state=State.QUEUED
         )
-        _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", execution_date=None)
+        _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", logical_date=None)
 
     def test_clear_taskinstance_is_called_with_invalid_task_ids(self, session):
         """Test that dagrun is running when invalid task_ids are passed to clearTaskInstances API."""
@@ -1228,7 +1277,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         dagrun.refresh_from_db()
         assert dagrun.state == "running"
         assert all(ti.state == "running" for ti in tis)
-        _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", execution_date=None)
+        _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", logical_date=None)
 
     def test_should_respond_200_with_reset_dag_run(self, session):
         dag_id = "example_python_operator"
@@ -1239,25 +1288,25 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "only_running": True,
         }
         task_instances = [
-            {"execution_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
+            {"logical_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
                 "state": State.RUNNING,
             },
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
                 "state": State.RUNNING,
             },
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
                 "state": State.RUNNING,
             },
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=4),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=4),
                 "state": State.RUNNING,
             },
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=5),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=5),
                 "state": State.RUNNING,
             },
         ]
@@ -1281,37 +1330,37 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_0",
-                "execution_date": "2020-01-01T00:00:00+00:00",
+                "logical_date": "2020-01-01T00:00:00+00:00",
                 "task_id": "print_the_context",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_1",
-                "execution_date": "2020-01-02T00:00:00+00:00",
+                "logical_date": "2020-01-02T00:00:00+00:00",
                 "task_id": "log_sql_query",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_2",
-                "execution_date": "2020-01-03T00:00:00+00:00",
+                "logical_date": "2020-01-03T00:00:00+00:00",
                 "task_id": "sleep_for_0",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_3",
-                "execution_date": "2020-01-04T00:00:00+00:00",
+                "logical_date": "2020-01-04T00:00:00+00:00",
                 "task_id": "sleep_for_1",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_4",
-                "execution_date": "2020-01-05T00:00:00+00:00",
+                "logical_date": "2020-01-05T00:00:00+00:00",
                 "task_id": "sleep_for_2",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_5",
-                "execution_date": "2020-01-06T00:00:00+00:00",
+                "logical_date": "2020-01-06T00:00:00+00:00",
                 "task_id": "sleep_for_3",
             },
         ]
@@ -1319,7 +1368,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             assert task_instance in response.json["task_instances"]
         assert 6 == len(response.json["task_instances"])
         assert 0 == failed_dag_runs, 0
-        _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", execution_date=None)
+        _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", logical_date=None)
 
     def test_should_respond_200_with_dag_run_id(self, session):
         dag_id = "example_python_operator"
@@ -1331,25 +1380,25 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "dag_run_id": "TEST_DAG_RUN_ID_0",
         }
         task_instances = [
-            {"execution_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
+            {"logical_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
                 "state": State.RUNNING,
             },
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
                 "state": State.RUNNING,
             },
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
                 "state": State.RUNNING,
             },
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=4),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=4),
                 "state": State.RUNNING,
             },
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=5),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=5),
                 "state": State.RUNNING,
             },
         ]
@@ -1371,13 +1420,13 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_0",
-                "execution_date": "2020-01-01T00:00:00+00:00",
+                "logical_date": "2020-01-01T00:00:00+00:00",
                 "task_id": "print_the_context",
             },
         ]
         assert response.json["task_instances"] == expected_response
         assert 1 == len(response.json["task_instances"])
-        _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", execution_date=None)
+        _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", logical_date=None)
 
     def test_should_respond_200_with_include_past(self, session):
         dag_id = "example_python_operator"
@@ -1389,25 +1438,25 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "only_running": True,
         }
         task_instances = [
-            {"execution_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
+            {"logical_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
                 "state": State.RUNNING,
             },
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
                 "state": State.RUNNING,
             },
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
                 "state": State.RUNNING,
             },
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=4),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=4),
                 "state": State.RUNNING,
             },
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=5),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=5),
                 "state": State.RUNNING,
             },
         ]
@@ -1429,44 +1478,44 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_0",
-                "execution_date": "2020-01-01T00:00:00+00:00",
+                "logical_date": "2020-01-01T00:00:00+00:00",
                 "task_id": "print_the_context",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_1",
-                "execution_date": "2020-01-02T00:00:00+00:00",
+                "logical_date": "2020-01-02T00:00:00+00:00",
                 "task_id": "log_sql_query",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_2",
-                "execution_date": "2020-01-03T00:00:00+00:00",
+                "logical_date": "2020-01-03T00:00:00+00:00",
                 "task_id": "sleep_for_0",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_3",
-                "execution_date": "2020-01-04T00:00:00+00:00",
+                "logical_date": "2020-01-04T00:00:00+00:00",
                 "task_id": "sleep_for_1",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_4",
-                "execution_date": "2020-01-05T00:00:00+00:00",
+                "logical_date": "2020-01-05T00:00:00+00:00",
                 "task_id": "sleep_for_2",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_5",
-                "execution_date": "2020-01-06T00:00:00+00:00",
+                "logical_date": "2020-01-06T00:00:00+00:00",
                 "task_id": "sleep_for_3",
             },
         ]
         for task_instance in expected_response:
             assert task_instance in response.json["task_instances"]
         assert 6 == len(response.json["task_instances"])
-        _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", execution_date=None)
+        _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", logical_date=None)
 
     def test_should_respond_200_with_include_future(self, session):
         dag_id = "example_python_operator"
@@ -1478,25 +1527,25 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "only_running": False,
         }
         task_instances = [
-            {"execution_date": DEFAULT_DATETIME_1, "state": State.SUCCESS},
+            {"logical_date": DEFAULT_DATETIME_1, "state": State.SUCCESS},
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
                 "state": State.SUCCESS,
             },
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
                 "state": State.SUCCESS,
             },
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
                 "state": State.SUCCESS,
             },
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=4),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=4),
                 "state": State.SUCCESS,
             },
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=5),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=5),
                 "state": State.SUCCESS,
             },
         ]
@@ -1519,44 +1568,44 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_0",
-                "execution_date": "2020-01-01T00:00:00+00:00",
+                "logical_date": "2020-01-01T00:00:00+00:00",
                 "task_id": "print_the_context",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_1",
-                "execution_date": "2020-01-02T00:00:00+00:00",
+                "logical_date": "2020-01-02T00:00:00+00:00",
                 "task_id": "log_sql_query",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_2",
-                "execution_date": "2020-01-03T00:00:00+00:00",
+                "logical_date": "2020-01-03T00:00:00+00:00",
                 "task_id": "sleep_for_0",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_3",
-                "execution_date": "2020-01-04T00:00:00+00:00",
+                "logical_date": "2020-01-04T00:00:00+00:00",
                 "task_id": "sleep_for_1",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_4",
-                "execution_date": "2020-01-05T00:00:00+00:00",
+                "logical_date": "2020-01-05T00:00:00+00:00",
                 "task_id": "sleep_for_2",
             },
             {
                 "dag_id": "example_python_operator",
                 "dag_run_id": "TEST_DAG_RUN_ID_5",
-                "execution_date": "2020-01-06T00:00:00+00:00",
+                "logical_date": "2020-01-06T00:00:00+00:00",
                 "task_id": "sleep_for_3",
             },
         ]
         for task_instance in expected_response:
             assert task_instance in response.json["task_instances"]
         assert 6 == len(response.json["task_instances"])
-        _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", execution_date=None)
+        _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", logical_date=None)
 
     def test_should_respond_404_for_nonexistent_dagrun_id(self, session):
         dag_id = "example_python_operator"
@@ -1568,9 +1617,9 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "dag_run_id": "TEST_DAG_RUN_ID_100",
         }
         task_instances = [
-            {"execution_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
+            {"logical_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
                 "state": State.RUNNING,
             },
         ]
@@ -1593,7 +1642,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             response.json["title"]
             == "Dag Run id TEST_DAG_RUN_ID_100 not found in dag example_python_operator"
         )
-        _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", execution_date=None)
+        _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", logical_date=None)
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.post(
@@ -1632,9 +1681,9 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
     @provide_session
     def test_should_raise_400_for_naive_and_bad_datetime(self, payload, expected, session):
         task_instances = [
-            {"execution_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
+            {"logical_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
             {
-                "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
+                "logical_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
                 "state": State.RUNNING,
             },
         ]
@@ -1672,6 +1721,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
     @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
     def test_should_assert_call_mocked_api(self, mock_set_task_instance_state, session):
         self.create_task_instances(session)
+        run_id = "TEST_DAG_RUN_ID"
         mock_set_task_instance_state.return_value = (
             session.query(TaskInstance)
             .join(TaskInstance.dag_run)
@@ -1685,7 +1735,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             json={
                 "dry_run": True,
                 "task_id": "print_the_context",
-                "execution_date": DEFAULT_DATETIME_1.isoformat(),
+                "dag_run_id": run_id,
                 "include_upstream": True,
                 "include_downstream": True,
                 "include_future": True,
@@ -1699,7 +1749,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
                 {
                     "dag_id": "example_python_operator",
                     "dag_run_id": "TEST_DAG_RUN_ID",
-                    "execution_date": "2020-01-01T00:00:00+00:00",
+                    "logical_date": "2020-01-01T00:00:00+00:00",
                     "task_id": "print_the_context",
                 }
             ]
@@ -1708,8 +1758,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         mock_set_task_instance_state.assert_called_once_with(
             commit=False,
             downstream=True,
-            run_id=None,
-            execution_date=DEFAULT_DATETIME_1,
+            run_id=run_id,
             future=True,
             past=True,
             state="failed",
@@ -1748,7 +1797,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
                 {
                     "dag_id": "example_python_operator",
                     "dag_run_id": "TEST_DAG_RUN_ID",
-                    "execution_date": "2020-01-01T00:00:00+00:00",
+                    "logical_date": "2020-01-01T00:00:00+00:00",
                     "task_id": "print_the_context",
                 }
             ]
@@ -1758,7 +1807,6 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             commit=False,
             downstream=True,
             run_id=run_id,
-            execution_date=None,
             future=True,
             past=True,
             state="failed",
@@ -1771,7 +1819,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         "error, code, payload",
         [
             [
-                "{'_schema': ['Exactly one of execution_date or dag_run_id must be provided']}",
+                "{'dag_run_id': ['Missing data for required field.']}",
                 400,
                 {
                     "dry_run": True,
@@ -1784,13 +1832,12 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
                 },
             ],
             [
-                "Task instance not found for task 'print_the_context' on execution_date "
-                "2021-01-01 00:00:00+00:00",
-                404,
+                "{'dag_run_id': ['Missing data for required field.'], 'logical_date': ['Unknown field.']}",
+                400,
                 {
                     "dry_run": True,
                     "task_id": "print_the_context",
-                    "execution_date": "2021-01-01T00:00:00+00:00",
+                    "logical_date": "2021-01-01T00:00:00+00:00",
                     "include_upstream": True,
                     "include_downstream": True,
                     "include_future": True,
@@ -1813,13 +1860,13 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
                 },
             ],
             [
-                "{'_schema': ['Exactly one of execution_date or dag_run_id must be provided']}",
+                "{'logical_date': ['Unknown field.']}",
                 400,
                 {
                     "dry_run": True,
                     "task_id": "print_the_context",
                     "dag_run_id": "TEST_DAG_RUN_",
-                    "execution_date": "2020-01-01T00:00:00+00:00",
+                    "logical_date": "2020-01-01T00:00:00+00:00",
                     "include_upstream": True,
                     "include_downstream": True,
                     "include_future": True,
@@ -1845,7 +1892,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             json={
                 "dry_run": True,
                 "task_id": "print_the_context",
-                "execution_date": DEFAULT_DATETIME_1.isoformat(),
+                "logical_date": DEFAULT_DATETIME_1.isoformat(),
                 "include_upstream": True,
                 "include_downstream": True,
                 "include_future": True,
@@ -1862,7 +1909,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             json={
                 "dry_run": True,
                 "task_id": "print_the_context",
-                "execution_date": DEFAULT_DATETIME_1.isoformat(),
+                "logical_date": DEFAULT_DATETIME_1.isoformat(),
                 "include_upstream": True,
                 "include_downstream": True,
                 "include_future": True,
@@ -1879,7 +1926,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             json={
                 "dry_run": True,
                 "task_id": "print_the_context",
-                "execution_date": DEFAULT_DATETIME_1.isoformat(),
+                "dag_run_id": "random_run_id",
                 "include_upstream": True,
                 "include_downstream": True,
                 "include_future": True,
@@ -1890,16 +1937,16 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         assert response.status_code == 404
 
     @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
-    def test_should_raise_not_found_if_execution_date_is_wrong(self, mock_set_task_instance_state, session):
+    def test_should_raise_not_found_if_run_id_is_wrong(self, mock_set_task_instance_state, session):
         self.create_task_instances(session)
-        date = DEFAULT_DATETIME_1 + dt.timedelta(days=1)
+        run_id = "random_run_id"
         response = self.client.post(
             "/api/v1/dags/example_python_operator/updateTaskInstancesState",
             environ_overrides={"REMOTE_USER": "test"},
             json={
                 "dry_run": True,
                 "task_id": "print_the_context",
-                "execution_date": date.isoformat(),
+                "dag_run_id": run_id,
                 "include_upstream": True,
                 "include_downstream": True,
                 "include_future": True,
@@ -1909,7 +1956,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 404
         assert response.json["detail"] == (
-            f"Task instance not found for task 'print_the_context' on execution_date {date}"
+            f"Task instance not found for task 'print_the_context' on DAG run with ID '{run_id}'"
         )
         assert mock_set_task_instance_state.call_count == 0
 
@@ -1920,7 +1967,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             json={
                 "dry_run": True,
                 "task_id": "INVALID_TASK",
-                "execution_date": DEFAULT_DATETIME_1.isoformat(),
+                "dag_run_id": "TEST_DAG_RUN_ID",
                 "include_upstream": True,
                 "include_downstream": True,
                 "include_future": True,
@@ -1929,48 +1976,6 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
             },
         )
         assert response.status_code == 404
-
-    @pytest.mark.parametrize(
-        "payload, expected",
-        [
-            (
-                {
-                    "dry_run": True,
-                    "task_id": "print_the_context",
-                    "execution_date": "2020-11-10T12:42:39.442973",
-                    "include_upstream": True,
-                    "include_downstream": True,
-                    "include_future": True,
-                    "include_past": True,
-                    "new_state": "failed",
-                },
-                "Naive datetime is disallowed",
-            ),
-            (
-                {
-                    "dry_run": True,
-                    "task_id": "print_the_context",
-                    "execution_date": "2020-11-10T12:4opfo",
-                    "include_upstream": True,
-                    "include_downstream": True,
-                    "include_future": True,
-                    "include_past": True,
-                    "new_state": "failed",
-                },
-                "{'execution_date': ['Not a valid datetime.']}",
-            ),
-        ],
-    )
-    @provide_session
-    def test_should_raise_400_for_naive_and_bad_datetime(self, payload, expected, session):
-        self.create_task_instances(session)
-        response = self.client.post(
-            "/api/v1/dags/example_python_operator/updateTaskInstancesState",
-            environ_overrides={"REMOTE_USER": "test"},
-            json=payload,
-        )
-        assert response.status_code == 400
-        assert response.json["detail"] == expected
 
 
 class TestPatchTaskInstance(TestTaskInstanceEndpoint):
@@ -1983,15 +1988,15 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
 
         NEW_STATE = "failed"
-        mock_set_task_instance_state.return_value = session.get(
-            TaskInstance,
-            {
-                "task_id": "print_the_context",
-                "dag_id": "example_python_operator",
-                "run_id": "TEST_DAG_RUN_ID",
-                "map_index": -1,
-            },
-        )
+        mock_set_task_instance_state.return_value = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == "example_python_operator",
+                TaskInstance.task_id == "print_the_context",
+                TaskInstance.run_id == "TEST_DAG_RUN_ID",
+                TaskInstance.map_index == -1,
+            )
+        ).one_or_none()
+
         response = self.client.patch(
             self.ENDPOINT_URL,
             environ_overrides={"REMOTE_USER": "test"},
@@ -2004,7 +2009,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response.json == {
             "dag_id": "example_python_operator",
             "dag_run_id": "TEST_DAG_RUN_ID",
-            "execution_date": "2020-01-01T00:00:00+00:00",
+            "logical_date": "2020-01-01T00:00:00+00:00",
             "task_id": "print_the_context",
         }
 
@@ -2020,7 +2025,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
             session,
             dag_id="example_python_operator",
             event="api.post_set_task_instances_state",
-            execution_date=None,
+            logical_date=None,
         )
 
     @mock.patch("airflow.models.dag.DAG.set_task_instance_state")
@@ -2028,15 +2033,15 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         self.create_task_instances(session)
 
         NEW_STATE = "failed"
-        mock_set_task_instance_state.return_value = session.get(
-            TaskInstance,
-            {
-                "task_id": "print_the_context",
-                "dag_id": "example_python_operator",
-                "run_id": "TEST_DAG_RUN_ID",
-                "map_index": -1,
-            },
-        )
+        mock_set_task_instance_state.return_value = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == "example_python_operator",
+                TaskInstance.task_id == "print_the_context",
+                TaskInstance.run_id == "TEST_DAG_RUN_ID",
+                TaskInstance.map_index == -1,
+            )
+        ).one_or_none()
+
         response = self.client.patch(
             self.ENDPOINT_URL,
             environ_overrides={"REMOTE_USER": "test"},
@@ -2049,7 +2054,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response.json == {
             "dag_id": "example_python_operator",
             "dag_run_id": "TEST_DAG_RUN_ID",
-            "execution_date": "2020-01-01T00:00:00+00:00",
+            "logical_date": "2020-01-01T00:00:00+00:00",
             "task_id": "print_the_context",
         }
 
@@ -2286,7 +2291,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
             "dag_id": "example_python_operator",
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
-            "execution_date": "2020-01-01T00:00:00+00:00",
+            "logical_date": "2020-01-01T00:00:00+00:00",
             "executor": None,
             "executor_config": "{}",
             "hostname": "",
@@ -2315,7 +2320,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
         ti = session.scalars(select(TaskInstance).where(TaskInstance.task_id == "print_the_context")).one()
         assert ti.task_instance_note.user_id is not None
         _check_last_log(
-            session, dag_id="example_python_operator", event="api.set_task_instance_note", execution_date=None
+            session, dag_id="example_python_operator", event="api.set_task_instance_note", logical_date=None
         )
 
     def test_should_respond_200_mapped_task_instance_with_rtif(self, session):
@@ -2345,7 +2350,7 @@ class TestSetTaskInstanceNote(TestTaskInstanceEndpoint):
                 "dag_id": "example_python_operator",
                 "duration": 10000.0,
                 "end_date": "2020-01-03T00:00:00+00:00",
-                "execution_date": "2020-01-01T00:00:00+00:00",
+                "logical_date": "2020-01-01T00:00:00+00:00",
                 "executor": None,
                 "executor_config": "{}",
                 "hostname": "",
@@ -2459,13 +2464,13 @@ class TestGetTaskDependencies(TestTaskInstanceEndpoint):
                 {
                     "dependencies": [
                         {
-                            "name": "Execution Date",
-                            "reason": "The execution date is 2020-01-01T00:00:00+00:00 but this is "
+                            "name": "Logical Date",
+                            "reason": "The logical date is 2020-01-01T00:00:00+00:00 but this is "
                             "before the task's start date 2021-01-01T00:00:00+00:00.",
                         },
                         {
-                            "name": "Execution Date",
-                            "reason": "The execution date is 2020-01-01T00:00:00+00:00 but this is "
+                            "name": "Logical Date",
+                            "reason": "The logical date is 2020-01-01T00:00:00+00:00 but this is "
                             "before the task's DAG's start date 2021-01-01T00:00:00+00:00.",
                         },
                     ],
@@ -2476,12 +2481,12 @@ class TestGetTaskDependencies(TestTaskInstanceEndpoint):
                 {
                     "dependencies": [
                         {
-                            "name": "Execution Date",
-                            "reason": "The execution date is 2020-01-01T00:00:00+00:00 but this is before the task's start date 2021-01-01T00:00:00+00:00.",
+                            "name": "Logical Date",
+                            "reason": "The logical date is 2020-01-01T00:00:00+00:00 but this is before the task's start date 2021-01-01T00:00:00+00:00.",
                         },
                         {
-                            "name": "Execution Date",
-                            "reason": "The execution date is 2020-01-01T00:00:00+00:00 but this is before the task's DAG's start date 2021-01-01T00:00:00+00:00.",
+                            "name": "Logical Date",
+                            "reason": "The logical date is 2020-01-01T00:00:00+00:00 but this is before the task's DAG's start date 2021-01-01T00:00:00+00:00.",
                         },
                         {"name": "Task Instance State", "reason": "Task is in the 'None' state."},
                     ]
@@ -2824,6 +2829,23 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert response.json["total_entries"] == 2  # The task instance and its history
         assert len(response.json["task_instances"]) == 2
+
+    def test_ti_in_retry_state_not_returned(self, session):
+        self.create_task_instances(
+            session=session, task_instances=[{"state": State.SUCCESS}], with_ti_history=True
+        )
+        ti = session.query(TaskInstance).one()
+        ti.state = State.UP_FOR_RETRY
+        session.merge(ti)
+        session.commit()
+
+        response = self.client.get(
+            "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json["total_entries"] == 1
+        assert len(response.json["task_instances"]) == 1
 
     def test_mapped_task_should_respond_200(self, session):
         tis = self.create_task_instances(session, task_instances=[{"state": State.FAILED}])

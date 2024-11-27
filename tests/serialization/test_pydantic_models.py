@@ -33,7 +33,7 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
     TaskOutletAssetReference,
 )
-from airflow.models.dag import DAG, DagModel, create_timetable
+from airflow.models.dag import DAG, DagModel
 from airflow.serialization.pydantic.asset import AssetEventPydantic
 from airflow.serialization.pydantic.dag import DagModelPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
@@ -73,7 +73,7 @@ def test_serializing_pydantic_task_instance(session, create_task_instance):
     assert deserialized_model.dag_id == dag_id
     assert deserialized_model.state == State.RUNNING
     assert deserialized_model.try_number == ti.try_number
-    assert deserialized_model.execution_date == ti.execution_date
+    assert deserialized_model.logical_date == ti.logical_date
     assert deserialized_model.next_kwargs == {"foo": "bar"}
 
 
@@ -81,11 +81,10 @@ def test_serializing_pydantic_task_instance(session, create_task_instance):
 def test_deserialize_ti_mapped_op_reserialized_with_refresh_from_task(session, dag_maker):
     op_class_dict_expected = {
         "_needs_expansion": True,
-        "_task_type": "_PythonDecoratedOperator",
+        "task_type": "_PythonDecoratedOperator",
         "downstream_task_ids": [],
         "start_from_trigger": False,
         "start_trigger_args": None,
-        "_operator_name": "@task",
         "ui_fgcolor": "#000",
         "ui_color": "#ffefeb",
         "template_fields": ["templates_dict", "op_args", "op_kwargs"],
@@ -128,6 +127,8 @@ def test_deserialize_ti_mapped_op_reserialized_with_refresh_from_task(session, d
     assert desered.task.__class__ == MappedOperator
 
     assert desered.task.operator_class == op_class_dict_expected
+    assert desered.task.task_type == "_PythonDecoratedOperator"
+    assert desered.task.operator_name == "@task"
 
     desered.refresh_from_task(deser_task)
 
@@ -180,12 +181,11 @@ def test_serializing_pydantic_dagrun(session, create_task_instance):
     ],
 )
 def test_serializing_pydantic_dagmodel(schedule):
-    timetable = create_timetable(schedule, timezone.utc)
     dag_model = DagModel(
         dag_id="test-dag",
         fileloc="/tmp/dag_1.py",
-        timetable_summary=timetable.summary,
-        timetable_description=timetable.description,
+        timetable_summary="summary",
+        timetable_description="desc",
         is_active=True,
         is_paused=False,
     )
@@ -196,8 +196,8 @@ def test_serializing_pydantic_dagmodel(schedule):
     deserialized_model = DagModelPydantic.model_validate_json(json_string)
     assert deserialized_model.dag_id == "test-dag"
     assert deserialized_model.fileloc == "/tmp/dag_1.py"
-    assert deserialized_model.timetable_summary == timetable.summary
-    assert deserialized_model.timetable_description == timetable.description
+    assert deserialized_model.timetable_summary == "summary"
+    assert deserialized_model.timetable_description == "desc"
     assert deserialized_model.is_active is True
     assert deserialized_model.is_paused is False
 
@@ -238,17 +238,17 @@ def test_serializing_pydantic_asset_event(session, create_task_instance, create_
         with_dagrun_type=DagRunType.MANUAL,
         session=session,
     )
-    execution_date = timezone.utcnow()
+    logical_date = timezone.utcnow()
     TracebackSessionForTests.set_allow_db_access(session, True)
 
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dr = dag.create_dagrun(
         run_id="test2",
         run_type=DagRunType.ASSET_TRIGGERED,
-        execution_date=execution_date,
+        logical_date=logical_date,
         state=None,
         session=session,
-        data_interval=(execution_date, execution_date),
+        data_interval=(logical_date, logical_date),
         **triggered_by_kwargs,
     )
     asset1_event = AssetEvent(asset_id=1)

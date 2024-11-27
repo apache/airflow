@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Collection
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Collection
+from typing import TYPE_CHECKING
 
 from connexion import NoContent
 from flask import g, request
@@ -134,7 +135,7 @@ def get_dags(
 
     try:
         dags_collection_schema = (
-            DAGCollectionSchema(only=[f"dags.{field}" for field in fields])
+            DAGCollectionSchema(only=[f"dags.{field}" for field in fields] + ["total_entries"])
             if fields
             else DAGCollectionSchema()
         )

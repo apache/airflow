@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable, Sequence, TypeVar
+from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from flask import g
 from marshmallow import ValidationError
@@ -52,6 +53,7 @@ from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -69,6 +71,7 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_task_instance(
@@ -102,6 +105,7 @@ def get_task_instance(
     return task_instance_schema.dump(task_instance)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_mapped_task_instance(
@@ -127,6 +131,7 @@ def get_mapped_task_instance(
     return task_instance_schema.dump(task_instance)
 
 
+@mark_fastapi_migration_done
 @format_parameters(
     {
         "execution_date_gte": format_datetime,
@@ -194,7 +199,7 @@ def get_mapped_task_instances(
     # Other search criteria
     base_query = _apply_range_filter(
         base_query,
-        key=DR.execution_date,
+        key=DR.logical_date,
         value_range=(execution_date_gte, execution_date_lte),
     )
     base_query = _apply_range_filter(
@@ -280,6 +285,7 @@ def _get_order_by_params(order_by: str | None = None) -> tuple[ColumnOperators, 
     raise _UnsupportedOrderBy(order_by)
 
 
+@mark_fastapi_migration_done
 @format_parameters(
     {
         "execution_date_gte": format_datetime,
@@ -331,7 +337,7 @@ def get_task_instances(
         base_query = base_query.where(TI.run_id == dag_run_id)
     base_query = _apply_range_filter(
         base_query,
-        key=DR.execution_date,
+        key=DR.logical_date,
         value_range=(execution_date_gte, execution_date_lte),
     )
     base_query = _apply_range_filter(
@@ -362,6 +368,7 @@ def get_task_instances(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
@@ -393,7 +400,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     base_query = _apply_array_filter(base_query, key=TI.task_id, values=data["task_ids"])
     base_query = _apply_range_filter(
         base_query,
-        key=DR.execution_date,
+        key=DR.logical_date,
         value_range=(data["execution_date_gte"], data["execution_date_lte"]),
     )
     base_query = _apply_range_filter(
@@ -425,6 +432,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     except _UnsupportedOrderBy as e:
         raise BadRequest(detail=f"Ordering with {e.order_by!r} is not supported")
 
+    ti_query = ti_query.offset(data["page_offset"]).limit(data["page_limit"])
     task_instances = session.scalars(ti_query)
 
     return task_instance_collection_schema.dump(
@@ -432,6 +440,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
 @action_logging
 @provide_session
@@ -515,34 +524,22 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
     if not task:
         error_message = f"Task ID {task_id} not found"
         raise NotFound(error_message)
-
-    execution_date = data.get("execution_date")
     run_id = data.get("dag_run_id")
-    if (
-        execution_date
-        and (
-            session.scalars(
-                select(TI).where(
-                    TI.task_id == task_id, TI.dag_id == dag_id, TI.execution_date == execution_date
-                )
-            ).one_or_none()
-        )
-        is None
-    ):
-        raise NotFound(
-            detail=f"Task instance not found for task {task_id!r} on execution_date {execution_date}"
-        )
+    if not run_id:
+        error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {run_id!r}"
+        raise NotFound(detail=error_message)
 
-    if run_id and not session.get(
-        TI, {"task_id": task_id, "dag_id": dag_id, "run_id": run_id, "map_index": -1}
-    ):
+    select_stmt = select(TI).where(
+        TI.dag_id == dag_id, TI.task_id == task_id, TI.run_id == run_id, TI.map_index == -1
+    )
+
+    if run_id and not session.scalars(select_stmt).one_or_none():
         error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {run_id!r}"
         raise NotFound(detail=error_message)
 
     tis = dag.set_task_instance_state(
         task_id=task_id,
         run_id=run_id,
-        execution_date=execution_date,
         state=data["new_state"],
         upstream=data["include_upstream"],
         downstream=data["include_downstream"],
@@ -561,6 +558,7 @@ def set_mapped_task_instance_note(
     return set_task_instance_note(dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("PUT", DagAccessEntity.TASK_INSTANCE)
 @action_logging
 @provide_session
@@ -581,9 +579,11 @@ def patch_task_instance(
     if not dag.has_task(task_id):
         raise NotFound("Task not found", detail=f"Task {task_id!r} not found in DAG {dag_id!r}")
 
-    ti: TI | None = session.get(
-        TI, {"task_id": task_id, "dag_id": dag_id, "run_id": dag_run_id, "map_index": map_index}
+    select_stmt = select(TI).where(
+        TI.dag_id == dag_id, TI.task_id == task_id, TI.run_id == dag_run_id, TI.map_index == map_index
     )
+
+    ti: TI | None = session.scalars(select_stmt).one_or_none()
 
     if not ti:
         error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {dag_run_id!r}"
@@ -711,6 +711,7 @@ def get_task_instance_dependencies(
     return task_dependencies_collection_schema.dump({"dependencies": deps})
 
 
+@mark_fastapi_migration_done
 def get_mapped_task_instance_dependencies(
     *, dag_id: str, dag_run_id: str, task_id: str, map_index: int
 ) -> APIResponse:
@@ -720,6 +721,7 @@ def get_mapped_task_instance_dependencies(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_task_instance_try_details(
@@ -757,6 +759,7 @@ def get_task_instance_try_details(
     return task_instance_history_schema.dump(result[0])
 
 
+@mark_fastapi_migration_done
 @provide_session
 def get_mapped_task_instance_try_details(
     *,
@@ -778,6 +781,7 @@ def get_mapped_task_instance_try_details(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_task_instance_tries(
@@ -799,12 +803,18 @@ def get_task_instance_tries(
         )
         return query
 
-    task_instances = session.scalars(_query(TIH)).all() + session.scalars(_query(TI)).all()
+    # Exclude TaskInstance with state UP_FOR_RETRY since they have been recorded in TaskInstanceHistory
+    tis = session.scalars(
+        _query(TI).where(or_(TI.state != TaskInstanceState.UP_FOR_RETRY, TI.state.is_(None)))
+    ).all()
+
+    task_instances = session.scalars(_query(TIH)).all() + tis
     return task_instance_history_collection_schema.dump(
         TaskInstanceHistoryCollection(task_instances=task_instances, total_entries=len(task_instances))
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
 @provide_session
 def get_mapped_task_instance_tries(

@@ -52,8 +52,6 @@ _module_to_executors: dict[str, ExecutorName] = {}
 _classname_to_executors: dict[str, ExecutorName] = {}
 # Used to cache the computed ExecutorNames so that we don't need to read/parse config more than once
 _executor_names: list[ExecutorName] = []
-# Used to cache executors so that we don't construct executor objects unnecessarily
-_loaded_executors: dict[ExecutorName, BaseExecutor] = {}
 
 
 class ExecutorLoader:
@@ -94,7 +92,7 @@ class ExecutorLoader:
                 # paths won't be provided by the user in that case.
                 if core_executor_module := cls.executors.get(name):
                     executor_names.append(ExecutorName(alias=name, module_path=core_executor_module))
-                # Only a module path or plugin name was provided
+                # A module path was provided
                 else:
                     executor_names.append(ExecutorName(alias=None, module_path=name))
             # An alias was provided with the module path
@@ -104,12 +102,12 @@ class ExecutorLoader:
                 # (e.g. my_local_exec_alias:LocalExecutor). Allowing this makes things unnecessarily
                 # complicated. Multiple Executors of the same type will be supported by a future multitenancy
                 # AIP.
-                # The module component should always be a module or plugin path.
+                # The module component should always be a module path.
                 module_path = split_name[1]
                 if not module_path or module_path in CORE_EXECUTOR_NAMES or "." not in module_path:
                     raise AirflowConfigException(
                         "Incorrectly formatted executor configuration. Second portion of an executor "
-                        f"configuration must be a module path or plugin but received: {module_path}"
+                        f"configuration must be a module path but received: {module_path}"
                     )
                 else:
                     executor_names.append(ExecutorName(alias=split_name[0], module_path=split_name[1]))
@@ -117,7 +115,7 @@ class ExecutorLoader:
                 raise AirflowConfigException(f"Incorrectly formatted executor configuration: {name}")
 
         # As of now, we do not allow duplicate executors.
-        # Add all module paths/plugin names to a set, since the actual code is what is unique
+        # Add all module paths to a set, since the actual code is what is unique
         unique_modules = set([exec_name.module_path for exec_name in executor_names])
         if len(unique_modules) < len(executor_names):
             msg = (
@@ -166,22 +164,6 @@ class ExecutorLoader:
         return default_executor
 
     @classmethod
-    def set_default_executor(cls, executor: BaseExecutor) -> None:
-        """
-        Externally set an executor to be the default.
-
-        This is used in rare cases such as dag.test which allows, as a user convenience, to provide
-        the executor by cli/argument instead of Airflow configuration
-        """
-        exec_class_name = executor.__class__.__qualname__
-        exec_name = ExecutorName(f"{executor.__module__}.{exec_class_name}")
-
-        _module_to_executors[exec_name.module_path] = exec_name
-        _classname_to_executors[exec_class_name] = exec_name
-        _executor_names.insert(0, exec_name)
-        _loaded_executors[exec_name] = executor
-
-    @classmethod
     def init_executors(cls) -> list[BaseExecutor]:
         """Create a new instance of all configured executors if not cached already."""
         executor_names = cls._get_executor_names()
@@ -216,7 +198,6 @@ class ExecutorLoader:
 
         This supports the following formats:
         * by executor name for core executor
-        * by ``{plugin_name}.{class_name}`` for executor from plugins
         * by import path
         * by class name of the Executor
         * by ExecutorName object specification
@@ -229,10 +210,6 @@ class ExecutorLoader:
             _executor_name = cls.lookup_executor_name_by_str(executor_name)
         else:
             _executor_name = executor_name
-
-        # Check if the executor has been previously loaded. Avoid constructing a new object
-        if _executor_name in _loaded_executors:
-            return _loaded_executors[_executor_name]
 
         try:
             if _executor_name.alias == CELERY_KUBERNETES_EXECUTOR:
@@ -256,9 +233,6 @@ class ExecutorLoader:
         # instance. This makes it easier for the Scheduler, Backfill, etc to
         # know how we refer to this executor.
         executor.name = _executor_name
-        # Cache this executor by name here, so we can look it up later if it is
-        # requested again, and not have to construct a new object
-        _loaded_executors[_executor_name] = executor
 
         return executor
 
@@ -271,7 +245,7 @@ class ExecutorLoader:
 
         Supports the same formats as ExecutorLoader.load_executor.
 
-        :param executor_name: Name of core executor or module path to provider provided as a plugin.
+        :param executor_name: Name of core executor or module path to executor.
         :param validate: Whether or not to validate the executor before returning
 
         :return: executor class via executor_name and executor import source
@@ -299,7 +273,7 @@ class ExecutorLoader:
         return executor, source
 
     @classmethod
-    @functools.lru_cache(maxsize=None)
+    @functools.cache
     def validate_database_executor_compatibility(cls, executor: type[BaseExecutor]) -> None:
         """
         Validate database and executor compatibility.

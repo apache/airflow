@@ -21,7 +21,8 @@ from __future__ import annotations
 
 import json
 import sys
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.models.xcom import MAX_XCOM_SIZE, XCOM_RETURN_KEY

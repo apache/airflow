@@ -17,14 +17,16 @@
 from __future__ import annotations
 
 import argparse
+import warnings
 from collections import defaultdict
+from collections.abc import Container, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Container, Sequence, cast
+from typing import TYPE_CHECKING, cast
 
 from flask import session, url_for
 
 from airflow.cli.cli_config import CLICommand, DefaultHelpParser, GroupCommand
-from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
 from airflow.providers.amazon.aws.auth_manager.avp.facade import (
     AwsAuthManagerAmazonVerifiedPermissionsFacade,
@@ -165,6 +167,16 @@ class AwsAuthManager(BaseAuthManager):
         return self.avp_facade.is_authorized(
             method=method, entity_type=AvpEntities.ASSET, user=user or self.get_user(), entity_id=asset_uri
         )
+
+    def is_authorized_dataset(
+        self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
+    ) -> bool:
+        warnings.warn(
+            "is_authorized_dataset will be renamed as is_authorized_asset in Airflow 3 and will be removed when the minimum Airflow version is set to 3.0 for the amazon provider",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.is_authorized_asset(method=method, user=user)
 
     def is_authorized_pool(
         self, *, method: ResourceMethod, details: PoolDetails | None = None, user: BaseUser | None = None
@@ -419,7 +431,8 @@ class AwsAuthManager(BaseAuthManager):
         ]
 
     def register_views(self) -> None:
-        self.appbuilder.add_view_no_menu(AwsAuthManagerAuthenticationViews())
+        if self.appbuilder:
+            self.appbuilder.add_view_no_menu(AwsAuthManagerAuthenticationViews())
 
     @staticmethod
     def _get_menu_item_request(resource_name: str) -> IsAuthorizedRequest:

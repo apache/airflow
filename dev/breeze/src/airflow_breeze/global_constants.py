@@ -32,10 +32,15 @@ try:
 except ImportError:
     get_console().print(
         "\n[error]Breeze doesn't support Python version <=3.8\n\n"
-        "[warning]Use Python 3.9 and force reinstall breeze with pipx\n\n"
-        "     pipx install --force -e ./dev/breeze\n"
+        "[warning]Use Python 3.9 and force reinstall breeze:"
+        ""
+        " either with uv: \n\n"
+        "     uv tool install --force --reinstall --editable ./dev/breeze\n\n"
+        ""
+        " or with pipx\n\n"
+        "     pipx install --force -e ./dev/breeze --python 3.9\n"
         "\nTo find out more, visit [info]https://github.com/apache/airflow/"
-        "blob/main/dev/breeze/doc/01_installation.rst#the-pipx-tool[/]\n"
+        "blob/main/dev/breeze/doc/01_installation.rst[/]\n"
     )
     sys.exit(1)
 from pathlib import Path
@@ -62,18 +67,24 @@ APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
-# Database Backends used when starting Breeze. The "none" value means that invalid configuration
-# Is set and no database started - access to a database will fail.
-ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "none"]
-ALLOWED_PROD_BACKENDS = ["mysql", "postgres"]
+# Database Backends used when starting Breeze. The "none" value means that the configuration is invalid.
+# No database will be started - access to a database will fail.
+SQLITE_BACKEND = "sqlite"
+MYSQL_BACKEND = "mysql"
+POSTGRES_BACKEND = "postgres"
+NONE_BACKEND = "none"
+ALLOWED_BACKENDS = [SQLITE_BACKEND, MYSQL_BACKEND, POSTGRES_BACKEND, NONE_BACKEND]
+ALLOWED_PROD_BACKENDS = [MYSQL_BACKEND, POSTGRES_BACKEND]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 CELERY_INTEGRATION = "celery"
-TESTABLE_INTEGRATIONS = [
-    "cassandra",
+TESTABLE_CORE_INTEGRATIONS = [
     CELERY_INTEGRATION,
+    "kerberos",
+]
+TESTABLE_PROVIDERS_INTEGRATIONS = [
+    "cassandra",
     "drill",
     "kafka",
-    "kerberos",
     "mongo",
     "mssql",
     "pinot",
@@ -85,19 +96,45 @@ TESTABLE_INTEGRATIONS = [
 DISABLE_TESTABLE_INTEGRATIONS_FROM_CI = [
     "mssql",
 ]
-OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
+KEYCLOAK_INTEGRATION = "keycloak"
+STATSD_INTEGRATION = "statsd"
+OTEL_INTEGRATION = "otel"
+OPENLINEAGE_INTEGRATION = "openlineage"
+OTHER_CORE_INTEGRATIONS = [STATSD_INTEGRATION, OTEL_INTEGRATION, KEYCLOAK_INTEGRATION]
+OTHER_PROVIDERS_INTEGRATIONS = [OPENLINEAGE_INTEGRATION]
 ALLOWED_DEBIAN_VERSIONS = ["bookworm"]
-ALL_INTEGRATIONS = sorted(
+ALL_CORE_INTEGRATIONS = sorted(
     [
-        *TESTABLE_INTEGRATIONS,
-        *OTHER_INTEGRATIONS,
+        *TESTABLE_CORE_INTEGRATIONS,
+        *OTHER_CORE_INTEGRATIONS,
     ]
 )
-AUTOCOMPLETE_INTEGRATIONS = sorted(
+ALL_PROVIDERS_INTEGRATIONS = sorted(
+    [
+        *TESTABLE_PROVIDERS_INTEGRATIONS,
+        *OTHER_PROVIDERS_INTEGRATIONS,
+    ]
+)
+AUTOCOMPLETE_CORE_INTEGRATIONS = sorted(
     [
         "all-testable",
         "all",
-        *ALL_INTEGRATIONS,
+        *ALL_CORE_INTEGRATIONS,
+    ]
+)
+AUTOCOMPLETE_PROVIDERS_INTEGRATIONS = sorted(
+    [
+        "all-testable",
+        "all",
+        *ALL_PROVIDERS_INTEGRATIONS,
+    ]
+)
+AUTOCOMPLETE_ALL_INTEGRATIONS = sorted(
+    [
+        "all-testable",
+        "all",
+        *ALL_CORE_INTEGRATIONS,
+        *ALL_PROVIDERS_INTEGRATIONS,
     ]
 )
 ALLOWED_TTY = ["auto", "enabled", "disabled"]
@@ -154,7 +191,7 @@ ALLOWED_MOUNT_OPTIONS = [
 ]
 
 USE_AIRFLOW_MOUNT_SOURCES = [MOUNT_REMOVE, MOUNT_TESTS, MOUNT_PROVIDERS_AND_TESTS]
-ALLOWED_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16", "17"]
+ALLOWED_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17"]
 # Oracle introduced new release model for MySQL
 # - LTS: Long Time Support releases, new release approx every 2 year,
 #  with 5 year premier and 3 year extended support, no new features/removals during current LTS release.
@@ -170,7 +207,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
-PIP_VERSION = "24.2"
+PIP_VERSION = "24.3.1"
+UV_VERSION = "0.5.4"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -185,44 +223,58 @@ REGULAR_DOC_PACKAGES = [
 
 
 @cache
-def all_selective_test_types() -> tuple[str, ...]:
-    return tuple(sorted(e.value for e in SelectiveUnitTestTypes))
+def all_selective_core_test_types() -> tuple[str, ...]:
+    return tuple(sorted(e.value for e in SelectiveCoreTestType))
 
 
 @cache
-def all_selective_test_types_except_providers() -> tuple[str, ...]:
-    return tuple(sorted(e.value for e in SelectiveUnitTestTypes if e != SelectiveUnitTestTypes.PROVIDERS))
+def providers_test_type() -> tuple[str, ...]:
+    return tuple(sorted(e.value for e in SelectiveProvidersTestType))
 
 
-class SelectiveUnitTestTypes(Enum):
+class SelectiveTestType(Enum):
+    pass
+
+
+class SelectiveCoreTestType(SelectiveTestType):
     ALWAYS = "Always"
     API = "API"
-    BRANCH_PYTHON_VENV = "BranchPythonVenv"
-    EXTERNAL_PYTHON = "ExternalPython"
-    EXTERNAL_BRANCH_PYTHON = "BranchExternalPython"
     CLI = "CLI"
     CORE = "Core"
     SERIALIZATION = "Serialization"
     OTHER = "Other"
     OPERATORS = "Operators"
-    PLAIN_ASSERTS = "PlainAsserts"
-    PROVIDERS = "Providers"
-    PYTHON_VENV = "PythonVenv"
     WWW = "WWW"
 
 
-ALLOWED_TEST_TYPE_CHOICES = [
-    "All",
-    "Default",
-    *all_selective_test_types(),
-    "All-Postgres",
-    "All-MySQL",
-    "All-Quarantined",
-]
+class SelectiveProvidersTestType(SelectiveTestType):
+    PROVIDERS = "Providers"
 
-ALLOWED_PARALLEL_TEST_TYPE_CHOICES = [
-    *all_selective_test_types(),
-]
+
+class SelectiveTaskSdkTestType(SelectiveTestType):
+    TASK_SDK = "TaskSdk"
+
+
+class GroupOfTests(Enum):
+    CORE = "core"
+    PROVIDERS = "providers"
+    TASK_SDK = "task-sdk"
+    HELM = "helm"
+    INTEGRATION_CORE = "integration-core"
+    INTEGRATION_PROVIDERS = "integration-providers"
+    SYSTEM = "system"
+
+
+ALL_TEST_TYPE = "All"
+NONE_TEST_TYPE = "None"
+
+ALL_TEST_SUITES: dict[str, tuple[str, ...]] = {
+    "All": (),
+    "All-Long": ("-m", "long_running", "--include-long-running"),
+    "All-Quarantined": ("-m", "quarantined", "--include-quarantined"),
+    "All-Postgres": ("--backend", "postgres"),
+    "All-MySQL": ("--backend", "mysql"),
+}
 
 
 @cache
@@ -236,21 +288,26 @@ def all_helm_test_packages() -> list[str]:
     )
 
 
-ALLOWED_HELM_TEST_PACKAGES = [
-    "all",
-    *all_helm_test_packages(),
-]
+ALLOWED_TEST_TYPE_CHOICES: dict[GroupOfTests, list[str]] = {
+    GroupOfTests.CORE: [*ALL_TEST_SUITES.keys(), *all_selective_core_test_types()],
+    GroupOfTests.PROVIDERS: [*ALL_TEST_SUITES.keys()],
+    GroupOfTests.TASK_SDK: [ALL_TEST_TYPE],
+    GroupOfTests.HELM: [ALL_TEST_TYPE, *all_helm_test_packages()],
+}
 
 
 @cache
 def all_task_sdk_test_packages() -> list[str]:
-    return sorted(
-        [
-            candidate.name
-            for candidate in (AIRFLOW_SOURCES_ROOT / "task_sdk" / "tests").iterdir()
-            if candidate.is_dir() and candidate.name != "__pycache__"
-        ]
-    )
+    try:
+        return sorted(
+            [
+                candidate.name
+                for candidate in (AIRFLOW_SOURCES_ROOT / "task_sdk" / "tests").iterdir()
+                if candidate.is_dir() and candidate.name != "__pycache__"
+            ]
+        )
+    except FileNotFoundError:
+        return []
 
 
 ALLOWED_TASK_SDK_TEST_PACKAGES = [
@@ -305,7 +362,7 @@ PRODUCTION_IMAGE = False
 # changes from main to the previous branch.
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.9", "3.10", "3.11", "3.12"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
-CURRENT_POSTGRES_VERSIONS = ["12", "13", "14", "15", "16", "17"]
+CURRENT_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
 USE_MYSQL_INNOVATION_RELEASE = True
 if USE_MYSQL_INNOVATION_RELEASE:
@@ -362,6 +419,7 @@ AIRFLOW_PYTHON_COMPATIBILITY_MATRIX = {
     "2.10.0": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "2.10.1": ["3.8", "3.9", "3.10", "3.11", "3.12"],
     "2.10.2": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+    "2.10.3": ["3.8", "3.9", "3.10", "3.11", "3.12"],
 }
 
 DB_RESET = False
@@ -393,12 +451,14 @@ COMMITTERS = [
     "bolkedebruin",
     "criccomini",
     "dimberman",
+    "dirrao",
     "dstandish",
     "eladkal",
     "ephraimbuddy",
     "feluelle",
     "feng-tao",
     "ferruzzi",
+    "gopidesupavan",
     "houqp",
     "hussein-awala",
     "jedcunningham",
@@ -430,6 +490,7 @@ COMMITTERS = [
     "saguziel",
     "sekikn",
     "shahar1",
+    "tirkarthi",
     "turbaszek",
     "uranusjr",
     "utkarsharma2",
@@ -487,8 +548,6 @@ FILES_FOR_REBUILD_CHECK = [
     "scripts/docker/install_mysql.sh",
 ]
 
-ENABLED_SYSTEMS = ""
-
 CURRENT_KUBERNETES_VERSIONS = ALLOWED_KUBERNETES_VERSIONS
 CURRENT_EXECUTORS = [KUBERNETES_EXECUTOR]
 
@@ -544,30 +603,29 @@ DEFAULT_EXTRAS = [
     "ssh",
     "statsd",
     "uv",
-    "virtualenv",
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
 
-CHICKEN_EGG_PROVIDERS = " ".join(["standard amazon"])
+CHICKEN_EGG_PROVIDERS = " ".join(["standard amazon common.sql"])
 
 
-BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
+PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.9",
         "airflow-version": "2.8.4",
-        "remove-providers": "cloudant fab edge standard",
+        "remove-providers": "cloudant fab edge",
         "run-tests": "true",
     },
     {
         "python-version": "3.9",
         "airflow-version": "2.9.3",
-        "remove-providers": "cloudant edge standard",
+        "remove-providers": "cloudant fab edge",
         "run-tests": "true",
     },
     {
         "python-version": "3.9",
-        "airflow-version": "2.10.1",
-        "remove-providers": "cloudant",
+        "airflow-version": "2.10.3",
+        "remove-providers": "cloudant fab",
         "run-tests": "true",
     },
 ]

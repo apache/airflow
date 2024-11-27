@@ -20,8 +20,8 @@ import pytest
 
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.utils.types import NOTSET
 
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
@@ -144,7 +144,7 @@ class TestXComArgBuild:
         assert str(ctx.value) == "'XComArg' object is not iterable"
 
 
-@pytest.mark.system("core")
+@pytest.mark.system
 class TestXComArgRuntime:
     def test_xcom_pass_to_op(self, dag_maker):
         with dag_maker(dag_id="test_xcom_pass_to_op") as dag:

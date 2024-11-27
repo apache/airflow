@@ -19,8 +19,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -42,10 +43,9 @@ class GoogleSearchAdsReportingHook(GoogleBaseHook):
         self,
         api_version: str | None = None,
         gcp_conn_id: str = "google_search_ads_default",
+        **kwargs,
     ) -> None:
-        super().__init__(
-            gcp_conn_id=gcp_conn_id,
-        )
+        super().__init__(gcp_conn_id=gcp_conn_id, **kwargs)
         self.api_version = api_version or self.default_api_version
 
     def _get_config(self) -> None:
@@ -207,13 +207,13 @@ class GoogleSearchAdsHook(GoogleBaseHook):
         self,
         api_version: str = "v2",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
+            **kwargs,
         )
         self.api_version = api_version
 

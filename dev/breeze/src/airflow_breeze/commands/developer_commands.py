@@ -33,6 +33,7 @@ from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_i
 from airflow_breeze.commands.common_options import (
     argument_doc_packages,
     option_airflow_extras,
+    option_all_integration,
     option_answer,
     option_backend,
     option_builder,
@@ -50,7 +51,6 @@ from airflow_breeze.commands.common_options import (
     option_include_not_ready_providers,
     option_include_removed_providers,
     option_installation_package_format,
-    option_integration,
     option_keep_env_variables,
     option_max_time,
     option_mount_sources,
@@ -83,7 +83,6 @@ from airflow_breeze.commands.common_package_installation_options import (
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.commands.testing_commands import (
     option_force_lowest_dependencies,
-    option_test_type,
 )
 from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
@@ -284,7 +283,7 @@ option_install_airflow_with_constraints_default_true = click.option(
 @option_install_airflow_with_constraints_default_true
 @option_install_selected_providers
 @option_installation_package_format
-@option_integration
+@option_all_integration
 @option_keep_env_variables
 @option_max_time
 @option_mount_sources
@@ -300,7 +299,6 @@ option_install_airflow_with_constraints_default_true = click.option(
 @option_python
 @option_restart
 @option_run_db_tests_only
-@option_test_type
 @option_skip_db_tests
 @option_skip_environment_initialization
 @option_skip_image_upgrade_check
@@ -361,7 +359,6 @@ def shell(
     skip_db_tests: bool,
     skip_image_upgrade_check: bool,
     standalone_dag_processor: bool,
-    test_type: str,
     tty: str,
     upgrade_boto: bool,
     use_airflow_version: str | None,
@@ -429,7 +426,6 @@ def shell(
         skip_image_upgrade_check=skip_image_upgrade_check,
         skip_environment_initialization=skip_environment_initialization,
         standalone_dag_processor=standalone_dag_processor,
-        test_type=test_type,
         tty=tty,
         upgrade_boto=upgrade_boto,
         use_airflow_version=use_airflow_version,
@@ -505,7 +501,7 @@ option_executor_start_airflow = click.option(
 @option_image_tag_for_running
 @option_installation_package_format
 @option_install_selected_providers
-@option_integration
+@option_all_integration
 @option_load_default_connection
 @option_load_example_dags
 @option_mount_sources
@@ -861,7 +857,7 @@ def static_checks(
         for attempt in range(1, 1 + max_initialization_attempts):
             get_console().print(f"[info]Attempt number {attempt} to install pre-commit environments")
             initialization_result = run_command(
-                [sys.executable, "-m", "pre_commit", "install", "--install-hooks"],
+                ["pre-commit", "install", "--install-hooks"],
                 check=False,
                 no_output_dump_on_exception=True,
                 text=True,
@@ -874,7 +870,7 @@ def static_checks(
             get_console().print("[error]Could not install pre-commit environments[/]")
             sys.exit(return_code)
 
-    command_to_execute = [sys.executable, "-m", "pre_commit", "run"]
+    command_to_execute = ["pre-commit", "run"]
     if not one_or_none_set([last_commit, commit_ref, only_my_changes, all_files]):
         get_console().print(
             "\n[error]You can only specify "

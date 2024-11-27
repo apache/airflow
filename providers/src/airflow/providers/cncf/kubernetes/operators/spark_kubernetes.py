@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Mapping
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -67,6 +68,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         state, or the execution is interrupted. If True (default), delete the
         pod; if False, leave the pod.
     :param kubernetes_conn_id: the connection to Kubernetes cluster
+    :param random_name_suffix: If True, adds a random suffix to the pod name
     """
 
     template_fields = ["application_file", "namespace", "template_spec", "kubernetes_conn_id"]
@@ -93,10 +95,9 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         reattach_on_restart: bool = True,
         delete_on_termination: bool = True,
         kubernetes_conn_id: str = "kubernetes_default",
+        random_name_suffix: bool = True,
         **kwargs,
     ) -> None:
-        if kwargs.get("xcom_push") is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
         super().__init__(name=name, **kwargs)
         self.image = image
         self.code_path = code_path
@@ -111,6 +112,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         self.get_logs = get_logs
         self.log_events_on_failure = log_events_on_failure
         self.success_run_history_limit = success_run_history_limit
+        self.random_name_suffix = random_name_suffix
 
         if self.base_container_name != self.BASE_CONTAINER_NAME:
             self.log.warning(
@@ -127,7 +129,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     def _render_nested_template_fields(
         self,
         content: Any,
-        context: Context,
+        context: Mapping[str, Any],
         jinja_env: jinja2.Environment,
         seen_oids: set,
     ) -> None:
@@ -163,7 +165,11 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             self.name or self.template_body.get("spark", {}).get("metadata", {}).get("name") or self.task_id
         )
 
-        updated_name = add_unique_suffix(name=name, max_len=MAX_LABEL_LEN)
+        if self.random_name_suffix:
+            updated_name = add_unique_suffix(name=name, max_len=MAX_LABEL_LEN)
+        else:
+            # truncation is required to maintain the same behavior as before
+            updated_name = name[:MAX_LABEL_LEN]
 
         return self._set_name(updated_name)
 
@@ -192,8 +198,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             "task_id": ti.task_id,
             "run_id": run_id,
             "spark_kubernetes_operator": "True",
-            # 'execution_date': context['ts'],
-            # 'try_number': context['ti'].try_number,
         }
 
         # If running on Airflow 2.3+:

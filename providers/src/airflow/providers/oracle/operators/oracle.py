@@ -18,7 +18,8 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, ClassVar
 
 import oracledb
 from deprecated import deprecated
@@ -60,7 +61,7 @@ class OracleOperator(SQLExecuteQueryOperator):
         "sql",
     )
     template_ext: Sequence[str] = (".sql",)
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
     ui_color = "#ededed"
 
     def __init__(self, *, oracle_conn_id: str = "oracle_default", **kwargs) -> None:

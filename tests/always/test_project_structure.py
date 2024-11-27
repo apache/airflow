@@ -75,7 +75,6 @@ class TestProjectStructure:
             "providers/tests/amazon/aws/utils/test_rds.py",
             "providers/tests/amazon/aws/utils/test_sagemaker.py",
             "providers/tests/amazon/aws/waiters/test_base_waiter.py",
-            "providers/tests/apache/cassandra/hooks/test_cassandra.py",
             "providers/tests/apache/drill/operators/test_drill.py",
             "providers/tests/apache/druid/operators/test_druid_check.py",
             "providers/tests/apache/hdfs/hooks/test_hdfs.py",
@@ -85,7 +84,6 @@ class TestProjectStructure:
             "providers/tests/celery/executors/test_celery_executor_utils.py",
             "providers/tests/celery/executors/test_default_celery.py",
             "providers/tests/cloudant/test_cloudant_fake.py",
-            "providers/tests/cncf/kubernetes/backcompat/test_backwards_compat_converters.py",
             "providers/tests/cncf/kubernetes/executors/test_kubernetes_executor_types.py",
             "providers/tests/cncf/kubernetes/executors/test_kubernetes_executor_utils.py",
             "providers/tests/cncf/kubernetes/operators/test_kubernetes_pod.py",
@@ -357,13 +355,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.automl.AutoMLDeployModelOperator",
         "airflow.providers.google.cloud.operators.datapipeline.CreateDataPipelineOperator",
         "airflow.providers.google.cloud.operators.datapipeline.RunDataPipelineOperator",
-        "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHadoopJobOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocScaleClusterOperator",
-        "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkJobOperator",
-        "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitSparkSqlJobOperator",
-        "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitHiveJobOperator",
-        "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitPigJobOperator",
-        "airflow.providers.google.cloud.operators.dataproc.DataprocSubmitPySparkJobOperator",
         "airflow.providers.google.cloud.operators.mlengine.MLEngineManageModelOperator",
         "airflow.providers.google.cloud.operators.mlengine.MLEngineManageVersionOperator",
         "airflow.providers.google.cloud.operators.mlengine.MLEngineCreateModelOperator",
@@ -375,24 +367,10 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.mlengine.MLEngineSetDefaultVersionOperator",
         "airflow.providers.google.cloud.operators.mlengine.MLEngineStartBatchPredictionJobOperator",
         "airflow.providers.google.cloud.operators.mlengine.MLEngineStartTrainingJobOperator",
-        "airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator",
-        "airflow.providers.google.cloud.operators.bigquery.BigQueryPatchDatasetOperator",
-        "airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator",
-        "airflow.providers.google.cloud.operators.bigquery.BigQueryExecuteQueryOperator",
-        "airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator",
-        "airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceAsyncSensor",
-        "airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistencePartitionAsyncSensor",
-        "airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerEnvironmentSensor",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360CreateQueryOperator",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360RunQueryOperator",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360DownloadReportV2Operator",
         "airflow.providers.google.marketing_platform.sensors.GoogleDisplayVideo360RunQuerySensor",
-        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsDataImportUploadOperator",
-        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsDeletePreviousDataUploadsOperator",
-        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsGetAdsLinkOperator",
-        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsListAccountsOperator",
-        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsModifyFileHeadersDataImportOperator",
-        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsRetrieveAdsLinksListOperator",
     }
 
     BASE_CLASSES = {
@@ -556,10 +534,6 @@ class TestElasticsearchProviderProjectStructure(ExampleCoverageTest):
 class TestCncfProviderProjectStructure(ExampleCoverageTest):
     PROVIDER = "cncf"
     CLASS_DIRS = ProjectStructureTest.CLASS_DIRS
-    DEPRECATED_CLASSES = {
-        "airflow.providers.cncf.kubernetes.operators.kubernetes_pod",
-        "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod",
-    }
     BASE_CLASSES = {"airflow.providers.cncf.kubernetes.operators.resource.KubernetesResourceBaseOperator"}
 
 

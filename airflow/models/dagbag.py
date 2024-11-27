@@ -50,6 +50,7 @@ from airflow.exceptions import (
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base
+from airflow.models.dagcode import DagCode
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
@@ -245,7 +246,9 @@ class DagBag(LoggingMixin):
 
         # If the dag corresponding to root_dag_id is absent or expired
         is_missing = root_dag_id not in self.dags
-        is_expired = orm_dag.last_expired and dag and dag.last_loaded < orm_dag.last_expired
+        is_expired = (
+            orm_dag.last_expired and dag and dag.last_loaded and dag.last_loaded < orm_dag.last_expired
+        )
         if is_expired:
             # Remove associated dags so we can re-add them.
             self.dags = {key: dag for key, dag in self.dags.items()}
@@ -278,7 +281,7 @@ class DagBag(LoggingMixin):
 
     def process_file(self, filepath, only_if_updated=True, safe_mode=True):
         """Given a path to a python module or zip file, import the module and look for dag objects within."""
-        from airflow.models.dag import DagContext
+        from airflow.sdk.definitions.contextmanager import DagContext
 
         # if the source file no longer exists in the DB or in the filesystem,
         # return an empty list
@@ -326,7 +329,7 @@ class DagBag(LoggingMixin):
         return found_dags
 
     def _load_modules_from_file(self, filepath, safe_mode):
-        from airflow.models.dag import DagContext
+        from airflow.sdk.definitions.contextmanager import DagContext
 
         if not might_contain_dag(filepath, safe_mode):
             # Don't want to spam user with skip messages
@@ -382,7 +385,7 @@ class DagBag(LoggingMixin):
             return parse(mod_name, filepath)
 
     def _load_modules_from_zip(self, filepath, safe_mode):
-        from airflow.models.dag import DagContext
+        from airflow.sdk.definitions.contextmanager import DagContext
 
         mods = []
         with zipfile.ZipFile(filepath) as current_zip_file:
@@ -431,7 +434,8 @@ class DagBag(LoggingMixin):
         return mods
 
     def _process_modules(self, filepath, mods, file_last_changed_on_disk):
-        from airflow.models.dag import DAG, DagContext  # Avoid circular import
+        from airflow.models.dag import DAG  # Avoid circular import
+        from airflow.sdk.definitions.contextmanager import DagContext
 
         top_level_dags = {(o, m) for m in mods for o in m.__dict__.values() if isinstance(o, DAG)}
 
@@ -623,6 +627,9 @@ class DagBag(LoggingMixin):
                 )
                 if dag_was_updated:
                     DagBag._sync_perm_for_dag(dag, session=session)
+                else:
+                    # Check and update DagCode
+                    DagCode.update_source_code(dag)
                 return []
             except OperationalError:
                 raise
@@ -647,13 +654,12 @@ class DagBag(LoggingMixin):
                 )
                 log.debug("Calling the DAG.bulk_sync_to_db method")
                 try:
+                    DAG.bulk_write_to_db(dags.values(), processor_subdir=processor_subdir, session=session)
                     # Write Serialized DAGs to DB, capturing errors
                     for dag in dags.values():
                         serialize_errors.extend(
                             _serialize_dag_capturing_errors(dag, session, processor_subdir)
                         )
-
-                    DAG.bulk_write_to_db(dags.values(), processor_subdir=processor_subdir, session=session)
                 except OperationalError:
                     session.rollback()
                     raise

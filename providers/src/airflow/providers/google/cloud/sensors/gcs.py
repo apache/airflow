@@ -21,13 +21,14 @@ from __future__ import annotations
 
 import os
 import textwrap
+from collections.abc import Sequence
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any, Callable, Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.triggers.gcs import (
     GCSBlobTrigger,
@@ -35,7 +36,6 @@ from airflow.providers.google.cloud.triggers.gcs import (
     GCSPrefixBlobTrigger,
     GCSUploadSessionTrigger,
 )
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 
 if TYPE_CHECKING:
@@ -142,57 +142,14 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         return True
 
 
-@deprecated(
-    planned_removal_date="November 01, 2024",
-    use_instead="GCSObjectExistenceSensor",
-    instructions="Please use GCSObjectExistenceSensor and set deferrable attribute to True.",
-    category=AirflowProviderDeprecationWarning,
-)
-class GCSObjectExistenceAsyncSensor(GCSObjectExistenceSensor):
-    """
-    Checks for the existence of a file in Google Cloud Storage.
-
-    This class is deprecated and will be removed in a future release.
-
-    Please use :class:`airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor`
-    and set *deferrable* attribute to *True* instead.
-
-    :param bucket: The Google Cloud Storage bucket where the object is.
-    :param object: The name of the object to check in the Google cloud storage bucket.
-    :param google_cloud_conn_id: The connection ID to use when connecting to Google Cloud Storage.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    """
-
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(deferrable=True, **kwargs)
-
-
 def ts_function(context):
     """
     Act as a default callback for the GoogleCloudStorageObjectUpdatedSensor.
 
-    The default behaviour is check for the object being updated after the data interval's end,
-    or execution_date + interval on Airflow versions prior to 2.2 (before AIP-39 implementation).
+    The default behaviour is check for the object being updated after the data
+    interval's end.
     """
-    try:
-        return context["data_interval_end"]
-    except KeyError:
-        from airflow.utils import timezone
-
-        data_interval = context["dag"].infer_automated_data_interval(
-            timezone.coerce_datetime(context["execution_date"])
-        )
-        next_info = context["dag"].next_dagrun_info(data_interval, restricted=False)
-        if next_info is None:
-            return None
-        return next_info.data_interval.start
+    return context["data_interval_end"]
 
 
 class GCSObjectUpdateSensor(BaseSensorOperator):
@@ -203,7 +160,7 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
     :param object: The name of the object to download in the Google cloud
         storage bucket.
     :param ts_func: Callback for defining the update condition. The default callback
-        returns execution_date + schedule_interval. The callback takes the context
+        returns logical_date + schedule_interval. The callback takes the context
         as parameter.
     :param google_cloud_conn_id: The connection ID to use when
         connecting to Google Cloud Storage.

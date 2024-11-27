@@ -20,7 +20,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -41,14 +42,6 @@ if TYPE_CHECKING:
 
 class ModelServiceHook(GoogleBaseHook):
     """Hook for Google Cloud Vertex AI Endpoint Service APIs."""
-
-    def __init__(self, **kwargs):
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
-        super().__init__(**kwargs)
 
     def get_model_service_client(self, region: str | None = None) -> ModelServiceClient:
         """Return ModelServiceClient object."""
@@ -219,7 +212,7 @@ class ModelServiceHook(GoogleBaseHook):
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
         :param model:  Required. The Model to create.
-        :param parent_model: The name of the parent model to create a new version under.
+        :param parent_model: The ID of the parent model to create a new version under.
         :param retry: Designation of what errors, if any, should be retried.
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
@@ -233,7 +226,7 @@ class ModelServiceHook(GoogleBaseHook):
         }
 
         if parent_model:
-            request["parent_model"] = parent_model
+            request["parent_model"] = client.model_path(project_id, region, parent_model)
 
         result = client.upload_model(
             request=request,

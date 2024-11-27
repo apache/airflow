@@ -225,6 +225,11 @@ labelPRBasedOnFilePath:
     - providers/tests/docker/**/*
     - providers/tests/system/docker/**/*
 
+  provider:edge:
+    - providers/src/airflow/providers/edge/**/*
+    - docs/apache-airflow-providers-edge/**/*
+    - providers/tests/edge/**/*
+
   provider:elasticsearch:
     - providers/src/airflow/providers/elasticsearch/**/*
     - docs/apache-airflow-providers-elasticsearch/**/*
@@ -626,7 +631,7 @@ labelPRBasedOnFilePath:
 
   area:Scheduler:
     - airflow/jobs/**/*
-    - airflow/task/task_runner/**/*
+    - airflow/task/standard_task_runner.py
     - airflow/dag_processing/**/*
     - docs/apache-airflow/administration-and-deployment/scheduler.rst
     - tests/jobs/**/*
@@ -647,12 +652,12 @@ labelPRBasedOnFilePath:
     - airflow/cli/commands/triggerer_command.py
     - airflow/jobs/triggerer_job_runner.py
     - airflow/models/trigger.py
-    - airflow/triggers/**/*
+    - providers/src/airflow/providers/standard/triggers/**/*
     - tests/cli/commands/test_triggerer_command.py
     - tests/jobs/test_triggerer_job.py
     - tests/models/test_trigger.py
     - tests/jobs/test_triggerer_job_logging.py
-    - tests/triggers/**/*
+    - providers/tests/standard/triggers/**/*
 
   area:Serialization:
     - airflow/serialization/**/*

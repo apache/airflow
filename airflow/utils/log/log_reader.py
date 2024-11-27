@@ -18,8 +18,9 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Iterator
 from functools import cached_property
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.utils.helpers import render_log_filename

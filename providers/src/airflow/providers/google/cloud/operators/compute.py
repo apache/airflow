@@ -19,8 +19,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from google.api_core import exceptions
 from google.cloud.compute_v1.types import Instance, InstanceGroupManager, InstanceTemplate

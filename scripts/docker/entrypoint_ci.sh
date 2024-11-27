@@ -236,6 +236,13 @@ function determine_airflow_to_use() {
            --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         # Some packages might leave legacy typing module which causes test issues
         pip uninstall -y typing || true
+        if [[ ${LINK_PROVIDERS_TO_AIRFLOW_PACKAGE=} == "true" ]]; then
+            echo
+            echo "${COLOR_BLUE}Linking providers to airflow package as we are using them from mounted sources.${COLOR_RESET}"
+            echo
+            rm -rf /usr/local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/providers
+            ln -s "${AIRFLOW_SOURCES}/providers/src/airflow/providers" "/usr/local/lib/python${PYTHON_MAJOR_MINOR_VERSION}/site-packages/airflow/providers"
+        fi
     fi
 
     if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
@@ -309,14 +316,8 @@ function check_run_tests() {
     if [[ ${REMOVE_ARM_PACKAGES:="false"} == "true" ]]; then
         # Test what happens if we do not have ARM packages installed.
         # This is useful to see if pytest collection works without ARM packages which is important
-        # for the MacOS M1 users running tests in their ARM machines with `breeze testing tests` command
+        # for the MacOS M1 users running tests in their ARM machines with `breeze testing *-tests` command
         python "${IN_CONTAINER_DIR}/remove_arm_packages.py"
-    fi
-
-    if [[ ${TEST_TYPE} == "PlainAsserts" ]]; then
-       # Plain asserts should be converted to env variable to make sure they are taken into account
-       # otherwise they will not be effective during test collection when plain assert is breaking collection
-       export PYTEST_PLAIN_ASSERTS="true"
     fi
 
     if [[ ${DATABASE_ISOLATION=} == "true" ]]; then
@@ -346,7 +347,7 @@ function check_run_tests() {
         fi
     fi
 
-    if [[ ${RUN_SYSTEM_TESTS:="false"} == "true" ]]; then
+    if [[ ${TEST_GROUP:=""} == "system" ]]; then
         exec "${IN_CONTAINER_DIR}/run_system_tests.sh" "${@}"
     else
         exec "${IN_CONTAINER_DIR}/run_ci_tests.sh" "${@}"
@@ -377,7 +378,7 @@ function check_force_lowest_dependencies() {
         echo
     fi
     set -x
-    uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}"
+    uv pip install --python "$(which python)" --resolution lowest-direct --upgrade --editable ".${EXTRA}" --editable "./task_sdk"
     set +x
 }
 

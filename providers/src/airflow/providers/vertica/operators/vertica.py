@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any, ClassVar
 
 from deprecated import deprecated
 
@@ -45,7 +46,7 @@ class VerticaOperator(SQLExecuteQueryOperator):
 
     template_fields: Sequence[str] = ("sql",)
     template_ext: Sequence[str] = (".sql",)
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
     ui_color = "#b4e0ff"
 
     def __init__(self, *, vertica_conn_id: str = "vertica_default", **kwargs: Any) -> None:

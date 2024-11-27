@@ -33,13 +33,12 @@ from airflow.io.path import ObjectStoragePath
 from airflow.lineage.entities import Column, File, Table, User
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance
-from airflow.operators.python import PythonOperator
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.utils.utils import Asset
 from airflow.utils.state import State
 
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, PythonOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -313,6 +312,7 @@ def test_extractor_manager_gets_data_from_pythonoperator(session, dag_maker, hoo
 
     dr = dag_maker.create_dagrun()
     ti = TaskInstance(task=task, run_id=dr.run_id)
+    ti.refresh_from_db()
     ti.state = State.QUEUED
     session.merge(ti)
     session.commit()

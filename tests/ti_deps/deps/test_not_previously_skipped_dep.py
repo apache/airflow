@@ -22,7 +22,7 @@ import pytest
 
 from airflow.models import DagRun, TaskInstance
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import BranchPythonOperator
+from airflow.providers.standard.operators.python import BranchPythonOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.utils.state import State
@@ -51,7 +51,7 @@ def test_no_parent(session, dag_maker):
     ):
         op1 = EmptyOperator(task_id="op1")
 
-    (ti1,) = dag_maker.create_dagrun(execution_date=start_date).task_instances
+    (ti1,) = dag_maker.create_dagrun(logical_date=start_date).task_instances
     ti1.refresh_from_task(op1)
 
     dep = NotPreviouslySkippedDep()

@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     import datetime
     from collections.abc import Sized
 
-    from airflow.models import DAG, DagRun
+    from airflow.models import DagRun
 
 
 class AirflowException(Exception):
@@ -230,13 +230,9 @@ class DagRunNotFound(AirflowNotFoundException):
 class DagRunAlreadyExists(AirflowBadRequest):
     """Raise when creating a DAG run for DAG which already has DAG run entry."""
 
-    def __init__(self, dag_run: DagRun, execution_date: datetime.datetime, run_id: str) -> None:
-        super().__init__(
-            f"A DAG Run already exists for DAG {dag_run.dag_id} at {execution_date} with run id {run_id}"
-        )
+    def __init__(self, dag_run: DagRun) -> None:
+        super().__init__(f"A DAG Run already exists for DAG {dag_run.dag_id} with run id {dag_run.run_id}")
         self.dag_run = dag_run
-        self.execution_date = execution_date
-        self.run_id = run_id
 
     def serialize(self):
         cls = self.__class__
@@ -249,13 +245,12 @@ class DagRunAlreadyExists(AirflowBadRequest):
             run_id=self.dag_run.run_id,
             external_trigger=self.dag_run.external_trigger,
             run_type=self.dag_run.run_type,
-            execution_date=self.dag_run.execution_date,
         )
         dag_run.id = self.dag_run.id
         return (
             f"{cls.__module__}.{cls.__name__}",
             (),
-            {"dag_run": dag_run, "execution_date": self.execution_date, "run_id": self.run_id},
+            {"dag_run": dag_run},
         )
 
 
@@ -273,13 +268,13 @@ class FailStopDagInvalidTriggerRule(AirflowException):
     _allowed_rules = (TriggerRule.ALL_SUCCESS, TriggerRule.ALL_DONE_SETUP_SUCCESS)
 
     @classmethod
-    def check(cls, *, dag: DAG | None, trigger_rule: TriggerRule):
+    def check(cls, *, fail_stop: bool, trigger_rule: TriggerRule):
         """
         Check that fail_stop dag tasks have allowable trigger rules.
 
         :meta private:
         """
-        if dag is not None and dag.fail_stop and trigger_rule not in cls._allowed_rules:
+        if fail_stop and trigger_rule not in cls._allowed_rules:
             raise cls()
 
     def __str__(self) -> str:

@@ -53,6 +53,21 @@
         { "type": "integer" }
       ]
     },
+    "asset_definition": {
+      "type": "object",
+      "properties": {
+        "uri": { "type": "string" },
+        "name": { "type": "string" },
+        "group": { "type": "string" },
+        "extra": {
+            "anyOf": [
+                {"type": "null"},
+                { "$ref": "#/definitions/dict" }
+            ]
+        }
+      },
+      "required": [ "uri", "extra" ]
+    },
     "asset": {
       "type": "object",
       "properties": {
@@ -137,7 +152,7 @@
       "type": "object",
       "properties": {
         "params": { "$ref": "#/definitions/params" },
-        "_dag_id": { "type": "string" },
+        "dag_id": { "type": "string" },
         "tasks": {  "$ref": "#/definitions/tasks" },
         "timezone": { "$ref": "#/definitions/timezone" },
         "owner_links": { "type": "object" },
@@ -153,14 +168,13 @@
         "_processor_dags_folder": {
             "anyOf": [
                 { "type": "null" },
-                {"type": "string"}
+                { "type": "string" }
             ]
         },
-        "orientation": { "type" : "string"},
-        "_dag_display_property_value": { "type" : "string"},
-        "_description": { "type" : "string"},
+        "dag_display_name": { "type" : "string"},
+        "description": { "type" : "string"},
         "_concurrency": { "type" : "number"},
-        "_max_active_tasks": { "type" : "number"},
+        "max_active_tasks": { "type" : "number"},
         "max_active_runs": { "type" : "number"},
         "max_consecutive_failed_dag_runs": { "type" : "number"},
         "default_args": { "$ref": "#/definitions/dict" },
@@ -168,14 +182,13 @@
         "end_date": { "$ref": "#/definitions/datetime" },
         "dagrun_timeout": { "$ref": "#/definitions/timedelta" },
         "doc_md": { "type" : "string"},
-        "_default_view": { "type" : "string"},
-        "_access_control": {"$ref": "#/definitions/dict" },
+        "access_control": {"$ref": "#/definitions/dict" },
         "is_paused_upon_creation":  { "type": "boolean" },
         "has_on_success_callback":  { "type": "boolean" },
         "has_on_failure_callback":  { "type": "boolean" },
         "render_template_as_native_obj":  { "type": "boolean" },
         "tags": { "type": "array" },
-        "_task_group": {"anyOf": [
+        "task_group": {"anyOf": [
           { "type": "null" },
           { "$ref": "#/definitions/task_group" }
         ]},
@@ -183,7 +196,7 @@
         "dag_dependencies": { "$ref": "#/definitions/dag_dependencies" }
       },
       "required": [
-        "_dag_id",
+        "dag_id",
         "fileloc",
         "tasks"
       ],
@@ -219,7 +232,7 @@
       "$comment": "A task/operator in a DAG",
       "type": "object",
       "required": [
-        "_task_type",
+        "task_type",
         "_task_module",
         "task_id",
         "ui_color",
@@ -227,7 +240,7 @@
         "template_fields"
       ],
       "properties": {
-        "_task_type": { "type": "string" },
+        "task_type": { "type": "string" },
         "_task_module": { "type": "string" },
         "_operator_extra_links": { "$ref":  "#/definitions/extra_links" },
         "task_id": { "type": "string" },
@@ -261,7 +274,6 @@
           "type": "array",
           "items": { "type": "string" }
         },
-        "subdag": { "$ref": "#/definitions/dag" },
         "downstream_task_ids": {
           "type": "array",
           "items": { "type": "string" }

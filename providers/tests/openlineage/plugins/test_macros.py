@@ -19,6 +19,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from unittest import mock
 
+from airflow import __version__
 from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.plugins.macros import (
     lineage_job_name,
@@ -28,6 +29,11 @@ from airflow.providers.openlineage.plugins.macros import (
 )
 
 _DAG_NAMESPACE = namespace()
+
+if __version__.startswith("2."):
+    LOGICAL_DATE_KEY = "execution_date"
+else:
+    LOGICAL_DATE_KEY = "logical_date"
 
 
 def test_lineage_job_namespace():
@@ -39,7 +45,7 @@ def test_lineage_job_name():
         dag_id="dag_id",
         task_id="task_id",
         try_number=1,
-        execution_date=datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc),
+        **{LOGICAL_DATE_KEY: datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc)},
     )
     assert lineage_job_name(task_instance) == "dag_id.task_id"
 
@@ -49,7 +55,7 @@ def test_lineage_run_id():
         dag_id="dag_id",
         task_id="task_id",
         dag_run=mock.MagicMock(run_id="run_id"),
-        execution_date=datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc),
+        logical_date=datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc),
         try_number=1,
     )
 
@@ -69,7 +75,7 @@ def test_lineage_parent_id(mock_run_id):
         dag_id="dag_id",
         task_id="task_id",
         try_number=1,
-        execution_date=datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc),
+        **{LOGICAL_DATE_KEY: datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc)},
     )
     actual = lineage_parent_id(task_instance)
     expected = f"{_DAG_NAMESPACE}/dag_id.task_id/run_id"

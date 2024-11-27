@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import Mock, patch
 
 import pytest
 from flask import session, url_for
@@ -67,11 +68,15 @@ class TestSimpleAuthManagerAuthenticationViews:
         "username, password, is_successful",
         [("test", "test", True), ("test", "test2", False), ("", "", False)],
     )
-    def test_login_submit(self, simple_app, username, password, is_successful):
+    @patch("airflow.auth.managers.simple.views.auth.JWTSigner")
+    def test_login_submit(self, mock_jwt_signer, simple_app, username, password, is_successful):
+        signer = Mock()
+        signer.generate_signed_token.return_value = "token"
+        mock_jwt_signer.return_value = signer
         with simple_app.test_client() as client:
             response = client.post("/login_submit", data={"username": username, "password": password})
             assert response.status_code == 302
             if is_successful:
-                assert response.location == url_for("Airflow.index")
+                assert response.location == url_for("Airflow.index", token="token")
             else:
                 assert response.location == url_for("SimpleAuthManagerAuthenticationViews.login", error=["1"])

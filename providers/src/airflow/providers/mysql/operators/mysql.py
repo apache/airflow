@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
+from typing import ClassVar
 
 from deprecated import deprecated
 
@@ -58,7 +59,7 @@ class MySqlOperator(SQLExecuteQueryOperator):
     """
 
     template_fields: Sequence[str] = ("sql", "parameters")
-    template_fields_renderers = {
+    template_fields_renderers: ClassVar[dict] = {
         "sql": "mysql",
         "parameters": "json",
     }

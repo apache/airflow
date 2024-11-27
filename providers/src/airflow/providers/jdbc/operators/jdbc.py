@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
+from typing import ClassVar
 
 from deprecated import deprecated
 
@@ -54,7 +55,7 @@ class JdbcOperator(SQLExecuteQueryOperator):
 
     template_fields: Sequence[str] = ("sql",)
     template_ext: Sequence[str] = (".sql",)
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
     ui_color = "#ededed"
 
     def __init__(self, *, jdbc_conn_id: str = "jdbc_default", **kwargs) -> None:

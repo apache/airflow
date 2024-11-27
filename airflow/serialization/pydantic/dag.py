@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pathlib
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Annotated, Any, Optional
 
 from pydantic import (
     BaseModel as BaseModelPydantic,
@@ -27,7 +27,6 @@ from pydantic import (
     PlainValidator,
     ValidationInfo,
 )
-from typing_extensions import Annotated
 
 from airflow import DAG, settings
 from airflow.configuration import conf as airflow_conf
@@ -80,10 +79,7 @@ class DagModelPydantic(BaseModelPydantic):
     is_paused: bool = is_paused_at_creation
     is_active: Optional[bool] = False
     last_parsed_time: Optional[datetime]
-    last_pickled: Optional[datetime]
     last_expired: Optional[datetime]
-    scheduler_lock: Optional[bool]
-    pickle_id: Optional[int]
     fileloc: str
     processor_subdir: Optional[str]
     owners: Optional[str]
@@ -91,8 +87,8 @@ class DagModelPydantic(BaseModelPydantic):
     default_view: Optional[str]
     timetable_summary: Optional[str]
     timetable_description: Optional[str]
-    tags: List[DagTagPydantic]  # noqa: UP006
-    dag_owner_links: List[DagOwnerAttributesPydantic]  # noqa: UP006
+    tags: list[DagTagPydantic]
+    dag_owner_links: list[DagOwnerAttributesPydantic]
 
     max_active_tasks: int
     max_active_runs: Optional[int]

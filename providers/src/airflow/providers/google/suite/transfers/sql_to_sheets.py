@@ -19,8 +19,9 @@ from __future__ import annotations
 import datetime
 import logging
 import numbers
+from collections.abc import Iterable, Mapping, Sequence
 from contextlib import closing
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any
 
 from airflow.providers.common.sql.operators.sql import BaseSQLOperator
 from airflow.providers.google.suite.hooks.sheets import GSheetsHook
@@ -37,9 +38,6 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
     :param database: name of database which overwrite the defined one in connection
     :param spreadsheet_range: The A1 notation of the values to retrieve.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -72,7 +70,6 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
         database: str | None = None,
         spreadsheet_range: str = "Sheet1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -85,7 +82,6 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
         self.gcp_conn_id = gcp_conn_id
         self.spreadsheet_id = spreadsheet_id
         self.spreadsheet_range = spreadsheet_range
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def _data_prep(self, data):
@@ -117,7 +113,6 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
         self.log.info("Connecting to Google")
         sheet_hook = GSheetsHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 

@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 from base64 import b64encode
+from collections.abc import Container, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Container, Sequence
+from typing import TYPE_CHECKING
 
 from deprecated.classic import deprecated
 
@@ -188,7 +189,8 @@ class SSHOperator(BaseOperator):
 
         with self.get_ssh_client() as ssh_client:
             result = self.run_ssh_client_command(ssh_client, self.command, context=context)
-        enable_pickling = conf.getboolean("core", "enable_xcom_pickling")
+        # TODO: Remove this after minimum Airflow version is 3.0
+        enable_pickling = conf.getboolean("core", "enable_xcom_pickling", fallback=False)
         if not enable_pickling:
             result = b64encode(result).decode("utf-8")
 

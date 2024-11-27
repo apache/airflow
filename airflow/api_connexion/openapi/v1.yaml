@@ -246,155 +246,6 @@ servers:
 
 paths:
   # Database entities
-  /backfills:
-    get:
-      summary: List backfills
-      x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
-      operationId: list_backfills
-      tags: [Backfill]
-      parameters:
-        - name: dag_id
-          in: query
-          schema:
-            type: string
-          required: true
-          description: |
-            List backfills for this dag.
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BackfillCollection"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-
-    post:
-      summary: Create a backfill job.
-      x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
-      operationId: create_backfill
-      tags: [Backfill]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/Backfill"
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Backfill"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-
-  /backfills/{backfill_id}:
-    parameters:
-      - $ref: "#/components/parameters/BackfillIdPath"
-    get:
-        summary: Get a backfill
-        x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
-        operationId: get_backfill
-        tags: [Backfill]
-        responses:
-          "200":
-            description: Success.
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/Backfill"
-          "401":
-            $ref: "#/components/responses/Unauthenticated"
-          "403":
-            $ref: "#/components/responses/PermissionDenied"
-          "404":
-            $ref: "#/components/responses/NotFound"
-
-  /backfills/{backfill_id}/pause:
-    parameters:
-      - $ref: "#/components/parameters/BackfillIdPath"
-    post:
-        summary: Pause a backfill
-        x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
-        operationId: pause_backfill
-        tags: [Backfill]
-        responses:
-          "200":
-            description: Success.
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/Backfill"
-          "401":
-            $ref: "#/components/responses/Unauthenticated"
-          "403":
-            $ref: "#/components/responses/PermissionDenied"
-          "404":
-            $ref: "#/components/responses/NotFound"
-          "409":
-            $ref: "#/components/responses/Conflict"
-
-  /backfills/{backfill_id}/unpause:
-    parameters:
-      - $ref: "#/components/parameters/BackfillIdPath"
-    post:
-        summary: Pause a backfill
-        x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
-        operationId: unpause_backfill
-        tags: [Backfill]
-        responses:
-          "200":
-            description: Success.
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/Backfill"
-          "401":
-            $ref: "#/components/responses/Unauthenticated"
-          "403":
-            $ref: "#/components/responses/PermissionDenied"
-          "404":
-            $ref: "#/components/responses/NotFound"
-          "409":
-            $ref: "#/components/responses/Conflict"
-
-  /backfills/{backfill_id}/cancel:
-    parameters:
-      - $ref: "#/components/parameters/BackfillIdPath"
-    post:
-        summary: Cancel a backfill
-        description: |
-          When a backfill is cancelled, all queued dag runs will be marked as failed.
-          Running dag runs will be allowed to continue.
-        x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
-        operationId: cancel_backfill
-        tags: [Backfill]
-        responses:
-          "200":
-            description: Success.
-            content:
-              application/json:
-                schema:
-                  $ref: "#/components/schemas/Backfill"
-          "401":
-            $ref: "#/components/responses/Unauthenticated"
-          "403":
-            $ref: "#/components/responses/PermissionDenied"
-          "404":
-            $ref: "#/components/responses/NotFound"
-          "409":
-            $ref: "#/components/responses/Conflict"
-
-  # Database entities
   /connections:
     get:
       summary: List connections
@@ -1900,7 +1751,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TaskInstance"
+                $ref: "#/components/schemas/TaskInstanceHistory"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -1931,7 +1782,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TaskInstanceCollection"
+                $ref: "#/components/schemas/TaskInstanceHistoryCollection"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -1963,7 +1814,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TaskInstanceCollection"
+                $ref: "#/components/schemas/TaskInstanceHistoryCollection"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -1993,7 +1844,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TaskInstance"
+                $ref: "#/components/schemas/TaskInstanceHistory"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -2412,10 +2263,9 @@ paths:
         "403":
           $ref: "#/components/responses/PermissionDenied"
 
-  /dagSources/{file_token}:
+  /dagSources/{dag_id}:
     parameters:
-      - $ref: "#/components/parameters/FileToken"
-
+      - $ref: "#/components/parameters/DAGID"
     get:
       summary: Get a source code
       description: >
@@ -2423,6 +2273,8 @@ paths:
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_source_endpoint
       operationId: get_dag_source
       tags: [DAG]
+      parameters:
+        - $ref: "#/components/parameters/VersionNumber"
       responses:
         "200":
           description: Success.
@@ -2433,7 +2285,7 @@ paths:
                 properties:
                   content:
                     type: string
-            plain/text:
+            text/plain:
               schema:
                 type: string
 
@@ -2902,6 +2754,16 @@ components:
           type: boolean
           nullable: true
           description: is_paused
+        reprocess_behavior:
+          type: string
+          default: none
+          enum:
+            - none
+            - failed
+            - completed
+          description: |
+            Controls whether new runs will be created when there's an existing run
+            for a given logical date.
         max_active_runs:
           type: integer
           nullable: true
@@ -3051,15 +2913,6 @@ components:
             The last time the DAG was parsed.
 
             *New in version 2.3.0*
-        last_pickled:
-          type: string
-          format: date-time
-          readOnly: true
-          nullable: true
-          description: |
-            The last time the DAG was pickled.
-
-            *New in version 2.3.0*
         last_expired:
           type: string
           format: date-time
@@ -3068,22 +2921,6 @@ components:
           description: |
             Time when the DAG last received a refresh signal
             (e.g. the DAG's "refresh" button was clicked in the web UI)
-
-            *New in version 2.3.0*
-        scheduler_lock:
-          type: boolean
-          readOnly: true
-          nullable: true
-          description: |
-            Whether (one of) the scheduler is scheduling this DAG at the moment
-
-            *New in version 2.3.0*
-        pickle_id:
-          type: string
-          readOnly: true
-          nullable: true
-          description: |
-            Foreign key to the latest pickle_id
 
             *New in version 2.3.0*
         default_view:
@@ -3244,7 +3081,7 @@ components:
             The value of this field can be set only when creating the object. If you try to modify the
             field of an existing object, the request fails with an BAD_REQUEST error.
 
-            If not provided, a value will be generated based on execution_date.
+            If not provided, a value will be generated based on logical_date.
 
             If the specified dag_run_id is in use, the creation request fails with an ALREADY_EXISTS error.
 
@@ -3266,19 +3103,6 @@ components:
 
             *New in version 2.2.0*
           format: date-time
-        execution_date:
-          type: string
-          nullable: true
-          description: |
-            The execution date. This is the same as logical_date, kept for backwards compatibility.
-            If both this field and logical_date are provided but with different values, the request
-            will fail with an BAD_REQUEST error.
-
-            *Changed in version 2.2.0*&#58; Field becomes nullable.
-
-            *Deprecated since version 2.2.0*&#58; Use 'logical_date' instead.
-          format: date-time
-          deprecated: true
         start_date:
           type: string
           format: date-time
@@ -3841,7 +3665,7 @@ components:
             The DagRun ID for this task instance
 
             *New in version 2.3.0*
-        execution_date:
+        logical_date:
           type: string
           format: datetime
         start_date:
@@ -3940,7 +3764,95 @@ components:
               items:
                 $ref: "#/components/schemas/TaskInstance"
         - $ref: "#/components/schemas/CollectionInfo"
+    TaskInstanceHistory:
+      type: object
+      properties:
+        task_id:
+          type: string
+        task_display_name:
+          type: string
+          description: |
+            Human centric display text for the task.
 
+            *New in version 2.9.0*
+        dag_id:
+          type: string
+        dag_run_id:
+          type: string
+          description: |
+            The DagRun ID for this task instance
+
+            *New in version 2.3.0*
+        start_date:
+          type: string
+          format: datetime
+          nullable: true
+        end_date:
+          type: string
+          format: datetime
+          nullable: true
+        duration:
+          type: number
+          nullable: true
+        state:
+          $ref: "#/components/schemas/TaskState"
+        try_number:
+          type: integer
+        map_index:
+          type: integer
+        max_tries:
+          type: integer
+        hostname:
+          type: string
+        unixname:
+          type: string
+        pool:
+          type: string
+        pool_slots:
+          type: integer
+        queue:
+          type: string
+          nullable: true
+        priority_weight:
+          type: integer
+          nullable: true
+        operator:
+          type: string
+          nullable: true
+          description: |
+            *Changed in version 2.1.1*&#58; Field becomes nullable.
+        queued_when:
+          type: string
+          nullable: true
+          description: |
+            The datetime that the task enter the state QUEUE, also known as queue_at
+        pid:
+          type: integer
+          nullable: true
+        executor:
+          type: string
+          nullable: true
+          description: |
+            Executor the task is configured to run on or None (which indicates the default executor)
+
+            *New in version 2.10.0*
+        executor_config:
+          type: string
+
+    TaskInstanceHistoryCollection:
+      type: object
+      description: |
+        Collection of task instances .
+
+        *Changed in version 2.1.0*&#58; 'total_entries' field is added.
+      allOf:
+        - type: object
+          properties:
+            task_instances_history:
+              type: array
+              items:
+                $ref: "#/components/schemas/TaskInstanceHistory"
+        - $ref: "#/components/schemas/CollectionInfo"
     TaskInstanceReference:
       type: object
       properties:
@@ -3952,7 +3864,7 @@ components:
           type: string
           readOnly: true
           description: The DAG ID.
-        execution_date:
+        logical_date:
           type: string
           format: datetime
           readOnly: true
@@ -4024,7 +3936,7 @@ components:
         timestamp:
           type: string
           format: datetime
-        execution_date:
+        logical_date:
           type: string
           format: datetime
         map_index:
@@ -4898,14 +4810,14 @@ components:
           description: The task ID.
           type: string
 
-        execution_date:
-          description: The execution date. Either set this or dag_run_id but not both.
+        logical_date:
+          description: The logical date. Either set this or dag_run_id but not both.
           type: string
           format: datetime
 
         dag_run_id:
           description: |
-            The task instance's DAG run ID. Either set this or execution_date but not both.
+            The task instance's DAG run ID. Either set this or logical_date but not both.
 
             *New in version 2.3.0*
           type: string
@@ -5038,6 +4950,15 @@ components:
     ListTaskInstanceForm:
       type: object
       properties:
+        page_offset:
+          type: integer
+          minimum: 0
+          description: The number of items to skip before starting to collect the result set.
+        page_limit:
+          type: integer
+          minimum: 1
+          default: 100
+          description: The numbers of items to return.
         dag_ids:
           type: array
           items:
@@ -5939,6 +5860,15 @@ components:
           type: string
       description: |
         List of field for return.
+
+    VersionNumber:
+      in: query
+      name: version_number
+      schema:
+        type: integer
+      description: |
+        The version number.
+
 
   # Reusable request bodies
   requestBodies: {}

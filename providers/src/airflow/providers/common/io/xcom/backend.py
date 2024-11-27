@@ -25,7 +25,9 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.parse import urlsplit
 
 import fsspec.utils
+from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.configuration import conf
 from airflow.io.path import ObjectStoragePath
 from airflow.models.xcom import BaseXCom
@@ -39,6 +41,10 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 SECTION = "common.io"
+
+
+AIRFLOW_VERSION = Version(airflow_version)
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 
 def _get_compression_suffix(compression: str) -> str:
@@ -103,7 +109,7 @@ class XComObjectStorageBackend(BaseXCom):
         raise ValueError(f"Not a valid url: {data}")
 
     @staticmethod
-    def serialize_value(
+    def serialize_value(  # type: ignore[override]
         value: T,
         *,
         key: str | None = None,
@@ -114,7 +120,8 @@ class XComObjectStorageBackend(BaseXCom):
     ) -> bytes | str:
         # we will always serialize ourselves and not by BaseXCom as the deserialize method
         # from BaseXCom accepts only XCom objects and not the value directly
-        s_val = json.dumps(value, cls=XComEncoder).encode("utf-8")
+        s_val = json.dumps(value, cls=XComEncoder)
+        s_val_encoded = s_val.encode("utf-8")
 
         if compression := _get_compression():
             suffix = f".{_get_compression_suffix(compression)}"
@@ -122,8 +129,13 @@ class XComObjectStorageBackend(BaseXCom):
             suffix = ""
 
         threshold = _get_threshold()
-        if threshold < 0 or len(s_val) < threshold:  # Either no threshold or value is small enough.
-            return s_val
+        if threshold < 0 or len(s_val_encoded) < threshold:  # Either no threshold or value is small enough.
+            if AIRFLOW_V_3_0_PLUS:
+                return s_val
+            else:
+                # TODO: Remove this branch once we drop support for Airflow 2
+                # This is for Airflow 2.10 where the value is expected to be bytes
+                return s_val_encoded
 
         base_path = _get_base_path()
         while True:  # Safeguard against collisions.
@@ -138,7 +150,7 @@ class XComObjectStorageBackend(BaseXCom):
         p.parent.mkdir(parents=True, exist_ok=True)
 
         with p.open(mode="wb", compression=compression) as f:
-            f.write(s_val)
+            f.write(s_val_encoded)
         return BaseXCom.serialize_value(str(p))
 
     @staticmethod

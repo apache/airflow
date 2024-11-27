@@ -37,7 +37,7 @@ TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
 TEST_REGION: str = "test-region"
 TEST_PROJECT_ID: str = "test-project-id"
 TEST_MODEL = None
-TEST_PARENT_MODEL = "test-parent-model"
+TEST_PARENT_MODEL = "projects/test-project-id/locations/test-region/models/test-parent-model"
 TEST_MODEL_NAME: str = "test_model_name"
 TEST_OUTPUT_CONFIG: dict = {}
 
@@ -47,10 +47,6 @@ TEST_VERSION_ALIASES = ["new-alias"]
 
 
 class TestModelServiceWithDefaultProjectIdHook:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            ModelServiceHook(gcp_conn_id=TEST_GCP_CONN_ID, delegate_to="delegate_to")
-
     def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
@@ -148,7 +144,7 @@ class TestModelServiceWithDefaultProjectIdHook:
             request=dict(
                 parent=mock_client.return_value.common_location_path.return_value,
                 model=TEST_MODEL,
-                parent_model=TEST_PARENT_MODEL,
+                parent_model=mock_client.return_value.model_path.return_value,
             ),
             metadata=(),
             retry=DEFAULT,
@@ -352,7 +348,7 @@ class TestModelServiceWithoutDefaultProjectIdHook:
             request=dict(
                 parent=mock_client.return_value.common_location_path.return_value,
                 model=TEST_MODEL,
-                parent_model=TEST_PARENT_MODEL,
+                parent_model=mock_client.return_value.model_path.return_value,
             ),
             metadata=(),
             retry=DEFAULT,

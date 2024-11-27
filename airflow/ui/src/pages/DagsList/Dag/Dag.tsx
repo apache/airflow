@@ -16,11 +16,65 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
-import { useParams } from "react-router-dom";
+import { Box, Button } from "@chakra-ui/react";
+import { FiChevronsLeft } from "react-icons/fi";
+import { Outlet, Link as RouterLink, useParams } from "react-router-dom";
+
+import {
+  useDagServiceGetDagDetails,
+  useDagsServiceRecentDagRuns,
+} from "openapi/queries";
+import { ErrorAlert } from "src/components/ErrorAlert";
+import { ProgressBar } from "src/components/ui";
+import { OpenGroupsProvider } from "src/context/openGroups";
+
+import { Header } from "./Header";
+import { DagTabs } from "./Tabs";
 
 export const Dag = () => {
-  const params = useParams();
+  const { dagId } = useParams();
 
-  return <Box>{params.dagId}</Box>;
+  const {
+    data: dag,
+    error,
+    isLoading,
+  } = useDagServiceGetDagDetails({
+    dagId: dagId ?? "",
+  });
+
+  // TODO: replace with with a list dag runs by dag id request
+  const {
+    data: runsData,
+    error: runsError,
+    isLoading: isLoadingRuns,
+  } = useDagsServiceRecentDagRuns({ dagIdPattern: dagId ?? "" }, undefined, {
+    enabled: Boolean(dagId),
+  });
+
+  const runs =
+    runsData?.dags.find((dagWithRuns) => dagWithRuns.dag_id === dagId)
+      ?.latest_dag_runs ?? [];
+
+  return (
+    <OpenGroupsProvider dagId={dagId ?? ""}>
+      <Box>
+        <Button asChild colorPalette="blue" variant="ghost">
+          <RouterLink to="/dags">
+            <FiChevronsLeft />
+            Back to all dags
+          </RouterLink>
+        </Button>
+        <Header dag={dag} dagId={dagId} latestRun={runs[0]} />
+        <ErrorAlert error={error ?? runsError} />
+        <ProgressBar
+          size="xs"
+          visibility={isLoading || isLoadingRuns ? "visible" : "hidden"}
+        />
+        <DagTabs dag={dag} />
+      </Box>
+      <Box overflow="auto">
+        <Outlet />
+      </Box>
+    </OpenGroupsProvider>
+  );
 };

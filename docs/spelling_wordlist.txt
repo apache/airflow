@@ -32,6 +32,7 @@ airbyte
 AirflowException
 airflowignore
 ajax
+aks
 AlertApi
 alertPolicies
 Alibaba
@@ -790,6 +791,7 @@ ignoreUnknownValues
 ImageAnnotatorClient
 imageORfile
 imagePullPolicy
+imagePullSecrets
 imageVersion
 Imap
 imap
@@ -896,6 +898,7 @@ Jupyter
 jupyter
 jupytercmd
 JWT
+jwt
 Kafka
 kafka
 Kalibrr
@@ -964,6 +967,7 @@ LineItem
 lineterminator
 linter
 linux
+ListDatasetsPager
 ListGenerator
 ListInfoTypesResponse
 ListSecretsPager
@@ -1373,6 +1377,7 @@ repos
 repr
 req
 reqs
+requeued
 Reserialize
 reserialize
 reserialized
@@ -1698,6 +1703,7 @@ traceback
 tracebacks
 tracemalloc
 TrainingPipeline
+TranslationServiceClient
 travis
 triage
 triaging
@@ -1734,6 +1740,7 @@ unarchived
 unassigns
 uncomment
 uncommenting
+uncompress
 Undead
 undead
 Undeads

@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
+from typing import ClassVar
 
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.exasol.hooks.exasol import exasol_fetch_all_handler
@@ -40,7 +41,7 @@ class ExasolOperator(SQLExecuteQueryOperator):
 
     template_fields: Sequence[str] = ("sql", "exasol_conn_id")
     template_ext: Sequence[str] = (".sql",)
-    template_fields_renderers = {"sql": "sql"}
+    template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
     ui_color = "#ededed"
     conn_id_field = "exasol_conn_id"
 

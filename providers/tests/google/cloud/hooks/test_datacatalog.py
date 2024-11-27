@@ -17,8 +17,9 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from copy import deepcopy
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
@@ -85,10 +86,6 @@ TEST_CREDENTIALS = mock.MagicMock()
 
 
 class TestCloudDataCatalog:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            CloudDataCatalogHook(gcp_conn_id="test", delegate_to="delegate_to")
-
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.__init__",

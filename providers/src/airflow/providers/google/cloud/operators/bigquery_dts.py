@@ -20,8 +20,9 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.bigquery_datatransfer_v1 import (

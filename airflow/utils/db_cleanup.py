@@ -53,6 +53,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 ARCHIVE_TABLE_PREFIX = "_airflow_deleted__"
+# Archived tables created by DB migrations
+ARCHIVED_TABLES_FROM_DB_MIGRATIONS = [
+    "_xcom_archive"  # Table created by the AF 2 -> 3.0.0 migration when the XComs had pickled values
+]
 
 
 @dataclass
@@ -112,11 +116,11 @@ config_list: list[_TableConfig] = [
     _TableConfig(table_name="import_error", recency_column_name="timestamp"),
     _TableConfig(table_name="log", recency_column_name="dttm"),
     _TableConfig(table_name="sla_miss", recency_column_name="timestamp"),
-    _TableConfig(table_name="task_fail", recency_column_name="start_date"),
     _TableConfig(table_name="task_instance", recency_column_name="start_date"),
     _TableConfig(table_name="task_instance_history", recency_column_name="start_date"),
     _TableConfig(table_name="task_reschedule", recency_column_name="start_date"),
     _TableConfig(table_name="xcom", recency_column_name="timestamp"),
+    _TableConfig(table_name="_xcom_archive", recency_column_name="timestamp"),
     _TableConfig(table_name="callback_request", recency_column_name="created_at"),
     _TableConfig(table_name="celery_taskmeta", recency_column_name="date_done"),
     _TableConfig(table_name="celery_tasksetmeta", recency_column_name="date_done"),
@@ -381,13 +385,20 @@ def _effective_table_names(*, table_names: list[str] | None) -> tuple[set[str], 
 
 def _get_archived_table_names(table_names: list[str] | None, session: Session) -> list[str]:
     inspector = inspect(session.bind)
-    db_table_names = [x for x in inspector.get_table_names() if x.startswith(ARCHIVE_TABLE_PREFIX)]
+    db_table_names = [
+        x
+        for x in inspector.get_table_names()
+        if x.startswith(ARCHIVE_TABLE_PREFIX) or x in ARCHIVED_TABLES_FROM_DB_MIGRATIONS
+    ]
     effective_table_names, _ = _effective_table_names(table_names=table_names)
     # Filter out tables that don't start with the archive prefix
     archived_table_names = [
         table_name
         for table_name in db_table_names
-        if any("__" + x + "__" in table_name for x in effective_table_names)
+        if (
+            any("__" + x + "__" in table_name for x in effective_table_names)
+            or table_name in ARCHIVED_TABLES_FROM_DB_MIGRATIONS
+        )
     ]
     return archived_table_names
 

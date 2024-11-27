@@ -16,15 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterator, NamedTuple, Sequence
+from collections.abc import Iterator, Sequence
+from typing import TYPE_CHECKING, Any, NamedTuple
 
-from airflow.assets import BaseAsset
+from airflow.sdk.definitions.asset import BaseAsset
 from airflow.typing_compat import Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from pendulum import DateTime
 
-    from airflow.assets import Asset, AssetAlias
+    from airflow.sdk.definitions.asset import Asset, AssetAlias
     from airflow.serialization.dag_dependency import DagDependency
     from airflow.utils.types import DagRunType
 
@@ -174,7 +175,7 @@ class Timetable(Protocol):
     ``NullTimetable`` sets this to *False*.
     """
 
-    run_ordering: Sequence[str] = ("data_interval_end", "execution_date")
+    run_ordering: Sequence[str] = ("data_interval_end", "logical_date")
     """How runs triggered from this timetable should be ordered in UI.
 
     This should be a list of field names on the DAG run object.

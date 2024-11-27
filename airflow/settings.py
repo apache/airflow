@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import pluggy
 from packaging.version import Version
 from sqlalchemy import create_engine, exc, text
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession as SAAsyncSession, create_async_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
@@ -95,8 +96,22 @@ LOGGING_CLASS_PATH: str | None = None
 DONOT_MODIFY_HANDLERS: bool | None = None
 DAGS_FOLDER: str = os.path.expanduser(conf.get_mandatory_value("core", "DAGS_FOLDER"))
 
+AIO_LIBS_MAPPING = {"sqlite": "aiosqlite", "postgresql": "asyncpg", "mysql": "aiomysql"}
+"""
+Mapping of sync scheme to async scheme.
+
+:meta private:
+"""
+
 engine: Engine
 Session: Callable[..., SASession]
+# NonScopedSession creates global sessions and is not safe to use in multi-threaded environment without
+# additional precautions. The only use case is when the session lifecycle needs
+# custom handling. Most of the time we only want one unique thread local session object,
+# this is achieved by the Session factory above.
+NonScopedSession: Callable[..., SASession]
+async_engine: AsyncEngine
+AsyncSession: Callable[..., SAAsyncSession]
 
 # The JSON library to use for DAG Serialization and De-Serialization
 json = json
@@ -119,7 +134,7 @@ STATE_COLORS = {
 }
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def _get_rich_console(file):
     # Delay imports until we need it
     import rich.console
@@ -199,13 +214,25 @@ def load_policy_plugins(pm: pluggy.PluginManager):
     pm.load_setuptools_entrypoints("airflow.policy")
 
 
+def _get_async_conn_uri_from_sync(sync_uri):
+    scheme, rest = sync_uri.split(":", maxsplit=1)
+    scheme = scheme.split("+", maxsplit=1)[0]
+    aiolib = AIO_LIBS_MAPPING.get(scheme)
+    if aiolib:
+        return f"{scheme}+{aiolib}:{rest}"
+    else:
+        return sync_uri
+
+
 def configure_vars():
     """Configure Global Variables from airflow.cfg."""
     global SQL_ALCHEMY_CONN
+    global SQL_ALCHEMY_CONN_ASYNC
     global DAGS_FOLDER
     global PLUGINS_FOLDER
     global DONOT_MODIFY_HANDLERS
     SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN")
+    SQL_ALCHEMY_CONN_ASYNC = _get_async_conn_uri_from_sync(sync_uri=SQL_ALCHEMY_CONN)
 
     DAGS_FOLDER = os.path.expanduser(conf.get("core", "DAGS_FOLDER"))
 
@@ -452,6 +479,9 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
     global Session
     global engine
+    global async_engine
+    global AsyncSession
+    global NonScopedSession
 
     if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Skip DB initialization in unit tests, if DB tests are skipped
@@ -471,6 +501,13 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     else:
         connect_args = {}
 
+
+    if SQL_ALCHEMY_CONN.startswith("sqlite"):
+        # FastAPI runs sync endpoints in a separate thread. SQLite does not allow
+        # to use objects created in another threads by default. Allowing that in test
+        # to so the `test` thread and the tested endpoints can use common objects.
+        connect_args["check_same_thread"] = False
+
     engine = create_engine(
         SQL_ALCHEMY_CONN,
         connect_args=connect_args,
@@ -478,7 +515,14 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
         future=True,
         json_serializer=_json_serializer,
     )
-
+    async_engine = create_async_engine(SQL_ALCHEMY_CONN_ASYNC, future=True)
+    AsyncSession = sessionmaker(
+        bind=async_engine,
+        autocommit=False,
+        autoflush=False,
+        class_=SAAsyncSession,
+        expire_on_commit=False,
+    )
     mask_secret(engine.url.password)
 
     setup_event_handlers(engine)
@@ -495,7 +539,8 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
                 expire_on_commit=False,
             )
 
-    Session = scoped_session(_session_maker(engine))
+    NonScopedSession = _session_maker(engine)
+    Session = scoped_session(NonScopedSession)
 
 
 def force_traceback_session_for_untrusted_components(allow_tests_to_use_db=False):
@@ -635,7 +680,15 @@ def configure_adapters():
 
     if SQL_ALCHEMY_CONN.startswith("mysql"):
         try:
-            import MySQLdb.converters
+            try:
+                import MySQLdb.converters
+            except ImportError:
+                raise RuntimeError(
+                    "You do not have `mysqlclient` package installed. "
+                    "Please install it with `pip install mysqlclient` and make sure you have system "
+                    "mysql libraries installed, as well as well as `pkg-config` system package "
+                    "installed in case you see compilation error during installation."
+                )
 
             MySQLdb.converters.conversions[Pendulum] = MySQLdb.converters.DateTime2literal
         except ImportError:
@@ -801,7 +854,7 @@ EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not CAN_FORK or conf.getboolean(
     fallback=False,
 )
 
-ALLOW_FUTURE_EXEC_DATES = conf.getboolean("scheduler", "allow_trigger_in_future", fallback=False)
+ALLOW_FUTURE_LOGICAL_DATES = conf.getboolean("scheduler", "allow_trigger_in_future", fallback=False)
 
 USE_JOB_SCHEDULE = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
 

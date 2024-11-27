@@ -29,7 +29,6 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow import configuration
 from airflow.configuration import (
     AirflowConfigException,
     AirflowConfigParser,
@@ -976,9 +975,14 @@ class TestDeprecatedConf:
     def test_deprecated_options_cmd(self):
         # Guarantee we have a deprecated setting, so we test the deprecation
         # lookup even if we remove this explicit fallback
-        with set_deprecated_options(
-            deprecated_options={("celery", "result_backend"): ("celery", "celery_result_backend", "2.0.0")}
-        ), set_sensitive_config_values(sensitive_config_values={("celery", "celery_result_backend")}):
+        with (
+            set_deprecated_options(
+                deprecated_options={
+                    ("celery", "result_backend"): ("celery", "celery_result_backend", "2.0.0")
+                }
+            ),
+            set_sensitive_config_values(sensitive_config_values={("celery", "celery_result_backend")}),
+        ):
             conf.remove_option("celery", "result_backend")
             with conf_vars({("celery", "celery_result_backend_cmd"): "/bin/echo 99"}):
                 with pytest.warns(DeprecationWarning):
@@ -1146,22 +1150,6 @@ sql_alchemy_conn=sqlite://test
         ):
             # Test when you read using the old section you get told to change your `conf.get` call
             assert test_conf.get("old_section", "val") == expected
-
-    def test_deprecated_funcs(self):
-        for func in [
-            "get",
-            "getboolean",
-            "getfloat",
-            "getint",
-            "has_option",
-            "remove_option",
-            "as_dict",
-            "set",
-        ]:
-            with mock.patch(f"airflow.configuration.conf.{func}") as mock_method:
-                with pytest.warns(DeprecationWarning):
-                    getattr(configuration, func)()
-                mock_method.assert_called_once()
 
     @pytest.mark.parametrize("display_source", [True, False])
     @mock.patch.dict("os.environ", {}, clear=True)
@@ -1569,8 +1557,8 @@ sql_alchemy_conn=sqlite://test
         airflow_cfg = AirflowConfigParser()
         airflow_cfg.remove_all_read_configurations()
         default_options = airflow_cfg.get_options_including_defaults("core")
-        assert "task_runner" in default_options
-        assert "StandardTaskRunner" == airflow_cfg.get("core", "task_runner")
+        assert "hostname_callable" in default_options
+        assert "airflow.utils.net.getfqdn" == airflow_cfg.get("core", "hostname_callable")
         assert "test-key" not in default_options
         no_options = airflow_cfg.get_options_including_defaults("test-section")
         assert no_options == []
@@ -1578,16 +1566,16 @@ sql_alchemy_conn=sqlite://test
         airflow_cfg.set("test-section", "test-key", "test-value")
         test_section_options = airflow_cfg.get_options_including_defaults("test-section")
         assert "test-key" in test_section_options
-        assert "StandardTaskRunner" == airflow_cfg.get("core", "task_runner")
+        assert "airflow.utils.net.getfqdn" == airflow_cfg.get("core", "hostname_callable")
         airflow_cfg.add_section("core")
         airflow_cfg.set("core", "new-test-key", "test-value")
-        airflow_cfg.set("core", "task_runner", "test-runner")
+        airflow_cfg.set("core", "hostname_callable", "test-fn")
         all_core_options_including_defaults = airflow_cfg.get_options_including_defaults("core")
         assert "new-test-key" in all_core_options_including_defaults
         assert "dags_folder" in all_core_options_including_defaults
         assert "test-value" == airflow_cfg.get("core", "new-test-key")
-        assert "test-runner" == airflow_cfg.get("core", "task_runner")
-        assert sum(1 for option in all_core_options_including_defaults if option == "task_runner") == 1
+        assert "test-fn" == airflow_cfg.get("core", "hostname_callable")
+        assert sum(1 for option in all_core_options_including_defaults if option == "hostname_callable") == 1
 
 
 def test_sensitive_values():
@@ -1601,6 +1589,7 @@ def test_sensitive_values():
         ("database", "sql_alchemy_conn"),
         ("core", "fernet_key"),
         ("core", "internal_api_secret_key"),
+        ("api", "auth_jwt_secret"),
         ("webserver", "secret_key"),
         ("secrets", "backend_kwargs"),
         ("sentry", "sentry_dsn"),

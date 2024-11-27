@@ -20,8 +20,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Any, Sequence
+from typing import Any
 
 from dateutil import parser
 from google.cloud.orchestration.airflow.service_v1.types import ExecuteAirflowCommandResponse
@@ -231,7 +232,7 @@ class CloudComposerDAGRunTrigger(BaseTrigger):
         for dag_run in dag_runs:
             if (
                 start_date.timestamp()
-                < parser.parse(dag_run["execution_date"]).timestamp()
+                < parser.parse(dag_run["logical_date"]).timestamp()
                 < end_date.timestamp()
             ) and dag_run["state"] not in self.allowed_states:
                 return False

@@ -19,8 +19,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from deprecated.classic import deprecated
 
@@ -85,7 +86,8 @@ class AzureDataExplorerQueryOperator(BaseOperator):
         https://docs.microsoft.com/en-us/azure/kusto/api/rest/response2
         """
         response = self.hook.run_query(self.query, self.database, self.options)
-        if conf.getboolean("core", "enable_xcom_pickling"):
+        # TODO: Remove this after minimum Airflow version is 3.0
+        if conf.getboolean("core", "enable_xcom_pickling", fallback=False):
             return response.primary_results[0]
         else:
             return str(response.primary_results[0])

@@ -69,7 +69,7 @@ class TestDagEndpoint:
         dagrun_failed = DagRun(
             dag_id=DAG3_ID,
             run_id="run1",
-            execution_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            logical_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             start_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             run_type=DagRunType.SCHEDULED,
             state=DagRunState.FAILED,
@@ -79,7 +79,7 @@ class TestDagEndpoint:
         dagrun_success = DagRun(
             dag_id=DAG3_ID,
             run_id="run2",
-            execution_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+            logical_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             start_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
             run_type=DagRunType.MANUAL,
             state=DagRunState.SUCCESS,
@@ -274,8 +274,8 @@ class TestDagDetails(TestDagEndpoint):
     @pytest.mark.parametrize(
         "query_params, dag_id, expected_status_code, dag_display_name, start_date",
         [
-            ({}, "fake_dag_id", 404, "fake_dag", datetime(2023, 12, 31, tzinfo=timezone.utc)),
-            ({}, DAG2_ID, 200, DAG2_ID, DAG2_START_DATE),
+            ({}, "fake_dag_id", 404, "fake_dag", "2023-12-31T00:00:00Z"),
+            ({}, DAG2_ID, 200, DAG2_ID, "2021-06-15T00:00:00Z"),
         ],
     )
     def test_dag_details(
@@ -302,7 +302,7 @@ class TestDagDetails(TestDagEndpoint):
             "description": None,
             "doc_md": "details",
             "end_date": None,
-            "fileloc": "/opt/airflow/tests/api_fastapi/core_api/routes/public/test_dags.py",
+            "fileloc": __file__,
             "file_token": file_token,
             "has_import_errors": False,
             "has_task_concurrency_limits": True,
@@ -312,7 +312,6 @@ class TestDagDetails(TestDagEndpoint):
             "last_expired": None,
             "last_parsed": last_parsed,
             "last_parsed_time": last_parsed_time,
-            "last_pickled": None,
             "max_active_runs": 16,
             "max_active_tasks": 16,
             "max_consecutive_failed_dag_runs": 0,
@@ -320,7 +319,6 @@ class TestDagDetails(TestDagEndpoint):
             "next_dagrun_create_after": None,
             "next_dagrun_data_interval_end": None,
             "next_dagrun_data_interval_start": None,
-            "orientation": "LR",
             "owners": ["airflow"],
             "params": {
                 "foo": {
@@ -330,11 +328,9 @@ class TestDagDetails(TestDagEndpoint):
                     "value": 1,
                 }
             },
-            "pickle_id": None,
             "render_template_as_native_obj": False,
             "timetable_summary": None,
-            "scheduler_lock": None,
-            "start_date": start_date.replace(tzinfo=None).isoformat() + "Z",  # pydantic datetime format
+            "start_date": start_date,
             "tags": [],
             "template_search_path": None,
             "timetable_description": "Never, external triggers only",
@@ -367,7 +363,7 @@ class TestGetDag(TestDagEndpoint):
             "dag_id": dag_id,
             "dag_display_name": dag_display_name,
             "description": None,
-            "fileloc": "/opt/airflow/tests/api_fastapi/core_api/routes/public/test_dags.py",
+            "fileloc": __file__,
             "file_token": file_token,
             "is_paused": False,
             "is_active": True,
@@ -383,13 +379,10 @@ class TestGetDag(TestDagEndpoint):
             "next_dagrun_create_after": None,
             "last_expired": None,
             "max_active_tasks": 16,
-            "last_pickled": None,
             "default_view": "grid",
             "last_parsed_time": last_parsed_time,
-            "scheduler_lock": None,
             "timetable_description": "Never, external triggers only",
             "has_import_errors": False,
-            "pickle_id": None,
         }
         assert res_json == expected
 

@@ -21,9 +21,10 @@ import copy
 import itertools
 import re
 import signal
+from collections.abc import Generator, Iterable, Mapping, MutableMapping
 from datetime import datetime
 from functools import reduce
-from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Mapping, MutableMapping, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 from lazy_object_proxy import Proxy
 
@@ -198,7 +199,7 @@ def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
     return filename_template.format(
         dag_id=ti.dag_id,
         task_id=ti.task_id,
-        execution_date=ti.execution_date.isoformat(),
+        logical_date=ti.logical_date.isoformat(),
         try_number=try_number,
     )
 
@@ -234,7 +235,7 @@ def build_airflow_url_with_query(query: dict[str, Any]) -> str:
     Build airflow url using base_url and default_view and provided query.
 
     For example:
-    http://0.0.0.0:8000/base/graph?dag_id=my-task&root=&execution_date=2020-10-27T10%3A59%3A25.615587
+    http://0.0.0.0:8000/base/graph?dag_id=my-task&root=&logical_date=2020-10-27T10%3A59%3A25.615587
     """
     import flask
 

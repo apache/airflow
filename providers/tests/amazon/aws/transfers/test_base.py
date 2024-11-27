@@ -25,6 +25,8 @@ from airflow.providers.amazon.aws.transfers.base import AwsToAwsBaseOperator
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
 DEFAULT_DATE = timezone.datetime(2020, 1, 1)
 
 
@@ -42,12 +44,20 @@ class TestAwsToAwsBaseOperator:
             dest_aws_conn_id="{{ ds }}",
         )
         ti = TaskInstance(operator, run_id="something")
-        ti.dag_run = DagRun(
-            dag_id=self.dag.dag_id,
-            run_id="something",
-            execution_date=timezone.datetime(2020, 1, 1),
-            run_type=DagRunType.MANUAL,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            ti.dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                run_id="something",
+                logical_date=timezone.datetime(2020, 1, 1),
+                run_type=DagRunType.MANUAL,
+            )
+        else:
+            ti.dag_run = DagRun(
+                dag_id=self.dag.dag_id,
+                run_id="something",
+                execution_date=timezone.datetime(2020, 1, 1),
+                run_type=DagRunType.MANUAL,
+            )
         session.add(ti)
         session.commit()
         ti.render_templates()

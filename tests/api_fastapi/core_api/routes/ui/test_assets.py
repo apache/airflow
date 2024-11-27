@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.assets import Asset
 from airflow.operators.empty import EmptyOperator
+from airflow.sdk.definitions.asset import Asset
 
 from tests_common.test_utils.db import initial_db_init
 
@@ -47,5 +47,5 @@ def test_next_run_assets(test_client, dag_maker):
     assert response.status_code == 200
     assert response.json() == {
         "asset_expression": {"all": ["s3://bucket/key/1"]},
-        "events": [{"id": 17, "uri": "s3://bucket/key/1", "lastUpdate": None}],
+        "events": [{"id": 20, "uri": "s3://bucket/key/1", "lastUpdate": None}],
     }

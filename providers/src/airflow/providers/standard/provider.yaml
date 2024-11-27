@@ -20,23 +20,26 @@ package-name: apache-airflow-providers-standard
 name: Standard
 description: |
     Airflow Standard Provider
-state: not-ready
-source-date-epoch: 1718603992
+state: ready
+source-date-epoch: 1732434919
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
-  - 1.0.0
+  - 0.0.2
+  - 0.0.1
 
 dependencies:
-  - apache-airflow>=2.10.0
-  - apache-airflow-providers-common-sql>=1.18.0
+  - apache-airflow>=2.8.0
+  - apache-airflow-providers-common-sql>=1.20.0
 
 integrations:
   - integration-name: Standard
     external-doc-url: https://airflow.apache.org/
     tags: [apache]
     how-to-guide:
-      - /docs/apache-airflow-providers-standard/operators.rst
+      - /docs/apache-airflow-providers-standard/operators/bash.rst
+      - /docs/apache-airflow-providers-standard/operators/python.rst
+      - /docs/apache-airflow-providers-standard/operators/datetime.rst
 
 operators:
   - integration-name: Standard
@@ -44,7 +47,9 @@ operators:
       - airflow.providers.standard.operators.datetime
       - airflow.providers.standard.operators.weekday
       - airflow.providers.standard.operators.bash
+      - airflow.providers.standard.operators.python
       - airflow.providers.standard.operators.generic_transfer
+      - airflow.providers.standard.operators.trigger_dagrun
 
 sensors:
   - integration-name: Standard
@@ -54,10 +59,35 @@ sensors:
       - airflow.providers.standard.sensors.time
       - airflow.providers.standard.sensors.weekday
       - airflow.providers.standard.sensors.bash
-
+      - airflow.providers.standard.sensors.python
+      - airflow.providers.standard.sensors.filesystem
 hooks:
   - integration-name: Standard
     python-modules:
       - airflow.providers.standard.hooks.filesystem
       - airflow.providers.standard.hooks.package_index
       - airflow.providers.standard.hooks.subprocess
+
+triggers:
+  - integration-name: Standard
+    python-modules:
+      - airflow.providers.standard.triggers.external_task
+      - airflow.providers.standard.triggers.file
+      - airflow.providers.standard.triggers.temporal
+
+config:
+  standard:
+    description: Options for the standard provider operators.
+    options:
+      venv_install_method:
+        description: |
+          Which python tooling should be used to install the virtual environment.
+
+          The following options are available:
+          - ``auto``: Automatically select, use ``uv`` if available, otherwise use ``pip``.
+          - ``pip``: Use pip to install the virtual environment.
+          - ``uv``: Use uv to install the virtual environment. Must be available in environment PATH.
+        version_added: ~
+        type: string
+        example: uv
+        default: auto

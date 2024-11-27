@@ -16,8 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
-from typing import TYPE_CHECKING, Iterable, List, Optional
+from typing import TYPE_CHECKING, Optional
+from uuid import UUID
 
 from pydantic import BaseModel as BaseModelPydantic, ConfigDict
 
@@ -40,7 +42,7 @@ class DagRunPydantic(BaseModelPydantic):
     id: int
     dag_id: str
     queued_at: Optional[datetime]
-    execution_date: datetime
+    logical_date: datetime
     start_date: Optional[datetime]
     end_date: Optional[datetime]
     state: str
@@ -52,18 +54,14 @@ class DagRunPydantic(BaseModelPydantic):
     data_interval_start: Optional[datetime]
     data_interval_end: Optional[datetime]
     last_scheduling_decision: Optional[datetime]
-    dag_hash: Optional[str]
+    dag_version_id: Optional[UUID]
     updated_at: Optional[datetime]
     dag: Optional[PydanticDag]
-    consumed_asset_events: List[AssetEventPydantic]  # noqa: UP006
+    consumed_asset_events: list[AssetEventPydantic]
     log_template_id: Optional[int]
     triggered_by: Optional[DagRunTriggeredByType]
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
-
-    @property
-    def logical_date(self) -> datetime:
-        return self.execution_date
 
     def get_task_instances(
         self,

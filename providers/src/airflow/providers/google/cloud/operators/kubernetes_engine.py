@@ -20,8 +20,9 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 import requests
 import yaml
@@ -56,7 +57,6 @@ from airflow.providers.google.cloud.triggers.kubernetes_engine import (
     GKEOperationTrigger,
     GKEStartPodTrigger,
 )
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.timezone import utcnow
@@ -722,15 +722,6 @@ class GKEStartPodOperator(KubernetesPodOperator):
         # All Kubernetes parameters (except config_file) are also valid for the GKEStartPodOperator.
         if self.config_file:
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
-
-    @staticmethod
-    @deprecated(
-        planned_removal_date="November 01, 2024",
-        use_instead="fetch_cluster_info",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def get_gke_config_file():
-        pass
 
     @cached_property
     def cluster_hook(self) -> GKEHook:

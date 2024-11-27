@@ -24,7 +24,8 @@ import json
 import shutil
 import tempfile
 import urllib.request
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 from airflow.exceptions import AirflowException
@@ -52,9 +53,6 @@ class GoogleDisplayVideo360CreateQueryOperator(BaseOperator):
         https://developers.google.com/bid-manager/v2/queries#Query
     :param api_version: The version of the api that will be requested for example 'v3'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -77,7 +75,6 @@ class GoogleDisplayVideo360CreateQueryOperator(BaseOperator):
         body: dict[str, Any],
         api_version: str = "v2",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -85,7 +82,6 @@ class GoogleDisplayVideo360CreateQueryOperator(BaseOperator):
         self.body = body
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def prepare_template(self) -> None:
@@ -97,7 +93,6 @@ class GoogleDisplayVideo360CreateQueryOperator(BaseOperator):
     def execute(self, context: Context) -> dict:
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
@@ -125,9 +120,6 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
     :param report_name: Name of the report to delete.
     :param api_version: The version of the api that will be requested for example 'v3'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -150,7 +142,6 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
         report_name: str | None = None,
         api_version: str = "v2",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -159,7 +150,6 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
         self.report_name = report_name
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
         if report_name and report_id:
@@ -171,7 +161,6 @@ class GoogleDisplayVideo360DeleteReportOperator(BaseOperator):
     def execute(self, context: Context) -> None:
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
@@ -208,9 +197,6 @@ class GoogleDisplayVideo360DownloadReportV2Operator(BaseOperator):
     :param gzip: Option to compress local file or file data for upload
     :param api_version: The version of the api that will be requested for example 'v3'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -240,7 +226,6 @@ class GoogleDisplayVideo360DownloadReportV2Operator(BaseOperator):
         chunk_size: int = 10 * 1024 * 1024,
         api_version: str = "v2",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -253,7 +238,6 @@ class GoogleDisplayVideo360DownloadReportV2Operator(BaseOperator):
         self.report_name = report_name
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def _resolve_file_name(self, name: str) -> str:
@@ -269,13 +253,11 @@ class GoogleDisplayVideo360DownloadReportV2Operator(BaseOperator):
     def execute(self, context: Context):
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 
@@ -333,9 +315,6 @@ class GoogleDisplayVideo360RunQueryOperator(BaseOperator):
         https://developers.google.com/bid-manager/v2/queries/run
     :param api_version: The version of the api that will be requested for example 'v3'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -359,7 +338,6 @@ class GoogleDisplayVideo360RunQueryOperator(BaseOperator):
         parameters: dict[str, Any] | None = None,
         api_version: str = "v2",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -367,14 +345,12 @@ class GoogleDisplayVideo360RunQueryOperator(BaseOperator):
         self.query_id = query_id
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.parameters = parameters
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> dict:
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
@@ -422,7 +398,6 @@ class GoogleDisplayVideo360DownloadLineItemsOperator(BaseOperator):
         gzip: bool = False,
         api_version: str = "v1.1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -433,19 +408,16 @@ class GoogleDisplayVideo360DownloadLineItemsOperator(BaseOperator):
         self.gzip = gzip
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> str:
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 
@@ -498,7 +470,6 @@ class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
         object_name: str,
         api_version: str = "v1.1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -507,18 +478,15 @@ class GoogleDisplayVideo360UploadLineItemsOperator(BaseOperator):
         self.object_name = object_name
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> None:
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
@@ -555,9 +523,6 @@ class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
     :param id_filter: Filters on entities by their entity IDs.
     :param inventory_source_filter: Filters on Inventory Sources by their IDs.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -579,7 +544,6 @@ class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
         body_request: dict[str, Any],
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -587,13 +551,11 @@ class GoogleDisplayVideo360CreateSDFDownloadTaskOperator(BaseOperator):
         self.body_request = body_request
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> dict[str, Any]:
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
@@ -627,9 +589,6 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
     :param id_filter: Filters on entities by their entity IDs.
     :param inventory_source_filter: Filters on Inventory Sources by their IDs.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -656,7 +615,6 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
         gzip: bool = False,
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -667,19 +625,16 @@ class GoogleDisplayVideo360SDFtoGCSOperator(BaseOperator):
         self.gzip = gzip
         self.api_version = api_version
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> str:
         hook = GoogleDisplayVideo360Hook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 

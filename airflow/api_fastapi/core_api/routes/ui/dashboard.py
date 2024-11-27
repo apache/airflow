@@ -16,16 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
-from fastapi import Depends
+from fastapi import Depends, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-from typing_extensions import Annotated
 
-from airflow.api_fastapi.common.parameters import DateTimeQuery
+from airflow.api_fastapi.common.parameters import DateTimeQuery, OptionalDateTimeQuery
+from airflow.api_fastapi.core_api.datamodels.ui.dashboard import HistoricalMetricDataResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.serializers.dashboard import HistoricalMetricDataResponse
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -42,20 +41,21 @@ dashboard_router = AirflowRouter(tags=["Dashboard"])
 @dashboard_router.get(
     "/dashboard/historical_metrics_data",
     include_in_schema=False,
-    responses=create_openapi_http_exception_doc([400]),
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]),
 )
-async def historical_metrics(
-    start_date: DateTimeQuery,
-    end_date: DateTimeQuery,
+def historical_metrics(
     session: Annotated[Session, Depends(get_session)],
+    start_date: DateTimeQuery,
+    end_date: OptionalDateTimeQuery = None,
 ) -> HistoricalMetricDataResponse:
     """Return cluster activity historical metrics."""
+    current_time = timezone.utcnow()
     # DagRuns
     dag_run_types = session.execute(
         select(DagRun.run_type, func.count(DagRun.run_id))
         .where(
             DagRun.start_date >= start_date,
-            func.coalesce(DagRun.end_date, timezone.utcnow()) <= end_date,
+            func.coalesce(DagRun.end_date, current_time) <= func.coalesce(end_date, current_time),
         )
         .group_by(DagRun.run_type)
     ).all()
@@ -64,7 +64,7 @@ async def historical_metrics(
         select(DagRun.state, func.count(DagRun.run_id))
         .where(
             DagRun.start_date >= start_date,
-            func.coalesce(DagRun.end_date, timezone.utcnow()) <= end_date,
+            func.coalesce(DagRun.end_date, current_time) <= func.coalesce(end_date, current_time),
         )
         .group_by(DagRun.state)
     ).all()
@@ -75,7 +75,7 @@ async def historical_metrics(
         .join(TaskInstance.dag_run)
         .where(
             DagRun.start_date >= start_date,
-            func.coalesce(DagRun.end_date, timezone.utcnow()) <= end_date,
+            func.coalesce(DagRun.end_date, current_time) <= func.coalesce(end_date, current_time),
         )
         .group_by(TaskInstance.state)
     ).all()
@@ -97,4 +97,4 @@ async def historical_metrics(
         },
     }
 
-    return HistoricalMetricDataResponse.model_validate(historical_metrics_response, from_attributes=True)
+    return HistoricalMetricDataResponse.model_validate(historical_metrics_response)

@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import sys
 import uuid
 from stat import S_ISDIR, S_ISREG
 from tempfile import NamedTemporaryFile
@@ -29,10 +28,10 @@ from fsspec.implementations.local import LocalFileSystem
 from fsspec.implementations.memory import MemoryFileSystem
 from fsspec.registry import _registry as _fsspec_registry, register_implementation
 
-from airflow.assets import Asset
 from airflow.io import _register_filesystems, get_fs
 from airflow.io.path import ObjectStoragePath
 from airflow.io.store import _STORE_CACHE, ObjectStore, attach
+from airflow.sdk.definitions.asset import Asset
 from airflow.utils.module_loading import qualname
 
 FAKE = "file:///fake"
@@ -247,7 +246,6 @@ class TestFs:
 
         e.unlink()
 
-    @pytest.mark.skipif(sys.version_info < (3, 9), reason="`is_relative_to` new in version 3.9")
     def test_is_relative_to(self):
         uuid_dir = f"/tmp/{str(uuid.uuid4())}"
         o1 = ObjectStoragePath(f"file://{uuid_dir}/aaa")

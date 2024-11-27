@@ -23,18 +23,16 @@ import enum
 import json
 import re
 import warnings
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Iterable, Sequence, SupportsAbs
+from typing import TYPE_CHECKING, Any, SupportsAbs
 
-import attr
 from google.api_core.exceptions import Conflict
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob, Row
 from google.cloud.bigquery.table import RowIterator
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
-from airflow.models import BaseOperator, BaseOperatorLink
-from airflow.models.xcom import XCom
 from airflow.providers.common.sql.operators.sql import (  # type: ignore[attr-defined] # for _parse_boolean
     SQLCheckOperator,
     SQLColumnCheckOperator,
@@ -56,7 +54,6 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryValueCheckTrigger,
 )
 from airflow.providers.google.cloud.utils.bigquery import convert_job_id
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils.helpers import exactly_one
 
@@ -64,7 +61,6 @@ if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.cloud.bigquery import UnknownJob
 
-    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -89,46 +85,6 @@ class IfExistAction(enum.Enum):
     LOG = "log"
     FAIL = "fail"
     SKIP = "skip"
-
-
-class BigQueryConsoleLink(BaseOperatorLink):
-    """Helper class for constructing BigQuery link."""
-
-    name = "BigQuery Console"
-
-    def get_link(
-        self,
-        operator: BaseOperator,
-        *,
-        ti_key: TaskInstanceKey,
-    ):
-        job_id_path = XCom.get_value(key="job_id_path", ti_key=ti_key)
-        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id_path) if job_id_path else ""
-
-
-@attr.s(auto_attribs=True)
-class BigQueryConsoleIndexableLink(BaseOperatorLink):
-    """Helper class for constructing BigQuery link."""
-
-    index: int = attr.ib()
-
-    @property
-    def name(self) -> str:
-        return f"BigQuery Console #{self.index + 1}"
-
-    def get_link(
-        self,
-        operator: BaseOperator,
-        *,
-        ti_key: TaskInstanceKey,
-    ):
-        job_ids = XCom.get_value(key="job_id_path", ti_key=ti_key)
-        if not job_ids:
-            return None
-        if len(job_ids) < self.index:
-            return None
-        job_id = job_ids[self.index]
-        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id)
 
 
 class _BigQueryDbHookMixin:
@@ -1202,231 +1158,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         return event["records"]
 
 
-@deprecated(
-    planned_removal_date="November 01, 2024",
-    use_instead="BigQueryInsertJobOperator",
-    category=AirflowProviderDeprecationWarning,
-)
-class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
-    """
-    Executes BigQuery SQL queries in a specific BigQuery database.
-
-    This operator is deprecated. Please use
-    :class:`airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator`
-    instead.
-
-    This operator does not assert idempotency.
-
-    :param sql: the SQL code to be executed as a single string, or
-        a list of str (sql statements), or a reference to a template file.
-        Template references are recognized by str ending in '.sql'
-    :param destination_dataset_table: A dotted
-        ``(<project>.|<project>:)<dataset>.<table>`` that, if set, will store the results
-        of the query. (templated)
-    :param write_disposition: Specifies the action that occurs if the destination table
-        already exists. (default: 'WRITE_EMPTY')
-    :param create_disposition: Specifies whether the job is allowed to create new tables.
-        (default: 'CREATE_IF_NEEDED')
-    :param allow_large_results: Whether to allow large results.
-    :param flatten_results: If true and query uses legacy SQL dialect, flattens
-        all nested and repeated fields in the query results. ``allow_large_results``
-        must be ``true`` if this is set to ``false``. For standard SQL queries, this
-        flag is ignored and results are never flattened.
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param udf_config: The User Defined Function configuration for the query.
-        See https://cloud.google.com/bigquery/user-defined-functions for details.
-    :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
-    :param maximum_billing_tier: Positive integer that serves as a multiplier
-        of the basic price.
-        Defaults to None, in which case it uses the value set in the project.
-    :param maximum_bytes_billed: Limits the bytes billed for this job.
-        Queries that will have bytes billed beyond this limit will fail
-        (without incurring a charge). If unspecified, this will be
-        set to your project default.
-    :param api_resource_configs: a dictionary that contain params
-        'configuration' applied for Google BigQuery Jobs API:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs
-        for example, {'query': {'useQueryCache': False}}. You could use it
-        if you need to provide some params that are not supported by BigQueryOperator
-        like args.
-    :param schema_update_options: Allows the schema of the destination
-        table to be updated as a side effect of the load job.
-    :param query_params: a list of dictionary containing query parameter types and
-        values, passed to BigQuery. The structure of dictionary should look like
-        'queryParameters' in Google BigQuery Jobs API:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs.
-        For example, [{ 'name': 'corpus', 'parameterType': { 'type': 'STRING' },
-        'parameterValue': { 'value': 'romeoandjuliet' } }]. (templated)
-    :param labels: a dictionary containing labels for the job/query,
-        passed to BigQuery
-    :param priority: Specifies a priority for the query.
-        Possible values include INTERACTIVE and BATCH.
-        The default value is INTERACTIVE.
-    :param time_partitioning: configure optional time partitioning fields i.e.
-        partition by field, type and expiration as per API specifications.
-    :param cluster_fields: Request that the result of this query be stored sorted
-        by one or more columns. BigQuery supports clustering for both partitioned and
-        non-partitioned tables. The order of columns given determines the sort order.
-    :param location: The geographic location of the job. Required except for
-        US and EU. See details at
-        https://cloud.google.com/bigquery/docs/locations#specifying_your_location
-    :param encryption_configuration: (Optional) Custom encryption configuration (e.g., Cloud KMS keys).
-
-        .. code-block:: python
-
-            encryption_configuration = {
-                "kmsKeyName": "projects/PROJECT/locations/LOCATION/keyRings/KEY_RING/cryptoKeys/KEY",
-            }
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    """
-
-    template_fields: Sequence[str] = (
-        "sql",
-        "destination_dataset_table",
-        "labels",
-        "query_params",
-        "impersonation_chain",
-    )
-    template_ext: Sequence[str] = (".sql",)
-    template_fields_renderers = {"sql": "sql"}
-    ui_color = BigQueryUIColors.QUERY.value
-
-    @property
-    def operator_extra_links(self):
-        """Return operator extra links."""
-        if isinstance(self.sql, str):
-            return (BigQueryConsoleLink(),)
-        return (BigQueryConsoleIndexableLink(i) for i, _ in enumerate(self.sql))
-
-    def __init__(
-        self,
-        *,
-        sql: str | Iterable[str],
-        destination_dataset_table: str | None = None,
-        write_disposition: str = "WRITE_EMPTY",
-        allow_large_results: bool = False,
-        flatten_results: bool | None = None,
-        gcp_conn_id: str = "google_cloud_default",
-        udf_config: list | None = None,
-        use_legacy_sql: bool = True,
-        maximum_billing_tier: int | None = None,
-        maximum_bytes_billed: float | None = None,
-        create_disposition: str = "CREATE_IF_NEEDED",
-        schema_update_options: list | tuple | set | None = None,
-        query_params: list | None = None,
-        labels: dict | None = None,
-        priority: str = "INTERACTIVE",
-        time_partitioning: dict | None = None,
-        api_resource_configs: dict | None = None,
-        cluster_fields: list[str] | None = None,
-        location: str | None = None,
-        encryption_configuration: dict | None = None,
-        impersonation_chain: str | Sequence[str] | None = None,
-        impersonation_scopes: str | Sequence[str] | None = None,
-        job_id: str | list[str] | None = None,
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.sql = sql
-        self.destination_dataset_table = destination_dataset_table
-        self.write_disposition = write_disposition
-        self.create_disposition = create_disposition
-        self.allow_large_results = allow_large_results
-        self.flatten_results = flatten_results
-        self.gcp_conn_id = gcp_conn_id
-        self.udf_config = udf_config
-        self.use_legacy_sql = use_legacy_sql
-        self.maximum_billing_tier = maximum_billing_tier
-        self.maximum_bytes_billed = maximum_bytes_billed
-        self.schema_update_options = schema_update_options
-        self.query_params = query_params
-        self.labels = labels
-        self.priority = priority
-        self.time_partitioning = time_partitioning
-        self.api_resource_configs = api_resource_configs
-        self.cluster_fields = cluster_fields
-        self.location = location
-        self.encryption_configuration = encryption_configuration
-        self.hook: BigQueryHook | None = None
-        self.impersonation_chain = impersonation_chain
-        self.impersonation_scopes = impersonation_scopes
-        self.job_id = job_id
-
-    def execute(self, context: Context):
-        if self.hook is None:
-            self.log.info("Executing: %s", self.sql)
-            self.hook = BigQueryHook(
-                gcp_conn_id=self.gcp_conn_id,
-                use_legacy_sql=self.use_legacy_sql,
-                location=self.location,
-                impersonation_chain=self.impersonation_chain,
-                impersonation_scopes=self.impersonation_scopes,
-            )
-        if isinstance(self.sql, str):
-            self.job_id = self.hook.run_query(
-                sql=self.sql,
-                destination_dataset_table=self.destination_dataset_table,
-                write_disposition=self.write_disposition,
-                allow_large_results=self.allow_large_results,
-                flatten_results=self.flatten_results,
-                udf_config=self.udf_config,
-                maximum_billing_tier=self.maximum_billing_tier,
-                maximum_bytes_billed=self.maximum_bytes_billed,
-                create_disposition=self.create_disposition,
-                query_params=self.query_params,
-                labels=self.labels,
-                schema_update_options=self.schema_update_options,
-                priority=self.priority,
-                time_partitioning=self.time_partitioning,
-                api_resource_configs=self.api_resource_configs,
-                cluster_fields=self.cluster_fields,
-                encryption_configuration=self.encryption_configuration,
-            )
-        elif isinstance(self.sql, Iterable):
-            self.job_id = [
-                self.hook.run_query(
-                    sql=s,
-                    destination_dataset_table=self.destination_dataset_table,
-                    write_disposition=self.write_disposition,
-                    allow_large_results=self.allow_large_results,
-                    flatten_results=self.flatten_results,
-                    udf_config=self.udf_config,
-                    maximum_billing_tier=self.maximum_billing_tier,
-                    maximum_bytes_billed=self.maximum_bytes_billed,
-                    create_disposition=self.create_disposition,
-                    query_params=self.query_params,
-                    labels=self.labels,
-                    schema_update_options=self.schema_update_options,
-                    priority=self.priority,
-                    time_partitioning=self.time_partitioning,
-                    api_resource_configs=self.api_resource_configs,
-                    cluster_fields=self.cluster_fields,
-                    encryption_configuration=self.encryption_configuration,
-                )
-                for s in self.sql
-            ]
-        else:
-            raise AirflowException(f"argument 'sql' of type {type(str)} is neither a string nor an iterable")
-        project_id = self.hook.project_id
-        if project_id:
-            job_id_path = convert_job_id(job_id=self.job_id, project_id=project_id, location=self.location)  # type: ignore[arg-type]
-            context["task_instance"].xcom_push(key="job_id_path", value=job_id_path)
-        return self.job_id
-
-    def on_kill(self) -> None:
-        super().on_kill()
-        if self.hook is not None:
-            self.log.info("Cancelling running query")
-            self.hook.cancel_job(self.hook.running_job_id)
-
-
 class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
     """
     Creates a new table in the specified BigQuery dataset, optionally with schema.
@@ -2295,76 +2026,6 @@ class BigQueryGetDatasetTablesOperator(GoogleCloudBaseOperator):
             dataset_id=self.dataset_id,
             project_id=self.project_id,
             max_results=self.max_results,
-        )
-
-
-@deprecated(
-    planned_removal_date="November 01, 2024",
-    use_instead="BigQueryUpdateDatasetOperator",
-    category=AirflowProviderDeprecationWarning,
-)
-class BigQueryPatchDatasetOperator(GoogleCloudBaseOperator):
-    """
-    Patch a dataset for your Project in BigQuery.
-
-    This operator is deprecated. Please use
-    :class:`airflow.providers.google.cloud.operators.bigquery.BigQueryUpdateTableOperator`
-    instead.
-
-    Only replaces fields that are provided in the submitted dataset resource.
-
-    :param dataset_id: The id of dataset. Don't need to provide,
-        if datasetId in dataset_reference.
-    :param dataset_resource: Dataset resource that will be provided with request body.
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
-    :param project_id: The name of the project where we want to create the dataset.
-        Don't need to provide, if projectId in dataset_reference.
-    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    """
-
-    template_fields: Sequence[str] = (
-        "dataset_id",
-        "project_id",
-        "impersonation_chain",
-    )
-    template_fields_renderers = {"dataset_resource": "json"}
-    ui_color = BigQueryUIColors.DATASET.value
-
-    def __init__(
-        self,
-        *,
-        dataset_id: str,
-        dataset_resource: dict,
-        project_id: str = PROVIDE_PROJECT_ID,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
-        self.dataset_id = dataset_id
-        self.project_id = project_id
-        self.gcp_conn_id = gcp_conn_id
-        self.dataset_resource = dataset_resource
-        self.impersonation_chain = impersonation_chain
-        super().__init__(**kwargs)
-
-    def execute(self, context: Context):
-        bq_hook = BigQueryHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-
-        return bq_hook.patch_dataset(
-            dataset_id=self.dataset_id,
-            dataset_resource=self.dataset_resource,
-            project_id=self.project_id,
         )
 
 

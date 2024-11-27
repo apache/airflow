@@ -18,11 +18,20 @@
 from __future__ import annotations
 
 import csv
+from collections.abc import Sequence
 from contextlib import closing
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
-import MySQLdb
+try:
+    import MySQLdb
+except ImportError:
+    raise RuntimeError(
+        "You do not have `mysqlclient` package installed. "
+        "Please install it with `pip install mysqlclient` and make sure you have system "
+        "mysql libraries installed, as well as well as `pkg-config` system package "
+        "installed in case you see compilation error during installation."
+    )
 
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
@@ -133,21 +142,20 @@ class VerticaToMySqlOperator(BaseOperator):
                     count += 1
 
                 tmpfile.flush()
-        self._run_preoperator(mysql)
-        try:
-            self.log.info("Bulk inserting rows into MySQL...")
-            with closing(mysql.get_conn()) as conn, closing(conn.cursor()) as cursor:
-                cursor.execute(
-                    f"LOAD DATA LOCAL INFILE '{tmpfile.name}' "
-                    f"INTO TABLE {self.mysql_table} "
-                    f"LINES TERMINATED BY '\r\n' ({', '.join(selected_columns)})"
-                )
-                conn.commit()
-            tmpfile.close()
-            self.log.info("Inserted rows into MySQL %s", count)
-        except (MySQLdb.Error, MySQLdb.Warning):
-            self.log.info("Inserted rows into MySQL 0")
-            raise
+                self._run_preoperator(mysql)
+                try:
+                    self.log.info("Bulk inserting rows into MySQL...")
+                    with closing(mysql.get_conn()) as conn, closing(conn.cursor()) as cursor:
+                        cursor.execute(
+                            f"LOAD DATA LOCAL INFILE '{tmpfile.name}' "
+                            f"INTO TABLE {self.mysql_table} "
+                            f"LINES TERMINATED BY '\r\n' ({', '.join(selected_columns)})"
+                        )
+                        conn.commit()
+                    self.log.info("Inserted rows into MySQL %s", count)
+                except (MySQLdb.Error, MySQLdb.Warning):
+                    self.log.info("Inserted rows into MySQL 0")
+                    raise
 
     def _run_preoperator(self, mysql):
         if self.mysql_preoperator:

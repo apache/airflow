@@ -20,16 +20,17 @@ import contextlib
 import copy
 import json
 import logging
-from typing import TYPE_CHECKING, Any, ClassVar, ItemsView, Iterable, MutableMapping, ValuesView
+from collections.abc import ItemsView, Iterable, MutableMapping, ValuesView
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.exceptions import AirflowException, ParamValidationError
 from airflow.utils.mixins import ResolveMixin
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
-    from airflow.models.dag import DAG
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
+    from airflow.sdk.definitions.dag import DAG
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.utils.context import Context
 

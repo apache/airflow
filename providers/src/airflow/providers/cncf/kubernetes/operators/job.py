@@ -22,8 +22,9 @@ import copy
 import json
 import logging
 import os
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from kubernetes.client import BatchV1Api, models as k8s
 from kubernetes.client.api_client import ApiClient
@@ -273,7 +274,6 @@ class KubernetesJobOperator(KubernetesPodOperator):
             kwargs = {
                 "name": job.metadata.name,
                 "namespace": job.metadata.namespace,
-                "job": self.hook.batch_v1_client.api_client.sanitize_for_serialization(self.job),
             }
             if self.termination_grace_period is not None:
                 kwargs.update(grace_period_seconds=self.termination_grace_period)

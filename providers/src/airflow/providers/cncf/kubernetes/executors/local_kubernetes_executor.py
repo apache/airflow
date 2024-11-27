@@ -17,9 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
+
+from deprecated import deprecated
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
 
@@ -45,6 +49,7 @@ class LocalKubernetesExecutor(BaseExecutor):
     """
 
     supports_ad_hoc_ti_run: bool = True
+    # TODO: Remove this attribute once providers rely on Airflow >=3.0.0
     supports_pickling: bool = False
     supports_sentry: bool = False
 
@@ -146,7 +151,6 @@ class LocalKubernetesExecutor(BaseExecutor):
         self,
         task_instance: TaskInstance,
         mark_success: bool = False,
-        pickle_id: int | None = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         wait_for_past_depends_before_skipping: bool = False,
@@ -154,6 +158,7 @@ class LocalKubernetesExecutor(BaseExecutor):
         ignore_ti_state: bool = False,
         pool: str | None = None,
         cfg_path: str | None = None,
+        **kwargs,
     ) -> None:
         """Queues task instance via local or kubernetes executor."""
         from airflow.models.taskinstance import SimpleTaskInstance
@@ -162,10 +167,13 @@ class LocalKubernetesExecutor(BaseExecutor):
         self.log.debug(
             "Using executor: %s to queue_task_instance for %s", executor.__class__.__name__, task_instance.key
         )
+
+        if not hasattr(task_instance, "pickle_id"):
+            del kwargs["pickle_id"]
+
         executor.queue_task_instance(
             task_instance=task_instance,
             mark_success=mark_success,
-            pickle_id=pickle_id,
             ignore_all_deps=ignore_all_deps,
             ignore_depends_on_past=ignore_depends_on_past,
             wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
@@ -173,6 +181,7 @@ class LocalKubernetesExecutor(BaseExecutor):
             ignore_ti_state=ignore_ti_state,
             pool=pool,
             cfg_path=cfg_path,
+            **kwargs,
         )
 
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
@@ -225,11 +234,20 @@ class LocalKubernetesExecutor(BaseExecutor):
             *self.kubernetes_executor.try_adopt_task_instances(kubernetes_tis),
         ]
 
+    @deprecated(
+        reason="Replaced by function `revoke_task`. Upgrade airflow core to make this go away.",
+        category=AirflowProviderDeprecationWarning,
+        action="ignore",  # ignoring since will get warning from the nested executors
+    )
     def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
         # LocalExecutor doesn't have a cleanup_stuck_queued_tasks method, so we
         # will only run KubernetesExecutor's
         kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
         return self.kubernetes_executor.cleanup_stuck_queued_tasks(kubernetes_tis)
+
+    def revoke_task(self, *, ti: TaskInstance):
+        if ti.queue == self.KUBERNETES_QUEUE:
+            self.kubernetes_executor.revoke_task(ti=ti)
 
     def end(self) -> None:
         """End local and kubernetes executor."""

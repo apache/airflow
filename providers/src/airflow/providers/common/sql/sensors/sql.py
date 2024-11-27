@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from operator import itemgetter
-from typing import TYPE_CHECKING, Any, Callable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -70,7 +71,7 @@ class SqlSensor(BaseSensorOperator):
         parameters: Mapping[str, Any] | None = None,
         success: Callable[[Any], bool] | None = None,
         failure: Callable[[Any], bool] | None = None,
-        selector: Callable[[tuple[Any]], Any] | None = itemgetter(0),
+        selector: Callable[[tuple[Any]], Any] = itemgetter(0),
         fail_on_empty: bool = False,
         hook_params: Mapping[str, Any] | None = None,
         **kwargs,
