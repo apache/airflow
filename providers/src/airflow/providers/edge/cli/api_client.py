@@ -32,7 +32,13 @@ from urllib3.exceptions import NewConnectionError
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.edge.worker_api.auth import jwt_signer
-from airflow.providers.edge.worker_api.datamodels import PushLogsBody, WorkerStateBody
+from airflow.providers.edge.worker_api.datamodels import (
+    EdgeJobFetched,
+    PushLogsBody,
+    WorkerQueuesBody,
+    WorkerStateBody,
+)
+from airflow.utils.state import TaskInstanceState  # noqa: TC001
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -114,6 +120,28 @@ def worker_set_state(
     )
 
 
+def jobs_fetch(hostname: str, queues: list[str] | None, free_concurrency: int) -> EdgeJobFetched | None:
+    """Fetch a job to execute on the edge worker."""
+    result = _make_generic_request(
+        "GET",
+        f"jobs/fetch/{quote(hostname)}",
+        WorkerQueuesBody(queues=queues, free_concurrency=free_concurrency).model_dump_json(
+            exclude_unset=True
+        ),
+    )
+    if result:
+        return EdgeJobFetched(**result)
+    return None
+
+
+def jobs_set_state(key: TaskInstanceKey, state: TaskInstanceState) -> None:
+    """Set the state of a job."""
+    _make_generic_request(
+        "PATCH",
+        f"jobs/state/{key.dag_id}/{key.task_id}/{key.run_id}/{key.try_number}/{key.map_index}/{state}",
+    )
+
+
 def logs_logfile_path(task: TaskInstanceKey) -> Path:
     """Elaborate the path and filename to expect from task execution."""
     result = _make_generic_request(
@@ -133,5 +161,7 @@ def logs_push(
     _make_generic_request(
         "POST",
         f"logs/push/{task.dag_id}/{task.task_id}/{task.run_id}/{task.try_number}/{task.map_index}",
-        PushLogsBody(log_chunk_time=log_chunk_time, log_chunk_data=log_chunk_data).model_dump_json(),
+        PushLogsBody(log_chunk_time=log_chunk_time, log_chunk_data=log_chunk_data).model_dump_json(
+            exclude_unset=True
+        ),
     )

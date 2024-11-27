@@ -28,8 +28,8 @@ import time_machine
 
 from airflow.exceptions import AirflowException
 from airflow.providers.edge.cli.edge_command import _EdgeWorkerCli, _Job, _write_pid_to_pidfile
-from airflow.providers.edge.models.edge_job import EdgeJob
 from airflow.providers.edge.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
+from airflow.providers.edge.worker_api.datamodels import EdgeJobFetched
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
@@ -95,19 +95,14 @@ class TestEdgeWorkerCli:
 
         return [
             _Job(
-                edge_job=EdgeJob(
+                edge_job=EdgeJobFetched(
                     dag_id="test",
                     task_id="test1",
                     run_id="test",
                     map_index=-1,
                     try_number=1,
-                    state=TaskInstanceState.RUNNING,
-                    queue="test",
                     concurrency_slots=1,
                     command=["test", "command"],
-                    queued_dttm=datetime.now(),
-                    edge_worker=None,
-                    last_update=None,
                 ),
                 process=_MockPopen(),
                 logfile=logfile,
@@ -126,19 +121,14 @@ class TestEdgeWorkerCli:
         [
             pytest.param(None, False, (0, 0), id="no_job"),
             pytest.param(
-                EdgeJob(
+                EdgeJobFetched(
                     dag_id="test",
                     task_id="test",
                     run_id="test",
                     map_index=-1,
                     try_number=1,
-                    state=TaskInstanceState.QUEUED,
-                    queue="test",
                     concurrency_slots=1,
                     command=["test", "command"],
-                    queued_dttm=datetime.now(),
-                    edge_worker=None,
-                    last_update=None,
                 ),
                 True,
                 (1, 1),
@@ -146,9 +136,9 @@ class TestEdgeWorkerCli:
             ),
         ],
     )
-    @patch("airflow.providers.edge.models.edge_job.EdgeJob.reserve_task")
+    @patch("airflow.providers.edge.cli.edge_command.jobs_fetch")
     @patch("airflow.providers.edge.cli.edge_command.logs_logfile_path")
-    @patch("airflow.providers.edge.models.edge_job.EdgeJob.set_state")
+    @patch("airflow.providers.edge.cli.edge_command.jobs_set_state")
     @patch("subprocess.Popen")
     def test_fetch_job(
         self,
@@ -181,7 +171,7 @@ class TestEdgeWorkerCli:
             == worker_with_job.concurrency - worker_with_job.jobs[0].edge_job.concurrency_slots
         )
 
-    @patch("airflow.providers.edge.models.edge_job.EdgeJob.set_state")
+    @patch("airflow.providers.edge.cli.edge_command.jobs_set_state")
     def test_check_running_jobs_success(self, mock_set_state, worker_with_job: _EdgeWorkerCli):
         job = worker_with_job.jobs[0]
         job.process.generated_returncode = 0  # type: ignore[attr-defined]
@@ -191,7 +181,7 @@ class TestEdgeWorkerCli:
         mock_set_state.assert_called_once_with(job.edge_job.key, TaskInstanceState.SUCCESS)
         assert worker_with_job.free_concurrency == worker_with_job.concurrency
 
-    @patch("airflow.providers.edge.models.edge_job.EdgeJob.set_state")
+    @patch("airflow.providers.edge.cli.edge_command.jobs_set_state")
     def test_check_running_jobs_failed(self, mock_set_state, worker_with_job: _EdgeWorkerCli):
         job = worker_with_job.jobs[0]
         job.process.generated_returncode = 42  # type: ignore[attr-defined]
