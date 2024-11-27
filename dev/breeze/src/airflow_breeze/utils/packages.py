@@ -480,21 +480,20 @@ def get_package_extras(provider_id: str, version_suffix: str) -> dict[str, list[
     if provider_id in get_removed_provider_ids():
         return {}
 
-    deps_list = get_install_requirements(provider_id=provider_id, version_suffix=version_suffix)[1]
+    from packaging.requirements import Requirement
 
-    for i in range(len(deps_list)):
-        if ">" in deps_list[i]:
-            deps_list[i] = deps_list[i].split(">")[0]
-        elif "<" in deps_list[i]:
-            deps_list[i] = deps_list[i].split("<")[0]
-        elif "==" in deps_list[i]:
-            deps_list[i] = deps_list[i].split("==")[0]
-
+    deps_list = list(
+        map(
+            lambda x: Requirement(x).name,
+            get_install_requirements(provider_id=provider_id, version_suffix=version_suffix)[1],
+        )
+    )
     deps = list(filter(lambda x: x.startswith("apache-airflow-providers"), deps_list))
     extras_dict: dict[str, list[str]] = {
         module: [get_pip_package_name(module)]
         for module in PROVIDER_DEPENDENCIES.get(provider_id)["cross-providers-deps"]
     }
+
     to_pop_extras = []
     # remove the keys from extras_dict if the provider is already a required dependency
     for k, v in extras_dict.items():
