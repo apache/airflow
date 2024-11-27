@@ -23,7 +23,7 @@ from functools import wraps
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.metrics.base_stats_logger import StatsLogger
 from airflow.metrics.protocols import Timer
 from airflow.metrics.validators import (
     PatternAllowListValidator,
@@ -147,11 +147,9 @@ class SafeDogStatsdLogger(StatsLogger):
 
         if self.metrics_validator.test(full_metric_name):
             if isinstance(dt, datetime.timedelta):
-                if metrics_consistency_on:
-                    dt = dt.total_seconds() * 1000.0
-                else:
-                    dt = dt.total_seconds()
-            return self.dogstatsd.timing(metric=stat, value=dt, tags=tags)
+                dt = dt.total_seconds() * 1000.0
+            return self.dogstatsd.timing(metric=full_metric_name, value=dt, tags=tags)
+
         return None
 
     @prepare_metric_name_with_tags

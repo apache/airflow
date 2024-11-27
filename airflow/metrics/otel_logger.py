@@ -32,7 +32,7 @@ from opentelemetry.sdk.metrics._internal.export import ConsoleMetricExporter, Pe
 from opentelemetry.sdk.resources import HOST_NAME, SERVICE_NAME, Resource
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowProviderDeprecationWarning, InvalidStatsNameException
+from airflow.exceptions import InvalidStatsNameException
 from airflow.metrics.base_stats_logger import StatsLogger
 from airflow.metrics.protocols import Timer
 from airflow.metrics.validators import (
