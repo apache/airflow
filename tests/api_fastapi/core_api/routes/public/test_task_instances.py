@@ -2417,6 +2417,96 @@ class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
             "total_entries": 1,
         }
 
+    def test_mapped_task_should_respond_200(self, test_client, session):
+        tis = self.create_task_instances(session, task_instances=[{"state": State.FAILED}])
+        old_ti = tis[0]
+        for idx in (1, 2):
+            ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
+            for attr in ["duration", "end_date", "pid", "start_date", "state", "queue"]:
+                setattr(ti, attr, getattr(old_ti, attr))
+            ti.try_number = 1
+            session.add(ti)
+        session.commit()
+        tis = session.query(TaskInstance).all()
+
+        # Record the task instance history
+        from airflow.models.taskinstance import clear_task_instances
+
+        clear_task_instances(tis, session)
+        # Simulate the try_number increasing to new values in TI
+        for ti in tis:
+            if ti.map_index > 0:
+                ti.try_number += 1
+                ti.queue = "default_queue"
+                session.merge(ti)
+        session.commit()
+
+        # in each loop, we should get the right mapped TI back
+        for map_index in (1, 2):
+            # Get the info from TIHistory: try_number 1, try_number 2 is TI table(latest)
+            response = test_client.get(
+                "/public/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
+                f"/print_the_context/{map_index}/tries",
+            )
+            assert response.status_code == 200
+            assert (
+                response.json()["total_entries"] == 2
+            )  # the mapped task was cleared. So both the task instance and its history
+            assert len(response.json()["task_instances"]) == 2
+            assert response.json() == {
+                "task_instances": [
+                    {
+                        "dag_id": "example_python_operator",
+                        "duration": 10000.0,
+                        "end_date": "2020-01-03T00:00:00Z",
+                        "executor": None,
+                        "executor_config": "{}",
+                        "hostname": "",
+                        "map_index": map_index,
+                        "max_tries": 0,
+                        "operator": "PythonOperator",
+                        "pid": 100,
+                        "pool": "default_pool",
+                        "pool_slots": 1,
+                        "priority_weight": 9,
+                        "queue": "default_queue",
+                        "queued_when": None,
+                        "start_date": "2020-01-02T00:00:00Z",
+                        "state": "failed",
+                        "task_id": "print_the_context",
+                        "task_display_name": "print_the_context",
+                        "try_number": 1,
+                        "unixname": getuser(),
+                        "dag_run_id": "TEST_DAG_RUN_ID",
+                    },
+                    {
+                        "dag_id": "example_python_operator",
+                        "duration": 10000.0,
+                        "end_date": "2020-01-03T00:00:00Z",
+                        "executor": None,
+                        "executor_config": "{}",
+                        "hostname": "",
+                        "map_index": map_index,
+                        "max_tries": 1,
+                        "operator": "PythonOperator",
+                        "pid": 100,
+                        "pool": "default_pool",
+                        "pool_slots": 1,
+                        "priority_weight": 9,
+                        "queue": "default_queue",
+                        "queued_when": None,
+                        "start_date": "2020-01-02T00:00:00Z",
+                        "state": None,
+                        "task_id": "print_the_context",
+                        "task_display_name": "print_the_context",
+                        "try_number": 2,
+                        "unixname": getuser(),
+                        "dag_run_id": "TEST_DAG_RUN_ID",
+                    },
+                ],
+                "total_entries": 2,
+            }
+
     def test_raises_404_for_nonexistent_task_instance(self, test_client, session):
         self.create_task_instances(session)
         response = test_client.get(

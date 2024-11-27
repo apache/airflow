@@ -1292,6 +1292,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceDependencies1 = (
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
+ * @param data.mapIndex
  * @returns TaskInstanceHistoryCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -1300,10 +1301,12 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceTries = (
   {
     dagId,
     dagRunId,
+    mapIndex,
     taskId,
   }: {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     taskId: string;
   },
 ) =>
@@ -1311,10 +1314,55 @@ export const prefetchUseTaskInstanceServiceGetTaskInstanceTries = (
     queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTriesKeyFn({
       dagId,
       dagRunId,
+      mapIndex,
       taskId,
     }),
     queryFn: () =>
-      TaskInstanceService.getTaskInstanceTries({ dagId, dagRunId, taskId }),
+      TaskInstanceService.getTaskInstanceTries({
+        dagId,
+        dagRunId,
+        mapIndex,
+        taskId,
+      }),
+  });
+/**
+ * Get Mapped Task Instance Tries
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.mapIndex
+ * @returns TaskInstanceHistoryCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseTaskInstanceServiceGetMappedTaskInstanceTries = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    taskId: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceTriesKeyFn({
+      dagId,
+      dagRunId,
+      mapIndex,
+      taskId,
+    }),
+    queryFn: () =>
+      TaskInstanceService.getMappedTaskInstanceTries({
+        dagId,
+        dagRunId,
+        mapIndex,
+        taskId,
+      }),
   });
 /**
  * Get Mapped Task Instance
@@ -1844,6 +1892,118 @@ export const prefetchUseProviderServiceGetProviders = (
     queryFn: () => ProviderService.getProviders({ limit, offset }),
   });
 /**
+ * Get Xcom Entry
+ * Get an XCom entry.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.taskId
+ * @param data.dagRunId
+ * @param data.xcomKey
+ * @param data.mapIndex
+ * @param data.deserialize
+ * @param data.stringify
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseXcomServiceGetXcomEntry = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+    deserialize,
+    mapIndex,
+    stringify,
+    taskId,
+    xcomKey,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    deserialize?: boolean;
+    mapIndex?: number;
+    stringify?: boolean;
+    taskId: string;
+    xcomKey: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseXcomServiceGetXcomEntryKeyFn({
+      dagId,
+      dagRunId,
+      deserialize,
+      mapIndex,
+      stringify,
+      taskId,
+      xcomKey,
+    }),
+    queryFn: () =>
+      XcomService.getXcomEntry({
+        dagId,
+        dagRunId,
+        deserialize,
+        mapIndex,
+        stringify,
+        taskId,
+        xcomKey,
+      }),
+  });
+/**
+ * Get Xcom Entries
+ * Get all XCom entries.
+ *
+ * This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all DAGs.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.xcomKey
+ * @param data.mapIndex
+ * @param data.limit
+ * @param data.offset
+ * @returns XComCollection Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseXcomServiceGetXcomEntries = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    dagRunId,
+    limit,
+    mapIndex,
+    offset,
+    taskId,
+    xcomKey,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    limit?: number;
+    mapIndex?: number;
+    offset?: number;
+    taskId: string;
+    xcomKey?: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn({
+      dagId,
+      dagRunId,
+      limit,
+      mapIndex,
+      offset,
+      taskId,
+      xcomKey,
+    }),
+    queryFn: () =>
+      XcomService.getXcomEntries({
+        dagId,
+        dagRunId,
+        limit,
+        mapIndex,
+        offset,
+        taskId,
+        xcomKey,
+      }),
+  });
+/**
  * Get Tasks
  * Get tasks for DAG.
  * @param data The data for the request.
@@ -1938,61 +2098,6 @@ export const prefetchUseVariableServiceGetVariables = (
       orderBy,
     }),
     queryFn: () => VariableService.getVariables({ limit, offset, orderBy }),
-  });
-/**
- * Get Xcom Entry
- * Get an XCom entry.
- * @param data The data for the request.
- * @param data.dagId
- * @param data.taskId
- * @param data.dagRunId
- * @param data.xcomKey
- * @param data.mapIndex
- * @param data.deserialize
- * @param data.stringify
- * @returns unknown Successful Response
- * @throws ApiError
- */
-export const prefetchUseXcomServiceGetXcomEntry = (
-  queryClient: QueryClient,
-  {
-    dagId,
-    dagRunId,
-    deserialize,
-    mapIndex,
-    stringify,
-    taskId,
-    xcomKey,
-  }: {
-    dagId: string;
-    dagRunId: string;
-    deserialize?: boolean;
-    mapIndex?: number;
-    stringify?: boolean;
-    taskId: string;
-    xcomKey: string;
-  },
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseXcomServiceGetXcomEntryKeyFn({
-      dagId,
-      dagRunId,
-      deserialize,
-      mapIndex,
-      stringify,
-      taskId,
-      xcomKey,
-    }),
-    queryFn: () =>
-      XcomService.getXcomEntry({
-        dagId,
-        dagRunId,
-        deserialize,
-        mapIndex,
-        stringify,
-        taskId,
-        xcomKey,
-      }),
   });
 /**
  * Get Health

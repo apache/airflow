@@ -822,6 +822,8 @@ mkdir "${AIRFLOW_HOME}/sqlite" -p || true
 
 ASSET_COMPILATION_WAIT_MULTIPLIER=${ASSET_COMPILATION_WAIT_MULTIPLIER:=1}
 
+. "${IN_CONTAINER_DIR}/check_connectivity.sh"
+
 function wait_for_asset_compilation() {
     if [[ -f "${AIRFLOW_SOURCES}/.build/www/.asset_compile.lock" ]]; then
         echo
@@ -1004,15 +1006,6 @@ function determine_airflow_to_use() {
            --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         # Some packages might leave legacy typing module which causes test issues
         pip uninstall -y typing || true
-        # We need to install `eval-type-backport` to avoid problems with Pydantic 2.10.0/2.10.1 released in
-        # November 2024 for python 3.8 and 3.9. Hopefully this is only a temporary measure that will be
-        # solved in Pydantic 2.10.2 by addressing https://github.com/pydantic/pydantic/issues/10958
-        if [[ ${PYTHON_MAJOR_MINOR_VERSION} == "3.8" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.9" ]]; then
-            echo
-            echo "${COLOR_BLUE}Installing eval-type-backport for Python ${PYTHON_MAJOR_MINOR_VERSION} to workaround Pydantic 2.10.0/2.10.1 issue with new typing style.${COLOR_RESET}"
-            echo
-            pip install eval-type-backport>=0.2.0
-        fi
         if [[ ${LINK_PROVIDERS_TO_AIRFLOW_PACKAGE=} == "true" ]]; then
             echo
             echo "${COLOR_BLUE}Linking providers to airflow package as we are using them from mounted sources.${COLOR_RESET}"
@@ -1155,12 +1148,61 @@ function check_force_lowest_dependencies() {
     set +x
 }
 
+function check_airflow_python_client_installation() {
+    if [[ ${INSTALL_AIRFLOW_PYTHON_CLIENT=} != "true" ]]; then
+        return
+    fi
+    python "${IN_CONTAINER_DIR}/install_airflow_python_client.py"
+}
+
+function start_webserver_with_examples(){
+    if [[ ${START_WEBSERVER_WITH_EXAMPLES=} != "true" ]]; then
+        return
+    fi
+    export AIRFLOW__CORE__LOAD_EXAMPLES=True
+    export AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
+    export AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
+    echo
+    echo "${COLOR_BLUE}Initializing database${COLOR_RESET}"
+    echo
+    airflow db migrate
+    echo
+    echo "${COLOR_BLUE}Database initialized${COLOR_RESET}"
+    echo
+    echo "${COLOR_BLUE}Parsing example dags${COLOR_RESET}"
+    echo
+    airflow scheduler --num-runs 100
+    echo "Example dags parsing finished"
+    echo "Create admin user"
+    airflow users create -u admin -p admin -f Thor -l Administrator -r Admin -e admin@email.domain
+    echo "Admin user created"
+    echo
+    echo "${COLOR_BLUE}Starting airflow webserver${COLOR_RESET}"
+    echo
+    airflow webserver --port 8080 --daemon
+    echo
+    echo "${COLOR_BLUE}Waiting for webserver to start${COLOR_RESET}"
+    echo
+    check_service_connection "Airflow webserver" "run_nc localhost 8080" 100
+    EXIT_CODE=$?
+    if [[ ${EXIT_CODE} != 0 ]]; then
+        echo
+        echo "${COLOR_RED}Webserver did not start properly${COLOR_RESET}"
+        echo
+        exit ${EXIT_CODE}
+    fi
+    echo
+    echo "${COLOR_BLUE}Airflow webserver started${COLOR_RESET}"
+}
+
 determine_airflow_to_use
 environment_initialization
 check_boto_upgrade
 check_downgrade_sqlalchemy
 check_downgrade_pendulum
 check_force_lowest_dependencies
+check_airflow_python_client_installation
+start_webserver_with_examples
 check_run_tests "${@}"
 
 exec /bin/bash "${@}"

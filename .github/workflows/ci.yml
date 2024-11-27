@@ -297,10 +297,10 @@ jobs:
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
-  static-checks-mypy-docs:
-    name: "Static checks, mypy, docs"
+  ci-image-checks:
+    name: "CI image checks"
     needs: [build-info, wait-for-ci-images]
-    uses: ./.github/workflows/static-checks-mypy-docs.yml
+    uses: ./.github/workflows/ci-image-checks.yml
     secrets: inherit
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
@@ -322,6 +322,9 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       docs-build: ${{ needs.build-info.outputs.docs-build }}
+      needs-api-codegen: ${{ needs.build-info.outputs.needs-api-codegen }}
+      default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
+      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
 
   providers:
     name: "Provider packages tests"
@@ -702,7 +705,7 @@ jobs:
       - generate-constraints
       - wait-for-ci-images
       - wait-for-prod-images
-      - static-checks-mypy-docs
+      - ci-image-checks
       - tests-sqlite
       - tests-mysql
       - tests-postgres

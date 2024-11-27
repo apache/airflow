@@ -2291,6 +2291,10 @@
         "3.8.4": {
             "associated_airflow_version": "2.10.3",
             "date_released": "2024-11-18T09:01:39Z"
+        },
+        "3.8.5": {
+            "associated_airflow_version": "2.10.3",
+            "date_released": "2024-11-27T13:14:43Z"
         }
     },
     "cloudant": {
@@ -2651,6 +2655,10 @@
         "10.0.0": {
             "associated_airflow_version": "2.10.3",
             "date_released": "2024-11-18T09:01:39Z"
+        },
+        "10.0.1": {
+            "associated_airflow_version": "2.10.3",
+            "date_released": "2024-11-27T13:14:44Z"
         }
     },
     "cohere": {
@@ -4545,6 +4553,10 @@
         "10.26.0": {
             "associated_airflow_version": "2.10.3",
             "date_released": "2024-11-18T09:01:39Z"
+        },
+        "11.0.0": {
+            "associated_airflow_version": "2.10.3",
+            "date_released": "2024-11-27T13:14:43Z"
         }
     },
     "grpc": {

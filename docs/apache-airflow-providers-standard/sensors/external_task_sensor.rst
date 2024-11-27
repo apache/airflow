@@ -41,7 +41,7 @@ DAGs.
 ExternalTaskSensor
 ^^^^^^^^^^^^^^^^^^
 
-Use the :class:`~airflow.sensors.external_task.ExternalTaskSensor` to make tasks on a DAG
+Use the :class:`~airflow.providers.standard.sensors.external_task.ExternalTaskSensor` to make tasks on a DAG
 wait for another task on a different DAG for a specific ``execution_date``.
 
 ExternalTaskSensor also provide options to set if the Task on a remote DAG succeeded or failed
@@ -64,7 +64,7 @@ Also for this action you can use sensor in the deferrable mode:
 
 ExternalTaskSensor with task_group dependency
 ---------------------------------------------
-In Addition, we can also use the :class:`~airflow.sensors.external_task.ExternalTaskSensor` to make tasks on a DAG
+In Addition, we can also use the :class:`~airflow.providers.standard.sensors.external_task.ExternalTaskSensor` to make tasks on a DAG
 wait for another ``task_group`` on a different DAG for a specific ``execution_date``.
 
 .. exampleinclude:: /../../airflow/example_dags/example_external_task_marker_dag.py
