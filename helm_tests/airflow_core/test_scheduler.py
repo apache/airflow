@@ -32,10 +32,12 @@ class TestScheduler:
             ("CeleryExecutor", False, "Deployment"),
             ("CeleryExecutor", True, "Deployment"),
             ("CeleryKubernetesExecutor", True, "Deployment"),
+            ("CeleryExecutor,KubernetesExecutor", True, "Deployment"),
             ("KubernetesExecutor", True, "Deployment"),
             ("LocalKubernetesExecutor", False, "Deployment"),
             ("LocalKubernetesExecutor", True, "StatefulSet"),
             ("LocalExecutor", True, "StatefulSet"),
+            ("LocalExecutor,KubernetesExecutor", True, "StatefulSet"),
             ("LocalExecutor", False, "Deployment"),
         ],
     )
@@ -616,15 +618,30 @@ class TestScheduler:
             ("CeleryExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
             ("CeleryExecutor", True, {"rollingUpdate": {"partition": 0}}, None),
             ("LocalKubernetesExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
+            ("LocalExecutor,KubernetesExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
             (
                 "LocalKubernetesExecutor",
                 True,
                 {"rollingUpdate": {"partition": 0}},
                 {"rollingUpdate": {"partition": 0}},
             ),
+            (
+                "LocalExecutor,KubernetesExecutor",
+                True,
+                {"rollingUpdate": {"partition": 0}},
+                {"rollingUpdate": {"partition": 0}},
+            ),
             ("LocalExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
+            ("LocalExecutor,KubernetesExecutor", False, {"rollingUpdate": {"partition": 0}}, None),  # noqa: PT014
             ("LocalExecutor", True, {"rollingUpdate": {"partition": 0}}, {"rollingUpdate": {"partition": 0}}),
+            (  # noqa: PT014
+                "LocalExecutor,KubernetesExecutor",
+                True,
+                {"rollingUpdate": {"partition": 0}},
+                {"rollingUpdate": {"partition": 0}},
+            ),
             ("LocalExecutor", True, None, None),
+            ("LocalExecutor,KubernetesExecutor", True, None, None),
         ],
     )
     def test_scheduler_update_strategy(

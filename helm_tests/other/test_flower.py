@@ -30,9 +30,11 @@ class TestFlowerDeployment:
         [
             ("CeleryExecutor", False, False),
             ("CeleryKubernetesExecutor", False, False),
+            ("CeleryExecutor,KubernetesExecutor", False, False),
             ("KubernetesExecutor", False, False),
             ("CeleryExecutor", True, True),
             ("CeleryKubernetesExecutor", True, True),
+            ("CeleryExecutor,KubernetesExecutor", True, True),
             ("KubernetesExecutor", True, False),
         ],
     )
