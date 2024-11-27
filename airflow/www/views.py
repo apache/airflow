@@ -5296,42 +5296,57 @@ class TaskInstanceModelView(AirflowModelView):
         """
         Clear task instances, optionally including their downstream dependencies.
 
-        :param task_instances: list of TIs to clear
-        :param clear_downstream: should downstream task instances be cleared as well?
-
-        :return: a tuple with:
-            - count of cleared task instances actually selected by the user
-            - count of downstream task instances that were additionally cleared
+        :param task_instances: List of Task Instances to clear
+        :param clear_downstream: Whether downstream task instances should also be cleared
+        :return: A tuple:
+            - Number of cleared task instances selected by the user
+            - Number of downstream task instances additionally cleared
         """
         cleared_tis_count = 0
         cleared_downstream_tis_count = 0
 
-        # Group TIs by dag id in order to call `get_dag` only once per dag
+        # Group Task Instances by DAG ID to minimize calls to get_dag
         tis_grouped_by_dag_id = itertools.groupby(task_instances, lambda ti: ti.dag_id)
 
         for dag_id, dag_tis in tis_grouped_by_dag_id:
             dag = get_airflow_app().dag_bag.get_dag(dag_id)
 
+            if not dag:
+                logger.warning(
+                    "Skipping task instances for DAG '%s' as it could not be found in the DAG Bag.", dag_id
+                )
+                continue
+
             tis_to_clear = list(dag_tis)
             downstream_tis_to_clear = []
 
             if clear_downstream:
-                tis_to_clear_grouped_by_dag_run = itertools.groupby(tis_to_clear, lambda ti: ti.dag_run)
+                tis_grouped_by_dag_run = itertools.groupby(tis_to_clear, lambda ti: ti.dag_run)
 
-                for dag_run, dag_run_tis in tis_to_clear_grouped_by_dag_run:
-                    # Determine tasks that are downstream of the cleared TIs and fetch associated TIs
-                    # This has to be run for each dag run because the user may clear different TIs across runs
+                for dag_run, dag_run_tis in tis_grouped_by_dag_run:
+                    # Gather task IDs to clear and fetch downstream dependencies
                     task_ids_to_clear = [ti.task_id for ti in dag_run_tis]
 
-                    partial_dag = dag.partial_subset(
-                        task_ids_or_regex=task_ids_to_clear, include_downstream=True, include_upstream=False
-                    )
+                    try:
+                        partial_dag = dag.partial_subset(
+                            task_ids_or_regex=task_ids_to_clear,
+                            include_downstream=True,
+                            include_upstream=False,
+                        )
+                    except AttributeError as e:
+                        logger.warning(
+                            "Skipping downstream tasks for DAG '%s' in DAG Run '%s'. due to an error: %s",
+                            dag_id,
+                            dag_run.id,
+                            e,
+                        )
+                        continue
 
                     downstream_task_ids_to_clear = [
                         task_id for task_id in partial_dag.task_dict if task_id not in task_ids_to_clear
                     ]
 
-                    # dag.clear returns TIs when in dry run mode
+                    # Dry-run clearing to gather downstream TIs
                     downstream_tis_to_clear.extend(
                         dag.clear(
                             start_date=dag_run.logical_date,
@@ -5342,8 +5357,12 @@ class TaskInstanceModelView(AirflowModelView):
                         )
                     )
 
-            # Once all TIs are fetched, perform the actual clearing
-            models.clear_task_instances(tis=tis_to_clear + downstream_tis_to_clear, session=session, dag=dag)
+            # Perform actual clearing of Task Instances
+            models.clear_task_instances(
+                tis=tis_to_clear + downstream_tis_to_clear,
+                session=session,
+                dag=dag,
+            )
 
             cleared_tis_count += len(tis_to_clear)
             cleared_downstream_tis_count += len(downstream_tis_to_clear)
