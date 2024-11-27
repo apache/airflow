@@ -343,6 +343,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
             LifecycleStateChangeDatasetFacet,
             PreviousIdentifier,
         )
+        from airflow.providers.google.cloud.openlineage.utils import extract_ds_name_from_gcs_path
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         objects = []
@@ -350,12 +351,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
             objects = self.objects
         elif self.prefix is not None:
             prefixes = [self.prefix] if isinstance(self.prefix, str) else self.prefix
-            for pref in prefixes:
-                # Use parent if not a file (dot not in name) and not a dir (ends with slash)
-                if "." not in pref.split("/")[-1] and not pref.endswith("/"):
-                    pref = Path(pref).parent.as_posix()
-                pref = "/" if pref in (".", "", "/") else pref.rstrip("/")
-                objects.append(pref)
+            objects = [extract_ds_name_from_gcs_path(pref) for pref in prefixes]
 
         bucket_url = f"gs://{self.bucket_name}"
         input_datasets = [
@@ -921,20 +917,15 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
     def get_openlineage_facets_on_complete(self, task_instance):
         """Implement on_complete as execute() resolves object prefixes."""
         from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.google.cloud.openlineage.utils import extract_ds_name_from_gcs_path
         from airflow.providers.openlineage.extractors import OperatorLineage
-
-        def _parse_prefix(pref):
-            # Use parent if not a file (dot not in name) and not a dir (ends with slash)
-            if "." not in pref.split("/")[-1] and not pref.endswith("/"):
-                pref = Path(pref).parent.as_posix()
-            return "/" if pref in (".", "/", "") else pref.rstrip("/")
 
         input_prefix, output_prefix = "/", "/"
         if self._source_prefix_interp is not None:
-            input_prefix = _parse_prefix(self._source_prefix_interp)
+            input_prefix = extract_ds_name_from_gcs_path(self._source_prefix_interp)
 
         if self._destination_prefix_interp is not None:
-            output_prefix = _parse_prefix(self._destination_prefix_interp)
+            output_prefix = extract_ds_name_from_gcs_path(self._destination_prefix_interp)
 
         return OperatorLineage(
             inputs=[

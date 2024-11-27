@@ -113,3 +113,20 @@ class TestGoogleCloudStorageDownloadOperator:
             bucket_name=TEST_BUCKET, object_name=TEST_OBJECT
         )
         context["ti"].xcom_push.assert_called_once_with(key=XCOM_KEY, value=FILE_CONTENT_STR)
+
+    def test_get_openlineage_facets_on_start_(self):
+        operator = GCSToLocalFilesystemOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            object_name=TEST_OBJECT,
+            filename=LOCAL_FILE_PATH,
+        )
+        result = operator.get_openlineage_facets_on_start()
+        assert not result.job_facets
+        assert not result.run_facets
+        assert len(result.outputs) == 1
+        assert len(result.inputs) == 1
+        assert result.outputs[0].namespace == "file"
+        assert result.outputs[0].name == LOCAL_FILE_PATH
+        assert result.inputs[0].namespace == f"gs://{TEST_BUCKET}"
+        assert result.inputs[0].name == TEST_OBJECT
