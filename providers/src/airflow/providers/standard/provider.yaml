@@ -61,6 +61,7 @@ sensors:
       - airflow.providers.standard.sensors.bash
       - airflow.providers.standard.sensors.python
       - airflow.providers.standard.sensors.filesystem
+      - airflow.providers.standard.sensors.external_task
 hooks:
   - integration-name: Standard
     python-modules:
