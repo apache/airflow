@@ -392,7 +392,8 @@ class EcsRunTaskOperator(EcsBaseOperator):
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
-    :param do_xcom_push: If True, the operator will push the ECS task ARN to XCom with key 'ecs_task_arn'. Additionally, if logs are fetched, the last log message will be pushed to XCom with the key 'return_value'. (default: False)
+    :param do_xcom_push: If True, the operator will push the ECS task ARN to XCom with key 'ecs_task_arn'.
+        Additionally, if logs are fetched, the last log message will be pushed to XCom with the key 'return_value'. (default: False)
     """
 
     ui_color = "#f0ede4"
