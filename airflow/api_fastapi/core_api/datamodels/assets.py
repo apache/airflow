@@ -53,7 +53,9 @@ class AssetResponse(BaseModel):
     """Asset serializer for responses."""
 
     id: int
+    name: str
     uri: str
+    group: str
     extra: dict | None = None
     created_at: datetime
     updated_at: datetime

@@ -48,7 +48,9 @@ def _create_assets(session, num: int = 2) -> None:
     assets = [
         AssetModel(
             id=i,
+            name=f"simple{i}",
             uri=f"s3://bucket/key/{i}",
+            group="asset",
             extra={"foo": "bar"},
             created_at=timezone.parse(default_time),
             updated_at=timezone.parse(default_time),
@@ -64,7 +66,9 @@ def _create_assets_with_sensitive_extra(session, num: int = 2) -> None:
     assets = [
         AssetModel(
             id=i,
+            name=f"sensitive{i}",
             uri=f"s3://bucket/key/{i}",
+            group="asset",
             extra={"password": "bar"},
             created_at=timezone.parse(default_time),
             updated_at=timezone.parse(default_time),
@@ -219,7 +223,9 @@ class TestGetAssets(TestAssets):
             "assets": [
                 {
                     "id": 1,
+                    "name": "simple1",
                     "uri": "s3://bucket/key/1",
+                    "group": "asset",
                     "extra": {"foo": "bar"},
                     "created_at": tz_datetime_format,
                     "updated_at": tz_datetime_format,
@@ -229,7 +235,9 @@ class TestGetAssets(TestAssets):
                 },
                 {
                     "id": 2,
+                    "name": "simple2",
                     "uri": "s3://bucket/key/2",
+                    "group": "asset",
                     "extra": {"foo": "bar"},
                     "created_at": tz_datetime_format,
                     "updated_at": tz_datetime_format,
@@ -566,7 +574,9 @@ class TestGetAssetEndpoint(TestAssets):
         assert response.status_code == 200
         assert response.json() == {
             "id": 1,
+            "name": "simple1",
             "uri": "s3://bucket/key/1",
+            "group": "asset",
             "extra": {"foo": "bar"},
             "created_at": tz_datetime_format,
             "updated_at": tz_datetime_format,
@@ -594,7 +604,9 @@ class TestGetAssetEndpoint(TestAssets):
         assert response.status_code == 200
         assert response.json() == {
             "id": 1,
+            "name": "sensitive1",
             "uri": "s3://bucket/key/1",
+            "group": "asset",
             "extra": {"password": "***"},
             "created_at": tz_datetime_format,
             "updated_at": tz_datetime_format,
