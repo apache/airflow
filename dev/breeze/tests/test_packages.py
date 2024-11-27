@@ -230,7 +230,7 @@ def test_get_documentation_package_path():
     ],
 )
 def test_get_install_requirements(provider: str, version_suffix: str, expected: str):
-    actual = get_install_requirements(provider, version_suffix)[0]
+    actual = get_install_requirements(provider, version_suffix)
     assert actual.strip() == expected.strip()
 
 
