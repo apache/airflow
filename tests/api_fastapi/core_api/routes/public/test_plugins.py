@@ -56,7 +56,6 @@ class TestGetConnections:
     def test_should_respond_200(
         self, test_client, session, query_params, expected_total_entries, expected_names
     ):
-        # breakpoint()
         response = test_client.get("/public/plugins", params=query_params)
         assert response.status_code == 200
 
