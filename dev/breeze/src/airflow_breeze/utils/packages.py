@@ -468,7 +468,7 @@ def get_install_requirements(provider_id: str, version_suffix: str) -> str:
     return "".join(f'\n    "{ir}",' for ir in install_requires)
 
 
-def get_package_extras(provider_id: str) -> dict[str, list[str]]:
+def get_package_extras(provider_id: str, version_suffix: str) -> dict[str, list[str]]:
     """
     Finds extras for the package specified.
 
@@ -523,7 +523,7 @@ def get_package_extras(provider_id: str) -> dict[str, list[str]]:
             else:
                 extras_dict[name] = dependencies
     for extra, dependencies in extras_dict.items():
-        extras_dict[extra] = [clause for clause in dependencies]
+        extras_dict[extra] = [apply_version_suffix(clause, version_suffix) for clause in dependencies]
     return extras_dict
 
 
@@ -663,7 +663,9 @@ def get_provider_jinja_context(
         "INSTALL_REQUIREMENTS": get_install_requirements(
             provider_id=provider_details.provider_id, version_suffix=version_suffix
         )[0],
-        "EXTRAS_REQUIREMENTS": get_package_extras(provider_id=provider_details.provider_id),
+        "EXTRAS_REQUIREMENTS": get_package_extras(
+            provider_id=provider_details.provider_id, version_suffix=version_suffix
+        ),
         "CHANGELOG_RELATIVE_PATH": os.path.relpath(
             provider_details.source_provider_package_path,
             provider_details.documentation_provider_package_path,
