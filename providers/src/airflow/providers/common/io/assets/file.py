@@ -56,4 +56,6 @@ def convert_asset_to_openlineage(asset: Asset, lineage_context) -> OpenLineageDa
     from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 
     parsed = urllib.parse.urlsplit(asset.uri)
-    return OpenLineageDataset(namespace=f"file://{parsed.netloc}", name=parsed.path)
+    return OpenLineageDataset(
+        namespace=f"file://{parsed.netloc}" if parsed.netloc else "file", name=parsed.path
+    )
