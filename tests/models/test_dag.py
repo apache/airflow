@@ -2477,7 +2477,7 @@ class TestDagModel:
                     ),
                     Asset("s3://dag3/output_3.txt", extra={"hi": "bye"}, group="test-group"),
                 ),
-                AssetAlias(name="test_name"),
+                AssetAlias(name="test_name", group="test-group"),
             ),
             start_date=datetime.datetime.min,
         )
@@ -2511,7 +2511,7 @@ class TestDagModel:
                         },
                     ]
                 },
-                {"alias": {"name": "test_name", "group": ""}},
+                {"alias": {"name": "test_name", "group": "test-group"}},
             ]
         }
 
