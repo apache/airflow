@@ -30,7 +30,6 @@ from unittest.mock import MagicMock
 
 import httpx
 import pytest
-import structlog
 from uuid6 import uuid7
 
 from airflow.sdk.api import client as sdk_client
@@ -64,9 +63,6 @@ def lineno():
 @pytest.mark.usefixtures("disable_capturing")
 class TestWatchedSubprocess:
     def test_reading_from_pipes(self, captured_logs, time_machine):
-        # Ignore anything lower than INFO for this test. Captured_logs resets things for us afterwards
-        structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
-
         def subprocess_main():
             # This is run in the subprocess!
 
@@ -177,9 +173,6 @@ class TestWatchedSubprocess:
         assert rc == -9
 
     def test_last_chance_exception_handling(self, capfd):
-        # Ignore anything lower than INFO for this test. Captured_logs resets things for us afterwards
-        structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
-
         def subprocess_main():
             # The real main() in task_runner catches exceptions! This is what would happen if we had a syntax
             # or import error for instance - a very early exception
@@ -210,7 +203,7 @@ class TestWatchedSubprocess:
         """Test that the WatchedSubprocess class regularly sends heartbeat requests, up to a certain frequency"""
         import airflow.sdk.execution_time.supervisor
 
-        monkeypatch.setattr(airflow.sdk.execution_time.supervisor, "FASTEST_HEARTBEAT_INTERVAL", 0.1)
+        monkeypatch.setattr(airflow.sdk.execution_time.supervisor, "MIN_HEARTBEAT_INTERVAL", 0.1)
 
         def subprocess_main():
             sys.stdin.readline()
@@ -240,9 +233,6 @@ class TestWatchedSubprocess:
 
     def test_run_simple_dag(self, test_dags_dir, captured_logs, time_machine):
         """Test running a simple DAG in a subprocess and capturing the output."""
-
-        # Ignore anything lower than INFO for this test.
-        structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
 
         instant = tz.datetime(2024, 11, 7, 12, 34, 56, 78901)
         time_machine.move_to(instant, tick=False)
@@ -298,6 +288,69 @@ class TestWatchedSubprocess:
             "message": "TI was not in a state where it could be marked as running",
             "previous_state": "running",
         }
+
+    @pytest.mark.parametrize("captured_logs", [logging.ERROR], indirect=True, ids=["log_level=error"])
+    def test_state_conflict_on_heartbeat(self, captured_logs, monkeypatch, mocker):
+        """
+        Test that ensures that the Supervisor does not cause the task to fail if the Task Instance is no longer
+        in the running state.
+        """
+        import airflow.sdk.execution_time.supervisor
+
+        monkeypatch.setattr(airflow.sdk.execution_time.supervisor, "MIN_HEARTBEAT_INTERVAL", 0.1)
+
+        def subprocess_main():
+            sys.stdin.readline()
+            sleep(5)
+
+        ti_id = uuid7()
+
+        # Track the number of requests to simulate mixed responses
+        request_count = {"count": 0}
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/heartbeat":
+                request_count["count"] += 1
+                if request_count["count"] == 1:
+                    # First request succeeds
+                    return httpx.Response(status_code=204)
+                else:
+                    # Second request returns a conflict status code
+                    return httpx.Response(
+                        409,
+                        json={
+                            "reason": "not_running",
+                            "message": "TI is no longer in the running state and task should terminate",
+                            "current_state": "success",
+                        },
+                    )
+            return httpx.Response(status_code=204)
+
+        proc = WatchedSubprocess.start(
+            path=os.devnull,
+            ti=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            client=make_client(transport=httpx.MockTransport(handle_request)),
+            target=subprocess_main,
+        )
+
+        # Wait for the subprocess to finish
+        assert proc.wait() == -signal.SIGTERM
+
+        # Verify the number of requests made
+        assert request_count["count"] == 2
+        assert captured_logs == [
+            {
+                "detail": {
+                    "current_state": "success",
+                    "message": "TI is no longer in the running state and task should terminate",
+                    "reason": "not_running",
+                },
+                "event": "Server indicated we shouldn't be running anymore",
+                "level": "error",
+                "logger": "supervisor",
+                "timestamp": mocker.ANY,
+            }
+        ]
 
 
 class TestHandleRequest:

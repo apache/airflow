@@ -42,7 +42,7 @@ import psutil
 import structlog
 from pydantic import TypeAdapter
 
-from airflow.sdk.api.client import Client
+from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import IntermediateTIState, TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
     DeferTask,
@@ -54,6 +54,8 @@ from airflow.sdk.execution_time.comms import (
 )
 
 if TYPE_CHECKING:
+    from selectors import SelectorKey
+
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
 
@@ -62,9 +64,11 @@ __all__ = ["WatchedSubprocess", "supervise"]
 log: FilteringBoundLogger = structlog.get_logger(logger_name="supervisor")
 
 # TODO: Pull this from config
-SLOWEST_HEARTBEAT_INTERVAL: int = 30
+#  (previously `[scheduler] local_task_job_heartbeat_sec` with the following as fallback if it is 0:
+#  `[scheduler] scheduler_zombie_task_threshold`)
+HEARTBEAT_THRESHOLD: int = 30
 # Don't heartbeat more often than this
-FASTEST_HEARTBEAT_INTERVAL: int = 5
+MIN_HEARTBEAT_INTERVAL: int = 5
 
 
 @overload
@@ -423,14 +427,10 @@ class WatchedSubprocess:
 
         This function:
 
-        - Polls the subprocess for output
-        - Sends heartbeats to the client to keep the task alive
-        - Checks if the subprocess has exited
+        - Waits for activity on file objects (e.g., subprocess stdout, stderr) using the selector.
+        - Processes events triggered on the monitored file objects, such as data availability or EOF.
+        - Sends heartbeats to ensure the process is alive and checks if the subprocess has exited.
         """
-        # Until we have a selector for the process, don't poll for more than 10s, just in case it exists but
-        # doesn't produce any output
-        max_poll_interval = 10
-
         while self._exit_code is None or len(self.selector.get_map()):
             last_heartbeat_ago = time.monotonic() - self._last_heartbeat
             # Monitor the task to see if it's done. Wait in a syscall (`select`) for as long as possible
@@ -439,21 +439,41 @@ class WatchedSubprocess:
                 0,  # Make sure this value is never negative,
                 min(
                     # Ensure we heartbeat _at most_ 75% through time the zombie threshold time
-                    SLOWEST_HEARTBEAT_INTERVAL - last_heartbeat_ago * 0.75,
-                    max_poll_interval,
+                    HEARTBEAT_THRESHOLD - last_heartbeat_ago * 0.75,
+                    MIN_HEARTBEAT_INTERVAL,
                 ),
             )
+            # Block until events are ready or the timeout is reached
+            # This listens for activity (e.g., subprocess output) on registered file objects
             events = self.selector.select(timeout=max_wait_time)
-            for key, _ in events:
-                socket_handler = key.data
-                need_more = socket_handler(key.fileobj)
-
-                if not need_more:
-                    self.selector.unregister(key.fileobj)
-                    key.fileobj.close()  # type: ignore[union-attr]
+            self._process_file_object_events(events)
 
             self._check_subprocess_exit()
             self._send_heartbeat_if_needed()
+
+    def _process_file_object_events(self, events: list[tuple[SelectorKey, int]]):
+        """
+        Process selector events by invoking handlers for each file object.
+
+        For each file object event, this method retrieves the associated handler and processes
+        the event. If the handler indicates that the file object no longer needs
+        monitoring (e.g., EOF or closed), the file object is unregistered and closed.
+        """
+        for key, _ in events:
+            # Retrieve the handler responsible for processing this file object (e.g., stdout, stderr)
+            socket_handler = key.data
+
+            # Example of handler behavior:
+            # If the subprocess writes "Hello, World!" to stdout:
+            # - `socket_handler` reads and processes the message.
+            # - If EOF is reached, the handler returns False to signal no more reads are expected.
+            need_more = socket_handler(key.fileobj)
+
+            # If the handler signals that the file object is no longer needed (EOF, closed, etc.)
+            # unregister it from the selector to stop monitoring and close it cleanly.
+            if not need_more:
+                self.selector.unregister(key.fileobj)
+                key.fileobj.close()  # type: ignore[union-attr]
 
     def _check_subprocess_exit(self):
         """Check if the subprocess has exited."""
@@ -466,14 +486,28 @@ class WatchedSubprocess:
 
     def _send_heartbeat_if_needed(self):
         """Send a heartbeat to the client if heartbeat interval has passed."""
-        if time.monotonic() - self._last_heartbeat >= FASTEST_HEARTBEAT_INTERVAL:
-            try:
-                self.client.task_instances.heartbeat(self.ti_id, pid=self._process.pid)
-                self._last_heartbeat = time.monotonic()
-            except Exception:
-                log.warning("Failed to send heartbeat", exc_info=True)
-                # TODO: If we couldn't heartbeat for X times the interval, kill ourselves
-                pass
+        # Respect the minimum interval between heartbeat attempts
+        if (time.monotonic() - self._last_heartbeat) < MIN_HEARTBEAT_INTERVAL:
+            return
+
+        try:
+            self.client.task_instances.heartbeat(self.ti_id, pid=self._process.pid)
+            self._last_heartbeat = time.monotonic()
+        except ServerResponseError as e:
+            if e.response.status_code == 409:
+                log.error("Server indicated we shouldn't be running anymore", detail=e.detail)
+            elif e.response.status_code == 404:
+                log.error("Task Instance not found")
+            else:
+                # TODO: Handle other errors
+                raise
+
+            # If heartbeating raises an error, kill the subprocess
+            self.kill(signal.SIGTERM)
+        except Exception:
+            log.warning("Failed to send heartbeat", exc_info=True)
+            # TODO: If we couldn't heartbeat for X times the interval, kill ourselves
+            pass
 
     @property
     def final_state(self):
