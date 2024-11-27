@@ -240,9 +240,17 @@ export const $AssetResponse = {
       type: "integer",
       title: "Id",
     },
+    name: {
+      type: "string",
+      title: "Name",
+    },
     uri: {
       type: "string",
       title: "Uri",
+    },
+    group: {
+      type: "string",
+      title: "Group",
     },
     extra: {
       anyOf: [
@@ -290,7 +298,9 @@ export const $AssetResponse = {
   type: "object",
   required: [
     "id",
+    "name",
     "uri",
+    "group",
     "created_at",
     "updated_at",
     "consuming_dags",
