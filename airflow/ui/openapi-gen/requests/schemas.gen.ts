@@ -2812,32 +2812,21 @@ export const $HealthInfoSchema = {
     triggerer: {
       $ref: "#/components/schemas/TriggererInfoSchema",
     },
+    dag_processor: {
+      anyOf: [
+        {
+          $ref: "#/components/schemas/DagProcessorInfoSchema",
+        },
+        {
+          type: "null",
+        },
+      ],
+    },
   },
   type: "object",
   required: ["metadatabase", "scheduler", "triggerer"],
   title: "HealthInfoSchema",
-  description: "Schema for the Health endpoint without dag processor.",
-} as const;
-
-export const $HealthInfoSchemaWithDagProcessor = {
-  properties: {
-    metadatabase: {
-      $ref: "#/components/schemas/BaseInfoSchema",
-    },
-    scheduler: {
-      $ref: "#/components/schemas/SchedulerInfoSchema",
-    },
-    triggerer: {
-      $ref: "#/components/schemas/TriggererInfoSchema",
-    },
-    dag_processor: {
-      $ref: "#/components/schemas/DagProcessorInfoSchema",
-    },
-  },
-  type: "object",
-  required: ["metadatabase", "scheduler", "triggerer", "dag_processor"],
-  title: "HealthInfoSchemaWithDagProcessor",
-  description: "Schema for the Health endpoint with dag processor.",
+  description: "Schema for the Health endpoint.",
 } as const;
 
 export const $HistoricalMetricDataResponse = {
@@ -4847,7 +4836,7 @@ export const $TimeDelta = {
   properties: {
     __type: {
       type: "string",
-      title: "Type",
+      title: "  Type",
       default: "TimeDelta",
     },
     days: {

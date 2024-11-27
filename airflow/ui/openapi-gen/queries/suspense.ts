@@ -2464,7 +2464,7 @@ export const useVariableServiceGetVariablesSuspense = <
   });
 /**
  * Get Health
- * @returns unknown Successful Response
+ * @returns HealthInfoSchema Successful Response
  * @throws ApiError
  */
 export const useMonitorServiceGetHealthSuspense = <

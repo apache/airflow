@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from pydantic import model_serializer
+
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
@@ -44,14 +46,13 @@ class DagProcessorInfoSchema(BaseInfoSchema):
 
 
 class HealthInfoSchema(BaseModel):
-    """Schema for the Health endpoint without dag processor."""
+    """Schema for the Health endpoint."""
 
     metadatabase: BaseInfoSchema
     scheduler: SchedulerInfoSchema
     triggerer: TriggererInfoSchema
+    dag_processor: DagProcessorInfoSchema | None = None
 
-
-class HealthInfoSchemaWithDagProcessor(HealthInfoSchema):
-    """Schema for the Health endpoint with dag processor."""
-
-    dag_processor: DagProcessorInfoSchema
+    @model_serializer()
+    def serialize(self):
+        return {k: v for k, v in self if not (k == "dag_processor" and v is None)}

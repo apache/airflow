@@ -676,22 +676,13 @@ export type HTTPValidationError = {
 };
 
 /**
- * Schema for the Health endpoint without dag processor.
+ * Schema for the Health endpoint.
  */
 export type HealthInfoSchema = {
   metadatabase: BaseInfoSchema;
   scheduler: SchedulerInfoSchema;
   triggerer: TriggererInfoSchema;
-};
-
-/**
- * Schema for the Health endpoint with dag processor.
- */
-export type HealthInfoSchemaWithDagProcessor = {
-  metadatabase: BaseInfoSchema;
-  scheduler: SchedulerInfoSchema;
-  triggerer: TriggererInfoSchema;
-  dag_processor: DagProcessorInfoSchema;
+  dag_processor?: DagProcessorInfoSchema | null;
 };
 
 /**
@@ -1987,9 +1978,7 @@ export type PostVariableData = {
 
 export type PostVariableResponse = VariableResponse;
 
-export type GetHealthResponse =
-  | HealthInfoSchema
-  | HealthInfoSchemaWithDagProcessor;
+export type GetHealthResponse = HealthInfoSchema;
 
 export type GetVersionResponse = VersionInfo;
 
@@ -4257,7 +4246,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: HealthInfoSchema | HealthInfoSchemaWithDagProcessor;
+        200: HealthInfoSchema;
       };
     };
   };

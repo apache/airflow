@@ -19,14 +19,12 @@ from __future__ import annotations
 
 from airflow.api.common.airflow_health import get_airflow_health
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.monitor import HealthInfoSchema, HealthInfoSchemaWithDagProcessor
+from airflow.api_fastapi.core_api.datamodels.monitor import HealthInfoSchema
 
 monitor_router = AirflowRouter(tags=["Monitor"], prefix="/monitor")
 
 
 @monitor_router.get("/health")
-def get_health() -> HealthInfoSchema | HealthInfoSchemaWithDagProcessor:
+def get_health() -> HealthInfoSchema:
     airflow_health_status = get_airflow_health()
-    if "dag_processor" not in airflow_health_status:
-        return HealthInfoSchema.model_validate(airflow_health_status, from_attributes=True)
-    return HealthInfoSchemaWithDagProcessor.model_validate(airflow_health_status, from_attributes=True)
+    return HealthInfoSchema.model_validate(airflow_health_status, from_attributes=True)

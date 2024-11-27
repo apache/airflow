@@ -1901,6 +1901,8 @@ paths:
         in: path
         required: true
         schema:
+          enum:
+          - '~'
           const: '~'
           type: string
           title: Dag Id
@@ -4860,6 +4862,8 @@ paths:
         in: path
         required: true
         schema:
+          enum:
+          - '~'
           const: '~'
           type: string
           title: Dag Id
@@ -4867,6 +4871,8 @@ paths:
         in: path
         required: true
         schema:
+          enum:
+          - '~'
           const: '~'
           type: string
           title: Dag Run Id
@@ -5569,10 +5575,7 @@ paths:
           content:
             application/json:
               schema:
-                anyOf:
-                - $ref: '#/components/schemas/HealthInfoSchema'
-                - $ref: '#/components/schemas/HealthInfoSchemaWithDagProcessor'
-                title: Response Get Health
+                $ref: '#/components/schemas/HealthInfoSchema'
   /public/version:
     get:
       tags:
@@ -7431,31 +7434,17 @@ components:
           $ref: '#/components/schemas/SchedulerInfoSchema'
         triggerer:
           $ref: '#/components/schemas/TriggererInfoSchema'
+        dag_processor:
+          anyOf:
+          - $ref: '#/components/schemas/DagProcessorInfoSchema'
+          - type: 'null'
       type: object
       required:
       - metadatabase
       - scheduler
       - triggerer
       title: HealthInfoSchema
-      description: Schema for the Health endpoint without dag processor.
-    HealthInfoSchemaWithDagProcessor:
-      properties:
-        metadatabase:
-          $ref: '#/components/schemas/BaseInfoSchema'
-        scheduler:
-          $ref: '#/components/schemas/SchedulerInfoSchema'
-        triggerer:
-          $ref: '#/components/schemas/TriggererInfoSchema'
-        dag_processor:
-          $ref: '#/components/schemas/DagProcessorInfoSchema'
-      type: object
-      required:
-      - metadatabase
-      - scheduler
-      - triggerer
-      - dag_processor
-      title: HealthInfoSchemaWithDagProcessor
-      description: Schema for the Health endpoint with dag processor.
+      description: Schema for the Health endpoint.
     HistoricalMetricDataResponse:
       properties:
         dag_run_types:
@@ -8733,7 +8722,7 @@ components:
       properties:
         __type:
           type: string
-          title: Type
+          title: '  Type'
           default: TimeDelta
         days:
           type: integer

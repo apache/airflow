@@ -2933,7 +2933,7 @@ export class VariableService {
 export class MonitorService {
   /**
    * Get Health
-   * @returns unknown Successful Response
+   * @returns HealthInfoSchema Successful Response
    * @throws ApiError
    */
   public static getHealth(): CancelablePromise<GetHealthResponse> {

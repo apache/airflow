@@ -2101,7 +2101,7 @@ export const prefetchUseVariableServiceGetVariables = (
   });
 /**
  * Get Health
- * @returns unknown Successful Response
+ * @returns HealthInfoSchema Successful Response
  * @throws ApiError
  */
 export const prefetchUseMonitorServiceGetHealth = (queryClient: QueryClient) =>

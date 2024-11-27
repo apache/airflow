@@ -2487,7 +2487,7 @@ export const useVariableServiceGetVariables = <
   });
 /**
  * Get Health
- * @returns unknown Successful Response
+ * @returns HealthInfoSchema Successful Response
  * @throws ApiError
  */
 export const useMonitorServiceGetHealth = <
