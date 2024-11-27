@@ -28,16 +28,20 @@ from time import sleep
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
+import httpx
 import pytest
 import structlog
 from uuid6 import uuid7
 
 from airflow.sdk.api import client as sdk_client
+from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import TaskInstance
 from airflow.sdk.api.datamodels.activities import ExecuteTaskActivity
 from airflow.sdk.execution_time.comms import ConnectionResult, GetConnection, GetVariable, VariableResult
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, supervise
 from airflow.utils import timezone as tz
+
+from task_sdk.tests.api.test_client import make_client
 
 if TYPE_CHECKING:
     import kgb
@@ -66,7 +70,7 @@ class TestWatchedSubprocess:
             print("I'm a short message")
             sys.stdout.write("Message ")
             print("stderr message", file=sys.stderr)
-            # We need a short sleep for the main process to process things. I worry this timining will be
+            # We need a short sleep for the main process to process things. I worry this timing will be
             # fragile, but I can't think of a better way. This lets the stdout be read (partial line) and the
             # stderr full line be read
             sleep(0.1)
@@ -257,6 +261,38 @@ class TestWatchedSubprocess:
             "logger": "task",
             "timestamp": "2024-11-07T12:34:56.078901Z",
         } in captured_logs
+
+    def test_supervisor_handles_already_running_task(self):
+        """Test that Supervisor prevents starting a Task Instance that is already running."""
+        ti = TaskInstance(id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1)
+
+        # Mock API Server response indicating the TI is already running
+        # The API Server would return a 409 Conflict status code if the TI is not
+        # in a "queued" state.
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti.id}/state":
+                return httpx.Response(
+                    409,
+                    json={
+                        "reason": "invalid_state",
+                        "message": "TI was not in a state where it could be marked as running",
+                        "previous_state": "running",
+                    },
+                )
+
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        with pytest.raises(ServerResponseError, match="Server returned error") as err:
+            WatchedSubprocess.start(path=os.devnull, ti=ti, client=client)
+
+        assert err.value.response.status_code == 409
+        assert err.value.detail == {
+            "reason": "invalid_state",
+            "message": "TI was not in a state where it could be marked as running",
+            "previous_state": "running",
+        }
 
 
 class TestHandleRequest:
