@@ -86,16 +86,16 @@ class AssetManager(LoggingMixin):
     def _add_asset_alias_association(
         cls,
         alias_names: Collection[str],
-        asset: AssetModel,
+        asset_model: AssetModel,
         *,
         session: Session,
     ) -> None:
-        already_related = {m.name for m in asset.aliases}
+        already_related = {m.name for m in asset_model.aliases}
         existing_aliases = {
             m.name: m
             for m in session.scalars(select(AssetAliasModel).where(AssetAliasModel.name.in_(alias_names)))
         }
-        asset.aliases.extend(
+        asset_model.aliases.extend(
             existing_aliases.get(name, AssetAliasModel(name=name))
             for name in alias_names
             if name not in already_related
@@ -131,7 +131,9 @@ class AssetManager(LoggingMixin):
             cls.logger().warning("AssetModel %s not found", asset)
             return None
 
-        cls._add_asset_alias_association({alias.name for alias in aliases}, asset_model, session=session)
+        cls._add_asset_alias_association(
+            alias_names={alias.name for alias in aliases}, asset_model=asset_model, session=session
+        )
 
         event_kwargs = {
             "asset_id": asset_model.id,
