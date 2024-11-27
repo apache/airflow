@@ -288,7 +288,7 @@ class SFTPHook(SSHHook):
         :param local_full_path: full path to the local directory
         :param prefetch: controls whether prefetch is performed (default: True)
         """
-        if Path(local_full_path).is_dir():
+        if Path(local_full_path).exists():
             raise AirflowException(f"{local_full_path} already exists")
         Path(local_full_path).mkdir(parents=True)
         files, dirs, _ = self.get_tree_map(remote_full_path)
@@ -309,6 +309,8 @@ class SFTPHook(SSHHook):
         :param remote_full_path: full path to the remote directory
         :param local_full_path: full path to the local directory
         """
+        if self.path_exists(remote_full_path):
+            raise AirflowException(f"{remote_full_path} already exists")
         self.create_directory(remote_full_path)
         for root, dirs, files in os.walk(local_full_path):
             for dir_name in dirs:
