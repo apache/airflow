@@ -51,6 +51,7 @@ from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     TaskInstance,
     TerminalTIState,
+    TIDeferredStatePayload,
     VariableResponse,
     XComResponse,
 )
@@ -103,6 +104,12 @@ class TaskState(BaseModel):
     type: Literal["TaskState"] = "TaskState"
 
 
+class DeferTask(TIDeferredStatePayload):
+    """Update a task instance state to deferred."""
+
+    type: Literal["DeferTask"] = "DeferTask"
+
+
 class GetXCom(BaseModel):
     key: str
     dag_id: str
@@ -123,6 +130,6 @@ class GetVariable(BaseModel):
 
 
 ToSupervisor = Annotated[
-    Union[TaskState, GetXCom, GetConnection, GetVariable],
+    Union[TaskState, GetXCom, GetConnection, GetVariable, DeferTask],
     Field(discriminator="type"),
 ]

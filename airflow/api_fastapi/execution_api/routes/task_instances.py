@@ -30,12 +30,14 @@ from sqlalchemy.sql import select
 from airflow.api_fastapi.common.db.common import get_session
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
     TIStateUpdate,
     TITerminalStatePayload,
 )
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.trigger import Trigger
 from airflow.utils import timezone
 from airflow.utils.state import State
 
@@ -122,6 +124,29 @@ def ti_update_state(
         )
     elif isinstance(ti_patch_payload, TITerminalStatePayload):
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
+    elif isinstance(ti_patch_payload, TIDeferredStatePayload):
+        # Calculate timeout if it was passed
+        timeout = None
+        if ti_patch_payload.trigger_timeout is not None:
+            timeout = timezone.utcnow() + ti_patch_payload.trigger_timeout
+
+        trigger_row = Trigger(
+            classpath=ti_patch_payload.classpath,
+            kwargs=ti_patch_payload.trigger_kwargs,
+        )
+        session.add(trigger_row)
+
+        # TODO: HANDLE execution timeout later as it requires a call to the DB
+        # either get it from the serialised DAG or get it from the API
+
+        query = update(TI).where(TI.id == ti_id_str)
+        query = query.values(
+            state=State.DEFERRED,
+            trigger_id=trigger_row.id,
+            next_method=ti_patch_payload.next_method,
+            next_kwargs=ti_patch_payload.trigger_kwargs,
+            trigger_timeout=timeout,
+        )
 
     # TODO: Replace this with FastAPI's Custom Exception handling:
     # https://fastapi.tiangolo.com/tutorial/handling-errors/#install-custom-exception-handlers
