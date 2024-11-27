@@ -297,7 +297,7 @@ class TestGetEventLogs(TestEventLogsEndpoint):
     def test_get_event_logs(
         self, test_client, query_params, expected_status_code, expected_total_entries, expected_events
     ):
-        response = test_client.get("/public/eventLogs/", params=query_params)
+        response = test_client.get("/public/eventLogs", params=query_params)
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
             return

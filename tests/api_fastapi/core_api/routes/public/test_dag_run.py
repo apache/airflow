@@ -616,7 +616,7 @@ class TestListDagRunsBatch:
                 ],
             ),
             (
-                {"page_limit": -1, "offset": 1},
+                {"page_limit": -1, "page_offset": 1},
                 [
                     {
                         "type": "greater_than_equal",

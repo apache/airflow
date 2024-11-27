@@ -171,7 +171,7 @@ class TestGetConnections(TestConnectionEndpoint):
         self, test_client, session, query_params, expected_total_entries, expected_ids
     ):
         self.create_connections()
-        response = test_client.get("/public/connections/", params=query_params)
+        response = test_client.get("/public/connections", params=query_params)
         assert response.status_code == 200
 
         body = response.json()
@@ -200,7 +200,7 @@ class TestPostConnection(TestConnectionEndpoint):
         ],
     )
     def test_post_should_respond_200(self, test_client, session, body):
-        response = test_client.post("/public/connections/", json=body)
+        response = test_client.post("/public/connections", json=body)
         assert response.status_code == 201
         connection = session.query(Connection).all()
         assert len(connection) == 1
@@ -215,7 +215,7 @@ class TestPostConnection(TestConnectionEndpoint):
         ],
     )
     def test_post_should_respond_400_for_invalid_conn_id(self, test_client, body):
-        response = test_client.post("/public/connections/", json=body)
+        response = test_client.post("/public/connections", json=body)
         assert response.status_code == 400
         connection_id = body["connection_id"]
         assert response.json() == {
@@ -230,10 +230,10 @@ class TestPostConnection(TestConnectionEndpoint):
         ],
     )
     def test_post_should_respond_already_exist(self, test_client, body):
-        response = test_client.post("/public/connections/", json=body)
+        response = test_client.post("/public/connections", json=body)
         assert response.status_code == 201
         # Another request
-        response = test_client.post("/public/connections/", json=body)
+        response = test_client.post("/public/connections", json=body)
         assert response.status_code == 409
         assert response.json() == {
             "detail": f"Connection with connection_id: `{TEST_CONN_ID}` already exists",
@@ -293,7 +293,7 @@ class TestPostConnection(TestConnectionEndpoint):
         ],
     )
     def test_post_should_response_201_redacted_password(self, test_client, body, expected_response):
-        response = test_client.post("/public/connections/", json=body)
+        response = test_client.post("/public/connections", json=body)
         assert response.status_code == 201
         assert response.json() == expected_response
 
