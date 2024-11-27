@@ -6450,10 +6450,10 @@ The following table shows changes in import paths.
      - ``airflow.sensors.base.BaseSensorOperator``
    * - ``airflow.sensors.date_time_sensor.DateTimeSensor``
      - ``airflow.sensors.date_time.DateTimeSensor``
-   * - ``airflow.providers.standard.sensors.external_task_sensor.ExternalTaskMarker``
-     - ``airflow.providers.standard.sensors.external_task.ExternalTaskMarker``
-   * - ``airflow.providers.standard.sensors.external_task_sensor.ExternalTaskSensor``
-     - ``airflow.providers.standard.sensors.external_task.ExternalTaskSensor``
+   * - ``airflow..sensors.external_task_sensor.ExternalTaskMarker``
+     - ``airflow.sensors.external_task.ExternalTaskMarker``
+   * - ``airflow.sensors.external_task_sensor.ExternalTaskSensor``
+     - ``airflow.sensors.external_task.ExternalTaskSensor``
    * - ``airflow.sensors.sql_sensor.SqlSensor``
      - ``airflow.sensors.sql.SqlSensor``
    * - ``airflow.sensors.time_delta_sensor.TimeDeltaSensor``
