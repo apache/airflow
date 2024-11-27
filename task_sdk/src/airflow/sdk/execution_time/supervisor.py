@@ -533,7 +533,7 @@ class WatchedSubprocess:
                 resp = xcom.model_dump_json(exclude_unset=True).encode()
             elif isinstance(msg, DeferTask):
                 self.final_state = IntermediateTIState.DEFERRED
-                self.client.task_instances.defer(self.ti_id, msg.model_dump_json(exclude_unset=True))
+                self.client.task_instances.defer(self.ti_id, msg)
                 resp = None
             else:
                 log.error("Unhandled request", msg=msg)

@@ -322,7 +322,7 @@ class TestHandleRequest:
         [
             pytest.param(
                 GetConnection(conn_id="test_conn"),
-                b'{"conn_id":"test_conn","conn_type":"mysql"}',
+                b'{"conn_id":"test_conn","conn_type":"mysql"}\n',
                 "connections.get",
                 ("test_conn",),
                 ConnectionResult(conn_id="test_conn", conn_type="mysql"),
@@ -330,7 +330,7 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetVariable(key="test_key"),
-                b'{"key":"test_key","value":"test_value"}',
+                b'{"key":"test_key","value":"test_value"}\n',
                 "variables.get",
                 ("test_key",),
                 VariableResult(key="test_key", value="test_value"),
@@ -338,33 +338,17 @@ class TestHandleRequest:
             ),
             pytest.param(
                 GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
-                b'{"key":"test_key","value":"test_value"}',
+                b'{"key":"test_key","value":"test_value"}\n',
                 "xcoms.get",
                 ("test_dag", "test_run", "test_task", "test_key", -1),
                 XComResult(key="test_key", value="test_value"),
                 id="get_xcom",
             ),
             pytest.param(
-                DeferTask(
-                    state="deferred",
-                    trigger_kwargs={},
-                    next_method="execute_callback",
-                    classpath="my-classpath",
-                    trigger_timeout=None,
-                    type="DeferTask",
-                ),
+                DeferTask(next_method="execute_callback", classpath="my-classpath"),
                 b"",
                 "task_instances.defer",
-                (
-                    TI_ID,
-                    DeferTask(
-                        state="deferred",
-                        trigger_kwargs={},
-                        classpath="my-classpath",
-                        next_method="execute_callback",
-                        trigger_timeout=None,
-                    ).model_dump_json(),
-                ),
+                (TI_ID, DeferTask(next_method="execute_callback", classpath="my-classpath")),
                 "",
                 id="patch_task_instance_to_deferred",
             ),
@@ -405,9 +389,5 @@ class TestHandleRequest:
         # Verify the correct client method was called
         mock_client_method.assert_called_once_with(*method_arg)
 
-        expected = expected_buffer + b"\n"
-        if mock_response == "":
-            # for task instance endpoints, there won't be any response
-            expected = b""
         # Verify the response was added to the buffer
-        assert watched_subprocess.stdin.getvalue() == expected
+        assert watched_subprocess.stdin.getvalue() == expected_buffer

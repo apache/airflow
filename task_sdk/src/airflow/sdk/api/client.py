@@ -31,6 +31,7 @@ from airflow.sdk import __version__
 from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
     TerminalTIState,
+    TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
     TITerminalStatePayload,
@@ -126,7 +127,11 @@ class TaskInstanceOperations:
         self.client.put(f"task-instances/{id}/heartbeat", content=body.model_dump_json())
 
     def defer(self, id: uuid.UUID, msg):
-        self.client.patch(f"task-instances/{id}/state", content=msg.model_dump_json())
+        """Tell the API server that this TI has been deferred."""
+        body = TIDeferredStatePayload(**msg.model_dump(exclude_unset=True))
+
+        # Create a deferred state payload from msg
+        self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
 
 class ConnectionOperations:

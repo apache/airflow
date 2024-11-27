@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from unittest import mock
 
 import pytest
@@ -198,7 +197,7 @@ class TestTIUpdateState:
             assert response.status_code == 500
             assert response.json()["detail"] == "Database error occurred"
 
-    def test_ti_update_state_to_deferred(self, client, session, create_task_instance):
+    def test_ti_update_state_to_deferred(self, client, session, create_task_instance, time_machine):
         """
         Test that tests if the transition to deferred state is handled correctly.
         """
@@ -210,37 +209,38 @@ class TestTIUpdateState:
         )
         session.commit()
 
-        mock_utcnow = mock.MagicMock(return_value=timezone.datetime(2024, 11, 22, 0, 0, 0))
+        instant = timezone.datetime(2024, 11, 22)
+        time_machine.move_to(instant, tick=False)
 
-        with mock.patch("airflow.utils.timezone.utcnow", mock_utcnow):
-            payload = {
-                "state": "deferred",
-                "trigger_kwargs": {"key": "value"},
-                "classpath": "my-classpath",
-                "next_method": "execute_callback",
-                "trigger_timeout": "P1D",
-            }
+        payload = {
+            "state": "deferred",
+            "trigger_kwargs": {"key": "value"},
+            "classpath": "my-classpath",
+            "next_method": "execute_callback",
+            "trigger_timeout": "P1D",  # 1 day
+        }
 
-            response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
 
-            assert response.status_code == 204
-            assert response.text == ""
+        assert response.status_code == 204
+        assert response.text == ""
 
-            session.expire_all()
+        session.expire_all()
 
-            tis = session.query(TaskInstance).all()
-            assert len(tis) == 1
+        tis = session.query(TaskInstance).all()
+        assert len(tis) == 1
 
-            assert tis[0].state == TaskInstanceState.DEFERRED
-            assert tis[0].next_method == "execute_callback"
-            assert tis[0].next_kwargs == {"key": "value"}
-            assert tis[0].trigger_timeout == datetime(2024, 11, 23, 0, 0)
+        assert tis[0].state == TaskInstanceState.DEFERRED
+        assert tis[0].next_method == "execute_callback"
+        assert tis[0].next_kwargs == {"key": "value"}
+        # TODO: Make TI.trigger_timeout a UtcDateTime instead of DateTime
+        assert tis[0].trigger_timeout == timezone.datetime(2024, 11, 23).replace(tzinfo=None)
 
-            t = session.query(Trigger).all()
-            assert len(t) == 1
-            assert t[0].created_date == datetime(2024, 11, 22, 0, 0, tzinfo=timezone.utc)
-            assert t[0].classpath == "my-classpath"
-            assert t[0].kwargs == {"key": "value"}
+        t = session.query(Trigger).all()
+        assert len(t) == 1
+        assert t[0].created_date == instant
+        assert t[0].classpath == "my-classpath"
+        assert t[0].kwargs == {"key": "value"}
 
 
 class TestTIHealthEndpoint:
