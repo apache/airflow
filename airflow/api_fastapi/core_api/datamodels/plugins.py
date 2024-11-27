@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from pydantic import BeforeValidator, ConfigDict, field_validator, model_validator
+from pydantic import BeforeValidator, ConfigDict, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.plugins_manager import AirflowPluginSource
@@ -75,20 +75,15 @@ class PluginResponse(BaseModel):
     ti_deps: list[Annotated[str, BeforeValidator(coerce_to_string)]]
     listeners: list[str]
     timetables: list[str]
+    priority_weight_strategies: list[Any]
+    admin_views: list[Any]
+    menu_links: list[Any]
 
     @field_validator("source", mode="before")
     @classmethod
     def convert_source(cls, data: Any) -> Any:
         if isinstance(data, AirflowPluginSource):
             return str(data)
-        return data
-
-    @model_validator(mode="before")
-    @classmethod
-    def remove_extra_fields(cls, data):
-        fields = ["admin_views", "priority_weight_strategies", "menu_links"]
-        for field in fields:
-            data.pop(field)
         return data
 
 
