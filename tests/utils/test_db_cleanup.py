@@ -352,7 +352,6 @@ class TestDBCleanup:
             "rendered_task_instance_fields",  # foreign key with TI
             "dag_priority_parsing_request",  # Records are purged once per DAG Processing loop, not a
             # significant source of data.
-            "dag_version",  # self-maintaining
         }
 
         from airflow.utils.db_cleanup import config_dict
