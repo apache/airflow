@@ -270,7 +270,7 @@ def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
             "extra": var.extra,
         }
     if isinstance(var, AssetAlias):
-        return {"__type": DAT.ASSET_ALIAS, "name": var.name}
+        return {"__type": DAT.ASSET_ALIAS, "name": var.name, "group": var.group}
     if isinstance(var, AssetAll):
         return {
             "__type": DAT.ASSET_ALL,
@@ -298,7 +298,7 @@ def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
     if dat == DAT.ASSET_ANY:
         return AssetAny(*(decode_asset_condition(x) for x in var["objects"]))
     if dat == DAT.ASSET_ALIAS:
-        return AssetAlias(name=var["name"])
+        return AssetAlias(name=var["name"], group=var["group"])
     raise ValueError(f"deserialization not implemented for DAT {dat!r}")
 
 
@@ -673,7 +673,11 @@ class BaseSerialization:
             return cls._encode(json_pod, type_=DAT.POD)
         elif isinstance(var, OutletEventAccessors):
             return cls._encode(
-                cls.serialize(var._dict, strict=strict, use_pydantic_models=use_pydantic_models),  # type: ignore[attr-defined]
+                cls.serialize(
+                    var._dict,  # type: ignore[attr-defined]
+                    strict=strict,
+                    use_pydantic_models=use_pydantic_models,
+                ),
                 type_=DAT.ASSET_EVENT_ACCESSORS,
             )
         elif isinstance(var, OutletEventAccessor):
