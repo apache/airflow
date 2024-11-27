@@ -359,7 +359,7 @@ class Asset(os.PathLike, BaseAsset):
         return iter(())
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
-        return statuses.get(self.uri, False)
+        return statuses.get(self.name, False)
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
