@@ -1,0 +1,38 @@
+[
+    {
+        "eventType": "START",
+        "eventTime": "{{ is_datetime(result) }}",
+        "run": {
+            "runId": "{{ is_uuid(result) }}"
+        },
+        "job": {
+            "namespace": "default",
+            "name": "openlineage_basic_dag.do_nothing_task",
+            "facets": {
+                "jobType": {
+                    "integration": "AIRFLOW",
+                    "jobType": "TASK",
+                    "processingType": "BATCH"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "eventTime": "{{ is_datetime(result) }}",
+        "run": {
+            "runId": "{{ is_uuid(result) }}"
+        },
+        "job": {
+            "namespace": "default",
+            "name": "openlineage_basic_dag.do_nothing_task",
+            "facets": {
+                "jobType": {
+                    "integration": "AIRFLOW",
+                    "jobType": "TASK",
+                    "processingType": "BATCH"
+                }
+            }
+        }
+    }
+]
