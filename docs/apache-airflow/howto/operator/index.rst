@@ -28,5 +28,3 @@ determine what actually executes when your DAG runs.
 
 .. toctree::
     :maxdepth: 2
-
-    external_task_sensor

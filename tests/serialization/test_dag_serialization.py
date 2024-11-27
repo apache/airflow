@@ -1511,7 +1511,7 @@ class TestStringifiedDAGs:
         Tests serialize_operator, make sure the deps is in order
         """
         from airflow.operators.empty import EmptyOperator
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
         logical_date = datetime(2020, 1, 1)
         with DAG(dag_id="test_deps_sorted", schedule=None, start_date=logical_date) as dag:
@@ -1626,7 +1626,7 @@ class TestStringifiedDAGs:
         Tests DAG dependency detection for sensors, including derived classes
         """
         from airflow.operators.empty import EmptyOperator
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
         class DerivedSensor(ExternalTaskSensor):
             pass
@@ -1657,7 +1657,7 @@ class TestStringifiedDAGs:
         """
         Check that dag_dependencies node is populated correctly for a DAG with duplicate assets.
         """
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
         d1 = Asset("d1")
         d2 = Asset("d2")
@@ -1746,7 +1746,7 @@ class TestStringifiedDAGs:
         """
         Check that dag_dependencies node is populated correctly for a DAG with assets.
         """
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
         d1 = Asset("d1")
         d2 = Asset("d2")
