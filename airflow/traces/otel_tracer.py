@@ -275,10 +275,7 @@ def get_otel_tracer(cls) -> OtelTrace:
     protocol = "https" if ssl_active else "http"
     endpoint = f"{protocol}://{host}:{port}/v1/traces"
     log.info("[OTLPSpanExporter] Connecting to OpenTelemetry Collector at %s", endpoint)
-    return OtelTrace(
-        span_exporter=OTLPSpanExporter(endpoint=endpoint, headers={"Content-Type": "application/json"}),
-        tag_string=tag_string,
-    )
+    return OtelTrace(span_exporter=OTLPSpanExporter(endpoint=endpoint), tag_string=tag_string)
 
 
 class AirflowOtelIdGenerator(IdGenerator):

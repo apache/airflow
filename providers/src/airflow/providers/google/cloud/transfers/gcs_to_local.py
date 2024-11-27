@@ -113,3 +113,12 @@ class GCSToLocalFilesystemOperator(BaseOperator):
                 raise AirflowException("The size of the downloaded file is too large to push to XCom!")
         else:
             hook.download(bucket_name=self.bucket, object_name=self.object_name, filename=self.filename)
+
+    def get_openlineage_facets_on_start(self):
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        return OperatorLineage(
+            inputs=[Dataset(namespace=f"gs://{self.bucket}", name=self.object_name)],
+            outputs=[Dataset(namespace="file", name=self.filename)] if self.filename else [],
+        )

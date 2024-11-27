@@ -43,10 +43,12 @@ import structlog
 from pydantic import TypeAdapter
 
 from airflow.sdk.api.client import Client
-from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
+from airflow.sdk.api.datamodels._generated import IntermediateTIState, TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
+    DeferTask,
     GetConnection,
     GetVariable,
+    GetXCom,
     StartupDetails,
     ToSupervisor,
 )
@@ -262,6 +264,7 @@ class WatchedSubprocess:
     _process: psutil.Process
     _exit_code: int | None = None
     _terminal_state: str | None = None
+    _final_state: str | None = None
 
     _last_heartbeat: float = 0
 
@@ -397,9 +400,10 @@ class WatchedSubprocess:
         # If it hasn't, assume it's failed
         self._exit_code = self._exit_code if self._exit_code is not None else 1
 
-        self.client.task_instances.finish(
-            id=self.ti_id, state=self.final_state, when=datetime.now(tz=timezone.utc)
-        )
+        if self.final_state in TerminalTIState:
+            self.client.task_instances.finish(
+                id=self.ti_id, state=self.final_state, when=datetime.now(tz=timezone.utc)
+            )
         return self._exit_code
 
     def _monitor_subprocess(self):
@@ -471,9 +475,19 @@ class WatchedSubprocess:
 
         Not valid before the process has finished.
         """
+        if self._final_state:
+            return self._final_state
         if self._exit_code == 0:
             return self._terminal_state or TerminalTIState.SUCCESS
         return TerminalTIState.FAILED
+
+    @final_state.setter
+    def final_state(self, value):
+        """Setter for final_state for certain task instance stated present in IntermediateTIState."""
+        # TODO: Remove the setter and manage using the final_state property
+        # to be taken in a follow up
+        if value not in TerminalTIState:
+            self._final_state = value
 
     def __rich_repr__(self):
         yield "ti_id", self.ti_id
@@ -514,11 +528,19 @@ class WatchedSubprocess:
             elif isinstance(msg, GetVariable):
                 var = self.client.variables.get(msg.key)
                 resp = var.model_dump_json(exclude_unset=True).encode()
+            elif isinstance(msg, GetXCom):
+                xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+                resp = xcom.model_dump_json(exclude_unset=True).encode()
+            elif isinstance(msg, DeferTask):
+                self.final_state = IntermediateTIState.DEFERRED
+                self.client.task_instances.defer(self.ti_id, msg)
+                resp = None
             else:
                 log.error("Unhandled request", msg=msg)
                 continue
 
-            self.stdin.write(resp + b"\n")
+            if resp:
+                self.stdin.write(resp + b"\n")
 
 
 # Sockets, even the `.makefile()` function don't correctly do line buffering on reading. If a chunk is read
