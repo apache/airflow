@@ -76,6 +76,7 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to debug resources or not (true/false)"
         required: true
         type: string
+
 jobs:
   tests-min-sqlalchemy:
     name: "Min SQLAlchemy test"

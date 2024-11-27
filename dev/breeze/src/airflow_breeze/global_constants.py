@@ -263,6 +263,7 @@ class GroupOfTests(Enum):
     INTEGRATION_CORE = "integration-core"
     INTEGRATION_PROVIDERS = "integration-providers"
     SYSTEM = "system"
+    PYTHON_API_CLIENT = "python-api-client"
 
 
 ALL_TEST_TYPE = "All"
