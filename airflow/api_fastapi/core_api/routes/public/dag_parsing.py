@@ -17,50 +17,50 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from http import HTTPStatus
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
-from flask import Response, current_app
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.responses import Response
 from itsdangerous import BadSignature, URLSafeSerializer
 from sqlalchemy import exc, select
+from sqlalchemy.orm import Session
 
-from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import NotFound, PermissionDenied
+from airflow.api_fastapi.common.db.common import get_session
+from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.auth.managers.models.resource_details import DagDetails
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
-from airflow.utils.api_migration import mark_fastapi_migration_done
-from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
     from airflow.auth.managers.models.batch_apis import IsAuthorizedDagRequest
 
+dag_parsing_router = AirflowRouter(tags=["DAG Parsing"], prefix="/parseDagFile/{file_token}")
 
-@mark_fastapi_migration_done
-@security.requires_access_dag("PUT")
-@provide_session
-def reparse_dag_file(*, file_token: str, session: Session = NEW_SESSION) -> Response:
+
+@dag_parsing_router.put(
+    "",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+)
+def reparse_dag_file(
+    file_token: str,
+    session: Annotated[Session, Depends(get_session)],
+    request: Request,
+) -> Response:
     """Request re-parsing a DAG file."""
-    secret_key = current_app.config["SECRET_KEY"]
+    secret_key = request.app.state.secret_key
     auth_s = URLSafeSerializer(secret_key)
     try:
         path = auth_s.loads(file_token)
     except BadSignature:
-        raise NotFound("File not found")
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
 
     requests: Sequence[IsAuthorizedDagRequest] = [
         {"method": "PUT", "details": DagDetails(id=dag_id)}
         for dag_id in session.scalars(select(DagModel.dag_id).where(DagModel.fileloc == path))
     ]
     if not requests:
-        raise NotFound("File not found")
-
-    # Check if user has read access to all the DAGs defined in the file
-    if not get_auth_manager().batch_is_authorized_dag(requests):
-        raise PermissionDenied()
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
 
     parsing_request = DagPriorityParsingRequest(fileloc=path)
     session.add(parsing_request)
@@ -68,5 +68,5 @@ def reparse_dag_file(*, file_token: str, session: Session = NEW_SESSION) -> Resp
         session.commit()
     except exc.IntegrityError:
         session.rollback()
-        return Response("Duplicate request", HTTPStatus.CREATED)
-    return Response(status=HTTPStatus.CREATED)
+        return Response("Duplicate request", status_code=status.HTTP_201_CREATED)
+    return Response(status_code=status.HTTP_201_CREATED)
