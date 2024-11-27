@@ -201,6 +201,7 @@ Step 4: Prepare PR
      This can also be done by the following command.
 
 .. code-block:: bash
+
      uv tool run towncrier create --dir . --config newsfragments/config.toml --content "`cat newsfragments/template.significant.rst`"
 
 2. Rebase your fork, squash commits, and resolve all conflicts. See `How to rebase PR <#how-to-rebase-pr>`_
