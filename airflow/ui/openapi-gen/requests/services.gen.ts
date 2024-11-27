@@ -70,6 +70,8 @@ import type {
   ClearDagRunResponse,
   GetDagRunsData,
   GetDagRunsResponse,
+  TriggerDagRunData,
+  TriggerDagRunResponse,
   GetListDagRunsBatchData,
   GetListDagRunsBatchResponse,
   GetDagSourceData,
@@ -150,6 +152,10 @@ import type {
   PostPoolsResponse,
   GetProvidersData,
   GetProvidersResponse,
+  GetXcomEntryData,
+  GetXcomEntryResponse,
+  GetXcomEntriesData,
+  GetXcomEntriesResponse,
   GetTasksData,
   GetTasksResponse,
   GetTaskData,
@@ -164,8 +170,6 @@ import type {
   GetVariablesResponse,
   PostVariableData,
   PostVariableResponse,
-  GetXcomEntryData,
-  GetXcomEntryResponse,
   GetHealthResponse,
   GetVersionResponse,
 } from "./types.gen";
@@ -1186,6 +1190,37 @@ export class DagRunService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Trigger Dag Run
+   * Trigger a DAG.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.requestBody
+   * @returns DAGRunResponse Successful Response
+   * @throws ApiError
+   */
+  public static triggerDagRun(
+    data: TriggerDagRunData,
+  ): CancelablePromise<TriggerDagRunResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/dags/{dag_id}/dagRuns",
+      path: {
+        dag_id: data.dagId,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        409: "Conflict",
         422: "Validation Error",
       },
     });
@@ -2608,6 +2643,92 @@ export class ProviderService {
   }
 }
 
+export class XcomService {
+  /**
+   * Get Xcom Entry
+   * Get an XCom entry.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.taskId
+   * @param data.dagRunId
+   * @param data.xcomKey
+   * @param data.mapIndex
+   * @param data.deserialize
+   * @param data.stringify
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getXcomEntry(
+    data: GetXcomEntryData,
+  ): CancelablePromise<GetXcomEntryResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
+      path: {
+        dag_id: data.dagId,
+        task_id: data.taskId,
+        dag_run_id: data.dagRunId,
+        xcom_key: data.xcomKey,
+      },
+      query: {
+        map_index: data.mapIndex,
+        deserialize: data.deserialize,
+        stringify: data.stringify,
+      },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Xcom Entries
+   * Get all XCom entries.
+   *
+   * This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all DAGs.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.dagRunId
+   * @param data.taskId
+   * @param data.xcomKey
+   * @param data.mapIndex
+   * @param data.limit
+   * @param data.offset
+   * @returns XComCollection Successful Response
+   * @throws ApiError
+   */
+  public static getXcomEntries(
+    data: GetXcomEntriesData,
+  ): CancelablePromise<GetXcomEntriesResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries",
+      path: {
+        dag_id: data.dagId,
+        dag_run_id: data.dagRunId,
+        task_id: data.taskId,
+      },
+      query: {
+        xcom_key: data.xcomKey,
+        map_index: data.mapIndex,
+        limit: data.limit,
+        offset: data.offset,
+      },
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
 export class TaskService {
   /**
    * Get Tasks
@@ -2803,49 +2924,6 @@ export class VariableService {
       errors: {
         401: "Unauthorized",
         403: "Forbidden",
-        422: "Validation Error",
-      },
-    });
-  }
-}
-
-export class XcomService {
-  /**
-   * Get Xcom Entry
-   * Get an XCom entry.
-   * @param data The data for the request.
-   * @param data.dagId
-   * @param data.taskId
-   * @param data.dagRunId
-   * @param data.xcomKey
-   * @param data.mapIndex
-   * @param data.deserialize
-   * @param data.stringify
-   * @returns unknown Successful Response
-   * @throws ApiError
-   */
-  public static getXcomEntry(
-    data: GetXcomEntryData,
-  ): CancelablePromise<GetXcomEntryResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
-      path: {
-        dag_id: data.dagId,
-        task_id: data.taskId,
-        dag_run_id: data.dagRunId,
-        xcom_key: data.xcomKey,
-      },
-      query: {
-        map_index: data.mapIndex,
-        deserialize: data.deserialize,
-        stringify: data.stringify,
-      },
-      errors: {
-        400: "Bad Request",
-        401: "Unauthorized",
-        403: "Forbidden",
-        404: "Not Found",
         422: "Validation Error",
       },
     });

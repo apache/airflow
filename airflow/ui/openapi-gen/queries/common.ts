@@ -1393,6 +1393,72 @@ export const UseProviderServiceGetProvidersKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [useProviderServiceGetProvidersKey, ...(queryKey ?? [{ limit, offset }])];
+export type XcomServiceGetXcomEntryDefaultResponse = Awaited<
+  ReturnType<typeof XcomService.getXcomEntry>
+>;
+export type XcomServiceGetXcomEntryQueryResult<
+  TData = XcomServiceGetXcomEntryDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useXcomServiceGetXcomEntryKey = "XcomServiceGetXcomEntry";
+export const UseXcomServiceGetXcomEntryKeyFn = (
+  {
+    dagId,
+    dagRunId,
+    deserialize,
+    mapIndex,
+    stringify,
+    taskId,
+    xcomKey,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    deserialize?: boolean;
+    mapIndex?: number;
+    stringify?: boolean;
+    taskId: string;
+    xcomKey: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useXcomServiceGetXcomEntryKey,
+  ...(queryKey ?? [
+    { dagId, dagRunId, deserialize, mapIndex, stringify, taskId, xcomKey },
+  ]),
+];
+export type XcomServiceGetXcomEntriesDefaultResponse = Awaited<
+  ReturnType<typeof XcomService.getXcomEntries>
+>;
+export type XcomServiceGetXcomEntriesQueryResult<
+  TData = XcomServiceGetXcomEntriesDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useXcomServiceGetXcomEntriesKey = "XcomServiceGetXcomEntries";
+export const UseXcomServiceGetXcomEntriesKeyFn = (
+  {
+    dagId,
+    dagRunId,
+    limit,
+    mapIndex,
+    offset,
+    taskId,
+    xcomKey,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    limit?: number;
+    mapIndex?: number;
+    offset?: number;
+    taskId: string;
+    xcomKey?: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useXcomServiceGetXcomEntriesKey,
+  ...(queryKey ?? [
+    { dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey },
+  ]),
+];
 export type TaskServiceGetTasksDefaultResponse = Awaited<
   ReturnType<typeof TaskService.getTasks>
 >;
@@ -1468,39 +1534,6 @@ export const UseVariableServiceGetVariablesKeyFn = (
   useVariableServiceGetVariablesKey,
   ...(queryKey ?? [{ limit, offset, orderBy }]),
 ];
-export type XcomServiceGetXcomEntryDefaultResponse = Awaited<
-  ReturnType<typeof XcomService.getXcomEntry>
->;
-export type XcomServiceGetXcomEntryQueryResult<
-  TData = XcomServiceGetXcomEntryDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useXcomServiceGetXcomEntryKey = "XcomServiceGetXcomEntry";
-export const UseXcomServiceGetXcomEntryKeyFn = (
-  {
-    dagId,
-    dagRunId,
-    deserialize,
-    mapIndex,
-    stringify,
-    taskId,
-    xcomKey,
-  }: {
-    dagId: string;
-    dagRunId: string;
-    deserialize?: boolean;
-    mapIndex?: number;
-    stringify?: boolean;
-    taskId: string;
-    xcomKey: string;
-  },
-  queryKey?: Array<unknown>,
-) => [
-  useXcomServiceGetXcomEntryKey,
-  ...(queryKey ?? [
-    { dagId, dagRunId, deserialize, mapIndex, stringify, taskId, xcomKey },
-  ]),
-];
 export type MonitorServiceGetHealthDefaultResponse = Awaited<
   ReturnType<typeof MonitorService.getHealth>
 >;
@@ -1539,6 +1572,9 @@ export type ConnectionServiceTestConnectionMutationResult = Awaited<
 >;
 export type DagRunServiceClearDagRunMutationResult = Awaited<
   ReturnType<typeof DagRunService.clearDagRun>
+>;
+export type DagRunServiceTriggerDagRunMutationResult = Awaited<
+  ReturnType<typeof DagRunService.triggerDagRun>
 >;
 export type DagRunServiceGetListDagRunsBatchMutationResult = Awaited<
   ReturnType<typeof DagRunService.getListDagRunsBatch>

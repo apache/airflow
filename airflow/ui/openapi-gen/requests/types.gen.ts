@@ -1136,6 +1136,19 @@ export type TimeDelta = {
 };
 
 /**
+ * Trigger DAG Run Serializer for POST body.
+ */
+export type TriggerDAGRunPostBody = {
+  dag_run_id?: string | null;
+  data_interval_start?: string | null;
+  data_interval_end?: string | null;
+  conf?: {
+    [key: string]: unknown;
+  };
+  note?: string | null;
+};
+
+/**
  * Trigger serializer for responses.
  */
 export type TriggerResponse = {
@@ -1192,6 +1205,26 @@ export type VariableResponse = {
 export type VersionInfo = {
   version: string;
   git_version: string | null;
+};
+
+/**
+ * List of XCom items.
+ */
+export type XComCollection = {
+  xcom_entries: Array<XComResponse>;
+  total_entries: number;
+};
+
+/**
+ * Serializer for a xcom item.
+ */
+export type XComResponse = {
+  key: string;
+  timestamp: string;
+  logical_date: string;
+  map_index: number;
+  task_id: string;
+  dag_id: string;
 };
 
 /**
@@ -1482,6 +1515,13 @@ export type GetDagRunsData = {
 };
 
 export type GetDagRunsResponse = DAGRunCollectionResponse;
+
+export type TriggerDagRunData = {
+  dagId: unknown;
+  requestBody: TriggerDAGRunPostBody;
+};
+
+export type TriggerDagRunResponse = DAGRunResponse;
 
 export type GetListDagRunsBatchData = {
   dagId: "~";
@@ -1875,6 +1915,30 @@ export type GetProvidersData = {
 
 export type GetProvidersResponse = ProviderCollectionResponse;
 
+export type GetXcomEntryData = {
+  dagId: string;
+  dagRunId: string;
+  deserialize?: boolean;
+  mapIndex?: number;
+  stringify?: boolean;
+  taskId: string;
+  xcomKey: string;
+};
+
+export type GetXcomEntryResponse = XComResponseNative | XComResponseString;
+
+export type GetXcomEntriesData = {
+  dagId: string;
+  dagRunId: string;
+  limit?: number;
+  mapIndex?: number | null;
+  offset?: number;
+  taskId: string;
+  xcomKey?: string | null;
+};
+
+export type GetXcomEntriesResponse = XComCollection;
+
 export type GetTasksData = {
   dagId: string;
   orderBy?: string;
@@ -1922,18 +1986,6 @@ export type PostVariableData = {
 };
 
 export type PostVariableResponse = VariableResponse;
-
-export type GetXcomEntryData = {
-  dagId: string;
-  dagRunId: string;
-  deserialize?: boolean;
-  mapIndex?: number;
-  stringify?: boolean;
-  taskId: string;
-  xcomKey: string;
-};
-
-export type GetXcomEntryResponse = XComResponseNative | XComResponseString;
 
 export type GetHealthResponse =
   | HealthInfoSchema
@@ -2826,6 +2878,39 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    post: {
+      req: TriggerDagRunData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGRunResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
         /**
          * Validation Error
          */
@@ -3917,6 +4002,68 @@ export type $OpenApiTs = {
       };
     };
   };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}": {
+    get: {
+      req: GetXcomEntryData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: XComResponseNative | XComResponseString;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries": {
+    get: {
+      req: GetXcomEntriesData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: XComCollection;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
   "/public/dags/{dag_id}/tasks": {
     get: {
       req: GetTasksData;
@@ -4097,37 +4244,6 @@ export type $OpenApiTs = {
          * Forbidden
          */
         403: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}": {
-    get: {
-      req: GetXcomEntryData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: XComResponseNative | XComResponseString;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
         /**
          * Validation Error
          */

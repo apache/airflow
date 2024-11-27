@@ -236,15 +236,6 @@ function determine_airflow_to_use() {
            --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         # Some packages might leave legacy typing module which causes test issues
         pip uninstall -y typing || true
-        # We need to install `eval-type-backport` to avoid problems with Pydantic 2.10.0/2.10.1 released in
-        # November 2024 for python 3.8 and 3.9. Hopefully this is only a temporary measure that will be
-        # solved in Pydantic 2.10.2 by addressing https://github.com/pydantic/pydantic/issues/10958
-        if [[ ${PYTHON_MAJOR_MINOR_VERSION} == "3.8" || ${PYTHON_MAJOR_MINOR_VERSION} == "3.9" ]]; then
-            echo
-            echo "${COLOR_BLUE}Installing eval-type-backport for Python ${PYTHON_MAJOR_MINOR_VERSION} to workaround Pydantic 2.10.0/2.10.1 issue with new typing style.${COLOR_RESET}"
-            echo
-            pip install eval-type-backport>=0.2.0
-        fi
         if [[ ${LINK_PROVIDERS_TO_AIRFLOW_PACKAGE=} == "true" ]]; then
             echo
             echo "${COLOR_BLUE}Linking providers to airflow package as we are using them from mounted sources.${COLOR_RESET}"
