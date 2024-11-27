@@ -23,18 +23,6 @@ from uuid import UUID
 from pydantic import BaseModel
 
 
-class GridTaskInstance(BaseModel):
-    """Task Instance model for the Grid UI."""
-
-    run_id: str
-    task_id: str
-    try_number: int
-    start_date: datetime | None
-    end_date: datetime | None
-    queued_dttm: datetime | None
-    state: str | None
-
-
 class GridTaskInstanceSummary(BaseModel):
     """Task Instance Summary model for the Grid UI."""
 
