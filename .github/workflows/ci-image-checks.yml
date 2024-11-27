@@ -16,7 +16,7 @@
 # under the License.
 #
 ---
-name: Static checks, mypy, docs
+name: CI Image Checks
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
