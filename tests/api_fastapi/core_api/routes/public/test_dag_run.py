@@ -482,21 +482,19 @@ class TestGetDagRuns:
 
 class TestListDagRunsBatch:
     @staticmethod
-    def parse_datetime(datetime_str):
-        return datetime_str.isoformat().replace("+00:00", "Z") if datetime_str else None
-
-    @staticmethod
     def get_dag_run_dict(run: DagRun):
         return {
             "dag_run_id": run.run_id,
             "dag_id": run.dag_id,
-            "logical_date": TestGetDagRuns.parse_datetime(run.logical_date),
-            "queued_at": TestGetDagRuns.parse_datetime(run.queued_at),
-            "start_date": TestGetDagRuns.parse_datetime(run.start_date),
-            "end_date": TestGetDagRuns.parse_datetime(run.end_date),
-            "data_interval_start": TestGetDagRuns.parse_datetime(run.data_interval_start),
-            "data_interval_end": TestGetDagRuns.parse_datetime(run.data_interval_end),
-            "last_scheduling_decision": TestGetDagRuns.parse_datetime(run.last_scheduling_decision),
+            "logical_date": from_datetime_to_zulu_without_ms(run.logical_date),
+            "queued_at": from_datetime_to_zulu_without_ms(run.queued_at) if run.queued_at else None,
+            "start_date": from_datetime_to_zulu_without_ms(run.start_date),
+            "end_date": from_datetime_to_zulu(run.end_date),
+            "data_interval_start": from_datetime_to_zulu_without_ms(run.data_interval_start),
+            "data_interval_end": from_datetime_to_zulu_without_ms(run.data_interval_end),
+            "last_scheduling_decision": from_datetime_to_zulu_without_ms(run.last_scheduling_decision)
+            if run.last_scheduling_decision
+            else None,
             "run_type": run.run_type,
             "state": run.state,
             "external_trigger": run.external_trigger,
