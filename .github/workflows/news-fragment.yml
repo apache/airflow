@@ -36,7 +36,7 @@ jobs:
           # needs a non-shallow clone.
           fetch-depth: 0
 
-      - name: Check news fragment
+      - name: Check news fragment existence
         run: >
           python -m pip install --upgrade uv &&
           uv tool run towncrier check
@@ -52,3 +52,26 @@ jobs:
           &&
           false
           ; }
+
+      - name: Check news fragment contains change types
+        run: >
+          change_types=(
+            'DAG changes'
+            'Config changes'
+            'API changes'
+            'CLI changes'
+            'Behaviour changes'
+            'Plugin changes'
+            'Dependency change'
+          )
+          news_fragment_content=`git diff origin/${{ github.base_ref }} newsfragments/*.significant.rst`
+
+          for type in "${change_types[@]}"; do
+            if [[ $news_fragment_content != *"$type"* ]]; then
+              printf "\033[1;33mMissing change type '$type' in significant newsfragment for PR labeled with
+              'airflow3.0:breaking'.\nCheck
+              https://github.com/apache/airflow/blob/main/contributing-docs/16_contribution_workflow.rst
+              for guidance.\033[m\n"
+              exit 1
+            fi
+          done
