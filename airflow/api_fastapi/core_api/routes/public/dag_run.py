@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, cast
 
+import pendulum
 from fastapi import Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -50,13 +51,19 @@ from airflow.api_fastapi.core_api.datamodels.dag_run import (
     DAGRunPatchStates,
     DAGRunResponse,
     DAGRunsBatchBody,
+    TriggerDAGRunPostBody,
 )
 from airflow.api_fastapi.core_api.datamodels.task_instances import (
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.models import DAG, DagRun
+from airflow.exceptions import ParamValidationError
+from airflow.models import DAG, DagModel, DagRun
+from airflow.models.dag_version import DagVersion
+from airflow.timetables.base import DataInterval
+from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
 
@@ -301,6 +308,67 @@ def get_dag_runs(
         dag_runs=dag_runs,
         total_entries=total_entries,
     )
+
+
+@dag_run_router.post(
+    "",
+    responses=create_openapi_http_exception_doc(
+        [
+            status.HTTP_400_BAD_REQUEST,
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_409_CONFLICT,
+        ]
+    ),
+)
+def trigger_dag_run(
+    dag_id, body: TriggerDAGRunPostBody, request: Request, session: Annotated[Session, Depends(get_session)]
+) -> DAGRunResponse:
+    """Trigger a DAG."""
+    dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
+    if not dm:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"DAG with dag_id: '{dag_id}' not found")
+
+    if dm.has_import_errors:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"DAG with dag_id: '{dag_id}' has import errors and cannot be triggered",
+        )
+
+    run_id = body.dag_run_id
+    logical_date = pendulum.instance(body.logical_date)
+
+    try:
+        dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
+
+        if body.data_interval_start and body.data_interval_end:
+            data_interval = DataInterval(
+                start=pendulum.instance(body.data_interval_start),
+                end=pendulum.instance(body.data_interval_end),
+            )
+        else:
+            data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
+        dag_run = dag.create_dagrun(
+            run_type=DagRunType.MANUAL,
+            run_id=run_id,
+            logical_date=logical_date,
+            data_interval=data_interval,
+            state=DagRunState.QUEUED,
+            conf=body.conf,
+            external_trigger=True,
+            dag_version=dag_version,
+            session=session,
+            triggered_by=DagRunTriggeredByType.REST_API,
+        )
+        dag_run_note = body.note
+        if dag_run_note:
+            current_user_id = None  # refer to https://github.com/apache/airflow/issues/43534
+            dag_run.note = (dag_run_note, current_user_id)
+        return dag_run
+    except ValueError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
+    except ParamValidationError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 
 
 @dag_run_router.post("/list", responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]))
