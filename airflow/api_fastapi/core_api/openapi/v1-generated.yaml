@@ -6897,6 +6897,7 @@ components:
             format: date-time
           - type: 'null'
           title: End Date Lte
+      additionalProperties: false
       type: object
       title: DAGRunsBatchBody
       description: List DAG Runs body for batch endpoint.
@@ -7555,6 +7556,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - jobs
@@ -7663,6 +7665,7 @@ components:
           type: boolean
           title: Include Past
           default: false
+      additionalProperties: false
       type: object
       title: PatchTaskInstanceBody
       description: Request body for Clear Task Instances endpoint.
@@ -8063,6 +8066,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - task_instances
@@ -8838,6 +8842,7 @@ components:
           - type: string
           - type: 'null'
           title: Note
+      additionalProperties: false
       type: object
       title: TriggerDAGRunPostBody
       description: Trigger DAG Run Serializer for POST body.
@@ -9000,6 +9005,7 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+      additionalProperties: false
       type: object
       required:
       - xcom_entries
@@ -9028,6 +9034,7 @@ components:
         dag_id:
           type: string
           title: Dag Id
+      additionalProperties: false
       type: object
       required:
       - key
