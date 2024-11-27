@@ -60,11 +60,9 @@ from airflow_breeze.commands.common_options import (
 )
 from airflow_breeze.commands.common_package_installation_options import (
     option_airflow_constraints_reference,
-    option_install_airflow_python_client,
     option_install_airflow_with_constraints,
     option_providers_constraints_location,
     option_providers_skip_constraints,
-    option_start_airflow_minimal_webserver_with_examples,
     option_use_packages_from_dist,
 )
 from airflow_breeze.commands.release_management_commands import option_package_format
@@ -1025,15 +1023,13 @@ def helm_tests(
 
 
 @group_for_testing.command(
-    name="openapi-tests",
-    help="Run open api tests.",
+    name="python-api-client-tests",
+    help="Run python api client tests.",
     context_settings=dict(
         ignore_unknown_options=True,
         allow_extra_args=True,
     ),
 )
-@option_install_airflow_python_client
-@option_start_airflow_minimal_webserver_with_examples
 @option_backend
 @option_collect_only
 @option_db_reset
@@ -1052,9 +1048,7 @@ def helm_tests(
 @option_dry_run
 @option_verbose
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
-def openapi_tests(
-    install_airflow_python_client: bool,
-    start_airflow_minimal_webserver_with_examples: bool,
+def python_api_client_tests(
     backend: str,
     collect_only: bool,
     db_reset: bool,
@@ -1073,7 +1067,7 @@ def openapi_tests(
     extra_pytest_args: tuple,
 ):
     shell_params = ShellParams(
-        test_group=GroupOfTests.OPEN_API,
+        test_group=GroupOfTests.PYTHON_API_CLIENT,
         backend=backend,
         collect_only=collect_only,
         enable_coverage=enable_coverage,
@@ -1086,13 +1080,13 @@ def openapi_tests(
         mysql_version=mysql_version,
         postgres_version=postgres_version,
         python=python,
-        test_type="openapi",
+        test_type="python-api-client",
         force_sa_warnings=force_sa_warnings,
         run_tests=True,
         db_reset=db_reset,
         no_db_cleanup=no_db_cleanup,
-        install_airflow_python_client=install_airflow_python_client,
-        start_airflow_minimal_webserver_with_examples=start_airflow_minimal_webserver_with_examples,
+        install_airflow_python_client=True,
+        start_webserver_with_examples=True,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     fix_ownership_using_docker()

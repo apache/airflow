@@ -139,3 +139,7 @@ def test_python_client():
             sys.exit(1)
         else:
             print("\n[green]Everything went well")
+
+
+if __name__ == "__main__":
+    test_python_client()

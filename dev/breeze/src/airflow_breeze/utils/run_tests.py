@@ -40,17 +40,16 @@ from airflow_breeze.utils.virtualenv_utils import create_temp_venv
 
 DOCKER_TESTS_ROOT = AIRFLOW_SOURCES_ROOT / "docker_tests"
 DOCKER_TESTS_REQUIREMENTS = DOCKER_TESTS_ROOT / "requirements.txt"
-OPEN_API_TESTS_ROOT = AIRFLOW_SOURCES_ROOT / "clients/python"
 
 IGNORE_DB_INIT_FOR_TEST_GROUPS = [
     GroupOfTests.HELM,
-    GroupOfTests.OPEN_API,
+    GroupOfTests.PYTHON_API_CLIENT,
     GroupOfTests.SYSTEM,
 ]
 
 IGNORE_WARNING_OUTPUT_FOR_TEST_GROUPS = [
     GroupOfTests.HELM,
-    GroupOfTests.OPEN_API,
+    GroupOfTests.PYTHON_API_CLIENT,
 ]
 
 
@@ -185,7 +184,7 @@ TEST_GROUP_TO_TEST_FOLDER: dict[GroupOfTests, str] = {
     GroupOfTests.HELM: "helm_tests",
     GroupOfTests.INTEGRATION_CORE: "tests/integration",
     GroupOfTests.INTEGRATION_PROVIDERS: "providers/tests/integration",
-    GroupOfTests.OPEN_API: "clients/python",
+    GroupOfTests.PYTHON_API_CLIENT: "clients/python",
 }
 
 
@@ -288,7 +287,7 @@ def convert_test_type_to_pytest_args(
             get_console().print(f"[error]Unknown test type for {GroupOfTests.PROVIDERS}: {test_type}[/]")
             sys.exit(1)
         return [TEST_GROUP_TO_TEST_FOLDER[test_group]]
-    if test_group == GroupOfTests.OPEN_API:
+    if test_group == GroupOfTests.PYTHON_API_CLIENT:
         return [TEST_GROUP_TO_TEST_FOLDER[test_group]]
     if test_group != GroupOfTests.CORE:
         get_console().print(f"[error]Only {GroupOfTests.CORE} should be allowed here[/]")
@@ -370,7 +369,7 @@ def generate_args_for_pytest(
         args.append(f"--ignore={TEST_GROUP_TO_TEST_FOLDER[GroupOfTests.HELM]}")
     if test_group not in IGNORE_DB_INIT_FOR_TEST_GROUPS:
         args.append("--with-db-init")
-    if test_group == GroupOfTests.OPEN_API:
+    if test_group == GroupOfTests.PYTHON_API_CLIENT:
         args.append("--ignore-glob=clients/python/tmp/*")
     args.extend(get_suspended_provider_args())
     args.extend(get_excluded_provider_args(python_version))

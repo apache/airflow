@@ -203,7 +203,7 @@ TESTING_COMMANDS: list[dict[str, str | list[str]]] = [
     },
     {
         "name": "Other Tests",
-        "commands": ["system-tests", "helm-tests", "docker-compose-tests", "openapi-tests"],
+        "commands": ["system-tests", "helm-tests", "docker-compose-tests", "python-api-client-tests"],
     },
 ]
 
@@ -281,14 +281,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         }
     ],
-    "breeze testing openapi-tests": [
-        {
-            "name": "OpenAPI tests flag",
-            "options": [
-                "--install-airflow-python-client",
-                "--start-airflow-minimal-webserver-with-examples",
-            ],
-        },
+    "breeze testing python-api-client-tests": [
         {
             "name": "Advanced flag for tests command",
             "options": [

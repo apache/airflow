@@ -1164,8 +1164,8 @@ function check_airflow_python_client_installation() {
     python "${IN_CONTAINER_DIR}/install_airflow_python_client.py"
 }
 
-function start_airflow_minimal_webserver_with_examples(){
-    if [[ ${START_AIRFLOW_MINIMAL_WEBSERVER_WITH_EXAMPLES=} != "true" ]]; then
+function start_webserver_with_examples(){
+    if [[ ${START_WEBSERVER_WITH_EXAMPLES=} != "true" ]]; then
         return
     fi
     export AIRFLOW__CORE__LOAD_EXAMPLES=True
@@ -1192,7 +1192,7 @@ function start_airflow_minimal_webserver_with_examples(){
     echo
     echo "${COLOR_BLUE}Waiting for webserver to start${COLOR_RESET}"
     echo
-    check_service_connection "Airflow webserver" "run_nc localhost 8080" 50
+    check_service_connection "Airflow webserver" "run_nc localhost 8080" 100
     EXIT_CODE=$?
     if [[ ${EXIT_CODE} != 0 ]]; then
         echo
@@ -1211,7 +1211,7 @@ check_downgrade_sqlalchemy
 check_downgrade_pendulum
 check_force_lowest_dependencies
 check_airflow_python_client_installation
-start_airflow_minimal_webserver_with_examples
+start_webserver_with_examples
 check_run_tests "${@}"
 
 exec /bin/bash "${@}"

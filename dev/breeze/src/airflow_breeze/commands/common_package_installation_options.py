@@ -114,18 +114,3 @@ option_use_packages_from_dist = click.option(
     "when entering breeze.",
     envvar="USE_PACKAGES_FROM_DIST",
 )
-option_install_airflow_python_client = click.option(
-    "--install-airflow-python-client",
-    is_flag=True,
-    default=True,
-    help="Install airflow python client packages (--package-format determines type) from 'dist' folder "
-    "when entering breeze.",
-    envvar="INSTALL_AIRFLOW_PYTHON_CLIENT",
-)
-option_start_airflow_minimal_webserver_with_examples = click.option(
-    "--start-airflow-minimal-webserver-with-examples",
-    is_flag=True,
-    default=True,
-    help="Start minimal airflow webserver with examples (for testing purposes) when entering breeze.",
-    envvar="START_AIRFLOW_MINIMAL_WEBSERVER_WITH_EXAMPLES",
-)

@@ -218,10 +218,10 @@ Here is the detailed set of options for the ``breeze testing providers-integrati
   :alt: Breeze testing providers-integration-tests
 
 
-Running OpenAPI Client tests
-...................................
+Running Python API client tests
+...............................
 
-To run OpenAPI Client tests, you need to have airflow python client packaged in dist folder.
+To run Python API client tests, you need to have airflow python client packaged in dist folder.
 To package the client, clone the airflow-python-client repository and run the following command:
 
 .. code-block:: bash
@@ -231,14 +231,14 @@ To package the client, clone the airflow-python-client repository and run the fo
 
 .. code-block:: bash
 
-   breeze testing openapi-tests
+   breeze testing python-api-client-tests
 
-Here is the detailed set of options for the ``breeze testing openapi-tests`` command.
+Here is the detailed set of options for the ``breeze testing python-api-client-tests`` command.
 
-.. image:: ./images/output_testing_openpapi-tests.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_openapi-tests.svg
+.. image:: ./images/output_testing_python-api-client-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_testing_python-api-client-tests.svg
   :width: 100%
-  :alt: Breeze testing openapi-tests
+  :alt: Breeze testing python-api-client-tests
 
 
 Running system tests

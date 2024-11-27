@@ -298,7 +298,7 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
   static-checks-mypy-docs:
-    name: "Static checks, mypy, docs"
+    name: "CI image checks"
     needs: [build-info, wait-for-ci-images]
     uses: ./.github/workflows/static-checks-mypy-docs.yml
     secrets: inherit
@@ -322,6 +322,9 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       docs-build: ${{ needs.build-info.outputs.docs-build }}
+      needs-api-codegen: ${{ needs.build-info.outputs.needs-api-codegen }}
+      default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
+      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
 
   providers:
     name: "Provider packages tests"
@@ -506,7 +509,6 @@ jobs:
         needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' ||
         needs.build-info.outputs.full-tests-needed == 'true')
         && 'true' || 'false' }}
-      needs-api-codegen: ${{ needs.build-info.outputs.needs-api-codegen }}
 
   tests-integration-system:
     name: Integration and System Tests
