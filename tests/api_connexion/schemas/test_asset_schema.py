@@ -107,7 +107,7 @@ class TestAssetCollectionSchema(TestAssetSchemaBase):
             )
             for i in range(1, 3)
         ]
-        asset_aliases = [AssetAliasModel(name=f"alias_{i}") for i in range(2)]
+        asset_aliases = [AssetAliasModel(name=f"alias_{i}", group="test-alias-group") for i in range(2)]
         for asset_alias in asset_aliases:
             asset_alias.assets.append(assets[0])
         session.add_all(assets)
@@ -131,8 +131,8 @@ class TestAssetCollectionSchema(TestAssetSchemaBase):
                     "consuming_dags": [],
                     "producing_tasks": [],
                     "aliases": [
-                        {"id": 1, "name": "alias_0"},
-                        {"id": 2, "name": "alias_1"},
+                        {"id": 1, "name": "alias_0", "group": "test-alias-group"},
+                        {"id": 2, "name": "alias_1", "group": "test-alias-group"},
                     ],
                 },
                 {
