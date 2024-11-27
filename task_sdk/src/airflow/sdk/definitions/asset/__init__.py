@@ -371,7 +371,7 @@ class Asset(os.PathLike, BaseAsset):
             source=source or "asset",
             target=target or "asset",
             dependency_type="asset",
-            dependency_id=self.uri,
+            dependency_id=self.name,
         )
 
 
@@ -544,18 +544,18 @@ class AssetAliasCondition(AssetAny):
         if self.objects:
             for obj in self.objects:
                 asset = cast(Asset, obj)
-                uri = asset.uri
+                asset_name = asset.name
                 # asset
                 yield DagDependency(
                     source=f"asset-alias:{self.name}" if source else "asset",
                     target="asset" if source else f"asset-alias:{self.name}",
                     dependency_type="asset",
-                    dependency_id=uri,
+                    dependency_id=asset_name,
                 )
                 # asset alias
                 yield DagDependency(
-                    source=source or f"asset:{uri}",
-                    target=target or f"asset:{uri}",
+                    source=source or f"asset:{asset_name}",
+                    target=target or f"asset:{asset_name}",
                     dependency_type="asset-alias",
                     dependency_id=self.name,
                 )
