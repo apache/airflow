@@ -135,7 +135,7 @@ class TestAssetDefinition:
                 AssetRef(name="inlet_asset_1"),
                 AssetRef(name="inlet_asset_2"),
             ],
-            outlets=[asset_definition.to_asset()],
+            outlets=[asset_definition],
             python_callable=ANY,
             definition_name="example_asset_func",
             uri="s3://bucket/object",

@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.6.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix race that reporting status fails if the task has been cleaned in parallel.``
+
 0.6.1pre0
 .........
 

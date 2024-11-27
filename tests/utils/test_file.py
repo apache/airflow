@@ -123,7 +123,6 @@ class TestListPyFilesPath:
             "test_invalid_param.py",
             "test_ignore_this.py",
             "test_prev_dagrun_dep.py",
-            "test_retry_handling_job.py",
             "test_nested_dag.py",
             ".airflowignore",
         ]

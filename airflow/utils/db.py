@@ -41,7 +41,6 @@ from typing import (
 import attrs
 from sqlalchemy import (
     Table,
-    delete,
     exc,
     func,
     inspect,
@@ -924,9 +923,7 @@ def check_and_run_migrations():
 
 def _reserialize_dags(*, session: Session) -> None:
     from airflow.models.dagbag import DagBag
-    from airflow.models.serialized_dag import SerializedDagModel
 
-    session.execute(delete(SerializedDagModel).execution_options(synchronize_session=False))
     dagbag = DagBag(collect_dags=False)
     dagbag.collect_dags(only_if_updated=False)
     dagbag.sync_to_db(session=session)
@@ -1222,19 +1219,6 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
 
     if not skip_init:
         initdb(session=session)
-
-
-@provide_session
-def bootstrap_dagbag(session: Session = NEW_SESSION):
-    from airflow.models.dag import DAG
-    from airflow.models.dagbag import DagBag
-
-    dagbag = DagBag()
-    # Save DAGs in the ORM
-    dagbag.sync_to_db(session=session)
-
-    # Deactivate the unknown ones
-    DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
 
 
 @provide_session

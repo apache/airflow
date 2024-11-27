@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,24 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from datetime import datetime, timedelta
-
-from airflow.models.dag import DAG
-from airflow.providers.standard.operators.bash import BashOperator
-
-default_args = {
-    "owner": "airflow",
-    "depends_on_past": False,
-    "start_date": datetime(2016, 10, 5, 19),
-    "email": ["airflow@example.com"],
-    "email_on_failure": False,
-    "email_on_retry": False,
-    "retries": 4,
-    "retry_delay": timedelta(seconds=0),
-}
-
-dag = DAG("test_retry_handling_job", default_args=default_args, schedule="@once")
-
-task1 = BashOperator(task_id="test_retry_handling_op", bash_command="exit 1", dag=dag)
