@@ -127,12 +127,12 @@ class HttpHook(BaseHook):
         connection = self.get_connection(self.http_conn_id)
 
         self._set_base_url(connection)
-        self._configure_session_from_auth(session, connection)
+        session = self._configure_session_from_auth(session, connection)
 
         if connection.extra:
-            self._configure_session_from_extra(session, connection)
+            session = self._configure_session_from_extra(session, connection)
 
-        self._configure_session_from_mount_adapters(session)
+        session = self._configure_session_from_mount_adapters(session)
 
         if headers:
             session.headers.update(headers)
@@ -154,10 +154,14 @@ class HttpHook(BaseHook):
             raise ValueError(f"Invalid base URL: Missing scheme in {self.base_url}")
 
     def _configure_session_from_auth(self, session: requests.Session, connection: Connection) -> None:
+        session.auth = self._extract_auth(connection)
+        return session
+
+    def _extract_auth(self, connection: Connection) -> Any | None:
         if connection.login:
-            session.auth = self.auth_type(connection.login, connection.password)
+            return self.auth_type(connection.login, connection.password)
         elif self._auth_type:
-            session.auth = self.auth_type()
+            return self.auth_type()
 
     def _configure_session_from_extra(self, session: requests.Session, connection: Connection) -> None:
         extra = connection.extra_dejson
@@ -169,11 +173,11 @@ class HttpHook(BaseHook):
         session.cert = extra.pop("cert", None)
         session.max_redirects = extra.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
         session.trust_env = extra.pop("trust_env", True)
-
         try:
             session.headers.update(extra)
         except TypeError:
             self.log.warning("Connection to %s has invalid extra field.", connection.host)
+        return session
 
     def _configure_session_from_mount_adapters(self, session: requests.Session) -> None:
         scheme = urlparse(self.base_url).scheme
@@ -186,6 +190,7 @@ class HttpHook(BaseHook):
         elif self.keep_alive_adapter:
             session.mount("http://", self.keep_alive_adapter)
             session.mount("https://", self.keep_alive_adapter)
+        return session
 
     def run(
         self,
