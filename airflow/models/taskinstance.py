@@ -133,7 +133,6 @@ from airflow.utils.sqlalchemy import (
     ExtendedJSON,
     UtcDateTime,
     tuple_in_condition,
-    with_row_locks,
 )
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
@@ -1673,8 +1672,6 @@ def _handle_reschedule(
 
     ti = _coalesce_to_orm_ti(ti=ti, session=session)
 
-    from airflow.models.dagrun import DagRun  # Avoid circular import
-
     ti.refresh_from_db(session)
 
     if TYPE_CHECKING:
@@ -1683,16 +1680,16 @@ def _handle_reschedule(
     ti.end_date = timezone.utcnow()
     ti.set_duration()
 
-    # Lock DAG run to be sure not to get into a deadlock situation when trying to insert
-    # TaskReschedule which apparently also creates lock on corresponding DagRun entity
-    with_row_locks(
-        session.query(DagRun).filter_by(
-            dag_id=ti.dag_id,
-            run_id=ti.run_id,
-        ),
-        session=session,
-    ).one()
-    # Log reschedule request
+    # set state
+    ti.state = TaskInstanceState.UP_FOR_RESCHEDULE
+
+    ti.clear_next_method_args()
+
+    session.merge(ti)
+    session.commit()
+
+    # we add this in separate commit to reduce likelihood of deadlock
+    # see https://github.com/apache/airflow/pull/21362 for more info
     session.add(
         TaskReschedule(
             ti.task_id,
@@ -1705,13 +1702,6 @@ def _handle_reschedule(
             ti.map_index,
         )
     )
-
-    # set state
-    ti.state = TaskInstanceState.UP_FOR_RESCHEDULE
-
-    ti.clear_next_method_args()
-
-    session.merge(ti)
     session.commit()
     return ti
 

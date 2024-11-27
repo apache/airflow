@@ -19,6 +19,8 @@
 name: "CodeQL"
 
 on:  # yamllint disable-line rule:truthy
+  pull_request:
+    branches: ['main', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
   push:
     branches: [main]
   schedule:
