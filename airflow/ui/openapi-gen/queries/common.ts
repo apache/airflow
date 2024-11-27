@@ -1573,6 +1573,9 @@ export type ConnectionServiceTestConnectionMutationResult = Awaited<
 export type DagRunServiceClearDagRunMutationResult = Awaited<
   ReturnType<typeof DagRunService.clearDagRun>
 >;
+export type DagRunServiceTriggerDagRunMutationResult = Awaited<
+  ReturnType<typeof DagRunService.triggerDagRun>
+>;
 export type DagRunServiceGetListDagRunsBatchMutationResult = Awaited<
   ReturnType<typeof DagRunService.getListDagRunsBatch>
 >;

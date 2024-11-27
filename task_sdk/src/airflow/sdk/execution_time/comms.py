@@ -105,6 +105,10 @@ class TaskState(BaseModel):
 
 class GetXCom(BaseModel):
     key: str
+    dag_id: str
+    run_id: str
+    task_id: str
+    map_index: int = -1
     type: Literal["GetXCom"] = "GetXCom"
 
 

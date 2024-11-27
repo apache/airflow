@@ -25,7 +25,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.db import clear_db_runs
 
@@ -79,14 +79,17 @@ class TestTIUpdateState:
         assert ti.pid == 100
         assert ti.start_date.isoformat() == "2024-10-31T12:00:00+00:00"
 
-    def test_ti_update_state_conflict_if_not_queued(self, client, session, create_task_instance):
+    @pytest.mark.parametrize("initial_ti_state", [s for s in TaskInstanceState if s != State.QUEUED])
+    def test_ti_update_state_conflict_if_not_queued(
+        self, client, session, create_task_instance, initial_ti_state
+    ):
         """
         Test that a 409 error is returned when the Task Instance is not in a state where it can be marked as
         running. In this case, the Task Instance is first in NONE state so it cannot be marked as running.
         """
         ti = create_task_instance(
             task_id="test_ti_update_state_conflict_if_not_queued",
-            state=State.NONE,
+            state=initial_ti_state,
         )
         session.commit()
 
@@ -105,12 +108,12 @@ class TestTIUpdateState:
         assert response.json() == {
             "detail": {
                 "message": "TI was not in a state where it could be marked as running",
-                "previous_state": State.NONE,
+                "previous_state": initial_ti_state,
                 "reason": "invalid_state",
             }
         }
 
-        assert session.scalar(select(TaskInstance.state).where(TaskInstance.id == ti.id)) == State.NONE
+        assert session.scalar(select(TaskInstance.state).where(TaskInstance.id == ti.id)) == initial_ti_state
 
     @pytest.mark.parametrize(
         ("state", "end_date", "expected_state"),

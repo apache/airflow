@@ -240,9 +240,17 @@ export const $AssetResponse = {
       type: "integer",
       title: "Id",
     },
+    name: {
+      type: "string",
+      title: "Name",
+    },
     uri: {
       type: "string",
       title: "Uri",
+    },
+    group: {
+      type: "string",
+      title: "Group",
     },
     extra: {
       anyOf: [
@@ -290,7 +298,9 @@ export const $AssetResponse = {
   type: "object",
   required: [
     "id",
+    "name",
     "uri",
+    "group",
     "created_at",
     "updated_at",
     "consuming_dags",
@@ -4850,6 +4860,64 @@ export const $TimeDelta = {
   title: "TimeDelta",
   description:
     "TimeDelta can be used to interact with datetime.timedelta objects.",
+} as const;
+
+export const $TriggerDAGRunPostBody = {
+  properties: {
+    dag_run_id: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Dag Run Id",
+    },
+    data_interval_start: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Data Interval Start",
+    },
+    data_interval_end: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Data Interval End",
+    },
+    conf: {
+      type: "object",
+      title: "Conf",
+    },
+    note: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Note",
+    },
+  },
+  type: "object",
+  title: "TriggerDAGRunPostBody",
+  description: "Trigger DAG Run Serializer for POST body.",
 } as const;
 
 export const $TriggerResponse = {
