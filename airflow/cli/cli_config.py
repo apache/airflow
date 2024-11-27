@@ -967,13 +967,6 @@ ARG_CAPACITY = Arg(
     help="The maximum number of triggers that a Triggerer will run at one time.",
 )
 
-# reserialize
-ARG_CLEAR_ONLY = Arg(
-    ("--clear-only",),
-    action="store_true",
-    help="If passed, serialized DAGs will be cleared but not reserialized.",
-)
-
 ARG_DAG_LIST_COLUMNS = Arg(
     ("--columns",),
     type=string_list_type,
@@ -1243,15 +1236,14 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name="reserialize",
-        help="Reserialize all DAGs by parsing the DagBag files",
+        help="Reserialize DAGs by parsing the DagBag files",
         description=(
-            "Drop all serialized dags from the metadata DB. This will cause all DAGs to be reserialized "
-            "from the DagBag folder. This can be helpful if your serialized DAGs get out of sync with the "
-            "version of Airflow that you are running."
+            "Reserialize DAGs in the metadata DB. This can be "
+            "particularly useful if your serialized DAGs become out of sync with the Airflow "
+            "version you are using."
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_reserialize"),
         args=(
-            ARG_CLEAR_ONLY,
             ARG_SUBDIR,
             ARG_VERBOSE,
         ),
