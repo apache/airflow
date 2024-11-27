@@ -27,6 +27,7 @@ from typing import (
     Any,
     Callable,
     ClassVar,
+    NamedTuple,
     cast,
     overload,
 )
@@ -61,6 +62,11 @@ __all__ = [
 
 
 log = logging.getLogger(__name__)
+
+
+class AssetUniqueKey(NamedTuple):
+    name: str
+    uri: str
 
 
 def normalize_noop(parts: SplitResult) -> SplitResult:
@@ -203,7 +209,7 @@ class BaseAsset:
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         raise NotImplementedError
 
-    def iter_assets(self) -> Iterator[tuple[str, Asset]]:
+    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
         raise NotImplementedError
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
@@ -352,8 +358,8 @@ class Asset(os.PathLike, BaseAsset):
         """
         return {"asset": {"uri": self.uri, "name": self.name, "group": self.group}}
 
-    def iter_assets(self) -> Iterator[tuple[str, Asset]]:
-        yield self.uri, self
+    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
+        yield AssetUniqueKey(name=self.name, uri=self.uri), self
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         return iter(())
@@ -401,7 +407,7 @@ class AssetAlias(BaseAsset):
     name: str = attrs.field(validator=_validate_non_empty_identifier)
     group: str = attrs.field(kw_only=True, default="", validator=_validate_identifier)
 
-    def iter_assets(self) -> Iterator[tuple[str, Asset]]:
+    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
         return iter(())
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
@@ -446,7 +452,7 @@ class _AssetBooleanCondition(BaseAsset):
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return self.agg_func(x.evaluate(statuses=statuses) for x in self.objects)
 
-    def iter_assets(self) -> Iterator[tuple[str, Asset]]:
+    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
         seen = set()  # We want to keep the first instance.
         for o in self.objects:
             for k, v in o.iter_assets():
