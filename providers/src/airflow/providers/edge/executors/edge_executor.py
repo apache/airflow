@@ -18,10 +18,12 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from copy import deepcopy
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
-from sqlalchemy import delete
+from sqlalchemy import delete, inspect
+from sqlalchemy.exc import NoSuchTableError
 
 from airflow.cli.cli_config import GroupCommand
 from airflow.configuration import conf
@@ -40,10 +42,14 @@ from airflow.utils.session import NEW_SESSION, provide_session
 if TYPE_CHECKING:
     import argparse
 
+    from sqlalchemy.engine.base import Engine
     from sqlalchemy.orm import Session
 
     from airflow.executors.base_executor import CommandType
     from airflow.models.taskinstancekey import TaskInstanceKey
+
+    # Task tuple to send to be executed
+    TaskTuple = tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
@@ -55,14 +61,43 @@ class EdgeExecutor(BaseExecutor):
         super().__init__(parallelism=parallelism)
         self.last_reported_state: dict[TaskInstanceKey, TaskInstanceState] = {}
 
+    def _check_db_schema(self, engine: Engine) -> None:
+        """
+        Check if already existing table matches the newest table schema.
+
+        workaround till Airflow 3.0.0, then it is possible to use alembic also for provider packages.
+        """
+        inspector = inspect(engine)
+        edge_job_columns = None
+        try:
+            edge_job_columns = [column["name"] for column in inspector.get_columns("edge_job")]
+        except NoSuchTableError:
+            pass
+
+        # version 0.6.0rc1 added new column concurrency_slots
+        if edge_job_columns and "concurrency_slots" not in edge_job_columns:
+            EdgeJobModel.metadata.drop_all(engine, tables=[EdgeJobModel.__table__])
+
     @provide_session
     def start(self, session: Session = NEW_SESSION):
         """If EdgeExecutor provider is loaded first time, ensure table exists."""
         with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
             engine = session.get_bind().engine
+            self._check_db_schema(engine)
             EdgeJobModel.metadata.create_all(engine)
             EdgeLogsModel.metadata.create_all(engine)
             EdgeWorkerModel.metadata.create_all(engine)
+
+    def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
+        """
+        Temponary overwrite of _process_tasks function.
+
+        Idea is to not change the interface of the execute_async function in BaseExecutor as it will be changed in Airflow 3.
+        Edge worker needs task_instance in execute_async but BaseExecutor deletes this out of the self.queued_tasks.
+        Store queued_tasks in own var to be able to access this in execute_async function.
+        """
+        self.edge_queued_tasks = deepcopy(self.queued_tasks)
+        super()._process_tasks(task_tuples)
 
     @provide_session
     def execute_async(
@@ -74,6 +109,11 @@ class EdgeExecutor(BaseExecutor):
         session: Session = NEW_SESSION,
     ) -> None:
         """Execute asynchronously."""
+        # Use of a temponary trick to get task instance, will be changed with Airflow 3.0.0
+        # code works together with _process_tasks overwrite to get task instance.
+        task_instance = self.edge_queued_tasks[key][3]  # TaskInstance in fourth element
+        del self.edge_queued_tasks[key]
+
         self.validate_airflow_tasks_run_command(command)
         session.add(
             EdgeJobModel(
@@ -84,6 +124,7 @@ class EdgeExecutor(BaseExecutor):
                 try_number=key.try_number,
                 state=TaskInstanceState.QUEUED,
                 queue=queue or DEFAULT_QUEUE,
+                concurrency_slots=task_instance.pool_slots,
                 command=str(command),
             )
         )
