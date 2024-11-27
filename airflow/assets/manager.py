@@ -121,7 +121,7 @@ class AssetManager(LoggingMixin):
         """
         asset_model = session.scalar(
             select(AssetModel)
-            .where(AssetModel.uri == asset.uri)
+            .where(AssetModel.name == asset.name, AssetModel.uri == asset.uri)
             .options(
                 joinedload(AssetModel.aliases),
                 joinedload(AssetModel.consuming_dags).joinedload(DagScheduleAssetReference.dag),
