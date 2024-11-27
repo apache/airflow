@@ -68,7 +68,9 @@ export type AssetEventResponse = {
  */
 export type AssetResponse = {
   id: number;
+  name: string;
   uri: string;
+  group: string;
   extra?: {
     [key: string]: unknown;
   } | null;
