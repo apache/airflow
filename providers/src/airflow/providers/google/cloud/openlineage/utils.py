@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import os
+import pathlib
 from typing import TYPE_CHECKING, Any
 
 from attr import define, field
@@ -40,6 +42,42 @@ from airflow.providers.google import __version__ as provider_version
 
 BIGQUERY_NAMESPACE = "bigquery"
 BIGQUERY_URI = "bigquery"
+WILDCARD = "*"
+
+
+def extract_ds_name_from_gcs_path(path: str) -> str:
+    """
+    Extract and process the dataset name from a given path.
+
+    Args:
+        path: The path to process e.g. of a gcs file.
+
+    Returns:
+        The processed dataset name.
+    """
+    if WILDCARD in path:
+        path = path.split(WILDCARD, maxsplit=1)[0]
+
+    # We want to end up with parent directory if the path:
+    # - does not refer to a file (no dot in the last segment)
+    #     and does not explicitly end with a slash, it is treated as a prefix and removed.
+    #     Example: "/dir/pre_" -> "/dir/"
+    # - contains a dot at the end, then it is treated as a prefix (created after removing the wildcard).
+    #     Example: "/dir/file." (was "/dir/file.*" with wildcard) -> "/dir/"
+    last_path_segment = os.path.basename(path).rstrip(".")
+    if "." not in last_path_segment and not path.endswith("/"):
+        path = pathlib.Path(path).parent.as_posix()
+
+    # Normalize the path:
+    # - Remove trailing slashes.
+    # - Remove leading slashes.
+    # - Handle edge cases for empty paths or single-dot paths.
+    path = path.rstrip("/")
+    path = path.lstrip("/")
+    if path in ("", "."):
+        path = "/"
+
+    return path
 
 
 def get_facets_from_bq_table(table: Table) -> dict[str, BaseFacet]:
