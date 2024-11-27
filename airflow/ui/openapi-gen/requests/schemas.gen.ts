@@ -4852,6 +4852,64 @@ export const $TimeDelta = {
     "TimeDelta can be used to interact with datetime.timedelta objects.",
 } as const;
 
+export const $TriggerDAGRunPostBody = {
+  properties: {
+    dag_run_id: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Dag Run Id",
+    },
+    data_interval_start: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Data Interval Start",
+    },
+    data_interval_end: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date-time",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Data Interval End",
+    },
+    conf: {
+      type: "object",
+      title: "Conf",
+    },
+    note: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Note",
+    },
+  },
+  type: "object",
+  title: "TriggerDAGRunPostBody",
+  description: "Trigger DAG Run Serializer for POST body.",
+} as const;
+
 export const $TriggerResponse = {
   properties: {
     id: {
