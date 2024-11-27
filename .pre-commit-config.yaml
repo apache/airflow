@@ -750,10 +750,9 @@ repos:
         pass_filenames: true
       - id: check-provide-create-sessions-imports
         language: pygrep
-        name: Check provide_session and create_session imports
-        description: provide_session and create_session should be imported from airflow.utils.session
-          to avoid import cycles.
-        entry: "from airflow\\.utils\\.db import.* (provide_session|create_session)"
+        name: Check session util imports
+        description: NEW_SESSION, provide_session, and create_session should be imported from airflow.utils.session to avoid import cycles.
+        entry: "from airflow\\.utils\\.db import.* (NEW_SESSION|provide_session|create_session)"
         files: \.py$
         exclude: ^.*/.*_vendor/
         pass_filenames: true
