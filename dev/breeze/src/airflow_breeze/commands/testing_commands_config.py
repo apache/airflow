@@ -114,7 +114,6 @@ TEST_ADVANCED_FLAGS_FOR_PROVIDERS: dict[str, str | list[str]] = {
     ],
 }
 
-
 TEST_PARAMS: list[dict[str, str | list[str]]] = [
     {
         "name": "Select test types to run (tests can also be selected by command args individually)",
@@ -172,20 +171,12 @@ TEST_PARAMS_DB: list[dict[str, str | list[str]]] = [
     TEST_UPGRADING_PACKAGES,
 ]
 
-DATABASE_ISOLATION_TESTS: dict[str, str | list[str]] = {
-    "name": "DB isolation tests",
-    "options": [
-        "--database-isolation",
-    ],
-}
-
 INTEGRATION_TESTS: dict[str, str | list[str]] = {
     "name": "Integration tests",
     "options": [
         "--integration",
     ],
 }
-
 
 TESTING_COMMANDS: list[dict[str, str | list[str]]] = [
     {
@@ -205,7 +196,7 @@ TESTING_COMMANDS: list[dict[str, str | list[str]]] = [
     },
     {
         "name": "Other Tests",
-        "commands": ["system-tests", "helm-tests", "docker-compose-tests"],
+        "commands": ["system-tests", "helm-tests", "docker-compose-tests", "python-api-client-tests"],
     },
 ]
 
@@ -217,7 +208,6 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     ],
     "breeze testing providers-tests": [
         *TEST_PARAMS,
-        DATABASE_ISOLATION_TESTS,
         TEST_ADVANCED_FLAGS,
         TEST_ADVANCED_FLAGS_FOR_INSTALLATION,
         TEST_ADVANCED_FLAGS_FOR_PROVIDERS,
@@ -282,5 +272,18 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
             ],
         }
+    ],
+    "breeze testing python-api-client-tests": [
+        {
+            "name": "Advanced flag for tests command",
+            "options": [
+                "--github-repository",
+                "--image-tag",
+                "--skip-docker-compose-down",
+                "--keep-env-variables",
+            ],
+        },
+        TEST_OPTIONS_DB,
+        TEST_ENVIRONMENT_DB,
     ],
 }

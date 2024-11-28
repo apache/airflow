@@ -16,6 +16,7 @@ import {
   DashboardService,
   EventLogService,
   ExtraLinksService,
+  GraphService,
   ImportErrorService,
   JobService,
   MonitorService,
@@ -201,78 +202,6 @@ export const UseAssetServiceGetDagAssetQueuedEventKeyFn = (
   useAssetServiceGetDagAssetQueuedEventKey,
   ...(queryKey ?? [{ before, dagId, uri }]),
 ];
-export type DashboardServiceHistoricalMetricsDefaultResponse = Awaited<
-  ReturnType<typeof DashboardService.historicalMetrics>
->;
-export type DashboardServiceHistoricalMetricsQueryResult<
-  TData = DashboardServiceHistoricalMetricsDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useDashboardServiceHistoricalMetricsKey =
-  "DashboardServiceHistoricalMetrics";
-export const UseDashboardServiceHistoricalMetricsKeyFn = (
-  {
-    endDate,
-    startDate,
-  }: {
-    endDate?: string;
-    startDate: string;
-  },
-  queryKey?: Array<unknown>,
-) => [
-  useDashboardServiceHistoricalMetricsKey,
-  ...(queryKey ?? [{ endDate, startDate }]),
-];
-export type DagsServiceRecentDagRunsDefaultResponse = Awaited<
-  ReturnType<typeof DagsService.recentDagRuns>
->;
-export type DagsServiceRecentDagRunsQueryResult<
-  TData = DagsServiceRecentDagRunsDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useDagsServiceRecentDagRunsKey = "DagsServiceRecentDagRuns";
-export const UseDagsServiceRecentDagRunsKeyFn = (
-  {
-    dagDisplayNamePattern,
-    dagIdPattern,
-    dagRunsLimit,
-    lastDagRunState,
-    limit,
-    offset,
-    onlyActive,
-    owners,
-    paused,
-    tags,
-  }: {
-    dagDisplayNamePattern?: string;
-    dagIdPattern?: string;
-    dagRunsLimit?: number;
-    lastDagRunState?: DagRunState;
-    limit?: number;
-    offset?: number;
-    onlyActive?: boolean;
-    owners?: string[];
-    paused?: boolean;
-    tags?: string[];
-  } = {},
-  queryKey?: Array<unknown>,
-) => [
-  useDagsServiceRecentDagRunsKey,
-  ...(queryKey ?? [
-    {
-      dagDisplayNamePattern,
-      dagIdPattern,
-      dagRunsLimit,
-      lastDagRunState,
-      limit,
-      offset,
-      onlyActive,
-      owners,
-      paused,
-      tags,
-    },
-  ]),
-];
 export type ConfigServiceGetConfigsDefaultResponse = Awaited<
   ReturnType<typeof ConfigService.getConfigs>
 >;
@@ -325,6 +254,103 @@ export const UseConfigServiceGetConfigValueKeyFn = (
 ) => [
   useConfigServiceGetConfigValueKey,
   ...(queryKey ?? [{ accept, option, section }]),
+];
+export type DagsServiceRecentDagRunsDefaultResponse = Awaited<
+  ReturnType<typeof DagsService.recentDagRuns>
+>;
+export type DagsServiceRecentDagRunsQueryResult<
+  TData = DagsServiceRecentDagRunsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagsServiceRecentDagRunsKey = "DagsServiceRecentDagRuns";
+export const UseDagsServiceRecentDagRunsKeyFn = (
+  {
+    dagDisplayNamePattern,
+    dagIdPattern,
+    dagRunsLimit,
+    lastDagRunState,
+    limit,
+    offset,
+    onlyActive,
+    owners,
+    paused,
+    tags,
+  }: {
+    dagDisplayNamePattern?: string;
+    dagIdPattern?: string;
+    dagRunsLimit?: number;
+    lastDagRunState?: DagRunState;
+    limit?: number;
+    offset?: number;
+    onlyActive?: boolean;
+    owners?: string[];
+    paused?: boolean;
+    tags?: string[];
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useDagsServiceRecentDagRunsKey,
+  ...(queryKey ?? [
+    {
+      dagDisplayNamePattern,
+      dagIdPattern,
+      dagRunsLimit,
+      lastDagRunState,
+      limit,
+      offset,
+      onlyActive,
+      owners,
+      paused,
+      tags,
+    },
+  ]),
+];
+export type DashboardServiceHistoricalMetricsDefaultResponse = Awaited<
+  ReturnType<typeof DashboardService.historicalMetrics>
+>;
+export type DashboardServiceHistoricalMetricsQueryResult<
+  TData = DashboardServiceHistoricalMetricsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDashboardServiceHistoricalMetricsKey =
+  "DashboardServiceHistoricalMetrics";
+export const UseDashboardServiceHistoricalMetricsKeyFn = (
+  {
+    endDate,
+    startDate,
+  }: {
+    endDate?: string;
+    startDate: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useDashboardServiceHistoricalMetricsKey,
+  ...(queryKey ?? [{ endDate, startDate }]),
+];
+export type GraphServiceGraphDataDefaultResponse = Awaited<
+  ReturnType<typeof GraphService.graphData>
+>;
+export type GraphServiceGraphDataQueryResult<
+  TData = GraphServiceGraphDataDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useGraphServiceGraphDataKey = "GraphServiceGraphData";
+export const UseGraphServiceGraphDataKeyFn = (
+  {
+    dagId,
+    includeDownstream,
+    includeUpstream,
+    root,
+  }: {
+    dagId: string;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
+    root?: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useGraphServiceGraphDataKey,
+  ...(queryKey ?? [{ dagId, includeDownstream, includeUpstream, root }]),
 ];
 export type BackfillServiceListBackfillsDefaultResponse = Awaited<
   ReturnType<typeof BackfillService.listBackfills>

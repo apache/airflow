@@ -24,7 +24,7 @@ from airflow.models.log import Log
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.db import clear_db_logs, clear_db_runs
-from tests_common.test_utils.format_datetime import datetime_zulu_format, datetime_zulu_format_without_ms
+from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
 
 pytestmark = pytest.mark.db_test
 
@@ -161,14 +161,14 @@ class TestGetEventLog(TestEventLogsEndpoint):
 
         expected_json = {
             "event_log_id": event_log_id,
-            "when": datetime_zulu_format(event_log.dttm) if event_log.dttm else None,
+            "when": from_datetime_to_zulu(event_log.dttm) if event_log.dttm else None,
             "dag_id": expected_body.get("dag_id"),
             "task_id": expected_body.get("task_id"),
             "run_id": expected_body.get("run_id"),
             "map_index": event_log.map_index,
             "try_number": event_log.try_number,
             "event": expected_body.get("event"),
-            "logical_date": datetime_zulu_format_without_ms(event_log.logical_date)
+            "logical_date": from_datetime_to_zulu_without_ms(event_log.logical_date)
             if event_log.logical_date
             else None,
             "owner": expected_body.get("owner"),
@@ -297,7 +297,7 @@ class TestGetEventLogs(TestEventLogsEndpoint):
     def test_get_event_logs(
         self, test_client, query_params, expected_status_code, expected_total_entries, expected_events
     ):
-        response = test_client.get("/public/eventLogs/", params=query_params)
+        response = test_client.get("/public/eventLogs", params=query_params)
         assert response.status_code == expected_status_code
         if expected_status_code != 200:
             return

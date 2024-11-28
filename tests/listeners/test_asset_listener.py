@@ -38,7 +38,6 @@ def clean_listener_manager():
     asset_listener.clear()
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @pytest.mark.db_test
 @provide_session
 def test_asset_listener_on_asset_changed_gets_calls(create_task_instance_of_operator, session):

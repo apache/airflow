@@ -30,7 +30,7 @@ from pydantic import ConfigDict, TypeAdapter
 
 from airflow.sdk.api.datamodels._generated import TaskInstance
 from airflow.sdk.definitions.baseoperator import BaseOperator
-from airflow.sdk.execution_time.comms import StartupDetails, ToSupervisor, ToTask
+from airflow.sdk.execution_time.comms import DeferTask, StartupDetails, ToSupervisor, ToTask
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger
@@ -127,6 +127,10 @@ def startup() -> tuple[RuntimeTaskInstance, Logger]:
     msg = SUPERVISOR_COMMS.get_message()
 
     if isinstance(msg, StartupDetails):
+        from setproctitle import setproctitle
+
+        setproctitle(f"airflow worker -- {msg.ti.id}")
+
         log = structlog.get_logger(logger_name="task")
         # TODO: set the "magic loop" context vars for parsing
         ti = parse(msg)
@@ -159,8 +163,19 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         # TODO next_method to support resuming from deferred
         # TODO: Get a real context object
         ti.task.execute({"task_instance": ti})  # type: ignore[attr-defined]
-    except TaskDeferred:
-        ...
+    except TaskDeferred as defer:
+        classpath, trigger_kwargs = defer.trigger.serialize()
+        next_method = defer.method_name
+        timeout = defer.timeout
+        msg = DeferTask(
+            state="deferred",
+            classpath=classpath,
+            trigger_kwargs=trigger_kwargs,
+            next_method=next_method,
+            trigger_timeout=timeout,
+        )
+        global SUPERVISOR_COMMS
+        SUPERVISOR_COMMS.send_request(msg=msg, log=log)
     except AirflowSkipException:
         ...
     except AirflowRescheduleException:

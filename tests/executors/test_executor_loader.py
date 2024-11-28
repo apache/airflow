@@ -31,8 +31,6 @@ from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 
 from tests_common.test_utils.config import conf_vars
 
-pytestmark = pytest.mark.skip_if_database_isolation_mode
-
 
 class FakeExecutor:
     is_single_threaded = False
