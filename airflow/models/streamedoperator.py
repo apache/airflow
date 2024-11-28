@@ -253,11 +253,12 @@ class StreamedOperator(BaseOperator):
         self._resolve_expand_input(context=context, session=session)
 
     def _run_task(self, context: Context, task: TaskInstance):
-        loop = (
-            asyncio.new_event_loop()
-        )  # Always open new event loop as this is executed in multithreaded
-        asyncio.set_event_loop(loop)
-        return loop.run_until_complete(self._run_operator(context, task))
+        # Always open new event loop as this is executed in multithreaded
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(self._run_operator(context, task))
+        finally:
+            loop.close()
 
     def _run_tasks(
         self,
