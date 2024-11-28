@@ -151,7 +151,8 @@ class EdgeWorker(BaseModel, LoggingMixin):
         connected: bool,
         jobs_active: int,
         concurrency: int,
-        queues: Optional[list[str]],  # noqa: UP007 - prevent Sphinx failing
+        free_concurrency: int,
+        queues: list[str] | None,
     ) -> None:
         """Set metric of edge worker."""
         queues = queues if queues else []
@@ -168,6 +169,9 @@ class EdgeWorker(BaseModel, LoggingMixin):
 
         Stats.gauge(f"edge_worker.concurrency.{worker_name}", concurrency)
         Stats.gauge("edge_worker.concurrency", concurrency, tags={"worker_name": worker_name})
+
+        Stats.gauge(f"edge_worker.free_concurrency.{worker_name}", free_concurrency)
+        Stats.gauge("edge_worker.free_concurrency", free_concurrency, tags={"worker_name": worker_name})
 
         Stats.gauge(
             f"edge_worker.num_queues.{worker_name}",
@@ -188,6 +192,7 @@ class EdgeWorker(BaseModel, LoggingMixin):
             connected=False,
             jobs_active=0,
             concurrency=0,
+            free_concurrency=-1,
             queues=None,
         )
 
@@ -280,6 +285,7 @@ class EdgeWorker(BaseModel, LoggingMixin):
             connected=True,
             jobs_active=jobs_active,
             concurrency=int(sysinfo["concurrency"]),
+            free_concurrency=int(sysinfo["free_concurrency"]),
             queues=worker.queues,
         )
         EdgeWorker.assert_version(sysinfo)  #  Exception only after worker state is in the DB
