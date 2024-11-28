@@ -40,6 +40,7 @@ const mockTaskLog = `
 [2022-06-04 00:00:02,010] {taskinstance.py:1548} WARNING - Exporting env vars: AIRFLOW_CTX_DAG_OWNER=*** AIRFLOW_CTX_DAG_ID=test_ui_grid
 [2024-07-01 00:00:02,010] {taskinstance.py:1548} INFO - Url parsing test => "https://apple.com", "https://google.com", https://something.logs/_dashboard/?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:now-1d,to:now))&_a=(columns:!(_source),filters:!(('$state':(store:appState))))
 `;
+const mockExtraLog = `--------------------------------------------------------------------------------`;
 
 describe("Test Logs Utils.", () => {
   test("parseLogs function replaces datetimes", () => {
@@ -65,7 +66,7 @@ describe("Test Logs Utils.", () => {
   test.each([
     {
       logLevelFilters: [LogLevel.INFO],
-      expectedNumberOfLines: 12,
+      expectedNumberOfLines: 15,
       expectedNumberOfFileSources: 4,
     },
     {
@@ -92,7 +93,11 @@ describe("Test Logs Utils.", () => {
       expect(parsedLogs).toBeDefined();
       const lines = parsedLogs!.split("\n");
       expect(lines).toHaveLength(expectedNumberOfLines);
-      lines.forEach((line) => expect(line).toContain(logLevelFilters[0]));
+      lines.forEach((line) =>
+        expect(line).toMatch(
+          new RegExp(`(${logLevelFilters[0]}|${mockExtraLog}|)`)
+        )
+      );
     }
   );
 
@@ -112,8 +117,10 @@ describe("Test Logs Utils.", () => {
       "taskinstance.py",
     ]);
     const lines = parsedLogs!.split("\n");
-    expect(lines).toHaveLength(8);
-    lines.forEach((line) => expect(line).toContain("taskinstance.py"));
+    expect(lines).toHaveLength(11);
+    lines.forEach((line) =>
+      expect(line).toMatch(new RegExp(`(taskinstance.py|${mockExtraLog}|)`))
+    );
   });
 
   test("parseLogs function with filter on log level and file source", () => {
@@ -132,8 +139,12 @@ describe("Test Logs Utils.", () => {
       "taskinstance.py",
     ]);
     const lines = parsedLogs!.split("\n");
-    expect(lines).toHaveLength(8);
-    lines.forEach((line) => expect(line).toMatch(/INFO|WARNING/));
+    expect(lines).toHaveLength(11);
+    lines.forEach((line) =>
+      expect(line).toMatch(
+        new RegExp(`(${LogLevel.INFO}|${LogLevel.WARNING}|${mockExtraLog}|)`)
+      )
+    );
   });
 
   test("parseLogs function with urls", () => {
@@ -145,7 +156,8 @@ describe("Test Logs Utils.", () => {
       []
     );
 
-    const lines = parsedLogs!.split("\n");
+    // remove the last line which is empty
+    const lines = parsedLogs!.split("\n").filter((line) => line.length > 0);
     expect(lines[lines.length - 1]).toContain(
       '<a href="https://apple.com" target="_blank" rel="noopener noreferrer" style="color: blue; text-decoration: underline;">https://apple.com</a>'
     );
