@@ -42,7 +42,6 @@ class KafkaConsumerHook(KafkaBaseHook):
 
     :param kafka_config_id: The connection object to use, defaults to "kafka_default"
     :param topics: A list of topics to subscribe to.
-    _
     """
 
     def __init__(self, topics: Sequence[str], kafka_config_id=KafkaBaseHook.default_conn_name) -> None:
