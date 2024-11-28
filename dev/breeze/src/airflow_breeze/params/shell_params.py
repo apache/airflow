@@ -508,7 +508,6 @@ class ShellParams:
         _set_var(_env, "AIRFLOW_CONSTRAINTS_LOCATION", self.airflow_constraints_location)
         _set_var(_env, "AIRFLOW_CONSTRAINTS_MODE", self.airflow_constraints_mode)
         _set_var(_env, "AIRFLOW_CONSTRAINTS_REFERENCE", self.airflow_constraints_reference)
-        _set_var(_env, "AIRFLOW_ENABLE_AIP_44", None, "true")
         _set_var(_env, "AIRFLOW_ENV", "development")
         _set_var(_env, "AIRFLOW_EXTRAS", self.airflow_extras)
         _set_var(_env, "AIRFLOW_SKIP_CONSTRAINTS", self.airflow_skip_constraints)
