@@ -20,19 +20,21 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from asyncio import AbstractEventLoop, TimeoutError, iscoroutinefunction, wait_for
-from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager, suppress
+from asyncio import TimeoutError, iscoroutinefunction, wait_for
+from datetime import timedelta
 from math import ceil
+from multiprocessing.pool import ThreadPool
 from time import sleep
-from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, Sequence, cast, Iterable
 
 from airflow import XComArg
 from airflow.exceptions import (
     AirflowException,
+    AirflowTaskTimeout,
     AirflowRescheduleTaskInstanceException,
     TaskDeferred,
 )
+from airflow.models.abstractoperator import DEFAULT_TASK_EXECUTION_TIMEOUT
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.expandinput import (
     ExpandInput,
@@ -52,24 +54,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
-@contextmanager
-def event_loop() -> Generator[AbstractEventLoop, None, None]:
-    new_event_loop = False
-    loop = None
-    try:
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            new_event_loop = True
-        yield loop
-    finally:
-        if new_event_loop and loop is not None:
-            with suppress(AttributeError):
-                loop.close()
-
-
 class OperatorExecutor(LoggingMixin):
     """
     Run an operator with given task context and task instance.
@@ -86,11 +70,13 @@ class OperatorExecutor(LoggingMixin):
         operator: BaseOperator,
         context: Context,
         task_instance: TaskInstance,
+        timeout,
     ):
         super().__init__()
         self.operator = operator
         self.__context = context
         self._task_instance = task_instance
+        self.timeout = timeout
 
     @property
     def task_instance(self) -> TaskInstance:
@@ -155,18 +141,26 @@ class OperatorExecutor(LoggingMixin):
                 self.task_instance.map_index,
             )
 
+        if self.task_instance.try_number == 0:
+            self.operator.render_template_fields(context=self.context)
         self.operator.pre_execute(context=self.context)
         self.task_instance._run_execute_callback(
             context=self.context, task=self.operator
         )
 
         try:
-            return await self._run_callable(
-                method, *(list(args or ()) + [self.context]), **kwargs
+            return await wait_for(
+                self._run_callable(
+                    method, *(list(args or ()) + [self.context]), **kwargs
+                ),
+                timeout=self.timeout,
             )
         except TaskDeferred as task_deferred:
-            return await self._run_callable(
-                self._run_deferrable, *[self.context, task_deferred]
+            return await wait_for(
+                self._run_callable(
+                    self._run_deferrable, *[self.context, task_deferred]
+                ),
+                timeout=self.timeout,
             )
         finally:
             self.operator.post_execute(context=self.context)
@@ -200,12 +194,16 @@ class StreamedOperator(BaseOperator):
         operator_class: type[BaseOperator],
         expand_input: ExpandInput,
         partial_kwargs: dict[str, Any] | None = None,
+        timeout: timedelta | None = DEFAULT_TASK_EXECUTION_TIMEOUT,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
         self._operator_class = operator_class
         self.expand_input = expand_input
         self.partial_kwargs = partial_kwargs or {}
+        self.timeout = (
+            timeout.total_seconds() if isinstance(timeout, timedelta) else timeout
+        )
         self._mapped_kwargs: list[dict] = []
         if not self.max_active_tis_per_dag:
             self.max_active_tis_per_dag = os.cpu_count() or 1
@@ -222,7 +220,7 @@ class StreamedOperator(BaseOperator):
         self.log.debug("index: %s", index)
         kwargs = {
             **self.partial_kwargs,
-            **{"task_id": f"{self.partial_kwargs.get('task_id')}_{index}"},
+            **{"task_id": f"{self.task_id}_{index}"},
             **self._mapped_kwargs[index],
         }
         self.log.debug("kwargs: %s", kwargs)
@@ -254,66 +252,51 @@ class StreamedOperator(BaseOperator):
         session = get_current_task_instance_session()
         self._resolve_expand_input(context=context, session=session)
 
-    @classmethod
-    def run_until_complete(cls, func, *args, **kwargs):
-        try:
-            loop = asyncio.get_event_loop()
-            return loop.run_until_complete(func(*args, **kwargs))
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            return loop.run_until_complete(func(*args, **kwargs))
+    def _run_task(self, context: Context, task: TaskInstance):
+        loop = (
+            asyncio.new_event_loop()
+        )  # Always open new event loop as this is executed in multithreaded
+        asyncio.set_event_loop(loop)
+        return loop.run_until_complete(self._run_operator(context, task))
 
-    async def _run_tasks(
-        self, context: Context, tasks, results: list[Any] | None = None
+    def _run_tasks(
+        self,
+        context: Context,
+        tasks: Iterable[TaskInstance],
+        results: list[Any] | None = None,
     ) -> list[Any]:
-        reschedule_date = timezone.utcnow()
+        exception: BaseException | None = None
         results = results or []
-        failed_tasks = []
+        reschedule_date = timezone.utcnow()
+        failed_tasks: list[TaskInstance] = []
 
-        with event_loop() as loop:
-            with ThreadPoolExecutor(
-                max_workers=self.max_active_tis_per_dag
-            ) as executor:
-                futures = [
-                    (
-                        loop.run_in_executor(
-                            executor,
-                            self.run_until_complete,
-                            self._run_operator,
-                            context,
-                            task,
-                        ),
-                        task,
-                    )
-                    for task in tasks
-                ]
+        with ThreadPool(processes=self.max_active_tis_per_dag) as pool:
+            futures = [
+                (task, pool.apply_async(self._run_task, (context, task)))
+                for task in tasks
+            ]
 
-                for future, task in futures:
-                    try:
-                        # Apply timeout for each task
-                        result = await wait_for(
-                            future, timeout=self.execution_timeout.total_seconds()
-                        )
-                        self.log.debug("result: %s", result)
-                        results.append(result)
-                    except TimeoutError:
-                        self.log.warning(
-                            "Task timed out after %s seconds: %s",
-                            self.execution_timeout.total_seconds(),
-                            task.task_id,
-                        )
-                        if task.next_try_number > self.retries:
-                            raise e
+            for task, future in futures:
+                try:
+                    result = future.get(timeout=self.timeout)
+                    results.append(result)
+                except TimeoutError as e:
+                    self.log.warning("A timeout occurred for task_id %s", task.task_id)
+                    if task.next_try_number > self.retries:
+                        exception = AirflowTaskTimeout(e)
+                    else:
+                        reschedule_date = task.next_retry_datetime()
                         failed_tasks.append(task)
-                    except AirflowRescheduleTaskInstanceException as e:
-                        reschedule_date = e.reschedule_date
-                        failed_tasks.append(e.task_instance)
-                    except Exception as e:
-                        self.log.exception("Unexpected error: %s", e)
-                        raise e
+                except AirflowRescheduleTaskInstanceException as e:
+                    reschedule_date = e.reschedule_date
+                    failed_tasks.append(e.task)
+                except AirflowException as e:
+                    self.log.error("An exception occurred for task_id %s", task.task_id)
+                    exception = e
 
         if not failed_tasks:
+            if exception:
+                raise exception
             return list(filter(None, results))
 
         # session = get_current_task_instance_session()
@@ -332,11 +315,11 @@ class StreamedOperator(BaseOperator):
                 delay_seconds,
             )
 
-            await sleep(delay_seconds)
+            sleep(delay_seconds)
 
         # TaskInstance._set_state(context["ti"], TaskInstanceState.RUNNING, session)
 
-        return await self._run_tasks(context, failed_tasks, results)
+        return self._run_tasks(context, failed_tasks, results)
 
     async def _run_operator(self, context: Context, task_instance: TaskInstance):
         operator: BaseOperator = cast(BaseOperator, task_instance.task)
@@ -351,9 +334,8 @@ class StreamedOperator(BaseOperator):
         if operator.do_xcom_push:
             return result
 
-    def _create_task(self, context: Context, index: int):
+    def _create_task(self, context: Context, index: int) -> TaskInstance:
         operator = self._unmap_operator(index)
-        operator.render_template_fields(context=context)
         task_instance = TaskInstance(
             task=operator,
             run_id=context["ti"].run_id,
@@ -364,20 +346,20 @@ class StreamedOperator(BaseOperator):
 
     def execute(self, context: Context):
         self.log.info(
-            "Executing %s mapped tasks on %s with %s threads and timeout of %s",
+            "Executing %s mapped tasks on %s with %s threads and timeout %s",
             len(self._mapped_kwargs),
             self._operator_class.__name__,
             self.max_active_tis_per_dag,
-            self.execution_timeout.total_seconds(),
+            self.timeout,
         )
 
-        with event_loop() as loop:
-            loop.run_until_complete(
-                self._run_tasks(
-                    context=context,
-                    tasks=[
-                        self._create_task(context, index)
-                        for index, _ in enumerate(self._mapped_kwargs)
-                    ],
-                )
-            )
+        results = self._run_tasks(
+            context=context,
+            tasks=map(
+                lambda index: self._create_task(context, index[0]),
+                enumerate(self._mapped_kwargs),
+            ),
+        )
+
+        if self.do_xcom_push:
+            return results
