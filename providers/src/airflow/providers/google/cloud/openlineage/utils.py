@@ -54,6 +54,24 @@ def extract_ds_name_from_gcs_path(path: str) -> str:
 
     Returns:
         The processed dataset name.
+
+    Examples:
+        >>> extract_ds_name_from_gcs_path("/dir/file.*")
+        'dir'
+        >>> extract_ds_name_from_gcs_path("/dir/pre_")
+        'dir'
+        >>> extract_ds_name_from_gcs_path("/dir/file.txt")
+        'dir/file.txt'
+        >>> extract_ds_name_from_gcs_path("/dir/file.")
+        'dir'
+        >>> extract_ds_name_from_gcs_path("/dir/")
+        'dir'
+        >>> extract_ds_name_from_gcs_path("")
+        '/'
+        >>> extract_ds_name_from_gcs_path("/")
+        '/'
+        >>> extract_ds_name_from_gcs_path(".")
+        '/'
     """
     if WILDCARD in path:
         path = path.split(WILDCARD, maxsplit=1)[0]

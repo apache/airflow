@@ -195,7 +195,9 @@ class TestFileToGcsOperator:
         assert not result.run_facets
         assert len(result.outputs) == 1
         assert len(result.inputs) == 1
+        assert result.outputs[0].namespace == "gs://dummy"
         assert result.outputs[0].name == expected_output
+        assert result.inputs[0].namespace == "file"
         assert result.inputs[0].name == expected_input
         if symlink:
             assert result.inputs[0].facets["symlink"] == SymlinksDatasetFacet(
