@@ -4219,6 +4219,8 @@ class ConnectionModelView(AirflowModelView):
                     # value isn't an empty string.
                     if value != "":
                         extra[field_name] = value
+                    elif field_name in extra:
+                        del extra[field_name]
         if extra.keys():
             sensitive_unchanged_keys = set()
             for key, value in extra.items():
