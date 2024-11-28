@@ -315,7 +315,9 @@ class KubernetesPodOperator(BaseOperator):
         is_delete_operator_pod: None | bool = None,
         termination_message_policy: str = "File",
         active_deadline_seconds: int | None = None,
-        callbacks: list[type[KubernetesPodOperatorCallback]] | type[KubernetesPodOperatorCallback] | None = None,
+        callbacks: list[type[KubernetesPodOperatorCallback]]
+        | type[KubernetesPodOperatorCallback]
+        | None = None,
         progress_callback: Callable[[str], None] | None = None,
         logging_interval: int | None = None,
         **kwargs,
@@ -387,7 +389,9 @@ class KubernetesPodOperator(BaseOperator):
         self.skip_on_exit_code = (
             skip_on_exit_code
             if isinstance(skip_on_exit_code, Container)
-            else [skip_on_exit_code] if skip_on_exit_code is not None else []
+            else [skip_on_exit_code]
+            if skip_on_exit_code is not None
+            else []
         )
         self.deferrable = deferrable
         self.poll_interval = poll_interval

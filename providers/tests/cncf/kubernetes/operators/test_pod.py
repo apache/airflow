@@ -20,6 +20,7 @@ import datetime
 import re
 from contextlib import contextmanager, nullcontext
 from io import BytesIO
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, mock_open, patch
 
@@ -47,7 +48,9 @@ from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodLoggingStatus, PodPhase
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 

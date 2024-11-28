@@ -17,13 +17,10 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
 import kubernetes.client as k8s
 import kubernetes_asyncio.client as async_k8s
-
-
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
@@ -136,7 +133,7 @@ class KubernetesPodOperatorCallback:
         **kwargs,
     ) -> None:
         """
-        Invoked after all pod completion callbacks but before the pod is deleted.
+        Invoke this callback after all pod completion callbacks but before the pod is deleted.
 
         :param pod: the completed pod.
         :param client: the Kubernetes client that can be used in the callback.
