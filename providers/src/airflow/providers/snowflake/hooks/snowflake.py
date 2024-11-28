@@ -201,6 +201,9 @@ class SnowflakeHook(DbApiHook):
         region = self._get_field(extra_dict, "region") or ""
         role = self._get_field(extra_dict, "role") or ""
         insecure_mode = _try_to_boolean(self._get_field(extra_dict, "insecure_mode"))
+        json_result_force_utf8_decoding = _try_to_boolean(
+            self._get_field(extra_dict, "json_result_force_utf8_decoding")
+        )
         schema = conn.schema or ""
         client_request_mfa_token = _try_to_boolean(self._get_field(extra_dict, "client_request_mfa_token"))
 
@@ -224,6 +227,9 @@ class SnowflakeHook(DbApiHook):
         }
         if insecure_mode:
             conn_config["insecure_mode"] = insecure_mode
+
+        if json_result_force_utf8_decoding:
+            conn_config["json_result_force_utf8_decoding"] = json_result_force_utf8_decoding
 
         if client_request_mfa_token:
             conn_config["client_request_mfa_token"] = client_request_mfa_token
@@ -302,7 +308,13 @@ class SnowflakeHook(DbApiHook):
                 for k, v in conn_params.items()
                 if v
                 and k
-                not in ["session_parameters", "insecure_mode", "private_key", "client_request_mfa_token"]
+                not in {
+                    "session_parameters",
+                    "insecure_mode",
+                    "private_key",
+                    "client_request_mfa_token",
+                    "json_result_force_utf8_decoding",
+                }
             }
         )
 
@@ -324,6 +336,9 @@ class SnowflakeHook(DbApiHook):
         if "insecure_mode" in conn_params:
             engine_kwargs.setdefault("connect_args", {})
             engine_kwargs["connect_args"]["insecure_mode"] = True
+        if "json_result_force_utf8_decoding" in conn_params:
+            engine_kwargs.setdefault("connect_args", {})
+            engine_kwargs["connect_args"]["json_result_force_utf8_decoding"] = True
         for key in ["session_parameters", "private_key"]:
             if conn_params.get(key):
                 engine_kwargs.setdefault("connect_args", {})
