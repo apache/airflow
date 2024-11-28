@@ -127,10 +127,10 @@ class TestPostVariable:
             assert response.json()["detail"][0]["msg"] == "Field required"
 
     def test_overwriting_existing_variable(self, client, session):
-        Variable.set(key="var_create", value="value", session=session)
+        key = "var_create"
+        Variable.set(key=key, value="value", session=session)
         session.commit()
 
-        key = "var_create"
         payload = {"value": "new_value"}
         response = client.put(
             f"/execution/variables/{key}",
@@ -138,7 +138,7 @@ class TestPostVariable:
         )
         assert response.status_code == 201
         # variable should have been updated to the new value
-        var_from_db = session.query(Variable).where(Variable.key == "var_create").first()
+        var_from_db = session.query(Variable).where(Variable.key == key).first()
         assert var_from_db is not None
         assert var_from_db.key == key
         assert var_from_db.val == payload["value"]
