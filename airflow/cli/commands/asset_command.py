@@ -68,16 +68,15 @@ def asset_details(args, *, session: Session = NEW_SESSION) -> None:
     if args.uri:
         stmt = stmt.where(AssetModel.uri == args.uri)
         select_message_parts.append(f"URI {args.uri}")
-    assets = session.scalars(stmt).all()
+    asset_it = iter(session.scalars(stmt.limit(2)))
     select_message = " and ".join(select_message_parts)
 
-    count = len(assets)
-    if count > 1:
-        raise SystemExit(f"More than one asset exists with {select_message}.")
-    elif count < 1:
+    if (asset := next(asset_it, None)) is None:
         raise SystemExit(f"Asset with {select_message} does not exist.")
+    if next(asset_it, None) is not None:
+        raise SystemExit(f"More than one asset exists with {select_message}.")
 
-    model_data = AssetResponse.model_validate(assets[0]).model_dump()
+    model_data = AssetResponse.model_validate(asset).model_dump()
     if args.output in ["table", "plain"]:
         data = [{"property_name": key, "property_value": value} for key, value in model_data.items()]
     else:
