@@ -148,7 +148,6 @@ class EdgeWorker(BaseModel, LoggingMixin):
     def set_metrics(
         worker_name: str,
         state: EdgeWorkerState,
-        connected: bool,
         jobs_active: int,
         concurrency: int,
         free_concurrency: int,
@@ -156,7 +155,7 @@ class EdgeWorker(BaseModel, LoggingMixin):
     ) -> None:
         """Set metric of edge worker."""
         queues = queues if queues else []
-
+        connected = state not in (EdgeWorkerState.UNKNOWN, EdgeWorkerState.OFFLINE)
         Stats.gauge(f"edge_worker.state.{worker_name}", int(connected))
         Stats.gauge(
             "edge_worker.state",
@@ -189,7 +188,6 @@ class EdgeWorker(BaseModel, LoggingMixin):
         EdgeWorker.set_metrics(
             worker_name=worker_name,
             state=EdgeWorkerState.UNKNOWN,
-            connected=False,
             jobs_active=0,
             concurrency=0,
             free_concurrency=-1,
@@ -282,7 +280,6 @@ class EdgeWorker(BaseModel, LoggingMixin):
         EdgeWorker.set_metrics(
             worker_name=worker_name,
             state=state,
-            connected=True,
             jobs_active=jobs_active,
             concurrency=int(sysinfo["concurrency"]),
             free_concurrency=int(sysinfo["free_concurrency"]),
