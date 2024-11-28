@@ -621,6 +621,16 @@ export type DagTagPydantic = {
 export type DagWarningType = "asset conflict" | "non-existent pool";
 
 /**
+ * Edge serializer for responses.
+ */
+export type EdgeResponse = {
+  is_setup_teardown?: boolean | null;
+  label?: string | null;
+  source_id: string;
+  target_id: string;
+};
+
+/**
  * Event Log Collection Response.
  */
 export type EventLogCollectionResponse = {
@@ -661,6 +671,17 @@ export type FastAPIAppResponse = {
   name: string;
   [key: string]: unknown | string;
 };
+
+/**
+ * Graph Data serializer for responses.
+ */
+export type GraphDataResponse = {
+  edges: Array<EdgeResponse>;
+  nodes: NodeResponse;
+  arrange: "BT" | "LR" | "RL" | "TB";
+};
+
+export type arrange = "BT" | "LR" | "RL" | "TB";
 
 /**
  * HTTPException Model used for error response.
@@ -736,6 +757,30 @@ export type JobResponse = {
   executor_class: string | null;
   hostname: string | null;
   unixname: string | null;
+};
+
+/**
+ * Node serializer for responses.
+ */
+export type NodeResponse = {
+  children?: Array<NodeResponse> | null;
+  id: string | null;
+  value: NodeValueResponse;
+};
+
+/**
+ * Graph Node Value responses.
+ */
+export type NodeValueResponse = {
+  isMapped?: boolean | null;
+  label?: string | null;
+  labelStyle?: string | null;
+  style?: string | null;
+  tooltip?: string | null;
+  rx: number;
+  ry: number;
+  clusterLabelPos?: string | null;
+  setupTeardownType?: "setup" | "teardown" | null;
 };
 
 /**
@@ -1333,28 +1378,6 @@ export type DeleteDagAssetQueuedEventData = {
 
 export type DeleteDagAssetQueuedEventResponse = void;
 
-export type HistoricalMetricsData = {
-  endDate?: string | null;
-  startDate: string;
-};
-
-export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
-
-export type RecentDagRunsData = {
-  dagDisplayNamePattern?: string | null;
-  dagIdPattern?: string | null;
-  dagRunsLimit?: number;
-  lastDagRunState?: DagRunState | null;
-  limit?: number;
-  offset?: number;
-  onlyActive?: boolean;
-  owners?: Array<string>;
-  paused?: boolean | null;
-  tags?: Array<string>;
-};
-
-export type RecentDagRunsResponse = DAGWithLatestDagRunsCollectionResponse;
-
 export type GetConfigsResponse = ConfigResponse;
 
 export type GetConfigData = {
@@ -1371,6 +1394,37 @@ export type GetConfigValueData = {
 };
 
 export type GetConfigValueResponse = Config;
+
+export type RecentDagRunsData = {
+  dagDisplayNamePattern?: string | null;
+  dagIdPattern?: string | null;
+  dagRunsLimit?: number;
+  lastDagRunState?: DagRunState | null;
+  limit?: number;
+  offset?: number;
+  onlyActive?: boolean;
+  owners?: Array<string>;
+  paused?: boolean | null;
+  tags?: Array<string>;
+};
+
+export type RecentDagRunsResponse = DAGWithLatestDagRunsCollectionResponse;
+
+export type HistoricalMetricsData = {
+  endDate?: string | null;
+  startDate: string;
+};
+
+export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
+
+export type GraphDataData = {
+  dagId: string;
+  includeDownstream?: boolean;
+  includeUpstream?: boolean;
+  root?: string | null;
+};
+
+export type GraphDataResponse2 = GraphDataResponse;
 
 export type ListBackfillsData = {
   dagId: string;
@@ -2272,40 +2326,6 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/ui/dashboard/historical_metrics_data": {
-    get: {
-      req: HistoricalMetricsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: HistoricalMetricDataResponse;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
-  "/ui/dags/recent_dag_runs": {
-    get: {
-      req: RecentDagRunsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: DAGWithLatestDagRunsCollectionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
   "/ui/config": {
     get: {
       res: {
@@ -2375,6 +2395,59 @@ export type $OpenApiTs = {
          * Not Acceptable
          */
         406: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/dags/recent_dag_runs": {
+    get: {
+      req: RecentDagRunsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGWithLatestDagRunsCollectionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/dashboard/historical_metrics_data": {
+    get: {
+      req: HistoricalMetricsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: HistoricalMetricDataResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/ui/graph/graph_data": {
+    get: {
+      req: GraphDataData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: GraphDataResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
         /**
          * Validation Error
          */
