@@ -51,3 +51,36 @@ def asset_list(args, *, session: Session = NEW_SESSION) -> None:
         output=args.output,
         mapper=detail_mapper,
     )
+
+
+@cli_utils.action_cli
+@provide_session
+def asset_details(args, *, session: Session = NEW_SESSION) -> None:
+    """Display details of an asset."""
+    if not args.name and not args.uri:
+        raise SystemExit("Either --name or --uri is required")
+
+    stmt = select(AssetModel)
+    select_message_parts = []
+    if args.name:
+        stmt = stmt.where(AssetModel.name == args.name)
+        select_message_parts.append(f"name {args.name}")
+    if args.uri:
+        stmt = stmt.where(AssetModel.uri == args.uri)
+        select_message_parts.append(f"URI {args.uri}")
+    assets = session.scalars(stmt).all()
+    select_message = " and ".join(select_message_parts)
+
+    count = len(assets)
+    if count > 1:
+        raise SystemExit(f"More than one asset exists with {select_message}.")
+    elif count < 1:
+        raise SystemExit(f"Asset with {select_message} does not exist.")
+
+    model_data = AssetResponse.model_validate(assets[0]).model_dump()
+    if args.output in ["table", "plain"]:
+        data = [{"property_name": key, "property_value": value} for key, value in model_data.items()]
+    else:
+        data = [model_data]
+
+    AirflowConsole().print_as(data=data, output=args.output)
