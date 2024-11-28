@@ -171,13 +171,6 @@ TEST_PARAMS_DB: list[dict[str, str | list[str]]] = [
     TEST_UPGRADING_PACKAGES,
 ]
 
-DATABASE_ISOLATION_TESTS: dict[str, str | list[str]] = {
-    "name": "DB isolation tests",
-    "options": [
-        "--database-isolation",
-    ],
-}
-
 INTEGRATION_TESTS: dict[str, str | list[str]] = {
     "name": "Integration tests",
     "options": [
@@ -215,7 +208,6 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     ],
     "breeze testing providers-tests": [
         *TEST_PARAMS,
-        DATABASE_ISOLATION_TESTS,
         TEST_ADVANCED_FLAGS,
         TEST_ADVANCED_FLAGS_FOR_INSTALLATION,
         TEST_ADVANCED_FLAGS_FOR_PROVIDERS,

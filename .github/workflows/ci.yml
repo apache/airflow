@@ -289,7 +289,7 @@ jobs:
       runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       # generate no providers constraints only in canary builds - they take quite some time to generate
-      # they are not needed for regular builds, they are only needed to update constraints in canaries
+      # they are not needed for regular builds, they are only needed to upe constraints in canaries
       generate-no-providers-constraints: ${{ needs.build-info.outputs.canary-run }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}

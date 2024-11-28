@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import os
-
 from airflow.jobs.job import Job
 from airflow.models import (
     Connection,
@@ -269,7 +267,3 @@ def clear_all():
     clear_db_pools()
     clear_db_connections(add_default_connections_back=True)
     clear_dag_specific_permissions()
-
-
-def is_db_isolation_mode():
-    return os.environ.get("RUN_TESTS_WITH_DATABASE_ISOLATION", "false").lower() == "true"
