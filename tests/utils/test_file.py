@@ -63,7 +63,7 @@ class TestCorrectMaybeZipped:
 
         assert mocked_is_zipfile.call_count == 1
         (args, kwargs) = mocked_is_zipfile.call_args_list[0]
-        assert "/path/to/archive.zip" == args[0]
+        assert args[0] == "/path/to/archive.zip"
 
         assert dag_folder == "/path/to/archive.zip"
 

@@ -77,13 +77,13 @@ class TestTelegramHook:
         with pytest.raises(airflow.exceptions.AirflowNotFoundException) as ctx:
             TelegramHook(telegram_conn_id="telegram-webhook-non-existent")
 
-        assert "The conn_id `telegram-webhook-non-existent` isn't defined" == str(ctx.value)
+        assert str(ctx.value) == "The conn_id `telegram-webhook-non-existent` isn't defined"
 
     def test_should_raise_exception_if_conn_id_doesnt_contain_token(self):
         with pytest.raises(airflow.exceptions.AirflowException) as ctx:
             TelegramHook(telegram_conn_id="telegram-webhook-without-token")
 
-        assert "Missing token(password) in Telegram connection" == str(ctx.value)
+        assert str(ctx.value) == "Missing token(password) in Telegram connection"
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
     def test_should_raise_exception_if_chat_id_is_not_provided_anywhere(self, mock_get_conn):
