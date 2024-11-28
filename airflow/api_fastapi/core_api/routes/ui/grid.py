@@ -48,7 +48,7 @@ from airflow.api_fastapi.core_api.datamodels.ui.grid import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
-from airflow.models import DagRun, TaskInstance
+from airflow.models import DagRun, MappedOperator, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskmap import TaskMap
 from airflow.utils import timezone
@@ -140,10 +140,7 @@ def grid_data(
 
     # Check if there are any DAG Runs with given criteria to eliminate unnecessary queries/errors
     if not dag_runs:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"No DAG Runs found for DAG {dag.dag_id} with given criteria, please check the filters",
-        )
+        return GridResponse(dag_runs=[])
 
     # Retrieve, sort and encode the Task Instances
     tis_of_dag_runs, _ = paginated_select(
@@ -159,7 +156,9 @@ def grid_data(
         .join(TaskInstance.task_instance_note, isouter=True)
         .where(TaskInstance.dag_id == dag.dag_id),
         filters=[],
-        order_by=SortParam(allowed_attrs=["task_id", "run_id"], model=TaskInstance),
+        order_by=SortParam(allowed_attrs=["task_id", "run_id"], model=TaskInstance).dynamic_depends(
+            "task_id"
+        )(),
         offset=offset,
         limit=None,
     )
@@ -188,7 +187,14 @@ def grid_data(
             """Recursively fill the Task Group Map."""
             if task_node is None:
                 return
-            if isinstance(task_node, BaseOperator):
+            if isinstance(task_node, MappedOperator):
+                task_nodes[task_node.node_id] = {
+                    "is_group": False,
+                    "parent_id": parent_node.node_id if parent_node else None,
+                    "task_count": task_node,
+                }
+                return
+            elif isinstance(task_node, BaseOperator):
                 task_nodes[task_node.task_id] = {
                     "is_group": False,
                     "parent_id": parent_node.node_id if parent_node else None,
@@ -274,7 +280,8 @@ def grid_data(
                     for state in priority
                 }
             )
-
+            # Task Count is either integer or a TaskGroup to get the task count
+            task_count = task_node_map[task_id]["task_count"]
             task_instance_summaries_to_fill[run_id].append(
                 GridTaskInstanceSummary(
                     task_id=task_id,
@@ -283,7 +290,9 @@ def grid_data(
                     end_date=ti_end_date,
                     queued_dttm=ti_queued_dttm,
                     states=all_states,
-                    task_count=task_node_map[task_id]["task_count"],
+                    task_count=task_count
+                    if type(task_count) is int
+                    else task_count.get_mapped_ti_count(run_id=run_id, session=session),
                     overall_state=overall_state,
                 )
             )
