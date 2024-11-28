@@ -67,7 +67,7 @@ class TestDagParsingEndpoint:
 
         # Duplicate file parsing request
         response = test_client.put(url, headers={"Accept": "application/json"})
-        assert 409 == response.status_code
+        assert response.status_code == 409
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert parsing_requests[0].fileloc == test_dag.fileloc
 
