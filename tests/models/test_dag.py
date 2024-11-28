@@ -617,7 +617,7 @@ class TestDag:
             for i in range(4)
         ]
 
-        with assert_queries_count(5):
+        with assert_queries_count(6):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -634,14 +634,14 @@ class TestDag:
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
-        with assert_queries_count(8):
+        with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
-        with assert_queries_count(8):
+        with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
         # Adding tags
         for dag in dags:
             dag.tags.add("test-dag2")
-        with assert_queries_count(9):
+        with assert_queries_count(10):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -660,7 +660,7 @@ class TestDag:
         # Removing tags
         for dag in dags:
             dag.tags.remove("test-dag")
-        with assert_queries_count(9):
+        with assert_queries_count(10):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -679,7 +679,7 @@ class TestDag:
         # Removing all tags
         for dag in dags:
             dag.tags = set()
-        with assert_queries_count(9):
+        with assert_queries_count(10):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -700,7 +700,7 @@ class TestDag:
             for i in range(1)
         ]
 
-        with assert_queries_count(5):
+        with assert_queries_count(6):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0"} == {row[0] for row in session.query(DagModel.dag_id).all()}
@@ -727,7 +727,7 @@ class TestDag:
             for i in range(4)
         ]
 
-        with assert_queries_count(5):
+        with assert_queries_count(6):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -744,9 +744,9 @@ class TestDag:
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
-        with assert_queries_count(8):
+        with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
-        with assert_queries_count(8):
+        with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
 
     @pytest.mark.parametrize("interval", [None, "@daily"])
