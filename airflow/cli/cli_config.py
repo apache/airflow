@@ -32,7 +32,6 @@ import lazy_object_proxy
 from airflow import settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
-from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.cli import ColorMode
 from airflow.utils.module_loading import import_string
 from airflow.utils.state import DagRunState, JobState
@@ -2071,32 +2070,31 @@ core_commands: list[CLICommand] = [
     ),
 ]
 
-if _ENABLE_AIP_44:
-    core_commands.append(
-        ActionCommand(
-            name="internal-api",
-            help="Start an Airflow Internal API instance",
-            func=lazy_load_command("airflow.cli.commands.internal_api_command.internal_api"),
-            args=(
-                ARG_INTERNAL_API_PORT,
-                ARG_INTERNAL_API_WORKERS,
-                ARG_INTERNAL_API_WORKERCLASS,
-                ARG_INTERNAL_API_WORKER_TIMEOUT,
-                ARG_INTERNAL_API_HOSTNAME,
-                ARG_PID,
-                ARG_DAEMON,
-                ARG_STDOUT,
-                ARG_STDERR,
-                ARG_INTERNAL_API_ACCESS_LOGFILE,
-                ARG_INTERNAL_API_ERROR_LOGFILE,
-                ARG_INTERNAL_API_ACCESS_LOGFORMAT,
-                ARG_LOG_FILE,
-                ARG_SSL_CERT,
-                ARG_SSL_KEY,
-                ARG_DEBUG,
-            ),
+core_commands.append(
+    ActionCommand(
+        name="internal-api",
+        help="Start an Airflow Internal API instance",
+        func=lazy_load_command("airflow.cli.commands.internal_api_command.internal_api"),
+        args=(
+            ARG_INTERNAL_API_PORT,
+            ARG_INTERNAL_API_WORKERS,
+            ARG_INTERNAL_API_WORKERCLASS,
+            ARG_INTERNAL_API_WORKER_TIMEOUT,
+            ARG_INTERNAL_API_HOSTNAME,
+            ARG_PID,
+            ARG_DAEMON,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_INTERNAL_API_ACCESS_LOGFILE,
+            ARG_INTERNAL_API_ERROR_LOGFILE,
+            ARG_INTERNAL_API_ACCESS_LOGFORMAT,
+            ARG_LOG_FILE,
+            ARG_SSL_CERT,
+            ARG_SSL_KEY,
+            ARG_DEBUG,
         ),
-    )
+    ),
+)
 
 
 def _remove_dag_id_opt(command: ActionCommand):

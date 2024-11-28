@@ -38,7 +38,6 @@ from lockfile.pidlockfile import read_pid_from_pidfile
 from sqlalchemy.engine.url import make_url
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.cli.commands.webserver_command import GunicornMonitor
 from airflow.configuration import conf
@@ -221,13 +220,6 @@ def create_app(config=None, testing=False):
 
     if "SQLALCHEMY_ENGINE_OPTIONS" not in flask_app.config:
         flask_app.config["SQLALCHEMY_ENGINE_OPTIONS"] = settings.prepare_engine_args()
-
-    if conf.getboolean("core", "database_access_isolation", fallback=False):
-        InternalApiConfig.set_use_database_access("Gunicorn worker initialization")
-    else:
-        raise AirflowConfigException(
-            "The internal-api component should only be run when database_access_isolation is enabled."
-        )
 
     csrf = CSRFProtect()
     csrf.init_app(flask_app)

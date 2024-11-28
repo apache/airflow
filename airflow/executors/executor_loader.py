@@ -23,7 +23,6 @@ import logging
 import os
 from typing import TYPE_CHECKING
 
-from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.exceptions import AirflowConfigException, UnknownExecutorException
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
@@ -291,9 +290,6 @@ class ExecutorLoader:
 
         # This is set in tests when we want to be able to use SQLite.
         if os.environ.get("_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK") == "1":
-            return
-
-        if InternalApiConfig.get_use_internal_api():
             return
 
         from airflow.settings import engine
