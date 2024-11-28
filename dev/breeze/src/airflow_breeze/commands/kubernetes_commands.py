@@ -998,7 +998,6 @@ def _deploy_helm_chart(
         get_console(output=output).print(f"[info]Copied chart sources to {tmp_chart_path}")
         kubectl_context = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
         params = BuildProdParams(python=python)
-        airflow_kubernetes_image_name = params.airflow_image_kubernetes
         helm_command = [
             "helm",
             "upgrade" if upgrade else "install",
@@ -1011,13 +1010,13 @@ def _deploy_helm_chart(
             "--namespace",
             HELM_AIRFLOW_NAMESPACE,
             "--set",
-            f"defaultAirflowRepository={airflow_kubernetes_image_name}",
+            f"defaultAirflowRepository={params.airflow_image_kubernetes}",
             "--set",
             "defaultAirflowTag=latest",
             "-v",
             "1",
             "--set",
-            f"images.airflow.repository={airflow_kubernetes_image_name}",
+            f"images.airflow.repository={params.airflow_image_kubernetes}",
             "--set",
             "images.airflow.tag=latest",
             "-v",
@@ -1028,6 +1027,8 @@ def _deploy_helm_chart(
             "config.logging.logging_level=DEBUG",
             "--set",
             f"executor={executor}",
+            "--set",
+            f"airflowVersion={params.airflow_semver_version}",
         ]
         if multi_namespace_mode:
             helm_command.extend(["--set", "multiNamespaceMode=true"])
