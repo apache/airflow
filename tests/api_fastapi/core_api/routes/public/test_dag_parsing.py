@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
 
 
-class TestDagParsingRequest:
+class TestDagParsingEndpoint:
     ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir))
     EXAMPLE_DAG_FILE = os.path.join("airflow", "example_dags", "example_bash_operator.py")
     EXAMPLE_DAG_ID = "example_bash_operator"

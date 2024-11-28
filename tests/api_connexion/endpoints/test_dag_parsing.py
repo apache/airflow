@@ -57,7 +57,7 @@ def configured_app(minimal_app_for_api):
     delete_user(app, username="test_no_permissions")
 
 
-class TestDagParsingEndpoint:
+class TestDagParsingRequest:
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
         self.app = configured_app
