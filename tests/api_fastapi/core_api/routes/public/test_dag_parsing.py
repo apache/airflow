@@ -28,7 +28,7 @@ from airflow.utils.session import provide_session
 
 from tests_common.test_utils.db import clear_db_dag_parsing_requests
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
