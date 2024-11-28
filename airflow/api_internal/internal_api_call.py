@@ -17,26 +17,13 @@
 
 from __future__ import annotations
 
-import logging
 from functools import wraps
-from http import HTTPStatus
 from typing import Callable, TypeVar
 
-from airflow.exceptions import AirflowException
 from airflow.typing_compat import ParamSpec
 
 PS = ParamSpec("PS")
 RT = TypeVar("RT")
-
-logger = logging.getLogger(__name__)
-
-
-class AirflowHttpException(AirflowException):
-    """Raise when there is a problem during an http request on the internal API decorator."""
-
-    def __init__(self, message: str, status_code: HTTPStatus):
-        super().__init__(message)
-        self.status_code = status_code
 
 
 def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
