@@ -31,11 +31,9 @@ class KafkaAuthenticationError(Exception):
 
 def error_callback(err):
     """Handle kafka errors."""
-    if err.code() == KafkaError.NO_ERROR:
-        return
-    else:
-        print("Exception received: ", err)
+    if err.code() == KafkaError._AUTHENTICATION:
         raise KafkaAuthenticationError(f"Authentication failed: {err}")
+    print("Exception received: ", err)
 
 
 class KafkaConsumerHook(KafkaBaseHook):
@@ -44,6 +42,7 @@ class KafkaConsumerHook(KafkaBaseHook):
 
     :param kafka_config_id: The connection object to use, defaults to "kafka_default"
     :param topics: A list of topics to subscribe to.
+    _
     """
 
     def __init__(self, topics: Sequence[str], kafka_config_id=KafkaBaseHook.default_conn_name) -> None:
