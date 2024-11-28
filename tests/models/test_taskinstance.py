@@ -80,7 +80,6 @@ from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.sdk.definitions.asset import AssetAlias
 from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-from airflow.settings import TracebackSessionForTests
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
@@ -1544,9 +1543,7 @@ class TestTaskInstance:
             dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
             session=session,
         )
-        TracebackSessionForTests.set_allow_db_access(session, True)
         completed = all(dep.passed for dep in dep_results)
-        TracebackSessionForTests.set_allow_db_access(session, False)
         ti = dr.get_task_instance(task_id="do_something_else", map_index=3, session=session)
 
         assert completed == expect_completed

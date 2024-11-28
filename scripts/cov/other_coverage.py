@@ -71,7 +71,6 @@ other_tests = [
 """
 Other tests to potentially run against the source_file packages:
 
-    "tests/api_internal",
     "tests/auth",
     "tests/callbacks",
     "tests/charts",
