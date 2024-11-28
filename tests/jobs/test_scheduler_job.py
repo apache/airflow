@@ -6302,11 +6302,13 @@ class TestSchedulerJob:
 
         asset1 = Asset(name=asset1_name, uri="s3://bucket/key/1", extra=asset_extra)
         asset1_1 = Asset(name=asset1_name, uri="it's duplicate", extra=asset_extra)
-        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=[asset1, asset1_1])
+        asset1_2 = Asset(name="it's also a duplicate", uri="s3://bucket/key/1", extra=asset_extra)
+        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=[asset1, asset1_1, asset1_2])
 
         DAG.bulk_write_to_db([dag1], session=session)
 
         asset_models = session.scalars(select(AssetModel)).all()
+        assert len(asset_models) == 3
 
         SchedulerJobRunner._activate_referenced_assets(asset_models, session=session)
         session.flush()
@@ -6317,8 +6319,10 @@ class TestSchedulerJob:
             )
         )
         assert dag_warning.message == (
-            "Cannot activate asset AssetModel(name='asset1', uri=\"it's duplicate\", extra={'foo': 'bar'}); "
-            "name is already associated to 's3://bucket/key/1'"
+            'Cannot activate asset AssetModel(name="it\'s also a duplicate",'
+            " uri='s3://bucket/key/1', extra={'foo': 'bar'}); uri is already associated to 'asset1'\n"
+            "Cannot activate asset AssetModel(name='asset1', uri"
+            "=\"it's duplicate\", extra={'foo': 'bar'}); name is already associated to 's3://bucket/key/1'"
         )
 
     def test_activate_referenced_assets_with_existing_warnings(self, session):
