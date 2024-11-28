@@ -56,12 +56,6 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to run only latest version checks (true/false)"
         required: true
         type: string
-      enable-aip-44:
-        description: "Whether to enable AIP-44 (true/false)"
-        required: true
-        type: string
-env:
-  AIRFLOW_ENABLE_AIP_44: "${{ inputs.enable-aip-44 }}"
 jobs:
   run-breeze-tests:
     timeout-minutes: 10

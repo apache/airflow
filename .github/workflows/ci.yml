@@ -187,8 +187,6 @@ jobs:
       skip-pre-commits: ${{needs.build-info.outputs.skip-pre-commits}}
       canary-run: ${{needs.build-info.outputs.canary-run}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
-      enable-aip-44: "false"
-
   build-ci-images:
     name: >
       ${{ needs.build-info.outputs.in-workflow-build == 'true' && 'Build' || 'Skip building' }}
