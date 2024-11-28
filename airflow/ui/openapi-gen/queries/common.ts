@@ -6,6 +6,7 @@ import {
   BackfillService,
   ConfigService,
   ConnectionService,
+  DagParsingService,
   DagRunService,
   DagService,
   DagSourceService,
@@ -1628,6 +1629,9 @@ export type BackfillServiceUnpauseBackfillMutationResult = Awaited<
 >;
 export type BackfillServiceCancelBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.cancelBackfill>
+>;
+export type DagParsingServiceReparseDagFileMutationResult = Awaited<
+  ReturnType<typeof DagParsingService.reparseDagFile>
 >;
 export type ConnectionServicePatchConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.patchConnection>

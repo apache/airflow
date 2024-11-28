@@ -2034,6 +2034,12 @@ export type PostVariableData = {
 
 export type PostVariableResponse = VariableResponse;
 
+export type ReparseDagFileData = {
+  fileToken: string;
+};
+
+export type ReparseDagFileResponse = null;
+
 export type GetHealthResponse = HealthInfoSchema;
 
 export type GetVersionResponse = VersionInfo;
@@ -4308,6 +4314,33 @@ export type $OpenApiTs = {
          * Forbidden
          */
         403: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/parseDagFile/{file_token}": {
+    put: {
+      req: ReparseDagFileData;
+      res: {
+        /**
+         * Successful Response
+         */
+        201: null;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
         /**
          * Validation Error
          */
