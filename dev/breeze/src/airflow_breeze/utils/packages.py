@@ -662,7 +662,7 @@ def get_provider_jinja_context(
         "PROVIDER_DESCRIPTION": provider_details.provider_description,
         "INSTALL_REQUIREMENTS": get_install_requirements(
             provider_id=provider_details.provider_id, version_suffix=version_suffix
-        )[0],
+        ),
         "EXTRAS_REQUIREMENTS": get_package_extras(
             provider_id=provider_details.provider_id, version_suffix=version_suffix
         ),
