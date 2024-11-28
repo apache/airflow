@@ -300,7 +300,7 @@ class PodManager(LoggingMixin):
     def __init__(
         self,
         kube_client: client.CoreV1Api,
-        callbacks: list[KubernetesPodOperatorCallback] | None = None,
+        callbacks: list[type[KubernetesPodOperatorCallback]] | None = None,
     ):
         """
         Create the launcher.

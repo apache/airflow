@@ -315,7 +315,7 @@ class KubernetesPodOperator(BaseOperator):
         is_delete_operator_pod: None | bool = None,
         termination_message_policy: str = "File",
         active_deadline_seconds: int | None = None,
-        callbacks: list[KubernetesPodOperatorCallback] | KubernetesPodOperatorCallback | None = None,
+        callbacks: list[type[KubernetesPodOperatorCallback]] | type[KubernetesPodOperatorCallback] | None = None,
         progress_callback: Callable[[str], None] | None = None,
         logging_interval: int | None = None,
         **kwargs,
