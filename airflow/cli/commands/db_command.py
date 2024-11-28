@@ -29,7 +29,6 @@ from packaging.version import InvalidVersion, parse as parse_version
 from tenacity import Retrying, stop_after_attempt, wait_fixed
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.db import _REVISION_HEADS_MAP
@@ -281,8 +280,6 @@ def shell(args):
 @providers_configuration_loaded
 def check(args):
     """Run a check command that checks if db is available."""
-    if InternalApiConfig.get_use_internal_api():
-        return
     retries: int = args.retry
     retry_delay: int = args.retry_delay
 
