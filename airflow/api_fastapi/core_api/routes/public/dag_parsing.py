@@ -64,4 +64,3 @@ def reparse_dag_file(
 
     parsing_request = DagPriorityParsingRequest(fileloc=path)
     session.add(parsing_request)
-    session.commit()
