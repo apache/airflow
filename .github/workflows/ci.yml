@@ -109,7 +109,8 @@ jobs:
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       postgres-versions: ${{ steps.selective-checks.outputs.postgres-versions }}
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
-      providers-compatibility-checks: ${{ steps.selective-checks.outputs.providers-compatibility-checks }}
+      # yamllint disable rule:line-length
+      providers-compatibility-tests-matrix: ${{ steps.selective-checks.outputs.providers-compatibility-tests-matrix }}
       providers-test-types-list-as-string: >-
         ${{ steps.selective-checks.outputs.providers-test-types-list-as-string }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
@@ -186,8 +187,6 @@ jobs:
       skip-pre-commits: ${{needs.build-info.outputs.skip-pre-commits}}
       canary-run: ${{needs.build-info.outputs.canary-run}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
-      enable-aip-44: "false"
-
   build-ci-images:
     name: >
       ${{ needs.build-info.outputs.in-workflow-build == 'true' && 'Build' || 'Skip building' }}
@@ -296,10 +295,10 @@ jobs:
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
-  static-checks-mypy-docs:
-    name: "Static checks, mypy, docs"
+  ci-image-checks:
+    name: "CI image checks"
     needs: [build-info, wait-for-ci-images]
-    uses: ./.github/workflows/static-checks-mypy-docs.yml
+    uses: ./.github/workflows/ci-image-checks.yml
     secrets: inherit
     with:
       runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
@@ -321,10 +320,13 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       docs-build: ${{ needs.build-info.outputs.docs-build }}
+      needs-api-codegen: ${{ needs.build-info.outputs.needs-api-codegen }}
+      default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
+      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
 
   providers:
-    name: "Provider checks"
-    uses: ./.github/workflows/check-providers.yml
+    name: "Provider packages tests"
+    uses: ./.github/workflows/test-provider-packages.yml
     needs: [build-info, wait-for-ci-images]
     permissions:
       contents: read
@@ -340,7 +342,8 @@ jobs:
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       selected-providers-list-as-string: ${{ needs.build-info.outputs.selected-providers-list-as-string }}
-      providers-compatibility-checks: ${{ needs.build-info.outputs.providers-compatibility-checks }}
+      # yamllint disable rule:line-length
+      providers-compatibility-tests-matrix: ${{ needs.build-info.outputs.providers-compatibility-tests-matrix }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       providers-test-types-list-as-string: ${{ needs.build-info.outputs.providers-test-types-list-as-string }}
@@ -700,7 +703,7 @@ jobs:
       - generate-constraints
       - wait-for-ci-images
       - wait-for-prod-images
-      - static-checks-mypy-docs
+      - ci-image-checks
       - tests-sqlite
       - tests-mysql
       - tests-postgres

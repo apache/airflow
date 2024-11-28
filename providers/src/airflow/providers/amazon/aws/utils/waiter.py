@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import time
+from enum import Enum
 from typing import Callable
 
 from airflow.exceptions import AirflowException
@@ -83,3 +84,22 @@ def get_state(response, keys) -> str:
         if value is not None:
             value = value.get(key, None)
     return value
+
+
+class WaitPolicy(str, Enum):
+    """
+    Used to control the waiting behaviour within EMRClusterJobFlowOperator.
+
+    Choices:
+    - WAIT_FOR_COMPLETION - Will wait for the cluster to report "Running" state
+    - WAIT_FOR_STEPS_COMPLETION - Will wait for the cluster to report "Terminated" state
+    """
+
+    WAIT_FOR_COMPLETION = "wait_for_completion"
+    WAIT_FOR_STEPS_COMPLETION = "wait_for_steps_completion"
+
+
+WAITER_POLICY_NAME_MAPPING: dict[WaitPolicy, str] = {
+    WaitPolicy.WAIT_FOR_COMPLETION: "job_flow_waiting",
+    WaitPolicy.WAIT_FOR_STEPS_COMPLETION: "job_flow_terminated",
+}

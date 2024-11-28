@@ -20,7 +20,7 @@ import ast
 import json
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import (
@@ -62,7 +62,7 @@ class EdgeWorkerState(str, Enum):
     TERMINATING = "terminating"
     """Edge Worker is completing work and stopping."""
     OFFLINE = "offline"
-    """Edge Worker was show down."""
+    """Edge Worker was shut down."""
     UNKNOWN = "unknown"
     """No heartbeat signal from worker for some time, Edge Worker probably down."""
 
@@ -134,7 +134,7 @@ class EdgeWorker(BaseModel, LoggingMixin):
 
     worker_name: str
     state: EdgeWorkerState
-    queues: Optional[List[str]]  # noqa: UP006,UP007 - prevent Sphinx failing
+    queues: Optional[list[str]]  # noqa: UP007 - prevent Sphinx failing
     first_online: datetime
     last_update: Optional[datetime] = None  # noqa: UP007 - prevent Sphinx failing
     jobs_active: int
@@ -148,14 +148,14 @@ class EdgeWorker(BaseModel, LoggingMixin):
     def set_metrics(
         worker_name: str,
         state: EdgeWorkerState,
-        connected: bool,
         jobs_active: int,
         concurrency: int,
-        queues: Optional[List[str]],  # noqa: UP006,UP007 - prevent Sphinx failing
+        free_concurrency: int,
+        queues: list[str] | None,
     ) -> None:
         """Set metric of edge worker."""
         queues = queues if queues else []
-
+        connected = state not in (EdgeWorkerState.UNKNOWN, EdgeWorkerState.OFFLINE)
         Stats.gauge(f"edge_worker.state.{worker_name}", int(connected))
         Stats.gauge(
             "edge_worker.state",
@@ -168,6 +168,9 @@ class EdgeWorker(BaseModel, LoggingMixin):
 
         Stats.gauge(f"edge_worker.concurrency.{worker_name}", concurrency)
         Stats.gauge("edge_worker.concurrency", concurrency, tags={"worker_name": worker_name})
+
+        Stats.gauge(f"edge_worker.free_concurrency.{worker_name}", free_concurrency)
+        Stats.gauge("edge_worker.free_concurrency", free_concurrency, tags={"worker_name": worker_name})
 
         Stats.gauge(
             f"edge_worker.num_queues.{worker_name}",
@@ -185,9 +188,9 @@ class EdgeWorker(BaseModel, LoggingMixin):
         EdgeWorker.set_metrics(
             worker_name=worker_name,
             state=EdgeWorkerState.UNKNOWN,
-            connected=False,
             jobs_active=0,
             concurrency=0,
+            free_concurrency=-1,
             queues=None,
         )
 
@@ -277,9 +280,9 @@ class EdgeWorker(BaseModel, LoggingMixin):
         EdgeWorker.set_metrics(
             worker_name=worker_name,
             state=state,
-            connected=True,
             jobs_active=jobs_active,
             concurrency=int(sysinfo["concurrency"]),
+            free_concurrency=int(sysinfo["free_concurrency"]),
             queues=worker.queues,
         )
         EdgeWorker.assert_version(sysinfo)  #  Exception only after worker state is in the DB

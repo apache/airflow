@@ -27,12 +27,13 @@ import sys
 import tempfile
 import warnings
 from collections import namedtuple
+from collections.abc import Generator
 from datetime import date, datetime, timedelta, timezone as _timezone
 from functools import partial
 from importlib.util import find_spec
 from subprocess import CalledProcessError
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -459,7 +460,6 @@ class TestBranchOperator(BasePythonTest):
         else:
             pytest.fail(f"{self.task_id!r} not found.")
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests logic with clear_task_instances(), this needs DB access
     def test_clear_skipped_downstream_task(self):
         """
         After a downstream task is skipped by BranchPythonOperator, clearing the skipped task
@@ -521,7 +521,6 @@ class TestBranchOperator(BasePythonTest):
         ):
             ti.run()
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, can not run in isolation mode
     @pytest.mark.parametrize(
         "choice,expected_states",
         [
@@ -577,7 +576,6 @@ class TestShortCircuitOperator(BasePythonTest):
     }
     all_success_states = {"short_circuit": State.SUCCESS, "op1": State.SUCCESS, "op2": State.SUCCESS}
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, can not run in isolation mode
     @pytest.mark.parametrize(
         argnames=(
             "callable_return, test_ignore_downstream_trigger_rules, test_trigger_rule, expected_task_states"
@@ -696,7 +694,6 @@ class TestShortCircuitOperator(BasePythonTest):
         assert self.op2.trigger_rule == test_trigger_rule
         self.assert_expected_task_states(dr, expected_task_states)
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests logic with clear_task_instances(), this needs DB access
     def test_clear_skipped_downstream_task(self):
         """
         After a downstream task is skipped by ShortCircuitOperator, clearing the skipped task
@@ -749,7 +746,6 @@ class TestShortCircuitOperator(BasePythonTest):
         assert tis[0].xcom_pull(task_ids=short_op_push_xcom.task_id, key="return_value") == "signature"
         assert tis[0].xcom_pull(task_ids=short_op_no_push_xcom.task_id, key="return_value") is False
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, can not run in isolation mode
     def test_xcom_push_skipped_tasks(self):
         with self.dag_non_serialized:
             short_op_push_xcom = ShortCircuitOperator(
@@ -764,7 +760,6 @@ class TestShortCircuitOperator(BasePythonTest):
             "skipped": ["empty_task"]
         }
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, can not run in isolation mode
     def test_mapped_xcom_push_skipped_tasks(self, session):
         with self.dag_non_serialized:
 
@@ -1816,7 +1811,6 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         else:
             pytest.fail(f"{self.task_id!r} not found.")
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests logic with clear_task_instances(), this needs DB access
     def test_clear_skipped_downstream_task(self):
         """
         After a downstream task is skipped by BranchPythonOperator, clearing the skipped task
@@ -2021,7 +2015,6 @@ DEFAULT_ARGS = {
 }
 
 
-@pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, can not run in isolation mode
 @pytest.mark.usefixtures("clear_db")
 class TestCurrentContextRuntime:
     def test_context_in_task(self):
@@ -2037,7 +2030,6 @@ class TestCurrentContextRuntime:
 
 @pytest.mark.need_serialized_dag(False)
 class TestShortCircuitWithTeardown:
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, mix of pydantic and mock fails
     @pytest.mark.parametrize(
         "ignore_downstream_trigger_rules, with_teardown, should_skip, expected",
         [
@@ -2079,7 +2071,6 @@ class TestShortCircuitWithTeardown:
         else:
             op1.skip.assert_not_called()
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, mix of pydantic and mock fails
     @pytest.mark.parametrize("config", ["sequence", "parallel"])
     def test_short_circuit_with_teardowns_complicated(self, dag_maker, config):
         with dag_maker():
@@ -2107,7 +2098,6 @@ class TestShortCircuitWithTeardown:
             actual_skipped = set(op1.skip.call_args.kwargs["tasks"])
             assert actual_skipped == {s2, op2}
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, mix of pydantic and mock fails
     def test_short_circuit_with_teardowns_complicated_2(self, dag_maker):
         with dag_maker():
             s1 = PythonOperator(task_id="s1", python_callable=print).as_setup()
@@ -2136,7 +2126,6 @@ class TestShortCircuitWithTeardown:
             actual_skipped = set(actual_kwargs["tasks"])
             assert actual_skipped == {op3}
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, mix of pydantic and mock fails
     @pytest.mark.parametrize("level", [logging.DEBUG, logging.INFO])
     def test_short_circuit_with_teardowns_debug_level(self, dag_maker, level, clear_db):
         """

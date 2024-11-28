@@ -31,8 +31,6 @@ from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 
 from tests_common.test_utils.config import conf_vars
 
-pytestmark = pytest.mark.skip_if_database_isolation_mode
-
 
 class FakeExecutor:
     is_single_threaded = False
@@ -155,7 +153,6 @@ class TestExecutorLoader:
             assert isinstance(executors[0], CeleryExecutor)
             assert "CeleryExecutor" in ExecutorLoader.executors
             assert ExecutorLoader.executors["CeleryExecutor"] == executor_name.module_path
-            assert isinstance(executor_loader._loaded_executors[executor_name], CeleryExecutor)
 
     @pytest.mark.parametrize(
         "executor_config",

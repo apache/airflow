@@ -21,18 +21,14 @@ import contextlib
 import os
 import sys
 import tempfile
-from argparse import Namespace
 from unittest import mock
 from unittest.mock import MagicMock, call, patch
 
 import pytest
 
-from airflow.__main__ import configure_internal_api
 from airflow.api_internal.internal_api_call import InternalApiConfig
-from airflow.configuration import conf
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowConfigException
-from airflow.settings import _ENABLE_AIP_44, TracebackSession, is_usage_data_collection_enabled
-from airflow.utils.session import create_session
+from airflow.settings import is_usage_data_collection_enabled
 
 from tests_common.test_utils.config import conf_vars
 
@@ -282,9 +278,12 @@ _local_db_path_error = pytest.raises(AirflowConfigException, match=r"Cannot use 
 def test_sqlite_relative_path(value, expectation):
     from airflow import settings
 
-    with patch("os.environ", {"_AIRFLOW_SKIP_DB_TESTS": "true"}), patch(
-        "airflow.settings.SQL_ALCHEMY_CONN", value
-    ), patch("airflow.settings.Session"), patch("airflow.settings.engine"):
+    with (
+        patch("os.environ", {"_AIRFLOW_SKIP_DB_TESTS": "true"}),
+        patch("airflow.settings.SQL_ALCHEMY_CONN", value),
+        patch("airflow.settings.Session"),
+        patch("airflow.settings.engine"),
+    ):
         with expectation:
             settings.configure_orm()
 
@@ -315,54 +314,6 @@ class TestEngineArgs:
         engine_args = settings.prepare_engine_args()
 
         assert "encoding" not in engine_args
-
-
-@pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
-@conf_vars(
-    {
-        ("core", "database_access_isolation"): "true",
-        ("core", "internal_api_url"): "http://localhost:8888",
-        ("database", "sql_alchemy_conn"): "none://",
-    }
-)
-def test_get_traceback_session_if_aip_44_enabled(clear_internal_api):
-    configure_internal_api(Namespace(subcommand="worker"), conf)
-    assert InternalApiConfig.get_use_internal_api() is True
-
-    with create_session() as session:
-        assert isinstance(session, TracebackSession)
-
-        # no error just to create the "session"
-        # but below, when we try to use, it will raise
-
-        with pytest.raises(
-            RuntimeError,
-            match="TracebackSession object was used but internal API is enabled.",
-        ):
-            session.execute()
-
-
-@pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
-@conf_vars(
-    {
-        ("core", "database_access_isolation"): "true",
-        ("core", "internal_api_url"): "http://localhost:8888",
-        ("database", "sql_alchemy_conn"): "none://",
-    }
-)
-@patch("airflow.utils.session.TracebackSession.__new__")
-def test_create_session_ctx_mgr_no_call_methods(mock_new, clear_internal_api):
-    configure_internal_api(Namespace(subcommand="worker"), conf)
-    m = MagicMock()
-    mock_new.return_value = m
-
-    assert InternalApiConfig.get_use_internal_api() is True
-
-    with create_session() as session:
-        assert isinstance(session, MagicMock)
-        assert session == m
-    method_calls = [x[0] for x in m.method_calls]
-    assert method_calls == []  # commit and close not called when using internal API
 
 
 @pytest.mark.parametrize(

@@ -26,8 +26,9 @@ import logging
 import os
 import sys
 import textwrap
+from collections.abc import Generator
 from contextlib import contextmanager, redirect_stderr, redirect_stdout, suppress
-from typing import TYPE_CHECKING, Generator, Protocol, Union, cast
+from typing import TYPE_CHECKING, Protocol, Union, cast
 
 import pendulum
 from pendulum.parsing.exceptions import ParserError
@@ -299,6 +300,8 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
 
     This can result in the task being started by another host if the executor implementation does.
     """
+    from airflow.executors.base_executor import BaseExecutor
+
     if ti.executor:
         executor = ExecutorLoader.load_executor(ti.executor)
     else:
@@ -306,17 +309,25 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
     executor.job_id = None
     executor.start()
     print("Sending to executor.")
-    executor.queue_task_instance(
-        ti,
-        mark_success=args.mark_success,
-        ignore_all_deps=args.ignore_all_dependencies,
-        ignore_depends_on_past=should_ignore_depends_on_past(args),
-        wait_for_past_depends_before_skipping=(args.depends_on_past == "wait"),
-        ignore_task_deps=args.ignore_dependencies,
-        ignore_ti_state=args.force,
-        pool=args.pool,
-    )
-    executor.heartbeat()
+
+    # TODO: Task-SDK: this is temporary while we migrate the other executors over
+    if executor.queue_workload.__func__ is not BaseExecutor.queue_workload:  # type: ignore[attr-defined]
+        from airflow.executors import workloads
+
+        workload = workloads.ExecuteTask.make(ti, dag_path=dag.relative_fileloc)
+        executor.queue_workload(workload)
+    else:
+        executor.queue_task_instance(
+            ti,
+            mark_success=args.mark_success,
+            ignore_all_deps=args.ignore_all_dependencies,
+            ignore_depends_on_past=should_ignore_depends_on_past(args),
+            wait_for_past_depends_before_skipping=(args.depends_on_past == "wait"),
+            ignore_task_deps=args.ignore_dependencies,
+            ignore_ti_state=args.force,
+            pool=args.pool,
+        )
+        executor.heartbeat()
     executor.end()
 
 

@@ -942,24 +942,20 @@ class TestBeamRunPythonPipelineOperatorAsync:
         ), "Trigger is not a BeamPythonPipelineTrigger"
 
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
-    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
-    def test_async_execute_direct_runner(self, gcs_hook, beam_hook_mock):
+    def test_async_execute_direct_runner(self, beam_hook_mock):
         """
         Test BeamHook is created and the right args are passed to
         start_python_workflow when executing direct runner.
         """
-        gcs_provide_file = gcs_hook.return_value.provide_file
         op = BeamRunPythonPipelineOperator(**self.default_op_kwargs)
         with pytest.raises(TaskDeferred):
             op.execute(context=mock.MagicMock())
         beam_hook_mock.assert_called_once_with(runner=DEFAULT_RUNNER)
-        gcs_provide_file.assert_called_once_with(object_url=PY_FILE)
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
-    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
-    def test_exec_dataflow_runner(self, gcs_hook, dataflow_hook_mock, beam_hook_mock, persist_link_mock):
+    def test_exec_dataflow_runner(self, dataflow_hook_mock, beam_hook_mock, persist_link_mock):
         """
         Test DataflowHook is created and the right args are passed to
         start_python_dataflow when executing Dataflow runner.
@@ -971,7 +967,6 @@ class TestBeamRunPythonPipelineOperatorAsync:
             dataflow_config=dataflow_config,
             **self.default_op_kwargs,
         )
-        gcs_provide_file = gcs_hook.return_value.provide_file
         magic_mock = mock.MagicMock()
         with pytest.raises(TaskDeferred):
             op.execute(context=magic_mock)
@@ -994,7 +989,6 @@ class TestBeamRunPythonPipelineOperatorAsync:
             "region": "us-central1",
             "impersonate_service_account": TEST_IMPERSONATION_ACCOUNT,
         }
-        gcs_provide_file.assert_called_once_with(object_url=PY_FILE)
         persist_link_mock.assert_called_once_with(
             op,
             magic_mock,

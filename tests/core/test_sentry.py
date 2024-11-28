@@ -142,7 +142,6 @@ class TestSentryHook:
 
         importlib.reload(sentry)
 
-    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     def test_add_tagging(self, sentry, task_instance):
         """
@@ -153,7 +152,6 @@ class TestSentryHook:
             for key, value in scope._tags.items():
                 assert value == TEST_SCOPE[key]
 
-    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     @time_machine.travel(CRUMB_DATE)
     def test_add_breadcrumbs(self, sentry, task_instance):

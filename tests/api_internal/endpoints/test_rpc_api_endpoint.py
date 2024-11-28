@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Generator
+from collections.abc import Generator
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
@@ -41,7 +42,7 @@ from tests_common.test_utils.decorators import dont_initialize_flask_app_submodu
 # Note: Sounds a bit strange to disable internal API tests in isolation mode but...
 # As long as the test is modelled to run its own internal API endpoints, it is conflicting
 # to the test setup with a dedicated internal API server.
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 if TYPE_CHECKING:
     from flask import Flask

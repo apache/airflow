@@ -19,7 +19,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook
 from airflow.providers.google.cloud.links.dataprep import DataprepFlowLink, DataprepJobGroupLink

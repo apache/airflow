@@ -18,9 +18,11 @@
 from __future__ import annotations
 
 import datetime
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, NoReturn, Sequence
+from typing import TYPE_CHECKING, Any, NoReturn
 
+from airflow.providers.standard.triggers.temporal import DateTimeTrigger
 from airflow.providers.standard.utils.version_references import AIRFLOW_V_3_0_PLUS
 from airflow.sensors.base import BaseSensorOperator
 
@@ -39,7 +41,6 @@ except ImportError:
         timeout: datetime.timedelta | None = None
 
 
-from airflow.triggers.temporal import DateTimeTrigger
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
@@ -110,7 +111,7 @@ class DateTimeSensorAsync(DateTimeSensor):
     """
 
     start_trigger_args = StartTriggerArgs(
-        trigger_cls="airflow.triggers.temporal.DateTimeTrigger",
+        trigger_cls="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
         trigger_kwargs={"moment": "", "end_from_trigger": False},
         next_method="execute_complete",
         next_kwargs=None,

@@ -114,7 +114,7 @@ if AIRFLOW_V_3_0_PLUS:
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 
@@ -274,9 +274,10 @@ class TestDag:
         ],
     )
     def test_dag_task_custom_weight_strategy(self, cls, expected):
-        with mock_plugin_manager(plugins=[TestPriorityWeightStrategyPlugin]), DAG(
-            "dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"}
-        ) as dag:
+        with (
+            mock_plugin_manager(plugins=[TestPriorityWeightStrategyPlugin]),
+            DAG("dag", schedule=None, start_date=DEFAULT_DATE, default_args={"owner": "owner1"}) as dag,
+        ):
             task = EmptyOperator(
                 task_id="empty_task",
                 weight_rule=cls(),

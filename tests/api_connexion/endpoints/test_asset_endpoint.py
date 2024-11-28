@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import urllib
-from typing import Generator
+from collections.abc import Generator
 from unittest.mock import ANY
 
 import pytest
@@ -43,7 +43,7 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_assets, clear_db_runs
 from tests_common.test_utils.www import _check_last_log
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")

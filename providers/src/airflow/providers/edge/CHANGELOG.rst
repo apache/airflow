@@ -26,6 +26,37 @@
 
 Changelog
 ---------
+0.7.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge worker state is sent as 0 to DB if offline or unknown.``
+
+0.7.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge worker supports concurrency slots feature so that jobs which need more concurrency blocking other jobs beeing executed on the same worker in parallel.``
+
+0.6.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix race that reporting status fails if the task has been cleaned in parallel.``
+
+0.6.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Update jobs or edge workers who have been killed to clean up job table.``
 
 0.6.0pre0
 .........

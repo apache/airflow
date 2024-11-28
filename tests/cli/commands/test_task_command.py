@@ -57,7 +57,7 @@ from tests_common.test_utils.db import clear_db_pools, clear_db_runs
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 if TYPE_CHECKING:
@@ -183,8 +183,9 @@ class TestCliTasks:
         # should be able to find the dag.
         new_file_path = tmp_path / orig_file_path.name
         new_dags_folder = new_file_path.parent
-        with move_back(orig_file_path, new_file_path), conf_vars(
-            {("core", "dags_folder"): new_dags_folder.as_posix()}
+        with (
+            move_back(orig_file_path, new_file_path),
+            conf_vars({("core", "dags_folder"): new_dags_folder.as_posix()}),
         ):
             ser_dag = (
                 session.query(SerializedDagModel)
@@ -418,9 +419,9 @@ class TestCliTasks:
         assert "foo=bar" in output
         assert "AIRFLOW_TEST_MODE=True" in output
 
-    @mock.patch("airflow.triggers.file.os.path.getmtime", return_value=0)
-    @mock.patch("airflow.triggers.file.glob", return_value=["/tmp/test"])
-    @mock.patch("airflow.triggers.file.os.path.isfile", return_value=True)
+    @mock.patch("airflow.providers.standard.triggers.file.os.path.getmtime", return_value=0)
+    @mock.patch("airflow.providers.standard.triggers.file.glob", return_value=["/tmp/test"])
+    @mock.patch("airflow.providers.standard.triggers.file.os.path.isfile", return_value=True)
     @mock.patch("airflow.providers.standard.sensors.filesystem.FileSensor.poke", return_value=False)
     def test_cli_test_with_deferrable_operator(
         self, mock_pock, mock_is_file, mock_glob, mock_getmtime, caplog
@@ -487,11 +488,12 @@ class TestCliTasks:
         from airflow.cli.commands import task_command
 
         with dag_maker(dag_id="test_executor", schedule="@daily") as dag:
-            with mock.patch(
-                "airflow.executors.executor_loader.ExecutorLoader.load_executor"
-            ) as loader_mock, mock.patch(
-                "airflow.executors.executor_loader.ExecutorLoader.get_default_executor"
-            ) as get_default_mock:
+            with (
+                mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock,
+                mock.patch(
+                    "airflow.executors.executor_loader.ExecutorLoader.get_default_executor"
+                ) as get_default_mock,
+            ):
                 EmptyOperator(task_id="task1")
                 EmptyOperator(task_id="task2", executor="foo_executor_alias")
 

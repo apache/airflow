@@ -78,7 +78,7 @@ def get_connection(
             status.HTTP_404_NOT_FOUND, f"The Connection with connection_id: `{connection_id}` was not found"
         )
 
-    return ConnectionResponse.model_validate(connection, from_attributes=True)
+    return connection
 
 
 @connections_router.get(
@@ -92,7 +92,9 @@ def get_connections(
         SortParam,
         Depends(
             SortParam(
-                ["connection_id", "conn_type", "description", "host", "port", "id"], Connection
+                ["conn_id", "conn_type", "description", "host", "port", "id"],
+                Connection,
+                {"connection_id": "conn_id"},
             ).dynamic_depends()
         ),
     ],
@@ -100,8 +102,7 @@ def get_connections(
 ) -> ConnectionCollectionResponse:
     """Get all connection entries."""
     connection_select, total_entries = paginated_select(
-        select=select(Connection),
-        filters=[],
+        statement=select(Connection),
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -111,9 +112,7 @@ def get_connections(
     connections = session.scalars(connection_select)
 
     return ConnectionCollectionResponse(
-        connections=[
-            ConnectionResponse.model_validate(connection, from_attributes=True) for connection in connections
-        ],
+        connections=connections,
         total_entries=total_entries,
     )
 
@@ -143,7 +142,7 @@ def post_connection(
     connection = Connection(**post_body.model_dump(by_alias=True))
     session.add(connection)
 
-    return ConnectionResponse.model_validate(connection, from_attributes=True)
+    return connection
 
 
 @connections_router.patch(
@@ -183,7 +182,7 @@ def patch_connection(
 
     for key, val in data.items():
         setattr(connection, key, val)
-    return ConnectionResponse.model_validate(connection, from_attributes=True)
+    return connection
 
 
 @connections_router.post(
@@ -214,8 +213,6 @@ def test_connection(
         conn = Connection(**data)
         os.environ[conn_env_var] = conn.get_uri()
         test_status, test_message = conn.test_connection()
-        return ConnectionTestResponse.model_validate(
-            {"status": test_status, "message": test_message}, from_attributes=True
-        )
+        return ConnectionTestResponse.model_validate({"status": test_status, "message": test_message})
     finally:
         os.environ.pop(conn_env_var, None)

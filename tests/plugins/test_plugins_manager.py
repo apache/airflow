@@ -73,7 +73,6 @@ def mock_metadata_distribution(mocker):
     return wrapper
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @pytest.mark.db_test
 class TestPluginsRBAC:
     @pytest.fixture(autouse=True)
@@ -146,7 +145,6 @@ class TestPluginsRBAC:
         assert AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "static" == Path(self.app.static_folder).resolve()
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @pytest.mark.db_test
 def test_flaskappbuilder_nomenu_views():
     from tests.plugins.test_plugin import v_nomenu_appbuilder_package
@@ -222,9 +220,10 @@ class TestPluginsManager:
 
             menu_links = [mock.MagicMock()]
 
-        with mock_plugin_manager(
-            plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]
-        ), caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"):
+        with (
+            mock_plugin_manager(plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
             from airflow import plugins_manager
 
             plugins_manager.initialize_web_ui_plugins()
@@ -255,9 +254,10 @@ class TestPluginsManager:
 
             appbuilder_menu_items = [mock.MagicMock()]
 
-        with mock_plugin_manager(
-            plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]
-        ), caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"):
+        with (
+            mock_plugin_manager(plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
             from airflow import plugins_manager
 
             plugins_manager.initialize_web_ui_plugins()
@@ -277,9 +277,10 @@ class TestPluginsManager:
             menu_links = [mock.MagicMock()]
             appbuilder_menu_items = [mock.MagicMock()]
 
-        with mock_plugin_manager(
-            plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]
-        ), caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"):
+        with (
+            mock_plugin_manager(plugins=[AirflowAdminViewsPlugin(), AirflowAdminMenuLinksPlugin()]),
+            caplog.at_level(logging.WARNING, logger="airflow.plugins_manager"),
+        ):
             from airflow import plugins_manager
 
             plugins_manager.initialize_web_ui_plugins()
@@ -302,8 +303,9 @@ class TestPluginsManager:
         mock_entrypoint.load.side_effect = ImportError("my_fake_module not found")
         mock_dist.entry_points = [mock_entrypoint]
 
-        with mock_metadata_distribution(return_value=[mock_dist]), caplog.at_level(
-            logging.ERROR, logger="airflow.plugins_manager"
+        with (
+            mock_metadata_distribution(return_value=[mock_dist]),
+            caplog.at_level(logging.ERROR, logger="airflow.plugins_manager"),
         ):
             load_entrypoint_plugins()
 

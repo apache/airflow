@@ -21,7 +21,8 @@ import collections.abc
 import contextlib
 import copy
 import warnings
-from typing import TYPE_CHECKING, Any, ClassVar, Collection, Iterable, Iterator, Mapping, Sequence, Union
+from collections.abc import Collection, Iterable, Iterator, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, ClassVar, Union
 
 import attr
 import methodtools
@@ -61,7 +62,6 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     import datetime
-    from typing import List
 
     import jinja2  # Slow import.
     import pendulum
@@ -88,7 +88,7 @@ if TYPE_CHECKING:
     from airflow.utils.task_group import TaskGroup
     from airflow.utils.trigger_rule import TriggerRule
 
-    TaskStateChangeCallbackAttrType = Union[None, TaskStateChangeCallback, List[TaskStateChangeCallback]]
+    TaskStateChangeCallbackAttrType = Union[None, TaskStateChangeCallback, list[TaskStateChangeCallback]]
 
 ValidationSource = Union[Literal["expand"], Literal["partial"], Literal["stream"]]
 

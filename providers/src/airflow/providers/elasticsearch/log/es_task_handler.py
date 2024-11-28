@@ -25,7 +25,7 @@ import time
 import warnings
 from collections import defaultdict
 from operator import attrgetter
-from typing import TYPE_CHECKING, Any, Callable, List, Literal, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Literal
 from urllib.parse import quote, urlparse
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
@@ -57,7 +57,7 @@ if TYPE_CHECKING:
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 # Elasticsearch hosted log type
-EsLogMsgType = List[Tuple[str, str]]
+EsLogMsgType = list[tuple[str, str]]
 
 # Compatibility: Airflow 2.3.3 and up uses this method, which accesses the
 # LogTemplate model to record the log ID template used. If this function does

@@ -95,7 +95,6 @@ class TestDagBag:
         non_existing_dag_id = "non_existing_dag_id"
         assert dagbag.get_dag(non_existing_dag_id) is None
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_serialized_dag_not_existing_doesnt_raise(self, tmp_path):
         """
         test that retrieving a non existing dag id returns None without crashing
@@ -453,7 +452,6 @@ class TestDagBag:
         assert dag_id == dag.dag_id
         assert 2 == dagbag.process_file_calls
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_dag_removed_if_serialized_dag_is_removed(self, dag_maker, tmp_path):
         """
         Test that if a DAG does not exist in serialized_dag table (as the DAG file was removed),
@@ -548,7 +546,6 @@ class TestDagBag:
 
         assert [] == dagbag.process_file(None)
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_deactivate_unknown_dags(self):
         """
         Test that dag_ids not passed into deactivate_unknown_dags
@@ -572,7 +569,6 @@ class TestDagBag:
         with create_session() as session:
             session.query(DagModel).filter(DagModel.dag_id == "test_deactivate_unknown_dags").delete()
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_serialized_dags_are_written_to_db_on_sync(self):
         """
         Test that when dagbag.sync_to_db is called the DAGs are Serialized and written to DB
@@ -593,7 +589,6 @@ class TestDagBag:
             new_serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
             assert new_serialized_dags_count == 1
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @patch("airflow.models.serialized_dag.SerializedDagModel.write_dag")
     def test_serialized_dag_errors_are_import_errors(self, mock_serialize, caplog):
         """
@@ -701,7 +696,6 @@ with airflow.DAG(
             ]
         )
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.DagBag._sync_perm_for_dag")
     def test_sync_to_db_syncs_dag_specific_perms_on_update(self, mock_sync_perm_for_dag):
@@ -737,7 +731,6 @@ with airflow.DAG(
             session.commit()
             mock_sync_perm_for_dag.assert_called_once_with(dag, session=session)
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @patch("airflow.www.security_appless.ApplessAirflowSecurityManager")
     def test_sync_perm_for_dag(self, mock_security_manager):
         """
@@ -774,7 +767,6 @@ with airflow.DAG(
                 "test_example_bash_operator", {"Public": {"DAGs": {"can_read"}}}
             )
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @patch("airflow.www.security_appless.ApplessAirflowSecurityManager")
     def test_sync_perm_for_dag_with_dict_access_control(self, mock_security_manager):
         """
@@ -811,7 +803,6 @@ with airflow.DAG(
                 "test_example_bash_operator", {"Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}}
             )
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
     def test_get_dag_with_dag_serialization(self):
@@ -853,7 +844,6 @@ with airflow.DAG(
         assert set(updated_ser_dag_1.tags) == {"example", "example2", "new_tag"}
         assert updated_ser_dag_1_update_time > ser_dag_1_update_time
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
     def test_get_dag_refresh_race_condition(self, session):
@@ -904,7 +894,6 @@ with airflow.DAG(
         assert set(updated_ser_dag.tags) == {"example", "example2", "new_tag"}
         assert updated_ser_dag_update_time > ser_dag_update_time
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_collect_dags_from_db(self):
         """DAGs are collected from Database"""
         db.clear_db_dags()

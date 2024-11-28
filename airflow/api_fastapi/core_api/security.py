@@ -17,12 +17,11 @@
 from __future__ import annotations
 
 from functools import cache
-from typing import Any, Callable
+from typing import Annotated, Any, Callable
 
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from jwt import InvalidTokenError
-from typing_extensions import Annotated
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.auth.managers.base_auth_manager import ResourceMethod

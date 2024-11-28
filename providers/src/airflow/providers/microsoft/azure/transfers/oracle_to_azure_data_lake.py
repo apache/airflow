@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import csv
 import os
+from collections.abc import Sequence
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook

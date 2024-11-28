@@ -44,7 +44,7 @@ from tests_common.test_utils.www import _check_last_log
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
@@ -1079,7 +1079,6 @@ class TestGetDagRunBatchDateFilters(TestDagRunEndpoint):
 
 class TestPostDagRun(TestDagRunEndpoint):
     @time_machine.travel(timezone.utcnow(), tick=False)
-    @pytest.mark.parametrize("logical_date_field_name", ["logical_date"])
     @pytest.mark.parametrize(
         "dag_run_id, logical_date, note, data_interval_start, data_interval_end",
         [
@@ -1101,7 +1100,6 @@ class TestPostDagRun(TestDagRunEndpoint):
     def test_should_respond_200(
         self,
         session,
-        logical_date_field_name,
         dag_run_id,
         logical_date,
         note,
@@ -1117,7 +1115,7 @@ class TestPostDagRun(TestDagRunEndpoint):
 
         request_json = {}
         if logical_date is not None:
-            request_json[logical_date_field_name] = logical_date
+            request_json["logical_date"] = logical_date
         if dag_run_id is not None:
             request_json["dag_run_id"] = dag_run_id
         if data_interval_start is not None:

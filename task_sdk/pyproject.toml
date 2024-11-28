@@ -25,6 +25,7 @@ dependencies = [
     "attrs>=24.2.0",
     "google-re2>=1.1.20240702",
     "httpx>=0.27.0",
+    "jinja2>=3.1.4",
     "methodtools>=0.4.7",
     "msgspec>=0.18.6",
     "psutil>=6.1.0",
@@ -62,11 +63,11 @@ namespace-packages = ["src/airflow"]
 # Pycharm barfs if this "stub" file has future imports
 "src/airflow/__init__.py" = ["I002"]
 
-"src/airflow/sdk/__init__.py" = ["TCH004"]
+"src/airflow/sdk/__init__.py" = ["TC004"]
 
 # msgspec needs types for annotations to be defined, even with future
 # annotations, so disable the "type check only import" for these files
-"src/airflow/sdk/api/datamodels/*.py" = ["TCH001"]
+"src/airflow/sdk/api/datamodels/*.py" = ["TC001"]
 
 # Only the public API should _require_ docstrings on classes
 "!src/airflow/sdk/definitions/*" = ["D101"]
