@@ -79,6 +79,8 @@ export const parseLogs = (
 
   const parsedLines: Array<string> = [];
   const fileSources: Set<string> = new Set();
+  const targetLogLevels: Set<string> = new Set(logLevelFilters);
+  const targetFileSources: Set<string> = new Set(fileSourceFilters);
   const ansiUp = new AnsiUp();
   ansiUp.url_allowlist = {};
 
@@ -87,24 +89,19 @@ export const parseLogs = (
   // Coloring (blue-60 as chakra style, is #0060df) and style such that log group appears like a link
   const logGroupStyle = "color:#0060df;cursor:pointer;font-weight:bold;";
 
+  const regExp = /\[(.*?)\] \{(.*?)\} (.*?) -/;
+  let currentLevel = "";
+  let currentFileSource = "";
   lines.forEach((line) => {
     let parsedLine = line;
-
-    // Apply log level filter.
-    if (
-      logLevelFilters.length > 0 &&
-      logLevelFilters.every((level) => !line.includes(level))
-    ) {
-      return;
-    }
-
-    const regExp = /\[(.*?)\] \{(.*?)\}/;
     const matches = line.match(regExp);
-    let logGroup = "";
+    let fileSource = "";
     if (matches) {
       // Replace UTC with the local timezone.
       const dateTime = matches[1];
-      [logGroup] = matches[2].split(":");
+      [fileSource] = matches[2].split(":");
+      const logLevel = matches[3];
+
       if (dateTime && timezone) {
         // @ts-ignore
         const localDateTime = moment
@@ -115,50 +112,62 @@ export const parseLogs = (
         parsedLine = line.replace(dateTime, localDateTime);
       }
 
-      fileSources.add(logGroup);
+      // The `currentLogLevel` and `currentFileSource` should remain same
+      // until a new `logLevel` or `fileSource` is encountered.
+      currentLevel = logLevel;
+      currentFileSource = fileSource;
     }
 
+    // Apply log level filter.
+    if (logLevelFilters.length > 0 && !targetLogLevels.has(currentLevel)) {
+      return;
+    }
+    if (fileSource) {
+      // Only add file source if it is not empty.
+      fileSources.add(fileSource);
+    }
+    // Apply file source filter.
     if (
-      fileSourceFilters.length === 0 ||
-      fileSourceFilters.some((fileSourceFilter) =>
-        line.includes(fileSourceFilter)
-      )
+      fileSourceFilters.length > 0 &&
+      !targetFileSources.has(currentFileSource)
     ) {
-      parsedLine = highlightByKeywords(
-        parsedLine,
-        errorKeywords,
-        warningKeywords,
-        logGroupStart,
-        logGroupEnd
-      );
-      // for lines with color convert to nice HTML
-      const coloredLine = ansiUp.ansi_to_html(parsedLine);
-
-      // for lines with links, transform to hyperlinks
-      const lineWithHyperlinks = coloredLine
-        .replace(
-          urlRegex,
-          (url) =>
-            `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: blue; text-decoration: underline;">${url}</a>`
-        )
-        .replace(logGroupStart, (textLine) => {
-          const unfoldIdSuffix = "_unfold";
-          const foldIdSuffix = "_fold";
-          const gName = textLine.substring(17);
-          const gId = gName.replace(/\W+/g, "_").toLowerCase();
-          const isFolded = unfoldedLogGroups.indexOf(gId) === -1;
-          const ufDisplay = isFolded ? "" : "display:none;";
-          const unfold = `<span id="${gId}${unfoldIdSuffix}" style="${ufDisplay}${logGroupStyle}"> &#9654; ${gName}</span>`;
-          const fDisplay = isFolded ? "display:none;" : "";
-          const fold = `<span style="${fDisplay}"><span id="${gId}${foldIdSuffix}" style="${logGroupStyle}"> &#9660; ${gName}</span>`;
-          return unfold + fold;
-        })
-        .replace(
-          logGroupEnd,
-          " <span style='color:#0060df;'>&#9650;&#9650;&#9650; Log group end</span></span>"
-        );
-      parsedLines.push(lineWithHyperlinks);
+      return;
     }
+
+    parsedLine = highlightByKeywords(
+      parsedLine,
+      errorKeywords,
+      warningKeywords,
+      logGroupStart,
+      logGroupEnd
+    );
+    // for lines with color convert to nice HTML
+    const coloredLine = ansiUp.ansi_to_html(parsedLine);
+
+    // for lines with links, transform to hyperlinks
+    const lineWithHyperlinks = coloredLine
+      .replace(
+        urlRegex,
+        (url) =>
+          `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: blue; text-decoration: underline;">${url}</a>`
+      )
+      .replace(logGroupStart, (textLine) => {
+        const unfoldIdSuffix = "_unfold";
+        const foldIdSuffix = "_fold";
+        const gName = textLine.substring(17);
+        const gId = gName.replace(/\W+/g, "_").toLowerCase();
+        const isFolded = unfoldedLogGroups.indexOf(gId) === -1;
+        const ufDisplay = isFolded ? "" : "display:none;";
+        const unfold = `<span id="${gId}${unfoldIdSuffix}" style="${ufDisplay}${logGroupStyle}"> &#9654; ${gName}</span>`;
+        const fDisplay = isFolded ? "display:none;" : "";
+        const fold = `<span style="${fDisplay}"><span id="${gId}${foldIdSuffix}" style="${logGroupStyle}"> &#9660; ${gName}</span>`;
+        return unfold + fold;
+      })
+      .replace(
+        logGroupEnd,
+        " <span style='color:#0060df;'>&#9650;&#9650;&#9650; Log group end</span></span>"
+      );
+    parsedLines.push(lineWithHyperlinks);
   });
 
   return {
