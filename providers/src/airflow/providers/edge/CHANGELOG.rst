@@ -34,7 +34,6 @@ Misc
 
 * ``Edge worker state is sent as 0 to DB if offline or unknown.``
 
----------
 0.7.0pre0
 .........
 
