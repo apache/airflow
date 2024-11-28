@@ -23,6 +23,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 import jaydebeapi
+import jpype
 from sqlalchemy.engine import URL
 
 from airflow.exceptions import AirflowException
@@ -148,7 +149,7 @@ class JdbcHook(DbApiHook):
 
     @property
     def sqlalchemy_url(self) -> URL:
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        conn = self.connection
         sqlalchemy_scheme = conn.extra_dejson.get("sqlalchemy_scheme")
         if sqlalchemy_scheme is None:
             raise AirflowException(
@@ -177,7 +178,7 @@ class JdbcHook(DbApiHook):
         return super().get_sqlalchemy_engine(engine_kwargs)
 
     def get_conn(self) -> jaydebeapi.Connection:
-        conn: Connection = self.get_connection(self.get_conn_id())
+        conn: Connection = self.connection
         host: str = conn.host
         login: str = conn.login
         psw: str = conn.password
@@ -197,7 +198,7 @@ class JdbcHook(DbApiHook):
         :param conn: The connection.
         :param autocommit: The connection's autocommit setting.
         """
-        with suppress_and_warn(jaydebeapi.Error):
+        with suppress_and_warn(jaydebeapi.Error, jpype.JException):
             conn.jconn.setAutoCommit(autocommit)
 
     def get_autocommit(self, conn: jaydebeapi.Connection) -> bool:
@@ -209,6 +210,6 @@ class JdbcHook(DbApiHook):
             to True on the connection. False if it is either not set, set to
             False, or the connection does not support auto-commit.
         """
-        with suppress_and_warn(jaydebeapi.Error):
+        with suppress_and_warn(jaydebeapi.Error, jpype.JException):
             return conn.jconn.getAutoCommit()
         return False
