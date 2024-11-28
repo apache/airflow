@@ -36,7 +36,6 @@ from uuid6 import uuid7
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import TaskInstance
-from airflow.sdk.api.datamodels.activities import ExecuteTaskActivity
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeferTask,
@@ -249,19 +248,15 @@ class TestWatchedSubprocess:
         time_machine.move_to(instant, tick=False)
 
         dagfile_path = test_dags_dir / "super_basic_run.py"
-        task_activity = ExecuteTaskActivity(
-            ti=TaskInstance(
-                id=uuid7(),
-                task_id="hello",
-                dag_id="super_basic_run",
-                run_id="c",
-                try_number=1,
-            ),
-            path=dagfile_path,
-            token="",
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id="hello",
+            dag_id="super_basic_run",
+            run_id="c",
+            try_number=1,
         )
         # Assert Exit Code is 0
-        assert supervise(activity=task_activity, server="", dry_run=True) == 0
+        assert supervise(ti=ti, dag_path=dagfile_path, token="", server="", dry_run=True) == 0
 
         # We should have a log from the task!
         assert {
