@@ -293,7 +293,8 @@ class TestWatchedSubprocess:
     def test_state_conflict_on_heartbeat(self, captured_logs, monkeypatch, mocker):
         """
         Test that ensures that the Supervisor does not cause the task to fail if the Task Instance is no longer
-        in the running state.
+        in the running state. Instead, it logs the error and terminates the task process if it
+        might be running in a different state or has already completed -- or running on a different worker.
         """
         import airflow.sdk.execution_time.supervisor
 
@@ -324,6 +325,7 @@ class TestWatchedSubprocess:
                             "current_state": "success",
                         },
                     )
+            # Return a 204 for all other requests like the initial call to mark the task as running
             return httpx.Response(status_code=204)
 
         proc = WatchedSubprocess.start(
@@ -333,7 +335,7 @@ class TestWatchedSubprocess:
             target=subprocess_main,
         )
 
-        # Wait for the subprocess to finish
+        # Wait for the subprocess to finish -- it should have been terminated
         assert proc.wait() == -signal.SIGTERM
 
         # Verify the number of requests made
@@ -345,12 +347,87 @@ class TestWatchedSubprocess:
                     "message": "TI is no longer in the running state and task should terminate",
                     "reason": "not_running",
                 },
-                "event": "Server indicated we shouldn't be running anymore",
+                "event": "Server indicated the task shouldn't be running anymore",
                 "level": "error",
+                "status_code": 409,
                 "logger": "supervisor",
                 "timestamp": mocker.ANY,
             }
         ]
+
+    @pytest.mark.parametrize("captured_logs", [logging.WARNING], indirect=True)
+    def test_heartbeat_failures_handling(self, monkeypatch, mocker, captured_logs, time_machine):
+        """
+        Test that ensures the WatchedSubprocess kills the process after
+        MAX_FAILED_HEARTBEATS are exceeded.
+        """
+        max_failed_heartbeats = 3
+        min_heartbeat_interval = 5
+        monkeypatch.setattr(
+            "airflow.sdk.execution_time.supervisor.MAX_FAILED_HEARTBEATS", max_failed_heartbeats
+        )
+        monkeypatch.setattr(
+            "airflow.sdk.execution_time.supervisor.MIN_HEARTBEAT_INTERVAL", min_heartbeat_interval
+        )
+
+        mock_process = mocker.Mock()
+        mock_process.pid = 12345
+
+        # Mock the client heartbeat method to raise an exception
+        mock_client_heartbeat = mocker.Mock(side_effect=Exception("Simulated heartbeat failure"))
+        client = mocker.Mock()
+        client.task_instances.heartbeat = mock_client_heartbeat
+
+        # Patch the kill method at the class level so we can assert it was called with the correct signal
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+
+        proc = WatchedSubprocess(
+            ti_id=TI_ID,
+            pid=mock_process.pid,
+            stdin=mocker.MagicMock(),
+            client=client,
+            process=mock_process,
+        )
+
+        time_now = tz.datetime(2024, 11, 28, 12, 0, 0)
+        time_machine.move_to(time_now, tick=False)
+
+        # Simulate sending heartbeats and ensure the process gets killed after max retries
+        for i in range(1, max_failed_heartbeats):
+            proc._send_heartbeat_if_needed()
+            assert proc.failed_heartbeats == i  # Increment happens after failure
+            mock_client_heartbeat.assert_called_with(TI_ID, pid=mock_process.pid)
+
+            # Ensure the retry log is present
+            expected_log = {
+                "event": "Failed to send heartbeat. Will be retried",
+                "failed_heartbeats": i,
+                "ti_id": TI_ID,
+                "max_retries": max_failed_heartbeats,
+                "level": "warning",
+                "logger": "supervisor",
+                "timestamp": mocker.ANY,
+                "exception": mocker.ANY,
+            }
+
+            assert expected_log in captured_logs
+
+            # Advance time by `min_heartbeat_interval` to allow the next heartbeat
+            time_machine.shift(min_heartbeat_interval)
+
+        # On the final failure, the process should be killed
+        proc._send_heartbeat_if_needed()
+
+        assert proc.failed_heartbeats == max_failed_heartbeats
+        mock_kill.assert_called_once_with(signal.SIGTERM)
+        mock_client_heartbeat.assert_called_with(TI_ID, pid=mock_process.pid)
+        assert {
+            "event": "Too many failed heartbeats; terminating process",
+            "level": "error",
+            "failed_heartbeats": max_failed_heartbeats,
+            "logger": "supervisor",
+            "timestamp": mocker.ANY,
+        } in captured_logs
 
 
 class TestHandleRequest:

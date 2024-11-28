@@ -31,6 +31,7 @@ import weakref
 from collections.abc import Generator
 from contextlib import suppress
 from datetime import datetime, timezone
+from http import HTTPStatus
 from socket import socket, socketpair
 from typing import TYPE_CHECKING, BinaryIO, Callable, ClassVar, Literal, NoReturn, TextIO, cast, overload
 from uuid import UUID
@@ -69,6 +70,7 @@ log: FilteringBoundLogger = structlog.get_logger(logger_name="supervisor")
 HEARTBEAT_THRESHOLD: int = 30
 # Don't heartbeat more often than this
 MIN_HEARTBEAT_INTERVAL: int = 5
+MAX_FAILED_HEARTBEATS: int = 3
 
 
 @overload
@@ -269,7 +271,13 @@ class WatchedSubprocess:
     _terminal_state: str | None = None
     _final_state: str | None = None
 
-    _last_heartbeat: float = 0
+    _last_successful_heartbeat: float = attrs.field(default=0, init=False)
+    _last_heartbeat_attempt: float = attrs.field(default=0, init=False)
+
+    # After the failure of a heartbeat, we'll increment this counter. If it reaches `MAX_FAILED_HEARTBEATS`, we
+    # will kill the process. This is to handle temporary network issues etc. ensuring that the process
+    # does not hang around forever.
+    failed_heartbeats: int = attrs.field(default=0, init=False)
 
     selector: selectors.BaseSelector = attrs.field(factory=selectors.DefaultSelector)
 
@@ -324,7 +332,7 @@ class WatchedSubprocess:
         # reason)
         try:
             client.task_instances.start(ti.id, pid, datetime.now(tz=timezone.utc))
-            proc._last_heartbeat = time.monotonic()
+            proc._last_successful_heartbeat = time.monotonic()
         except Exception:
             # On any error kill that subprocess!
             proc.kill(signal.SIGKILL)
@@ -427,12 +435,12 @@ class WatchedSubprocess:
 
         This function:
 
-        - Waits for activity on file objects (e.g., subprocess stdout, stderr) using the selector.
+        - Waits for activity on file objects (e.g., subprocess stdout, stderr, logs, requests) using the selector.
         - Processes events triggered on the monitored file objects, such as data availability or EOF.
         - Sends heartbeats to ensure the process is alive and checks if the subprocess has exited.
         """
         while self._exit_code is None or len(self.selector.get_map()):
-            last_heartbeat_ago = time.monotonic() - self._last_heartbeat
+            last_heartbeat_ago = time.monotonic() - self._last_successful_heartbeat
             # Monitor the task to see if it's done. Wait in a syscall (`select`) for as long as possible
             # so we notice the subprocess finishing as quick as we can.
             max_wait_time = max(
@@ -470,7 +478,8 @@ class WatchedSubprocess:
             need_more = socket_handler(key.fileobj)
 
             # If the handler signals that the file object is no longer needed (EOF, closed, etc.)
-            # unregister it from the selector to stop monitoring and close it cleanly.
+            # unregister it from the selector to stop monitoring; `wait()` blocks until all selectors
+            # are removed.
             if not need_more:
                 self.selector.unregister(key.fileobj)
                 key.fileobj.close()  # type: ignore[union-attr]
@@ -487,27 +496,47 @@ class WatchedSubprocess:
     def _send_heartbeat_if_needed(self):
         """Send a heartbeat to the client if heartbeat interval has passed."""
         # Respect the minimum interval between heartbeat attempts
-        if (time.monotonic() - self._last_heartbeat) < MIN_HEARTBEAT_INTERVAL:
+        if (time.monotonic() - self._last_heartbeat_attempt) < MIN_HEARTBEAT_INTERVAL:
             return
 
+        self._last_heartbeat_attempt = time.monotonic()
         try:
             self.client.task_instances.heartbeat(self.ti_id, pid=self._process.pid)
-            self._last_heartbeat = time.monotonic()
-        except ServerResponseError as e:
-            if e.response.status_code == 409:
-                log.error("Server indicated we shouldn't be running anymore", detail=e.detail)
-            elif e.response.status_code == 404:
-                log.error("Task Instance not found")
-            else:
-                # TODO: Handle other errors
-                raise
+            # Update the last heartbeat time on success
+            self._last_successful_heartbeat = time.monotonic()
 
-            # If heartbeating raises an error, kill the subprocess
-            self.kill(signal.SIGTERM)
+            # Reset the counter on success
+            self.failed_heartbeats = 0
+        except ServerResponseError as e:
+            if e.response.status_code in {HTTPStatus.NOT_FOUND, HTTPStatus.CONFLICT}:
+                log.error(
+                    "Server indicated the task shouldn't be running anymore",
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                self.kill(signal.SIGTERM)
+            else:
+                # If we get any other error, we'll just log it and try again next time
+                self._handle_heartbeat_failures()
         except Exception:
-            log.warning("Failed to send heartbeat", exc_info=True)
-            # TODO: If we couldn't heartbeat for X times the interval, kill ourselves
-            pass
+            self._handle_heartbeat_failures()
+
+    def _handle_heartbeat_failures(self):
+        """Increment the failed heartbeats counter and kill the process if too many failures."""
+        self.failed_heartbeats += 1
+        log.warning(
+            "Failed to send heartbeat. Will be retried",
+            failed_heartbeats=self.failed_heartbeats,
+            ti_id=self.ti_id,
+            max_retries=MAX_FAILED_HEARTBEATS,
+            exc_info=True,
+        )
+        # If we've failed to heartbeat too many times, kill the process
+        if self.failed_heartbeats >= MAX_FAILED_HEARTBEATS:
+            log.error(
+                "Too many failed heartbeats; terminating process", failed_heartbeats=self.failed_heartbeats
+            )
+            self.kill(signal.SIGTERM)
 
     @property
     def final_state(self):
