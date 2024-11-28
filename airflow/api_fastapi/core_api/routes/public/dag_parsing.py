@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Annotated
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.responses import Response
 from itsdangerous import BadSignature, URLSafeSerializer
-from sqlalchemy import exc, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.common.db.common import get_session
@@ -40,13 +40,13 @@ dag_parsing_router = AirflowRouter(tags=["DAG Parsing"], prefix="/parseDagFile/{
 
 @dag_parsing_router.put(
     "",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_201_CREATED]),
 )
 def reparse_dag_file(
     file_token: str,
     session: Annotated[Session, Depends(get_session)],
     request: Request,
-) -> Response:
+):
     """Request re-parsing a DAG file."""
     secret_key = request.app.state.secret_key
     auth_s = URLSafeSerializer(secret_key)
@@ -64,9 +64,4 @@ def reparse_dag_file(
 
     parsing_request = DagPriorityParsingRequest(fileloc=path)
     session.add(parsing_request)
-    try:
-        session.commit()
-    except exc.IntegrityError:
-        session.rollback()
-        return Response("Duplicate request", status_code=status.HTTP_201_CREATED)
     return Response(status_code=status.HTTP_201_CREATED)

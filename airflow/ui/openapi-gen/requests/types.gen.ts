@@ -1980,23 +1980,11 @@ export type PostVariableData = {
 
 export type PostVariableResponse = VariableResponse;
 
-export type GetXcomEntryData = {
-  dagId: string;
-  dagRunId: string;
-  deserialize?: boolean;
-  mapIndex?: number;
-  stringify?: boolean;
-  taskId: string;
-  xcomKey: string;
-};
-
-export type GetXcomEntryResponse = XComResponseNative | XComResponseString;
-
 export type ReparseDagFileData = {
   fileToken: string;
 };
 
-export type ReparseDagFileResponse = unknown;
+export type ReparseDagFileResponse = unknown | HTTPExceptionResponse;
 
 export type GetHealthResponse = HealthInfoSchema;
 
@@ -4260,37 +4248,6 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}": {
-    get: {
-      req: GetXcomEntryData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: XComResponseNative | XComResponseString;
-        /**
-         * Bad Request
-         */
-        400: HTTPExceptionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Not Found
-         */
-        404: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
   "/public/parseDagFile/{file_token}": {
     put: {
       req: ReparseDagFileData;
@@ -4299,6 +4256,10 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: unknown;
+        /**
+         * Created
+         */
+        201: HTTPExceptionResponse;
         /**
          * Unauthorized
          */
