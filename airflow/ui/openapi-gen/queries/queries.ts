@@ -11,6 +11,7 @@ import {
   BackfillService,
   ConfigService,
   ConnectionService,
+  DagParsingService,
   DagRunService,
   DagService,
   DagSourceService,
@@ -3172,6 +3173,45 @@ export const useBackfillServiceCancelBackfill = <
     mutationFn: ({ backfillId }) =>
       BackfillService.cancelBackfill({
         backfillId,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Reparse Dag File
+ * Request re-parsing a DAG file.
+ * @param data The data for the request.
+ * @param data.fileToken
+ * @returns null Successful Response
+ * @throws ApiError
+ */
+export const useDagParsingServiceReparseDagFile = <
+  TData = Common.DagParsingServiceReparseDagFileMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        fileToken: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      fileToken: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ fileToken }) =>
+      DagParsingService.reparseDagFile({
+        fileToken,
       }) as unknown as Promise<TData>,
     ...options,
   });

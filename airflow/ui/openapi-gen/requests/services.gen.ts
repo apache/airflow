@@ -172,6 +172,8 @@ import type {
   GetVariablesResponse,
   PostVariableData,
   PostVariableResponse,
+  ReparseDagFileData,
+  ReparseDagFileResponse,
   GetHealthResponse,
   GetVersionResponse,
 } from "./types.gen";
@@ -2958,6 +2960,34 @@ export class VariableService {
       errors: {
         401: "Unauthorized",
         403: "Forbidden",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class DagParsingService {
+  /**
+   * Reparse Dag File
+   * Request re-parsing a DAG file.
+   * @param data The data for the request.
+   * @param data.fileToken
+   * @returns null Successful Response
+   * @throws ApiError
+   */
+  public static reparseDagFile(
+    data: ReparseDagFileData,
+  ): CancelablePromise<ReparseDagFileResponse> {
+    return __request(OpenAPI, {
+      method: "PUT",
+      url: "/public/parseDagFile/{file_token}",
+      path: {
+        file_token: data.fileToken,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
         422: "Validation Error",
       },
     });
