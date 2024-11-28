@@ -20,8 +20,11 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, Field, NonNegativeInt, computed_field, model_validator
 
+from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.models import DagRun
+from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -50,7 +53,7 @@ class DAGRunClearBody(BaseModel):
 class DAGRunResponse(BaseModel):
     """DAG Run serializer for responses."""
 
-    dag_run_id: str | None = Field(alias="run_id")
+    dag_run_id: str | None = Field(validation_alias="run_id")
     dag_id: str
     logical_date: datetime | None
     queued_at: datetime | None
@@ -72,3 +75,50 @@ class DAGRunCollectionResponse(BaseModel):
 
     dag_runs: list[DAGRunResponse]
     total_entries: int
+
+
+class TriggerDAGRunPostBody(BaseModel):
+    """Trigger DAG Run Serializer for POST body."""
+
+    dag_run_id: str | None = None
+    data_interval_start: AwareDatetime | None = None
+    data_interval_end: AwareDatetime | None = None
+
+    conf: dict = Field(default_factory=dict)
+    note: str | None = None
+
+    @model_validator(mode="after")
+    def check_data_intervals(cls, values):
+        if (values.data_interval_start is None) != (values.data_interval_end is None):
+            raise ValueError(
+                "Either both data_interval_start and data_interval_end must be provided or both must be None"
+            )
+        return values
+
+    @model_validator(mode="after")
+    def validate_dag_run_id(self):
+        if not self.dag_run_id:
+            self.dag_run_id = DagRun.generate_run_id(DagRunType.MANUAL, self.logical_date)
+        return self
+
+    # Mypy issue https://github.com/python/mypy/issues/1362
+    @computed_field  # type: ignore[misc]
+    @property
+    def logical_date(self) -> datetime:
+        return timezone.utcnow()
+
+
+class DAGRunsBatchBody(BaseModel):
+    """List DAG Runs body for batch endpoint."""
+
+    order_by: str | None = None
+    page_offset: NonNegativeInt = 0
+    page_limit: NonNegativeInt = 100
+    dag_ids: list[str] | None = None
+    states: list[DagRunState | None] | None = None
+    logical_date_gte: AwareDatetime | None = None
+    logical_date_lte: AwareDatetime | None = None
+    start_date_gte: AwareDatetime | None = None
+    start_date_lte: AwareDatetime | None = None
+    end_date_gte: AwareDatetime | None = None
+    end_date_lte: AwareDatetime | None = None

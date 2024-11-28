@@ -35,6 +35,20 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.0.1
+......
+
+Latest change: 2024-11-24
+
+=================================================================================================  ===========  ===========================================================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================================================================================================
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`4bce3a353a <https://github.com/apache/airflow/commit/4bce3a353accf8709e69b0e71b72bcf333b2bba6>`_  2024-11-18   ``Bugfix KubernetesJobOperator.on_kill() by removing unexpected 'job' argument from the k8s job client method 'delete_namespaced_job' invocation (#44131)``
+`a41feeb5ae <https://github.com/apache/airflow/commit/a41feeb5aedad842be2b0f954e0be30c767dbc5e>`_  2024-11-15   ``Re-queue tassk when they are stuck in queued (#43520)``
+`123dadda0e <https://github.com/apache/airflow/commit/123dadda0e0648ef1412053d1743128333eecb63>`_  2024-11-15   ``Rename execution_date to logical_date across codebase (#43902)``
+=================================================================================================  ===========  ===========================================================================================================================================================
+
 10.0.0
 ......
 
@@ -43,6 +57,7 @@ Latest change: 2024-11-14
 =================================================================================================  ===========  ================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
 `66d86f5166 <https://github.com/apache/airflow/commit/66d86f51663718300917a5194eabd20ee67efdb5>`_  2024-11-14   ``Update 'namespace' priority for 'find_pod' function (#43762)``
 `ac4dec163c <https://github.com/apache/airflow/commit/ac4dec163c59fab4f4edffd880720cea70c81b4b>`_  2024-11-12   ``terminate kubernetes watch in case of unknown error (#43645)``
 `6d85a0466d <https://github.com/apache/airflow/commit/6d85a0466d91d501af87c8904b902ea92cee466d>`_  2024-11-09   ``Remove deprecations cncf.kubernetes (#43689)``

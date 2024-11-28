@@ -58,10 +58,7 @@ def get_import_error(
             f"The ImportError with import_error_id: `{import_error_id}` was not found",
         )
 
-    return ImportErrorResponse.model_validate(
-        error,
-        from_attributes=True,
-    )
+    return error
 
 
 @import_error_router.get(
@@ -76,12 +73,12 @@ def get_import_errors(
             SortParam(
                 [
                     "id",
-                    "import_error_id",
                     "timestamp",
                     "filename",
                     "stacktrace",
                 ],
                 ParseImportError,
+                {"import_error_id": "id"},
             ).dynamic_depends()
         ),
     ],
@@ -89,7 +86,7 @@ def get_import_errors(
 ) -> ImportErrorCollectionResponse:
     """Get all import errors."""
     import_errors_select, total_entries = paginated_select(
-        select=select(ParseImportError),
+        statement=select(ParseImportError),
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -98,6 +95,6 @@ def get_import_errors(
     import_errors = session.scalars(import_errors_select)
 
     return ImportErrorCollectionResponse(
-        import_errors=[ImportErrorResponse.model_validate(i, from_attributes=True) for i in import_errors],
+        import_errors=import_errors,
         total_entries=total_entries,
     )

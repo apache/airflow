@@ -54,6 +54,7 @@ from airflow.api_fastapi.core_api.datamodels.dags import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DAG, DagModel, DagTag
+from airflow.models.dagrun import DagRun
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
@@ -73,8 +74,9 @@ def get_dags(
         SortParam,
         Depends(
             SortParam(
-                ["dag_id", "dag_display_name", "next_dagrun", "last_run_state", "last_run_start_date"],
+                ["dag_id", "dag_display_name", "next_dagrun", "state", "start_date"],
                 DagModel,
+                {"last_run_state": DagRun.state, "last_run_start_date": DagRun.start_date},
             ).dynamic_depends()
         ),
     ],
@@ -82,7 +84,7 @@ def get_dags(
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
     dags_select, total_entries = paginated_select(
-        select=dags_select_with_latest_dag_run,
+        statement=dags_select_with_latest_dag_run,
         filters=[
             only_active,
             paused,
@@ -101,7 +103,7 @@ def get_dags(
     dags = session.scalars(dags_select)
 
     return DAGCollectionResponse(
-        dags=[DAGResponse.model_validate(dag, from_attributes=True) for dag in dags],
+        dags=dags,
         total_entries=total_entries,
     )
 
@@ -125,9 +127,9 @@ def get_dag_tags(
     session: Annotated[Session, Depends(get_session)],
 ) -> DAGTagCollectionResponse:
     """Get all DAG tags."""
-    base_select = select(DagTag.name).group_by(DagTag.name)
+    query = select(DagTag.name).group_by(DagTag.name)
     dag_tags_select, total_entries = paginated_select(
-        select=base_select,
+        statement=query,
         filters=[tag_name_pattern],
         order_by=order_by,
         offset=offset,
@@ -162,7 +164,7 @@ def get_dag(dag_id: str, session: Annotated[Session, Depends(get_session)], requ
         if not key.startswith("_") and not hasattr(dag_model, key):
             setattr(dag_model, key, value)
 
-    return DAGResponse.model_validate(dag_model, from_attributes=True)
+    return dag_model
 
 
 @dags_router.get(
@@ -190,7 +192,7 @@ def get_dag_details(
         if not key.startswith("_") and not hasattr(dag_model, key):
             setattr(dag_model, key, value)
 
-    return DAGDetailsResponse.model_validate(dag_model, from_attributes=True)
+    return dag_model
 
 
 @dags_router.patch(
@@ -227,7 +229,7 @@ def patch_dag(
     for key, val in data.items():
         setattr(dag, key, val)
 
-    return DAGResponse.model_validate(dag, from_attributes=True)
+    return dag
 
 
 @dags_router.patch(
@@ -263,7 +265,7 @@ def patch_dags(
         update_mask = ["is_paused"]
 
     dags_select, total_entries = paginated_select(
-        select=dags_select_with_latest_dag_run,
+        statement=dags_select_with_latest_dag_run,
         filters=[only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state],
         order_by=None,
         offset=offset,
@@ -280,7 +282,7 @@ def patch_dags(
     )
 
     return DAGCollectionResponse(
-        dags=[DAGResponse.model_validate(d, from_attributes=True) for d in dags],
+        dags=dags,
         total_entries=total_entries,
     )
 

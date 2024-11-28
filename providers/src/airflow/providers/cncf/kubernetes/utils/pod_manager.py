@@ -22,11 +22,11 @@ import enum
 import json
 import math
 import time
-from collections.abc import Iterable
+from collections.abc import Generator, Iterable
 from contextlib import closing, suppress
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Generator, Protocol, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 import pendulum
 import tenacity
@@ -451,7 +451,10 @@ class PodManager(LoggingMixin):
                                             line=line, client=self._client, mode=ExecutionMode.SYNC
                                         )
                                 if message_to_log is not None:
-                                    self.log.info("[%s] %s", container_name, message_to_log)
+                                    if is_log_group_marker(message_to_log):
+                                        print(message_to_log)
+                                    else:
+                                        self.log.info("[%s] %s", container_name, message_to_log)
                                 last_captured_timestamp = message_timestamp
                                 message_to_log = message
                                 message_timestamp = line_timestamp
@@ -467,7 +470,10 @@ class PodManager(LoggingMixin):
                                 line=line, client=self._client, mode=ExecutionMode.SYNC
                             )
                     if message_to_log is not None:
-                        self.log.info("[%s] %s", container_name, message_to_log)
+                        if is_log_group_marker(message_to_log):
+                            print(message_to_log)
+                        else:
+                            self.log.info("[%s] %s", container_name, message_to_log)
                     last_captured_timestamp = message_timestamp
             except TimeoutError as e:
                 # in case of timeout, increment return time by 2 seconds to avoid
@@ -820,3 +826,8 @@ class OnFinishAction(str, enum.Enum):
     KEEP_POD = "keep_pod"
     DELETE_POD = "delete_pod"
     DELETE_SUCCEEDED_POD = "delete_succeeded_pod"
+
+
+def is_log_group_marker(line: str) -> bool:
+    """Check if the line is a log group marker like `::group::` or `::endgroup::`."""
+    return line.startswith("::group::") or line.startswith("::endgroup::")

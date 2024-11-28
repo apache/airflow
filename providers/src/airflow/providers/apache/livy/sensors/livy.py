@@ -18,7 +18,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.apache.livy.hooks.livy import LivyHook
 from airflow.sensors.base import BaseSensorOperator

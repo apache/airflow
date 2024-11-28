@@ -20,8 +20,8 @@ import ast
 import itertools
 import os
 import re
+from collections.abc import Iterable
 from glob import glob
-from typing import Iterable
 
 from docs.exts.docs_build.docs_builder import ALL_PROVIDER_YAMLS
 from docs.exts.docs_build.errors import DocBuildError

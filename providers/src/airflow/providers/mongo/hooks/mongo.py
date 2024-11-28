@@ -20,7 +20,8 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Any, Iterable, overload
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any, overload
 from urllib.parse import quote_plus, urlunsplit
 
 import pymongo

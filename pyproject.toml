@@ -29,7 +29,7 @@ requires = [
     "pathspec==0.12.1",
     "pluggy==1.5.0",
     "smmap==5.0.1",
-    "tomli==2.1.0; python_version < '3.11'",
+    "tomli==2.2.1; python_version < '3.11'",
     "trove-classifiers==2024.10.21.16",
 ]
 build-backend = "hatchling.build"
@@ -191,14 +191,16 @@ artifacts = [
 ]
 
 ## black settings ##
+# Used to format code examples inside .rst doc files
+# Needed until https://github.com/astral-sh/ruff/issues/8237 is available.
 [tool.black]
 line-length = 110
-target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+target-version = ['py39', 'py310', 'py311', 'py312']
 
 
 ## ruff settings ##
 [tool.ruff]
-target-version = "py38"
+target-version = "py39"
 line-length = 110
 extend-exclude = [
     ".eggs",
@@ -216,7 +218,7 @@ extend-select = [
     "UP", # Pyupgrade
     "ASYNC", # subset of flake8-async rules
     "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
-    "TCH", # Rules around TYPE_CHECKING blocks
+    "TC", # Rules around TYPE_CHECKING blocks
     "G", # flake8-logging-format rules
     "LOG", # flake8-logging rules, most of them autofixable
     "PT", # flake8-pytest-style rules
@@ -260,8 +262,7 @@ ignore = [
     "D203",
     "D212", # Conflicts with D213.  Both can not be enabled.
     "E731", # Do not assign a lambda expression, use a def
-    "TCH003", # Do not move imports from stdlib to TYPE_CHECKING block
-    "PT004", # Fixture does not return anything, add leading underscore
+    "TC003", # Do not move imports from stdlib to TYPE_CHECKING block
     "PT006", # Wrong type of names in @pytest.mark.parametrize
     "PT007", # Wrong type of values in @pytest.mark.parametrize
     "PT013", # silly rule prohibiting e.g. `from pytest import param`
@@ -313,8 +314,8 @@ section-order = [
 testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 
 [tool.ruff.lint.extend-per-file-ignores]
-"airflow/__init__.py" = ["F401", "TCH004", "I002"]
-"airflow/models/__init__.py" = ["F401", "TCH004"]
+"airflow/__init__.py" = ["F401", "TC004", "I002"]
+"airflow/models/__init__.py" = ["F401", "TC004"]
 "airflow/models/sqla_models.py" = ["F401"]
 "providers/src/airflow/providers/__init__.py" = ["I002"]
 "providers/src/airflow/__init__.py" = ["I002"]
@@ -326,12 +327,12 @@ testing = ["dev", "providers.tests", "task_sdk.tests", "tests_common", "tests"]
 # The Pydantic representations of SqlAlchemy Models are not parsed well with Pydantic
 # when __future__.annotations is used so we need to skip them from upgrading
 # Pydantic also require models to be imported during execution
-"airflow/serialization/pydantic/*.py" = ["I002", "UP007", "TCH001"]
+"airflow/serialization/pydantic/*.py" = ["I002", "UP007", "TC001"]
 
 # Failing to detect types and functions used in `Annotated[...]` syntax as required at runtime.
 # Annotated is central for FastAPI dependency injection, skipping rules for FastAPI folders.
-"airflow/api_fastapi/*" = ["TCH001", "TCH002"]
-"tests/api_fastapi/*" = ["TCH001", "TCH002"]
+"airflow/api_fastapi/*" = ["TC001", "TC002"]
+"tests/api_fastapi/*" = ["T001", "TC002"]
 
 # Ignore pydoc style from these
 "*.pyi" = ["D"]

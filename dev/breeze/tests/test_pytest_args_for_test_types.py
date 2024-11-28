@@ -130,7 +130,6 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
                 "tests/template",
                 "tests/testconfig",
                 "tests/timetables",
-                "tests/triggers",
             ],
         ),
         (

@@ -27,8 +27,9 @@ import logging
 import os
 import sys
 import types
+from collections.abc import Iterable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any
 
 from airflow import settings
 from airflow.configuration import conf
@@ -47,8 +48,8 @@ if TYPE_CHECKING:
         import importlib_metadata as metadata
     except ImportError:
         from importlib import metadata  # type: ignore[no-redef]
+    from collections.abc import Generator
     from types import ModuleType
-    from typing import Generator
 
     from airflow.listeners.listener import ListenerManager
     from airflow.timetables.base import Timetable

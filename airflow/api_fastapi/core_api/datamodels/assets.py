@@ -19,8 +19,9 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field, field_validator
 
+from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.utils.log.secrets_masker import redact
 
 
@@ -52,7 +53,9 @@ class AssetResponse(BaseModel):
     """Asset serializer for responses."""
 
     id: int
+    name: str
     uri: str
+    group: str
     extra: dict | None = None
     created_at: datetime
     updated_at: datetime

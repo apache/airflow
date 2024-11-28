@@ -120,7 +120,7 @@ class TestGetPools(TestPoolsEndpoint):
         self, test_client, session, query_params, expected_total_entries, expected_ids
     ):
         self.create_pools()
-        response = test_client.get("/public/pools/", params=query_params)
+        response = test_client.get("/public/pools", params=query_params)
         assert response.status_code == 200
 
         body = response.json()
@@ -327,6 +327,135 @@ class TestPostPool(TestPoolsEndpoint):
         response = test_client.post("/public/pools", json=body)
         assert response.status_code == expected_status_code
 
-        body = response.json()
         assert response.json() == expected_response
         assert session.query(Pool).count() == n_pools + 1
+
+    @pytest.mark.parametrize(
+        "body,first_expected_status_code, first_expected_response, second_expected_status_code, second_expected_response",
+        [
+            (
+                {"name": "my_pool", "slots": 11},
+                201,
+                {
+                    "name": "my_pool",
+                    "slots": 11,
+                    "description": None,
+                    "include_deferred": False,
+                    "occupied_slots": 0,
+                    "running_slots": 0,
+                    "queued_slots": 0,
+                    "scheduled_slots": 0,
+                    "open_slots": 11,
+                    "deferred_slots": 0,
+                },
+                409,
+                {"detail": "Unique constraint violation"},
+            ),
+        ],
+    )
+    def test_should_response_409(
+        self,
+        test_client,
+        session,
+        body,
+        first_expected_status_code,
+        first_expected_response,
+        second_expected_status_code,
+        second_expected_response,
+    ):
+        self.create_pools()
+        n_pools = session.query(Pool).count()
+        response = test_client.post("/public/pools", json=body)
+        assert response.status_code == first_expected_status_code
+        assert response.json() == first_expected_response
+        assert session.query(Pool).count() == n_pools + 1
+        response = test_client.post("/public/pools", json=body)
+        assert response.status_code == second_expected_status_code
+        assert response.json() == second_expected_response
+        assert session.query(Pool).count() == n_pools + 1
+
+
+class TestPostPools(TestPoolsEndpoint):
+    @pytest.mark.parametrize(
+        "body, expected_status_code, expected_response",
+        [
+            (
+                {
+                    "pools": [
+                        {"name": "my_pool", "slots": 11},
+                        {"name": "my_pool2", "slots": 12},
+                    ]
+                },
+                201,
+                {
+                    "pools": [
+                        {
+                            "name": "my_pool",
+                            "slots": 11,
+                            "description": None,
+                            "include_deferred": False,
+                            "occupied_slots": 0,
+                            "running_slots": 0,
+                            "queued_slots": 0,
+                            "scheduled_slots": 0,
+                            "open_slots": 11,
+                            "deferred_slots": 0,
+                        },
+                        {
+                            "name": "my_pool2",
+                            "slots": 12,
+                            "description": None,
+                            "include_deferred": False,
+                            "occupied_slots": 0,
+                            "running_slots": 0,
+                            "queued_slots": 0,
+                            "scheduled_slots": 0,
+                            "open_slots": 12,
+                            "deferred_slots": 0,
+                        },
+                    ],
+                    "total_entries": 2,
+                },
+            ),
+            (
+                {
+                    "pools": [
+                        {"name": "my_pool", "slots": 11},
+                        {"name": POOL1_NAME, "slots": 12},
+                    ]
+                },
+                409,
+                {"detail": "Unique constraint violation"},
+            ),
+            (
+                {
+                    "pools": [
+                        {"name": POOL1_NAME, "slots": 11},
+                        {"name": POOL2_NAME, "slots": 12},
+                    ]
+                },
+                409,
+                {"detail": "Unique constraint violation"},
+            ),
+            (
+                {
+                    "pools": [
+                        {"name": "my_pool", "slots": 11},
+                        {"name": "my_pool", "slots": 12},
+                    ]
+                },
+                409,
+                {"detail": "Unique constraint violation"},
+            ),
+        ],
+    )
+    def test_post_pools(self, test_client, session, body, expected_status_code, expected_response):
+        self.create_pools()
+        n_pools = session.query(Pool).count()
+        response = test_client.post("/public/pools/bulk", json=body)
+        assert response.status_code == expected_status_code
+        assert response.json() == expected_response
+        if expected_status_code == 201:
+            assert session.query(Pool).count() == n_pools + 2
+        else:
+            assert session.query(Pool).count() == n_pools

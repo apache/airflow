@@ -32,7 +32,7 @@ from collections.abc import Generator
 from contextlib import suppress
 from datetime import datetime, timezone
 from socket import socket, socketpair
-from typing import TYPE_CHECKING, BinaryIO, Callable, ClassVar, Literal, NoReturn, cast, overload
+from typing import TYPE_CHECKING, BinaryIO, Callable, ClassVar, Literal, NoReturn, TextIO, cast, overload
 from uuid import UUID
 
 import attrs
@@ -43,10 +43,12 @@ import structlog
 from pydantic import TypeAdapter
 
 from airflow.sdk.api.client import Client
-from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
+from airflow.sdk.api.datamodels._generated import IntermediateTIState, TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
+    DeferTask,
     GetConnection,
     GetVariable,
+    GetXCom,
     StartupDetails,
     ToSupervisor,
 )
@@ -131,17 +133,17 @@ def _reopen_std_io_handles(child_stdin, child_stdout, child_stderr):
     # Ensure that sys.stdout et al (and the underlying filehandles for C libraries etc) are connected to the
     # pipes from the supervisor
 
-    for handle_name, sock, mode, close in (
-        ("stdin", child_stdin, "r", True),
-        ("stdout", child_stdout, "w", True),
-        ("stderr", child_stderr, "w", False),
+    for handle_name, sock, mode in (
+        ("stdin", child_stdin, "r"),
+        ("stdout", child_stdout, "w"),
+        ("stderr", child_stderr, "w"),
     ):
         handle = getattr(sys, handle_name)
         try:
             fd = handle.fileno()
             os.dup2(sock.fileno(), fd)
-            if close:
-                handle.close()
+            # dup2 creates another open copy of the fd, we can close the "socket" copy of it.
+            sock.close()
         except io.UnsupportedOperation:
             if "PYTEST_CURRENT_TEST" in os.environ:
                 # When we're running under pytest, the stdin is not a real filehandle with an fd, so we need
@@ -152,6 +154,17 @@ def _reopen_std_io_handles(child_stdin, child_stdout, child_stderr):
         # We can't open text mode fully unbuffered (python throws an exception if we try), but we can make it line buffered with `buffering=1`
         handle = os.fdopen(fd, mode, buffering=1)
         setattr(sys, handle_name, handle)
+
+
+def _get_last_chance_stderr() -> TextIO:
+    stream = sys.__stderr__ or sys.stderr
+
+    try:
+        # We want to open another copy of the underlying filedescriptor if we can, to ensure it stays open!
+        return os.fdopen(os.dup(stream.fileno()), "w", buffering=1)
+    except Exception:
+        # If that didn't work, do the best we can
+        return stream
 
 
 def _fork_main(
@@ -180,7 +193,7 @@ def _fork_main(
     # TODO: Make this process a session leader
 
     # Store original stderr for last-chance exception handling
-    last_chance_stderr = sys.__stderr__ or sys.stderr
+    last_chance_stderr = _get_last_chance_stderr()
 
     _reset_signals()
     if log_fd:
@@ -244,14 +257,14 @@ class WatchedSubprocess:
     pid: int
 
     stdin: BinaryIO
-    stdout: socket
-    stderr: socket
+    """The handle connected to stdin of the child process"""
 
     client: Client
 
     _process: psutil.Process
     _exit_code: int | None = None
     _terminal_state: str | None = None
+    _final_state: str | None = None
 
     _last_heartbeat: float = 0
 
@@ -291,8 +304,6 @@ class WatchedSubprocess:
             ti_id=ti.id,
             pid=pid,
             stdin=feed_stdin,
-            stdout=read_stdout,
-            stderr=read_stderr,
             process=psutil.Process(pid),
             client=client,
         )
@@ -308,17 +319,19 @@ class WatchedSubprocess:
             proc.kill(signal.SIGKILL)
             raise
 
-        proc._register_pipes(read_msgs, read_logs)
+        proc._register_pipe_readers(
+            stdout=read_stdout, stderr=read_stderr, requests=read_msgs, logs=read_logs
+        )
 
         # Close the remaining parent-end of the sockets we've passed to the child via fork. We still have the
         # other end of the pair open
-        proc._close_unused_sockets(child_stdout, child_stdin, child_comms, child_logs)
+        proc._close_unused_sockets(child_stdin, child_stdout, child_stderr, child_comms, child_logs)
 
         # Tell the task process what it needs to do!
         proc._send_startup_message(ti, path, child_comms)
         return proc
 
-    def _register_pipes(self, read_msgs, read_logs):
+    def _register_pipe_readers(self, stdout: socket, stderr: socket, requests: socket, logs: socket):
         """Register handlers for subprocess communication channels."""
         # self.selector is a way of registering a handler/callback to be called when the given IO channel has
         # activity to read on (https://www.man7.org/linux/man-pages/man2/select.2.html etc, but better
@@ -328,21 +341,19 @@ class WatchedSubprocess:
         # TODO: Use logging providers to handle the chunked upload for us
         logger: FilteringBoundLogger = structlog.get_logger(logger_name="task").bind()
 
+        self.selector.register(stdout, selectors.EVENT_READ, self._create_socket_handler(logger, "stdout"))
         self.selector.register(
-            self.stdout, selectors.EVENT_READ, self._create_socket_handler(logger, "stdout")
-        )
-        self.selector.register(
-            self.stderr,
+            stderr,
             selectors.EVENT_READ,
             self._create_socket_handler(logger, "stderr", log_level=logging.ERROR),
         )
         self.selector.register(
-            read_logs,
+            logs,
             selectors.EVENT_READ,
             make_buffered_socket_reader(process_log_messages_from_subprocess(logger)),
         )
         self.selector.register(
-            read_msgs, selectors.EVENT_READ, make_buffered_socket_reader(self.handle_requests(log))
+            requests, selectors.EVENT_READ, make_buffered_socket_reader(self.handle_requests(log))
         )
 
     @staticmethod
@@ -389,9 +400,10 @@ class WatchedSubprocess:
         # If it hasn't, assume it's failed
         self._exit_code = self._exit_code if self._exit_code is not None else 1
 
-        self.client.task_instances.finish(
-            id=self.ti_id, state=self.final_state, when=datetime.now(tz=timezone.utc)
-        )
+        if self.final_state in TerminalTIState:
+            self.client.task_instances.finish(
+                id=self.ti_id, state=self.final_state, when=datetime.now(tz=timezone.utc)
+            )
         return self._exit_code
 
     def _monitor_subprocess(self):
@@ -463,18 +475,30 @@ class WatchedSubprocess:
 
         Not valid before the process has finished.
         """
+        if self._final_state:
+            return self._final_state
         if self._exit_code == 0:
             return self._terminal_state or TerminalTIState.SUCCESS
         return TerminalTIState.FAILED
 
+    @final_state.setter
+    def final_state(self, value):
+        """Setter for final_state for certain task instance stated present in IntermediateTIState."""
+        # TODO: Remove the setter and manage using the final_state property
+        # to be taken in a follow up
+        if value not in TerminalTIState:
+            self._final_state = value
+
     def __rich_repr__(self):
+        yield "ti_id", self.ti_id
         yield "pid", self.pid
+        # only include this if it's not the default (third argument)
         yield "exit_code", self._exit_code, None
 
     __rich_repr__.angular = True  # type: ignore[attr-defined]
 
     def __repr__(self) -> str:
-        rep = f"<WatchedSubprocess pid={self.pid}"
+        rep = f"<WatchedSubprocess ti_id={self.ti_id} pid={self.pid}"
         if self._exit_code is not None:
             rep += f" exit_code={self._exit_code}"
         return rep + " >"
@@ -504,11 +528,19 @@ class WatchedSubprocess:
             elif isinstance(msg, GetVariable):
                 var = self.client.variables.get(msg.key)
                 resp = var.model_dump_json(exclude_unset=True).encode()
+            elif isinstance(msg, GetXCom):
+                xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+                resp = xcom.model_dump_json(exclude_unset=True).encode()
+            elif isinstance(msg, DeferTask):
+                self.final_state = IntermediateTIState.DEFERRED
+                self.client.task_instances.defer(self.ti_id, msg)
+                resp = None
             else:
                 log.error("Unhandled request", msg=msg)
                 continue
 
-            self.stdin.write(resp + b"\n")
+            if resp:
+                self.stdin.write(resp + b"\n")
 
 
 # Sockets, even the `.makefile()` function don't correctly do line buffering on reading. If a chunk is read

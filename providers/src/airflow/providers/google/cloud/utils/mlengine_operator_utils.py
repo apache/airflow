@@ -22,7 +22,8 @@ import base64
 import json
 import os
 import re
-from typing import TYPE_CHECKING, Callable, Iterable, TypeVar
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Callable, TypeVar
 from urllib.parse import urlsplit
 
 import dill

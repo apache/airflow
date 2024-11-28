@@ -18,12 +18,18 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 
 import pendulum
 
-from airflow.triggers.base import BaseTrigger, TaskSuccessEvent, TriggerEvent
+from airflow.exceptions import AirflowException
+from airflow.providers.standard.utils.version_references import AIRFLOW_V_2_10_PLUS
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils import timezone
+
+if AIRFLOW_V_2_10_PLUS:
+    from airflow.triggers.base import TaskSuccessEvent
 
 
 class DateTimeTrigger(BaseTrigger):
@@ -49,11 +55,14 @@ class DateTimeTrigger(BaseTrigger):
             raise ValueError("You cannot pass naive datetimes")
         else:
             self.moment: pendulum.DateTime = timezone.convert_to_utc(moment)
+        if not AIRFLOW_V_2_10_PLUS and end_from_trigger:
+            raise AirflowException("end_from_trigger is only supported in Airflow 2.10 and later. ")
+
         self.end_from_trigger = end_from_trigger
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
-            "airflow.triggers.temporal.DateTimeTrigger",
+            "airflow.providers.standard.triggers.temporal.DateTimeTrigger",
             {"moment": self.moment, "end_from_trigger": self.end_from_trigger},
         )
 

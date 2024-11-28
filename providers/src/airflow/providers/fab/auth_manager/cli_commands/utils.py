@@ -18,9 +18,10 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Generator
 from contextlib import contextmanager
-from functools import lru_cache
-from typing import TYPE_CHECKING, Generator
+from functools import cache
+from typing import TYPE_CHECKING
 
 from flask import Flask
 
@@ -33,7 +34,7 @@ if TYPE_CHECKING:
     from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
-@lru_cache(maxsize=None)
+@cache
 def _return_appbuilder(app: Flask) -> AirflowAppBuilder:
     """Return an appbuilder instance for the given app."""
     init_appbuilder(app)
