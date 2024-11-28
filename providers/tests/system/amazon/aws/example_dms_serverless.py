@@ -45,7 +45,7 @@ from airflow.providers.amazon.aws.operators.rds import (
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 from tests.system.providers.amazon.aws.utils.ec2 import get_default_vpc_id
 
 """
