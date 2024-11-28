@@ -88,7 +88,7 @@ class HttpHook(BaseHook):
         self._retry_obj: Callable[..., Any]
         self._auth_type: Any = auth_type
 
-        if adapter is not None and not isinstance(adapter, HTTPAdapter):
+        if not isinstance(adapter, HTTPAdapter):
             raise TypeError("adapter must be an instance of requests.adapters.HTTPAdapter")
 
         self.adapter = adapter
