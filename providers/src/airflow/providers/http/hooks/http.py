@@ -125,18 +125,13 @@ class HttpHook(BaseHook):
         """
         session = requests.Session()
         connection = self.get_connection(self.http_conn_id)
-
         self._set_base_url(connection)
         session = self._configure_session_from_auth(session, connection)
-
         if connection.extra:
             session = self._configure_session_from_extra(session, connection)
-
         session = self._configure_session_from_mount_adapters(session)
-
         if headers:
             session.headers.update(headers)
-
         return session
 
     def _set_base_url(self, connection: Connection) -> None:
@@ -153,7 +148,9 @@ class HttpHook(BaseHook):
         if not parsed.scheme:
             raise ValueError(f"Invalid base URL: Missing scheme in {self.base_url}")
 
-    def _configure_session_from_auth(self, session: requests.Session, connection: Connection) -> None:
+    def _configure_session_from_auth(
+        self, session: requests.Session, connection: Connection
+    ) -> requests.Session:
         session.auth = self._extract_auth(connection)
         return session
 
@@ -162,8 +159,11 @@ class HttpHook(BaseHook):
             return self.auth_type(connection.login, connection.password)
         elif self._auth_type:
             return self.auth_type()
+        return None
 
-    def _configure_session_from_extra(self, session: requests.Session, connection: Connection) -> None:
+    def _configure_session_from_extra(
+        self, session: requests.Session, connection: Connection
+    ) -> requests.Session:
         extra = connection.extra_dejson
         extra.pop("timeout", None)
         extra.pop("allow_redirects", None)
@@ -179,7 +179,7 @@ class HttpHook(BaseHook):
             self.log.warning("Connection to %s has invalid extra field.", connection.host)
         return session
 
-    def _configure_session_from_mount_adapters(self, session: requests.Session) -> None:
+    def _configure_session_from_mount_adapters(self, session: requests.Session) -> requests.Session:
         scheme = urlparse(self.base_url).scheme
         if not scheme:
             raise ValueError(
@@ -509,5 +509,4 @@ class HttpAsyncHook(BaseHook):
         if exception.status == 413:
             # don't retry for payload Too Large
             return False
-
         return exception.status >= 500
