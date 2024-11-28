@@ -1511,7 +1511,7 @@ class TestStringifiedDAGs:
         Tests serialize_operator, make sure the deps is in order
         """
         from airflow.operators.empty import EmptyOperator
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
         logical_date = datetime(2020, 1, 1)
         with DAG(dag_id="test_deps_sorted", schedule=None, start_date=logical_date) as dag:
@@ -1621,12 +1621,13 @@ class TestStringifiedDAGs:
         assert round_tripped.outlets == []
 
     @pytest.mark.db_test
-    def test_derived_dag_deps_sensor(self):
+    @pytest.mark.parametrize("mapped", [False, True])
+    def test_derived_dag_deps_sensor(self, mapped):
         """
         Tests DAG dependency detection for sensors, including derived classes
         """
         from airflow.operators.empty import EmptyOperator
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
         class DerivedSensor(ExternalTaskSensor):
             pass
@@ -1634,11 +1635,19 @@ class TestStringifiedDAGs:
         logical_date = datetime(2020, 1, 1)
         for class_ in [ExternalTaskSensor, DerivedSensor]:
             with DAG(dag_id="test_derived_dag_deps_sensor", schedule=None, start_date=logical_date) as dag:
-                task1 = class_(
-                    task_id="task1",
-                    external_dag_id="external_dag_id",
-                    mode="reschedule",
-                )
+                if mapped:
+                    task1 = class_.partial(
+                        task_id="task1",
+                        external_dag_id="external_dag_id",
+                        mode="reschedule",
+                    ).expand(external_task_id=["some_task", "some_other_task"])
+                else:
+                    task1 = class_(
+                        task_id="task1",
+                        external_dag_id="external_dag_id",
+                        mode="reschedule",
+                    )
+
                 task2 = EmptyOperator(task_id="task2")
                 task1 >> task2
 
@@ -1657,7 +1666,7 @@ class TestStringifiedDAGs:
         """
         Check that dag_dependencies node is populated correctly for a DAG with duplicate assets.
         """
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
         d1 = Asset("d1")
         d2 = Asset("d2")
@@ -1746,7 +1755,7 @@ class TestStringifiedDAGs:
         """
         Check that dag_dependencies node is populated correctly for a DAG with assets.
         """
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
         d1 = Asset("d1")
         d2 = Asset("d2")
@@ -1806,7 +1815,8 @@ class TestStringifiedDAGs:
         )
         assert actual == expected
 
-    def test_derived_dag_deps_operator(self):
+    @pytest.mark.parametrize("mapped", [False, True])
+    def test_derived_dag_deps_operator(self, mapped):
         """
         Tests DAG dependency detection for operators, including derived classes
         """
@@ -1820,10 +1830,16 @@ class TestStringifiedDAGs:
         for class_ in [TriggerDagRunOperator, DerivedOperator]:
             with DAG(dag_id="test_derived_dag_deps_trigger", schedule=None, start_date=logical_date) as dag:
                 task1 = EmptyOperator(task_id="task1")
-                task2 = class_(
-                    task_id="task2",
-                    trigger_dag_id="trigger_dag_id",
-                )
+                if mapped:
+                    task2 = class_.partial(
+                        task_id="task2",
+                        trigger_dag_id="trigger_dag_id",
+                    ).expand(trigger_run_id=["one", "two"])
+                else:
+                    task2 = class_(
+                        task_id="task2",
+                        trigger_dag_id="trigger_dag_id",
+                    )
                 task1 >> task2
 
             dag = SerializedDAG.to_dict(dag)

@@ -14,16 +14,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from datetime import datetime
+import datetime
+
+from airflow.providers.standard.sensors.date_time import DateTimeSensorAsync
+from airflow.sdk.definitions.dag import dag
+from airflow.utils import timezone
 
 
-def from_datetime_to_zulu(dt: datetime) -> str:
-    """Format a datetime object to a string in Zulu time."""
-    return dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+@dag()
+def super_basic_deferred_run():
+    DateTimeSensorAsync(
+        task_id="async",
+        target_time=str(timezone.utcnow() + datetime.timedelta(seconds=3)),
+        poke_interval=60,
+        timeout=600,
+    )
 
 
-def from_datetime_to_zulu_without_ms(dt: datetime) -> str:
-    """Format a datetime object to a string in Zulu time without milliseconds."""
-    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+super_basic_deferred_run()

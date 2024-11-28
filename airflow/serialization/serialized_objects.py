@@ -121,11 +121,11 @@ log = logging.getLogger(__name__)
 
 _OPERATOR_EXTRA_LINKS: set[str] = {
     "airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunLink",
-    "airflow.sensors.external_task.ExternalDagLink",
+    "airflow.providers.standard.sensors.external_task.ExternalDagLink",
     # Deprecated names, so that existing serialized dags load straight away.
-    "airflow.sensors.external_task.ExternalTaskSensorLink",
+    "airflow.providers.standard.sensors.external_task.ExternalTaskSensorLink",
     "airflow.operators.dagrun_operator.TriggerDagRunLink",
-    "airflow.sensors.external_task_sensor.ExternalTaskSensorLink",
+    "airflow.providers.standard.sensors.external_task_sensor.ExternalTaskSensorLink",
 }
 
 
@@ -1022,7 +1022,7 @@ class DependencyDetector:
     def detect_task_dependencies(task: Operator) -> list[DagDependency]:
         """Detect dependencies caused by tasks."""
         from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
         deps = []
         if isinstance(task, TriggerDagRunOperator):
@@ -1034,10 +1034,36 @@ class DependencyDetector:
                     dependency_id=task.task_id,
                 )
             )
+        elif (
+            isinstance(task, MappedOperator)
+            and issubclass(cast(type[BaseOperator], task.operator_class), TriggerDagRunOperator)
+            and "trigger_dag_id" in task.partial_kwargs
+        ):
+            deps.append(
+                DagDependency(
+                    source=task.dag_id,
+                    target=task.partial_kwargs["trigger_dag_id"],
+                    dependency_type="trigger",
+                    dependency_id=task.task_id,
+                )
+            )
         elif isinstance(task, ExternalTaskSensor):
             deps.append(
                 DagDependency(
                     source=getattr(task, "external_dag_id"),
+                    target=task.dag_id,
+                    dependency_type="sensor",
+                    dependency_id=task.task_id,
+                )
+            )
+        elif (
+            isinstance(task, MappedOperator)
+            and issubclass(cast(type[BaseOperator], task.operator_class), ExternalTaskSensor)
+            and "external_dag_id" in task.partial_kwargs
+        ):
+            deps.append(
+                DagDependency(
+                    source=task.partial_kwargs["external_dag_id"],
                     target=task.dag_id,
                     dependency_type="sensor",
                     dependency_id=task.task_id,
