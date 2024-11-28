@@ -97,8 +97,12 @@ class TestCloudBathHook:
     def test_wait_job_succeeded(self, mock_batch_service_client, state, cloud_batch_hook):
         mock_job = self._mock_job_with_status(state)
         mock_batch_service_client.return_value.get_job.return_value = mock_job
-        actual_job = cloud_batch_hook.wait_for_job("job1")
-        assert actual_job == mock_job
+        if state != JobStatus.State.SUCCEEDED:
+            with pytest.raises(AirflowException):
+                cloud_batch_hook.wait_for_job("job1")
+        else:
+            actual_job = cloud_batch_hook.wait_for_job("job1")
+            assert actual_job == mock_job
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
