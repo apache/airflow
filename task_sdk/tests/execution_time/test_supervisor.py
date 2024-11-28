@@ -20,6 +20,7 @@ from __future__ import annotations
 import inspect
 import logging
 import os
+import selectors
 import signal
 import sys
 from io import BytesIO
@@ -29,6 +30,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
 import httpx
+import psutil
 import pytest
 from uuid6 import uuid7
 
@@ -419,7 +421,7 @@ class TestWatchedSubprocess:
         proc._send_heartbeat_if_needed()
 
         assert proc.failed_heartbeats == max_failed_heartbeats
-        mock_kill.assert_called_once_with(signal.SIGTERM)
+        mock_kill.assert_called_once_with(signal.SIGTERM, force=True)
         mock_client_heartbeat.assert_called_with(TI_ID, pid=mock_process.pid)
         assert {
             "event": "Too many failed heartbeats; terminating process",
@@ -428,6 +430,188 @@ class TestWatchedSubprocess:
             "logger": "supervisor",
             "timestamp": mocker.ANY,
         } in captured_logs
+
+
+class TestWatchedSubprocessKill:
+    @pytest.fixture
+    def mock_process(self, mocker):
+        return mocker.Mock(spec=psutil.Process)
+
+    @pytest.fixture
+    def watched_subprocess(self, mocker, mock_process):
+        proc = WatchedSubprocess(
+            ti_id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            client=mocker.Mock(),
+            process=mock_process,
+        )
+        # Mock the selector
+        mock_selector = mocker.Mock(spec=selectors.DefaultSelector)
+        mock_selector.select.return_value = []
+
+        # Set the selector on the process
+        proc.selector = mock_selector
+        return proc
+
+    @pytest.mark.parametrize(
+        ["signal_to_send", "wait_side_effect", "expected_signals"],
+        [
+            pytest.param(
+                signal.SIGINT,
+                [0],
+                [signal.SIGINT],
+                id="SIGINT-success-without-escalation",
+            ),
+            pytest.param(
+                signal.SIGINT,
+                [psutil.TimeoutExpired(0.1), 0],
+                [signal.SIGINT, signal.SIGTERM],
+                id="SIGINT-escalates-to-SIGTERM",
+            ),
+            pytest.param(
+                signal.SIGINT,
+                [
+                    psutil.TimeoutExpired(0.1),  # SIGINT times out
+                    psutil.TimeoutExpired(0.1),  # SIGTERM times out
+                    0,  # SIGKILL succeeds
+                ],
+                [signal.SIGINT, signal.SIGTERM, signal.SIGKILL],
+                id="SIGINT-escalates-to-SIGTERM-then-SIGKILL",
+            ),
+            pytest.param(
+                signal.SIGTERM,
+                [
+                    psutil.TimeoutExpired(0.1),  # SIGTERM times out
+                    0,  # SIGKILL succeeds
+                ],
+                [signal.SIGTERM, signal.SIGKILL],
+                id="SIGTERM-escalates-to-SIGKILL",
+            ),
+            pytest.param(
+                signal.SIGKILL,
+                [0],
+                [signal.SIGKILL],
+                id="SIGKILL-success-without-escalation",
+            ),
+        ],
+    )
+    def test_force_kill_escalation(
+        self,
+        watched_subprocess,
+        mock_process,
+        mocker,
+        signal_to_send,
+        wait_side_effect,
+        expected_signals,
+    ):
+        """Test escalation path for SIGINT, SIGTERM, and SIGKILL when force=True."""
+        # Mock the process wait method to return the exit code or raise an exception
+        mock_process.wait.side_effect = wait_side_effect
+
+        watched_subprocess.kill(signal_to_send=signal_to_send, escalation_delay=0.1, force=True)
+
+        # Check that the correct signals were sent
+        mock_process.send_signal.assert_has_calls([mocker.call(sig) for sig in expected_signals])
+
+        # Check that the process was waited on for each signal
+        mock_process.wait.assert_has_calls([mocker.call(timeout=0)] * len(expected_signals))
+
+        # Validate `selector.select` calls
+        assert watched_subprocess.selector.select.call_count == len(expected_signals)
+        watched_subprocess.selector.select.assert_has_calls(
+            [mocker.call(timeout=0.1)] * len(expected_signals)
+        )
+
+        assert watched_subprocess._exit_code == 0
+
+    def test_force_kill_with_selector_events(self, watched_subprocess, mock_process, mocker):
+        """Test force escalation with selector events handled during wait."""
+        # Mock selector to return events during escalation
+        mock_key = mocker.Mock()
+        mock_key.fileobj = mocker.Mock()
+
+        # Simulate EOF
+        mock_key.data = mocker.Mock(return_value=False)
+
+        watched_subprocess.selector.select.side_effect = [
+            [(mock_key, None)],  # Event during SIGINT
+            [],  # No event during SIGTERM
+            [(mock_key, None)],  # Event during SIGKILL
+        ]
+
+        mock_process.wait.side_effect = [
+            psutil.TimeoutExpired(0.1),  # SIGINT times out
+            psutil.TimeoutExpired(0.1),  # SIGTERM times out
+            0,  # SIGKILL succeeds
+        ]
+
+        watched_subprocess.kill(signal.SIGINT, escalation_delay=0.1, force=True)
+
+        # Validate selector interactions
+        assert watched_subprocess.selector.select.call_count == 3
+        mock_key.data.assert_has_calls([mocker.call(mock_key.fileobj), mocker.call(mock_key.fileobj)])
+
+        # Validate signal escalation
+        mock_process.send_signal.assert_has_calls(
+            [mocker.call(signal.SIGINT), mocker.call(signal.SIGTERM), mocker.call(signal.SIGKILL)]
+        )
+
+    def test_kill_process_already_exited(self, watched_subprocess, mock_process):
+        """Test behavior when the process has already exited."""
+        mock_process.wait.side_effect = psutil.NoSuchProcess(pid=1234)
+
+        watched_subprocess.kill(signal.SIGINT, force=True)
+
+        mock_process.send_signal.assert_called_once_with(signal.SIGINT)
+        mock_process.wait.assert_called_once()
+        assert watched_subprocess._exit_code == -1
+
+    def test_kill_process_custom_signal(self, watched_subprocess, mock_process):
+        """Test that the process is killed with the correct signal."""
+        signal_to_send = signal.SIGUSR1
+        watched_subprocess.kill(signal_to_send, force=False)
+
+        mock_process.send_signal.assert_called_once_with(signal_to_send)
+        mock_process.wait.assert_called_once_with(timeout=0)
+
+    def test_service_subprocess(self, watched_subprocess, mock_process, mocker):
+        """Test `_service_subprocess` processes selector events and handles subprocess exit."""
+        ## Given
+
+        # Mock file objects and handlers
+        mock_stdout = mocker.Mock()
+        mock_stderr = mocker.Mock()
+
+        # Handlers for stdout and stderr
+        mock_stdout_handler = mocker.Mock(return_value=False)  # Simulate EOF for stdout
+        mock_stderr_handler = mocker.Mock(return_value=True)  # Continue processing for stderr
+
+        # Mock selector to return events
+        mock_key_stdout = mocker.Mock(fileobj=mock_stdout, data=mock_stdout_handler)
+        mock_key_stderr = mocker.Mock(fileobj=mock_stderr, data=mock_stderr_handler)
+        watched_subprocess.selector.select.return_value = [(mock_key_stdout, None), (mock_key_stderr, None)]
+
+        # Mock to simulate process exited successfully
+        mock_process.wait.return_value = 0
+
+        ## Our actual test
+        watched_subprocess._service_subprocess(max_wait_time=1.0)
+
+        ## Validations!
+        # Validate selector interactions
+        watched_subprocess.selector.select.assert_called_once_with(timeout=1.0)
+
+        # Validate handler calls
+        mock_stdout_handler.assert_called_once_with(mock_stdout)
+        mock_stderr_handler.assert_called_once_with(mock_stderr)
+
+        # Validate unregistering and closing of EOF file object
+        watched_subprocess.selector.unregister.assert_called_once_with(mock_stdout)
+        mock_stdout.close.assert_called_once()
+
+        # Validate that `_check_subprocess_exit` is called
+        mock_process.wait.assert_called_once_with(timeout=0)
 
 
 class TestHandleRequest:
