@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
@@ -72,7 +73,7 @@ def test_dags_dir():
 
 
 @pytest.fixture
-def captured_logs():
+def captured_logs(request):
     import structlog
 
     from airflow.sdk.log import configure_logging, reset_logging
@@ -80,6 +81,12 @@ def captured_logs():
     # Use our real log config
     reset_logging()
     configure_logging(enable_pretty_log=False)
+
+    # Get log level from test parameter, defaulting to INFO if not provided
+    log_level = getattr(request, "param", logging.INFO)
+
+    # We want to capture all logs, but we don't want to see them in the test output
+    structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(log_level))
 
     # But we need to replace remove the last processor (the one that turns JSON into text, as we want the
     # event dict for tests)
