@@ -46,7 +46,7 @@ from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3
 from airflow.utils.trigger_rule import TriggerRule
 
 from providers.tests.system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
-from tests.system.providers.amazon.aws.utils.ec2 import get_default_vpc_id
+from providers.tests.system.amazon.aws.utils.ec2 import get_default_vpc_id
 
 """
 This example demonstrates how to use the DMS operators to create a serverless replication task to replicate data
