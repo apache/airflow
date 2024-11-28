@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
 from collections.abc import Sequence
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.configuration import conf
