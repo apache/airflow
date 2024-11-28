@@ -36,6 +36,8 @@ jobs:
   selective-checks:
     name: Selective checks
     runs-on: ["ubuntu-22.04"]
+    env:
+      GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
       needs-python-scans: ${{ steps.selective-checks.outputs.needs-python-scans }}
       needs-javascript-scans: ${{ steps.selective-checks.outputs.needs-javascript-scans }}
