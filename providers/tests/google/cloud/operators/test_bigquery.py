@@ -106,16 +106,13 @@ TEST_FULL_JOB_ID = f"{TEST_GCP_PROJECT_ID}:{TEST_DATASET_LOCATION}:{TEST_JOB_ID_
 TEST_FULL_JOB_ID_2 = f"{TEST_GCP_PROJECT_ID}:{TEST_DATASET_LOCATION}:{TEST_JOB_ID_2}"
 
 
-@pytest.fixture
-def bigquery_job():
-    # Mocking the BigQuery job object
-    job = MagicMock()
-    job.state = "PENDING"  # initial state
-    job.job_id = "12345"
-    job.errors = []
-    job.error_result = None
-    job.reload = MagicMock()
-    return job
+def create_bigquery_job(errors=None, error_result=None, state="DONE"):
+    mock_job = MagicMock()
+    mock_job.errors = errors or []
+    mock_job.error_result = error_result
+    mock_job.state = state
+    mock_job.job_id = "mock-job-id"
+    return mock_job
 
 
 class TestBigQueryCreateEmptyTableOperator:
@@ -1773,8 +1770,8 @@ class TestBigQueryInsertJobOperator:
         op._add_job_labels()
         assert "labels" not in configuration
 
-    def test_handle_error_job_state_done(self, bigquery_job, caplog):
-        caplog.set_level(logging.DEBUG)
+    def test_handle_job_error_raises_on_error_result_or_error(self, caplog):
+        caplog.set_level(logging.ERROR)
         configuration = {
             "query": {
                 "query": "SELECT * FROM any",
@@ -1788,41 +1785,23 @@ class TestBigQueryInsertJobOperator:
             project_id=TEST_GCP_PROJECT_ID,
             job_id="12345",
         )
+        # Test error_result
+        job_with_error_result = create_bigquery_job(error_result="Job failed due to some issue")
+        with pytest.raises(
+            AirflowException, match="BigQuery job mock-job-id failed: Job failed due to some issue"
+        ):
+            op._handle_job_error(job_with_error_result)
 
-        bigquery_job.state = "DONE"
+        # Test errors
+        job_with_error = create_bigquery_job(errors=["Some transient error"])
+        op._handle_job_error(job_with_error)
 
-        op._handle_job_error(bigquery_job)
+        assert "Some transient error" in caplog.text
 
-        # Ensure that job.reload is never called if the state is already "DONE"
-        bigquery_job.reload.assert_not_called()
-        assert f"Job {bigquery_job.job_id} is completed. Checking the job status" in caplog.text
-
-    def test_handle_error_job_state_pending_then_done(self, bigquery_job):
-        configuration = {
-            "query": {
-                "query": "SELECT * FROM any",
-                "useLegacySql": False,
-            },
-        }
-        op = BigQueryInsertJobOperator(
-            task_id="task.with.dots.is.allowed",
-            configuration=configuration,
-            location=TEST_DATASET_LOCATION,
-            project_id=TEST_GCP_PROJECT_ID,
-            job_id="12345",
-        )
-
-        bigquery_job.state = "PENDING"
-        bigquery_job.reload.return_value = None
-
-        def mock_reload(*args, **kwargs):
-            bigquery_job.state = "DONE"
-
-        bigquery_job.reload.side_effect = mock_reload
-
-        op._handle_job_error(bigquery_job)
-
-        bigquery_job.reload.assert_called_once()
+        # Test empty error object
+        job_empty_error = create_bigquery_job(state="RUNNING")
+        with pytest.raises(AirflowException, match="Job failed with state: RUNNING"):
+            op._handle_job_error(job_empty_error)
 
 
 class TestBigQueryIntervalCheckOperator:
