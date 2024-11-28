@@ -20,7 +20,6 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, Request, status
-from fastapi.responses import Response
 from itsdangerous import BadSignature, URLSafeSerializer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -40,13 +39,14 @@ dag_parsing_router = AirflowRouter(tags=["DAG Parsing"], prefix="/parseDagFile/{
 
 @dag_parsing_router.put(
     "",
-    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND, status.HTTP_201_CREATED]),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    status_code=status.HTTP_201_CREATED,
 )
 def reparse_dag_file(
     file_token: str,
     session: Annotated[Session, Depends(get_session)],
     request: Request,
-):
+) -> None:
     """Request re-parsing a DAG file."""
     secret_key = request.app.state.secret_key
     auth_s = URLSafeSerializer(secret_key)
@@ -64,4 +64,4 @@ def reparse_dag_file(
 
     parsing_request = DagPriorityParsingRequest(fileloc=path)
     session.add(parsing_request)
-    return Response(status_code=status.HTTP_201_CREATED)
+    session.commit()

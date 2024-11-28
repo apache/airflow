@@ -2938,8 +2938,7 @@ export class DagParsingService {
    * Request re-parsing a DAG file.
    * @param data The data for the request.
    * @param data.fileToken
-   * @returns unknown Successful Response
-   * @returns HTTPExceptionResponse Created
+   * @returns null Successful Response
    * @throws ApiError
    */
   public static reparseDagFile(

@@ -5572,11 +5572,13 @@ paths:
           type: string
           title: File Token
       responses:
-        '200':
+        '201':
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                type: 'null'
+                title: Response Reparse Dag File
         '401':
           content:
             application/json:
@@ -5589,12 +5591,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Forbidden
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Created
         '404':
           content:
             application/json:

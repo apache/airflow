@@ -1984,7 +1984,7 @@ export type ReparseDagFileData = {
   fileToken: string;
 };
 
-export type ReparseDagFileResponse = unknown | HTTPExceptionResponse;
+export type ReparseDagFileResponse = null;
 
 export type GetHealthResponse = HealthInfoSchema;
 
@@ -4255,11 +4255,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: unknown;
-        /**
-         * Created
-         */
-        201: HTTPExceptionResponse;
+        201: null;
         /**
          * Unauthorized
          */
