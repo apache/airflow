@@ -58,7 +58,6 @@ from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
 from airflow.serialization.serialized_objects import BaseSerialization
-from airflow.settings import _ENABLE_AIP_44
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.context import OutletEventAccessor, OutletEventAccessors
@@ -332,7 +331,6 @@ sample_objects = {
 }
 
 
-@pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 @pytest.mark.parametrize(
     "input, pydantic_class, encoded_type, cmp_func",
     [
@@ -415,8 +413,6 @@ def test_serialize_deserialize_pydantic(input, pydantic_class, encoded_type, cmp
 
 def test_all_pydantic_models_round_trip():
     pytest.importorskip("pydantic", minversion="2.0.0")
-    if not _ENABLE_AIP_44:
-        pytest.skip("AIP-44 is disabled")
     classes = set()
     mods_folder = REPO_ROOT / "airflow/serialization/pydantic"
     for p in mods_folder.iterdir():

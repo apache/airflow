@@ -23,7 +23,6 @@ import pytest
 from sqlalchemy.pool import NullPool
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.exceptions import AirflowConfigException
 
 from tests_common.test_utils.config import conf_vars
@@ -38,16 +37,12 @@ class TestSqlAlchemySettings:
         self.old_engine = settings.engine
         self.old_session = settings.Session
         self.old_conn = settings.SQL_ALCHEMY_CONN
-        InternalApiConfig._use_internal_api = False
-        InternalApiConfig._internal_api_endpoint = ""
         settings.SQL_ALCHEMY_CONN = "mysql+foobar://user:pass@host/dbname?inline=param&another=param"
 
     def teardown_method(self):
         settings.engine = self.old_engine
         settings.Session = self.old_session
         settings.SQL_ALCHEMY_CONN = self.old_conn
-        InternalApiConfig._use_internal_api = False
-        InternalApiConfig._internal_api_endpoint = ""
 
     @patch("airflow.settings.setup_event_handlers")
     @patch("airflow.settings.scoped_session")

@@ -26,7 +26,6 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
-from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowConfigException
 from airflow.settings import is_usage_data_collection_enabled
 
@@ -63,25 +62,6 @@ def task_must_have_owners(task: BaseOperator):
             Current value: {task.owner}'''
         )
 """
-
-
-@pytest.fixture
-def clear_internal_api():
-    InternalApiConfig._use_internal_api = False
-    InternalApiConfig._internal_api_endpoint = ""
-    from airflow import settings
-
-    old_engine = settings.engine
-    old_session = settings.Session
-    old_conn = settings.SQL_ALCHEMY_CONN
-    try:
-        yield
-    finally:
-        InternalApiConfig._use_internal_api = False
-        InternalApiConfig._internal_api_endpoint = ""
-        settings.engine = old_engine
-        settings.Session = old_session
-        settings.SQL_ALCHEMY_CONN = old_conn
 
 
 class SettingsContext:
@@ -328,7 +308,7 @@ class TestEngineArgs:
         (None, "False", False),  # Default env, conf disables
     ],
 )
-def test_usage_data_collection_disabled(env_var, conf_setting, is_enabled, clear_internal_api):
+def test_usage_data_collection_disabled(env_var, conf_setting, is_enabled):
     conf_patch = conf_vars({("usage_data_collection", "enabled"): conf_setting})
 
     if env_var is not None:

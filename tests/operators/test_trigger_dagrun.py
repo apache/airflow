@@ -32,7 +32,6 @@ from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.triggers.external_task import DagStateTrigger
-from airflow.settings import TracebackSessionForTests
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -73,11 +72,9 @@ class TestDagRunOperator:
             session.commit()
 
     def re_sync_triggered_dag_to_db(self, dag, dag_maker):
-        TracebackSessionForTests.set_allow_db_access(dag_maker.session, True)
         dagbag = DagBag(self.f_name, read_dags_from_db=False, include_examples=False)
         dagbag.bag_dag(dag)
         dagbag.sync_to_db(session=dag_maker.session)
-        TracebackSessionForTests.set_allow_db_access(dag_maker.session, False)
 
     def teardown_method(self):
         """Cleanup state after testing in DB."""
