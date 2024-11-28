@@ -18,11 +18,14 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from airflow.providers.microsoft.azure.sensors.msgraph import MSGraphSensor
 from airflow.triggers.base import TriggerEvent
 
 from providers.tests.microsoft.azure.base import Base
 from providers.tests.microsoft.conftest import load_json, mock_json_response
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
 
 class TestMSGraphSensor(Base):
@@ -42,6 +45,33 @@ class TestMSGraphSensor(Base):
 
             results, events = self.execute_operator(sensor)
 
+            assert sensor.path_parameters == {"scanId": "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"}
+            assert isinstance(results, str)
+            assert results == "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"
+            assert len(events) == 1
+            assert isinstance(events[0], TriggerEvent)
+            assert events[0].payload["status"] == "success"
+            assert events[0].payload["type"] == "builtins.dict"
+            assert events[0].payload["response"] == json.dumps(status)
+
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Lambda parameters works in Airflow >= 2.10.0")
+    def test_execute_with_lambda_parameter(self):
+        status = load_json("resources", "status.json")
+        response = mock_json_response(200, status)
+
+        with self.patch_hook_and_request_adapter(response):
+            sensor = MSGraphSensor(
+                task_id="check_workspaces_status",
+                conn_id="powerbi",
+                url="myorg/admin/workspaces/scanStatus/{scanId}",
+                path_parameters=lambda context, jinja_env: {"scanId": "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"},
+                result_processor=lambda context, result: result["id"],
+                timeout=350.0,
+            )
+
+            results, events = self.execute_operator(sensor)
+
+            assert sensor.path_parameters == {"scanId": "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"}
             assert isinstance(results, str)
             assert results == "0a1b1bf3-37de-48f7-9863-ed4cda97a9ef"
             assert len(events) == 1
