@@ -28,7 +28,9 @@ from airflow.api_fastapi.common.db.common import get_session, paginated_select
 from airflow.api_fastapi.common.parameters import (
     OptionalDateTimeQuery,
     QueryAssetDagIdPatternSearch,
+    QueryAssetEventSort,
     QueryAssetIdFilter,
+    QueryAssetSort,
     QueryLimit,
     QueryOffset,
     QuerySourceDagIdFilter,
@@ -36,7 +38,6 @@ from airflow.api_fastapi.common.parameters import (
     QuerySourceRunIdFilter,
     QuerySourceTaskIdFilter,
     QueryUriPatternSearch,
-    SortParam,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.assets import (
@@ -87,10 +88,7 @@ def get_assets(
     offset: QueryOffset,
     uri_pattern: QueryUriPatternSearch,
     dag_ids: QueryAssetDagIdPatternSearch,
-    order_by: Annotated[
-        SortParam,
-        Depends(SortParam(["id", "uri", "created_at", "updated_at"], AssetModel).dynamic_depends()),
-    ],
+    order_by: QueryAssetSort,
     session: Annotated[Session, Depends(get_session)],
 ) -> AssetCollectionResponse:
     """Get assets."""
@@ -121,21 +119,7 @@ def get_assets(
 def get_asset_events(
     limit: QueryLimit,
     offset: QueryOffset,
-    order_by: Annotated[
-        SortParam,
-        Depends(
-            SortParam(
-                [
-                    "source_task_id",
-                    "source_dag_id",
-                    "source_run_id",
-                    "source_map_index",
-                    "timestamp",
-                ],
-                AssetEvent,
-            ).dynamic_depends("timestamp")
-        ),
-    ],
+    order_by: QueryAssetEventSort,
     asset_id: QueryAssetIdFilter,
     source_dag_id: QuerySourceDagIdFilter,
     source_task_id: QuerySourceTaskIdFilter,
