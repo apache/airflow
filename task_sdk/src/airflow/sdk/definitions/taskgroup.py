@@ -146,7 +146,10 @@ class TaskGroup(DAGNode):
         if self.parent_group:
             self.parent_group.add(self)
             if self.parent_group.default_args:
-                self.default_args = {**self.parent_group.default_args, **self.default_args}
+                self.default_args = {
+                    **self.parent_group.default_args,
+                    **self.default_args,
+                }
 
         if self._group_id:
             self.used_group_ids.add(self.group_id)
@@ -235,7 +238,9 @@ class TaskGroup(DAGNode):
             if self.dag:
                 if task.dag is not None and self.dag is not task.dag:
                     raise RuntimeError(
-                        "Cannot mix TaskGroups from different DAGs: %s and %s", self.dag, task.dag
+                        "Cannot mix TaskGroups from different DAGs: %s and %s",
+                        self.dag,
+                        task.dag,
                     )
                 task.dag = self.dag
             if task.children:
@@ -268,7 +273,10 @@ class TaskGroup(DAGNode):
         return self._group_id
 
     def update_relative(
-        self, other: DependencyMixin, upstream: bool = True, edge_modifier: EdgeModifier | None = None
+        self,
+        other: DependencyMixin,
+        upstream: bool = True,
+        edge_modifier: EdgeModifier | None = None,
     ) -> None:
         """
         Override TaskMixin.update_relative.
@@ -463,7 +471,10 @@ class TaskGroup(DAGNode):
         from airflow.serialization.enums import DagAttributeTypes
         from airflow.serialization.serialized_objects import TaskGroupSerialization
 
-        return DagAttributeTypes.TASK_GROUP, TaskGroupSerialization.serialize_task_group(self)
+        return (
+            DagAttributeTypes.TASK_GROUP,
+            TaskGroupSerialization.serialize_task_group(self),
+        )
 
     def hierarchical_alphabetical_sort(self):
         """
@@ -475,7 +486,8 @@ class TaskGroup(DAGNode):
         :return: list of tasks in hierarchical alphabetical order
         """
         return sorted(
-            self.children.values(), key=lambda node: (not isinstance(node, TaskGroup), node.node_id)
+            self.children.values(),
+            key=lambda node: (not isinstance(node, TaskGroup), node.node_id),
         )
 
     def topological_sort(self):
@@ -622,6 +634,7 @@ class MappedTaskGroup(TaskGroup):
         super().__exit__(exc_type, exc_val, exc_tb)
 
 
+# TODO: What do to about that ? (Should it be updated accordingly)?
 def task_group_to_dict(task_item_or_group):
     """Create a nested dict representation of this TaskGroup and its children used to construct the Graph."""
     from airflow.models.abstractoperator import AbstractOperator
