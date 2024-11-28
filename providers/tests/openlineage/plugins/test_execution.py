@@ -42,7 +42,6 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
 # TODO(potiuk): Document that openlineage is not supported in DB isolation mode
-pytestmark = pytest.mark.skip_if_database_isolation_mode
 
 TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)

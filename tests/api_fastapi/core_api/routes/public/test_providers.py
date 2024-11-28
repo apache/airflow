@@ -22,7 +22,7 @@ import pytest
 
 from airflow.providers_manager import ProviderInfo
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 MOCK_PROVIDERS = {
     "apache-airflow-providers-amazon": ProviderInfo(

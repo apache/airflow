@@ -136,7 +136,6 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
     } == schema.dump(instance)
 
 
-@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 def test_serialize_test_dag_detail_schema(url_safe_serializer):
     dag = DAG(
@@ -197,7 +196,6 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
     assert obj == expected
 
 
-@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 def test_serialize_test_dag_with_asset_schedule_detail_schema(url_safe_serializer):
     asset1 = Asset(uri="s3://bucket/obj1")

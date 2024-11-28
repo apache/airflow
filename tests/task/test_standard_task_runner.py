@@ -172,7 +172,6 @@ class TestStandardTaskRunner:
         assert task_runner.return_code() is not None
         mock_read_task_utilization.assert_called()
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.db_test
     def test_notifies_about_start_and_stop(self, tmp_path):
         path_listener_writer = tmp_path / "test_notifies_about_start_and_stop"
@@ -216,7 +215,6 @@ class TestStandardTaskRunner:
             assert f.readline() == "on_task_instance_success\n"
             assert f.readline() == "before_stopping\n"
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.db_test
     def test_notifies_about_fail(self, tmp_path):
         path_listener_writer = tmp_path / "test_notifies_about_fail"
@@ -260,7 +258,6 @@ class TestStandardTaskRunner:
             assert f.readline() == "on_task_instance_failed\n"
             assert f.readline() == "before_stopping\n"
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.db_test
     def test_ol_does_not_block_xcoms(self, tmp_path):
         """
@@ -391,7 +388,6 @@ class TestStandardTaskRunner:
         assert task_runner.return_code() == -9
         assert "running out of memory" in caplog.text
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.db_test
     def test_on_kill(self):
         """
@@ -453,7 +449,6 @@ class TestStandardTaskRunner:
         for process in processes:
             assert not psutil.pid_exists(process.pid), f"{process} is still alive"
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.db_test
     def test_parsing_context(self):
         context_file = Path("/tmp/airflow_parsing_context")

@@ -228,7 +228,6 @@ class TestJob:
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
         assert job.is_alive() is False, "Completed jobs even with recent heartbeat should not be alive"
 
-    @pytest.mark.skip_if_database_isolation_mode
     def test_heartbeat_failed(self, caplog):
         when = timezone.utcnow() - datetime.timedelta(seconds=60)
         mock_session = Mock(name="MockSession")
@@ -268,7 +267,6 @@ class TestJob:
         assert test_job.executor == mock_sequential_executor
         assert test_job.executors == [mock_sequential_executor]
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_heartbeat(self, frozen_sleep, monkeypatch):
         monkeypatch.setattr("airflow.jobs.job.sleep", frozen_sleep)
         with create_session() as session:

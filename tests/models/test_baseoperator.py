@@ -694,7 +694,6 @@ def get_states(dr):
     return dict(ti_dict)
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @pytest.mark.db_test
 def test_teardown_and_fail_stop(dag_maker):
     """
@@ -740,7 +739,6 @@ def test_teardown_and_fail_stop(dag_maker):
     assert states == expected
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @pytest.mark.db_test
 def test_get_task_instances(session):
     import pendulum

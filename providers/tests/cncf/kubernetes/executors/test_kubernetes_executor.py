@@ -65,8 +65,6 @@ from airflow.utils.state import State, TaskInstanceState
 from tests_common.test_utils.compat import BashOperator
 from tests_common.test_utils.config import conf_vars
 
-pytestmark = pytest.mark.skip_if_database_isolation_mode
-
 if __version__.startswith("2."):
     LOGICAL_DATE_KEY = "execution_date"
 else:

@@ -310,7 +310,6 @@ class TestDagParamRuntime:
     def teardown_method(self):
         self.clean_db()
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.db_test
     def test_dag_param_resolves(self, dag_maker):
         """Test dagparam resolves on operator execution"""
@@ -333,7 +332,6 @@ class TestDagParamRuntime:
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == self.VALUE
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.db_test
     def test_dag_param_overwrite(self, dag_maker):
         """Test dag param is overwritten from dagrun config"""
@@ -359,7 +357,6 @@ class TestDagParamRuntime:
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == new_value
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.db_test
     def test_dag_param_default(self, dag_maker):
         """Test dag param is retrieved from default config"""

@@ -29,7 +29,7 @@ from airflow.utils.session import provide_session
 from tests_common.test_utils.compat import ParseImportError
 from tests_common.test_utils.db import clear_db_import_errors
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestErrorSchemaBase:

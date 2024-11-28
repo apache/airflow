@@ -28,7 +28,7 @@ from airflow.models import DagRun, XCom
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module", autouse=True)

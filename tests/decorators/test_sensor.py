@@ -65,7 +65,6 @@ class TestSensorDecorator:
         )
         assert actual_xcom_value == sensor_xcom_value
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_basic_sensor_success_returns_bool(self, dag_maker):
         @task.sensor
         def sensor_f():
@@ -90,7 +89,6 @@ class TestSensorDecorator:
             if ti.task_id == "dummy_f":
                 assert ti.state == State.NONE
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_basic_sensor_failure(self, dag_maker):
         @task.sensor(timeout=0)
         def sensor_f():
@@ -117,7 +115,6 @@ class TestSensorDecorator:
             if ti.task_id == "dummy_f":
                 assert ti.state == State.NONE
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_basic_sensor_failure_returns_bool(self, dag_maker):
         @task.sensor(timeout=0)
         def sensor_f():
@@ -144,7 +141,6 @@ class TestSensorDecorator:
             if ti.task_id == "dummy_f":
                 assert ti.state == State.NONE
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_basic_sensor_soft_fail(self, dag_maker):
         @task.sensor(timeout=0, soft_fail=True)
         def sensor_f():
@@ -169,7 +165,6 @@ class TestSensorDecorator:
             if ti.task_id == "dummy_f":
                 assert ti.state == State.NONE
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_basic_sensor_soft_fail_returns_bool(self, dag_maker):
         @task.sensor(timeout=0, soft_fail=True)
         def sensor_f():
@@ -194,7 +189,6 @@ class TestSensorDecorator:
             if ti.task_id == "dummy_f":
                 assert ti.state == State.NONE
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_basic_sensor_get_upstream_output(self, dag_maker):
         ret_val = 100
         sensor_xcom_value = "xcom_value"

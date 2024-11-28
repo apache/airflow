@@ -22,7 +22,7 @@ import pytest
 
 from tests_common.test_utils.db import clear_db_jobs
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestVersionEndpoint:

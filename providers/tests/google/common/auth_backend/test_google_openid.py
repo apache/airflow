@@ -76,7 +76,6 @@ def admin_user(google_openid_app):
 
 
 @pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="The tests should be skipped for Airflow < 2.9")
-@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 class TestGoogleOpenID:
     @pytest.fixture(autouse=True)

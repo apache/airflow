@@ -44,7 +44,7 @@ from tests_common.test_utils.format_datetime import from_datetime_to_zulu_withou
 
 DEFAULT_DATE = datetime(2020, 6, 11, 18, 0, 0, tzinfo=timezone.utc)
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 def _create_assets(session, num: int = 2) -> None:
