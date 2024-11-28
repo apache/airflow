@@ -22,7 +22,7 @@ cd "$( dirname "${BASH_SOURCE[0]}" )/../../"
 PYTHON_ARG=""
 
 PIP_VERSION="24.3.1"
-UV_VERSION="0.5.4"
+UV_VERSION="0.5.5"
 if [[ ${PYTHON_VERSION=} != "" ]]; then
     PYTHON_ARG="--python=$(which python"${PYTHON_VERSION}") "
 fi
