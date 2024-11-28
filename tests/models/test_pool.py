@@ -35,7 +35,7 @@ from tests_common.test_utils.db import (
     set_default_pool_slots,
 )
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 

@@ -33,7 +33,7 @@ from airflow.www import app as application
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestApp:
