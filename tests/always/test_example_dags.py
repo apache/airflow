@@ -195,7 +195,6 @@ def test_should_be_importable(example: str):
     assert len(dagbag.dag_ids) >= 1
 
 
-@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 @pytest.mark.parametrize("example", example_not_excluded_dags(xfail_db_exception=True))
 def test_should_not_do_database_queries(example: str):

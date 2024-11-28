@@ -77,7 +77,6 @@ class TestSerializedDagModel:
             SDM.write_dag(dag)
         return example_dags
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_write_dag(self):
         """DAGs can be written into database"""
         example_dags = self._write_example_dags()
@@ -124,7 +123,6 @@ class TestSerializedDagModel:
 
         assert len(session.query(DagVersion).all()) == 4
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_serialized_dag_is_updated_if_dag_is_changed(self):
         """Test Serialized DAG is updated if DAG is changed"""
         example_dags = make_example_dags(example_dags_module)
@@ -155,7 +153,6 @@ class TestSerializedDagModel:
         assert s_dag_2.data["dag"]["tags"] == ["example", "example2", "new_tag"]
         assert dag_updated is True
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_serialized_dag_is_updated_if_processor_subdir_changed(self):
         """Test Serialized DAG is updated if processor_subdir is changed"""
         example_dags = make_example_dags(example_dags_module)
@@ -183,7 +180,6 @@ class TestSerializedDagModel:
             assert s_dag.processor_subdir != s_dag_2.processor_subdir
             assert dag_updated is True
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_read_dags(self):
         """DAGs can be read from database."""
         example_dags = self._write_example_dags()
@@ -195,7 +191,6 @@ class TestSerializedDagModel:
             assert serialized_dag.dag_id == dag.dag_id
             assert set(serialized_dag.task_dict) == set(dag.task_dict)
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_read_all_dags_only_picks_the_latest_serdags(self, session):
         example_dags = self._write_example_dags()
         serialized_dags = SDM.read_all_dags()
@@ -208,7 +203,6 @@ class TestSerializedDagModel:
         # assert only the latest SDM is returned
         assert len(sdags) != len(serialized_dags2)
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_bulk_sync_to_db(self):
         dags = [
             DAG("dag_1", schedule=None),
@@ -221,7 +215,6 @@ class TestSerializedDagModel:
         with assert_queries_count(24):
             SDM.bulk_sync_to_db(dags)
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_order_of_dag_params_is_stable(self):
         """
         This asserts that we have logic in place which guarantees the order

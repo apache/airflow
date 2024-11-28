@@ -29,7 +29,7 @@ from airflow.executors import workloads
 from airflow.executors.local_executor import LocalExecutor
 from airflow.utils.state import State
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 # Runtime is fine, we just can't run the tests on macOS
 skip_spawn_mp_start = pytest.mark.skipif(

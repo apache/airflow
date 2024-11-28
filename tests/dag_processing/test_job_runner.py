@@ -159,7 +159,6 @@ class TestDagProcessorJobRunner:
     def clear_parse_import_errors(self):
         clear_db_import_errors()
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.usefixtures("clear_parse_import_errors")
     @conf_vars({("core", "load_examples"): "False"})
     def test_remove_file_clears_import_error(self, tmp_path):
@@ -618,7 +617,6 @@ class TestDagProcessorJobRunner:
             parsing_request_after = session2.query(DagPriorityParsingRequest).get(parsing_request.id)
         assert parsing_request_after is None
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_scan_stale_dags(self):
         """
         Ensure that DAGs are marked inactive when the file is parsed but the
@@ -683,7 +681,6 @@ class TestDagProcessorJobRunner:
             # SerializedDagModel gives history about Dags
             assert serialized_dag_count == 1
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @conf_vars(
         {
             ("core", "load_examples"): "False",
@@ -807,7 +804,6 @@ class TestDagProcessorJobRunner:
         mock_dag_file_processor.kill.assert_not_called()
 
     @conf_vars({("core", "load_examples"): "False"})
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.execution_timeout(10)
     def test_dag_with_system_exit(self):
         """
@@ -849,7 +845,6 @@ class TestDagProcessorJobRunner:
         with create_session() as session:
             assert session.get(DagModel, dag_id) is not None
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @conf_vars({("core", "load_examples"): "False"})
     def test_import_error_with_dag_directory(self, tmp_path):
         TEMP_DAG_FILENAME = "temp_dag.py"
@@ -1029,7 +1024,6 @@ class TestDagProcessorJobRunner:
             any_order=True,
         )
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_refresh_dags_dir_doesnt_delete_zipped_dags(self, tmp_path):
         """Test DagProcessorJobRunner._refresh_dag_dir method"""
         manager = DagProcessorJobRunner(
@@ -1058,7 +1052,6 @@ class TestDagProcessorJobRunner:
         # assert dag still active
         assert dag.get_is_active()
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_refresh_dags_dir_deactivates_deleted_zipped_dags(self, tmp_path):
         """Test DagProcessorJobRunner._refresh_dag_dir method"""
         manager = DagProcessorJobRunner(
@@ -1093,7 +1086,6 @@ class TestDagProcessorJobRunner:
         # assert dag deactivated
         assert not dag.get_is_active()
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_refresh_dags_dir_does_not_interfer_with_dags_outside_its_subdir(self, tmp_path):
         """Test DagProcessorJobRunner._refresh_dag_dir should not update dags outside its processor_subdir"""
 
@@ -1423,7 +1415,6 @@ class TestDagFileProcessorAgent:
 
             assert not os.path.isfile(log_file_loc)
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @conf_vars({("core", "load_examples"): "False"})
     def test_parse_once(self):
         clear_db_serialized_dags()
