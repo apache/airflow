@@ -1366,8 +1366,8 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ]
         for task_instance in expected_response:
             assert task_instance in response.json["task_instances"]
-        assert 6 == len(response.json["task_instances"])
-        assert 0 == failed_dag_runs, 0
+        assert len(response.json["task_instances"]) == 6
+        assert failed_dag_runs == 0
         _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", logical_date=None)
 
     def test_should_respond_200_with_dag_run_id(self, session):
