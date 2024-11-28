@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from pydantic import model_serializer
-
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
@@ -52,7 +50,3 @@ class HealthInfoSchema(BaseModel):
     scheduler: SchedulerInfoSchema
     triggerer: TriggererInfoSchema
     dag_processor: DagProcessorInfoSchema | None = None
-
-    @model_serializer()
-    def serialize(self):
-        return {k: v for k, v in self if not (k == "dag_processor" and v is None)}

@@ -104,8 +104,6 @@ class TestGetHealth(TestMonitorEndpoint):
         assert "unhealthy" == body["metadatabase"]["status"]
         assert body["scheduler"]["latest_scheduler_heartbeat"] is None
 
-
-class TestGetHealthDagProcessorEnabled(TestMonitorEndpoint):
     @mock.patch("airflow.api_fastapi.core_api.routes.public.monitor.get_airflow_health")
     def test_health_with_dag_processor(self, mock_get_airflow_health, test_client):
         mock_get_airflow_health.return_value = {

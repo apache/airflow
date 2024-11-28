@@ -54,11 +54,11 @@ export const Health = () => {
           status={data?.triggerer.status}
           title="Triggerer"
         />
-        {data && "dag_processor" in data ? (
+        {data?.dag_processor ? (
           <HealthTag
             isLoading={isLoading}
-            latestHeartbeat={data.dag_processor?.latest_dag_processor_heartbeat}
-            status={data.dag_processor?.status}
+            latestHeartbeat={data.dag_processor.latest_dag_processor_heartbeat}
+            status={data.dag_processor.status}
             title="Dag Processor"
           />
         ) : undefined}

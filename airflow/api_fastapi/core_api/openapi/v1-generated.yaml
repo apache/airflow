@@ -1901,6 +1901,8 @@ paths:
         in: path
         required: true
         schema:
+          enum:
+          - '~'
           const: '~'
           type: string
           title: Dag Id
@@ -4860,6 +4862,8 @@ paths:
         in: path
         required: true
         schema:
+          enum:
+          - '~'
           const: '~'
           type: string
           title: Dag Id
@@ -4867,6 +4871,8 @@ paths:
         in: path
         required: true
         schema:
+          enum:
+          - '~'
           const: '~'
           type: string
           title: Dag Run Id
@@ -8724,7 +8730,7 @@ components:
       properties:
         __type:
           type: string
-          title: Type
+          title: '  Type'
           default: TimeDelta
         days:
           type: integer
