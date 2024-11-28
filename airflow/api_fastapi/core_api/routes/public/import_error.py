@@ -73,12 +73,12 @@ def get_import_errors(
             SortParam(
                 [
                     "id",
-                    "import_error_id",
                     "timestamp",
                     "filename",
                     "stacktrace",
                 ],
                 ParseImportError,
+                {"import_error_id": "id"},
             ).dynamic_depends()
         ),
     ],
