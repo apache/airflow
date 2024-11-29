@@ -935,6 +935,9 @@ ARG_ASSET_LIST_COLUMNS = Arg(
     default=("name", "uri", "group", "extra"),
 )
 
+ARG_ASSET_NAME = Arg(("--name",), help="Asset name")
+ARG_ASSET_URI = Arg(("--uri",), help="Asset URI")
+
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE,
     ARG_CONN_DESCRIPTION,
@@ -976,6 +979,12 @@ ASSETS_COMMANDS = (
         help="List assets",
         func=lazy_load_command("airflow.cli.commands.asset_command.asset_list"),
         args=(ARG_OUTPUT, ARG_VERBOSE, ARG_ASSET_LIST_COLUMNS),
+    ),
+    ActionCommand(
+        name="details",
+        help="Show asset details",
+        func=lazy_load_command("airflow.cli.commands.asset_command.asset_details"),
+        args=(ARG_ASSET_NAME, ARG_ASSET_URI, ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
 BACKFILL_COMMANDS = (
