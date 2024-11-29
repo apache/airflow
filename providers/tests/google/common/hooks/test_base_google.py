@@ -81,7 +81,7 @@ def _retryable_test_with_temporary_quota_retry(thing):
 class TestQuotaRetry:
     def test_do_nothing_on_non_error(self):
         result = _retryable_test_with_temporary_quota_retry(lambda: 42)
-        assert result, 42
+        assert result == 42
 
     def test_retry_on_exception(self):
         message = "POST https://translation.googleapis.com/language/translate/v2: User Rate Limit Exceeded"

@@ -36,8 +36,6 @@ EMAILS = ["test1@example.com", "test2@example.com"]
 
 send_email_test = mock.MagicMock()
 
-pytestmark = pytest.mark.skip_if_database_isolation_mode
-
 
 class TestEmail:
     def setup_method(self):

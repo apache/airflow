@@ -40,7 +40,7 @@ DEFAULT_TIME = "2020-06-09T13:59:56.336000+00:00"
 
 SECOND_TIME = "2020-06-10T13:59:56.336000+00:00"
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestDAGRunBase:

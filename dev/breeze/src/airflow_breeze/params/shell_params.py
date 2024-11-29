@@ -145,7 +145,6 @@ class ShellParams:
     chicken_egg_providers: str = ""
     clean_airflow_installation: bool = False
     collect_only: bool = False
-    database_isolation: bool = False
     db_reset: bool = False
     default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     dev_mode: bool = False
@@ -544,7 +543,6 @@ class ShellParams:
         _set_var(_env, "COLLECT_ONLY", self.collect_only)
         _set_var(_env, "COMMIT_SHA", None, commit_sha())
         _set_var(_env, "COMPOSE_FILE", self.compose_file)
-        _set_var(_env, "DATABASE_ISOLATION", self.database_isolation)
         _set_var(_env, "DB_RESET", self.db_reset)
         _set_var(_env, "DEFAULT_BRANCH", self.airflow_branch)
         _set_var(_env, "DEFAULT_CONSTRAINTS_BRANCH", self.default_constraints_branch)

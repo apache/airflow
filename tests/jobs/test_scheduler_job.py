@@ -98,7 +98,7 @@ from tests_common.test_utils.mock_operators import CustomOperator
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
@@ -181,6 +181,12 @@ class TestSchedulerJob:
         default_executor.name = ExecutorName(alias="default_exec", module_path="default.exec.module.path")
         second_executor = mock.MagicMock(name="SeconadaryExecutor", slots_available=8, slots_occupied=0)
         second_executor.name = ExecutorName(alias="secondary_exec", module_path="secondary.exec.module.path")
+
+        # TODO: Task-SDK Make it look like a bound method. Needed until we remove the old queue_command
+        # interface from executors
+        default_executor.queue_workload.__func__ = BaseExecutor.queue_workload
+        second_executor.queue_workload.__func__ = BaseExecutor.queue_workload
+
         with mock.patch("airflow.jobs.job.Job.executors", new_callable=PropertyMock) as executors_mock:
             executors_mock.return_value = [default_executor, second_executor]
             yield [default_executor, second_executor]

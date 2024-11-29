@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any, Callable
 from sqlalchemy import select
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -59,8 +59,6 @@ _MYSQL_TIMESTAMP_MAX = datetime.datetime(2038, 1, 19, 3, 14, 7, tzinfo=timezone.
 
 @functools.cache
 def _is_metadatabase_mysql() -> bool:
-    if InternalApiConfig.get_use_internal_api():
-        return False
     if settings.engine is None:
         raise AirflowException("Must initialize ORM first")
     return settings.engine.url.get_backend_name() == "mysql"

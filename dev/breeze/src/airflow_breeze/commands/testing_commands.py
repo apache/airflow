@@ -29,7 +29,6 @@ from airflow_breeze.commands.common_options import (
     option_backend,
     option_clean_airflow_installation,
     option_core_integration,
-    option_database_isolation,
     option_db_reset,
     option_debug_resources,
     option_downgrade_pendulum,
@@ -583,7 +582,6 @@ option_force_sa_warnings = click.option(
 def core_tests(**kwargs):
     _run_test_command(
         test_group=GroupOfTests.CORE,
-        database_isolation=False,
         integration=(),
         excluded_providers="",
         providers_skip_constraints=False,
@@ -605,7 +603,6 @@ def core_tests(**kwargs):
 @option_backend
 @option_collect_only
 @option_clean_airflow_installation
-@option_database_isolation
 @option_db_reset
 @option_debug_resources
 @option_downgrade_pendulum
@@ -683,7 +680,6 @@ def task_sdk_tests(**kwargs):
         airflow_constraints_reference="constraints-main",
         backend="none",
         clean_airflow_installation=False,
-        database_isolation=False,
         downgrade_pendulum=False,
         downgrade_sqlalchemy=False,
         db_reset=False,
@@ -1112,7 +1108,6 @@ def _run_test_command(
     collect_only: bool,
     clean_airflow_installation: bool,
     db_reset: bool,
-    database_isolation: bool,
     debug_resources: bool,
     downgrade_sqlalchemy: bool,
     downgrade_pendulum: bool,
@@ -1165,7 +1160,6 @@ def _run_test_command(
         backend=backend,
         collect_only=collect_only,
         clean_airflow_installation=clean_airflow_installation,
-        database_isolation=database_isolation,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         downgrade_pendulum=downgrade_pendulum,
         enable_coverage=enable_coverage,
