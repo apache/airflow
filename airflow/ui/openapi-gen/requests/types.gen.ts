@@ -27,6 +27,7 @@ export type AppBuilderViewResponse = {
 export type AssetAliasSchema = {
   id: number;
   name: string;
+  group: string;
 };
 
 /**
