@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import HTTPException, Response, status
+from fastapi import HTTPException, status
 
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api import deps
@@ -69,12 +69,13 @@ def get_variable(variable_key: str, token: deps.TokenDep) -> VariableResponse:
 
 @router.put(
     "/{variable_key}",
+    status_code=status.HTTP_201_CREATED,
     responses={
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
         status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
     },
 )
-def post_variable(variable_key: str, body: VariablePostBody, token: deps.TokenDep):
+def put_variable(variable_key: str, body: VariablePostBody, token: deps.TokenDep):
     """Set an Airflow Variable."""
     if not has_variable_access(variable_key, token, write_access=True):
         raise HTTPException(
@@ -85,7 +86,7 @@ def post_variable(variable_key: str, body: VariablePostBody, token: deps.TokenDe
             },
         )
     Variable.set(key=variable_key, value=body.value, description=body.description)
-    return Response(status_code=status.HTTP_201_CREATED)
+    return {"message": "Variable successfully set"}
 
 
 def has_variable_access(variable_key: str, token: TIToken, write_access: bool = False) -> bool:
