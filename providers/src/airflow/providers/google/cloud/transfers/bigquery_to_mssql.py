@@ -43,6 +43,8 @@ class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
     :param source_project_dataset_table: A dotted ``<project>.<dataset>.<table>``:
         the big query table of origin
     :param mssql_table: target MsSQL table. It is deprecated: use target_table_name instead. (templated)
+    .. warning::
+        The `mssql_table` parameter has been deprecated. Use `target_table_name` instead.
     :param target_table_name: target MsSQL table. It takes precedence over mssql_table. (templated)
     :param mssql_conn_id: reference to a specific mssql hook
     """

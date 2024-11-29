@@ -37,6 +37,8 @@ class BigQueryToMySqlOperator(BigQueryToSqlBaseOperator):
 
     :param mysql_table: target MySQL table, use dot notation to target a
         specific database. It is deprecated: use target_table_name instead. (templated)
+    .. warning::
+        The `mysql_table` parameter has been deprecated. Use `target_table_name` instead.
     :param target_table_name: target MySQL table. It takes precedence over mysql_table. (templated)
     :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
     """
