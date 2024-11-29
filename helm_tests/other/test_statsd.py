@@ -29,9 +29,9 @@ class TestStatsd:
     def test_should_create_statsd_default(self):
         docs = render_chart(show_only=["templates/statsd/statsd-deployment.yaml"])
 
-        assert "release-name-statsd" == jmespath.search("metadata.name", docs[0])
+        assert jmespath.search("metadata.name", docs[0]) == "release-name-statsd"
 
-        assert "statsd" == jmespath.search("spec.template.spec.containers[0].name", docs[0])
+        assert jmespath.search("spec.template.spec.containers[0].name", docs[0]) == "statsd"
 
         assert {"name": "config", "configMap": {"name": "release-name-statsd"}} in jmespath.search(
             "spec.template.spec.volumes", docs[0]
@@ -111,9 +111,12 @@ class TestStatsd:
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
 
-        assert "airflow-scheduler" == jmespath.search(
-            "spec.template.spec.schedulerName",
-            docs[0],
+        assert (
+            jmespath.search(
+                "spec.template.spec.schedulerName",
+                docs[0],
+            )
+            == "airflow-scheduler"
         )
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
@@ -142,22 +145,31 @@ class TestStatsd:
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
 
-        assert "Deployment" == jmespath.search("kind", docs[0])
-        assert "foo" == jmespath.search(
-            "spec.template.spec.affinity.nodeAffinity."
-            "requiredDuringSchedulingIgnoredDuringExecution."
-            "nodeSelectorTerms[0]."
-            "matchExpressions[0]."
-            "key",
-            docs[0],
+        assert jmespath.search("kind", docs[0]) == "Deployment"
+        assert (
+            jmespath.search(
+                "spec.template.spec.affinity.nodeAffinity."
+                "requiredDuringSchedulingIgnoredDuringExecution."
+                "nodeSelectorTerms[0]."
+                "matchExpressions[0]."
+                "key",
+                docs[0],
+            )
+            == "foo"
         )
-        assert "ssd" == jmespath.search(
-            "spec.template.spec.nodeSelector.diskType",
-            docs[0],
+        assert (
+            jmespath.search(
+                "spec.template.spec.nodeSelector.diskType",
+                docs[0],
+            )
+            == "ssd"
         )
-        assert "dynamic-pods" == jmespath.search(
-            "spec.template.spec.tolerations[0].key",
-            docs[0],
+        assert (
+            jmespath.search(
+                "spec.template.spec.tolerations[0].key",
+                docs[0],
+            )
+            == "dynamic-pods"
         )
 
     def test_stastd_resources_are_configurable(self):
@@ -172,11 +184,11 @@ class TestStatsd:
             },
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
-        assert "128Mi" == jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0])
-        assert "169Mi" == jmespath.search(
-            "spec.template.spec.containers[0].resources.requests.memory", docs[0]
+        assert jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0]) == "128Mi"
+        assert (
+            jmespath.search("spec.template.spec.containers[0].resources.requests.memory", docs[0]) == "169Mi"
         )
-        assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
+        assert jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0]) == "300m"
 
     def test_statsd_security_contexts_are_configurable(self):
         docs = render_chart(
@@ -198,16 +210,17 @@ class TestStatsd:
             },
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
-        assert {"allowPrivilegeEscalation": False, "readOnlyRootFilesystem": True} == jmespath.search(
-            "spec.template.spec.containers[0].securityContext", docs[0]
-        )
+        assert jmespath.search("spec.template.spec.containers[0].securityContext", docs[0]) == {
+            "allowPrivilegeEscalation": False,
+            "readOnlyRootFilesystem": True,
+        }
 
-        assert {
+        assert jmespath.search("spec.template.spec.securityContext", docs[0]) == {
             "runAsUser": 2000,
             "runAsGroup": 1001,
             "fsGroup": 1000,
             "runAsNonRoot": True,
-        } == jmespath.search("spec.template.spec.securityContext", docs[0])
+        }
 
     def test_statsd_security_context_legacy(self):
         docs = render_chart(
@@ -224,12 +237,12 @@ class TestStatsd:
             show_only=["templates/statsd/statsd-deployment.yaml"],
         )
 
-        assert {
+        assert jmespath.search("spec.template.spec.securityContext", docs[0]) == {
             "runAsUser": 2000,
             "runAsGroup": 1001,
             "fsGroup": 1000,
             "runAsNonRoot": True,
-        } == jmespath.search("spec.template.spec.securityContext", docs[0])
+        }
 
     def test_statsd_resources_are_not_added_by_default(self):
         docs = render_chart(
@@ -261,8 +274,8 @@ class TestStatsd:
         mappings_yml = jmespath.search('data."mappings.yml"', docs[0])
         mappings_yml_obj = yaml.safe_load(mappings_yml)
 
-        assert "airflow_dagrun_dependency_check" == mappings_yml_obj["mappings"][0]["name"]
-        assert "airflow_pool_queued_slots" == mappings_yml_obj["mappings"][-1]["name"]
+        assert mappings_yml_obj["mappings"][0]["name"] == "airflow_dagrun_dependency_check"
+        assert mappings_yml_obj["mappings"][-1]["name"] == "airflow_pool_queued_slots"
 
     def test_statsd_configmap_when_exist_override_mappings(self):
         override_mapping = {
@@ -278,8 +291,8 @@ class TestStatsd:
         mappings_yml = jmespath.search('data."mappings.yml"', docs[0])
         mappings_yml_obj = yaml.safe_load(mappings_yml)
 
-        assert 1 == len(mappings_yml_obj["mappings"])
-        assert "airflow_pool_queued_slots" == mappings_yml_obj["mappings"][0]["name"]
+        assert len(mappings_yml_obj["mappings"]) == 1
+        assert mappings_yml_obj["mappings"][0]["name"] == "airflow_pool_queued_slots"
 
     def test_statsd_args_can_be_overridden(self):
         args = ["--some-arg=foo"]
@@ -398,12 +411,14 @@ class TestStatsdIngress:
             show_only=["templates/statsd/statsd-ingress.yaml"],
         )
 
-        assert {"name": "release-name-statsd", "port": {"name": "statsd-scrape"}} == jmespath.search(
-            "spec.rules[0].http.paths[0].backend.service", docs[0]
-        )
-        assert "/metrics" == jmespath.search("spec.rules[0].http.paths[0].path", docs[0])
-        assert "some-host" == jmespath.search("spec.rules[0].host", docs[0])
-        assert {"hosts": ["some-host"], "secretName": "some-secret"} == jmespath.search(
-            "spec.tls[0]", docs[0]
-        )
-        assert "ingress-class" == jmespath.search("spec.ingressClassName", docs[0])
+        assert jmespath.search("spec.rules[0].http.paths[0].backend.service", docs[0]) == {
+            "name": "release-name-statsd",
+            "port": {"name": "statsd-scrape"},
+        }
+        assert jmespath.search("spec.rules[0].http.paths[0].path", docs[0]) == "/metrics"
+        assert jmespath.search("spec.rules[0].host", docs[0]) == "some-host"
+        assert jmespath.search("spec.tls[0]", docs[0]) == {
+            "hosts": ["some-host"],
+            "secretName": "some-secret",
+        }
+        assert jmespath.search("spec.ingressClassName", docs[0]) == "ingress-class"

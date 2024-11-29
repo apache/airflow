@@ -86,7 +86,7 @@ class TestGetVariable:
         }
 
 
-class TestPostVariable:
+class TestPutVariable:
     @pytest.mark.parametrize(
         "payload",
         [
@@ -101,6 +101,7 @@ class TestPostVariable:
             json=payload,
         )
         assert response.status_code == 201
+        assert response.json()["message"] == "Variable successfully set"
 
         var_from_db = session.query(Variable).where(Variable.key == "var_create").first()
         assert var_from_db is not None
@@ -137,6 +138,7 @@ class TestPostVariable:
             json=payload,
         )
         assert response.status_code == 201
+        assert response.json()["message"] == "Variable successfully set"
         # variable should have been updated to the new value
         var_from_db = session.query(Variable).where(Variable.key == key).first()
         assert var_from_db is not None

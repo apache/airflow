@@ -239,13 +239,13 @@ class TestCliDb:
         _, kwargs = mock_execute_interactive.call_args
         env = kwargs["env"]
         postgres_env = {k: v for k, v in env.items() if k.startswith("PG")}
-        assert {
+        assert postgres_env == {
             "PGDATABASE": "airflow",
             "PGHOST": "postgres",
             "PGPASSWORD": "airflow",
             "PGPORT": "5432",
             "PGUSER": "postgres",
-        } == postgres_env
+        }
 
     @mock.patch("airflow.cli.commands.db_command.execute_interactive")
     @mock.patch(
@@ -258,13 +258,13 @@ class TestCliDb:
         _, kwargs = mock_execute_interactive.call_args
         env = kwargs["env"]
         postgres_env = {k: v for k, v in env.items() if k.startswith("PG")}
-        assert {
+        assert postgres_env == {
             "PGDATABASE": "airflow",
             "PGHOST": "postgres",
             "PGPASSWORD": "airflow",
             "PGPORT": "5432",
             "PGUSER": "postgres",
-        } == postgres_env
+        }
 
     @mock.patch(
         "airflow.cli.commands.db_command.settings.engine.url",

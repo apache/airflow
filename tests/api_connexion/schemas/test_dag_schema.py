@@ -47,7 +47,7 @@ def test_serialize_test_dag_schema(url_safe_serializer):
     )
     serialized_dag = DAGSchema().dump(dag_model)
 
-    assert {
+    assert serialized_dag == {
         "dag_id": "test_dag_id",
         "dag_display_name": "test_dag_id",
         "description": "The description",
@@ -71,7 +71,7 @@ def test_serialize_test_dag_schema(url_safe_serializer):
         "last_parsed_time": None,
         "timetable_description": None,
         "has_import_errors": None,
-    } == serialized_dag
+    }
 
 
 def test_serialize_test_dag_collection_schema(url_safe_serializer):
@@ -79,7 +79,7 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
     dag_model_b = DagModel(dag_id="test_dag_id_b", fileloc="/tmp/a.py")
     schema = DAGCollectionSchema()
     instance = DAGCollection(dags=[dag_model_a, dag_model_b], total_entries=2)
-    assert {
+    assert schema.dump(instance) == {
         "dags": [
             {
                 "dag_id": "test_dag_id_a",
@@ -133,7 +133,7 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
             },
         ],
         "total_entries": 2,
-    } == schema.dump(instance)
+    }
 
 
 @pytest.mark.db_test

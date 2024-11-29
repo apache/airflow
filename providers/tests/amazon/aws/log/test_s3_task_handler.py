@@ -141,12 +141,12 @@ class TestS3TaskHandler:
         ti.state = TaskInstanceState.SUCCESS
         self.s3_task_handler._read_from_logs_server = mock.Mock(return_value=([], []))
         log, metadata = self.s3_task_handler.read(ti)
-        assert 1 == len(log)
+        assert len(log) == 1
         assert len(log) == len(metadata)
         actual = log[0][0][-1]
         expected = "*** No logs found on s3 for ti=<TaskInstance: dag_for_testing_s3_task_handler.task_for_testing_s3_log_handler test [success]>\n"
         assert expected in actual
-        assert {"end_of_log": True, "log_pos": 0} == metadata[0]
+        assert metadata[0] == {"end_of_log": True, "log_pos": 0}
 
     def test_s3_read_when_log_missing(self):
         handler = self.s3_task_handler
