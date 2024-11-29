@@ -68,7 +68,7 @@ class TestGetDAGSource:
         response: Response = test_client.get(f"{API_PREFIX}/{TEST_DAG_ID}", headers={"Accept": "text/plain"})
 
         assert isinstance(response, Response)
-        assert 200 == response.status_code
+        assert response.status_code == 200
         assert dag_content == response.content.decode()
         with pytest.raises(json.JSONDecodeError):
             json.loads(response.content.decode())
@@ -84,7 +84,7 @@ class TestGetDAGSource:
             headers=headers,
         )
         assert isinstance(response, Response)
-        assert 200 == response.status_code
+        assert response.status_code == 200
         assert response.json() == {
             "content": dag_content,
             "dag_id": TEST_DAG_ID,
@@ -115,7 +115,7 @@ class TestGetDAGSource:
         url = f"{API_PREFIX}/{TEST_DAG_ID}"
         response = test_client.get(url, headers={"Accept": accept})
 
-        assert 200 == response.status_code
+        assert response.status_code == 200
         if accept == "text/plain":
             assert dag_content2 == response.content.decode()
             assert dag_content != response.content.decode()
@@ -123,7 +123,7 @@ class TestGetDAGSource:
         else:
             assert dag_content2 == response.json()["content"]
             assert dag_content != response.json()["content"]
-            assert "application/json" == response.headers["Content-Type"]
+            assert response.headers["Content-Type"] == "application/json"
             assert response.json() == {
                 "content": dag_content2,
                 "dag_id": TEST_DAG_ID,
@@ -137,10 +137,10 @@ class TestGetDAGSource:
             f"{API_PREFIX}/{TEST_DAG_ID}",
             headers={"Accept": "text/html"},
         )
-        assert 406 == response.status_code
+        assert response.status_code == 406
 
     def test_should_respond_404(self, test_client):
         wrong_fileloc = "abcd1234"
         url = f"{API_PREFIX}/{wrong_fileloc}"
         response = test_client.get(url, headers={"Accept": "application/json"})
-        assert 404 == response.status_code
+        assert response.status_code == 404

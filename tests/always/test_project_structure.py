@@ -281,7 +281,7 @@ class ExampleCoverageTest(ProjectStructureTest):
         are used in any of the example dags
         """
         classes = self.list_of_classes()
-        assert 0 != len(classes), "Failed to retrieve operators, override class_paths if needed"
+        assert len(classes) != 0, "Failed to retrieve operators, override class_paths if needed"
         classes = set(classes.keys())
         for example in self.example_paths():
             classes -= get_imports_from_file(example)
@@ -566,4 +566,4 @@ class TestOperatorsHooks:
 
         invalid_files = [f for f in files if f.endswith(tuple(illegal_suffixes))]
 
-        assert [] == invalid_files
+        assert invalid_files == []

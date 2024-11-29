@@ -90,14 +90,14 @@ class TestCloudTranslateSpeech:
             source_language=None,
             model="base",
         )
-        assert [
+        assert return_value == [
             {
                 "translatedText": "sprawdzić wynik rozpoznawania mowy",
                 "detectedSourceLanguage": "en",
                 "model": "base",
                 "input": "test speech recognition result",
             }
-        ] == return_value
+        ]
 
     @mock.patch("airflow.providers.google.cloud.operators.translate_speech.CloudSpeechToTextHook")
     @mock.patch("airflow.providers.google.cloud.operators.translate_speech.CloudTranslateHook")

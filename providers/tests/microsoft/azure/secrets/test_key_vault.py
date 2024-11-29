@@ -75,7 +75,7 @@ class TestAzureKeyVaultBackend:
         backend = AzureKeyVaultBackend()
         returned_uri = backend.get_variable("hello")
         mock_client.get_secret.assert_called_with(name="airflow-variables-hello")
-        assert "world" == returned_uri
+        assert returned_uri == "world"
 
     @mock.patch(f"{KEY_VAULT_MODULE}.AzureKeyVaultBackend.client")
     def test_get_variable_non_existent_key(self, mock_client):

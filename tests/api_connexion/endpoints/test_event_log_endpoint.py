@@ -120,12 +120,12 @@ class TestGetEventLog(TestEventLogEndpoint):
     def test_should_respond_404(self):
         response = self.client.get("/api/v1/eventLogs/1", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": None,
             "status": 404,
             "title": "Event Log not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     def test_should_raises_401_unauthenticated(self, log_model):
         event_log_id = log_model.id

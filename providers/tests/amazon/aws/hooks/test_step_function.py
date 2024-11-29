@@ -31,7 +31,7 @@ from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 class TestStepFunctionHook:
     def test_get_conn_returns_a_boto3_connection(self):
         hook = StepFunctionHook(aws_conn_id="aws_default")
-        assert "stepfunctions" == hook.get_conn().meta.service_model.service_name
+        assert hook.get_conn().meta.service_model.service_name == "stepfunctions"
 
     def test_start_execution(self):
         hook = StepFunctionHook(aws_conn_id="aws_default", region_name="us-east-1")

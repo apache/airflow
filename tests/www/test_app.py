@@ -85,7 +85,7 @@ class TestApp:
 
         response = Response.from_app(app, environ)
 
-        assert b"success" == response.get_data()
+        assert response.get_data() == b"success"
         assert response.status_code == 200
 
     @dont_initialize_flask_app_submodules
@@ -121,7 +121,7 @@ class TestApp:
 
         response = Response.from_app(app, environ)
 
-        assert b"success" == response.get_data()
+        assert response.get_data() == b"success"
         assert response.status_code == 200
 
     @dont_initialize_flask_app_submodules
@@ -169,7 +169,7 @@ class TestApp:
 
         response = Response.from_app(app, environ)
 
-        assert b"success" == response.get_data()
+        assert response.get_data() == b"success"
         assert response.status_code == 200
 
     @conf_vars(
@@ -215,7 +215,7 @@ class TestApp:
 
         response = Response.from_app(app, environ)
 
-        assert b"success" == response.get_data()
+        assert response.get_data() == b"success"
         assert response.status_code == 200
 
     @conf_vars(

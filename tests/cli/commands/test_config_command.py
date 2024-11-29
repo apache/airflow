@@ -214,7 +214,7 @@ class TestCliConfigGetValue:
         with contextlib.redirect_stdout(StringIO()) as temp_stdout:
             config_command.get_value(self.parser.parse_args(["config", "get-value", "core", "test_key"]))
 
-        assert "test_value" == temp_stdout.getvalue().strip()
+        assert temp_stdout.getvalue().strip() == "test_value"
 
     @mock.patch("airflow.cli.commands.config_command.conf")
     def test_should_not_raise_exception_when_section_for_config_with_value_defined_elsewhere_is_missing(
