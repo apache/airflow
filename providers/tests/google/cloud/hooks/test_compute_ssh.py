@@ -504,15 +504,12 @@ class TestComputeEngineHookWithPassedProjectId:
         with mock.patch.dict("os.environ", AIRFLOW_CONN_GCPSSH=conn_uri):
             hook = ComputeEngineSSHHook(gcp_conn_id="gcpssh")
             hook._load_connection_config()
-        assert None is hook.instance_name
-        assert None is hook.hostname
+        assert hook.instance_name is None
+        assert hook.hostname is None
         assert hook.user == "root"
-        assert False is hook.use_internal_ip
-        assert isinstance(hook.use_internal_ip, bool)
-        assert False is hook.use_iap_tunnel
-        assert isinstance(hook.use_iap_tunnel, bool)
-        assert False is hook.use_oslogin
-        assert isinstance(hook.use_oslogin, bool)
+        assert hook.use_internal_ip is False
+        assert hook.use_iap_tunnel is False
+        assert hook.use_oslogin is False
         assert hook.expire_time == 300
         assert isinstance(hook.expire_time, int)
 
