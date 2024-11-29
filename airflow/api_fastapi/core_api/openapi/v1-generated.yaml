@@ -5670,7 +5670,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthInfoSchema'
+                $ref: '#/components/schemas/HealthInfoResponse'
   /public/version:
     get:
       tags:
@@ -5995,7 +5995,7 @@ components:
       - updated_at
       title: BackfillResponse
       description: Base serializer for Backfill.
-    BaseInfoSchema:
+    BaseInfoResponse:
       properties:
         status:
           anyOf:
@@ -6005,8 +6005,8 @@ components:
       type: object
       required:
       - status
-      title: BaseInfoSchema
-      description: Base status field for metadatabase and scheduler.
+      title: BaseInfoResponse
+      description: Base info serializer for responses.
     ClearTaskInstancesBody:
       properties:
         dry_run:
@@ -7204,7 +7204,7 @@ components:
       - file_token
       title: DAGWithLatestDagRunsResponse
       description: DAG with latest dag runs response serializer.
-    DagProcessorInfoSchema:
+    DagProcessorInfoResponse:
       properties:
         status:
           anyOf:
@@ -7220,8 +7220,8 @@ components:
       required:
       - status
       - latest_dag_processor_heartbeat
-      title: DagProcessorInfoSchema
-      description: Schema for DagProcessor info.
+      title: DagProcessorInfoResponse
+      description: DagProcessor info serializer for responses.
     DagRunAssetReference:
       properties:
         run_id:
@@ -7577,25 +7577,25 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
-    HealthInfoSchema:
+    HealthInfoResponse:
       properties:
         metadatabase:
-          $ref: '#/components/schemas/BaseInfoSchema'
+          $ref: '#/components/schemas/BaseInfoResponse'
         scheduler:
-          $ref: '#/components/schemas/SchedulerInfoSchema'
+          $ref: '#/components/schemas/SchedulerInfoResponse'
         triggerer:
-          $ref: '#/components/schemas/TriggererInfoSchema'
+          $ref: '#/components/schemas/TriggererInfoResponse'
         dag_processor:
           anyOf:
-          - $ref: '#/components/schemas/DagProcessorInfoSchema'
+          - $ref: '#/components/schemas/DagProcessorInfoResponse'
           - type: 'null'
       type: object
       required:
       - metadatabase
       - scheduler
       - triggerer
-      title: HealthInfoSchema
-      description: Schema for the Health endpoint.
+      title: HealthInfoResponse
+      description: Health serializer for responses.
     HistoricalMetricDataResponse:
       properties:
         dag_run_types:
@@ -8139,7 +8139,7 @@ components:
 
 
         :meta private:'
-    SchedulerInfoSchema:
+    SchedulerInfoResponse:
       properties:
         status:
           anyOf:
@@ -8155,8 +8155,8 @@ components:
       required:
       - status
       - latest_scheduler_heartbeat
-      title: SchedulerInfoSchema
-      description: Schema for Scheduler info.
+      title: SchedulerInfoResponse
+      description: Scheduler info serializer for responses.
     TaskCollectionResponse:
       properties:
         tasks:
@@ -9024,7 +9024,7 @@ components:
       - triggerer_id
       title: TriggerResponse
       description: Trigger serializer for responses.
-    TriggererInfoSchema:
+    TriggererInfoResponse:
       properties:
         status:
           anyOf:
@@ -9040,8 +9040,8 @@ components:
       required:
       - status
       - latest_triggerer_heartbeat
-      title: TriggererInfoSchema
-      description: Schema for Triggerer info.
+      title: TriggererInfoResponse
+      description: Triggerer info serializer for responses.
     ValidationError:
       properties:
         loc:

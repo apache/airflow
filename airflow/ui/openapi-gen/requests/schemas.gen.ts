@@ -449,7 +449,7 @@ export const $BackfillResponse = {
   description: "Base serializer for Backfill.",
 } as const;
 
-export const $BaseInfoSchema = {
+export const $BaseInfoResponse = {
   properties: {
     status: {
       anyOf: [
@@ -465,8 +465,8 @@ export const $BaseInfoSchema = {
   },
   type: "object",
   required: ["status"],
-  title: "BaseInfoSchema",
-  description: "Base status field for metadatabase and scheduler.",
+  title: "BaseInfoResponse",
+  description: "Base info serializer for responses.",
 } as const;
 
 export const $ClearTaskInstancesBody = {
@@ -2362,7 +2362,7 @@ export const $DAGWithLatestDagRunsResponse = {
   description: "DAG with latest dag runs response serializer.",
 } as const;
 
-export const $DagProcessorInfoSchema = {
+export const $DagProcessorInfoResponse = {
   properties: {
     status: {
       anyOf: [
@@ -2389,8 +2389,8 @@ export const $DagProcessorInfoSchema = {
   },
   type: "object",
   required: ["status", "latest_dag_processor_heartbeat"],
-  title: "DagProcessorInfoSchema",
-  description: "Schema for DagProcessor info.",
+  title: "DagProcessorInfoResponse",
+  description: "DagProcessor info serializer for responses.",
 } as const;
 
 export const $DagRunAssetReference = {
@@ -2874,21 +2874,21 @@ export const $HTTPValidationError = {
   title: "HTTPValidationError",
 } as const;
 
-export const $HealthInfoSchema = {
+export const $HealthInfoResponse = {
   properties: {
     metadatabase: {
-      $ref: "#/components/schemas/BaseInfoSchema",
+      $ref: "#/components/schemas/BaseInfoResponse",
     },
     scheduler: {
-      $ref: "#/components/schemas/SchedulerInfoSchema",
+      $ref: "#/components/schemas/SchedulerInfoResponse",
     },
     triggerer: {
-      $ref: "#/components/schemas/TriggererInfoSchema",
+      $ref: "#/components/schemas/TriggererInfoResponse",
     },
     dag_processor: {
       anyOf: [
         {
-          $ref: "#/components/schemas/DagProcessorInfoSchema",
+          $ref: "#/components/schemas/DagProcessorInfoResponse",
         },
         {
           type: "null",
@@ -2898,8 +2898,8 @@ export const $HealthInfoSchema = {
   },
   type: "object",
   required: ["metadatabase", "scheduler", "triggerer"],
-  title: "HealthInfoSchema",
-  description: "Schema for the Health endpoint.",
+  title: "HealthInfoResponse",
+  description: "Health serializer for responses.",
 } as const;
 
 export const $HistoricalMetricDataResponse = {
@@ -3702,7 +3702,7 @@ export const $ReprocessBehavior = {
 :meta private:`,
 } as const;
 
-export const $SchedulerInfoSchema = {
+export const $SchedulerInfoResponse = {
   properties: {
     status: {
       anyOf: [
@@ -3729,8 +3729,8 @@ export const $SchedulerInfoSchema = {
   },
   type: "object",
   required: ["status", "latest_scheduler_heartbeat"],
-  title: "SchedulerInfoSchema",
-  description: "Schema for Scheduler info.",
+  title: "SchedulerInfoResponse",
+  description: "Scheduler info serializer for responses.",
 } as const;
 
 export const $TaskCollectionResponse = {
@@ -5159,7 +5159,7 @@ export const $TriggerResponse = {
   description: "Trigger serializer for responses.",
 } as const;
 
-export const $TriggererInfoSchema = {
+export const $TriggererInfoResponse = {
   properties: {
     status: {
       anyOf: [
@@ -5186,8 +5186,8 @@ export const $TriggererInfoSchema = {
   },
   type: "object",
   required: ["status", "latest_triggerer_heartbeat"],
-  title: "TriggererInfoSchema",
-  description: "Schema for Triggerer info.",
+  title: "TriggererInfoResponse",
+  description: "Triggerer info serializer for responses.",
 } as const;
 
 export const $ValidationError = {
