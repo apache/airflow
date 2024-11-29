@@ -82,6 +82,9 @@ class TestLatestOnlyOperator:
         dag_maker.create_dagrun()
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_0_PLUS, reason="execution_date is renamed to logical_date in Airflow 3.0"
+    )
     def test_skipping_non_latest(self, dag_maker):
         with dag_maker(
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, schedule=INTERVAL, serialized=True
@@ -161,6 +164,9 @@ class TestLatestOnlyOperator:
             timezone.datetime(2016, 1, 2): "success",
         }
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_0_PLUS, reason="execution_date is renamed to logical_date in Airflow 3.0"
+    )
     def test_not_skipping_external(self, dag_maker):
         with dag_maker(
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, schedule=INTERVAL, serialized=True
