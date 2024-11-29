@@ -96,6 +96,7 @@ class HookLineageCollector(LoggingMixin):
 
     def create_asset(
         self,
+        *,
         scheme: str | None = None,
         uri: str | None = None,
         name: str | None = None,
