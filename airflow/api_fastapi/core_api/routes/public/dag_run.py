@@ -30,7 +30,8 @@ from airflow.api.common.mark_tasks import (
 )
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
-    DagIdsFilter,
+    FilterOptionEnum,
+    FilterParam,
     LimitFilter,
     OffsetFilter,
     QueryDagRunStateFilter,
@@ -374,7 +375,7 @@ def get_list_dag_runs_batch(
     dag_id: Literal["~"], body: DAGRunsBatchBody, session: SessionDep
 ) -> DAGRunCollectionResponse:
     """Get a list of DAG Runs."""
-    dag_ids = DagIdsFilter(DagRun, body.dag_ids)
+    dag_ids = FilterParam(DagRun.dag_id, body.dag_ids, FilterOptionEnum.ANY_EQUAL)
     logical_date = RangeFilter(
         Range(lower_bound=body.logical_date_gte, upper_bound=body.logical_date_lte),
         attribute=DagRun.logical_date,

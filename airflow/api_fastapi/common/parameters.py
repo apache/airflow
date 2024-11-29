@@ -39,7 +39,6 @@ from pydantic import AfterValidator, BaseModel, NonNegativeInt
 from sqlalchemy import Column, case, or_
 from sqlalchemy.inspection import inspect
 
-from airflow.jobs.job import Job
 from airflow.models import Base
 from airflow.models.asset import AssetModel, DagScheduleAssetReference, TaskOutletAssetReference
 from airflow.models.dag import DagModel, DagTag
@@ -387,54 +386,6 @@ class _DagTagNamePatternSearch(_SearchParam):
     def depends(self, tag_name_pattern: str | None = None) -> _DagTagNamePatternSearch:
         tag_name_pattern = super().transform_aliases(tag_name_pattern)
         return self.set_value(tag_name_pattern)
-
-
-class _JobTypeFilter(BaseParam[str]):
-    """Filter on job_type."""
-
-    def to_orm(self, select: Select) -> Select:
-        if self.value is None and self.skip_none:
-            return select
-        return select.where(Job.job_type == self.value)
-
-    def depends(self, job_type: str | None = None) -> _JobTypeFilter:
-        return self.set_value(job_type)
-
-
-class _JobStateFilter(BaseParam[str]):
-    """Filter on job_state."""
-
-    def to_orm(self, select: Select) -> Select:
-        if self.value is None and self.skip_none:
-            return select
-        return select.where(Job.state == self.value)
-
-    def depends(self, job_state: str | None = None) -> _JobStateFilter:
-        return self.set_value(job_state)
-
-
-class _JobHostnameFilter(BaseParam[str]):
-    """Filter on hostname."""
-
-    def to_orm(self, select: Select) -> Select:
-        if self.value is None and self.skip_none:
-            return select
-        return select.where(Job.hostname == self.value)
-
-    def depends(self, hostname: str | None = None) -> _JobHostnameFilter:
-        return self.set_value(hostname)
-
-
-class _JobExecutorClassFilter(BaseParam[str]):
-    """Filter on executor_class."""
-
-    def to_orm(self, select: Select) -> Select:
-        if self.value is None and self.skip_none:
-            return select
-        return select.where(Job.executor_class == self.value)
-
-    def depends(self, executor_class: str | None = None) -> _JobExecutorClassFilter:
-        return self.set_value(executor_class)
 
 
 def _safe_parse_datetime(date_to_check: str) -> datetime:
