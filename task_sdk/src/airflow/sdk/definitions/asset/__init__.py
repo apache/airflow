@@ -445,7 +445,7 @@ class _AssetBooleanCondition(BaseAsset):
             raise TypeError("expect asset expressions in condition")
 
         self.objects = [
-            AssetAliasCondition(name=obj.name, group=obj.group) if isinstance(obj, AssetAlias) else obj
+            AssetAliasCondition.from_asset_alias(obj) if isinstance(obj, AssetAlias) else obj
             for obj in objects
         ]
 
@@ -572,6 +572,10 @@ class AssetAliasCondition(AssetAny):
                 dependency_type="asset-alias",
                 dependency_id=self.name,
             )
+
+    @staticmethod
+    def from_asset_alias(asset_alias: AssetAlias) -> AssetAliasCondition:
+        return AssetAliasCondition(name=asset_alias.name, group=asset_alias.group)
 
 
 class AssetAll(_AssetBooleanCondition):

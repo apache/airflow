@@ -625,22 +625,22 @@ class TestAssetAliasCondition:
         return asset_alias_2
 
     def test_init(self, asset_alias_1, asset_model, resolved_asset_alias_2):
-        cond = AssetAliasCondition(name=asset_alias_1.name, group=asset_alias_1.group)
+        cond = AssetAliasCondition.from_asset_alias(asset_alias_1)
         assert cond.objects == []
 
-        cond = AssetAliasCondition(name=resolved_asset_alias_2.name, group=resolved_asset_alias_2.group)
+        cond = AssetAliasCondition.from_asset_alias(resolved_asset_alias_2)
         assert cond.objects == [Asset(uri=asset_model.uri, name=asset_model.name)]
 
     def test_as_expression(self, asset_alias_1, resolved_asset_alias_2):
         for asset_alias in (asset_alias_1, resolved_asset_alias_2):
-            cond = AssetAliasCondition(name=asset_alias.name, group=asset_alias.group)
+            cond = AssetAliasCondition.from_asset_alias(asset_alias)
             assert cond.as_expression() == {"alias": {"name": asset_alias.name, "group": asset_alias.group}}
 
     def test_evalute(self, asset_alias_1, resolved_asset_alias_2, asset_model):
-        cond = AssetAliasCondition(name=asset_alias_1.name, group=asset_alias_1.group)
+        cond = AssetAliasCondition.from_asset_alias(asset_alias_1)
         assert cond.evaluate({asset_model.name: True}) is False
 
-        cond = AssetAliasCondition(name=resolved_asset_alias_2.name, group=resolved_asset_alias_2.group)
+        cond = AssetAliasCondition.from_asset_alias(resolved_asset_alias_2)
         assert cond.evaluate({asset_model.name: True}) is True
 
 

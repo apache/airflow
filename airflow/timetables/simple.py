@@ -170,9 +170,7 @@ class AssetTriggeredTimetable(_TrivialTimetable):
         super().__init__()
         self.asset_condition = assets
         if isinstance(self.asset_condition, AssetAlias):
-            self.asset_condition = AssetAliasCondition(
-                name=self.asset_condition.name, group=self.asset_condition.group
-            )
+            self.asset_condition = AssetAliasCondition.from_asset_alias(self.asset_condition)
 
         if not next(self.asset_condition.iter_assets(), False):
             self._summary = AssetTriggeredTimetable.UNRESOLVED_ALIAS_SUMMARY
