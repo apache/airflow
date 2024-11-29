@@ -419,9 +419,7 @@ class TestDagDecorator:
             noop_pipeline()
 
     def test_create_dag_while_active_context(self):
-        """
-        Test that we can safely create a DAG whilst a DAG is activated via ``with dag1:``.
-        """
+        """Test that we can safely create a DAG whilst a DAG is activated via ``with dag1:``."""
         with DAG(dag_id="simple_dag"):
             DAG(dag_id="dag2")
             # No asserts needed, it just needs to not fail
