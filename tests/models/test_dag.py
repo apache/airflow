@@ -114,7 +114,7 @@ if AIRFLOW_V_3_0_PLUS:
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 

@@ -28,7 +28,6 @@ import os
 import signal
 from collections import defaultdict
 from collections.abc import Collection, Generator, Iterable, Mapping
-from contextlib import nullcontext
 from datetime import timedelta
 from enum import Enum
 from functools import cache
@@ -73,7 +72,7 @@ from sqlalchemy.sql.expression import case, select
 from sqlalchemy_utils import UUIDType
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
 from airflow.exceptions import (
@@ -757,7 +756,7 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
             raise
     else:
         result = _execute_callable(context=context, **execute_callable_kwargs)
-    cm = nullcontext() if InternalApiConfig.get_use_internal_api() else create_session()
+    cm = create_session()
     with cm as session_or_null:
         if task_to_execute.do_xcom_push:
             xcom_value = result
@@ -859,10 +858,6 @@ def _refresh_from_db(
 
     :meta private:
     """
-    if not InternalApiConfig.get_use_internal_api():
-        if session and task_instance in session:
-            session.refresh(task_instance, TaskInstance.__mapper__.column_attrs.keys())
-
     ti = TaskInstance.get_task_instance(
         dag_id=task_instance.dag_id,
         task_id=task_instance.task_id,
@@ -2966,7 +2961,7 @@ class TaskInstance(Base, LoggingMixin):
         return _execute_task(self, context, task_orig)
 
     def update_heartbeat(self):
-        cm = nullcontext() if InternalApiConfig.get_use_internal_api() else create_session()
+        cm = create_session()
         with cm as session_or_null:
             _update_ti_heartbeat(self.id, timezone.utcnow(), session_or_null)
 

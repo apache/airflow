@@ -21,7 +21,6 @@ import logging
 import os
 import platform
 import signal
-import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -32,7 +31,6 @@ import psutil
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile, write_pid_to_pidfile
 
 from airflow import __version__ as airflow_version, settings
-from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.cli.cli_config import ARG_PID, ARG_VERBOSE, ActionCommand, Arg
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -57,29 +55,6 @@ EDGE_WORKER_HEADER = "\n".join(
         r"",
     ]
 )
-
-
-@providers_configuration_loaded
-def force_use_internal_api_on_edge_worker():
-    """
-    Ensure that the environment is configured for the internal API without needing to declare it outside.
-
-    This is only required for an Edge worker and must to be done before the Click CLI wrapper is initiated.
-    That is because the CLI wrapper will attempt to establish a DB connection, which will fail before the
-    function call can take effect. In an Edge worker, we need to "patch" the environment before starting.
-    """
-    if "airflow" in sys.argv[0] and sys.argv[1:3] == ["edge", "worker"]:
-        api_url = conf.get("edge", "api_url")
-        if not api_url:
-            raise SystemExit("Error: API URL is not configured, please correct configuration.")
-        logger.info("Starting worker with API endpoint %s", api_url)
-        # export Edge API to be used for internal API
-        os.environ["AIRFLOW_ENABLE_AIP_44"] = "True"
-        os.environ["AIRFLOW__CORE__INTERNAL_API_URL"] = api_url
-        InternalApiConfig.set_use_internal_api("edge-worker")
-
-
-force_use_internal_api_on_edge_worker()
 
 
 def _hostname() -> str:

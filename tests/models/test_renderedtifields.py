@@ -94,7 +94,6 @@ class TestRenderedTaskInstanceFields:
     def teardown_method(self):
         self.clean_db()
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.parametrize(
         "templated_field, expected_rendered_field",
         [
@@ -174,7 +173,6 @@ class TestRenderedTaskInstanceFields:
         # Fetching them will return None
         assert RTIF.get_templated_fields(ti=ti2) is None
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.enable_redact
     def test_secrets_are_masked_when_large_string(self, dag_maker):
         """
@@ -192,7 +190,6 @@ class TestRenderedTaskInstanceFields:
         rtif = RTIF(ti=ti)
         assert "***" in rtif.rendered_fields.get("bash_command")
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @mock.patch("airflow.models.BaseOperator.render_template")
     def test_pandas_dataframes_works_with_the_string_compare(self, render_mock, dag_maker):
         """Test that rendered dataframe gets passed through the serialized template fields."""
@@ -216,7 +213,6 @@ class TestRenderedTaskInstanceFields:
         rtif = RTIF(ti=ti2)
         rtif.write()
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.parametrize(
         "rtif_num, num_to_keep, remaining_rtifs, expected_query_count",
         [
@@ -262,7 +258,6 @@ class TestRenderedTaskInstanceFields:
             result = session.query(RTIF).filter(RTIF.dag_id == dag.dag_id, RTIF.task_id == task.task_id).all()
             assert remaining_rtifs == len(result)
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.parametrize(
         "num_runs, num_to_keep, remaining_rtifs, expected_query_count",
         [
@@ -306,7 +301,6 @@ class TestRenderedTaskInstanceFields:
             # Check that we have _all_ the data for each row
             assert len(result) == remaining_rtifs * 2
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_write(self, dag_maker):
         """
         Test records can be written and overwritten
@@ -390,7 +384,6 @@ class TestRenderedTaskInstanceFields:
             "cwd": "val 3",
         }
 
-    @pytest.mark.skip_if_database_isolation_mode
     def test_rtif_deletion_stale_data_error(self, dag_maker, session):
         """
         Here we verify bad behavior.  When we rerun a task whose RTIF

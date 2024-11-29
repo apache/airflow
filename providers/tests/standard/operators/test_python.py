@@ -64,7 +64,6 @@ from airflow.providers.standard.operators.python import (
     get_current_context,
 )
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv
-from airflow.settings import _ENABLE_AIP_44
 from airflow.utils import timezone
 from airflow.utils.context import AirflowContextDeprecationWarning, Context
 from airflow.utils.session import create_session
@@ -91,8 +90,6 @@ DILL_INSTALLED = find_spec("dill") is not None
 DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not installed")
 CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
 CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
-
-USE_AIRFLOW_CONTEXT_MARKER = pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is not enabled")
 
 AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE = (
     r"The `use_airflow_context=True` is only supported in Airflow 3.0.0 and later."
@@ -460,7 +457,6 @@ class TestBranchOperator(BasePythonTest):
         else:
             pytest.fail(f"{self.task_id!r} not found.")
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests logic with clear_task_instances(), this needs DB access
     def test_clear_skipped_downstream_task(self):
         """
         After a downstream task is skipped by BranchPythonOperator, clearing the skipped task
@@ -522,7 +518,6 @@ class TestBranchOperator(BasePythonTest):
         ):
             ti.run()
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, can not run in isolation mode
     @pytest.mark.parametrize(
         "choice,expected_states",
         [
@@ -578,7 +573,6 @@ class TestShortCircuitOperator(BasePythonTest):
     }
     all_success_states = {"short_circuit": State.SUCCESS, "op1": State.SUCCESS, "op2": State.SUCCESS}
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, can not run in isolation mode
     @pytest.mark.parametrize(
         argnames=(
             "callable_return, test_ignore_downstream_trigger_rules, test_trigger_rule, expected_task_states"
@@ -697,7 +691,6 @@ class TestShortCircuitOperator(BasePythonTest):
         assert self.op2.trigger_rule == test_trigger_rule
         self.assert_expected_task_states(dr, expected_task_states)
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests logic with clear_task_instances(), this needs DB access
     def test_clear_skipped_downstream_task(self):
         """
         After a downstream task is skipped by ShortCircuitOperator, clearing the skipped task
@@ -750,7 +743,6 @@ class TestShortCircuitOperator(BasePythonTest):
         assert tis[0].xcom_pull(task_ids=short_op_push_xcom.task_id, key="return_value") == "signature"
         assert tis[0].xcom_pull(task_ids=short_op_no_push_xcom.task_id, key="return_value") is False
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, can not run in isolation mode
     def test_xcom_push_skipped_tasks(self):
         with self.dag_non_serialized:
             short_op_push_xcom = ShortCircuitOperator(
@@ -765,7 +757,6 @@ class TestShortCircuitOperator(BasePythonTest):
             "skipped": ["empty_task"]
         }
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, can not run in isolation mode
     def test_mapped_xcom_push_skipped_tasks(self, session):
         with self.dag_non_serialized:
 
@@ -1052,7 +1043,6 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         task = self.run_as_task(f, env_vars={"MY_ENV_VAR": "EFGHI"}, inherit_env=True)
         assert task.execute_callable() == "EFGHI"
 
-    @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context(self):
         def f():
             from airflow.providers.standard.operators.python import get_current_context
@@ -1072,7 +1062,6 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE):
                 self.run_as_task(f, return_ti=True, use_airflow_context=True)
 
-    @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_not_found_error(self):
         def f():
             from airflow.providers.standard.operators.python import get_current_context
@@ -1095,7 +1084,6 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             ):
                 self.run_as_task(f, return_ti=True, use_airflow_context=False)
 
-    @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_airflow_not_found_error(self):
         airflow_flag: dict[str, bool] = {"expect_airflow": False}
         error_msg = r"The `use_airflow_context` parameter is set to True, but expect_airflow is set to False."
@@ -1122,7 +1110,6 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE):
                 self.run_as_task(f, return_ti=True, use_airflow_context=True, **airflow_flag)
 
-    @USE_AIRFLOW_CONTEXT_MARKER
     def test_use_airflow_context_touch_other_variables(self):
         def f():
             from airflow.providers.standard.operators.python import get_current_context
@@ -1140,22 +1127,6 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             assert ti.state == TaskInstanceState.SUCCESS
         else:
             with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE):
-                self.run_as_task(f, return_ti=True, use_airflow_context=True)
-
-    @pytest.mark.skipif(_ENABLE_AIP_44, reason="AIP-44 is enabled")
-    def test_use_airflow_context_without_aip_44_error(self):
-        def f():
-            from airflow.providers.standard.operators.python import get_current_context
-
-            get_current_context()
-            return []
-
-        error_msg = "`get_current_context()` needs to be used with AIP-44 enabled."
-        if AIRFLOW_V_3_0_PLUS:
-            with pytest.raises(AirflowException, match=re.escape(error_msg)):
-                self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
-        else:
-            with pytest.raises(AirflowException, match=re.escape(AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE)):
                 self.run_as_task(f, return_ti=True, use_airflow_context=True)
 
 
@@ -1534,7 +1505,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_task(f, serializer=serializer, system_site_packages=False, requirements=None)
 
-    @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_system_site_packages(self, session):
         def f():
             from airflow.providers.standard.operators.python import get_current_context
@@ -1817,7 +1787,6 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         else:
             pytest.fail(f"{self.task_id!r} not found.")
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests logic with clear_task_instances(), this needs DB access
     def test_clear_skipped_downstream_task(self):
         """
         After a downstream task is skipped by BranchPythonOperator, clearing the skipped task
@@ -1899,7 +1868,6 @@ class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator)
                 kwargs["venv_cache_path"] = venv_cache_path
         return kwargs
 
-    @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_system_site_packages(self, session):
         def f():
             from airflow.providers.standard.operators.python import get_current_context
@@ -2022,7 +1990,6 @@ DEFAULT_ARGS = {
 }
 
 
-@pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, can not run in isolation mode
 @pytest.mark.usefixtures("clear_db")
 class TestCurrentContextRuntime:
     def test_context_in_task(self):
@@ -2038,7 +2005,6 @@ class TestCurrentContextRuntime:
 
 @pytest.mark.need_serialized_dag(False)
 class TestShortCircuitWithTeardown:
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, mix of pydantic and mock fails
     @pytest.mark.parametrize(
         "ignore_downstream_trigger_rules, with_teardown, should_skip, expected",
         [
@@ -2080,7 +2046,6 @@ class TestShortCircuitWithTeardown:
         else:
             op1.skip.assert_not_called()
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, mix of pydantic and mock fails
     @pytest.mark.parametrize("config", ["sequence", "parallel"])
     def test_short_circuit_with_teardowns_complicated(self, dag_maker, config):
         with dag_maker():
@@ -2108,7 +2073,6 @@ class TestShortCircuitWithTeardown:
             actual_skipped = set(op1.skip.call_args.kwargs["tasks"])
             assert actual_skipped == {s2, op2}
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, mix of pydantic and mock fails
     def test_short_circuit_with_teardowns_complicated_2(self, dag_maker):
         with dag_maker():
             s1 = PythonOperator(task_id="s1", python_callable=print).as_setup()
@@ -2137,7 +2101,6 @@ class TestShortCircuitWithTeardown:
             actual_skipped = set(actual_kwargs["tasks"])
             assert actual_skipped == {op3}
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, mix of pydantic and mock fails
     @pytest.mark.parametrize("level", [logging.DEBUG, logging.INFO])
     def test_short_circuit_with_teardowns_debug_level(self, dag_maker, level, clear_db):
         """

@@ -40,7 +40,7 @@ else:
 
 # TODO: Check if tests needs side effects - locally there's missing DAG
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestCliBackfill:

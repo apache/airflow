@@ -1955,8 +1955,8 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ]
         for task_instance in expected_response:
             assert task_instance in response.json()["task_instances"]
-        assert 6 == response.json()["total_entries"]
-        assert 0 == failed_dag_runs, 0
+        assert response.json()["total_entries"] == 6
+        assert failed_dag_runs == 0
 
     def test_should_respond_200_with_dag_run_id(self, test_client, session):
         dag_id = "example_python_operator"
@@ -2012,7 +2012,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             },
         ]
         assert response.json()["task_instances"] == expected_response
-        assert 1 == response.json()["total_entries"]
+        assert response.json()["total_entries"] == 1
 
     def test_should_respond_200_with_include_past(self, test_client, session):
         dag_id = "example_python_operator"
@@ -2177,7 +2177,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ]
         for task_instance in expected_response:
             assert task_instance in response.json()["task_instances"]
-        assert 6 == response.json()["total_entries"]
+        assert response.json()["total_entries"] == 6
 
     def test_should_respond_404_for_nonexistent_dagrun_id(self, test_client, session):
         dag_id = "example_python_operator"

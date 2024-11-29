@@ -40,7 +40,7 @@ from tests_common.test_utils.api_connexion_utils import assert_401, create_user,
 from tests_common.test_utils.db import clear_db_runs, clear_rendered_ti_fields
 from tests_common.test_utils.www import _check_last_log
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 DEFAULT_DATETIME_1 = datetime(2020, 1, 1)
 DEFAULT_DATETIME_STR_1 = "2020-01-01T00:00:00+00:00"
@@ -1366,8 +1366,8 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ]
         for task_instance in expected_response:
             assert task_instance in response.json["task_instances"]
-        assert 6 == len(response.json["task_instances"])
-        assert 0 == failed_dag_runs, 0
+        assert len(response.json["task_instances"]) == 6
+        assert failed_dag_runs == 0
         _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", logical_date=None)
 
     def test_should_respond_200_with_dag_run_id(self, session):
