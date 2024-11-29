@@ -23,36 +23,27 @@ Database helpers for Airflow REST API.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Literal, overload
+from typing import TYPE_CHECKING, Annotated, Literal, overload
 
+from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 
 from airflow.utils.db import get_query_count, get_query_count_async
 from airflow.utils.session import NEW_SESSION, create_session, create_session_async, provide_session
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
     from sqlalchemy.sql import Select
 
     from airflow.api_fastapi.common.parameters import BaseParam
 
 
-def get_session() -> Session:
-    """
-    Dependency for providing a session.
-
-    For non route function please use the :class:`airflow.utils.session.provide_session` decorator.
-
-    Example usage:
-
-    .. code:: python
-
-        @router.get("/your_path")
-        def your_route(session: Annotated[Session, Depends(get_session)]):
-            pass
-    """
+def _get_session() -> Session:
     with create_session(scoped=False) as session:
         yield session
+
+
+SessionDep = Annotated[Session, Depends(_get_session)]
 
 
 def apply_filters_to_select(
@@ -68,20 +59,12 @@ def apply_filters_to_select(
     return statement
 
 
-async def get_async_session() -> AsyncSession:
-    """
-    Dependency for providing a session.
-
-    Example usage:
-
-    .. code:: python
-
-        @router.get("/your_path")
-        def your_route(session: Annotated[AsyncSession, Depends(get_async_session)]):
-            pass
-    """
+async def _get_async_session() -> AsyncSession:
     async with create_session_async() as session:
         yield session
+
+
+AsyncSessionDep = Annotated[AsyncSession, Depends(_get_async_session)]
 
 
 @overload

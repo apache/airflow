@@ -22,14 +22,13 @@ from typing import Annotated, Literal, cast
 import pendulum
 from fastapi import Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_failed,
     set_dag_run_state_to_queued,
     set_dag_run_state_to_success,
 )
-from airflow.api_fastapi.common.db.common import get_session, paginated_select
+from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     DagIdsFilter,
     LimitFilter,
@@ -76,9 +75,7 @@ dag_run_router = AirflowRouter(tags=["DagRun"], prefix="/dags/{dag_id}/dagRuns")
         ]
     ),
 )
-def get_dag_run(
-    dag_id: str, dag_run_id: str, session: Annotated[Session, Depends(get_session)]
-) -> DAGRunResponse:
+def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResponse:
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
     if dag_run is None:
         raise HTTPException(
@@ -99,7 +96,7 @@ def get_dag_run(
         ]
     ),
 )
-def delete_dag_run(dag_id: str, dag_run_id: str, session: Annotated[Session, Depends(get_session)]):
+def delete_dag_run(dag_id: str, dag_run_id: str, session: SessionDep):
     """Delete a DAG Run entry."""
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
 
@@ -125,7 +122,7 @@ def patch_dag_run(
     dag_id: str,
     dag_run_id: str,
     patch_body: DAGRunPatchBody,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     request: Request,
     update_mask: list[str] | None = Query(None),
 ) -> DAGRunResponse:
@@ -180,7 +177,7 @@ def patch_dag_run(
     ),
 )
 def get_upstream_asset_events(
-    dag_id: str, dag_run_id: str, session: Annotated[Session, Depends(get_session)]
+    dag_id: str, dag_run_id: str, session: SessionDep
 ) -> AssetEventCollectionResponse:
     """If dag run is asset-triggered, return the asset events that triggered it."""
     dag_run: DagRun | None = session.scalar(
@@ -209,7 +206,7 @@ def clear_dag_run(
     dag_run_id: str,
     body: DAGRunClearBody,
     request: Request,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> TaskInstanceCollectionResponse | DAGRunResponse:
     dag_run = session.scalar(select(DagRun).filter_by(dag_id=dag_id, run_id=dag_run_id))
     if dag_run is None:
@@ -279,7 +276,7 @@ def get_dag_runs(
             ).dynamic_depends(default="id")
         ),
     ],
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     request: Request,
 ) -> DAGRunCollectionResponse:
     """
@@ -322,7 +319,7 @@ def get_dag_runs(
     ),
 )
 def trigger_dag_run(
-    dag_id, body: TriggerDAGRunPostBody, request: Request, session: Annotated[Session, Depends(get_session)]
+    dag_id, body: TriggerDAGRunPostBody, request: Request, session: SessionDep
 ) -> DAGRunResponse:
     """Trigger a DAG."""
     dm = session.scalar(select(DagModel).where(DagModel.is_active, DagModel.dag_id == dag_id).limit(1))
@@ -374,7 +371,7 @@ def trigger_dag_run(
 
 @dag_run_router.post("/list", responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]))
 def get_list_dag_runs_batch(
-    dag_id: Literal["~"], body: DAGRunsBatchBody, session: Annotated[Session, Depends(get_session)]
+    dag_id: Literal["~"], body: DAGRunsBatchBody, session: SessionDep
 ) -> DAGRunCollectionResponse:
     """Get a list of DAG Runs."""
     dag_ids = DagIdsFilter(DagRun, body.dag_ids)

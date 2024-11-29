@@ -17,13 +17,10 @@
 
 from __future__ import annotations
 
-from typing import Annotated
-
-from fastapi import Depends, status
-from sqlalchemy.orm import Session
+from fastapi import status
 
 from airflow.api_fastapi.common.db.common import (
-    get_session,
+    SessionDep,
     paginated_select,
 )
 from airflow.api_fastapi.common.db.dag_runs import dagruns_select_with_state_count
@@ -50,7 +47,7 @@ dag_stats_router = AirflowRouter(tags=["DagStats"], prefix="/dagStats")
     ),
 )
 def get_dag_stats(
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     dag_ids: QueryDagIdsFilter,
 ) -> DagStatsCollectionResponse:
     """Get Dag statistics."""

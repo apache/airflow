@@ -17,14 +17,13 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import HTTPException, Request, status
 from itsdangerous import BadSignature, URLSafeSerializer
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
-from airflow.api_fastapi.common.db.common import get_session
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.auth.managers.models.resource_details import DagDetails
@@ -44,7 +43,7 @@ dag_parsing_router = AirflowRouter(tags=["DAG Parsing"], prefix="/parseDagFile/{
 )
 def reparse_dag_file(
     file_token: str,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     request: Request,
 ) -> None:
     """Request re-parsing a DAG file."""

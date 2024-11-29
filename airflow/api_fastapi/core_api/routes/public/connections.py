@@ -21,9 +21,8 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
-from airflow.api_fastapi.common.db.common import get_session, paginated_select
+from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.connections import (
@@ -49,7 +48,7 @@ connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
 )
 def delete_connection(
     connection_id: str,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ):
     """Delete a connection entry."""
     connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
@@ -68,7 +67,7 @@ def delete_connection(
 )
 def get_connection(
     connection_id: str,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> ConnectionResponse:
     """Get a connection entry."""
     connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
@@ -98,7 +97,7 @@ def get_connections(
             ).dynamic_depends()
         ),
     ],
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> ConnectionCollectionResponse:
     """Get all connection entries."""
     connection_select, total_entries = paginated_select(
@@ -124,7 +123,7 @@ def get_connections(
 )
 def post_connection(
     post_body: ConnectionBody,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> ConnectionResponse:
     """Create connection entry."""
     try:
@@ -157,7 +156,7 @@ def post_connection(
 def patch_connection(
     connection_id: str,
     patch_body: ConnectionBody,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     update_mask: list[str] | None = Query(None),
 ) -> ConnectionResponse:
     """Update a connection entry."""

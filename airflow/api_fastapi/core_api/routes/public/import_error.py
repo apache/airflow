@@ -20,10 +20,9 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.common.db.common import (
-    get_session,
+    SessionDep,
     paginated_select,
 )
 from airflow.api_fastapi.common.parameters import (
@@ -48,7 +47,7 @@ import_error_router = AirflowRouter(tags=["Import Error"], prefix="/importErrors
 )
 def get_import_error(
     import_error_id: int,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> ImportErrorResponse:
     """Get an import error."""
     error = session.scalar(select(ParseImportError).where(ParseImportError.id == import_error_id))
@@ -82,7 +81,7 @@ def get_import_errors(
             ).dynamic_depends()
         ),
     ],
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> ImportErrorCollectionResponse:
     """Get all import errors."""
     import_errors_select, total_entries = paginated_select(

@@ -21,13 +21,12 @@ import logging
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Body, Depends, HTTPException, status
+from fastapi import Body, HTTPException, status
 from sqlalchemy import update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
-from sqlalchemy.orm import Session
 from sqlalchemy.sql import select
 
-from airflow.api_fastapi.common.db.common import get_session
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TIDeferredStatePayload,
@@ -63,7 +62,7 @@ log = logging.getLogger(__name__)
 def ti_update_state(
     task_instance_id: UUID,
     ti_patch_payload: Annotated[TIStateUpdate, Body()],
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ):
     """
     Update the state of a TaskInstance.
@@ -174,7 +173,7 @@ def ti_update_state(
 def ti_heartbeat(
     task_instance_id: UUID,
     ti_payload: TIHeartbeatInfo,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ):
     """Update the heartbeat of a TaskInstance to mark it as alive & still running."""
     ti_id_str = str(task_instance_id)

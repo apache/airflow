@@ -20,10 +20,9 @@ from typing import Annotated
 
 from fastapi import Depends, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.common.db.common import (
-    get_session,
+    SessionDep,
     paginated_select,
 )
 from airflow.api_fastapi.common.parameters import (
@@ -84,7 +83,7 @@ def get_jobs(
             ).dynamic_depends(default="id")
         ),
     ],
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     state: QueryJobStateFilter,
     job_type: QueryJobTypeFilter,
     hostname: QueryJobHostnameFilter,
