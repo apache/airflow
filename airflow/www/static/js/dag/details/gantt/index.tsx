@@ -155,8 +155,6 @@ const Gantt = ({
     dagRun?.queuedAt,
     dagRun?.startDate,
     dagRun?.endDate,
-    startDate,
-    endDate,
   ]);
 
   const numBars = Math.round(width / 100);
