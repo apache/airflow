@@ -21,162 +21,46 @@ from subprocess import CalledProcessError
 import jmespath
 import pytest
 
-from tests.charts.helm_template_generator import render_chart
+from tests.charts.helm_template_generator import render_chart as _render_chart
 
 
-class TestRPCServerDeployment:
-    """Tests rpc-server deployment."""
+# Everything in here needcs to set airflowVersion to get the API server to render
+def render_chart(values=None, **kwargs):
+    values = values or {}
+    values.setdefault("airflowVersion", "3.0.0")
+    return _render_chart(values=values, **kwargs)
 
-    def test_is_disabled_by_default(self):
-        """
-        RPC server should be disabled by default.
-        """
-        docs = render_chart(
-            values={"_rpcServer": {}},
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
-        )
 
-        assert len(docs) == 0
-
-    def test_should_add_host_header_to_liveness_and_readiness_and_startup_probes(self):
-        docs = render_chart(
-            values={
-                "_rpcServer": {"enabled": True},
-                "config": {"core": {"internal_api_url": "https://example.com:21222/mypath/path"}},
-            },
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
-        )
-
-        assert {"name": "Host", "value": "example.com"} in jmespath.search(
-            "spec.template.spec.containers[0].livenessProbe.httpGet.httpHeaders", docs[0]
-        )
-        assert {"name": "Host", "value": "example.com"} in jmespath.search(
-            "spec.template.spec.containers[0].readinessProbe.httpGet.httpHeaders", docs[0]
-        )
-        assert {"name": "Host", "value": "example.com"} in jmespath.search(
-            "spec.template.spec.containers[0].startupProbe.httpGet.httpHeaders", docs[0]
-        )
-
-    def test_should_add_path_to_liveness_and_readiness_and_startup_probes(self):
-        docs = render_chart(
-            values={
-                "_rpcServer": {
-                    "enabled": True,
-                },
-                "config": {"core": {"internal_api_url": "https://example.com:21222/mypath/path"}},
-            },
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
-        )
-
-        assert (
-            jmespath.search("spec.template.spec.containers[0].livenessProbe.httpGet.path", docs[0])
-            == "/mypath/path/internal_api/v1/health"
-        )
-        assert (
-            jmespath.search("spec.template.spec.containers[0].readinessProbe.httpGet.path", docs[0])
-            == "/mypath/path/internal_api/v1/health"
-        )
-        assert (
-            jmespath.search("spec.template.spec.containers[0].startupProbe.httpGet.path", docs[0])
-            == "/mypath/path/internal_api/v1/health"
-        )
+class TestAPIServerDeployment:
+    """Tests api-server deployment."""
 
     @pytest.mark.parametrize(
         "revision_history_limit, global_revision_history_limit",
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
     )
     def test_revision_history_limit(self, revision_history_limit, global_revision_history_limit):
-        values = {
-            "_rpcServer": {
-                "enabled": True,
-            }
-        }
+        values = {"apiServer": {}}
         if revision_history_limit:
-            values["_rpcServer"]["revisionHistoryLimit"] = revision_history_limit
+            values["apiServer"]["revisionHistoryLimit"] = revision_history_limit
         if global_revision_history_limit:
             values["revisionHistoryLimit"] = global_revision_history_limit
         docs = render_chart(
             values=values,
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
         expected_result = revision_history_limit if revision_history_limit else global_revision_history_limit
         assert jmespath.search("spec.revisionHistoryLimit", docs[0]) == expected_result
 
-    @pytest.mark.parametrize(
-        "values",
-        [
-            {"_rpcServer": {"enabled": True}},
-            {
-                "_rpcServer": {"enabled": True},
-                "config": {"core": {"internal_api_url": ""}},
-            },
-        ],
-    )
-    def test_should_not_contain_host_header(self, values):
-        docs = render_chart(values=values, show_only=["templates/rpc-server/rpc-server-deployment.yaml"])
-
-        assert (
-            jmespath.search("spec.template.spec.containers[0].livenessProbe.httpGet.httpHeaders", docs[0])
-            is None
-        )
-        assert (
-            jmespath.search("spec.template.spec.containers[0].readinessProbe.httpGet.httpHeaders", docs[0])
-            is None
-        )
-        assert (
-            jmespath.search("spec.template.spec.containers[0].startupProbe.httpGet.httpHeaders", docs[0])
-            is None
-        )
-
-    def test_should_use_templated_base_url_for_probes(self):
-        docs = render_chart(
-            values={
-                "_rpcServer": {
-                    "enabled": True,
-                },
-                "config": {
-                    "core": {
-                        "internal_api_url": "https://{{ .Release.Name }}.com:21222/mypath/{{ .Release.Name }}/path"
-                    }
-                },
-            },
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
-        )
-        container = jmespath.search("spec.template.spec.containers[0]", docs[0])
-
-        assert {"name": "Host", "value": "release-name.com"} in jmespath.search(
-            "livenessProbe.httpGet.httpHeaders", container
-        )
-        assert {"name": "Host", "value": "release-name.com"} in jmespath.search(
-            "readinessProbe.httpGet.httpHeaders", container
-        )
-        assert {"name": "Host", "value": "release-name.com"} in jmespath.search(
-            "startupProbe.httpGet.httpHeaders", container
-        )
-        assert (
-            jmespath.search("livenessProbe.httpGet.path", container)
-            == "/mypath/release-name/path/internal_api/v1/health"
-        )
-        assert (
-            jmespath.search("readinessProbe.httpGet.path", container)
-            == "/mypath/release-name/path/internal_api/v1/health"
-        )
-        assert (
-            jmespath.search("startupProbe.httpGet.path", container)
-            == "/mypath/release-name/path/internal_api/v1/health"
-        )
-
     def test_should_add_scheme_to_liveness_and_readiness_and_startup_probes(self):
         docs = render_chart(
             values={
-                "_rpcServer": {
-                    "enabled": True,
+                "apiServer": {
                     "livenessProbe": {"scheme": "HTTPS"},
                     "readinessProbe": {"scheme": "HTTPS"},
                     "startupProbe": {"scheme": "HTTPS"},
                 }
             },
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
         assert "HTTPS" in jmespath.search(
@@ -193,14 +77,13 @@ class TestRPCServerDeployment:
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",
-                "_rpcServer": {
-                    "enabled": True,
+                "apiServer": {
                     "extraContainers": [
                         {"name": "{{.Chart.Name}}", "image": "test-registry/test-repo:test-tag"}
                     ],
                 },
             },
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
         assert jmespath.search("spec.template.spec.containers[-1]", docs[0]) == {
@@ -211,12 +94,11 @@ class TestRPCServerDeployment:
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
-                "_rpcServer": {
-                    "enabled": True,
+                "apiServer": {
                     "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
                 },
             },
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
         assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
@@ -226,15 +108,14 @@ class TestRPCServerDeployment:
     def test_should_add_extra_volume_and_extra_volume_mount(self):
         docs = render_chart(
             values={
-                "_rpcServer": {
-                    "enabled": True,
+                "apiServer": {
                     "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
                     "extraVolumeMounts": [
                         {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
                     ],
                 },
             },
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
         assert jmespath.search("spec.template.spec.volumes[-1].name", docs[0]) == "test-volume-airflow"
@@ -250,11 +131,10 @@ class TestRPCServerDeployment:
     def test_should_add_global_volume_and_global_volume_mount(self):
         docs = render_chart(
             values={
-                "_rpcServer": {"enabled": True},
                 "volumes": [{"name": "test-volume", "emptyDir": {}}],
                 "volumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
             },
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
         assert jmespath.search("spec.template.spec.volumes[-1].name", docs[0]) == "test-volume"
@@ -266,35 +146,23 @@ class TestRPCServerDeployment:
     def test_should_add_extraEnvs_to_wait_for_migration_container(self):
         docs = render_chart(
             values={
-                "_rpcServer": {
-                    "enabled": True,
+                "apiServer": {
                     "waitForMigrations": {
                         "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
                     },
                 },
             },
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
         assert {"name": "TEST_ENV_1", "value": "test_env_1"} in jmespath.search(
             "spec.template.spec.initContainers[0].env", docs[0]
         )
 
-    @pytest.mark.parametrize(
-        "airflow_version, expected_arg",
-        [
-            ("2.0.0", ["airflow", "db", "check-migrations", "--migration-wait-timeout=60"]),
-            ("2.1.0", ["airflow", "db", "check-migrations", "--migration-wait-timeout=60"]),
-            ("1.10.2", ["python", "-c"]),
-        ],
-    )
-    def test_wait_for_migration_airflow_version(self, airflow_version, expected_arg):
+    def test_wait_for_migration_airflow_version(self):
+        expected_arg = ["airflow", "db", "check-migrations", "--migration-wait-timeout=60"]
         docs = render_chart(
-            values={
-                "_rpcServer": {"enabled": True},
-                "airflowVersion": airflow_version,
-            },
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
         # Don't test the full string, just the length of the expect matches
         actual = jmespath.search("spec.template.spec.initContainers[0].args", docs[0])
@@ -303,12 +171,11 @@ class TestRPCServerDeployment:
     def test_disable_wait_for_migration(self):
         docs = render_chart(
             values={
-                "_rpcServer": {
-                    "enabled": True,
+                "apiServer": {
                     "waitForMigrations": {"enabled": False},
                 },
             },
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
         actual = jmespath.search(
             "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations']", docs[0]
@@ -318,14 +185,13 @@ class TestRPCServerDeployment:
     def test_should_add_extra_init_containers(self):
         docs = render_chart(
             values={
-                "_rpcServer": {
-                    "enabled": True,
+                "apiServer": {
                     "extraInitContainers": [
                         {"name": "test-init-container", "image": "test-registry/test-repo:test-tag"}
                     ],
                 },
             },
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
         assert jmespath.search("spec.template.spec.initContainers[-1]", docs[0]) == {
@@ -336,12 +202,11 @@ class TestRPCServerDeployment:
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
-                "_rpcServer": {
-                    "enabled": True,
+                "apiServer": {
                     "labels": {"test_label": "test_label_value"},
                 },
             },
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
         assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
@@ -350,8 +215,7 @@ class TestRPCServerDeployment:
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={
-                "_rpcServer": {
-                    "enabled": True,
+                "apiServer": {
                     "affinity": {
                         "nodeAffinity": {
                             "requiredDuringSchedulingIgnoredDuringExecution": {
@@ -371,7 +235,7 @@ class TestRPCServerDeployment:
                     "nodeSelector": {"diskType": "ssd"},
                 }
             },
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
         assert jmespath.search("kind", docs[0]) == "Deployment"
@@ -403,8 +267,7 @@ class TestRPCServerDeployment:
 
     def test_should_create_default_affinity(self):
         docs = render_chart(
-            values={"_rpcServer": {"enabled": True}},
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
         assert jmespath.search(
@@ -412,10 +275,10 @@ class TestRPCServerDeployment:
             "preferredDuringSchedulingIgnoredDuringExecution[0]."
             "podAffinityTerm.labelSelector.matchLabels",
             docs[0],
-        ) == {"component": "rpc-server"}
+        ) == {"component": "api-server"}
 
     def test_affinity_tolerations_topology_spread_constraints_and_node_selector_precedence(self):
-        """When given both global and rpc-server affinity etc, rpc-server affinity etc is used."""
+        """When given both global and api-server affinity etc, api-server affinity etc is used."""
         expected_affinity = {
             "nodeAffinity": {
                 "requiredDuringSchedulingIgnoredDuringExecution": {
@@ -437,8 +300,7 @@ class TestRPCServerDeployment:
         }
         docs = render_chart(
             values={
-                "_rpcServer": {
-                    "enabled": True,
+                "apiServer": {
                     "affinity": expected_affinity,
                     "tolerations": [
                         {"key": "dynamic-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
@@ -473,7 +335,7 @@ class TestRPCServerDeployment:
                 ],
                 "nodeSelector": {"type": "not-me"},
             },
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
         assert expected_affinity == jmespath.search("spec.template.spec.affinity", docs[0])
@@ -493,8 +355,8 @@ class TestRPCServerDeployment:
 
     def test_scheduler_name(self):
         docs = render_chart(
-            values={"_rpcServer": {"enabled": True}, "schedulerName": "airflow-scheduler"},
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            values={"schedulerName": "airflow-scheduler"},
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
         assert (
@@ -515,8 +377,8 @@ class TestRPCServerDeployment:
     )
     def test_logs_persistence_adds_volume_and_mount(self, log_persistence_values, expected_claim_name):
         docs = render_chart(
-            values={"_rpcServer": {"enabled": True}, "logs": {"persistence": log_persistence_values}},
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            values={"logs": {"persistence": log_persistence_values}},
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
         if expected_claim_name:
@@ -536,8 +398,7 @@ class TestRPCServerDeployment:
 
     def test_config_volumes(self):
         docs = render_chart(
-            values={"_rpcServer": {"enabled": True}},
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
         # default config
@@ -548,18 +409,17 @@ class TestRPCServerDeployment:
             "subPath": "airflow.cfg",
         } in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
 
-    def test_rpc_server_resources_are_configurable(self):
+    def testapi_server_resources_are_configurable(self):
         docs = render_chart(
             values={
-                "_rpcServer": {
-                    "enabled": True,
+                "apiServer": {
                     "resources": {
                         "limits": {"cpu": "200m", "memory": "128Mi"},
                         "requests": {"cpu": "300m", "memory": "169Mi"},
                     },
                 },
             },
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
         assert jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0]) == "128Mi"
         assert jmespath.search("spec.template.spec.containers[0].resources.limits.cpu", docs[0]) == "200m"
@@ -584,11 +444,10 @@ class TestRPCServerDeployment:
             jmespath.search("spec.template.spec.initContainers[0].resources.requests.cpu", docs[0]) == "300m"
         )
 
-    def test_rpc_server_security_contexts_are_configurable(self):
+    def test_api_server_security_contexts_are_configurable(self):
         docs = render_chart(
             values={
-                "_rpcServer": {
-                    "enabled": True,
+                "apiServer": {
                     "securityContexts": {
                         "pod": {
                             "fsGroup": 1000,
@@ -603,7 +462,7 @@ class TestRPCServerDeployment:
                     },
                 },
             },
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
         assert jmespath.search("spec.template.spec.containers[0].securityContext", docs[0]) == {
             "allowPrivilegeEscalation": False,
@@ -617,12 +476,11 @@ class TestRPCServerDeployment:
             "runAsNonRoot": True,
         }
 
-    def test_rpc_server_security_context_legacy(self):
+    def test_api_server_security_context_legacy(self):
         with pytest.raises(CalledProcessError, match="Additional property securityContext is not allowed"):
             render_chart(
                 values={
-                    "_rpcServer": {
-                        "enabled": True,
+                    "apiServer": {
                         "securityContext": {
                             "fsGroup": 1000,
                             "runAsGroup": 1001,
@@ -631,61 +489,59 @@ class TestRPCServerDeployment:
                         },
                     },
                 },
-                show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+                show_only=["templates/api-server/api-server-deployment.yaml"],
             )
 
-    def test_rpc_server_resources_are_not_added_by_default(self):
+    def test_api_server_resources_are_not_added_by_default(self):
         docs = render_chart(
-            values={"_rpcServer": {"enabled": True}},
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
         assert jmespath.search("spec.template.spec.initContainers[0].resources", docs[0]) == {}
 
     @pytest.mark.parametrize(
-        "airflow_version, expected_strategy",
+        ("airflow_version", "strategy", "expected_strategy"),
         [
-            ("2.0.2", {"type": "RollingUpdate", "rollingUpdate": {"maxSurge": 1, "maxUnavailable": 0}}),
-            ("1.10.14", {"type": "Recreate"}),
-            ("1.9.0", {"type": "Recreate"}),
-            ("2.1.0", {"type": "RollingUpdate", "rollingUpdate": {"maxSurge": 1, "maxUnavailable": 0}}),
+            pytest.param(
+                "3.0.0",
+                None,
+                {"type": "RollingUpdate", "rollingUpdate": {"maxSurge": 1, "maxUnavailable": 0}},
+                id="default",
+            ),
+            pytest.param(
+                "3.0.0",
+                {"type": "RollingUpdate", "rollingUpdate": {"maxUnavailable": 1}},
+                {"type": "RollingUpdate", "rollingUpdate": {"maxSurge": 1, "maxUnavailable": 0}},
+                id="custom-strategy",
+            ),
         ],
     )
-    def test_default_update_strategy(self, airflow_version, expected_strategy):
+    def test_update_strategy(self, airflow_version, strategy, expected_strategy):
         docs = render_chart(
-            values={"_rpcServer": {"enabled": True}, "airflowVersion": airflow_version},
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
-        )
-
-        assert jmespath.search("spec.strategy", docs[0]) == expected_strategy
-
-    def test_update_strategy(self):
-        expected_strategy = {"type": "RollingUpdate", "rollingUpdate": {"maxUnavailable": 1}}
-        docs = render_chart(
-            values={"_rpcServer": {"enabled": True, "strategy": expected_strategy}},
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            values={"airflowVersion": airflow_version, "apiServer": {"strategy": expected_strategy}},
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
         assert jmespath.search("spec.strategy", docs[0]) == expected_strategy
 
     def test_default_command_and_args(self):
         docs = render_chart(
-            values={"_rpcServer": {"enabled": True}},
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) == ["bash"]
+        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
         assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == [
+            "bash",
             "-c",
-            "exec airflow internal-api",
+            "exec airflow fastapi-api",
         ]
 
     @pytest.mark.parametrize("command", [None, ["custom", "command"]])
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_command_and_args_overrides(self, command, args):
         docs = render_chart(
-            values={"_rpcServer": {"enabled": True, "command": command, "args": args}},
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            values={"apiServer": {"command": command, "args": args}},
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
         assert command == jmespath.search("spec.template.spec.containers[0].command", docs[0])
@@ -694,13 +550,12 @@ class TestRPCServerDeployment:
     def test_command_and_args_overrides_are_templated(self):
         docs = render_chart(
             values={
-                "_rpcServer": {
-                    "enabled": True,
+                "apiServer": {
                     "command": ["{{ .Release.Name }}"],
                     "args": ["{{ .Release.Service }}"],
                 }
             },
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
         assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) == ["release-name"]
@@ -708,57 +563,45 @@ class TestRPCServerDeployment:
 
     def test_should_add_component_specific_annotations(self):
         docs = render_chart(
-            values={
-                "_rpcServer": {
-                    "enabled": True,
-                    "annotations": {"test_annotation": "test_annotation_value"},
-                },
-            },
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            values={"apiServer": {"annotations": {"test_annotation": "test_annotation_value"}}},
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
         assert "annotations" in jmespath.search("metadata", docs[0])
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
 
-    def test_rpc_server_pod_hostaliases(self):
+    def test_api_server_pod_hostaliases(self):
         docs = render_chart(
-            values={
-                "_rpcServer": {
-                    "enabled": True,
-                    "hostAliases": [{"ip": "127.0.0.1", "hostnames": ["foo.local"]}],
-                },
-            },
-            show_only=["templates/rpc-server/rpc-server-deployment.yaml"],
+            values={"apiServer": {"hostAliases": [{"ip": "127.0.0.1", "hostnames": ["foo.local"]}]}},
+            show_only=["templates/api-server/api-server-deployment.yaml"],
         )
 
         assert jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0]) == "127.0.0.1"
         assert jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0]) == "foo.local"
 
 
-class TestRPCServerService:
-    """Tests rpc-server service."""
+class TestAPIServerService:
+    """Tests api-server service."""
 
     def test_default_service(self):
         docs = render_chart(
-            values={"_rpcServer": {"enabled": True}},
-            show_only=["templates/rpc-server/rpc-server-service.yaml"],
+            show_only=["templates/api-server/api-server-service.yaml"],
         )
 
-        assert jmespath.search("metadata.name", docs[0]) == "release-name-rpc-server"
+        assert jmespath.search("metadata.name", docs[0]) == "release-name-api-server"
         assert jmespath.search("metadata.annotations", docs[0]) is None
         assert jmespath.search("spec.selector", docs[0]) == {
             "tier": "airflow",
-            "component": "rpc-server",
+            "component": "api-server",
             "release": "release-name",
         }
         assert jmespath.search("spec.type", docs[0]) == "ClusterIP"
-        assert {"name": "rpc-server", "port": 9080} in jmespath.search("spec.ports", docs[0])
+        assert {"name": "api-server", "port": 9091} in jmespath.search("spec.ports", docs[0])
 
     def test_overrides(self):
         docs = render_chart(
             values={
-                "ports": {"_rpcServer": 9000},
-                "_rpcServer": {
-                    "enabled": True,
+                "ports": {"apiServer": 9000},
+                "apiServer": {
                     "service": {
                         "type": "LoadBalancer",
                         "loadBalancerIP": "127.0.0.1",
@@ -767,12 +610,12 @@ class TestRPCServerService:
                     },
                 },
             },
-            show_only=["templates/rpc-server/rpc-server-service.yaml"],
+            show_only=["templates/api-server/api-server-service.yaml"],
         )
 
         assert jmespath.search("metadata.annotations", docs[0]) == {"foo": "bar"}
         assert jmespath.search("spec.type", docs[0]) == "LoadBalancer"
-        assert {"name": "rpc-server", "port": 9000} in jmespath.search("spec.ports", docs[0])
+        assert {"name": "api-server", "port": 9000} in jmespath.search("spec.ports", docs[0])
         assert jmespath.search("spec.loadBalancerIP", docs[0]) == "127.0.0.1"
         assert jmespath.search("spec.loadBalancerSourceRanges", docs[0]) == ["10.123.0.0/16"]
 
@@ -785,19 +628,19 @@ class TestRPCServerService:
                     {
                         "name": "{{ .Release.Name }}",
                         "protocol": "UDP",
-                        "port": "{{ .Values.ports._rpcServer }}",
+                        "port": "{{ .Values.ports.apiServer }}",
                     }
                 ],
-                [{"name": "release-name", "protocol": "UDP", "port": 9080}],
+                [{"name": "release-name", "protocol": "UDP", "port": 9091}],
             ),
             ([{"name": "only_sidecar", "port": "{{ int 9000 }}"}], [{"name": "only_sidecar", "port": 9000}]),
             (
                 [
-                    {"name": "rpc-server", "port": "{{ .Values.ports._rpcServer }}"},
+                    {"name": "api-server", "port": "{{ .Values.ports.apiServer }}"},
                     {"name": "sidecar", "port": 80, "targetPort": "sidecar"},
                 ],
                 [
-                    {"name": "rpc-server", "port": 9080},
+                    {"name": "api-server", "port": 9091},
                     {"name": "sidecar", "port": 80, "targetPort": "sidecar"},
                 ],
             ),
@@ -805,23 +648,16 @@ class TestRPCServerService:
     )
     def test_ports_overrides(self, ports, expected_ports):
         docs = render_chart(
-            values={
-                "_rpcServer": {"enabled": True, "service": {"ports": ports}},
-            },
-            show_only=["templates/rpc-server/rpc-server-service.yaml"],
+            values={"apiServer": {"service": {"ports": ports}}},
+            show_only=["templates/api-server/api-server-service.yaml"],
         )
 
         assert jmespath.search("spec.ports", docs[0]) == expected_ports
 
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
-            values={
-                "_rpcServer": {
-                    "enabled": True,
-                    "labels": {"test_label": "test_label_value"},
-                },
-            },
-            show_only=["templates/rpc-server/rpc-server-service.yaml"],
+            values={"apiServer": {"labels": {"test_label": "test_label_value"}}},
+            show_only=["templates/api-server/api-server-service.yaml"],
         )
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
@@ -841,28 +677,20 @@ class TestRPCServerService:
     )
     def test_nodeport_service(self, ports, expected_ports):
         docs = render_chart(
-            values={
-                "_rpcServer": {
-                    "enabled": True,
-                    "service": {
-                        "type": "NodePort",
-                        "ports": ports,
-                    },
-                },
-            },
-            show_only=["templates/rpc-server/rpc-server-service.yaml"],
+            values={"apiServer": {"service": {"type": "NodePort", "ports": ports}}},
+            show_only=["templates/api-server/api-server-service.yaml"],
         )
 
         assert jmespath.search("spec.type", docs[0]) == "NodePort"
         assert expected_ports == jmespath.search("spec.ports", docs[0])
 
 
-class TestRPCServerNetworkPolicy:
-    """Tests rpc-server network policy."""
+class TestAPIServerNetworkPolicy:
+    """Tests api-server network policy."""
 
     def test_off_by_default(self):
         docs = render_chart(
-            show_only=["templates/rpc-server/rpc-server-networkpolicy.yaml"],
+            show_only=["templates/api-server/api-server-networkpolicy.yaml"],
         )
         assert len(docs) == 0
 
@@ -870,8 +698,7 @@ class TestRPCServerNetworkPolicy:
         docs = render_chart(
             values={
                 "networkPolicies": {"enabled": True},
-                "_rpcServer": {
-                    "enabled": True,
+                "apiServer": {
                     "networkPolicy": {
                         "ingress": {
                             "from": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}]
@@ -879,7 +706,7 @@ class TestRPCServerNetworkPolicy:
                     },
                 },
             },
-            show_only=["templates/rpc-server/rpc-server-networkpolicy.yaml"],
+            show_only=["templates/api-server/api-server-networkpolicy.yaml"],
         )
 
         assert len(docs) == 1
@@ -887,7 +714,7 @@ class TestRPCServerNetworkPolicy:
         assert jmespath.search("spec.ingress[0].from", docs[0]) == [
             {"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}
         ]
-        assert jmespath.search("spec.ingress[0].ports", docs[0]) == [{"port": 9080}]
+        assert jmespath.search("spec.ingress[0].ports", docs[0]) == [{"port": 9091}]
 
     @pytest.mark.parametrize(
         "ports, expected_ports",
@@ -895,11 +722,11 @@ class TestRPCServerNetworkPolicy:
             ([{"port": "sidecar"}], [{"port": "sidecar"}]),
             (
                 [
-                    {"port": "{{ .Values.ports._rpcServer }}"},
+                    {"port": "{{ .Values.ports.apiServer }}"},
                     {"port": 80},
                 ],
                 [
-                    {"port": 9080},
+                    {"port": 9091},
                     {"port": 80},
                 ],
             ),
@@ -909,8 +736,7 @@ class TestRPCServerNetworkPolicy:
         docs = render_chart(
             values={
                 "networkPolicies": {"enabled": True},
-                "_rpcServer": {
-                    "enabled": True,
+                "apiServer": {
                     "networkPolicy": {
                         "ingress": {
                             "from": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}],
@@ -919,7 +745,7 @@ class TestRPCServerNetworkPolicy:
                     },
                 },
             },
-            show_only=["templates/rpc-server/rpc-server-networkpolicy.yaml"],
+            show_only=["templates/api-server/api-server-networkpolicy.yaml"],
         )
 
         assert expected_ports == jmespath.search("spec.ingress[0].ports", docs[0])
@@ -928,30 +754,28 @@ class TestRPCServerNetworkPolicy:
         docs = render_chart(
             values={
                 "networkPolicies": {"enabled": True},
-                "_rpcServer": {
-                    "enabled": True,
+                "apiServer": {
                     "labels": {"test_label": "test_label_value"},
                 },
             },
-            show_only=["templates/rpc-server/rpc-server-networkpolicy.yaml"],
+            show_only=["templates/api-server/api-server-networkpolicy.yaml"],
         )
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
 
 
-class TestRPCServerServiceAccount:
-    """Tests rpc-server service account."""
+class TestAPIServerServiceAccount:
+    """Tests api-server service account."""
 
     def test_should_add_component_specific_labels(self):
         docs = render_chart(
             values={
-                "_rpcServer": {
-                    "enabled": True,
+                "apiServer": {
                     "serviceAccount": {"create": True},
                     "labels": {"test_label": "test_label_value"},
                 },
             },
-            show_only=["templates/rpc-server/rpc-server-serviceaccount.yaml"],
+            show_only=["templates/api-server/api-server-serviceaccount.yaml"],
         )
         assert "test_label" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
@@ -959,23 +783,21 @@ class TestRPCServerServiceAccount:
     def test_default_automount_service_account_token(self):
         docs = render_chart(
             values={
-                "_rpcServer": {
-                    "enabled": True,
+                "apiServer": {
                     "serviceAccount": {"create": True},
                 },
             },
-            show_only=["templates/rpc-server/rpc-server-serviceaccount.yaml"],
+            show_only=["templates/api-server/api-server-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is True
 
     def test_overridden_automount_service_account_token(self):
         docs = render_chart(
             values={
-                "_rpcServer": {
-                    "enabled": True,
+                "apiServer": {
                     "serviceAccount": {"create": True, "automountServiceAccountToken": False},
                 },
             },
-            show_only=["templates/rpc-server/rpc-server-serviceaccount.yaml"],
+            show_only=["templates/api-server/api-server-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
