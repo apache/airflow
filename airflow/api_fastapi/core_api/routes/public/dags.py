@@ -21,11 +21,10 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import select, update
-from sqlalchemy.orm import Session
 
 from airflow.api.common import delete_dag as delete_dag_module
 from airflow.api_fastapi.common.db.common import (
-    get_session,
+    SessionDep,
     paginated_select,
 )
 from airflow.api_fastapi.common.db.dags import dags_select_with_latest_dag_run
@@ -80,7 +79,7 @@ def get_dags(
             ).dynamic_depends()
         ),
     ],
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
     dags_select, total_entries = paginated_select(
@@ -124,7 +123,7 @@ def get_dag_tags(
         ),
     ],
     tag_name_pattern: QueryDagTagPatternSearch,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> DAGTagCollectionResponse:
     """Get all DAG tags."""
     query = select(DagTag.name).group_by(DagTag.name)
@@ -150,7 +149,7 @@ def get_dag_tags(
         ]
     ),
 )
-def get_dag(dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request) -> DAGResponse:
+def get_dag(dag_id: str, session: SessionDep, request: Request) -> DAGResponse:
     """Get basic information about a DAG."""
     dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
     if not dag:
@@ -176,9 +175,7 @@ def get_dag(dag_id: str, session: Annotated[Session, Depends(get_session)], requ
         ]
     ),
 )
-def get_dag_details(
-    dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request
-) -> DAGDetailsResponse:
+def get_dag_details(dag_id: str, session: SessionDep, request: Request) -> DAGDetailsResponse:
     """Get details of DAG."""
     dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
     if not dag:
@@ -207,7 +204,7 @@ def get_dag_details(
 def patch_dag(
     dag_id: str,
     patch_body: DAGPatchBody,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     update_mask: list[str] | None = Query(None),
 ) -> DAGResponse:
     """Patch the specific DAG."""
@@ -251,7 +248,7 @@ def patch_dags(
     only_active: QueryOnlyActiveFilter,
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     update_mask: list[str] | None = Query(None),
 ) -> DAGCollectionResponse:
     """Patch multiple DAGs."""
@@ -299,7 +296,7 @@ def patch_dags(
 )
 def delete_dag(
     dag_id: str,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> Response:
     """Delete the specific DAG."""
     try:
