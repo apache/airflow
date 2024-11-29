@@ -175,7 +175,7 @@ class TaskGroup(DAGNode):
     @classmethod
     def create_root(cls, dag: DAG) -> TaskGroup:
         """Create a root TaskGroup with no group_id or parent."""
-        return cls(group_id=None, dag=dag)
+        return cls(group_id=None, dag=dag, parent_group=None)
 
     @property
     def node_id(self):
