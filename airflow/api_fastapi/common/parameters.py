@@ -244,6 +244,8 @@ class FilterParam(BaseParam[T]):
         self.filter_option: FilterOptionEnum = filter_option
 
     def to_orm(self, select: Select) -> Select:
+        if isinstance(self.value, list) and not self.value and self.skip_none:
+            return select
         if self.value is None and self.skip_none:
             return select
 

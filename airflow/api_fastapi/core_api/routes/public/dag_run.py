@@ -375,7 +375,7 @@ def get_list_dag_runs_batch(
     dag_id: Literal["~"], body: DAGRunsBatchBody, session: SessionDep
 ) -> DAGRunCollectionResponse:
     """Get a list of DAG Runs."""
-    dag_ids = FilterParam(DagRun.dag_id, body.dag_ids, FilterOptionEnum.ANY_EQUAL)
+    dag_ids = FilterParam(DagRun.dag_id, body.dag_ids, FilterOptionEnum.IN)
     logical_date = RangeFilter(
         Range(lower_bound=body.logical_date_gte, upper_bound=body.logical_date_lte),
         attribute=DagRun.logical_date,
@@ -388,8 +388,7 @@ def get_list_dag_runs_batch(
         Range(lower_bound=body.end_date_gte, upper_bound=body.end_date_lte),
         attribute=DagRun.end_date,
     )
-
-    state = QueryDagRunStateFilter(body.states)
+    state = FilterParam(DagRun.state, body.states, FilterOptionEnum.ANY_EQUAL)
 
     offset = OffsetFilter(body.page_offset)
     limit = LimitFilter(body.page_limit)
