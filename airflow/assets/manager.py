@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING
 from sqlalchemy import exc, select
 from sqlalchemy.orm import joinedload
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import (
@@ -35,7 +34,6 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
 )
 from airflow.models.dagbag import DagPriorityParsingRequest
-from airflow.sdk.definitions.asset import Asset
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -104,7 +102,6 @@ class AssetManager(LoggingMixin):
         )
 
     @classmethod
-    @internal_api_call
     def register_asset_change(
         cls,
         *,
@@ -122,7 +119,6 @@ class AssetManager(LoggingMixin):
         For local assets, look them up, record the asset event, queue dagruns, and broadcast
         the asset event
         """
-        # todo: add test so that all usages of internal_api_call are added to rpc endpoint
         asset_model = session.scalar(
             select(AssetModel)
             .where(AssetModel.uri == asset.uri)
