@@ -54,6 +54,11 @@ def download_file_from_github(tag: str, path: str, output_file: Path, timeout: i
     if not get_dry_run():
         try:
             response = requests.get(url, timeout=timeout)
+            if response.status_code == 403:
+                get_console().print(
+                    f"[error]The {url} is not accessible.This may be caused by network issues or VPN settings"
+                )
+                return False
             if response.status_code == 404:
                 get_console().print(f"[warning]The {url} has not been found. Skipping")
                 return False
