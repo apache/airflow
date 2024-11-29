@@ -49,4 +49,4 @@ class HealthInfoSchema(BaseModel):
     metadatabase: BaseInfoSchema
     scheduler: SchedulerInfoSchema
     triggerer: TriggererInfoSchema
-    dag_processor: DagProcessorInfoSchema
+    dag_processor: DagProcessorInfoSchema | None = None

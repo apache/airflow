@@ -24,7 +24,7 @@ from airflow.api_fastapi.core_api.datamodels.monitor import HealthInfoSchema
 monitor_router = AirflowRouter(tags=["Monitor"], prefix="/monitor")
 
 
-@monitor_router.get("/health")
-def get_health() -> HealthInfoSchema:
+@monitor_router.get("/health", response_model=HealthInfoSchema, response_model_exclude_unset=True)
+def get_health():
     airflow_health_status = get_airflow_health()
     return HealthInfoSchema.model_validate(airflow_health_status)
