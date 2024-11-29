@@ -103,3 +103,55 @@ class TestGetHealth(TestMonitorEndpoint):
 
         assert body["metadatabase"]["status"] == "unhealthy"
         assert body["scheduler"]["latest_scheduler_heartbeat"] is None
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.monitor.get_airflow_health")
+    def test_health_with_dag_processor(self, mock_get_airflow_health, test_client):
+        mock_get_airflow_health.return_value = {
+            "metadatabase": {"status": HEALTHY},
+            "scheduler": {
+                "status": HEALTHY,
+                "latest_scheduler_heartbeat": "2024-11-23T11:09:16.663124+00:00",
+            },
+            "triggerer": {
+                "status": HEALTHY,
+                "latest_triggerer_heartbeat": "2024-11-23T11:09:15.815483+00:00",
+            },
+            "dag_processor": {
+                "status": HEALTHY,
+                "latest_dag_processor_heartbeat": "2024-11-23T11:09:15.815483+00:00",
+            },
+        }
+
+        response = test_client.get("/public/monitor/health")
+
+        assert response.status_code == 200
+        body = response.json()
+
+        assert "dag_processor" in body
+        assert body["metadatabase"]["status"] == HEALTHY
+        assert body["scheduler"]["status"] == HEALTHY
+        assert body["triggerer"]["status"] == HEALTHY
+
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.monitor.get_airflow_health")
+    def test_health_without_dag_processor(self, mock_get_airflow_health, test_client):
+        mock_get_airflow_health.return_value = {
+            "metadatabase": {"status": HEALTHY},
+            "scheduler": {
+                "status": HEALTHY,
+                "latest_scheduler_heartbeat": "2024-11-23T11:09:16.663124+00:00",
+            },
+            "triggerer": {
+                "status": HEALTHY,
+                "latest_triggerer_heartbeat": "2024-11-23T11:09:15.815483+00:00",
+            },
+        }
+
+        response = test_client.get("/public/monitor/health")
+
+        assert response.status_code == 200
+        body = response.json()
+
+        assert "dag_processor" not in body
+        assert body["metadatabase"]["status"] == HEALTHY
+        assert body["scheduler"]["status"] == HEALTHY
+        assert body["triggerer"]["status"] == HEALTHY

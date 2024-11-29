@@ -7586,13 +7586,14 @@ components:
         triggerer:
           $ref: '#/components/schemas/TriggererInfoSchema'
         dag_processor:
-          $ref: '#/components/schemas/DagProcessorInfoSchema'
+          anyOf:
+          - $ref: '#/components/schemas/DagProcessorInfoSchema'
+          - type: 'null'
       type: object
       required:
       - metadatabase
       - scheduler
       - triggerer
-      - dag_processor
       title: HealthInfoSchema
       description: Schema for the Health endpoint.
     HistoricalMetricDataResponse:

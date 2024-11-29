@@ -2886,11 +2886,18 @@ export const $HealthInfoSchema = {
       $ref: "#/components/schemas/TriggererInfoSchema",
     },
     dag_processor: {
-      $ref: "#/components/schemas/DagProcessorInfoSchema",
+      anyOf: [
+        {
+          $ref: "#/components/schemas/DagProcessorInfoSchema",
+        },
+        {
+          type: "null",
+        },
+      ],
     },
   },
   type: "object",
-  required: ["metadatabase", "scheduler", "triggerer", "dag_processor"],
+  required: ["metadatabase", "scheduler", "triggerer"],
   title: "HealthInfoSchema",
   description: "Schema for the Health endpoint.",
 } as const;
