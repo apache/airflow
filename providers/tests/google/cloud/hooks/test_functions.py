@@ -86,7 +86,7 @@ class TestFunctionHookNoDefaultProjectId:
             res = self.gcf_function_hook_no_project_id.upload_function_zip(
                 project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST, location=GCF_LOCATION, zip_path="/tmp/path.zip"
             )
-            assert "http://uploadHere" == res
+            assert res == "http://uploadHere"
             generate_upload_url_method.assert_called_once_with(
                 parent="projects/example-project/locations/location"
             )
@@ -170,7 +170,7 @@ class TestFunctionHookDefaultProjectId:
         execute_method.return_value = {"name": "function"}
         res = self.gcf_function_hook.get_function(name=GCF_FUNCTION)
         assert res is not None
-        assert "function" == res["name"]
+        assert res["name"] == "function"
         get_method.assert_called_once_with(name="function")
         execute_method.assert_called_once_with(num_retries=5)
 
@@ -227,7 +227,7 @@ class TestFunctionHookDefaultProjectId:
                 zip_path="/tmp/path.zip",
                 project_id=GCP_PROJECT_ID_HOOK_UNIT_TEST,
             )
-            assert "http://uploadHere" == res
+            assert res == "http://uploadHere"
             generate_upload_url_method.assert_called_once_with(
                 parent="projects/example-project/locations/location"
             )
@@ -251,7 +251,7 @@ class TestFunctionHookDefaultProjectId:
             res = self.gcf_function_hook.upload_function_zip(
                 project_id="new-project", location=GCF_LOCATION, zip_path="/tmp/path.zip"
             )
-            assert "http://uploadHere" == res
+            assert res == "http://uploadHere"
             generate_upload_url_method.assert_called_once_with(
                 parent="projects/new-project/locations/location"
             )

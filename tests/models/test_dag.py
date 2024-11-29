@@ -114,7 +114,7 @@ if AIRFLOW_V_3_0_PLUS:
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 TEST_DATE = datetime_tz(2015, 1, 2, 0, 0)
 
@@ -358,22 +358,35 @@ class TestDag:
         session.merge(ti4)
         session.commit()
 
-        assert 0 == DAG.get_num_task_instances(test_dag_id, task_ids=["fakename"], session=session)
-        assert 4 == DAG.get_num_task_instances(test_dag_id, task_ids=[test_task_id], session=session)
-        assert 4 == DAG.get_num_task_instances(
-            test_dag_id, task_ids=["fakename", test_task_id], session=session
+        assert DAG.get_num_task_instances(test_dag_id, task_ids=["fakename"], session=session) == 0
+        assert DAG.get_num_task_instances(test_dag_id, task_ids=[test_task_id], session=session) == 4
+        assert (
+            DAG.get_num_task_instances(test_dag_id, task_ids=["fakename", test_task_id], session=session) == 4
         )
-        assert 1 == DAG.get_num_task_instances(
-            test_dag_id, task_ids=[test_task_id], states=[None], session=session
+        assert (
+            DAG.get_num_task_instances(test_dag_id, task_ids=[test_task_id], states=[None], session=session)
+            == 1
         )
-        assert 2 == DAG.get_num_task_instances(
-            test_dag_id, task_ids=[test_task_id], states=[State.RUNNING], session=session
+        assert (
+            DAG.get_num_task_instances(
+                test_dag_id, task_ids=[test_task_id], states=[State.RUNNING], session=session
+            )
+            == 2
         )
-        assert 3 == DAG.get_num_task_instances(
-            test_dag_id, task_ids=[test_task_id], states=[None, State.RUNNING], session=session
+        assert (
+            DAG.get_num_task_instances(
+                test_dag_id, task_ids=[test_task_id], states=[None, State.RUNNING], session=session
+            )
+            == 3
         )
-        assert 4 == DAG.get_num_task_instances(
-            test_dag_id, task_ids=[test_task_id], states=[None, State.QUEUED, State.RUNNING], session=session
+        assert (
+            DAG.get_num_task_instances(
+                test_dag_id,
+                task_ids=[test_task_id],
+                states=[None, State.QUEUED, State.RUNNING],
+                session=session,
+            )
+            == 4
         )
         session.close()
 
@@ -1135,11 +1148,11 @@ class TestDag:
         assert dag_run is not None
         assert dag.dag_id == dag_run.dag_id
         assert dag_run.run_id is not None
-        assert "" != dag_run.run_id
+        assert dag_run.run_id != ""
         assert (
-            TEST_DATE == dag_run.logical_date
+            dag_run.logical_date == TEST_DATE
         ), f"dag_run.logical_date did not match expectation: {dag_run.logical_date}"
-        assert State.RUNNING == dag_run.state
+        assert dag_run.state == State.RUNNING
         assert not dag_run.external_trigger
         dag.clear()
         self._clean_up(dag_id)
@@ -2432,7 +2445,7 @@ class TestDagModel:
         session.flush()
 
         query, asset_triggered_dag_info = DagModel.dags_needing_dagruns(session)
-        assert 1 == len(asset_triggered_dag_info)
+        assert len(asset_triggered_dag_info) == 1
         assert dag.dag_id in asset_triggered_dag_info
         first_queued_time, last_queued_time = asset_triggered_dag_info[dag.dag_id]
         assert first_queued_time == DEFAULT_DATE

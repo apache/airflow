@@ -465,9 +465,9 @@ class TestPatchConnection(TestConnectionEndpoint):
         response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=body)
         assert response.status_code == 400
         print(response.json())
-        assert {
+        assert response.json() == {
             "detail": "The connection_id in the request body does not match the URL parameter",
-        } == response.json()
+        }
 
     @pytest.mark.parametrize(
         "body",
@@ -505,9 +505,9 @@ class TestPatchConnection(TestConnectionEndpoint):
     def test_patch_should_respond_404(self, test_client, body):
         response = test_client.patch(f"/public/connections/{body['connection_id']}", json=body)
         assert response.status_code == 404
-        assert {
+        assert response.json() == {
             "detail": f"The Connection with connection_id: `{body['connection_id']}` was not found",
-        } == response.json()
+        }
 
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(

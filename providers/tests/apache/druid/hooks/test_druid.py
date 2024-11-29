@@ -26,9 +26,6 @@ from airflow.exceptions import AirflowException
 from airflow.providers.apache.druid.hooks.druid import DruidDbApiHook, DruidHook, IngestionType
 
 
-# This test mocks the requests library to avoid making actual HTTP requests so database isolation mode
-# will not work for it
-@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 class TestDruidSubmitHook:
     def setup_method(self):
@@ -424,7 +421,7 @@ class TestDruidDbApiHook:
 
     def test_get_uri(self):
         db_hook = self.db_hook()
-        assert "druid://host:1000/druid/v2/sql" == db_hook.get_uri()
+        assert db_hook.get_uri() == "druid://host:1000/druid/v2/sql"
 
     def test_get_first_record(self):
         statement = "SQL"

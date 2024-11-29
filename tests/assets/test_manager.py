@@ -200,7 +200,6 @@ class TestAssetManager:
         assert session.query(AssetEvent).filter_by(asset_id=asm.id).count() == 1
         assert session.query(AssetDagRunQueue).count() == 0
 
-    @pytest.mark.skip_if_database_isolation_mode
     def test_register_asset_change_notifies_asset_listener(self, session, mock_task_instance):
         asset_manager = AssetManager()
         asset_listener.clear()
@@ -222,7 +221,6 @@ class TestAssetManager:
         assert len(asset_listener.changed) == 1
         assert asset_listener.changed[0].uri == asset.uri
 
-    @pytest.mark.skip_if_database_isolation_mode
     def test_create_assets_notifies_asset_listener(self, session):
         asset_manager = AssetManager()
         asset_listener.clear()

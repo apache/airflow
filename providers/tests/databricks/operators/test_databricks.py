@@ -500,7 +500,7 @@ class TestDatabricksCreateJobsOperator:
         )
 
         db_mock.create_job.assert_called_once_with(expected)
-        assert JOB_ID == return_result
+        assert return_result == JOB_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_reset(self, db_mock_class):
@@ -554,7 +554,7 @@ class TestDatabricksCreateJobsOperator:
         )
 
         db_mock.reset_job.assert_called_once_with(JOB_ID, expected)
-        assert JOB_ID == return_result
+        assert return_result == JOB_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_update_job_permission(self, db_mock_class):
@@ -877,7 +877,7 @@ class TestDatabricksSubmitRunOperator:
         db_mock.submit_run.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run.assert_called_once_with(RUN_ID)
-        assert RUN_ID == op.run_id
+        assert op.run_id == RUN_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_pipeline_name(self, db_mock_class):
@@ -906,7 +906,7 @@ class TestDatabricksSubmitRunOperator:
         db_mock.submit_run.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run.assert_called_once_with(RUN_ID)
-        assert RUN_ID == op.run_id
+        assert op.run_id == RUN_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_failure(self, db_mock_class):
@@ -942,7 +942,7 @@ class TestDatabricksSubmitRunOperator:
         db_mock.submit_run.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run.assert_called_once_with(RUN_ID)
-        assert RUN_ID == op.run_id
+        assert op.run_id == RUN_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_on_kill(self, db_mock_class):
@@ -1296,7 +1296,7 @@ class TestDatabricksRunNowOperator:
         db_mock.run_now.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run.assert_called_once_with(RUN_ID)
-        assert RUN_ID == op.run_id
+        assert op.run_id == RUN_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_failure(self, db_mock_class):
@@ -1330,7 +1330,7 @@ class TestDatabricksRunNowOperator:
         db_mock.run_now.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run.assert_called_once_with(RUN_ID)
-        assert RUN_ID == op.run_id
+        assert op.run_id == RUN_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_failure_with_message(self, db_mock_class):
@@ -1386,7 +1386,7 @@ class TestDatabricksRunNowOperator:
         db_mock.run_now.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run.assert_called_once_with(RUN_ID)
-        assert RUN_ID == op.run_id
+        assert op.run_id == RUN_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_multiple_failures_with_message(self, db_mock_class):
@@ -1456,7 +1456,7 @@ class TestDatabricksRunNowOperator:
         db_mock.run_now.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run.assert_called_once_with(RUN_ID)
-        assert RUN_ID == op.run_id
+        assert op.run_id == RUN_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_on_kill(self, db_mock_class):
@@ -1576,7 +1576,7 @@ class TestDatabricksRunNowOperator:
         db_mock.run_now.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run.assert_called_once_with(RUN_ID)
-        assert RUN_ID == op.run_id
+        assert op.run_id == RUN_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_failure_if_job_id_not_found(self, db_mock_class):

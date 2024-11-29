@@ -541,7 +541,7 @@ class TestSSHHook:
             hook.get_tunnel(local_port=2135, remote_port=2134),
         ):
             server_output = server_handle.stdout.read(5)
-            assert b"ready" == server_output
+            assert server_output == b"ready"
             socket = socket.socket()
             socket.connect(("localhost", 2135))
             response = socket.recv(5)

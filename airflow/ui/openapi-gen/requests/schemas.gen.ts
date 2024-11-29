@@ -2596,6 +2596,45 @@ This is the set of allowable values for the \`\`warning_type\`\` field
 in the DagWarning model.`,
 } as const;
 
+export const $EdgeResponse = {
+  properties: {
+    is_setup_teardown: {
+      anyOf: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Is Setup Teardown",
+    },
+    label: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Label",
+    },
+    source_id: {
+      type: "string",
+      title: "Source Id",
+    },
+    target_id: {
+      type: "string",
+      title: "Target Id",
+    },
+  },
+  type: "object",
+  required: ["source_id", "target_id"],
+  title: "EdgeResponse",
+  description: "Edge serializer for responses.",
+} as const;
+
 export const $EventLogCollectionResponse = {
   properties: {
     event_logs: {
@@ -2775,6 +2814,30 @@ export const $FastAPIAppResponse = {
   required: ["app", "url_prefix", "name"],
   title: "FastAPIAppResponse",
   description: "Serializer for Plugin FastAPI App responses.",
+} as const;
+
+export const $GraphDataResponse = {
+  properties: {
+    edges: {
+      items: {
+        $ref: "#/components/schemas/EdgeResponse",
+      },
+      type: "array",
+      title: "Edges",
+    },
+    nodes: {
+      $ref: "#/components/schemas/NodeResponse",
+    },
+    arrange: {
+      type: "string",
+      enum: ["BT", "LR", "RL", "TB"],
+      title: "Arrange",
+    },
+  },
+  type: "object",
+  required: ["edges", "nodes", "arrange"],
+  title: "GraphDataResponse",
+  description: "Graph Data serializer for responses.",
 } as const;
 
 export const $HTTPExceptionResponse = {
@@ -3048,6 +3111,138 @@ export const $JobResponse = {
   ],
   title: "JobResponse",
   description: "Job serializer for responses.",
+} as const;
+
+export const $NodeResponse = {
+  properties: {
+    children: {
+      anyOf: [
+        {
+          items: {
+            $ref: "#/components/schemas/NodeResponse",
+          },
+          type: "array",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Children",
+    },
+    id: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Id",
+    },
+    value: {
+      $ref: "#/components/schemas/NodeValueResponse",
+    },
+  },
+  type: "object",
+  required: ["id", "value"],
+  title: "NodeResponse",
+  description: "Node serializer for responses.",
+} as const;
+
+export const $NodeValueResponse = {
+  properties: {
+    isMapped: {
+      anyOf: [
+        {
+          type: "boolean",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Ismapped",
+    },
+    label: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Label",
+    },
+    labelStyle: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Labelstyle",
+    },
+    style: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Style",
+    },
+    tooltip: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Tooltip",
+    },
+    rx: {
+      type: "integer",
+      title: "Rx",
+    },
+    ry: {
+      type: "integer",
+      title: "Ry",
+    },
+    clusterLabelPos: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Clusterlabelpos",
+    },
+    setupTeardownType: {
+      anyOf: [
+        {
+          type: "string",
+          enum: ["setup", "teardown"],
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Setupteardowntype",
+    },
+  },
+  type: "object",
+  required: ["rx", "ry"],
+  title: "NodeValueResponse",
+  description: "Graph Node Value responses.",
 } as const;
 
 export const $PatchTaskInstanceBody = {
