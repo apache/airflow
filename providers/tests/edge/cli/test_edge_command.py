@@ -68,7 +68,7 @@ def test_write_pid_to_pidfile_created_by_crashed_instance(tmp_path):
     with patch("os.getpid", return_value=0):
         pid_file_path = tmp_path / "file.pid"
         _write_pid_to_pidfile(pid_file_path)
-        assert "0" == pid_file_path.read_text().strip()
+        assert pid_file_path.read_text().strip() == "0"
     # write a PID file with the current process ID, call should not raise an exception
     _write_pid_to_pidfile(pid_file_path)
     assert str(os.getpid()) == pid_file_path.read_text().strip()

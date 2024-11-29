@@ -152,7 +152,7 @@ class TestDagBag:
         path.write_text("\u3042")  # write multi-byte char (hiragana)
 
         dagbag = DagBag(dag_folder=os.fspath(path.parent), include_examples=False)
-        assert [] == dagbag.process_file(os.fspath(path))
+        assert dagbag.process_file(os.fspath(path)) == []
 
     def test_process_file_duplicated_dag_id(self, tmp_path):
         """Loading a DAG with ID that already existed in a DAG bag should result in an import error."""
@@ -344,9 +344,9 @@ class TestDagBag:
         dagbag.process_file_calls
 
         # Should not call process_file again, since it's already loaded during init.
-        assert 1 == dagbag.process_file_calls
+        assert dagbag.process_file_calls == 1
         assert dagbag.get_dag(dag_id) is not None
-        assert 1 == dagbag.process_file_calls
+        assert dagbag.process_file_calls == 1
 
     @pytest.mark.parametrize(
         ("file_to_load", "expected"),
@@ -377,7 +377,7 @@ class TestDagBag:
     def test_dag_registration_with_failure(self):
         dagbag = DagBag(dag_folder=os.devnull, include_examples=False)
         found = dagbag.process_file(str(TEST_DAGS_FOLDER / "test_invalid_dup_task.py"))
-        assert [] == found
+        assert found == []
 
     @pytest.fixture
     def zip_with_valid_dag_and_dup_tasks(self, tmp_path: pathlib.Path) -> str:
@@ -392,8 +392,8 @@ class TestDagBag:
     def test_dag_registration_with_failure_zipped(self, zip_with_valid_dag_and_dup_tasks):
         dagbag = DagBag(dag_folder=os.devnull, include_examples=False)
         found = dagbag.process_file(zip_with_valid_dag_and_dup_tasks)
-        assert 1 == len(found)
-        assert ["test_example_bash_operator"] == [dag.dag_id for dag in found]
+        assert len(found) == 1
+        assert [dag.dag_id for dag in found] == ["test_example_bash_operator"]
 
     @patch.object(DagModel, "get_current")
     def test_refresh_py_dag(self, mock_dagmodel, tmp_path):
@@ -418,11 +418,11 @@ class TestDagBag:
 
         dagbag = _TestDagBag(dag_folder=os.fspath(tmp_path), include_examples=True)
 
-        assert 1 == dagbag.process_file_calls
+        assert dagbag.process_file_calls == 1
         dag = dagbag.get_dag(dag_id)
         assert dag is not None
         assert dag_id == dag.dag_id
-        assert 2 == dagbag.process_file_calls
+        assert dagbag.process_file_calls == 2
 
     @patch.object(DagModel, "get_current")
     def test_refresh_packaged_dag(self, mock_dagmodel):
@@ -446,11 +446,11 @@ class TestDagBag:
 
         dagbag = _TestDagBag(dag_folder=os.path.realpath(TEST_DAGS_FOLDER), include_examples=False)
 
-        assert 1 == dagbag.process_file_calls
+        assert dagbag.process_file_calls == 1
         dag = dagbag.get_dag(dag_id)
         assert dag is not None
         assert dag_id == dag.dag_id
-        assert 2 == dagbag.process_file_calls
+        assert dagbag.process_file_calls == 2
 
     def test_dag_removed_if_serialized_dag_is_removed(self, dag_maker, tmp_path):
         """
@@ -544,7 +544,7 @@ class TestDagBag:
         """
         dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
 
-        assert [] == dagbag.process_file(None)
+        assert dagbag.process_file(None) == []
 
     def test_deactivate_unknown_dags(self):
         """
@@ -969,7 +969,7 @@ with airflow.DAG(
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert {"test_with_non_default_owner"} == set(dagbag.dag_ids)
 
-        assert {} == dagbag.import_errors
+        assert dagbag.import_errors == {}
 
     @patch("airflow.settings.dag_policy", cluster_policies.dag_policy)
     def test_dag_cluster_policy_obeyed(self):

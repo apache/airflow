@@ -117,12 +117,12 @@ class TestGetAssetEndpoint(TestAssetEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "The Asset with uri: `s3://bucket/key` was not found",
             "status": 404,
             "title": "Asset not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     def test_should_raises_401_unauthenticated(self, session):
         self._create_asset(session)

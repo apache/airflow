@@ -324,7 +324,7 @@ class TestPostgresHookConn:
                 port=1,
             )
         )
-        assert "postgresql://login:password@host:1/database" == self.db_hook.get_uri()
+        assert self.db_hook.get_uri() == "postgresql://login:password@host:1/database"
 
     def test_get_uri_from_connection_with_database_override(self):
         hook = PostgresHook(database="database-override")
@@ -338,7 +338,7 @@ class TestPostgresHookConn:
                 port=1,
             )
         )
-        assert "postgresql://login:password@host:1/database-override" == hook.get_uri()
+        assert hook.get_uri() == "postgresql://login:password@host:1/database-override"
 
     def test_schema_kwarg_database_kwarg_compatibility(self):
         database = "database-override"

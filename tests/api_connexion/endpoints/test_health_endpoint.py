@@ -55,8 +55,8 @@ class TestGetHealth(TestHealthTestBase):
         session.add(job)
         session.commit()
         resp_json = self.client.get("/api/v1/health").json
-        assert "healthy" == resp_json["metadatabase"]["status"]
-        assert "healthy" == resp_json["scheduler"]["status"]
+        assert resp_json["metadatabase"]["status"] == "healthy"
+        assert resp_json["scheduler"]["status"] == "healthy"
         assert (
             last_scheduler_heartbeat_for_testing_1.isoformat()
             == resp_json["scheduler"]["latest_scheduler_heartbeat"]
@@ -70,8 +70,8 @@ class TestGetHealth(TestHealthTestBase):
         session.add(job)
         session.commit()
         resp_json = self.client.get("/api/v1/health").json
-        assert "healthy" == resp_json["metadatabase"]["status"]
-        assert "unhealthy" == resp_json["scheduler"]["status"]
+        assert resp_json["metadatabase"]["status"] == "healthy"
+        assert resp_json["scheduler"]["status"] == "unhealthy"
         assert (
             last_scheduler_heartbeat_for_testing_2.isoformat()
             == resp_json["scheduler"]["latest_scheduler_heartbeat"]
@@ -79,13 +79,13 @@ class TestGetHealth(TestHealthTestBase):
 
     def test_unhealthy_scheduler_no_job(self):
         resp_json = self.client.get("/api/v1/health").json
-        assert "healthy" == resp_json["metadatabase"]["status"]
-        assert "unhealthy" == resp_json["scheduler"]["status"]
+        assert resp_json["metadatabase"]["status"] == "healthy"
+        assert resp_json["scheduler"]["status"] == "unhealthy"
         assert resp_json["scheduler"]["latest_scheduler_heartbeat"] is None
 
     @mock.patch.object(SchedulerJobRunner, "most_recent_job")
     def test_unhealthy_metadatabase_status(self, most_recent_job_mock):
         most_recent_job_mock.side_effect = Exception
         resp_json = self.client.get("/api/v1/health").json
-        assert "unhealthy" == resp_json["metadatabase"]["status"]
+        assert resp_json["metadatabase"]["status"] == "unhealthy"
         assert resp_json["scheduler"]["latest_scheduler_heartbeat"] is None

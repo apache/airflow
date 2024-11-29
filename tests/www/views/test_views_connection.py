@@ -71,7 +71,7 @@ def test_connection_id_trailing_blanks(admin_client, session):
     check_content_in_response("Added Row", resp)
 
     conn = session.query(Connection).one()
-    assert "conn_id_with_trailing_blanks" == conn.conn_id
+    assert conn.conn_id == "conn_id_with_trailing_blanks"
 
 
 def test_connection_id_leading_blanks(admin_client, session):
@@ -81,7 +81,7 @@ def test_connection_id_leading_blanks(admin_client, session):
     check_content_in_response("Added Row", resp)
 
     conn = session.query(Connection).one()
-    assert "conn_id_with_leading_blanks" == conn.conn_id
+    assert conn.conn_id == "conn_id_with_leading_blanks"
 
 
 def test_all_fields_with_blanks(admin_client, session):
@@ -99,10 +99,10 @@ def test_all_fields_with_blanks(admin_client, session):
 
     # validate all the fields
     conn = session.query(Connection).one()
-    assert "connection_id_with_space" == conn.conn_id
-    assert "a sample http connection with leading and trailing blanks" == conn.description
-    assert "localhost" == conn.host
-    assert "airflow" == conn.schema
+    assert conn.conn_id == "connection_id_with_space"
+    assert conn.description == "a sample http connection with leading and trailing blanks"
+    assert conn.host == "localhost"
+    assert conn.schema == "airflow"
 
 
 @pytest.mark.enable_redact
@@ -452,7 +452,7 @@ def test_connection_form_widgets_testable_types(mock_pm_hooks, admin_client):
         "third": None,
     }
 
-    assert ["first"] == ConnectionFormWidget().testable_connection_types
+    assert ConnectionFormWidget().testable_connection_types == ["first"]
 
 
 def test_process_form_invalid_extra_removed(admin_client):

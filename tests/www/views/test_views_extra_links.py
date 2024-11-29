@@ -191,7 +191,7 @@ def test_extra_links_error_raised(dag_run, task_1, viewer_client):
         follow_redirects=True,
     )
 
-    assert 404 == response.status_code
+    assert response.status_code == 404
     response_str = response.data
     if isinstance(response.data, bytes):
         response_str = response_str.decode()

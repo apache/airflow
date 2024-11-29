@@ -461,7 +461,7 @@ class TestComputeEngineHookWithPassedProjectId:
         hook = ComputeEngineSSHHook(instance_name=TEST_INSTANCE_NAME, zone=TEST_ZONE)
         hook.get_conn()
 
-        assert 3 == mock_ssh_client.return_value.connect.call_count
+        assert mock_ssh_client.return_value.connect.call_count == 3
 
     def test_read_configuration_from_connection(self):
         conn = Connection(
@@ -483,16 +483,16 @@ class TestComputeEngineHookWithPassedProjectId:
         with mock.patch.dict("os.environ", AIRFLOW_CONN_GCPSSH=conn_uri):
             hook = ComputeEngineSSHHook(gcp_conn_id="gcpssh")
             hook._load_connection_config()
-        assert "conn-instance-name" == hook.instance_name
-        assert "conn-host" == hook.hostname
-        assert "conn-user" == hook.user
+        assert hook.instance_name == "conn-instance-name"
+        assert hook.hostname == "conn-host"
+        assert hook.user == "conn-user"
         assert hook.use_internal_ip is True
         assert isinstance(hook.use_internal_ip, bool)
         assert hook.use_iap_tunnel is True
         assert isinstance(hook.use_iap_tunnel, bool)
         assert hook.use_oslogin is False
         assert isinstance(hook.use_oslogin, bool)
-        assert 4242 == hook.expire_time
+        assert hook.expire_time == 4242
         assert isinstance(hook.expire_time, int)
 
     def test_read_configuration_from_connection_empty_config(self):
@@ -506,14 +506,14 @@ class TestComputeEngineHookWithPassedProjectId:
             hook._load_connection_config()
         assert None is hook.instance_name
         assert None is hook.hostname
-        assert "root" == hook.user
+        assert hook.user == "root"
         assert False is hook.use_internal_ip
         assert isinstance(hook.use_internal_ip, bool)
         assert False is hook.use_iap_tunnel
         assert isinstance(hook.use_iap_tunnel, bool)
         assert False is hook.use_oslogin
         assert isinstance(hook.use_oslogin, bool)
-        assert 300 == hook.expire_time
+        assert hook.expire_time == 300
         assert isinstance(hook.expire_time, int)
 
     @pytest.mark.parametrize(

@@ -95,7 +95,7 @@ class TestSSHOperator:
             )
         assert conn_timeout == task.hook.conn_timeout
         assert cmd_timeout_expected == task.hook.cmd_timeout
-        assert "ssh_default" == task.hook.ssh_conn_id
+        assert task.hook.ssh_conn_id == "ssh_default"
 
     @pytest.mark.parametrize(
         ("enable_xcom_pickling", "output", "expected"),

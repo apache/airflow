@@ -84,7 +84,7 @@ def test_webserver_configuration_config_file(mock_webserver_config_global, admin
         conf = write_default_airflow_configuration_if_needed()
         write_webserver_configuration_if_needed(conf)
         initialize_config()
-        assert airflow.configuration.WEBSERVER_CONFIG == config_file
+        assert config_file == airflow.configuration.WEBSERVER_CONFIG
 
     assert os.path.isfile(config_file)
 

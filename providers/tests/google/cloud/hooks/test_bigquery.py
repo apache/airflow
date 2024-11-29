@@ -1044,7 +1044,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
     def test_rowcount(self, mock_get_client):
         bq_cursor = self.hook.get_cursor()
         result = bq_cursor.rowcount
-        assert -1 == result
+        assert result == -1
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryCursor.next")
@@ -1061,7 +1061,7 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
     def test_fetchall(self, mock_fetchone, mock_get_client):
         bq_cursor = self.hook.get_cursor()
         result = bq_cursor.fetchall()
-        assert [1, 2, 3] == result
+        assert result == [1, 2, 3]
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryCursor.fetchone")
@@ -1070,15 +1070,15 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
         bq_cursor = self.hook.get_cursor()
         mock_fetchone.side_effect = side_effect_values
         result = bq_cursor.fetchmany()
-        assert [1] == result
+        assert result == [1]
 
         mock_fetchone.side_effect = side_effect_values
         result = bq_cursor.fetchmany(2)
-        assert [1, 2] == result
+        assert result == [1, 2]
 
         mock_fetchone.side_effect = side_effect_values
         result = bq_cursor.fetchmany(5)
-        assert [1, 2, 3] == result
+        assert result == [1, 2, 3]
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client")
     def test_next_no_jobid(self, mock_get_client):
@@ -1093,9 +1093,9 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
         bq_cursor.job_id = JOB_ID
         bq_cursor.buffer = [1, 2]
         result = bq_cursor.next()
-        assert 1 == result
+        assert result == 1
         result = bq_cursor.next()
-        assert 2 == result
+        assert result == 2
         bq_cursor.all_pages_loaded = True
         result = bq_cursor.next()
         assert result is None
@@ -1123,10 +1123,10 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
         bq_cursor.location = LOCATION
 
         result = bq_cursor.next()
-        assert ["one", 1] == result
+        assert result == ["one", 1]
 
         result = bq_cursor.next()
-        assert ["two", 2] == result
+        assert result == ["two", 2]
 
         mock_get_query_results.assert_called_once_with(
             jobId=JOB_ID, location=LOCATION, pageToken=None, projectId="bq-project"

@@ -421,7 +421,7 @@ class TestDruidDbApiHook:
 
     def test_get_uri(self):
         db_hook = self.db_hook()
-        assert "druid://host:1000/druid/v2/sql" == db_hook.get_uri()
+        assert db_hook.get_uri() == "druid://host:1000/druid/v2/sql"
 
     def test_get_first_record(self):
         statement = "SQL"

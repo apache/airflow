@@ -551,10 +551,10 @@ class TestCliDags:
             out = temp_stdout.getvalue().strip().splitlines()[-1]
         parsed_out = json.loads(out)
 
-        assert 1 == len(parsed_out)
-        assert "example_bash_operator" == parsed_out[0]["dag_id"]
-        assert "trigger_dag_xxx" == parsed_out[0]["dag_run_id"]
-        assert {"conf1": "val1", "conf2": "val2"} == parsed_out[0]["conf"]
+        assert len(parsed_out) == 1
+        assert parsed_out[0]["dag_id"] == "example_bash_operator"
+        assert parsed_out[0]["dag_run_id"] == "trigger_dag_xxx"
+        assert parsed_out[0]["conf"] == {"conf1": "val1", "conf2": "val2"}
 
     def test_delete_dag(self):
         DM = DagModel

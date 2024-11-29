@@ -194,7 +194,7 @@ class TestWebHDFSHook:
 
     def test_init_proxy_user(self):
         hook = WebHDFSHook(proxy_user="someone")
-        assert "someone" == hook.proxy_user
+        assert hook.proxy_user == "someone"
 
     @patch("airflow.providers.apache.hdfs.hooks.webhdfs.KerberosClient", create=True)
     @patch("airflow.providers.apache.hdfs.hooks.webhdfs._kerberos_security_mode", return_value=True)
@@ -211,7 +211,7 @@ class TestWebHDFSHook:
             connection = mock_get_connection.return_value
 
             assert f"https://{connection.host}:{connection.port}" == mock_kerberos_client.call_args.args[0]
-            assert "/ssl/cert/path" == mock_kerberos_client.call_args.kwargs["session"].verify
+            assert mock_kerberos_client.call_args.kwargs["session"].verify == "/ssl/cert/path"
 
     @patch("airflow.providers.apache.hdfs.hooks.webhdfs.InsecureClient")
     @patch("airflow.providers.apache.hdfs.hooks.webhdfs.socket")

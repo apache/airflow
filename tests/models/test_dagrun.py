@@ -195,14 +195,14 @@ class TestDagRun:
 
         session.commit()
 
-        assert 1 == len(DagRun.find(dag_id=dag_id1, external_trigger=True))
-        assert 1 == len(DagRun.find(run_id=dag_id1))
-        assert 2 == len(DagRun.find(run_id=[dag_id1, dag_id2]))
-        assert 2 == len(DagRun.find(logical_date=[now, now]))
-        assert 2 == len(DagRun.find(logical_date=now))
-        assert 0 == len(DagRun.find(dag_id=dag_id1, external_trigger=False))
-        assert 0 == len(DagRun.find(dag_id=dag_id2, external_trigger=True))
-        assert 1 == len(DagRun.find(dag_id=dag_id2, external_trigger=False))
+        assert len(DagRun.find(dag_id=dag_id1, external_trigger=True)) == 1
+        assert len(DagRun.find(run_id=dag_id1)) == 1
+        assert len(DagRun.find(run_id=[dag_id1, dag_id2])) == 2
+        assert len(DagRun.find(logical_date=[now, now])) == 2
+        assert len(DagRun.find(logical_date=now)) == 2
+        assert len(DagRun.find(dag_id=dag_id1, external_trigger=False)) == 0
+        assert len(DagRun.find(dag_id=dag_id2, external_trigger=True)) == 0
+        assert len(DagRun.find(dag_id=dag_id2, external_trigger=False)) == 1
 
     def test_dagrun_find_duplicate(self, session):
         now = timezone.utcnow()
@@ -250,7 +250,7 @@ class TestDagRun:
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
         dag_run.update_state()
-        assert DagRunState.SUCCESS == dag_run.state
+        assert dag_run.state == DagRunState.SUCCESS
 
     def test_dagrun_not_stuck_in_running_when_all_tasks_instances_are_removed(self, session):
         """
@@ -277,7 +277,7 @@ class TestDagRun:
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
         dag_run.update_state()
-        assert DagRunState.SUCCESS == dag_run.state
+        assert dag_run.state == DagRunState.SUCCESS
 
     def test_dagrun_success_conditions(self, session):
         dag = DAG(
@@ -321,14 +321,14 @@ class TestDagRun:
 
         # root is successful, but unfinished tasks
         dr.update_state()
-        assert DagRunState.RUNNING == dr.state
+        assert dr.state == DagRunState.RUNNING
 
         # one has failed, but root is successful
         ti_op2.set_state(state=TaskInstanceState.FAILED, session=session)
         ti_op3.set_state(state=TaskInstanceState.SUCCESS, session=session)
         ti_op4.set_state(state=TaskInstanceState.SUCCESS, session=session)
         dr.update_state()
-        assert DagRunState.SUCCESS == dr.state
+        assert dr.state == DagRunState.SUCCESS
 
     def test_dagrun_deadlock(self, session):
         dag = DAG(
@@ -461,7 +461,7 @@ class TestDagRun:
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
         _, callback = dag_run.update_state()
-        assert DagRunState.SUCCESS == dag_run.state
+        assert dag_run.state == DagRunState.SUCCESS
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
         assert callback is None
 
@@ -489,7 +489,7 @@ class TestDagRun:
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
         _, callback = dag_run.update_state()
-        assert DagRunState.FAILED == dag_run.state
+        assert dag_run.state == DagRunState.FAILED
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
         assert callback is None
 
@@ -515,7 +515,7 @@ class TestDagRun:
         task = dag_run.get_task_instances()[0]
 
         assert task.state == TaskInstanceState.SKIPPED
-        assert DagRunState.SUCCESS == dag_run.state
+        assert dag_run.state == DagRunState.SUCCESS
         mock_on_success.assert_called_once()
 
     def test_dagrun_update_state_with_handle_callback_success(self, session):
@@ -545,7 +545,7 @@ class TestDagRun:
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
 
         _, callback = dag_run.update_state(execute_callbacks=False)
-        assert DagRunState.SUCCESS == dag_run.state
+        assert dag_run.state == DagRunState.SUCCESS
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
 
         assert callback == DagCallbackRequest(
@@ -584,7 +584,7 @@ class TestDagRun:
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
 
         _, callback = dag_run.update_state(execute_callbacks=False)
-        assert DagRunState.FAILED == dag_run.state
+        assert dag_run.state == DagRunState.FAILED
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
 
         assert callback == DagCallbackRequest(
@@ -761,7 +761,7 @@ class TestDagRun:
 
         dagrun = self.create_dag_run(dag, session=session)
         flaky_ti = dagrun.get_task_instances()[0]
-        assert "flaky_task" == flaky_ti.task_id
+        assert flaky_ti.task_id == "flaky_task"
         assert flaky_ti.state is None
 
         dagrun.dag = with_all_tasks_removed(dag)
@@ -782,7 +782,7 @@ class TestDagRun:
 
         dagrun = self.create_dag_run(dag, session=session)
         first_ti = dagrun.get_task_instances()[0]
-        assert "first_task" == first_ti.task_id
+        assert first_ti.task_id == "first_task"
         assert first_ti.state is None
 
         # Lets assume that the above TI was added into DB by webserver, but if scheduler

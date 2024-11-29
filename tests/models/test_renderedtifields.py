@@ -163,11 +163,11 @@ class TestRenderedTaskInstanceFields:
         session.add(rtif)
         session.flush()
 
-        assert {
+        assert RTIF.get_templated_fields(ti=ti, session=session) == {
             "bash_command": expected_rendered_field,
             "env": None,
             "cwd": None,
-        } == RTIF.get_templated_fields(ti=ti, session=session)
+        }
         # Test the else part of get_templated_fields
         # i.e. for the TIs that are not stored in RTIF table
         # Fetching them will return None
@@ -309,7 +309,7 @@ class TestRenderedTaskInstanceFields:
 
         session = settings.Session()
         result = session.query(RTIF).all()
-        assert [] == result
+        assert result == []
 
         with dag_maker("test_write"):
             task = BashOperator(task_id="test", bash_command="echo {{ var.value.test_key }}")
@@ -329,7 +329,7 @@ class TestRenderedTaskInstanceFields:
             )
             .first()
         )
-        assert ("test_write", "test", {"bash_command": "echo test_val", "env": None, "cwd": None}) == result
+        assert result == ("test_write", "test", {"bash_command": "echo test_val", "env": None, "cwd": None})
 
         # Test that overwrite saves new values to the DB
         Variable.delete("test_key")
@@ -352,11 +352,11 @@ class TestRenderedTaskInstanceFields:
             )
             .first()
         )
-        assert (
+        assert result_updated == (
             "test_write",
             "test",
             {"bash_command": "echo test_val_updated", "env": None, "cwd": None},
-        ) == result_updated
+        )
 
     @mock.patch.dict(os.environ, {"AIRFLOW_VAR_API_KEY": "secret"})
     @mock.patch("airflow.utils.log.secrets_masker.redact", autospec=True)

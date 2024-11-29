@@ -86,7 +86,7 @@ class TestDynamodbToS3:
 
         dynamodb_to_s3_operator.execute(context={})
 
-        assert [{"a": 1}, {"b": 2}, {"c": 3}] == self.output_queue
+        assert self.output_queue == [{"a": 1}, {"b": 2}, {"c": 3}]
 
     @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.S3Hook")
     @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBHook")
@@ -115,7 +115,7 @@ class TestDynamodbToS3:
 
         dynamodb_to_s3_operator.execute(context={})
 
-        assert [{"a": float(a)}, {"b": float(b)}] == self.output_queue
+        assert self.output_queue == [{"a": float(a)}, {"b": float(b)}]
 
     @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.S3Hook")
     @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBHook")
@@ -181,7 +181,7 @@ class TestDynamodbToS3:
 
         dynamodb_to_s3_operator.execute(context={})
 
-        assert [{"a": 1}, {"b": 2}, {"c": 3}] == self.output_queue
+        assert self.output_queue == [{"a": 1}, {"b": 2}, {"c": 3}]
 
         mock_s3_hook.assert_called_with(aws_conn_id=aws_conn_id)
         mock_aws_dynamodb_hook.assert_called_with(aws_conn_id=aws_conn_id)
@@ -219,7 +219,7 @@ class TestDynamodbToS3:
 
         dynamodb_to_s3_operator.execute(context={})
 
-        assert [{"a": 1}, {"b": 2}, {"c": 3}] == self.output_queue
+        assert self.output_queue == [{"a": 1}, {"b": 2}, {"c": 3}]
 
         mock_s3_hook.assert_called_with(aws_conn_id=s3_aws_conn_id)
         mock_aws_dynamodb_hook.assert_called_with(aws_conn_id=dynamodb_conn_id)
@@ -255,7 +255,7 @@ class TestDynamodbToS3:
 
         dynamodb_to_s3_operator.execute(context={})
 
-        assert [{"a": 1}, {"b": 2}, {"c": 3}] == self.output_queue
+        assert self.output_queue == [{"a": 1}, {"b": 2}, {"c": 3}]
 
         mock_aws_dynamodb_hook.assert_called_with(aws_conn_id="aws_default")
         mock_s3_hook.assert_called_with(aws_conn_id=s3_aws_conn_id)
@@ -291,11 +291,11 @@ class TestDynamodbToS3:
         session.add(ti)
         session.commit()
         ti.render_templates()
-        assert "2020-01-01" == getattr(operator, "source_aws_conn_id")
-        assert "2020-01-01" == getattr(operator, "dest_aws_conn_id")
-        assert "2020-01-01" == getattr(operator, "s3_bucket_name")
-        assert "2020-01-01" == getattr(operator, "dynamodb_table_name")
-        assert "2020-01-01" == getattr(operator, "s3_key_prefix")
+        assert getattr(operator, "source_aws_conn_id") == "2020-01-01"
+        assert getattr(operator, "dest_aws_conn_id") == "2020-01-01"
+        assert getattr(operator, "s3_bucket_name") == "2020-01-01"
+        assert getattr(operator, "dynamodb_table_name") == "2020-01-01"
+        assert getattr(operator, "s3_key_prefix") == "2020-01-01"
 
     @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBToS3Operator._export_entire_data")
     def test_dynamodb_execute_calling_export_entire_data(self, _export_entire_data):

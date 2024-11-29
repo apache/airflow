@@ -69,7 +69,7 @@ class TestDeletePool(TestPoolsEndpoint):
         response = test_client.delete("/public/pools/default_pool")
         assert response.status_code == 400
         body = response.json()
-        assert "Default Pool can't be deleted" == body["detail"]
+        assert body["detail"] == "Default Pool can't be deleted"
 
     def test_delete_should_respond_404(self, test_client):
         response = test_client.delete(f"/public/pools/{POOL1_NAME}")

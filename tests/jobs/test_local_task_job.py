@@ -365,7 +365,7 @@ class TestLocalTaskJob:
         with timeout(30):
             run_job(job=job1, execute_callable=job_runner._execute)
         ti.refresh_from_db()
-        assert State.SUCCESS == ti.state
+        assert ti.state == State.SUCCESS
         assert (
             "State of this instance has been externally set to success. Terminating instance." in caplog.text
         )

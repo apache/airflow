@@ -292,7 +292,7 @@ class TestPythonOperator(BasePythonTest):
         """Ensures that provide_context doesn't break dags in 2.0."""
 
         def func(custom, dag):
-            assert 1 == custom, "custom should be 1"
+            assert custom == 1, "custom should be 1"
             assert dag is not None, "dag should be set"
 
         error_message = "Invalid arguments were passed to PythonOperator \\(task_id: task_test-provide-context-does-not-fail\\). Invalid arguments were:\n\\*\\*kwargs: {'provide_context': True}"
@@ -302,7 +302,7 @@ class TestPythonOperator(BasePythonTest):
 
     def test_context_with_conflicting_op_args(self):
         def func(custom, dag):
-            assert 1 == custom, "custom should be 1"
+            assert custom == 1, "custom should be 1"
             assert dag is not None, "dag should be set"
 
         self.run_as_task(func, op_kwargs={"custom": 1})

@@ -80,7 +80,7 @@ class TestDagParsingRequest:
         response = self.client.put(
             url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
         )
-        assert 201 == response.status_code
+        assert response.status_code == 201
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert parsing_requests[0].fileloc == test_dag.fileloc
 
@@ -88,7 +88,7 @@ class TestDagParsingRequest:
         response = self.client.put(
             url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
         )
-        assert 201 == response.status_code
+        assert response.status_code == 201
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert parsing_requests[0].fileloc == test_dag.fileloc
 

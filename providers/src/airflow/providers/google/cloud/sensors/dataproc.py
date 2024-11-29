@@ -107,10 +107,10 @@ class DataprocJobSensor(BaseSensorOperator):
         }:
             message = f"Job was cancelled:\n{job}"
             raise AirflowException(message)
-        elif JobStatus.State.DONE == state:
+        elif state == JobStatus.State.DONE:
             self.log.debug("Job %s completed successfully.", self.dataproc_job_id)
             return True
-        elif JobStatus.State.ATTEMPT_FAILURE == state:
+        elif state == JobStatus.State.ATTEMPT_FAILURE:
             self.log.debug("Job %s attempt has failed.", self.dataproc_job_id)
 
         self.log.info("Waiting for job %s to complete.", self.dataproc_job_id)

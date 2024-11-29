@@ -105,7 +105,7 @@ class TestStackdriverListAlertPoliciesOperator:
             timeout=None,
             metadata=(),
         )
-        assert [
+        assert result == [
             {
                 "combiner": 0,
                 "conditions": [],
@@ -115,7 +115,7 @@ class TestStackdriverListAlertPoliciesOperator:
                 "severity": 0,
                 "user_labels": {},
             }
-        ] == result
+        ]
 
 
 class TestStackdriverEnableAlertPoliciesOperator:

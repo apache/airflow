@@ -57,8 +57,8 @@ class TestGetHealth(TestMonitorEndpoint):
         assert response.status_code == 200
         body = response.json()
 
-        assert "healthy" == body["metadatabase"]["status"]
-        assert "healthy" == body["scheduler"]["status"]
+        assert body["metadatabase"]["status"] == "healthy"
+        assert body["scheduler"]["status"] == "healthy"
         assert (
             last_scheduler_heartbeat_for_testing_1.isoformat()
             == body["scheduler"]["latest_scheduler_heartbeat"]
@@ -76,8 +76,8 @@ class TestGetHealth(TestMonitorEndpoint):
         assert response.status_code == 200
         body = response.json()
 
-        assert "healthy" == body["metadatabase"]["status"]
-        assert "unhealthy" == body["scheduler"]["status"]
+        assert body["metadatabase"]["status"] == "healthy"
+        assert body["scheduler"]["status"] == "unhealthy"
         assert (
             last_scheduler_heartbeat_for_testing_2.isoformat()
             == body["scheduler"]["latest_scheduler_heartbeat"]
@@ -89,8 +89,8 @@ class TestGetHealth(TestMonitorEndpoint):
         assert response.status_code == 200
         body = response.json()
 
-        assert "healthy" == body["metadatabase"]["status"]
-        assert "unhealthy" == body["scheduler"]["status"]
+        assert body["metadatabase"]["status"] == "healthy"
+        assert body["scheduler"]["status"] == "unhealthy"
         assert body["scheduler"]["latest_scheduler_heartbeat"] is None
 
     @mock.patch.object(SchedulerJobRunner, "most_recent_job")
@@ -101,5 +101,5 @@ class TestGetHealth(TestMonitorEndpoint):
         assert response.status_code == 200
         body = response.json()
 
-        assert "unhealthy" == body["metadatabase"]["status"]
+        assert body["metadatabase"]["status"] == "unhealthy"
         assert body["scheduler"]["latest_scheduler_heartbeat"] is None

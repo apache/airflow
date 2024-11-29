@@ -67,7 +67,7 @@ class TestCliDeprecatedCommandsValue:
         with pytest.raises(SystemExit) as ctx, contextlib.redirect_stderr(StringIO()) as temp_stderr:
             config_command.get_value(self.parser.parse_args(["worker"]))
 
-        assert 2 == ctx.value.code
+        assert ctx.value.code == 2
         assert (
             "Command `airflow worker` has been removed. "
             "Please use `airflow celery worker`" in temp_stderr.getvalue().strip()

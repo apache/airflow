@@ -112,7 +112,7 @@ class TestUtils:
             if node_text == str(current_page + 1):
                 if check_middle:
                     assert mid == i
-                assert "javascript:void(0)" == href_link
+                assert href_link == "javascript:void(0)"
                 assert "active" in item["class"]
             else:
                 assert re.search(r"^\?", href_link), "Link is page-relative"
@@ -142,29 +142,30 @@ class TestUtils:
 
     def test_params_no_values(self):
         """Should return an empty string if no params are passed"""
-        assert "" == utils.get_params()
+        assert utils.get_params() == ""
 
     def test_params_search(self):
-        assert "search=bash_" == utils.get_params(search="bash_")
+        assert utils.get_params(search="bash_") == "search=bash_"
 
     def test_params_none_and_zero(self):
         query_str = utils.get_params(a=0, b=None, c="true")
         # The order won't be consistent, but that doesn't affect behaviour of a browser
         pairs = sorted(query_str.split("&"))
-        assert ["a=0", "c=true"] == pairs
+        assert pairs == ["a=0", "c=true"]
 
     def test_params_all(self):
         query = utils.get_params(tags=["tag1", "tag2"], status="active", page=3, search="bash_")
-        assert {
+        assert parse_qs(query) == {
             "tags": ["tag1", "tag2"],
             "page": ["3"],
             "search": ["bash_"],
             "status": ["active"],
-        } == parse_qs(query)
+        }
 
     def test_params_escape(self):
-        assert "search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E" == utils.get_params(
-            search="'>\"/><img src=x onerror=alert(1)>"
+        assert (
+            utils.get_params(search="'>\"/><img src=x onerror=alert(1)>")
+            == "search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E"
         )
 
     def test_state_token(self):
@@ -304,7 +305,7 @@ class TestAttrRenderer:
 
     def test_python_callable_none(self):
         rendered = self.attr_renderer["python_callable"](None)
-        assert "" == rendered
+        assert rendered == ""
 
     def test_markdown(self):
         markdown = "* foo\n* bar"
@@ -368,9 +369,9 @@ class TestWrappedMarkdown:
     def test_wrapped_markdown_with_docstring_curly_braces(self):
         rendered = wrapped_markdown("{braces}", css_class="a_class")
         assert (
-            """<div class="a_class" ><p>{braces}</p>
+            rendered
+            == """<div class="a_class" ><p>{braces}</p>
 </div>"""
-            == rendered
         )
 
     def test_wrapped_markdown_with_some_markdown(self):
@@ -382,10 +383,10 @@ class TestWrappedMarkdown:
         )
 
         assert (
-            """<div class="a_class" ><p><em>italic</em>
+            rendered
+            == """<div class="a_class" ><p><em>italic</em>
 <strong>bold</strong></p>
 </div>"""
-            == rendered
         )
 
     def test_wrapped_markdown_with_table(self):
@@ -398,7 +399,8 @@ class TestWrappedMarkdown:
         )
 
         assert (
-            """<div class="rich_doc" ><table>
+            rendered
+            == """<div class="rich_doc" ><table>
 <thead>
 <tr>
 <th>Job</th>
@@ -413,7 +415,6 @@ class TestWrappedMarkdown:
 </tbody>
 </table>
 </div>"""
-            == rendered
         )
 
     def test_wrapped_markdown_with_indented_lines(self):
@@ -426,9 +427,9 @@ class TestWrappedMarkdown:
         )
 
         assert (
-            """<div class="rich_doc" ><h1>header</h1>\n<p>1st line\n2nd line</p>
+            rendered
+            == """<div class="rich_doc" ><h1>header</h1>\n<p>1st line\n2nd line</p>
 </div>"""
-            == rendered
         )
 
     def test_wrapped_markdown_with_raw_code_block(self):
@@ -447,11 +448,11 @@ class TestWrappedMarkdown:
         )
 
         assert (
-            """<div class="rich_doc" ><h1>Markdown code block</h1>
+            rendered
+            == """<div class="rich_doc" ><h1>Markdown code block</h1>
 <p>Inline <code>code</code> works well.</p>
 <pre><code>Code block\ndoes not\nrespect\nnewlines\n</code></pre>
 </div>"""
-            == rendered
         )
 
     def test_wrapped_markdown_with_nested_list(self):
@@ -465,7 +466,8 @@ class TestWrappedMarkdown:
         )
 
         assert (
-            """<div class="rich_doc" ><h3>Docstring with a code block</h3>
+            rendered
+            == """<div class="rich_doc" ><h3>Docstring with a code block</h3>
 <ul>
 <li>And
 <ul>
@@ -474,7 +476,6 @@ class TestWrappedMarkdown:
 </li>
 </ul>
 </div>"""
-            == rendered
         )
 
     @pytest.mark.parametrize(

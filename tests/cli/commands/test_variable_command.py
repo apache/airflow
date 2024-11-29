@@ -75,14 +75,14 @@ class TestCliVariables:
 
         with redirect_stdout(StringIO()) as stdout:
             variable_command.variables_get(self.parser.parse_args(["variables", "get", "foo"]))
-            assert '{\n  "foo": "bar"\n}\n' == stdout.getvalue()
+            assert stdout.getvalue() == '{\n  "foo": "bar"\n}\n'
 
     def test_get_variable_default_value(self):
         with redirect_stdout(StringIO()) as stdout:
             variable_command.variables_get(
                 self.parser.parse_args(["variables", "get", "baz", "--default", "bar"])
             )
-            assert "bar\n" == stdout.getvalue()
+            assert stdout.getvalue() == "bar\n"
 
     def test_get_variable_missing_variable(self):
         with pytest.raises(SystemExit):
@@ -118,11 +118,11 @@ class TestCliVariables:
         )
 
         # Assert value
-        assert {"foo": "oops"} == Variable.get("dict", deserialize_json=True)
-        assert ["oops"] == Variable.get("list", deserialize_json=True)
-        assert "hello string" == Variable.get("str")  # cannot json.loads(str)
-        assert 42 == Variable.get("int", deserialize_json=True)
-        assert 42.0 == Variable.get("float", deserialize_json=True)
+        assert Variable.get("dict", deserialize_json=True) == {"foo": "oops"}
+        assert Variable.get("list", deserialize_json=True) == ["oops"]
+        assert Variable.get("str") == "hello string"  # cannot json.loads(str)
+        assert Variable.get("int", deserialize_json=True) == 42
+        assert Variable.get("float", deserialize_json=True) == 42.0
         assert Variable.get("true", deserialize_json=True) is True
         assert Variable.get("false", deserialize_json=True) is False
         assert Variable.get("null", deserialize_json=True) is None
@@ -135,7 +135,7 @@ class TestCliVariables:
                 ["variables", "import", "variables_types.json", "--action-on-existing-key", "skip"]
             )
         )
-        assert ["airflow"] == Variable.get("list", deserialize_json=True)  # should not be overwritten
+        assert Variable.get("list", deserialize_json=True) == ["airflow"]  # should not be overwritten
 
         # test variable import fails on existing when action is set to fail
         with pytest.raises(SystemExit):
@@ -183,8 +183,8 @@ class TestCliVariables:
         variable_command.variables_delete(self.parser.parse_args(["variables", "delete", "foo"]))
         variable_command.variables_import(self.parser.parse_args(["variables", "import", os.fspath(path1)]))
 
-        assert "original" == Variable.get("bar")
-        assert '{\n  "foo": "bar"\n}' == Variable.get("foo")
+        assert Variable.get("bar") == "original"
+        assert Variable.get("foo") == '{\n  "foo": "bar"\n}'
 
         # Second export
         variable_command.variables_export(self.parser.parse_args(["variables", "export", os.fspath(path2)]))

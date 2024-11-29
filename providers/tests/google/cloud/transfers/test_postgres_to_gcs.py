@@ -93,9 +93,9 @@ class TestPostgresToGoogleCloudStorageOperator:
         assert op.filename == FILENAME
 
     def _assert_uploaded_file_content(self, bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
-        assert BUCKET == bucket
+        assert bucket == BUCKET
         assert FILENAME.format(0) == obj
-        assert "application/json" == mime_type
+        assert mime_type == "application/json"
         assert not gzip
         with open(tmp_filename, "rb") as file:
             assert b"".join(NDJSON_LINES) == file.read()
@@ -180,8 +180,8 @@ class TestPostgresToGoogleCloudStorageOperator:
         }
 
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
-            assert BUCKET == bucket
-            assert "application/json" == mime_type
+            assert bucket == BUCKET
+            assert mime_type == "application/json"
             assert not gzip
             with open(tmp_filename, "rb") as file:
                 assert expected_upload[obj] == file.read()
@@ -206,7 +206,7 @@ class TestPostgresToGoogleCloudStorageOperator:
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
             if obj == SCHEMA_FILENAME:
                 with open(tmp_filename, "rb") as file:
-                    assert SCHEMA_JSON == file.read()
+                    assert file.read() == SCHEMA_JSON
 
         gcs_hook_mock.upload.side_effect = _assert_upload
 
@@ -216,4 +216,4 @@ class TestPostgresToGoogleCloudStorageOperator:
         op.execute(None)
 
         # once for the file and once for the schema
-        assert 2 == gcs_hook_mock.upload.call_count
+        assert gcs_hook_mock.upload.call_count == 2

@@ -1064,7 +1064,7 @@ class TestStringifiedDAGs:
 
         # Test Deserialized link registered via Airflow Plugin
         link = simple_task.get_extra_links(ti, GoogleLink.name)
-        assert "https://www.google.com" == link
+        assert link == "https://www.google.com"
 
     @pytest.mark.usefixtures("clear_all_logger_handlers")
     def test_extra_operator_links_logs_error_for_non_registered_extra_links(self):

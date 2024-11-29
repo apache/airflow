@@ -444,7 +444,7 @@ class TestStandardTaskRunner:
         logger.info("The file appeared")
 
         with path_on_kill_killed.open() as f:
-            assert "ON_KILL_TEST" == f.readline()
+            assert f.readline() == "ON_KILL_TEST"
 
         for process in processes:
             assert not psutil.pid_exists(process.pid), f"{process} is still alive"

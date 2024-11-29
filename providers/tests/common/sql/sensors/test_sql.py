@@ -239,7 +239,7 @@ class TestSqlSensor:
         mock_get_records.return_value = [[1]]
         with pytest.raises(AirflowException) as ctx:
             op.poke({})
-        assert "self.failure is present, but not callable -> [1]" == str(ctx.value)
+        assert str(ctx.value) == "self.failure is present, but not callable -> [1]"
 
     @mock.patch("airflow.providers.common.sql.sensors.sql.BaseHook")
     def test_sql_sensor_postgres_poke_invalid_success(
@@ -259,7 +259,7 @@ class TestSqlSensor:
         mock_get_records.return_value = [[1]]
         with pytest.raises(AirflowException) as ctx:
             op.poke({})
-        assert "self.success is present, but not callable -> [1]" == str(ctx.value)
+        assert str(ctx.value) == "self.success is present, but not callable -> [1]"
 
     @pytest.mark.backend("postgres")
     def test_sql_sensor_postgres_with_selector(self):

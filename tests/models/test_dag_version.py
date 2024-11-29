@@ -59,7 +59,7 @@ class TestDagVersion:
 
         latest_version = DagVersion.get_latest_version(dag.dag_id)
         assert latest_version.version_number == 2
-        assert 2 == session.scalar(select(func.count()).where(DagVersion.dag_id == dag.dag_id))
+        assert session.scalar(select(func.count()).where(DagVersion.dag_id == dag.dag_id)) == 2
 
     @pytest.mark.need_serialized_dag
     def test_get_version(self, dag_maker, session):

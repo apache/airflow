@@ -1507,14 +1507,14 @@ def test_external_task_marker_cyclic_shallow(dag_bag_cyclic):
 
     tis = clear_tasks(dag_bag, dag_0, task_a_0, dry_run=True)
 
-    assert [
+    assert sorted((ti.dag_id, ti.task_id) for ti in tis) == [
         ("dag_0", "task_a_0"),
         ("dag_0", "task_b_0"),
         ("dag_1", "task_a_1"),
         ("dag_1", "task_b_1"),
         ("dag_2", "task_a_2"),
         ("dag_2", "task_b_2"),
-    ] == sorted((ti.dag_id, ti.task_id) for ti in tis)
+    ]
 
 
 @pytest.fixture

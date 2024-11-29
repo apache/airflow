@@ -61,5 +61,5 @@ class TestAwsToAwsBaseOperator:
         session.add(ti)
         session.commit()
         ti.render_templates()
-        assert "2020-01-01" == getattr(operator, "source_aws_conn_id")
-        assert "2020-01-01" == getattr(operator, "dest_aws_conn_id")
+        assert getattr(operator, "source_aws_conn_id") == "2020-01-01"
+        assert getattr(operator, "dest_aws_conn_id") == "2020-01-01"

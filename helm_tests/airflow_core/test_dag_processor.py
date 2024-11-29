@@ -52,7 +52,7 @@ class TestDagProcessor:
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        assert 0 == len(docs)
+        assert len(docs) == 0
 
     def test_disable_wait_for_migration(self):
         docs = render_chart(
@@ -88,9 +88,10 @@ class TestDagProcessor:
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        assert {"allowPrivilegeEscalation": False, "readOnlyRootFilesystem": True} == jmespath.search(
-            "spec.template.spec.initContainers[0].securityContext", docs[0]
-        )
+        assert jmespath.search("spec.template.spec.initContainers[0].securityContext", docs[0]) == {
+            "allowPrivilegeEscalation": False,
+            "readOnlyRootFilesystem": True,
+        }
 
     def test_should_add_extra_containers(self):
         docs = render_chart(
@@ -105,10 +106,10 @@ class TestDagProcessor:
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        assert {
+        assert jmespath.search("spec.template.spec.containers[-1]", docs[0]) == {
             "name": "airflow",
             "image": "test-registry/test-repo:test-tag",
-        } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+        }
 
     def test_should_template_extra_containers(self):
         docs = render_chart(
@@ -121,9 +122,9 @@ class TestDagProcessor:
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        assert {"name": "release-name-test-container"} == jmespath.search(
-            "spec.template.spec.containers[-1]", docs[0]
-        )
+        assert jmespath.search("spec.template.spec.containers[-1]", docs[0]) == {
+            "name": "release-name-test-container"
+        }
 
     def test_should_add_extra_init_containers(self):
         docs = render_chart(
@@ -138,10 +139,10 @@ class TestDagProcessor:
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        assert {
+        assert jmespath.search("spec.template.spec.initContainers[-1]", docs[0]) == {
             "name": "test-init-container",
             "image": "test-registry/test-repo:test-tag",
-        } == jmespath.search("spec.template.spec.initContainers[-1]", docs[0])
+        }
 
     def test_should_template_extra_init_containers(self):
         docs = render_chart(
@@ -154,9 +155,9 @@ class TestDagProcessor:
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        assert {"name": "release-name-test-init-container"} == jmespath.search(
-            "spec.template.spec.initContainers[-1]", docs[0]
-        )
+        assert jmespath.search("spec.template.spec.initContainers[-1]", docs[0]) == {
+            "name": "release-name-test-init-container"
+        }
 
     def test_should_add_extra_volume_and_extra_volume_mount(self):
         docs = render_chart(
@@ -172,12 +173,14 @@ class TestDagProcessor:
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        assert "test-volume-airflow" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
-        assert "test-volume-airflow" == jmespath.search(
-            "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
+        assert jmespath.search("spec.template.spec.volumes[1].name", docs[0]) == "test-volume-airflow"
+        assert (
+            jmespath.search("spec.template.spec.containers[0].volumeMounts[0].name", docs[0])
+            == "test-volume-airflow"
         )
-        assert "test-volume-airflow" == jmespath.search(
-            "spec.template.spec.initContainers[0].volumeMounts[0].name", docs[0]
+        assert (
+            jmespath.search("spec.template.spec.initContainers[0].volumeMounts[0].name", docs[0])
+            == "test-volume-airflow"
         )
 
     def test_should_add_global_volume_and_global_volume_mount(self):
@@ -190,12 +193,13 @@ class TestDagProcessor:
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        assert "test-volume" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
-        assert "test-volume" == jmespath.search(
-            "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
+        assert jmespath.search("spec.template.spec.volumes[1].name", docs[0]) == "test-volume"
+        assert (
+            jmespath.search("spec.template.spec.containers[0].volumeMounts[0].name", docs[0]) == "test-volume"
         )
-        assert "test-volume" == jmespath.search(
-            "spec.template.spec.initContainers[0].volumeMounts[0].name", docs[0]
+        assert (
+            jmespath.search("spec.template.spec.initContainers[0].volumeMounts[0].name", docs[0])
+            == "test-volume"
         )
 
     def test_should_add_extraEnvs(self):
@@ -254,9 +258,12 @@ class TestDagProcessor:
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        assert "airflow-scheduler" == jmespath.search(
-            "spec.template.spec.schedulerName",
-            docs[0],
+        assert (
+            jmespath.search(
+                "spec.template.spec.schedulerName",
+                docs[0],
+            )
+            == "airflow-scheduler"
         )
 
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
@@ -286,22 +293,31 @@ class TestDagProcessor:
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        assert "Deployment" == jmespath.search("kind", docs[0])
-        assert "foo" == jmespath.search(
-            "spec.template.spec.affinity.nodeAffinity."
-            "requiredDuringSchedulingIgnoredDuringExecution."
-            "nodeSelectorTerms[0]."
-            "matchExpressions[0]."
-            "key",
-            docs[0],
+        assert jmespath.search("kind", docs[0]) == "Deployment"
+        assert (
+            jmespath.search(
+                "spec.template.spec.affinity.nodeAffinity."
+                "requiredDuringSchedulingIgnoredDuringExecution."
+                "nodeSelectorTerms[0]."
+                "matchExpressions[0]."
+                "key",
+                docs[0],
+            )
+            == "foo"
         )
-        assert "ssd" == jmespath.search(
-            "spec.template.spec.nodeSelector.diskType",
-            docs[0],
+        assert (
+            jmespath.search(
+                "spec.template.spec.nodeSelector.diskType",
+                docs[0],
+            )
+            == "ssd"
         )
-        assert "dynamic-pods" == jmespath.search(
-            "spec.template.spec.tolerations[0].key",
-            docs[0],
+        assert (
+            jmespath.search(
+                "spec.template.spec.tolerations[0].key",
+                docs[0],
+            )
+            == "dynamic-pods"
         )
 
     def test_affinity_tolerations_topology_spread_constraints_and_node_selector_precedence(self):
@@ -367,13 +383,16 @@ class TestDagProcessor:
         )
 
         assert expected_affinity == jmespath.search("spec.template.spec.affinity", docs[0])
-        assert "ssd" == jmespath.search(
-            "spec.template.spec.nodeSelector.type",
-            docs[0],
+        assert (
+            jmespath.search(
+                "spec.template.spec.nodeSelector.type",
+                docs[0],
+            )
+            == "ssd"
         )
         tolerations = jmespath.search("spec.template.spec.tolerations", docs[0])
-        assert 1 == len(tolerations)
-        assert "dynamic-pods" == tolerations[0]["key"]
+        assert len(tolerations) == 1
+        assert tolerations[0]["key"] == "dynamic-pods"
         assert expected_topology_spread_constraints == jmespath.search(
             "spec.template.spec.topologySpreadConstraints[0]", docs[0]
         )
@@ -381,12 +400,12 @@ class TestDagProcessor:
     def test_should_create_default_affinity(self):
         docs = render_chart(show_only=["templates/scheduler/scheduler-deployment.yaml"])
 
-        assert {"component": "scheduler"} == jmespath.search(
+        assert jmespath.search(
             "spec.template.spec.affinity.podAntiAffinity."
             "preferredDuringSchedulingIgnoredDuringExecution[0]."
             "podAffinityTerm.labelSelector.matchLabels",
             docs[0],
-        )
+        ) == {"component": "scheduler"}
 
     def test_livenessprobe_values_are_configurable(self):
         docs = render_chart(
@@ -405,20 +424,24 @@ class TestDagProcessor:
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        assert 111 == jmespath.search(
-            "spec.template.spec.containers[0].livenessProbe.initialDelaySeconds", docs[0]
+        assert (
+            jmespath.search("spec.template.spec.containers[0].livenessProbe.initialDelaySeconds", docs[0])
+            == 111
         )
-        assert 222 == jmespath.search(
-            "spec.template.spec.containers[0].livenessProbe.timeoutSeconds", docs[0]
+        assert (
+            jmespath.search("spec.template.spec.containers[0].livenessProbe.timeoutSeconds", docs[0]) == 222
         )
-        assert 333 == jmespath.search(
-            "spec.template.spec.containers[0].livenessProbe.failureThreshold", docs[0]
+        assert (
+            jmespath.search("spec.template.spec.containers[0].livenessProbe.failureThreshold", docs[0]) == 333
         )
-        assert 444 == jmespath.search("spec.template.spec.containers[0].livenessProbe.periodSeconds", docs[0])
+        assert jmespath.search("spec.template.spec.containers[0].livenessProbe.periodSeconds", docs[0]) == 444
 
-        assert ["sh", "-c", "echo", "wow such test"] == jmespath.search(
-            "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
-        )
+        assert jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]) == [
+            "sh",
+            "-c",
+            "echo",
+            "wow such test",
+        ]
 
     @pytest.mark.parametrize(
         "airflow_version, probe_command",
@@ -465,9 +488,10 @@ class TestDagProcessor:
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        assert {"name": "logs", **expected_volume} == jmespath.search(
-            "spec.template.spec.volumes[1]", docs[0]
-        )
+        assert jmespath.search("spec.template.spec.volumes[1]", docs[0]) == {
+            "name": "logs",
+            **expected_volume,
+        }
 
     def test_resources_are_configurable(self):
         docs = render_chart(
@@ -482,22 +506,24 @@ class TestDagProcessor:
             },
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
-        assert "128Mi" == jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0])
-        assert "200m" == jmespath.search("spec.template.spec.containers[0].resources.limits.cpu", docs[0])
-        assert "169Mi" == jmespath.search(
-            "spec.template.spec.containers[0].resources.requests.memory", docs[0]
+        assert jmespath.search("spec.template.spec.containers[0].resources.limits.memory", docs[0]) == "128Mi"
+        assert jmespath.search("spec.template.spec.containers[0].resources.limits.cpu", docs[0]) == "200m"
+        assert (
+            jmespath.search("spec.template.spec.containers[0].resources.requests.memory", docs[0]) == "169Mi"
         )
-        assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
+        assert jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0]) == "300m"
 
-        assert "128Mi" == jmespath.search(
-            "spec.template.spec.initContainers[0].resources.limits.memory", docs[0]
+        assert (
+            jmespath.search("spec.template.spec.initContainers[0].resources.limits.memory", docs[0])
+            == "128Mi"
         )
-        assert "200m" == jmespath.search("spec.template.spec.initContainers[0].resources.limits.cpu", docs[0])
-        assert "169Mi" == jmespath.search(
-            "spec.template.spec.initContainers[0].resources.requests.memory", docs[0]
+        assert jmespath.search("spec.template.spec.initContainers[0].resources.limits.cpu", docs[0]) == "200m"
+        assert (
+            jmespath.search("spec.template.spec.initContainers[0].resources.requests.memory", docs[0])
+            == "169Mi"
         )
-        assert "300m" == jmespath.search(
-            "spec.template.spec.initContainers[0].resources.requests.cpu", docs[0]
+        assert (
+            jmespath.search("spec.template.spec.initContainers[0].resources.requests.cpu", docs[0]) == "300m"
         )
 
     def test_resources_are_not_added_by_default(self):
@@ -535,9 +561,11 @@ class TestDagProcessor:
         )
 
         assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) is None
-        assert ["bash", "-c", "exec airflow dag-processor"] == jmespath.search(
-            "spec.template.spec.containers[0].args", docs[0]
-        )
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == [
+            "bash",
+            "-c",
+            "exec airflow dag-processor",
+        ]
 
     @pytest.mark.parametrize(
         "revision_history_limit, global_revision_history_limit",
@@ -589,8 +617,8 @@ class TestDagProcessor:
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        assert ["release-name"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
-        assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
+        assert jmespath.search("spec.template.spec.containers[0].command", docs[0]) == ["release-name"]
+        assert jmespath.search("spec.template.spec.containers[0].args", docs[0]) == ["Helm"]
 
     def test_dags_volume_mount_with_persistence_true(self):
         docs = render_chart(
