@@ -56,7 +56,9 @@ def download_file_from_github(tag: str, path: str, output_file: Path, timeout: i
             response = requests.get(url, timeout=timeout)
             if response.status_code == 403:
                 get_console().print(
-                    f"[error]The {url} is not accessible.This may be caused by network issues or VPN settings"
+                    f"[error]The {url} is not accessible.This may be caused by either of:\n"
+                    f"   1. network issues or VPN settings\n"
+                    f"   2. Github rate limiting limit"
                 )
                 return False
             if response.status_code == 404:
