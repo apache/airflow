@@ -114,6 +114,16 @@ class TestExternalTaskSensor:
         self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         self.dag = DAG(TEST_DAG_ID, schedule=None, default_args=self.args)
         self.dag_run_id = DagRunType.MANUAL.generate_run_id(DEFAULT_DATE)
+        self.dag_run = DagRun(
+            dag_id=self.dag.dag_id,
+            run_id=self.dag_run_id,
+            run_type=DagRunType.MANUAL,
+            logical_date=DEFAULT_DATE,
+        )
+        with create_session() as session:
+            session.merge(self.dag_run)
+            session.flush()
+            session.commit()
 
     def add_time_sensor(self, task_id=TEST_TASK_ID):
         op = TimeSensor(task_id=task_id, target_time=time(0), dag=self.dag)

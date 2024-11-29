@@ -111,7 +111,7 @@ def _execute_callbacks(
     dagbag: DagBag, callback_requests: list[CallbackRequest], log: FilteringBoundLogger
 ) -> None:
     for request in callback_requests:
-        log.debug("Processing Callback Request", request=request)
+        log.debug("Processing Callback Request", request=request.to_json())
         if isinstance(request, TaskCallbackRequest):
             raise NotImplementedError(
                 "Haven't coded Task callback yet - https://github.com/apache/airflow/issues/44354!"

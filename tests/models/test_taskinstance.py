@@ -33,6 +33,7 @@ from unittest.mock import call, mock_open, patch
 from uuid import uuid4
 
 import pendulum
+import psutil
 import pytest
 import time_machine
 import uuid6
@@ -83,6 +84,7 @@ from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+from airflow.settings import reconfigure_orm
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
@@ -2298,11 +2300,11 @@ class TestTaskInstance:
         session.flush()
 
         run_id = str(uuid4())
-        dr = DagRun(dag1.dag_id, run_id=run_id, run_type="anything")
-        session.merge(dr)
+        dr = DagRun(dag1.dag_id, run_id=run_id, run_type="anything", logical_date=timezone.utcnow())
         task = dag1.get_task("producing_task_1")
         task.bash_command = "echo 1"  # make it go faster
         ti = TaskInstance(task, run_id=run_id)
+        ti.dag_run = dr
         session.merge(ti)
         session.commit()
         ti._run_raw_task()
@@ -2357,10 +2359,12 @@ class TestTaskInstance:
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
         dagbag.sync_to_db(session=session)
         run_id = str(uuid4())
-        dr = DagRun(dag_with_fail_task.dag_id, run_id=run_id, run_type="anything")
-        session.merge(dr)
+        dr = DagRun(
+            dag_with_fail_task.dag_id, run_id=run_id, run_type="anything", logical_date=timezone.utcnow()
+        )
         task = dag_with_fail_task.get_task("fail_task")
         ti = TaskInstance(task, run_id=run_id)
+        ti.dag_run = dr
         session.merge(ti)
         session.commit()
         with pytest.raises(AirflowFailException):
@@ -2416,10 +2420,12 @@ class TestTaskInstance:
         session.flush()
 
         run_id = str(uuid4())
-        dr = DagRun(dag_with_skip_task.dag_id, run_id=run_id, run_type="anything")
-        session.merge(dr)
+        dr = DagRun(
+            dag_with_skip_task.dag_id, run_id=run_id, run_type="anything", logical_date=timezone.utcnow()
+        )
         task = dag_with_skip_task.get_task("skip_task")
         ti = TaskInstance(task, run_id=run_id)
+        ti.dag_run = dr
         session.merge(ti)
         session.commit()
         ti._run_raw_task()
@@ -3587,6 +3593,40 @@ class TestTaskInstance:
         assert context_arg_3
         assert "task_instance" in context_arg_3
         mock_on_retry_3.assert_not_called()
+
+    @provide_session
+    def test_handle_failure_does_not_push_stale_dagrun_model(self, dag_maker, create_dummy_dag, session=None):
+        session = settings.Session()
+        with dag_maker():
+
+            def method(): ...
+
+            task = PythonOperator(task_id="mytask", python_callable=method)
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id)
+        ti.state = State.RUNNING
+
+        assert dr.state == DagRunState.RUNNING
+
+        session.merge(ti)
+        session.flush()
+        session.commit()
+
+        pid = os.fork()
+        if pid:
+            process = psutil.Process(pid)
+            dr.state = DagRunState.SUCCESS
+            session.merge(dr)
+            session.flush()
+            session.commit()
+            process.wait(timeout=5)
+        else:
+            reconfigure_orm(disable_connection_pool=True)
+            ti.handle_failure("should not update related models")
+            os._exit(0)
+
+        dr.refresh_from_db()
+        assert dr.state == DagRunState.SUCCESS
 
     def test_handle_failure_updates_queued_task_updates_state(self, dag_maker):
         session = settings.Session()

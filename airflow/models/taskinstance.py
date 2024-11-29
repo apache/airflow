@@ -1126,7 +1126,7 @@ def _handle_failure(
         )
 
     if not test_mode:
-        TaskInstance.save_to_db(failure_context["ti"], session)
+        TaskInstance.save_to_db(task_instance, session)
 
     with Trace.start_span_from_taskinstance(ti=task_instance) as span:
         span.set_attributes(
@@ -3146,6 +3146,7 @@ class TaskInstance(Base, LoggingMixin):
     @staticmethod
     @provide_session
     def save_to_db(ti: TaskInstance, session: Session = NEW_SESSION):
+        ti.get_dagrun().refresh_from_db()
         ti.updated_at = timezone.utcnow()
         session.merge(ti)
         session.flush()
