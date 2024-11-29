@@ -29,7 +29,6 @@ from pydantic import (
     ConfigDict,
     computed_field,
     field_validator,
-    model_validator,
 )
 
 from airflow.api_fastapi.core_api.base import BaseModel
@@ -91,13 +90,6 @@ class DAGResponse(BaseModel):
         """Return file token."""
         serializer = URLSafeSerializer(conf.get_mandatory_value("webserver", "secret_key"))
         return serializer.dumps(self.fileloc)
-
-    @model_validator(mode="before")
-    @classmethod
-    def remove_file_token(cls, data):
-        if isinstance(data, dict):
-            data.pop("file_token", None)
-        return data
 
 
 class DAGPatchBody(BaseModel):
