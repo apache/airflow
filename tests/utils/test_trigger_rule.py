@@ -32,7 +32,6 @@ class TestTriggerRule:
         assert TriggerRule.is_valid(TriggerRule.ONE_FAILED)
         assert TriggerRule.is_valid(TriggerRule.ONE_DONE)
         assert TriggerRule.is_valid(TriggerRule.NONE_FAILED)
-        assert TriggerRule.is_valid(TriggerRule.NONE_FAILED_OR_SKIPPED)
         assert TriggerRule.is_valid(TriggerRule.NONE_SKIPPED)
         assert TriggerRule.is_valid(TriggerRule.ALWAYS)
         assert TriggerRule.is_valid(TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
