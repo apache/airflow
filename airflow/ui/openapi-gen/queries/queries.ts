@@ -2533,7 +2533,7 @@ export const useVariableServiceGetVariables = <
   });
 /**
  * Get Health
- * @returns HealthInfoSchema Successful Response
+ * @returns HealthInfoResponse Successful Response
  * @throws ApiError
  */
 export const useMonitorServiceGetHealth = <

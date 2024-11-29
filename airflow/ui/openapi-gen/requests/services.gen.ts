@@ -2997,7 +2997,7 @@ export class DagParsingService {
 export class MonitorService {
   /**
    * Get Health
-   * @returns HealthInfoSchema Successful Response
+   * @returns HealthInfoResponse Successful Response
    * @throws ApiError
    */
   public static getHealth(): CancelablePromise<GetHealthResponse> {

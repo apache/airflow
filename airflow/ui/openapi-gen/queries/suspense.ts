@@ -2509,7 +2509,7 @@ export const useVariableServiceGetVariablesSuspense = <
   });
 /**
  * Get Health
- * @returns HealthInfoSchema Successful Response
+ * @returns HealthInfoResponse Successful Response
  * @throws ApiError
  */
 export const useMonitorServiceGetHealthSuspense = <
