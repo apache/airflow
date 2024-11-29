@@ -73,6 +73,14 @@ class AssetUniqueKey(NamedTuple):
         return AssetUniqueKey(name=asset.name, uri=asset.uri)
 
 
+class AssetAliasUniqueKey(NamedTuple):
+    name: str
+
+    @staticmethod
+    def from_asset_alias(asset_alias: AssetAlias) -> AssetAliasUniqueKey:
+        return AssetAliasUniqueKey(name=asset_alias.name)
+
+
 def normalize_noop(parts: SplitResult) -> SplitResult:
     """
     Place-hold a :class:`~urllib.parse.SplitResult`` normalizer.
