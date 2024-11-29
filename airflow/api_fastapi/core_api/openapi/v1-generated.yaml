@@ -5742,10 +5742,14 @@ components:
         name:
           type: string
           title: Name
+        group:
+          type: string
+          title: Group
       type: object
       required:
       - id
       - name
+      - group
       title: AssetAliasSchema
       description: Asset alias serializer for assets.
     AssetCollectionResponse:
