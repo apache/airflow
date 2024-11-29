@@ -33,6 +33,7 @@ from unittest.mock import call, mock_open, patch
 from uuid import uuid4
 
 import pendulum
+import psutil
 import pytest
 import time_machine
 import uuid6
@@ -80,6 +81,7 @@ from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
+from airflow.settings import reconfigure_orm
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
@@ -3496,6 +3498,40 @@ class TestTaskInstance:
         assert context_arg_3
         assert "task_instance" in context_arg_3
         mock_on_retry_3.assert_not_called()
+
+    @provide_session
+    def test_handle_failure_does_not_push_stale_dagrun_model(self, dag_maker, create_dummy_dag, session=None):
+        session = settings.Session()
+        with dag_maker():
+
+            def method(): ...
+
+            task = PythonOperator(task_id="mytask", python_callable=method)
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task.task_id)
+        ti.state = State.RUNNING
+
+        assert dr.state == DagRunState.RUNNING
+
+        session.merge(ti)
+        session.flush()
+        session.commit()
+
+        pid = os.fork()
+        if pid:
+            process = psutil.Process(pid)
+            dr.state = DagRunState.SUCCESS
+            session.merge(dr)
+            session.flush()
+            session.commit()
+            process.wait(timeout=5)
+        else:
+            reconfigure_orm(disable_connection_pool=True)
+            ti.handle_failure("should not update related models")
+            os._exit(0)
+
+        dr.refresh_from_db()
+        assert dr.state == DagRunState.SUCCESS
 
     def test_handle_failure_updates_queued_task_updates_state(self, dag_maker):
         session = settings.Session()
