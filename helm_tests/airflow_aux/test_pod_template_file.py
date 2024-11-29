@@ -1045,7 +1045,7 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
 
-        assert None is jmespath.search("spec.containers[0].command", docs[0])
+        assert jmespath.search("spec.containers[0].command", docs[0]) is None
 
     def test_should_not_add_command_by_default(self):
         docs = render_chart(
@@ -1053,7 +1053,7 @@ class TestPodTemplateFile:
             chart_dir=self.temp_chart_dir,
         )
 
-        assert None is jmespath.search("spec.containers[0].command", docs[0])
+        assert jmespath.search("spec.containers[0].command", docs[0]) is None
 
     @pytest.mark.parametrize(
         "workers_values, kerberos_init_container",

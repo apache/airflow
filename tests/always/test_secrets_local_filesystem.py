@@ -455,5 +455,5 @@ class TestLocalFileBackend:
 
     def test_files_are_optional(self):
         backend = LocalFilesystemBackend()
-        assert None is backend.get_connection("CONN_A")
+        assert backend.get_connection("CONN_A") is None
         assert backend.get_variable("VAR_A") is None
