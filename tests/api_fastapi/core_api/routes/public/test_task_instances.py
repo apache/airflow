@@ -2723,7 +2723,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         assert response.status_code == code
         assert response.json()["detail"] == error
 
-    def test_should_200_for_unknown_fields(self, test_client, session):
+    def test_should_422_for_unknown_fields(self, test_client, session):
         self.create_task_instances(session)
         response = test_client.patch(
             self.ENDPOINT_URL,
@@ -2732,7 +2732,7 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                 "new_state": self.NEW_STATE,
             },
         )
-        assert response.status_code == 200
+        assert response.status_code == 422
 
     def test_should_raise_404_for_non_existent_dag(self, test_client):
         response = test_client.patch(

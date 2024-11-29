@@ -75,6 +75,9 @@ class PluginResponse(BaseModel):
     ti_deps: list[Annotated[str, BeforeValidator(coerce_to_string)]]
     listeners: list[str]
     timetables: list[str]
+    priority_weight_strategies: list[Any]
+    admin_views: list[Any]
+    menu_links: list[Any]
 
     @field_validator("source", mode="before")
     @classmethod

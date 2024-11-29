@@ -820,6 +820,9 @@ export type PluginResponse = {
   ti_deps: Array<string>;
   listeners: Array<string>;
   timetables: Array<string>;
+  priority_weight_strategies: Array<unknown>;
+  admin_views: Array<unknown>;
+  menu_links: Array<unknown>;
 };
 
 /**
