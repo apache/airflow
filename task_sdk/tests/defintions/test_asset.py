@@ -192,8 +192,8 @@ def test_asset_iter_asset_aliases():
 
 
 def test_asset_evaluate():
-    assert asset1.evaluate({"asset-1": True}) is True
-    assert asset1.evaluate({"asset-1": False}) is False
+    assert asset1.evaluate({"s3://bucket1/data1": True}) is True
+    assert asset1.evaluate({"s3://bucket1/data1": False}) is False
 
 
 def test_asset_any_operations():
@@ -219,8 +219,8 @@ def test_assset_boolean_condition_evaluate_iter():
     """
     any_condition = AssetAny(asset1, asset2)
     all_condition = AssetAll(asset1, asset2)
-    assert any_condition.evaluate({"asset-1": False, "asset-2": True}) is True
-    assert all_condition.evaluate({"asset-1": True, "asset-2": False}) is False
+    assert any_condition.evaluate({"s3://bucket1/data1": False, "s3://bucket2/data2": True}) is True
+    assert all_condition.evaluate({"s3://bucket1/data1": True, "s3://bucket2/data2": False}) is False
 
     # Testing iter_assets indirectly through the subclasses
     assets_any = dict(any_condition.iter_assets())
@@ -263,7 +263,7 @@ def test_asset_logical_conditions_evaluation_and_serialization(inputs, scenario,
     assets = [Asset(uri=f"s3://abc/{i}", name=f"asset_{i}") for i in range(123, 126)]
     condition = class_(*assets)
 
-    statuses = {asset.name: status for asset, status in zip(assets, inputs)}
+    statuses = {asset.uri: status for asset, status in zip(assets, inputs)}
     assert (
         condition.evaluate(statuses) == expected
     ), f"Condition evaluation failed for inputs {inputs} and scenario '{scenario}'"
@@ -294,17 +294,17 @@ def test_asset_logical_conditions_evaluation_and_serialization(inputs, scenario,
 )
 def test_nested_asset_conditions_with_serialization(status_values, expected_evaluation):
     # Define assets
-    asset1 = Asset(uri="s3://abc/123", name="asset-1")
-    asset2 = Asset(uri="s3://abc/124", name="asset-2")
-    asset3 = Asset(uri="s3://abc/125", name="asset-3")
+    asset1 = Asset(uri="s3://abc/123")
+    asset2 = Asset(uri="s3://abc/124")
+    asset3 = Asset(uri="s3://abc/125")
 
     # Create a nested condition: AssetAll with asset1 and AssetAny with asset2 and asset3
     nested_condition = AssetAll(asset1, AssetAny(asset2, asset3))
 
     statuses = {
-        asset1.name: status_values[0],
-        asset2.name: status_values[1],
-        asset3.name: status_values[2],
+        asset1.uri: status_values[0],
+        asset2.uri: status_values[1],
+        asset3.uri: status_values[2],
     }
 
     assert nested_condition.evaluate(statuses) == expected_evaluation, "Initial evaluation mismatch"
@@ -369,7 +369,7 @@ def test_asset_dag_run_queue_processing(session, clear_assets, dag_maker, create
     records = session.scalars(select(AssetDagRunQueue)).all()
     dag_statuses = defaultdict(lambda: defaultdict(bool))
     for record in records:
-        dag_statuses[record.target_dag_id][record.asset.name] = True
+        dag_statuses[record.target_dag_id][record.asset.uri] = True
 
     serialized_dags = session.execute(
         select(SerializedDagModel).where(SerializedDagModel.dag_id.in_(dag_statuses.keys()))
@@ -377,9 +377,9 @@ def test_asset_dag_run_queue_processing(session, clear_assets, dag_maker, create
 
     for (serialized_dag,) in serialized_dags:
         dag = SerializedDAG.deserialize(serialized_dag.data)
-        for asset_name, status in dag_statuses[dag.dag_id].items():
+        for asset_uri, status in dag_statuses[dag.dag_id].items():
             cond = dag.timetable.asset_condition
-            assert cond.evaluate({asset_name: status}), "DAG trigger evaluation failed"
+            assert cond.evaluate({asset_uri: status}), "DAG trigger evaluation failed"
 
 
 @pytest.mark.db_test
@@ -637,10 +637,10 @@ class TestAssetAliasCondition:
 
     def test_evalute(self, asset_alias_1, resolved_asset_alias_2, asset_model):
         cond = AssetAliasCondition.from_asset_alias(asset_alias_1)
-        assert cond.evaluate({asset_model.name: True}) is False
+        assert cond.evaluate({asset_model.uri: True}) is False
 
         cond = AssetAliasCondition.from_asset_alias(resolved_asset_alias_2)
-        assert cond.evaluate({asset_model.name: True}) is True
+        assert cond.evaluate({asset_model.uri: True}) is True
 
 
 class TestAssetSubclasses:

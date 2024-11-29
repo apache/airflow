@@ -72,6 +72,7 @@ class AssetUniqueKey(NamedTuple):
     def from_asset(asset: Asset) -> AssetUniqueKey:
         return AssetUniqueKey(name=asset.name, uri=asset.uri)
 
+
 def normalize_noop(parts: SplitResult) -> SplitResult:
     """
     Place-hold a :class:`~urllib.parse.SplitResult`` normalizer.
@@ -368,7 +369,7 @@ class Asset(os.PathLike, BaseAsset):
         return iter(())
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
-        return statuses.get(self.name, False)
+        return statuses.get(self.uri, False)
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """

@@ -2297,7 +2297,7 @@ class DagModel(Base):
         del all_records
         dag_statuses = {}
         for dag_id, records in by_dag.items():
-            dag_statuses[dag_id] = {x.asset.name: True for x in records}
+            dag_statuses[dag_id] = {x.asset.uri: True for x in records}
         ser_dags = SerializedDagModel.get_latest_serialized_dags(
             dag_ids=list(dag_statuses.keys()), session=session
         )
