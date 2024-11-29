@@ -68,6 +68,9 @@ class AssetUniqueKey(NamedTuple):
     name: str
     uri: str
 
+    @staticmethod
+    def from_asset(asset: Asset) -> AssetUniqueKey:
+        return AssetUniqueKey(name=asset.name, uri=asset.uri)
 
 def normalize_noop(parts: SplitResult) -> SplitResult:
     """
@@ -359,7 +362,7 @@ class Asset(os.PathLike, BaseAsset):
         return {"asset": {"uri": self.uri, "name": self.name, "group": self.group}}
 
     def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
-        yield AssetUniqueKey(name=self.name, uri=self.uri), self
+        yield AssetUniqueKey.from_asset(self), self
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         return iter(())

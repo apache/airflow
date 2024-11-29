@@ -227,7 +227,6 @@ def test_assset_boolean_condition_evaluate_iter():
     assets_all = dict(all_condition.iter_assets())
     assert assets_any == {
         ("asset-1", "s3://bucket1/data1"): asset1,
-        # AssetUniqueKey(name="asset-1", uri="s3://bucket1/data1"): asset1,
         ("asset-2", "s3://bucket2/data2"): asset2,
     }
     assert assets_all == {
