@@ -18,41 +18,42 @@
 */}}
 
 ################################
-## Airflow rpc-server NetworkPolicy
+## Airflow api-server Service
 #################################
-{{- if .Values._rpcServer.enabled }}
-{{- if .Values.networkPolicies.enabled }}
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
+{{- if semverCompare ">=3.0.0" .Values.airflowVersion }}
+apiVersion: v1
+kind: Service
 metadata:
-  name: {{ include "airflow.fullname" . }}-rpc-server-policy
+  name: {{ include "airflow.fullname" . }}-api-server
   labels:
     tier: airflow
-    component: airflow-rpc-server-policy
+    component: api-server
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- if or (.Values.labels) (.Values._rpcServer.labels) }}
-      {{- mustMerge .Values._rpcServer.labels .Values.labels | toYaml | nindent 4 }}
+    {{- if or (.Values.labels) (.Values.apiServer.labels) }}
+      {{- mustMerge .Values.apiServer.labels .Values.labels | toYaml | nindent 4 }}
     {{- end }}
+  {{- with .Values.apiServer.service.annotations }}
+  annotations: {{- toYaml . | nindent 4 }}
+  {{- end }}
 spec:
-  podSelector:
-    matchLabels:
-      tier: airflow
-      component: rpc-server
-      release: {{ .Release.Name }}
-  policyTypes:
-    - Ingress
-  {{- if .Values._rpcServer.networkPolicy.ingress.from }}
-  ingress:
-    - from: {{- toYaml .Values._rpcServer.networkPolicy.ingress.from | nindent 6 }}
-      ports:
-      {{ range .Values._rpcServer.networkPolicy.ingress.ports }}
-        -
-          {{- range $key, $val := . }}
-          {{ $key }}: {{ tpl (toString $val) $ }}
-          {{- end }}
+  type: {{ .Values.apiServer.service.type }}
+  selector:
+    tier: airflow
+    component: api-server
+    release: {{ .Release.Name }}
+  ports:
+  {{ range .Values.apiServer.service.ports }}
+    -
+      {{- range $key, $val := . }}
+      {{ $key }}: {{ tpl (toString $val) $ }}
       {{- end }}
   {{- end }}
-{{- end }}
+  {{- if .Values.apiServer.service.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.apiServer.service.loadBalancerIP }}
+  {{- end }}
+  {{- if .Values.apiServer.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges: {{- toYaml .Values.apiServer.service.loadBalancerSourceRanges | nindent 4 }}
+  {{- end }}
 {{- end }}
