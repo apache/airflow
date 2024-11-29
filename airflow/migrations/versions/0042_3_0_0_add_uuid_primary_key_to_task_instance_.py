@@ -20,7 +20,7 @@
 Add UUID primary key to ``task_instance`` table.
 
 Revision ID: d59cbbef95eb
-Revises: c4a1639f0f67
+Revises: 05234396c6fc
 Create Date: 2024-10-21 22:39:12.394079
 """
 
@@ -33,7 +33,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "d59cbbef95eb"
-down_revision = "c4a1639f0f67"
+down_revision = "05234396c6fc"
 branch_labels = "None"
 depends_on = None
 airflow_version = "3.0.0"
