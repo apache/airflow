@@ -151,11 +151,7 @@ const Gantt = ({
       // @ts-ignore
       setEndDate(dagRun?.endDate ?? moment().add(1, "s").toString());
     }
-  }, [
-    dagRun?.queuedAt,
-    dagRun?.startDate,
-    dagRun?.endDate,
-  ]);
+  }, [dagRun?.queuedAt, dagRun?.startDate, dagRun?.endDate]);
 
   const numBars = Math.round(width / 100);
   const runDuration = getDuration(startDate, endDate);
