@@ -991,7 +991,7 @@ class DAG:
                 "fail_stop",
                 "schedule",
             }
-            cls.__serialized_fields = frozenset(vars(DAG(dag_id="test", schedule=None))) - exclusion_list
+            cls.__serialized_fields = frozenset(a.name for a in attrs.fields(cls)) - exclusion_list
         return cls.__serialized_fields
 
     def get_edge_info(self, upstream_task_id: str, downstream_task_id: str) -> EdgeInfoType:
