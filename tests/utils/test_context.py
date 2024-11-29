@@ -21,7 +21,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.models.asset import AssetAliasModel, AssetModel
-from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasUniqueKey, AssetUniqueKey
 from airflow.utils.context import AssetAliasEvent, OutletEventAccessor, OutletEventAccessors
 
 
@@ -30,10 +30,10 @@ class TestOutletEventAccessor:
         "key, asset_alias_events",
         (
             (
-                AssetAlias("test_alias"),
+                AssetAliasUniqueKey.from_asset_alias(AssetAlias("test_alias")),
                 [AssetAliasEvent(source_alias_name="test_alias", dest_asset_uri="test_uri", extra={})],
             ),
-            (Asset("test_uri"), []),
+            (AssetUniqueKey.from_asset(Asset("test_uri")), []),
         ),
     )
     def test_add(self, key, asset_alias_events):
@@ -46,33 +46,46 @@ class TestOutletEventAccessor:
         "key, asset_alias_events",
         (
             (
-                AssetAlias("test_alias"),
-                [AssetAliasEvent(source_alias_name="test_alias", dest_asset_uri="test_uri", extra={})],
+                AssetAliasUniqueKey.from_asset_alias(AssetAlias("test_alias")),
+                [
+                    AssetAliasEvent(
+                        source_alias_name="test_alias", dest_asset_uri="test://asset-uri/", extra={}
+                    )
+                ],
             ),
-            (
-                "test_alias",
-                [AssetAliasEvent(source_alias_name="test_alias", dest_asset_uri="test_uri", extra={})],
-            ),
-            (Asset("test_uri"), []),
+            (AssetUniqueKey.from_asset(Asset("test_uri")), []),
         ),
     )
     def test_add_with_db(self, key, asset_alias_events, session):
-        asm = AssetModel(uri="test_uri")
+        asm = AssetModel(uri="test://asset-uri", name="test-asset", group="asset")
         aam = AssetAliasModel(name="test_alias")
         session.add_all([asm, aam])
         session.flush()
 
         outlet_event_accessor = OutletEventAccessor(key=key, extra={"not": ""})
-        outlet_event_accessor.add("test_uri", extra={})
+        outlet_event_accessor.add(Asset(uri="test://asset-uri", name="test-asset"), extra={})
         assert outlet_event_accessor.asset_alias_events == asset_alias_events
 
 
+# TODO: add test case to verify string does not work
+
+
 class TestOutletEventAccessors:
-    @pytest.mark.parametrize("key", ("test", Asset("test"), AssetAlias("test_alias")))
-    def test____get_item___dict_key_not_exists(self, key):
+    @pytest.mark.parametrize(
+        "access_key, internal_key",
+        (
+            (Asset("test"), AssetUniqueKey.from_asset(Asset("test"))),
+            (
+                Asset(name="test", uri="test://asset"),
+                AssetUniqueKey.from_asset(Asset(name="test", uri="test://asset")),
+            ),
+            (AssetAlias("test_alias"), AssetAliasUniqueKey.from_asset_alias(AssetAlias("test_alias"))),
+        ),
+    )
+    def test___get_item__dict_key_not_exists(self, access_key, internal_key):
         outlet_event_accessors = OutletEventAccessors()
         assert len(outlet_event_accessors) == 0
-        outlet_event_accessor = outlet_event_accessors[key]
+        outlet_event_accessor = outlet_event_accessors[access_key]
         assert len(outlet_event_accessors) == 1
-        assert outlet_event_accessor.key == key
+        assert outlet_event_accessor.key == internal_key
         assert outlet_event_accessor.extra == {}

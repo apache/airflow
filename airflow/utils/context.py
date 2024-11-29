@@ -47,7 +47,9 @@ from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel, fetch_
 from airflow.sdk.definitions.asset import (
     Asset,
     AssetAlias,
+    AssetAliasUniqueKey,
     AssetRef,
+    AssetUniqueKey,
     BaseAsset,
 )
 from airflow.sdk.definitions.asset.metadata import extract_event_key
@@ -174,7 +176,7 @@ class OutletEventAccessor:
     :meta private:
     """
 
-    key: BaseAsset
+    key: AssetUniqueKey | AssetAliasUniqueKey
     extra: dict[str, Any] = attrs.Factory(dict)
     asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
 
@@ -183,7 +185,7 @@ class OutletEventAccessor:
         if not isinstance(asset, Asset):
             return
 
-        if isinstance(self.key, AssetAlias):
+        if isinstance(self.key, AssetAliasUniqueKey):
             asset_alias_name = self.key.name
         else:
             return
@@ -214,9 +216,18 @@ class OutletEventAccessors(Mapping[BaseAsset, OutletEventAccessor]):
         return len(self._dict)
 
     def __getitem__(self, key: BaseAsset) -> OutletEventAccessor:
-        if key not in self._dict:
-            self._dict[key] = OutletEventAccessor(extra={}, key=key)
-        return self._dict[key]
+        hashable_key: AssetUniqueKey | AssetAliasUniqueKey
+        if isinstance(key, Asset):
+            hashable_key = AssetUniqueKey.from_asset(key)
+        elif isinstance(key, AssetAlias):
+            hashable_key = AssetAliasUniqueKey.from_asset_alias(key)
+        else:
+            # TODO
+            raise SystemExit()
+
+        if hashable_key not in self._dict:
+            self._dict[hashable_key] = OutletEventAccessor(extra={}, key=hashable_key)
+        return self._dict[hashable_key]
 
 
 class LazyAssetEventSelectSequence(LazySelectSequence[AssetEvent]):
