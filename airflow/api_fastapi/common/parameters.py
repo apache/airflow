@@ -341,36 +341,6 @@ class _OwnersFilter(BaseParam[list[str]]):
         return self.set_value(owners)
 
 
-class DagRunStateFilter(BaseParam[list[Optional[DagRunState]]]):
-    """Filter on Dag Run state."""
-
-    def to_orm(self, select: Select) -> Select:
-        if self.skip_none is False:
-            raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
-
-        if not self.value:
-            return select
-
-        conditions = [DagRun.state == state for state in self.value]
-        return select.where(or_(*conditions))
-
-    @staticmethod
-    def _convert_dag_run_states(states: Iterable[str] | None) -> list[DagRunState | None] | None:
-        try:
-            if not states:
-                return None
-            return [None if s in ("none", None) else DagRunState(s) for s in states]
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Invalid value for state. Valid values are {', '.join(DagRunState)}",
-            )
-
-    def depends(self, state: list[str] = Query(default_factory=list)) -> DagRunStateFilter:
-        states = self._convert_dag_run_states(state)
-        return self.set_value(states)
-
-
 def _safe_parse_datetime(date_to_check: str) -> datetime:
     """
     Parse datetime and raise error for invalid dates.
@@ -515,7 +485,32 @@ QueryLastDagRunStateFilter = Annotated[
     FilterParam[Optional[DagRunState]],
     Depends(filter_param_factory(DagRun.state, Optional[DagRunState], filter_name="last_dag_run_state")),
 ]
-QueryDagRunStateFilter = Annotated[DagRunStateFilter, Depends(DagRunStateFilter().depends)]
+
+
+def _transform_dag_run_states(states: Iterable[str] | None) -> list[DagRunState | None] | None:
+    try:
+        if not states:
+            return None
+        return [None if s in ("none", None) else DagRunState(s) for s in states]
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid value for state. Valid values are {', '.join(DagRunState)}",
+        )
+
+
+QueryDagRunStateFilter = Annotated[
+    FilterParam[list[str]],
+    Depends(
+        filter_param_factory(
+            DagRun.state,
+            list[str],
+            FilterOptionEnum.ANY_EQUAL,
+            default_factory=list,
+            transform_callable=_transform_dag_run_states,
+        )
+    ),
+]
 
 # DAGTags
 QueryDagTagPatternSearch = Annotated[
