@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, ForeignKeyConstraint, Index, String, Text, delete, false, select
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.models.base import Base, StringID
 from airflow.utils import timezone
 from airflow.utils.retries import retry_db_transaction
@@ -71,7 +70,6 @@ class DagWarning(Base):
         return hash((self.dag_id, self.warning_type))
 
     @classmethod
-    @internal_api_call
     @provide_session
     def purge_inactive_dag_warnings(cls, session: Session = NEW_SESSION) -> None:
         """

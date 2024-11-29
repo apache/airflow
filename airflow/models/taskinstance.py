@@ -72,7 +72,6 @@ from sqlalchemy.sql.expression import case, select
 from sqlalchemy_utils import UUIDType
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
 from airflow.exceptions import (
@@ -185,14 +184,12 @@ class TaskReturnCode(Enum):
     """When task exits with deferral to trigger."""
 
 
-@internal_api_call
 @provide_session
 def _merge_ti(ti, session: Session = NEW_SESSION):
     session.merge(ti)
     session.commit()
 
 
-@internal_api_call
 @provide_session
 def _add_log(
     event,
@@ -215,7 +212,6 @@ def _add_log(
     )
 
 
-@internal_api_call
 @provide_session
 def _update_ti_heartbeat(id: str, when: datetime, session: Session = NEW_SESSION):
     session.execute(update(TaskInstance).where(TaskInstance.id == id).values(last_heartbeat_at=when))
@@ -546,7 +542,6 @@ def clear_task_instances(
     session.flush()
 
 
-@internal_api_call
 @provide_session
 def _xcom_pull(
     *,
@@ -920,7 +915,6 @@ def _clear_next_method_args(*, task_instance: TaskInstance | TaskInstancePydanti
     task_instance.next_kwargs = None
 
 
-@internal_api_call
 def _get_template_context(
     *,
     task_instance: TaskInstance | TaskInstancePydantic,
@@ -1095,7 +1089,6 @@ def _is_eligible_to_retry(*, task_instance: TaskInstance | TaskInstancePydantic)
 
 
 @provide_session
-@internal_api_call
 def _handle_failure(
     *,
     task_instance: TaskInstance | TaskInstancePydantic,
@@ -1208,7 +1201,6 @@ def _refresh_from_task(
     task_instance_mutation_hook(task_instance)
 
 
-@internal_api_call
 @provide_session
 def _record_task_map_for_downstreams(
     *,
@@ -1546,7 +1538,6 @@ def _get_previous_ti(
     return dagrun.get_task_instance(task_instance.task_id, session=session)
 
 
-@internal_api_call
 @provide_session
 def _update_rtif(ti, rendered_fields, session: Session = NEW_SESSION):
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
@@ -1577,7 +1568,6 @@ def _coalesce_to_orm_ti(*, ti: TaskInstancePydantic | TaskInstance, session: Ses
     return ti
 
 
-@internal_api_call
 @provide_session
 def _defer_task(
     ti: TaskInstance | TaskInstancePydantic,
@@ -1652,7 +1642,6 @@ def _defer_task(
     return ti
 
 
-@internal_api_call
 @provide_session
 def _handle_reschedule(
     ti,
@@ -2142,7 +2131,6 @@ class TaskInstance(Base, LoggingMixin):
         session.commit()
 
     @classmethod
-    @internal_api_call
     @provide_session
     def get_task_instance(
         cls,
@@ -2195,7 +2183,6 @@ class TaskInstance(Base, LoggingMixin):
         _refresh_from_task(task_instance=self, task=task, pool_override=pool_override)
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def _clear_xcom_data(ti: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION) -> None:
         """
@@ -2231,7 +2218,6 @@ class TaskInstance(Base, LoggingMixin):
         return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
 
     @staticmethod
-    @internal_api_call
     def _set_state(ti: TaskInstance | TaskInstancePydantic, state, session: Session) -> bool:
         if not isinstance(ti, TaskInstance):
             ti = session.scalars(
@@ -2465,7 +2451,6 @@ class TaskInstance(Base, LoggingMixin):
         return self.state == TaskInstanceState.UP_FOR_RETRY and self.next_retry_datetime() < timezone.utcnow()
 
     @staticmethod
-    @internal_api_call
     def _get_dagrun(dag_id, run_id, session) -> DagRun:
         from airflow.models.dagrun import DagRun  # Avoid circular import
 
@@ -2515,7 +2500,6 @@ class TaskInstance(Base, LoggingMixin):
         return task_instance.task.dag
 
     @classmethod
-    @internal_api_call
     @provide_session
     def _check_and_change_state_before_execution(
         cls,
@@ -2791,7 +2775,6 @@ class TaskInstance(Base, LoggingMixin):
             TaskInstance._register_asset_changes_int(ti=self, events=events)
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def _register_asset_changes_int(
         ti: TaskInstance, *, events: OutletEventAccessors, session: Session = NEW_SESSION
@@ -3174,7 +3157,6 @@ class TaskInstance(Base, LoggingMixin):
         }
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def save_to_db(ti: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION):
         ti = _coalesce_to_orm_ti(ti=ti, session=session)

@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import update
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
@@ -106,7 +105,6 @@ class SkipMixin(LoggingMixin):
         SkipMixin._skip(dag_run=dag_run, task_id=task_id, tasks=tasks, map_index=map_index)
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def _skip(
         dag_run: DagRun | DagRunPydantic,
@@ -163,7 +161,6 @@ class SkipMixin(LoggingMixin):
         SkipMixin._skip_all_except(ti=ti, branch_task_ids=branch_task_ids)
 
     @classmethod
-    @internal_api_call
     @provide_session
     def _skip_all_except(
         cls,

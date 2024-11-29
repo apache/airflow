@@ -30,7 +30,6 @@ from sqlalchemy import (
     text,
 )
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.models.base import Base, StringID
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.serialization.serialized_objects import add_pydantic_class_type_mapping
@@ -127,7 +126,6 @@ class EdgeJob(BaseModel, LoggingMixin):
         return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def reserve_task(
         worker_name: str,
@@ -170,7 +168,6 @@ class EdgeJob(BaseModel, LoggingMixin):
         )
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def set_state(task: TaskInstanceKey | tuple, state: TaskInstanceState, session: Session = NEW_SESSION):
         if isinstance(task, tuple):

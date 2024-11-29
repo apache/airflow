@@ -30,7 +30,6 @@ from sqlalchemy import (
     select,
 )
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.exceptions import AirflowException
 from airflow.models.base import Base
 from airflow.serialization.serialized_objects import add_pydantic_class_type_mapping
@@ -225,7 +224,6 @@ class EdgeWorker(BaseModel, LoggingMixin):
             )
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def register_worker(
         worker_name: str,
@@ -258,7 +256,6 @@ class EdgeWorker(BaseModel, LoggingMixin):
         )
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def set_state(
         worker_name: str,

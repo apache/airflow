@@ -31,7 +31,6 @@ from urllib.parse import urljoin
 
 import pendulum
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
@@ -266,7 +265,6 @@ class FileTaskHandler(logging.Handler):
             self.handler.close()
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def _render_filename_db_access(
         *, ti: TaskInstance | TaskInstancePydantic, try_number: int, session=None

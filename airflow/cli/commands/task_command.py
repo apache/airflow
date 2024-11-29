@@ -35,7 +35,6 @@ from pendulum.parsing.exceptions import ParserError
 from sqlalchemy import select
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound, TaskDeferred, TaskInstanceNotFound
@@ -193,7 +192,6 @@ def _get_dag_run(
     raise ValueError(f"unknown create_if_necessary value: {create_if_necessary!r}")
 
 
-@internal_api_call
 @provide_session
 def _get_ti_db_access(
     dag: DAG,

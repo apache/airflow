@@ -28,7 +28,6 @@ import json
 import logging
 from typing import TYPE_CHECKING, Callable
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -121,7 +120,6 @@ def default_action_log(sub_command, user, task_id, dag_id, logical_date, host_na
     )
 
 
-@internal_api_call
 @provide_session
 def _default_action_log_internal(
     *,

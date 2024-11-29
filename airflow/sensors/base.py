@@ -29,7 +29,6 @@ from typing import TYPE_CHECKING, Any, Callable
 from sqlalchemy import select
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -83,7 +82,6 @@ class PokeReturnValue:
         return self.is_done
 
 
-@internal_api_call
 @provide_session
 def _orig_start_date(
     dag_id: str, task_id: str, run_id: str, map_index: int, try_number: int, session: Session = NEW_SESSION

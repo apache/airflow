@@ -32,7 +32,6 @@ from setproctitle import setproctitle
 from sqlalchemy import delete, event, select
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import (
     DagCallbackRequest,
     TaskCallbackRequest,
@@ -430,7 +429,6 @@ class DagFileProcessor(LoggingMixin):
         self._last_num_of_db_queries = 0
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def update_import_errors(
         file_last_changed: dict[str, datetime],
@@ -507,7 +505,6 @@ class DagFileProcessor(LoggingMixin):
         return DagFileProcessor._validate_task_pools_and_update_dag_warnings(pool_dict, dag_ids)
 
     @classmethod
-    @internal_api_call
     @provide_session
     def _validate_task_pools_and_update_dag_warnings(
         cls, pool_dict: dict[str, set[str]], dag_ids: set[str], session: Session = NEW_SESSION
@@ -545,7 +542,6 @@ class DagFileProcessor(LoggingMixin):
         session.commit()
 
     @classmethod
-    @internal_api_call
     @provide_session
     def execute_callbacks(
         cls,
@@ -582,7 +578,6 @@ class DagFileProcessor(LoggingMixin):
         session.commit()
 
     @classmethod
-    @internal_api_call
     @provide_session
     def execute_callbacks_without_dag(
         cls, callback_requests: list[CallbackRequest], unit_test_mode: bool, session: Session = NEW_SESSION
@@ -621,7 +616,6 @@ class DagFileProcessor(LoggingMixin):
             DAG.execute_callback(callbacks, context, dag.dag_id)
 
     @classmethod
-    @internal_api_call
     @provide_session
     def _execute_task_callbacks(
         cls, dagbag: DagBag | None, request: TaskCallbackRequest, unit_test_mode: bool, session: Session
@@ -779,7 +773,6 @@ class DagFileProcessor(LoggingMixin):
         return self._last_num_of_db_queries
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def save_dag_to_db(
         dags: dict[str, DAG],
