@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-11-28T13:51:07.939137
+# This constraints file was automatically generated on 2024-11-29T20:13:56.820402
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -91,7 +91,7 @@ h11==0.14.0
 hdfs==2.7.3
 httpcore==1.0.7
 httptools==0.6.4
-httpx==0.27.2
+httpx==0.28.0
 idna==3.10
 importlib_metadata==8.5.0
 importlib_resources==6.4.5
@@ -149,7 +149,7 @@ python-daemon==3.1.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 python-ldap==3.4.4
-python-multipart==0.0.17
+python-multipart==0.0.18
 python-nvd3==0.16.0
 python-slugify==8.0.4
 pytz==2024.2
@@ -179,7 +179,7 @@ text-unidecode==1.3
 thrift-sasl==0.4.3
 thrift==0.21.0
 time-machine==2.16.0
-typer==0.13.1
+typer==0.14.0
 typing_extensions==4.12.2
 tzdata==2024.2
 uc-micro-py==1.0.3
