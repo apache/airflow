@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from unittest import mock
 
 import pytest
@@ -233,8 +234,7 @@ class TestTIUpdateState:
         assert tis[0].state == TaskInstanceState.DEFERRED
         assert tis[0].next_method == "execute_callback"
         assert tis[0].next_kwargs == {"key": "value"}
-        # TODO: Make TI.trigger_timeout a UtcDateTime instead of DateTime
-        assert tis[0].trigger_timeout == timezone.datetime(2024, 11, 23).replace(tzinfo=None)
+        assert tis[0].trigger_timeout == timezone.make_aware(datetime(2024, 11, 23), timezone=timezone.utc)
 
         t = session.query(Trigger).all()
         assert len(t) == 1
