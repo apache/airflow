@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from typing import (  # noqa: UP035 - prevent pytest failing in back-compat
     Annotated,
     Any,
@@ -28,6 +29,20 @@ from typing import (  # noqa: UP035 - prevent pytest failing in back-compat
 from pydantic import BaseModel, Field
 
 from airflow.providers.edge.models.edge_worker import EdgeWorkerState  # noqa: TCH001
+from airflow.providers.edge.worker_api.routes._v2_compat import Path
+
+
+class WorkerApiDocs:
+    """Documentation collection for the worker API."""
+
+    dag_id = Path(title="Dag ID", description="Identifier of the DAG to which the task belongs.")
+    task_id = Path(title="Task ID", description="Task name in the DAG.")
+    run_id = Path(title="Run ID", description="Run ID of the DAG execution.")
+    try_number = Path(title="Try Number", description="The number of attempt to execute this task.")
+    map_index = Path(
+        title="Map Index",
+        description="For dynamically mapped tasks the mapping number, -1 if the task is not mapped.",
+    )
 
 
 class JsonRpcRequestBase(BaseModel):
@@ -86,3 +101,10 @@ class WorkerQueueUpdateBody(BaseModel):
         Optional[List[str]],  # noqa: UP006, UP007 - prevent pytest failing in back-compat
         Field(description="Queues to remove from worker."),
     ]
+
+
+class PushLogsBody(BaseModel):
+    """Incremental new log content from worker."""
+
+    log_chunk_time: Annotated[datetime, Field(description="Time of the log chunk at point of sending.")]
+    log_chunk_data: Annotated[str, Field(description="Log chunk data as incremental log text.")]
