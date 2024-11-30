@@ -119,7 +119,6 @@ def _initialize_method_map() -> dict[str, Callable]:
         expand_alias_to_assets,
         FileTaskHandler._render_filename_db_access,
         Job._add_to_db,
-        Job._fetch_from_db,
         Job._kill,
         Job._update_heartbeat,
         Job._update_in_db,
