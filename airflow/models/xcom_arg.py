@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Any, Callable, Union, overload
 
 from sqlalchemy import func, or_, select
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models import MappedOperator, TaskInstance
 from airflow.models.abstractoperator import AbstractOperator
@@ -232,7 +231,6 @@ class XComArg(ResolveMixin, DependencyMixin):
         SetupTeardownContext.set_work_task_roots_and_leaves()
 
 
-@internal_api_call
 @provide_session
 def _get_task_map_length(
     *,
