@@ -1257,7 +1257,7 @@ def _record_task_map_for_downstreams(
 
 def _get_previous_dagrun(
     *,
-    task_instance: TaskInstance | TaskInstancePydantic,
+    task_instance: TaskInstance,
     state: DagRunState | None = None,
     session: Session | None = None,
 ) -> DagRun | None:
