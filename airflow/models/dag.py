@@ -68,7 +68,6 @@ from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql import Select, expression
 
 from airflow import settings, utils
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
 from airflow.exceptions import (
     AirflowException,
@@ -776,7 +775,6 @@ class DAG(TaskSDKDag, LoggingMixin):
         return TaskSDKDag.get_serialized_fields() | {"_processor_dags_folder"}
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def fetch_callback(
         dag: DAG,
@@ -874,7 +872,6 @@ class DAG(TaskSDKDag, LoggingMixin):
         return active_dates
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def fetch_dagrun(dag_id: str, run_id: str, session: Session = NEW_SESSION) -> DagRun | DagRunPydantic:
         """
@@ -2141,7 +2138,6 @@ class DagModel(Base):
         )
 
     @classmethod
-    @internal_api_call
     @provide_session
     def get_current(cls, dag_id: str, session=NEW_SESSION) -> DagModel | DagModelPydantic:
         return session.scalar(select(cls).where(cls.dag_id == dag_id))
@@ -2161,7 +2157,6 @@ class DagModel(Base):
         return self.is_active
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def get_paused_dag_ids(dag_ids: list[str], session: Session = NEW_SESSION) -> set[str]:
         """
@@ -2238,7 +2233,6 @@ class DagModel(Base):
         )
 
     @classmethod
-    @internal_api_call
     @provide_session
     def deactivate_deleted_dags(
         cls,
