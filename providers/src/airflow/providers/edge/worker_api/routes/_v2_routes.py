@@ -25,10 +25,6 @@ from uuid import uuid4
 
 from flask import Response, request
 
-from airflow.api_internal.endpoints.rpc_api_endpoint import (  # type: ignore[attr-defined]
-    # Note: This is just for compatibility with Airflow 2.10, not working for Airflow 3 / main as removed
-    initialize_method_map,
-)
 from airflow.exceptions import AirflowException
 from airflow.providers.edge.worker_api.auth import jwt_token_authorization, jwt_token_authorization_rpc
 from airflow.providers.edge.worker_api.datamodels import (
@@ -67,6 +63,11 @@ def rpcapi_v2(body: dict[str, Any]) -> APIResponse:
     # Note: Except the method map this _was_ a 100% copy of internal API module
     #       airflow.api_internal.endpoints.rpc_api_endpoint.internal_airflow_api()
     # As of rework for FastAPI in Airflow 3.0, this is updated and to be removed in the future.
+    from airflow.api_internal.endpoints.rpc_api_endpoint import (  # type: ignore[attr-defined]
+        # Note: This is just for compatibility with Airflow 2.10, not working for Airflow 3 / main as removed
+        initialize_method_map,
+    )
+
     try:
         if request.headers.get("Content-Type", "") != "application/json":
             raise HTTPException(status.HTTP_403_FORBIDDEN, "Expected Content-Type: application/json")
