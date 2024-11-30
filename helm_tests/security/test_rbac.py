@@ -34,7 +34,6 @@ DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ("Service", "test-rbac-postgresql"),
     ("Service", "test-rbac-statsd"),
     ("Service", "test-rbac-webserver"),
-    ("Service", "test-rbac-rpc-server"),
     ("Service", "test-rbac-flower"),
     ("Service", "test-rbac-pgbouncer"),
     ("Service", "test-rbac-redis"),
@@ -42,7 +41,6 @@ DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES = [
     ("Deployment", "test-rbac-scheduler"),
     ("Deployment", "test-rbac-statsd"),
     ("Deployment", "test-rbac-webserver"),
-    ("Deployment", "test-rbac-rpc-server"),
     ("Deployment", "test-rbac-flower"),
     ("Deployment", "test-rbac-pgbouncer"),
     ("StatefulSet", "test-rbac-postgresql"),
@@ -70,7 +68,6 @@ SERVICE_ACCOUNT_NAME_TUPLES = [
     ("ServiceAccount", "test-rbac-cleanup"),
     ("ServiceAccount", "test-rbac-scheduler"),
     ("ServiceAccount", "test-rbac-webserver"),
-    ("ServiceAccount", "test-rbac-rpc-server"),
     ("ServiceAccount", "test-rbac-worker"),
     ("ServiceAccount", "test-rbac-triggerer"),
     ("ServiceAccount", "test-rbac-pgbouncer"),
@@ -84,7 +81,7 @@ SERVICE_ACCOUNT_NAME_TUPLES = [
 CUSTOM_SERVICE_ACCOUNT_NAMES = (
     (CUSTOM_SCHEDULER_NAME := "TestScheduler"),
     (CUSTOM_WEBSERVER_NAME := "TestWebserver"),
-    (CUSTOM_RPC_SERVER_NAME := "TestRPCSserver"),
+    (CUSTOM_API_SERVER_NAME := "TestAPISserver"),
     (CUSTOM_WORKER_NAME := "TestWorker"),
     (CUSTOM_TRIGGERER_NAME := "TestTriggerer"),
     (CUSTOM_CLEANUP_NAME := "TestCleanup"),
@@ -97,6 +94,8 @@ CUSTOM_SERVICE_ACCOUNT_NAMES = (
     (CUSTOM_POSTGRESQL_NAME := "TestPostgresql"),
 )
 
+parametrize_version = pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "3.0.0", "default"])
+
 
 class TestRBAC:
     """Tests RBAC."""
@@ -107,18 +106,27 @@ class TestRBAC:
         return values
 
     @staticmethod
-    def _get_object_tuples(version):
+    def _get_object_tuples(version, sa: bool = True):
         tuples = copy(DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES)
-        if version == "default":
+        if version in {"default", "3.0.0"}:
             tuples.append(("Service", "test-rbac-triggerer"))
             tuples.append(("StatefulSet", "test-rbac-triggerer"))
         else:
             tuples.append(("Deployment", "test-rbac-triggerer"))
         if version == "2.3.2":
             tuples.append(("Secret", "test-rbac-result-backend"))
+        if version == "3.0.0":
+            tuples.extend(
+                (
+                    ("Service", "test-rbac-api-server"),
+                    ("Deployment", "test-rbac-api-server"),
+                )
+            )
+            if sa:
+                tuples.append(("ServiceAccount", "test-rbac-api-server"))
         return tuples
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
+    @parametrize_version
     def test_deployments_no_rbac_no_sa(self, version):
         k8s_objects = render_chart(
             "test-rbac",
@@ -141,7 +149,7 @@ class TestRBAC:
                     "redis": {"serviceAccount": {"create": False}},
                     "scheduler": {"serviceAccount": {"create": False}},
                     "webserver": {"serviceAccount": {"create": False}},
-                    "_rpcServer": {"enabled": True, "serviceAccount": {"create": False}},
+                    "apiServer": {"serviceAccount": {"create": False}},
                     "workers": {"serviceAccount": {"create": False}},
                     "triggerer": {"serviceAccount": {"create": False}},
                     "statsd": {"serviceAccount": {"create": False}},
@@ -155,9 +163,9 @@ class TestRBAC:
         list_of_kind_names_tuples = [
             (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         ]
-        assert sorted(list_of_kind_names_tuples) == sorted(self._get_object_tuples(version))
+        assert sorted(list_of_kind_names_tuples) == sorted(self._get_object_tuples(version, sa=False))
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
+    @parametrize_version
     def test_deployments_no_rbac_with_sa(self, version):
         k8s_objects = render_chart(
             "test-rbac",
@@ -168,7 +176,6 @@ class TestRBAC:
                     "cleanup": {"enabled": True},
                     "flower": {"enabled": True},
                     "pgbouncer": {"enabled": True},
-                    "_rpcServer": {"enabled": True},
                 },
                 version=version,
             ),
@@ -179,7 +186,7 @@ class TestRBAC:
         real_list_of_kind_names = self._get_object_tuples(version) + SERVICE_ACCOUNT_NAME_TUPLES
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
+    @parametrize_version
     def test_deployments_with_rbac_no_sa(self, version):
         k8s_objects = render_chart(
             "test-rbac",
@@ -194,7 +201,7 @@ class TestRBAC:
                     },
                     "scheduler": {"serviceAccount": {"create": False}},
                     "webserver": {"serviceAccount": {"create": False}},
-                    "_rpcServer": {"enabled": True, "serviceAccount": {"create": False}},
+                    "apiServer": {"serviceAccount": {"create": False}},
                     "workers": {"serviceAccount": {"create": False}},
                     "triggerer": {"serviceAccount": {"create": False}},
                     "flower": {"enabled": True, "serviceAccount": {"create": False}},
@@ -215,10 +222,10 @@ class TestRBAC:
         list_of_kind_names_tuples = [
             (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
         ]
-        real_list_of_kind_names = self._get_object_tuples(version) + RBAC_ENABLED_KIND_NAME_TUPLES
+        real_list_of_kind_names = self._get_object_tuples(version, sa=False) + RBAC_ENABLED_KIND_NAME_TUPLES
         assert sorted(list_of_kind_names_tuples) == sorted(real_list_of_kind_names)
 
-    @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
+    @parametrize_version
     def test_deployments_with_rbac_with_sa(self, version):
         k8s_objects = render_chart(
             "test-rbac",
@@ -228,7 +235,6 @@ class TestRBAC:
                     "cleanup": {"enabled": True},
                     "flower": {"enabled": True},
                     "pgbouncer": {"enabled": True},
-                    "_rpcServer": {"enabled": True},
                 },
                 version=version,
             ),
@@ -245,6 +251,7 @@ class TestRBAC:
         k8s_objects = render_chart(
             "test-rbac",
             values={
+                "airflowVersion": "3.0.0",
                 "fullnameOverride": "test-rbac",
                 "cleanup": {
                     "enabled": True,
@@ -254,7 +261,7 @@ class TestRBAC:
                 },
                 "scheduler": {"serviceAccount": {"name": CUSTOM_SCHEDULER_NAME}},
                 "webserver": {"serviceAccount": {"name": CUSTOM_WEBSERVER_NAME}},
-                "_rpcServer": {"enabled": True, "serviceAccount": {"name": CUSTOM_RPC_SERVER_NAME}},
+                "apiServer": {"serviceAccount": {"name": CUSTOM_API_SERVER_NAME}},
                 "workers": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
                 "triggerer": {"serviceAccount": {"name": CUSTOM_TRIGGERER_NAME}},
                 "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
@@ -282,6 +289,7 @@ class TestRBAC:
         k8s_objects = render_chart(
             "test-rbac",
             values={
+                "airflowVersion": "3.0.0",
                 "fullnameOverride": "test-rbac",
                 "cleanup": {
                     "enabled": True,
@@ -291,7 +299,7 @@ class TestRBAC:
                 },
                 "scheduler": {"serviceAccount": {"name": CUSTOM_SCHEDULER_NAME}},
                 "webserver": {"serviceAccount": {"name": CUSTOM_WEBSERVER_NAME}},
-                "_rpcServer": {"enabled": True, "serviceAccount": {"name": CUSTOM_RPC_SERVER_NAME}},
+                "apiServer": {"serviceAccount": {"name": CUSTOM_API_SERVER_NAME}},
                 "workers": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
                 "triggerer": {"serviceAccount": {"name": CUSTOM_TRIGGERER_NAME}},
                 "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
@@ -327,6 +335,7 @@ class TestRBAC:
         k8s_objects = render_chart(
             "test-rbac",
             values={
+                "airflowVersion": "3.0.0",
                 "fullnameOverride": "test-rbac",
                 "executor": "LocalExecutor",
                 "cleanup": {"enabled": False},
@@ -334,7 +343,6 @@ class TestRBAC:
                 "redis": {"enabled": False},
                 "flower": {"enabled": False},
                 "statsd": {"enabled": False},
-                "_rpcServer": {"enabled": False},
                 "webserver": {"defaultUser": {"enabled": False}},
             },
         )
@@ -346,6 +354,7 @@ class TestRBAC:
         service_account_names = [
             "test-rbac-scheduler",
             "test-rbac-webserver",
+            "test-rbac-api-server",
             "test-rbac-triggerer",
             "test-rbac-migrate-database-job",
         ]

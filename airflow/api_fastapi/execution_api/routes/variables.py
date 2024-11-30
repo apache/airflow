@@ -24,7 +24,7 @@ from fastapi import HTTPException, status
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api import deps
 from airflow.api_fastapi.execution_api.datamodels.token import TIToken
-from airflow.api_fastapi.execution_api.datamodels.variable import VariableResponse
+from airflow.api_fastapi.execution_api.datamodels.variable import VariablePostBody, VariableResponse
 from airflow.models.variable import Variable
 
 # TODO: Add dependency on JWT token
@@ -67,7 +67,29 @@ def get_variable(variable_key: str, token: deps.TokenDep) -> VariableResponse:
     return VariableResponse(key=variable_key, value=variable_value)
 
 
-def has_variable_access(variable_key: str, token: TIToken) -> bool:
+@router.put(
+    "/{variable_key}",
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
+        status.HTTP_403_FORBIDDEN: {"description": "Task does not have access to the variable"},
+    },
+)
+def put_variable(variable_key: str, body: VariablePostBody, token: deps.TokenDep):
+    """Set an Airflow Variable."""
+    if not has_variable_access(variable_key, token, write_access=True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "reason": "access_denied",
+                "message": f"Task does not have access to write variable {variable_key}",
+            },
+        )
+    Variable.set(key=variable_key, value=body.value, description=body.description)
+    return {"message": "Variable successfully set"}
+
+
+def has_variable_access(variable_key: str, token: TIToken, write_access: bool = False) -> bool:
     """Check if the task has access to the variable."""
     # TODO: Placeholder for actual implementation
 

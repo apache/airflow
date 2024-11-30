@@ -545,7 +545,7 @@ class TestPytestSnowflakeHook:
                 authenticator="TEST_AUTH",
                 session_parameters={"AA": "AAA"},
             )
-            assert {
+            assert hook._get_conn_params == {
                 "account": "TEST_ACCOUNT",
                 "application": "AIRFLOW",
                 "authenticator": "TEST_AUTH",
@@ -557,11 +557,11 @@ class TestPytestSnowflakeHook:
                 "session_parameters": {"AA": "AAA"},
                 "user": "user",
                 "warehouse": "TEST_WAREHOUSE",
-            } == hook._get_conn_params
-            assert (
+            }
+            assert hook.get_uri() == (
                 "snowflake://user:pw@TEST_ACCOUNT.TEST_REGION/TEST_DATABASE/TEST_SCHEMA"
                 "?application=AIRFLOW&authenticator=TEST_AUTH&role=TEST_ROLE&warehouse=TEST_WAREHOUSE"
-            ) == hook.get_uri()
+            )
 
     @pytest.mark.parametrize(
         "sql,expected_sql,expected_query_ids",
