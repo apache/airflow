@@ -5424,6 +5424,22 @@ paths:
       description: Get all Variables entries.
       operationId: get_variables
       parameters:
+      - name: key_pattern_type
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/SearchPatternType'
+          - type: 'null'
+          title: Key Pattern Type
+      - name: variable_key_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Variable Key Pattern
       - name: limit
         in: query
         required: false
@@ -5447,21 +5463,6 @@ paths:
           type: string
           default: id
           title: Order By
-      - name: variable_key_pattern
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Variable Key Pattern
-      - name: key_pattern_type
-        in: query
-        required: false
-        schema:
-          type: string
-          default: contains
-          title: Key Pattern Type
       responses:
         '200':
           description: Successful Response
@@ -8172,6 +8173,34 @@ components:
       - latest_scheduler_heartbeat
       title: SchedulerInfoResponse
       description: Scheduler info serializer for responses.
+    SearchPatternType:
+      type: string
+      enum:
+      - starts_with
+      - ends_with
+      - contains
+      - equals
+      - not_starts_with
+      - not_ends_with
+      - not_contains
+      title: SearchPatternType
+      description: 'Enum representing the types of patterns that can be used for advanced
+        search queries.
+
+
+        STARTS_WITH: Match strings that start with the given value.
+
+        ENDS_WITH: Match strings that end with the given value.
+
+        CONTAINS: Match strings that contain the given value.
+
+        EQUALS: Match strings that exactly match the given value.
+
+        NOT_STARTS_WITH: Exclude strings that start with the given value.
+
+        NOT_ENDS_WITH: Exclude strings that end with the given value.
+
+        NOT_CONTAINS: Exclude strings that contain the given value.'
     TaskCollectionResponse:
       properties:
         tasks:

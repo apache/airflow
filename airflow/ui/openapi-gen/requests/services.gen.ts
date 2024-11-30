@@ -2916,11 +2916,11 @@ export class VariableService {
    * Get Variables
    * Get all Variables entries.
    * @param data The data for the request.
+   * @param data.keyPatternType
+   * @param data.variableKeyPattern
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
-   * @param data.variableKeyPattern
-   * @param data.keyPatternType
    * @returns VariableCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -2931,11 +2931,11 @@ export class VariableService {
       method: "GET",
       url: "/public/variables",
       query: {
+        key_pattern_type: data.keyPatternType,
+        variable_key_pattern: data.variableKeyPattern,
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,
-        variable_key_pattern: data.variableKeyPattern,
-        key_pattern_type: data.keyPatternType,
       },
       errors: {
         401: "Unauthorized",

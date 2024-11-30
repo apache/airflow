@@ -49,6 +49,7 @@ import {
   PoolPatchBody,
   PoolPostBody,
   PoolPostBulkBody,
+  SearchPatternType,
   TaskInstancesBatchBody,
   TriggerDAGRunPostBody,
   VariableBody,
@@ -2499,11 +2500,11 @@ export const useVariableServiceGetVariable = <
  * Get Variables
  * Get all Variables entries.
  * @param data The data for the request.
+ * @param data.keyPatternType
+ * @param data.variableKeyPattern
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.variableKeyPattern
- * @param data.keyPatternType
  * @returns VariableCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2519,7 +2520,7 @@ export const useVariableServiceGetVariables = <
     orderBy,
     variableKeyPattern,
   }: {
-    keyPatternType?: string;
+    keyPatternType?: SearchPatternType;
     limit?: number;
     offset?: number;
     orderBy?: string;

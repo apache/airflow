@@ -35,7 +35,7 @@ from typing import (
 from fastapi import Depends, HTTPException, Query, status
 from pendulum.parsing.exceptions import ParserError
 from pydantic import AfterValidator, BaseModel, NonNegativeInt
-from sqlalchemy import Column, case, or_
+from sqlalchemy import Column, case, not_, or_
 from sqlalchemy.inspection import inspect
 
 from airflow.api_connexion.endpoints.task_instance_endpoint import _convert_ti_states
@@ -50,6 +50,7 @@ from airflow.models.variable import Variable
 from airflow.typing_compat import Self
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.variables import SearchPatternType
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import ColumnElement, Select
@@ -193,6 +194,54 @@ class _SearchParam(BaseParam[str]):
         return value
 
 
+class _AdvanceSearchParam(BaseParam[str]):
+    """Generic search class with support for advanced match types."""
+
+    def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
+        super().__init__(skip_none=skip_none)
+        self.attribute: ColumnElement = attribute
+
+        # Default behaviour should be contains
+        self.pattern_type = SearchPatternType.CONTAINS
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None and self.skip_none:
+            return select
+
+        # Map pattern types to SQLAlchemy expressions
+        pattern_map = {
+            SearchPatternType.STARTS_WITH: f"{self.value}%",
+            SearchPatternType.ENDS_WITH: f"%{self.value}",
+            SearchPatternType.CONTAINS: f"%{self.value}%",
+            SearchPatternType.EQUALS: self.value,
+            SearchPatternType.NOT_STARTS_WITH: f"{self.value}%",
+            SearchPatternType.NOT_ENDS_WITH: f"%{self.value}",
+            SearchPatternType.NOT_CONTAINS: f"%{self.value}%",
+        }
+
+        pattern_value = pattern_map[SearchPatternType(self.pattern_type)]
+        if self.pattern_type in [
+            SearchPatternType.NOT_STARTS_WITH,
+            SearchPatternType.NOT_ENDS_WITH,
+            SearchPatternType.NOT_CONTAINS,
+        ]:
+            return select.where(not_(self.attribute.ilike(pattern_value)))
+        else:
+            return select.where(self.attribute.ilike(pattern_value))
+
+    def transform_aliases(self, value: str | None) -> str | None:
+        """Transform any special characters, e.g., '~' to '%'."""
+        if value == "~":
+            value = "%"
+        return value
+
+    def set_pattern_type(self, pattern_type: SearchPatternType):
+        # Validate the key pattern type on initialization
+        SearchPatternType.validate(pattern_type)
+
+        self.pattern_type = pattern_type
+
+
 class _DagIdPatternSearch(_SearchParam):
     """Search on dag_id."""
 
@@ -215,50 +264,19 @@ class _DagDisplayNamePatternSearch(_SearchParam):
         return self.set_value(dag_display_name_pattern)
 
 
-class _VariableKeyPatternSearch(_SearchParam):
-    """Search on key with different match types."""
+class _VariableKeyPatternSearch(_AdvanceSearchParam):
+    """Search on key with dynamic match types."""
 
     def __init__(self, skip_none: bool = True) -> None:
-        super().__init__(Variable.key, skip_none)
+        super().__init__(attribute=Variable.key, skip_none=skip_none)
 
     def depends(
-        self,
-        variable_key_pattern: str | None = None,
-        key_pattern_type: str = "contains",  # Options: contains, starts_with, ends_with, equals, not_starts_with, not_ends_with
+        self, key_pattern_type: SearchPatternType | None = None, variable_key_pattern: str | None = None
     ) -> _VariableKeyPatternSearch:
         variable_key_pattern = super().transform_aliases(variable_key_pattern)
-        if not variable_key_pattern:
-            return self  # No pattern to apply
-
-        # Validate key_pattern_type
-        valid_key_pattern_types = {
-            "contains",
-            "starts_with",
-            "ends_with",
-            "equals",
-            "not_starts_with",
-            "not_ends_with",
-        }
-        if key_pattern_type not in valid_key_pattern_types:
-            raise ValueError(
-                f"Invalid key_pattern_type '{key_pattern_type}'. Valid options are: {', '.join(valid_key_pattern_types)}"
-            )
-
-        # Apply match type logic
-        if key_pattern_type == "contains":
-            return self.set_value(variable_key_pattern)
-        elif key_pattern_type == "starts_with":
-            return self.set_value(f"{variable_key_pattern}%")
-        elif key_pattern_type == "ends_with":
-            return self.set_value(f"%{variable_key_pattern}")
-        elif key_pattern_type == "equals":
-            return self.set_value(f"={variable_key_pattern}")
-        elif key_pattern_type == "not_starts_with":
-            return self.set_value(f"NOT {variable_key_pattern}%")
-        elif key_pattern_type == "not_ends_with":
-            return self.set_value(f"NOT %{variable_key_pattern}")
-        else:
-            return self
+        if key_pattern_type is not None:
+            super().set_pattern_type(key_pattern_type)
+        return self.set_value(variable_key_pattern)
 
 
 class SortParam(BaseParam[str]):
@@ -833,12 +851,4 @@ QuerySourceRunIdFilter = Annotated[
 ]
 QuerySourceMapIndexFilter = Annotated[
     _SourceMapIndexFilter, Depends(_SourceMapIndexFilter(AssetEvent.source_map_index).depends)
-]
-
-# Variables
-QueryVariableKeyPatternSearch = Annotated[
-    _VariableKeyPatternSearch, Depends(_VariableKeyPatternSearch().depends)
-]
-QueryVariableKeyPatternType = Annotated[
-    _VariableKeyPatternSearch, Depends(_VariableKeyPatternSearch().depends)
 ]

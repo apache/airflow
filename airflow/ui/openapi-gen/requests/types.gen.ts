@@ -923,6 +923,26 @@ export type SchedulerInfoResponse = {
 };
 
 /**
+ * Enum representing the types of patterns that can be used for advanced search queries.
+ *
+ * STARTS_WITH: Match strings that start with the given value.
+ * ENDS_WITH: Match strings that end with the given value.
+ * CONTAINS: Match strings that contain the given value.
+ * EQUALS: Match strings that exactly match the given value.
+ * NOT_STARTS_WITH: Exclude strings that start with the given value.
+ * NOT_ENDS_WITH: Exclude strings that end with the given value.
+ * NOT_CONTAINS: Exclude strings that contain the given value.
+ */
+export type SearchPatternType =
+  | "starts_with"
+  | "ends_with"
+  | "contains"
+  | "equals"
+  | "not_starts_with"
+  | "not_ends_with"
+  | "not_contains";
+
+/**
  * Task collection serializer for responses.
  */
 export type TaskCollectionResponse = {
@@ -2021,7 +2041,7 @@ export type PatchVariableData = {
 export type PatchVariableResponse = VariableResponse;
 
 export type GetVariablesData = {
-  keyPatternType?: string | null;
+  keyPatternType?: SearchPatternType;
   limit?: number;
   offset?: number;
   orderBy?: string;

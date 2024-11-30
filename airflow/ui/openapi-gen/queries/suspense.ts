@@ -28,7 +28,11 @@ import {
   VersionService,
   XcomService,
 } from "../requests/services.gen";
-import { DagRunState, DagWarningType } from "../requests/types.gen";
+import {
+  DagRunState,
+  DagWarningType,
+  SearchPatternType,
+} from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
@@ -2475,11 +2479,11 @@ export const useVariableServiceGetVariableSuspense = <
  * Get Variables
  * Get all Variables entries.
  * @param data The data for the request.
+ * @param data.keyPatternType
+ * @param data.variableKeyPattern
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
- * @param data.variableKeyPattern
- * @param data.keyPatternType
  * @returns VariableCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2495,7 +2499,7 @@ export const useVariableServiceGetVariablesSuspense = <
     orderBy,
     variableKeyPattern,
   }: {
-    keyPatternType?: string;
+    keyPatternType?: SearchPatternType;
     limit?: number;
     offset?: number;
     orderBy?: string;
