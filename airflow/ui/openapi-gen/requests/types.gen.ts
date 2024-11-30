@@ -2041,7 +2041,7 @@ export type PatchVariableData = {
 export type PatchVariableResponse = VariableResponse;
 
 export type GetVariablesData = {
-  keyPatternType?: SearchPatternType;
+  keyPatternType?: SearchPatternType | null;
   limit?: number;
   offset?: number;
   orderBy?: string;

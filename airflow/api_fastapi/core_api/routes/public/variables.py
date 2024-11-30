@@ -92,7 +92,7 @@ def get_variables(
         ),
     ],
     session: SessionDep,
-    key_pattern_type: SearchPatternType | None,
+    key_pattern_type: SearchPatternType | None = None,
     variable_key_pattern: str | None = None,
 ) -> VariableCollectionResponse:
     """Get all Variables entries."""

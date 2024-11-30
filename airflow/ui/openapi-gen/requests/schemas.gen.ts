@@ -3734,14 +3734,7 @@ export const $SchedulerInfoResponse = {
 } as const;
 
 export const $SearchPatternType = {
-  anyOf: [
-    {
-      type: "null",
-    },
-    {
-      type: "string",
-    },
-  ],
+  type: "string",
   enum: [
     "starts_with",
     "ends_with",
