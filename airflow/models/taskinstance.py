@@ -1766,11 +1766,8 @@ class TaskInstance(Base, LoggingMixin):
     # The trigger to resume on if we are in state DEFERRED
     trigger_id = Column(Integer)
 
-    # Optional timeout datetime for the trigger (past this, we'll fail)
-    trigger_timeout = Column(DateTime)
-    # The trigger_timeout should be TIMESTAMP(using UtcDateTime) but for ease of
-    # migration, we are keeping it as DateTime pending a change where expensive
-    # migration is inevitable.
+    # Optional timeout utcdatetime for the trigger (past this, we'll fail)
+    trigger_timeout = Column(UtcDateTime)
 
     # The method to call next, and any extra arguments to pass to it.
     # Usually used when resuming from DEFERRED.
