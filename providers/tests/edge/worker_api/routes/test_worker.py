@@ -22,11 +22,14 @@ from typing import TYPE_CHECKING
 import pytest
 
 from airflow.providers.edge.cli.edge_command import _EdgeWorkerCli
-from airflow.providers.edge.models.edge_worker import (
-    EdgeWorker,
-    EdgeWorkerModel,
-    EdgeWorkerState,
-    EdgeWorkerVersionException,
+from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
+from airflow.providers.edge.worker_api.datamodels import WorkerQueueUpdateBody, WorkerStateBody
+from airflow.providers.edge.worker_api.routes._v2_compat import HTTPException
+from airflow.providers.edge.worker_api.routes.worker import (
+    _assert_version,
+    register,
+    set_state,
+    update_queues,
 )
 from airflow.utils import timezone
 
@@ -36,7 +39,7 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.db_test
 
 
-class TestEdgeWorker:
+class TestWorkerApiRoutes:
     @pytest.fixture
     def cli_worker(self, tmp_path: Path) -> _EdgeWorkerCli:
         test_worker = _EdgeWorkerCli(str(tmp_path / "dummy.pid"), "dummy", None, 8, 5, 5)
@@ -50,28 +53,22 @@ class TestEdgeWorker:
         from airflow import __version__ as airflow_version
         from airflow.providers.edge import __version__ as edge_provider_version
 
-        with pytest.raises(EdgeWorkerVersionException):
-            EdgeWorker.assert_version({})
+        with pytest.raises(HTTPException):
+            _assert_version({})
 
-        with pytest.raises(EdgeWorkerVersionException):
-            EdgeWorker.assert_version({"airflow_version": airflow_version})
+        with pytest.raises(HTTPException):
+            _assert_version({"airflow_version": airflow_version})
 
-        with pytest.raises(EdgeWorkerVersionException):
-            EdgeWorker.assert_version({"edge_provider_version": edge_provider_version})
+        with pytest.raises(HTTPException):
+            _assert_version({"edge_provider_version": edge_provider_version})
 
-        with pytest.raises(EdgeWorkerVersionException):
-            EdgeWorker.assert_version(
-                {"airflow_version": "1.2.3", "edge_provider_version": edge_provider_version}
-            )
+        with pytest.raises(HTTPException):
+            _assert_version({"airflow_version": "1.2.3", "edge_provider_version": edge_provider_version})
 
-        with pytest.raises(EdgeWorkerVersionException):
-            EdgeWorker.assert_version(
-                {"airflow_version": airflow_version, "edge_provider_version": "2023.10.07"}
-            )
+        with pytest.raises(HTTPException):
+            _assert_version({"airflow_version": airflow_version, "edge_provider_version": "2023.10.07"})
 
-        EdgeWorker.assert_version(
-            {"airflow_version": airflow_version, "edge_provider_version": edge_provider_version}
-        )
+        _assert_version({"airflow_version": airflow_version, "edge_provider_version": edge_provider_version})
 
     @pytest.mark.parametrize(
         "input_queues",
@@ -80,12 +77,15 @@ class TestEdgeWorker:
             pytest.param(["default", "default2"], id="with-queues"),
         ],
     )
-    def test_register_worker(
-        self, session: Session, input_queues: list[str] | None, cli_worker: _EdgeWorkerCli
-    ):
-        EdgeWorker.register_worker(
-            "test_worker", EdgeWorkerState.STARTING, queues=input_queues, sysinfo=cli_worker._get_sysinfo()
+    def test_register(self, session: Session, input_queues: list[str] | None, cli_worker: _EdgeWorkerCli):
+        body = WorkerStateBody(
+            state=EdgeWorkerState.STARTING,
+            jobs_active=0,
+            queues=input_queues,
+            sysinfo=cli_worker._get_sysinfo(),
         )
+        register("test_worker", body, session)
+        session.commit()
 
         worker: list[EdgeWorkerModel] = session.query(EdgeWorkerModel).all()
         assert len(worker) == 1
@@ -106,9 +106,13 @@ class TestEdgeWorker:
         session.add(rwm)
         session.commit()
 
-        return_queues = EdgeWorker.set_state(
-            "test2_worker", EdgeWorkerState.RUNNING, 1, cli_worker._get_sysinfo()
+        body = WorkerStateBody(
+            state=EdgeWorkerState.RUNNING,
+            jobs_active=1,
+            queues=["default2"],
+            sysinfo=cli_worker._get_sysinfo(),
         )
+        return_queues = set_state("test2_worker", body, session)
 
         worker: list[EdgeWorkerModel] = session.query(EdgeWorkerModel).all()
         assert len(worker) == 1
@@ -127,13 +131,12 @@ class TestEdgeWorker:
             pytest.param(["init"], None, ["init"], id="check-duplicated"),
         ],
     )
-    def test_add_and_remove_queues(
+    def test_update_queues(
         self,
         session: Session,
         add_queues: list[str] | None,
         remove_queues: list[str] | None,
         expected_queues: list[str],
-        cli_worker: _EdgeWorkerCli,
     ):
         rwm = EdgeWorkerModel(
             worker_name="test2_worker",
@@ -143,7 +146,8 @@ class TestEdgeWorker:
         )
         session.add(rwm)
         session.commit()
-        EdgeWorker.add_and_remove_queues("test2_worker", add_queues, remove_queues, session)
+        body = WorkerQueueUpdateBody(new_queues=add_queues, remove_queues=remove_queues)
+        update_queues("test2_worker", body, session)
         worker: list[EdgeWorkerModel] = session.query(EdgeWorkerModel).all()
         assert len(worker) == 1
         assert worker[0].worker_name == "test2_worker"

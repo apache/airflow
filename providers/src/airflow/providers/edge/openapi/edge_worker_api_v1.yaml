@@ -35,11 +35,154 @@ servers:
   - url: /edge_worker/v1
     description: Airflow Edge Worker API
 paths:
-  "/rpcapi":
+  /worker/{worker_name}:
+    patch:
+      description: Set state of worker and returns the current assigned queues.
+      x-openapi-router-controller: airflow.providers.edge.worker_api.routes._v2_routes
+      operationId: set_state_v2
+      parameters:
+      - description: Hostname or instance name of the worker
+        in: path
+        name: worker_name
+        required: true
+        schema:
+          description: Hostname or instance name of the worker
+          title: Worker Name
+          type: string
+      - description: JWT Authorization Token
+        in: header
+        name: authorization
+        required: true
+        schema:
+          description: JWT Authorization Token
+          title: Authorization
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerStateBody'
+              description: State of the worker with details
+              examples:
+              - jobs_active: 3
+                queues:
+                - large_node
+                - wisconsin_site
+                state: running
+                sysinfo:
+                  airflow_version: 2.10.0
+                  concurrency: 4
+                  edge_provider_version: 1.0.0
+              title: Worker State
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - items:
+                    type: string
+                  type: array
+                - type: object
+                  nullable: true
+                title: Response Set State
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Set State
+      tags:
+      - Worker
+    post:
+      description: Register a new worker to the backend.
+      x-openapi-router-controller: airflow.providers.edge.worker_api.routes._v2_routes
+      operationId: register_v2
+      parameters:
+      - description: Hostname or instance name of the worker
+        in: path
+        name: worker_name
+        required: true
+        schema:
+          description: Hostname or instance name of the worker
+          title: Worker Name
+          type: string
+      - description: JWT Authorization Token
+        in: header
+        name: authorization
+        required: true
+        schema:
+          description: JWT Authorization Token
+          title: Authorization
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerStateBody'
+              description: State of the worker with details
+              examples:
+              - jobs_active: 3
+                queues:
+                - large_node
+                - wisconsin_site
+                state: running
+                sysinfo:
+                  airflow_version: 2.10.0
+                  concurrency: 4
+                  edge_provider_version: 1.0.0
+              title: Worker State
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                format: date-time
+                title: Response Register
+                type: string
+          description: Successful Response
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Register
+      tags:
+      - Worker
+  /rpcapi:
     post:
       deprecated: false
-      x-openapi-router-controller: airflow.providers.edge.worker_api.routes.rpc_api
-      operationId: edge_worker_api_v2
+      x-openapi-router-controller: airflow.providers.edge.worker_api.routes._v2_routes
+      operationId: rpcapi_v2
       tags:
       - JSONRPC
       parameters: []
@@ -68,7 +211,7 @@ paths:
                 params:
                   title: Parameters
                   type: object
-  "/health":
+  /health:
     get:
       operationId: health
       deprecated: false
@@ -99,4 +242,89 @@ components:
           description: JSON-RPC Version (2.0)
       discriminator:
         propertyName: method_name
+    EdgeWorkerState:
+      description: Status of a Edge Worker instance.
+      enum:
+      - starting
+      - running
+      - idle
+      - terminating
+      - offline
+      - unknown
+      title: EdgeWorkerState
+      type: string
+    WorkerStateBody:
+      description: Details of the worker state sent to the scheduler.
+      type: object
+      required:
+      - state
+      - queues
+      - sysinfo
+      properties:
+        jobs_active:
+          default: 0
+          description: Number of active jobs the worker is running.
+          title: Jobs Active
+          type: integer
+        queues:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: object
+            nullable: true
+          description: List of queues the worker is pulling jobs from. If not provided,
+            worker pulls from all queues.
+          title: Queues
+        state:
+          $ref: '#/components/schemas/EdgeWorkerState'
+          description: State of the worker from the view of the worker.
+        sysinfo:
+          description: System information of the worker.
+          title: Sysinfo
+          type: object
+      title: WorkerStateBody
+    HTTPExceptionResponse:
+      description: HTTPException Model used for error response.
+      properties:
+        detail:
+          anyOf:
+          - type: string
+          - type: object
+          title: Detail
+      required:
+      - detail
+      title: HTTPExceptionResponse
+      type: object
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          title: Detail
+          type: array
+      title: HTTPValidationError
+      type: object
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          title: Location
+          type: array
+        msg:
+          title: Message
+          type: string
+        type:
+          title: Error Type
+          type: string
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+      type: object
+
 tags: []
