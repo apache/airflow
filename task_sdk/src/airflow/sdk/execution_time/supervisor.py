@@ -433,9 +433,9 @@ class WatchedSubprocess:
                 self._process.send_signal(sig)
 
                 # Service subprocess events during the escalation delay
-                self._service_subprocess(max_wait_time=escalation_delay)
+                self._service_subprocess(max_wait_time=escalation_delay, raise_on_timeout=True)
                 if self._exit_code is not None:
-                    log.debug("Process exited", pid=self.pid, exit_code=self._exit_code, signal=sig.name)
+                    log.info("Process exited", pid=self.pid, exit_code=self._exit_code, signal=sig.name)
                     return
             except psutil.TimeoutExpired:
                 msg = "Process did not terminate in time"
@@ -496,7 +496,7 @@ class WatchedSubprocess:
 
             self._send_heartbeat_if_needed()
 
-    def _service_subprocess(self, max_wait_time: float):
+    def _service_subprocess(self, max_wait_time: float, raise_on_timeout: bool = False):
         """
         Service subprocess events by processing socket activity and checking for process exit.
 
@@ -506,6 +506,7 @@ class WatchedSubprocess:
         - Checks if the subprocess has exited during the wait.
 
         :param max_wait_time: Maximum time to block while waiting for events, in seconds.
+        :param raise_on_timeout: If True, raise an exception if the subprocess does not exit within the timeout.
         """
         events = self.selector.select(timeout=max_wait_time)
         for key, _ in events:
@@ -526,15 +527,17 @@ class WatchedSubprocess:
                 key.fileobj.close()  # type: ignore[union-attr]
 
         # Check if the subprocess has exited
-        self._check_subprocess_exit()
+        self._check_subprocess_exit(raise_on_timeout=raise_on_timeout)
 
-    def _check_subprocess_exit(self):
+    def _check_subprocess_exit(self, raise_on_timeout: bool = False):
         """Check if the subprocess has exited."""
         if self._exit_code is None:
             try:
                 self._exit_code = self._process.wait(timeout=0)
                 log.debug("Task process exited", exit_code=self._exit_code)
             except psutil.TimeoutExpired:
+                if raise_on_timeout:
+                    raise
                 pass
 
     def _send_heartbeat_if_needed(self):

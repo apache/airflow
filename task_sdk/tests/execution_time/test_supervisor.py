@@ -435,7 +435,9 @@ class TestWatchedSubprocess:
 class TestWatchedSubprocessKill:
     @pytest.fixture
     def mock_process(self, mocker):
-        return mocker.Mock(spec=psutil.Process)
+        process = mocker.Mock(spec=psutil.Process)
+        process.pid = 12345
+        return process
 
     @pytest.fixture
     def watched_subprocess(self, mocker, mock_process):
@@ -504,6 +506,7 @@ class TestWatchedSubprocessKill:
         signal_to_send,
         wait_side_effect,
         expected_signals,
+        captured_logs,
     ):
         """Test escalation path for SIGINT, SIGTERM, and SIGKILL when force=True."""
         # Mock the process wait method to return the exit code or raise an exception
@@ -516,6 +519,29 @@ class TestWatchedSubprocessKill:
 
         # Check that the process was waited on for each signal
         mock_process.wait.assert_has_calls([mocker.call(timeout=0)] * len(expected_signals))
+
+        ## Validate log messages
+        # If escalation occurred, we should see a warning log for each signal sent
+        if len(expected_signals) > 1:
+            assert {
+                "event": "Process did not terminate in time; escalating",
+                "level": "warning",
+                "logger": "supervisor",
+                "pid": 12345,
+                "signal": expected_signals[-2].name,
+                "timestamp": mocker.ANY,
+            } in captured_logs
+
+        # Regardless of escalation, we should see an info log for the final signal sent
+        assert {
+            "event": "Process exited",
+            "level": "info",
+            "logger": "supervisor",
+            "pid": 12345,
+            "signal": expected_signals[-1].name,
+            "exit_code": 0,
+            "timestamp": mocker.ANY,
+        } in captured_logs
 
         # Validate `selector.select` calls
         assert watched_subprocess.selector.select.call_count == len(expected_signals)
@@ -569,6 +595,8 @@ class TestWatchedSubprocessKill:
 
     def test_kill_process_custom_signal(self, watched_subprocess, mock_process):
         """Test that the process is killed with the correct signal."""
+        mock_process.wait.return_value = 0
+
         signal_to_send = signal.SIGUSR1
         watched_subprocess.kill(signal_to_send, force=False)
 
