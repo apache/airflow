@@ -2021,9 +2021,11 @@ export type PatchVariableData = {
 export type PatchVariableResponse = VariableResponse;
 
 export type GetVariablesData = {
+  keyPatternType?: string | null;
   limit?: number;
   offset?: number;
   orderBy?: string;
+  variableKeyPattern?: string | null;
 };
 
 export type GetVariablesResponse = VariableCollectionResponse;

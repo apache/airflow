@@ -46,6 +46,7 @@ from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.variable import Variable
 from airflow.typing_compat import Self
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -212,6 +213,52 @@ class _DagDisplayNamePatternSearch(_SearchParam):
     def depends(self, dag_display_name_pattern: str | None = None) -> _DagDisplayNamePatternSearch:
         dag_display_name_pattern = super().transform_aliases(dag_display_name_pattern)
         return self.set_value(dag_display_name_pattern)
+
+
+class _VariableKeyPatternSearch(_SearchParam):
+    """Search on key with different match types."""
+
+    def __init__(self, skip_none: bool = True) -> None:
+        super().__init__(Variable.key, skip_none)
+
+    def depends(
+        self,
+        variable_key_pattern: str | None = None,
+        key_pattern_type: str = "contains",  # Options: contains, starts_with, ends_with, equals, not_starts_with, not_ends_with
+    ) -> _VariableKeyPatternSearch:
+        variable_key_pattern = super().transform_aliases(variable_key_pattern)
+        if not variable_key_pattern:
+            return self  # No pattern to apply
+
+        # Validate key_pattern_type
+        valid_key_pattern_types = {
+            "contains",
+            "starts_with",
+            "ends_with",
+            "equals",
+            "not_starts_with",
+            "not_ends_with",
+        }
+        if key_pattern_type not in valid_key_pattern_types:
+            raise ValueError(
+                f"Invalid key_pattern_type '{key_pattern_type}'. Valid options are: {', '.join(valid_key_pattern_types)}"
+            )
+
+        # Apply match type logic
+        if key_pattern_type == "contains":
+            return self.set_value(variable_key_pattern)
+        elif key_pattern_type == "starts_with":
+            return self.set_value(f"{variable_key_pattern}%")
+        elif key_pattern_type == "ends_with":
+            return self.set_value(f"%{variable_key_pattern}")
+        elif key_pattern_type == "equals":
+            return self.set_value(f"={variable_key_pattern}")
+        elif key_pattern_type == "not_starts_with":
+            return self.set_value(f"NOT {variable_key_pattern}%")
+        elif key_pattern_type == "not_ends_with":
+            return self.set_value(f"NOT %{variable_key_pattern}")
+        else:
+            return self
 
 
 class SortParam(BaseParam[str]):
@@ -786,4 +833,12 @@ QuerySourceRunIdFilter = Annotated[
 ]
 QuerySourceMapIndexFilter = Annotated[
     _SourceMapIndexFilter, Depends(_SourceMapIndexFilter(AssetEvent.source_map_index).depends)
+]
+
+# Variables
+QueryVariableKeyPatternSearch = Annotated[
+    _VariableKeyPatternSearch, Depends(_VariableKeyPatternSearch().depends)
+]
+QueryVariableKeyPatternType = Annotated[
+    _VariableKeyPatternSearch, Depends(_VariableKeyPatternSearch().depends)
 ]

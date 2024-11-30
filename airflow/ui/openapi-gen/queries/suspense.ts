@@ -2478,6 +2478,8 @@ export const useVariableServiceGetVariableSuspense = <
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.variableKeyPattern
+ * @param data.keyPatternType
  * @returns VariableCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -2487,24 +2489,34 @@ export const useVariableServiceGetVariablesSuspense = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    keyPatternType,
     limit,
     offset,
     orderBy,
+    variableKeyPattern,
   }: {
+    keyPatternType?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
+    variableKeyPattern?: string;
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
     queryKey: Common.UseVariableServiceGetVariablesKeyFn(
-      { limit, offset, orderBy },
+      { keyPatternType, limit, offset, orderBy, variableKeyPattern },
       queryKey,
     ),
     queryFn: () =>
-      VariableService.getVariables({ limit, offset, orderBy }) as TData,
+      VariableService.getVariables({
+        keyPatternType,
+        limit,
+        offset,
+        orderBy,
+        variableKeyPattern,
+      }) as TData,
     ...options,
   });
 /**

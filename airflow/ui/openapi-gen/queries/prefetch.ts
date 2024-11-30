@@ -2117,28 +2117,43 @@ export const prefetchUseVariableServiceGetVariable = (
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
+ * @param data.variableKeyPattern
+ * @param data.keyPatternType
  * @returns VariableCollectionResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseVariableServiceGetVariables = (
   queryClient: QueryClient,
   {
+    keyPatternType,
     limit,
     offset,
     orderBy,
+    variableKeyPattern,
   }: {
+    keyPatternType?: string;
     limit?: number;
     offset?: number;
     orderBy?: string;
+    variableKeyPattern?: string;
   } = {},
 ) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseVariableServiceGetVariablesKeyFn({
+      keyPatternType,
       limit,
       offset,
       orderBy,
+      variableKeyPattern,
     }),
-    queryFn: () => VariableService.getVariables({ limit, offset, orderBy }),
+    queryFn: () =>
+      VariableService.getVariables({
+        keyPatternType,
+        limit,
+        offset,
+        orderBy,
+        variableKeyPattern,
+      }),
   });
 /**
  * Get Health

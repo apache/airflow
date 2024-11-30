@@ -5447,6 +5447,21 @@ paths:
           type: string
           default: id
           title: Order By
+      - name: variable_key_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Variable Key Pattern
+      - name: key_pattern_type
+        in: query
+        required: false
+        schema:
+          type: string
+          default: contains
+          title: Key Pattern Type
       responses:
         '200':
           description: Successful Response
