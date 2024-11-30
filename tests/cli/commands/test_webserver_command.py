@@ -154,7 +154,7 @@ class TestGunicornMonitorGeneratePluginState:
             state_b = monitor._generate_plugin_state()
 
             assert state_a == state_b
-            assert 3 == len(state_a)
+            assert len(state_a) == 3
 
             # Should detect new file
             (tmp_path / "file4.txt").write_text("A" * 400)
@@ -162,7 +162,7 @@ class TestGunicornMonitorGeneratePluginState:
             state_c = monitor._generate_plugin_state()
 
             assert state_b != state_c
-            assert 4 == len(state_c)
+            assert len(state_c) == 4
 
             # Should detect changes in files
             (tmp_path / "file4.txt").write_text("A" * 450)
@@ -170,7 +170,7 @@ class TestGunicornMonitorGeneratePluginState:
             state_d = monitor._generate_plugin_state()
 
             assert state_c != state_d
-            assert 4 == len(state_d)
+            assert len(state_d) == 4
 
             # Should support large files
             (tmp_path / "file4.txt").write_text("A" * 4_000_000)
@@ -178,7 +178,7 @@ class TestGunicornMonitorGeneratePluginState:
             state_d = monitor._generate_plugin_state()
 
             assert state_c != state_d
-            assert 4 == len(state_d)
+            assert len(state_d) == 4
 
 
 class TestCLIGetNumReadyWorkersRunning:

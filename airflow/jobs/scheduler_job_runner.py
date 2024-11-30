@@ -44,6 +44,8 @@ from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallback
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.executors import workloads
+from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
@@ -91,7 +93,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Query, Session
 
     from airflow.dag_processing.manager import DagFileProcessorAgent
-    from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.sqlalchemy import (
@@ -654,6 +655,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if ti.dag_run.state in State.finished_dr_states:
                 ti.set_state(None, session=session)
                 continue
+
+            # TODO: Task-SDK: This check is transitionary. Remove once all executors are ported over.
+            # Has a real queue_activity implemented
+            if executor.queue_workload.__func__ is not BaseExecutor.queue_workload:  # type: ignore[attr-defined]
+                workload = workloads.ExecuteTask.make(ti)
+                executor.queue_workload(workload)
+                continue
+
             command = ti.command_as_list(
                 local=True,
             )

@@ -37,7 +37,6 @@ files_not_fully_covered = [
     "airflow/cli/commands/dag_processor_command.py",
     "airflow/cli/commands/db_command.py",
     "airflow/cli/commands/info_command.py",
-    "airflow/cli/commands/internal_api_command.py",
     "airflow/cli/commands/jobs_command.py",
     "airflow/cli/commands/kubernetes_command.py",
     "airflow/cli/commands/plugins_command.py",

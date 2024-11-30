@@ -16,35 +16,29 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated
-
-from fastapi import Depends, status
+from fastapi import status
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
 
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.parameters import DateTimeQuery, OptionalDateTimeQuery
+from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.dashboard import HistoricalMetricDataResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance
+from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-from airflow.api_fastapi.common.db.common import get_session
-from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.utils import timezone
-
-dashboard_router = AirflowRouter(tags=["Dashboard"])
+dashboard_router = AirflowRouter(tags=["Dashboard"], prefix="/dashboard")
 
 
 @dashboard_router.get(
-    "/dashboard/historical_metrics_data",
+    "/historical_metrics_data",
     include_in_schema=False,
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]),
 )
 def historical_metrics(
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     start_date: DateTimeQuery,
     end_date: OptionalDateTimeQuery = None,
 ) -> HistoricalMetricDataResponse:

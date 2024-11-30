@@ -39,7 +39,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--integration",
                 "--standalone-dag-processor",
-                "--database-isolation",
             ],
         },
         {
@@ -83,7 +82,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--integration",
                 "--standalone-dag-processor",
-                "--database-isolation",
                 "--start-webserver-with-examples",
             ],
         },
@@ -216,7 +214,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--platform",
                 "--integration",
                 "--standalone-dag-processor",
-                "--database-isolation",
                 "--load-example-dags",
                 "--load-default-connections",
             ],

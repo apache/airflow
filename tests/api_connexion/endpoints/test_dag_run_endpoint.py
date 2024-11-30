@@ -44,7 +44,7 @@ from tests_common.test_utils.www import _check_last_log
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
@@ -1237,12 +1237,12 @@ class TestPostDagRun(TestDagRunEndpoint):
             json={},
             environ_overrides={"REMOTE_USER": "test"},
         )
-        assert {
+        assert response.json == {
             "detail": "DAG with dag_id: 'TEST_DAG_ID' has import errors",
             "status": 400,
             "title": "DAG cannot be triggered",
             "type": EXCEPTIONS_LINK_MAP[400],
-        } == response.json
+        }
 
     def test_should_response_200_for_matching_logical_date(self):
         logical_date = "2020-11-10T08:25:56.939143+00:00"
@@ -1366,12 +1366,12 @@ class TestPostDagRun(TestDagRunEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "DAG with dag_id: 'TEST_DAG_ID' not found",
             "status": 404,
             "title": "DAG not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     @pytest.mark.parametrize(
         "url, request_json, expected_response",

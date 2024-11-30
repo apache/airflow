@@ -280,7 +280,7 @@ class TestS3FileTransformOperator:
         with pytest.raises(AirflowException) as ctx:
             op.execute(None)
 
-        assert "Transform script failed: 42" == str(ctx.value)
+        assert str(ctx.value) == "Transform script failed: 42"
 
     @mock.patch("subprocess.Popen")
     @mock_aws

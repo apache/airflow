@@ -27,7 +27,7 @@ from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS
 from airflow.utils import db
 
 # This test mocks json.dumps so it won't work for database isolation mode
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestGoogleApiToS3:
