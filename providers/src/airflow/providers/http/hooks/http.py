@@ -87,18 +87,14 @@ class HttpHook(BaseHook):
         self.base_url: str = ""
         self._retry_obj: Callable[..., Any]
         self._auth_type: Any = auth_type
-        self.adapter = adapter or HTTPAdapter()
 
-        self.tcp_keep_alive = tcp_keep_alive
-        self.keep_alive_idle = tcp_keep_alive_idle
-        self.keep_alive_count = tcp_keep_alive_count
-        self.keep_alive_interval = tcp_keep_alive_interval
-
-        if self.tcp_keep_alive:
+        # If no adapter is provided, use TCPKeepAliveAdapter (default behavior)
+        self.adapter = adapter
+        if tcp_keep_alive and adapter is None:
             self.keep_alive_adapter = TCPKeepAliveAdapter(
-                idle=self.keep_alive_idle,
-                count=self.keep_alive_count,
-                interval=self.keep_alive_interval,
+                idle=tcp_keep_alive_idle,
+                count=tcp_keep_alive_count,
+                interval=tcp_keep_alive_interval,
             )
         else:
             self.keep_alive_adapter = None
