@@ -5312,10 +5312,7 @@ class TaskInstanceModelView(AirflowModelView):
             dag = get_airflow_app().dag_bag.get_dag(dag_id)
 
             if not dag:
-                logger.warning(
-                    "Skipping task instances for DAG '%s' as it could not be found in the DAG Bag.", dag_id
-                )
-                continue
+                raise AirflowException(f"DAG with id '{dag_id}' does not exist. Cannot clear tasks.")
 
             tis_to_clear = list(dag_tis)
             downstream_tis_to_clear = []
@@ -5334,13 +5331,9 @@ class TaskInstanceModelView(AirflowModelView):
                             include_upstream=False,
                         )
                     except AttributeError as e:
-                        logger.warning(
-                            "Skipping downstream tasks for DAG '%s' in DAG Run '%s'. due to an error: %s",
-                            dag_id,
-                            dag_run.id,
-                            e,
+                        raise AirflowException(
+                            f"Error processing downstream tasks for DAG '{dag_id}' in DAG Run '{dag_run.id}': {e}"
                         )
-                        continue
 
                     downstream_task_ids_to_clear = [
                         task_id for task_id in partial_dag.task_dict if task_id not in task_ids_to_clear
@@ -5389,6 +5382,8 @@ class TaskInstanceModelView(AirflowModelView):
             )
             session.commit()
             flash(f"{count} task instance{'s have' if count > 1 else ' has'} been cleared")
+        except AirflowException as e:
+            flash(str(e), "error")
         except Exception as e:
             flash(f'Failed to clear task instances: "{e}"', "error")
 
@@ -5418,6 +5413,8 @@ class TaskInstanceModelView(AirflowModelView):
                 f"Cleared {selected_ti_count} selected task instance{'s' if selected_ti_count > 1 else ''} "
                 f"and {downstream_ti_count} downstream dependencies"
             )
+        except AirflowException as e:
+            flash(str(e), "error")
         except Exception as e:
             flash(f'Failed to clear task instances: "{e}"', "error")
 
