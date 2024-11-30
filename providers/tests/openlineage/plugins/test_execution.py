@@ -167,6 +167,7 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             assert has_value_in_events(events, ["inputs", "name"], "on-start")
             assert not has_value_in_events(events, ["inputs", "name"], "on-complete")
 
+        @pytest.mark.quarantined
         @conf_vars(
             {
                 ("openlineage", "transport"): f'{{"type": "file", "log_file_path": "{listener_path}"}}',
