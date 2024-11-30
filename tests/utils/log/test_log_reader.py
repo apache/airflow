@@ -42,7 +42,7 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 if TYPE_CHECKING:
@@ -194,7 +194,7 @@ class TestLogView:
         task_log_reader = TaskLogReader()
         self.ti.state = TaskInstanceState.SUCCESS
         log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=1, metadata={})
-        assert ["\n1st line\n", "\n2nd line\n", "\n3rd line\n"] == list(log_stream)
+        assert list(log_stream) == ["\n1st line\n", "\n2nd line\n", "\n3rd line\n"]
 
         mock_read.assert_has_calls(
             [
@@ -215,7 +215,7 @@ class TestLogView:
 
         task_log_reader = TaskLogReader()
         log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=None, metadata={})
-        assert ["\ntry_number=1.\n", "\ntry_number=2.\n", "\ntry_number=3.\n"] == list(log_stream)
+        assert list(log_stream) == ["\ntry_number=1.\n", "\ntry_number=2.\n", "\ntry_number=3.\n"]
 
         mock_read.assert_has_calls(
             [

@@ -27,7 +27,7 @@ from tests_common.test_utils.api_connexion_utils import assert_401
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_pools
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class BaseTestAuth:

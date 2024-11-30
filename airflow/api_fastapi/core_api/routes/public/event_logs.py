@@ -21,10 +21,9 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.common.db.common import (
-    get_session,
+    SessionDep,
     paginated_select,
 )
 from airflow.api_fastapi.common.parameters import (
@@ -49,7 +48,7 @@ event_logs_router = AirflowRouter(tags=["Event Log"], prefix="/eventLogs")
 )
 def get_event_log(
     event_log_id: int,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> EventLogResponse:
     event_log = session.scalar(select(Log).where(Log.id == event_log_id))
     if event_log is None:
@@ -63,7 +62,7 @@ def get_event_log(
 def get_event_logs(
     limit: QueryLimit,
     offset: QueryOffset,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     order_by: Annotated[
         SortParam,
         Depends(

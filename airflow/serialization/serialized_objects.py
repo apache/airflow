@@ -73,7 +73,7 @@ from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
 from airflow.serialization.pydantic.trigger import TriggerPydantic
-from airflow.settings import _ENABLE_AIP_44, DAGS_FOLDER, json
+from airflow.settings import DAGS_FOLDER, json
 from airflow.task.priority_strategy import (
     PriorityWeightStrategy,
     airflow_priority_weight_strategies,
@@ -633,11 +633,6 @@ class BaseSerialization:
 
         :meta private:
         """
-        if use_pydantic_models and not _ENABLE_AIP_44:
-            raise RuntimeError(
-                "Setting use_pydantic_models = True requires AIP-44 (in progress) feature flag to be true. "
-                "This parameter will be removed eventually when new serialization is used by AIP-44"
-            )
         if cls._is_primitive(var):
             # enum.IntEnum is an int instance, it causes json dumps error so we use its value.
             if isinstance(var, enum.Enum):
@@ -764,7 +759,7 @@ class BaseSerialization:
                 obj = cls.serialize(v, strict=strict, use_pydantic_models=use_pydantic_models)
                 d[str(k)] = obj
             return cls._encode(d, type_=DAT.TASK_CONTEXT)
-        elif use_pydantic_models and _ENABLE_AIP_44:
+        elif use_pydantic_models:
 
             def _pydantic_model_dump(model_cls: type[BaseModel], var: Any) -> dict[str, Any]:
                 return model_cls.model_validate(var).model_dump(mode="json")  # type: ignore[attr-defined]
@@ -795,12 +790,6 @@ class BaseSerialization:
 
         :meta private:
         """
-        # JSON primitives (except for dict) are not encoded.
-        if use_pydantic_models and not _ENABLE_AIP_44:
-            raise RuntimeError(
-                "Setting use_pydantic_models = True requires AIP-44 (in progress) feature flag to be true. "
-                "This parameter will be removed eventually when new serialization is used by AIP-44"
-            )
         if cls._is_primitive(encoded_var):
             return encoded_var
         elif isinstance(encoded_var, list):
@@ -892,7 +881,7 @@ class BaseSerialization:
             return DagCallbackRequest.from_json(var)
         elif type_ == DAT.TASK_INSTANCE_KEY:
             return TaskInstanceKey(**var)
-        elif use_pydantic_models and _ENABLE_AIP_44:
+        elif use_pydantic_models:
             return _type_to_class[type_][0].model_validate(var)
         elif type_ == DAT.ARG_NOT_SET:
             return NOTSET
@@ -1034,10 +1023,36 @@ class DependencyDetector:
                     dependency_id=task.task_id,
                 )
             )
+        elif (
+            isinstance(task, MappedOperator)
+            and issubclass(cast(type[BaseOperator], task.operator_class), TriggerDagRunOperator)
+            and "trigger_dag_id" in task.partial_kwargs
+        ):
+            deps.append(
+                DagDependency(
+                    source=task.dag_id,
+                    target=task.partial_kwargs["trigger_dag_id"],
+                    dependency_type="trigger",
+                    dependency_id=task.task_id,
+                )
+            )
         elif isinstance(task, ExternalTaskSensor):
             deps.append(
                 DagDependency(
                     source=getattr(task, "external_dag_id"),
+                    target=task.dag_id,
+                    dependency_type="sensor",
+                    dependency_id=task.task_id,
+                )
+            )
+        elif (
+            isinstance(task, MappedOperator)
+            and issubclass(cast(type[BaseOperator], task.operator_class), ExternalTaskSensor)
+            and "external_dag_id" in task.partial_kwargs
+        ):
+            deps.append(
+                DagDependency(
+                    source=task.partial_kwargs["external_dag_id"],
                     target=task.dag_id,
                     dependency_type="sensor",
                     dependency_id=task.task_id,

@@ -65,6 +65,7 @@ class BeamPythonPipelineTrigger(BeamPipelineBaseTrigger):
         Other possible options: DataflowRunner, SparkRunner, FlinkRunner, PortableRunner.
         See: :class:`~providers.apache.beam.hooks.beam.BeamRunnerType`
         See: https://beam.apache.org/documentation/runners/capability-matrix/
+    :param gcp_conn_id: Optional. The connection ID to use connecting to Google Cloud.
     """
 
     def __init__(
@@ -76,6 +77,7 @@ class BeamPythonPipelineTrigger(BeamPipelineBaseTrigger):
         py_requirements: list[str] | None = None,
         py_system_site_packages: bool = False,
         runner: str = "DirectRunner",
+        gcp_conn_id: str = "google_cloud_default",
     ):
         super().__init__()
         self.variables = variables
@@ -85,6 +87,7 @@ class BeamPythonPipelineTrigger(BeamPipelineBaseTrigger):
         self.py_requirements = py_requirements
         self.py_system_site_packages = py_system_site_packages
         self.runner = runner
+        self.gcp_conn_id = gcp_conn_id
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize BeamPythonPipelineTrigger arguments and classpath."""
@@ -98,6 +101,7 @@ class BeamPythonPipelineTrigger(BeamPipelineBaseTrigger):
                 "py_requirements": self.py_requirements,
                 "py_system_site_packages": self.py_system_site_packages,
                 "runner": self.runner,
+                "gcp_conn_id": self.gcp_conn_id,
             },
         )
 
@@ -105,6 +109,22 @@ class BeamPythonPipelineTrigger(BeamPipelineBaseTrigger):
         """Get current pipeline status and yields a TriggerEvent."""
         hook = self._get_async_hook(runner=self.runner)
         try:
+            # Get the current running event loop to manage I/O operations asynchronously
+            loop = asyncio.get_running_loop()
+            if self.py_file.lower().startswith("gs://"):
+                gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
+                # Running synchronous `enter_context()` method in a separate
+                # thread using the default executor `None`. The `run_in_executor()` function returns the
+                # file object, which is created using gcs function `provide_file()`, asynchronously.
+                # This means we can perform asynchronous operations with this file.
+                create_tmp_file_call = gcs_hook.provide_file(object_url=self.py_file)
+                tmp_gcs_file: IO[str] = await loop.run_in_executor(
+                    None,
+                    contextlib.ExitStack().enter_context,  # type: ignore[arg-type]
+                    create_tmp_file_call,
+                )
+                self.py_file = tmp_gcs_file.name
+
             return_code = await hook.start_python_pipeline_async(
                 variables=self.variables,
                 py_file=self.py_file,

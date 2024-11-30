@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import contextlib
-import os
 from collections.abc import Generator
 from functools import wraps
 from inspect import signature
@@ -26,29 +25,12 @@ from typing import Callable, TypeVar, cast
 from sqlalchemy.orm import Session as SASession
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import InternalApiConfig
-from airflow.settings import TracebackSession, TracebackSessionForTests
 from airflow.typing_compat import ParamSpec
 
 
 @contextlib.contextmanager
 def create_session(scoped: bool = True) -> Generator[SASession, None, None]:
     """Contextmanager that will create and teardown a session."""
-    if InternalApiConfig.get_use_internal_api():
-        if os.environ.get("RUN_TESTS_WITH_DATABASE_ISOLATION", "false").lower() == "true":
-            traceback_session_for_tests = TracebackSessionForTests()
-            try:
-                yield traceback_session_for_tests
-                if traceback_session_for_tests.current_db_session:
-                    traceback_session_for_tests.current_db_session.commit()
-            except Exception:
-                traceback_session_for_tests.current_db_session.rollback()
-                raise
-            finally:
-                traceback_session_for_tests.current_db_session.close()
-        else:
-            yield TracebackSession()
-        return
     if scoped:
         Session = getattr(settings, "Session", None)
     else:

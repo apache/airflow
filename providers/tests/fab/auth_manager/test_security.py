@@ -900,7 +900,7 @@ def test_no_additional_dag_permission_views_created(db, security_manager):
 def test_override_role_vm(app_builder):
     test_security_manager = MockSecurityManager(appbuilder=app_builder)
     assert len(test_security_manager.VIEWER_VMS) == 1
-    assert test_security_manager.VIEWER_VMS == {"Airflow"}
+    assert {"Airflow"} == test_security_manager.VIEWER_VMS
 
 
 def test_correct_roles_have_perms_to_read_config(security_manager):

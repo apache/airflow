@@ -68,7 +68,7 @@ def test_write_pid_to_pidfile_created_by_crashed_instance(tmp_path):
     with patch("os.getpid", return_value=0):
         pid_file_path = tmp_path / "file.pid"
         _write_pid_to_pidfile(pid_file_path)
-        assert "0" == pid_file_path.read_text().strip()
+        assert pid_file_path.read_text().strip() == "0"
     # write a PID file with the current process ID, call should not raise an exception
     _write_pid_to_pidfile(pid_file_path)
     assert str(os.getpid()) == pid_file_path.read_text().strip()
@@ -107,6 +107,7 @@ class TestEdgeWorkerCli:
                     try_number=1,
                     state=TaskInstanceState.RUNNING,
                     queue="test",
+                    concurrency_slots=1,
                     command=["test", "command"],
                     queued_dttm=datetime.now(),
                     edge_worker=None,
@@ -137,6 +138,7 @@ class TestEdgeWorkerCli:
                     try_number=1,
                     state=TaskInstanceState.QUEUED,
                     queue="test",
+                    concurrency_slots=1,
                     command=["test", "command"],
                     queued_dttm=datetime.now(),
                     edge_worker=None,
@@ -175,9 +177,14 @@ class TestEdgeWorkerCli:
 
     def test_check_running_jobs_running(self, worker_with_job: _EdgeWorkerCli):
         worker_with_job.jobs[0].process.generated_returncode = None
+        assert worker_with_job.free_concurrency == worker_with_job.concurrency
         with conf_vars({("edge", "api_url"): "https://mock.server"}):
             worker_with_job.check_running_jobs()
         assert len(worker_with_job.jobs) == 1
+        assert (
+            worker_with_job.free_concurrency
+            == worker_with_job.concurrency - worker_with_job.jobs[0].edge_job.concurrency_slots
+        )
 
     @patch("airflow.providers.edge.models.edge_job.EdgeJob.set_state")
     def test_check_running_jobs_success(self, mock_set_state, worker_with_job: _EdgeWorkerCli):
@@ -187,6 +194,7 @@ class TestEdgeWorkerCli:
             worker_with_job.check_running_jobs()
         assert len(worker_with_job.jobs) == 0
         mock_set_state.assert_called_once_with(job.edge_job.key, TaskInstanceState.SUCCESS)
+        assert worker_with_job.free_concurrency == worker_with_job.concurrency
 
     @patch("airflow.providers.edge.models.edge_job.EdgeJob.set_state")
     def test_check_running_jobs_failed(self, mock_set_state, worker_with_job: _EdgeWorkerCli):
@@ -196,6 +204,7 @@ class TestEdgeWorkerCli:
             worker_with_job.check_running_jobs()
         assert len(worker_with_job.jobs) == 0
         mock_set_state.assert_called_once_with(job.edge_job.key, TaskInstanceState.FAILED)
+        assert worker_with_job.free_concurrency == worker_with_job.concurrency
 
     @time_machine.travel(datetime.now(), tick=False)
     @patch("airflow.providers.edge.models.edge_logs.EdgeLogs.push_logs")

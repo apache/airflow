@@ -616,7 +616,7 @@ class TestListDagRunsBatch:
                 ],
             ),
             (
-                {"page_limit": -1, "offset": 1},
+                {"page_limit": -1, "page_offset": 1},
                 [
                     {
                         "type": "greater_than_equal",
@@ -1006,8 +1006,8 @@ class TestGetDagRunAssetTriggerEvents:
         )
         assert response.status_code == 404
         assert (
-            "The DagRun with dag_id: `invalid-id` and run_id: `invalid-run-id` was not found"
-            == response.json()["detail"]
+            response.json()["detail"]
+            == "The DagRun with dag_id: `invalid-id` and run_id: `invalid-run-id` was not found"
         )
 
 

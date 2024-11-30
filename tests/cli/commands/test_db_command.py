@@ -28,7 +28,7 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import db_command
 from airflow.exceptions import AirflowException
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestCliDb:
@@ -239,13 +239,13 @@ class TestCliDb:
         _, kwargs = mock_execute_interactive.call_args
         env = kwargs["env"]
         postgres_env = {k: v for k, v in env.items() if k.startswith("PG")}
-        assert {
+        assert postgres_env == {
             "PGDATABASE": "airflow",
             "PGHOST": "postgres",
             "PGPASSWORD": "airflow",
             "PGPORT": "5432",
             "PGUSER": "postgres",
-        } == postgres_env
+        }
 
     @mock.patch("airflow.cli.commands.db_command.execute_interactive")
     @mock.patch(
@@ -258,13 +258,13 @@ class TestCliDb:
         _, kwargs = mock_execute_interactive.call_args
         env = kwargs["env"]
         postgres_env = {k: v for k, v in env.items() if k.startswith("PG")}
-        assert {
+        assert postgres_env == {
             "PGDATABASE": "airflow",
             "PGHOST": "postgres",
             "PGPASSWORD": "airflow",
             "PGPORT": "5432",
             "PGUSER": "postgres",
-        } == postgres_env
+        }
 
     @mock.patch(
         "airflow.cli.commands.db_command.settings.engine.url",

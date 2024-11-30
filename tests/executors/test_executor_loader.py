@@ -31,8 +31,6 @@ from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 
 from tests_common.test_utils.config import conf_vars
 
-pytestmark = pytest.mark.skip_if_database_isolation_mode
-
 
 class FakeExecutor:
     is_single_threaded = False
@@ -84,7 +82,7 @@ class TestExecutorLoader:
         with conf_vars({("core", "executor"): "tests.executors.test_executor_loader.FakeExecutor"}):
             executor = ExecutorLoader.get_default_executor()
             assert executor is not None
-            assert "FakeExecutor" == executor.__class__.__name__
+            assert executor.__class__.__name__ == "FakeExecutor"
             assert executor.name is not None
             assert executor.name == ExecutorName("tests.executors.test_executor_loader.FakeExecutor")
             assert executor.name.connector_source == ConnectorSource.CUSTOM_PATH
@@ -218,7 +216,7 @@ class TestExecutorLoader:
     def test_should_support_import_custom_path(self, executor_config):
         with conf_vars({("core", "executor"): executor_config}):
             executor, import_source = ExecutorLoader.import_default_executor_cls()
-            assert "FakeExecutor" == executor.__name__
+            assert executor.__name__ == "FakeExecutor"
             assert import_source == ConnectorSource.CUSTOM_PATH
 
     @pytest.mark.db_test

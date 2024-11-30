@@ -392,7 +392,7 @@ def test_rendered_k8s(admin_client):
 def test_rendered_k8s_without_k8s(admin_client):
     url = f"rendered-k8s?task_id=runme_0&dag_id=example_bash_operator&logical_date={DEFAULT_VAL}"
     resp = admin_client.get(url, follow_redirects=True)
-    assert 404 == resp.status_code
+    assert resp.status_code == 404
 
 
 def test_tree_trigger_origin_tree_view(app, admin_client):

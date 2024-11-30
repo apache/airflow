@@ -21,7 +21,6 @@ import logging
 import os
 import platform
 import signal
-import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -32,7 +31,6 @@ import psutil
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile, write_pid_to_pidfile
 
 from airflow import __version__ as airflow_version, settings
-from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.cli.cli_config import ARG_PID, ARG_VERBOSE, ActionCommand, Arg
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -57,29 +55,6 @@ EDGE_WORKER_HEADER = "\n".join(
         r"",
     ]
 )
-
-
-@providers_configuration_loaded
-def force_use_internal_api_on_edge_worker():
-    """
-    Ensure that the environment is configured for the internal API without needing to declare it outside.
-
-    This is only required for an Edge worker and must to be done before the Click CLI wrapper is initiated.
-    That is because the CLI wrapper will attempt to establish a DB connection, which will fail before the
-    function call can take effect. In an Edge worker, we need to "patch" the environment before starting.
-    """
-    if "airflow" in sys.argv[0] and sys.argv[1:3] == ["edge", "worker"]:
-        api_url = conf.get("edge", "api_url")
-        if not api_url:
-            raise SystemExit("Error: API URL is not configured, please correct configuration.")
-        logger.info("Starting worker with API endpoint %s", api_url)
-        # export Edge API to be used for internal API
-        os.environ["AIRFLOW_ENABLE_AIP_44"] = "True"
-        os.environ["AIRFLOW__CORE__INTERNAL_API_URL"] = api_url
-        InternalApiConfig.set_use_internal_api("edge-worker")
-
-
-force_use_internal_api_on_edge_worker()
 
 
 def _hostname() -> str:
@@ -153,6 +128,7 @@ class _EdgeWorkerCli:
         self.hostname = hostname
         self.queues = queues
         self.concurrency = concurrency
+        self.free_concurrency = concurrency
 
     @staticmethod
     def signal_handler(sig, frame):
@@ -171,6 +147,7 @@ class _EdgeWorkerCli:
             "airflow_version": airflow_version,
             "edge_provider_version": edge_provider_version,
             "concurrency": self.concurrency,
+            "free_concurrency": self.free_concurrency,
         }
 
     def start(self):
@@ -204,7 +181,7 @@ class _EdgeWorkerCli:
     def loop(self):
         """Run a loop of scheduling and monitoring tasks."""
         new_job = False
-        if not _EdgeWorkerCli.drain and len(self.jobs) < self.concurrency:
+        if not _EdgeWorkerCli.drain and self.free_concurrency > 0:
             new_job = self.fetch_job()
         self.check_running_jobs()
 
@@ -218,7 +195,9 @@ class _EdgeWorkerCli:
     def fetch_job(self) -> bool:
         """Fetch and start a new job from central site."""
         logger.debug("Attempting to fetch a new job...")
-        edge_job = EdgeJob.reserve_task(self.hostname, self.queues)
+        edge_job = EdgeJob.reserve_task(
+            worker_name=self.hostname, free_concurrency=self.free_concurrency, queues=self.queues
+        )
         if edge_job:
             logger.info("Received job: %s", edge_job)
             env = os.environ.copy()
@@ -236,6 +215,7 @@ class _EdgeWorkerCli:
 
     def check_running_jobs(self) -> None:
         """Check which of the running tasks/jobs are completed and report back."""
+        used_concurrency = 0
         for i in range(len(self.jobs) - 1, -1, -1):
             job = self.jobs[i]
             job.process.poll()
@@ -247,6 +227,9 @@ class _EdgeWorkerCli:
                 else:
                     logger.error("Job failed: %s", job.edge_job)
                     EdgeJob.set_state(job.edge_job.key, TaskInstanceState.FAILED)
+            else:
+                used_concurrency += job.edge_job.concurrency_slots
+
             if job.logfile.exists() and job.logfile.stat().st_size > job.logsize:
                 with job.logfile.open("rb") as logfile:
                     push_log_chunk_size = conf.getint("edge", "push_log_chunk_size")
@@ -266,6 +249,8 @@ class _EdgeWorkerCli:
                             log_chunk_time=datetime.now(),
                             log_chunk_data=chunk_data,
                         )
+
+        self.free_concurrency = self.concurrency - used_concurrency
 
     def heartbeat(self) -> None:
         """Report liveness state of worker to central site with stats."""

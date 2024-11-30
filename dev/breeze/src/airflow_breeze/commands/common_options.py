@@ -145,12 +145,6 @@ option_debug_resources = click.option(
     help="Whether to show resource information while running in parallel.",
     envvar="DEBUG_RESOURCES",
 )
-option_database_isolation = click.option(
-    "--database-isolation",
-    help="Run airflow in database isolation mode.",
-    is_flag=True,
-    envvar="DATABASE_ISOLATION",
-)
 option_docker_host = click.option(
     "--docker-host",
     help="Optional - docker host to use when running docker commands. "
