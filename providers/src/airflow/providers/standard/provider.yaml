@@ -50,6 +50,7 @@ operators:
       - airflow.providers.standard.operators.python
       - airflow.providers.standard.operators.generic_transfer
       - airflow.providers.standard.operators.trigger_dagrun
+      - airflow.providers.standard.operators.latest_only
 
 sensors:
   - integration-name: Standard
