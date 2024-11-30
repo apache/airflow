@@ -31,7 +31,6 @@ from urllib.parse import urljoin
 
 import pendulum
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
@@ -39,13 +38,12 @@ from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
 from airflow.utils.log.logging_mixin import SetContextPropagate
 from airflow.utils.log.non_caching_file_handler import NonCachingRotatingFileHandler
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from pendulum import DateTime
 
-    from airflow.models import DagRun
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
@@ -265,12 +263,9 @@ class FileTaskHandler(logging.Handler):
         if self.handler:
             self.handler.close()
 
-    @staticmethod
-    @internal_api_call
     @provide_session
-    def _render_filename_db_access(
-        *, ti: TaskInstance | TaskInstancePydantic, try_number: int, session=None
-    ) -> tuple[DagRun, TaskInstance | TaskInstancePydantic, str | None, str | None]:
+    def _render_filename(self, ti: TaskInstance, try_number: int, session=NEW_SESSION) -> str:
+        """Return the worker log filename."""
         ti = _ensure_ti(ti, session)
         dag_run = ti.get_dagrun(session=session)
         template = dag_run.get_log_template(session=session).filename
@@ -283,11 +278,6 @@ class FileTaskHandler(logging.Handler):
                 context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
             context["try_number"] = try_number
             filename = render_template_to_string(jinja_tpl, context)
-        return dag_run, ti, str_tpl, filename
-
-    def _render_filename(self, ti: TaskInstance | TaskInstancePydantic, try_number: int) -> str:
-        """Return the worker log filename."""
-        dag_run, ti, str_tpl, filename = self._render_filename_db_access(ti=ti, try_number=try_number)
         if filename:
             return filename
         if str_tpl:
