@@ -58,7 +58,7 @@ class TestLogsApiRoutes:
         log_data = PushLogsBody(
             log_chunk_data="This is Lorem Ipsum log data", log_chunk_time=timezone.utcnow()
         )
-        with create_session(session) as session:
+        with create_session() as session:
             push_logs(
                 dag_id=DAG_ID,
                 task_id=TASK_ID,
