@@ -974,8 +974,15 @@ def configure_cluster(
             output=None,
         )
         if return_code == 0:
-            get_console().print("\n[warning]NEXT STEP:[/][info] You might now build your k8s image by:\n")
-            get_console().print("\nbreeze k8s build-k8s-image\n")
+            get_console().print(
+                "\n[warning]NEXT STEP:[/][info] You might now build your k8s image "
+                "with all latest dependencies:\n"
+            )
+            get_console().print("\n breeze k8s build-k8s-image --rebuild-base-image\n")
+            get_console().print(
+                "\n[info]Later you can build image without --rebuild-base-image until "
+                "airflow dependencies change (to speed up rebuilds).\n"
+            )
         sys.exit(return_code)
 
 
