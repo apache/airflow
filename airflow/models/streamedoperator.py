@@ -20,7 +20,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from asyncio import TimeoutError, iscoroutinefunction, wait_for
+from multiprocessing import TimeoutError
+from asyncio import iscoroutinefunction, wait_for, ensure_future
 from datetime import timedelta
 from math import ceil
 from multiprocessing.pool import ThreadPool
@@ -31,20 +32,21 @@ from airflow import XComArg
 from airflow.exceptions import (
     AirflowException,
     AirflowTaskTimeout,
-    AirflowRescheduleTaskInstanceException,
-    TaskDeferred,
+    TaskDeferred, AirflowRescheduleException,
 )
 from airflow.models.abstractoperator import DEFAULT_TASK_EXECUTION_TIMEOUT
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.expandinput import (
     ExpandInput,
     _needs_run_time_resolution,
-    is_mappable,
+    is_mappable, OperatorExpandArgument, DictOfListsExpandInput,
 )
+from airflow.models.mappedoperator import validate_mapping_kwargs, ensure_xcomarg_return_value
 from airflow.models.taskinstance import TaskInstance
-from airflow.triggers.base import run_trigger
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils import timezone
 from airflow.utils.context import Context, context_get_outlet_events
+from airflow.utils.helpers import prevent_duplicates
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.task_instance_session import get_current_task_instance_session
@@ -52,6 +54,24 @@ from airflow.utils.task_instance_session import get_current_task_instance_sessio
 if TYPE_CHECKING:
     import jinja2
     from sqlalchemy.orm import Session
+
+
+# TODO: Check _run_inline_trigger method from DAG, could be refactored so it uses this method
+async def run_trigger(trigger: BaseTrigger) -> TriggerEvent | None:
+    async for event in trigger.run():
+        return event
+
+
+class AirflowRescheduleTaskInstanceException(AirflowRescheduleException):
+    """
+    Raise when the task should be re-scheduled for a specific TaskInstance at a later time.
+
+    :param task_instance: The task instance that should be rescheduled
+    """
+
+    def __init__(self, task: TaskInstance):
+        super().__init__(reschedule_date=task.next_retry_datetime())
+        self.task = task
 
 
 class OperatorExecutor(LoggingMixin):
@@ -89,31 +109,30 @@ class OperatorExecutor(LoggingMixin):
         return {**self.__context, **{"ti": self.task_instance}}
 
     async def _run_callable(self, method: Callable, *args, **kwargs):
-        while self.task_instance.try_number <= self.operator.retries:
-            try:
-                outlet_events = context_get_outlet_events(self.context)
-                callable_runner = ExecutionCallableRunner(
-                    func=method, outlet_events=outlet_events, logger=self.log
+        try:
+            outlet_events = context_get_outlet_events(self.context)
+            callable_runner = ExecutionCallableRunner(
+                func=method, outlet_events=outlet_events, logger=self.log
+            )
+            if iscoroutinefunction(method):
+                return await callable_runner.run(*args, **kwargs)
+            return callable_runner.run(*args, **kwargs)
+        except AirflowException as e:
+            if self.task_instance.next_try_number > self.operator.retries:
+                self.log.error(
+                    "Max number of attempts for %s with map_index %s failed due to: %s",
+                    type(self.operator).__name__,
+                    self.task_instance.map_index,
+                    e,
                 )
-                if iscoroutinefunction(method):
-                    return await callable_runner.run(*args, **kwargs)
-                return callable_runner.run(*args, **kwargs)
-            except AirflowException as e:
-                if self.task_instance.next_try_number > self.operator.retries:
-                    self.log.error(
-                        "Max number of attempts for %s with map_index %s failed due to: %s",
-                        type(self.operator).__name__,
-                        self.task_instance.map_index,
-                        e,
-                    )
-                    raise e
+                raise e
 
-                self.task_instance.try_number += 1
-                self.task_instance.end_date = timezone.utcnow()
+            self.task_instance.try_number += 1
+            self.task_instance.end_date = timezone.utcnow()
 
-                raise AirflowRescheduleTaskInstanceException(
-                    task_instance=self.task_instance
-                )
+            raise AirflowRescheduleTaskInstanceException(
+                task=self.task_instance
+            )
 
     async def _run_deferrable(self, context: Context, task_deferred: TaskDeferred):
         event = await run_trigger(task_deferred.trigger)
@@ -256,7 +275,7 @@ class StreamedOperator(BaseOperator):
         # Always open new event loop as this is executed in multithreaded
         loop = asyncio.new_event_loop()
         try:
-            return loop.run_until_complete(self._run_operator(context, task))
+            return loop.run_until_complete(ensure_future(self._run_operator(context, task), loop=loop))
         finally:
             loop.close()
 
@@ -329,7 +348,12 @@ class StreamedOperator(BaseOperator):
             operator=operator,
             context=context,
             task_instance=task_instance,
-        ).run(operator.execute)
+            timeout=self.timeout,
+        ).run(
+            lambda _context: operator.execute.__wrapped__(
+                self=operator, context=_context
+            )
+        )  # TODO: change back to operator.execute once ExecutorSafeguard is fixed
         self.log.debug("result: %s", result)
         self.log.debug("do_xcom_push: %s", operator.do_xcom_push)
         if operator.do_xcom_push:
@@ -364,3 +388,34 @@ class StreamedOperator(BaseOperator):
 
         if self.do_xcom_push:
             return results
+
+
+def stream(self, **mapped_kwargs: OperatorExpandArgument) -> StreamedOperator:
+    if not mapped_kwargs:
+        raise TypeError("no arguments to expand against")
+    validate_mapping_kwargs(self.operator_class, "stream", mapped_kwargs)
+    prevent_duplicates(
+        self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified"
+    )
+
+    expand_input = DictOfListsExpandInput(mapped_kwargs)
+    ensure_xcomarg_return_value(expand_input.value)
+
+    kwargs = {}
+
+    for parameter_name in BaseOperator._comps:
+        parameter_value = self.kwargs.get(parameter_name)
+        if parameter_value:
+            kwargs[parameter_name] = parameter_value
+
+    # We don't retry the whole stream operator, we retry the individual tasks
+    kwargs["retries"] = 0
+    # We don't want to time out the whole stream operator, we only time out the individual tasks
+    kwargs["timeout"] = kwargs.pop("execution_timeout", None)
+
+    return StreamedOperator(
+        **kwargs,
+        operator_class=self.operator_class,
+        expand_input=expand_input,
+        partial_kwargs=self.kwargs,
+    )
