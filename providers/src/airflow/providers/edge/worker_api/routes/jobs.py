@@ -20,7 +20,7 @@ from __future__ import annotations
 from ast import literal_eval
 from typing import Annotated
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from airflow.providers.edge.models.edge_job import EdgeJobModel
 from airflow.providers.edge.worker_api.auth import jwt_token_authorization_rest
@@ -113,15 +113,15 @@ def state(
     session: SessionDep,
 ) -> None:
     """Update the state of a job running on the edge worker."""
-    query = select(EdgeJobModel).where(
-        EdgeJobModel.dag_id == dag_id,
-        EdgeJobModel.task_id == task_id,
-        EdgeJobModel.run_id == run_id,
-        EdgeJobModel.map_index == map_index,
-        EdgeJobModel.try_number == try_number,
+    query = (
+        update(EdgeJobModel)
+        .where(
+            EdgeJobModel.dag_id == dag_id,
+            EdgeJobModel.task_id == task_id,
+            EdgeJobModel.run_id == run_id,
+            EdgeJobModel.map_index == map_index,
+            EdgeJobModel.try_number == try_number,
+        )
+        .values(state=state, last_update=timezone.utcnow())
     )
-    job: EdgeJobModel = session.scalar(query)
-    if job:
-        job.state = state
-        job.last_update = timezone.utcnow()
-        session.commit()
+    session.execute(query)
