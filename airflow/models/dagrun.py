@@ -87,7 +87,6 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
-    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
     from airflow.typing_compat import Literal
     from airflow.utils.types import ArgNotSet
@@ -719,7 +718,7 @@ class DagRun(Base, LoggingMixin):
         session: Session = NEW_SESSION,
         *,
         map_index: int = -1,
-    ) -> TI | TaskInstancePydantic | None:
+    ) -> TI | None:
         """
         Return the task instance specified by task_id for this dag run.
 
@@ -743,7 +742,7 @@ class DagRun(Base, LoggingMixin):
         task_id: str,
         session: Session = NEW_SESSION,
         map_index: int = -1,
-    ) -> TI | TaskInstancePydantic | None:
+    ) -> TI | None:
         """
         Return the task instance specified by task_id for this dag run.
 
