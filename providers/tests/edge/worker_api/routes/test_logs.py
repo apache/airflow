@@ -25,6 +25,7 @@ from airflow.providers.edge.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge.worker_api.datamodels import PushLogsBody
 from airflow.providers.edge.worker_api.routes.logs import logfile_path, push_logs
 from airflow.utils import timezone
+from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -57,14 +58,16 @@ class TestLogsApiRoutes:
         log_data = PushLogsBody(
             log_chunk_data="This is Lorem Ipsum log data", log_chunk_time=timezone.utcnow()
         )
-        push_logs(
-            dag_id=DAG_ID,
-            task_id=TASK_ID,
-            run_id=RUN_ID,
-            try_number=1,
-            map_index=-1,
-            body=log_data,
-        )
+        with create_session(session) as session:
+            push_logs(
+                dag_id=DAG_ID,
+                task_id=TASK_ID,
+                run_id=RUN_ID,
+                try_number=1,
+                map_index=-1,
+                body=log_data,
+                session=session,
+            )
         logs: list[EdgeLogsModel] = session.query(EdgeLogsModel).all()
         assert len(logs) == 1
         assert logs[0].dag_id == DAG_ID

@@ -31,10 +31,11 @@ from airflow.providers.edge.worker_api.routes._v2_compat import (
     AirflowRouter,
     Body,
     Depends,
+    SessionDep,
     create_openapi_http_exception_doc,
     status,
 )
-from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 logs_router = AirflowRouter(tags=["Logs"], prefix="/logs")
 
@@ -104,20 +105,19 @@ def push_logs(
             description="The worker remote has no access to log sink and with this can send log chunks to the central site.",
         ),
     ],
+    session: SessionDep,
 ) -> None:
     """Push an incremental log chunk from Edge Worker to central site."""
-    with create_session() as session:
-        log_chunk = EdgeLogsModel(
-            dag_id=dag_id,
-            task_id=task_id,
-            run_id=run_id,
-            map_index=map_index,
-            try_number=try_number,
-            log_chunk_time=body.log_chunk_time,
-            log_chunk_data=body.log_chunk_data,
-        )
-        session.add(log_chunk)
-        session.commit()
+    log_chunk = EdgeLogsModel(
+        dag_id=dag_id,
+        task_id=task_id,
+        run_id=run_id,
+        map_index=map_index,
+        try_number=try_number,
+        log_chunk_time=body.log_chunk_time,
+        log_chunk_data=body.log_chunk_data,
+    )
+    session.add(log_chunk)
     # Write logs to local file to make them accessible
     task = TaskInstanceKey(
         dag_id=dag_id, task_id=task_id, run_id=run_id, try_number=try_number, map_index=map_index

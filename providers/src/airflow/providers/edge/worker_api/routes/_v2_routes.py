@@ -298,6 +298,7 @@ def push_logs_v2(
         request_obj = PushLogsBody(
             log_chunk_data=body["log_chunk_data"], log_chunk_time=body["log_chunk_time"]
         )
-        push_logs(dag_id, task_id, run_id, try_number, int(map_index), request_obj)
+        with create_session() as session:
+            push_logs(dag_id, task_id, run_id, try_number, int(map_index), request_obj, session)
     except HTTPException as e:
         return e.to_response()  # type: ignore[attr-defined]
