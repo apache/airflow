@@ -26,6 +26,15 @@
 
 Changelog
 ---------
+
+0.8.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Migrate worker registration and heartbeat to FastAPI.``
+
 0.7.1pre0
 .........
 
