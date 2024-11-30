@@ -25,15 +25,17 @@ import type {
   GetDagAssetQueuedEventResponse,
   DeleteDagAssetQueuedEventData,
   DeleteDagAssetQueuedEventResponse,
-  HistoricalMetricsData,
-  HistoricalMetricsResponse,
-  RecentDagRunsData,
-  RecentDagRunsResponse,
   GetConfigsResponse,
   GetConfigData,
   GetConfigResponse,
   GetConfigValueData,
   GetConfigValueResponse,
+  RecentDagRunsData,
+  RecentDagRunsResponse,
+  HistoricalMetricsData,
+  HistoricalMetricsResponse,
+  GraphDataData,
+  GraphDataResponse2,
   ListBackfillsData,
   ListBackfillsResponse,
   CreateBackfillData,
@@ -170,6 +172,8 @@ import type {
   GetVariablesResponse,
   PostVariableData,
   PostVariableResponse,
+  ReparseDagFileData,
+  ReparseDagFileResponse,
   GetHealthResponse,
   GetVersionResponse,
 } from "./types.gen";
@@ -508,77 +512,6 @@ export class AssetService {
   }
 }
 
-export class DashboardService {
-  /**
-   * Historical Metrics
-   * Return cluster activity historical metrics.
-   * @param data The data for the request.
-   * @param data.startDate
-   * @param data.endDate
-   * @returns HistoricalMetricDataResponse Successful Response
-   * @throws ApiError
-   */
-  public static historicalMetrics(
-    data: HistoricalMetricsData,
-  ): CancelablePromise<HistoricalMetricsResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/ui/dashboard/historical_metrics_data",
-      query: {
-        start_date: data.startDate,
-        end_date: data.endDate,
-      },
-      errors: {
-        400: "Bad Request",
-        422: "Validation Error",
-      },
-    });
-  }
-}
-
-export class DagsService {
-  /**
-   * Recent Dag Runs
-   * Get recent DAG runs.
-   * @param data The data for the request.
-   * @param data.dagRunsLimit
-   * @param data.limit
-   * @param data.offset
-   * @param data.tags
-   * @param data.owners
-   * @param data.dagIdPattern
-   * @param data.dagDisplayNamePattern
-   * @param data.onlyActive
-   * @param data.paused
-   * @param data.lastDagRunState
-   * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
-   * @throws ApiError
-   */
-  public static recentDagRuns(
-    data: RecentDagRunsData = {},
-  ): CancelablePromise<RecentDagRunsResponse> {
-    return __request(OpenAPI, {
-      method: "GET",
-      url: "/ui/dags/recent_dag_runs",
-      query: {
-        dag_runs_limit: data.dagRunsLimit,
-        limit: data.limit,
-        offset: data.offset,
-        tags: data.tags,
-        owners: data.owners,
-        dag_id_pattern: data.dagIdPattern,
-        dag_display_name_pattern: data.dagDisplayNamePattern,
-        only_active: data.onlyActive,
-        paused: data.paused,
-        last_dag_run_state: data.lastDagRunState,
-      },
-      errors: {
-        422: "Validation Error",
-      },
-    });
-  }
-}
-
 export class ConfigService {
   /**
    * Get Configs
@@ -653,6 +586,109 @@ export class ConfigService {
         403: "Forbidden",
         404: "Not Found",
         406: "Not Acceptable",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class DagsService {
+  /**
+   * Recent Dag Runs
+   * Get recent DAG runs.
+   * @param data The data for the request.
+   * @param data.dagRunsLimit
+   * @param data.limit
+   * @param data.offset
+   * @param data.tags
+   * @param data.owners
+   * @param data.dagIdPattern
+   * @param data.dagDisplayNamePattern
+   * @param data.onlyActive
+   * @param data.paused
+   * @param data.lastDagRunState
+   * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static recentDagRuns(
+    data: RecentDagRunsData = {},
+  ): CancelablePromise<RecentDagRunsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/dags/recent_dag_runs",
+      query: {
+        dag_runs_limit: data.dagRunsLimit,
+        limit: data.limit,
+        offset: data.offset,
+        tags: data.tags,
+        owners: data.owners,
+        dag_id_pattern: data.dagIdPattern,
+        dag_display_name_pattern: data.dagDisplayNamePattern,
+        only_active: data.onlyActive,
+        paused: data.paused,
+        last_dag_run_state: data.lastDagRunState,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class DashboardService {
+  /**
+   * Historical Metrics
+   * Return cluster activity historical metrics.
+   * @param data The data for the request.
+   * @param data.startDate
+   * @param data.endDate
+   * @returns HistoricalMetricDataResponse Successful Response
+   * @throws ApiError
+   */
+  public static historicalMetrics(
+    data: HistoricalMetricsData,
+  ): CancelablePromise<HistoricalMetricsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/dashboard/historical_metrics_data",
+      query: {
+        start_date: data.startDate,
+        end_date: data.endDate,
+      },
+      errors: {
+        400: "Bad Request",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class GraphService {
+  /**
+   * Graph Data
+   * Get Graph Data.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.root
+   * @param data.includeUpstream
+   * @param data.includeDownstream
+   * @returns GraphDataResponse Successful Response
+   * @throws ApiError
+   */
+  public static graphData(
+    data: GraphDataData,
+  ): CancelablePromise<GraphDataResponse2> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/graph/graph_data",
+      query: {
+        dag_id: data.dagId,
+        root: data.root,
+        include_upstream: data.includeUpstream,
+        include_downstream: data.includeDownstream,
+      },
+      errors: {
+        400: "Bad Request",
         422: "Validation Error",
       },
     });
@@ -2930,10 +2966,38 @@ export class VariableService {
   }
 }
 
+export class DagParsingService {
+  /**
+   * Reparse Dag File
+   * Request re-parsing a DAG file.
+   * @param data The data for the request.
+   * @param data.fileToken
+   * @returns null Successful Response
+   * @throws ApiError
+   */
+  public static reparseDagFile(
+    data: ReparseDagFileData,
+  ): CancelablePromise<ReparseDagFileResponse> {
+    return __request(OpenAPI, {
+      method: "PUT",
+      url: "/public/parseDagFile/{file_token}",
+      path: {
+        file_token: data.fileToken,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
 export class MonitorService {
   /**
    * Get Health
-   * @returns HealthInfoSchema Successful Response
+   * @returns HealthInfoResponse Successful Response
    * @throws ApiError
    */
   public static getHealth(): CancelablePromise<GetHealthResponse> {

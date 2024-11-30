@@ -19,34 +19,34 @@ from __future__ import annotations
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
-class BaseInfoSchema(BaseModel):
-    """Base status field for metadatabase and scheduler."""
+class BaseInfoResponse(BaseModel):
+    """Base info serializer for responses."""
 
     status: str | None
 
 
-class SchedulerInfoSchema(BaseInfoSchema):
-    """Schema for Scheduler info."""
+class SchedulerInfoResponse(BaseInfoResponse):
+    """Scheduler info serializer for responses."""
 
     latest_scheduler_heartbeat: str | None
 
 
-class TriggererInfoSchema(BaseInfoSchema):
-    """Schema for Triggerer info."""
+class TriggererInfoResponse(BaseInfoResponse):
+    """Triggerer info serializer for responses."""
 
     latest_triggerer_heartbeat: str | None
 
 
-class DagProcessorInfoSchema(BaseInfoSchema):
-    """Schema for DagProcessor info."""
+class DagProcessorInfoResponse(BaseInfoResponse):
+    """DagProcessor info serializer for responses."""
 
     latest_dag_processor_heartbeat: str | None
 
 
-class HealthInfoSchema(BaseModel):
-    """Schema for the Health endpoint."""
+class HealthInfoResponse(BaseModel):
+    """Health serializer for responses."""
 
-    metadatabase: BaseInfoSchema
-    scheduler: SchedulerInfoSchema
-    triggerer: TriggererInfoSchema
-    dag_processor: DagProcessorInfoSchema
+    metadatabase: BaseInfoResponse
+    scheduler: SchedulerInfoResponse
+    triggerer: TriggererInfoResponse
+    dag_processor: DagProcessorInfoResponse | None = None

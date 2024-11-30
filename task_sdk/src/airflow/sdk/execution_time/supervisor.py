@@ -31,6 +31,7 @@ import weakref
 from collections.abc import Generator
 from contextlib import suppress
 from datetime import datetime, timezone
+from http import HTTPStatus
 from socket import socket, socketpair
 from typing import TYPE_CHECKING, BinaryIO, Callable, ClassVar, Literal, NoReturn, TextIO, cast, overload
 from uuid import UUID
@@ -42,7 +43,7 @@ import psutil
 import structlog
 from pydantic import TypeAdapter
 
-from airflow.sdk.api.client import Client
+from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import IntermediateTIState, TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
     DeferTask,
@@ -54,18 +55,22 @@ from airflow.sdk.execution_time.comms import (
 )
 
 if TYPE_CHECKING:
-    from structlog.typing import FilteringBoundLogger
+    from selectors import SelectorKey
 
-    from airflow.sdk.api.datamodels.activities import ExecuteTaskActivity
+    from structlog.typing import FilteringBoundLogger, WrappedLogger
+
 
 __all__ = ["WatchedSubprocess", "supervise"]
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="supervisor")
 
 # TODO: Pull this from config
-SLOWEST_HEARTBEAT_INTERVAL: int = 30
+#  (previously `[scheduler] local_task_job_heartbeat_sec` with the following as fallback if it is 0:
+#  `[scheduler] scheduler_zombie_task_threshold`)
+HEARTBEAT_THRESHOLD: int = 30
 # Don't heartbeat more often than this
-FASTEST_HEARTBEAT_INTERVAL: int = 5
+MIN_HEARTBEAT_INTERVAL: int = 5
+MAX_FAILED_HEARTBEATS: int = 3
 
 
 @overload
@@ -266,7 +271,13 @@ class WatchedSubprocess:
     _terminal_state: str | None = None
     _final_state: str | None = None
 
-    _last_heartbeat: float = 0
+    _last_successful_heartbeat: float = attrs.field(default=0, init=False)
+    _last_heartbeat_attempt: float = attrs.field(default=0, init=False)
+
+    # After the failure of a heartbeat, we'll increment this counter. If it reaches `MAX_FAILED_HEARTBEATS`, we
+    # will kill the process. This is to handle temporary network issues etc. ensuring that the process
+    # does not hang around forever.
+    failed_heartbeats: int = attrs.field(default=0, init=False)
 
     selector: selectors.BaseSelector = attrs.field(factory=selectors.DefaultSelector)
 
@@ -282,6 +293,7 @@ class WatchedSubprocess:
         ti: TaskInstance,
         client: Client,
         target: Callable[[], None] = _subprocess_main,
+        logger: FilteringBoundLogger | None = None,
     ) -> WatchedSubprocess:
         """Fork and start a new subprocess to execute the given task."""
         # Create socketpairs/"pipes" to connect to the stdin and out from the subprocess
@@ -296,6 +308,13 @@ class WatchedSubprocess:
         pid = os.fork()
         if pid == 0:
             # Parent ends of the sockets are closed by the OS as they are set as non-inheritable
+
+            # Python GC should delete these for us, but lets make double sure that we don't keep anything
+            # around in the forked processes, especially things that might involve open files or sockets!
+            del path
+            del client
+            del ti
+            del logger
 
             # Run the child entrypoint
             _fork_main(child_stdin, child_stdout, child_stderr, child_logs.fileno(), target)
@@ -313,14 +332,19 @@ class WatchedSubprocess:
         # reason)
         try:
             client.task_instances.start(ti.id, pid, datetime.now(tz=timezone.utc))
-            proc._last_heartbeat = time.monotonic()
+            proc._last_successful_heartbeat = time.monotonic()
         except Exception:
             # On any error kill that subprocess!
             proc.kill(signal.SIGKILL)
             raise
 
+        logger = logger or cast("FilteringBoundLogger", structlog.get_logger(logger_name="task").bind())
         proc._register_pipe_readers(
-            stdout=read_stdout, stderr=read_stderr, requests=read_msgs, logs=read_logs
+            logger=logger,
+            stdout=read_stdout,
+            stderr=read_stderr,
+            requests=read_msgs,
+            logs=read_logs,
         )
 
         # Close the remaining parent-end of the sockets we've passed to the child via fork. We still have the
@@ -331,15 +355,14 @@ class WatchedSubprocess:
         proc._send_startup_message(ti, path, child_comms)
         return proc
 
-    def _register_pipe_readers(self, stdout: socket, stderr: socket, requests: socket, logs: socket):
+    def _register_pipe_readers(
+        self, logger: FilteringBoundLogger, stdout: socket, stderr: socket, requests: socket, logs: socket
+    ):
         """Register handlers for subprocess communication channels."""
         # self.selector is a way of registering a handler/callback to be called when the given IO channel has
         # activity to read on (https://www.man7.org/linux/man-pages/man2/select.2.html etc, but better
         # alternatives are used automatically) -- this is a way of having "event-based" code, but without
         # needing full async, to read and process output from each socket as it is received.
-
-        # TODO: Use logging providers to handle the chunked upload for us
-        logger: FilteringBoundLogger = structlog.get_logger(logger_name="task").bind()
 
         self.selector.register(stdout, selectors.EVENT_READ, self._create_socket_handler(logger, "stdout"))
         self.selector.register(
@@ -369,7 +392,7 @@ class WatchedSubprocess:
 
     def _send_startup_message(self, ti: TaskInstance, path: str | os.PathLike[str], child_comms: socket):
         """Send startup message to the subprocess."""
-        msg = StartupDetails(
+        msg = StartupDetails.model_construct(
             ti=ti,
             file=str(path),
             requests_fd=child_comms.fileno(),
@@ -412,37 +435,54 @@ class WatchedSubprocess:
 
         This function:
 
-        - Polls the subprocess for output
-        - Sends heartbeats to the client to keep the task alive
-        - Checks if the subprocess has exited
+        - Waits for activity on file objects (e.g., subprocess stdout, stderr, logs, requests) using the selector.
+        - Processes events triggered on the monitored file objects, such as data availability or EOF.
+        - Sends heartbeats to ensure the process is alive and checks if the subprocess has exited.
         """
-        # Until we have a selector for the process, don't poll for more than 10s, just in case it exists but
-        # doesn't produce any output
-        max_poll_interval = 10
-
         while self._exit_code is None or len(self.selector.get_map()):
-            last_heartbeat_ago = time.monotonic() - self._last_heartbeat
+            last_heartbeat_ago = time.monotonic() - self._last_successful_heartbeat
             # Monitor the task to see if it's done. Wait in a syscall (`select`) for as long as possible
             # so we notice the subprocess finishing as quick as we can.
             max_wait_time = max(
                 0,  # Make sure this value is never negative,
                 min(
                     # Ensure we heartbeat _at most_ 75% through time the zombie threshold time
-                    SLOWEST_HEARTBEAT_INTERVAL - last_heartbeat_ago * 0.75,
-                    max_poll_interval,
+                    HEARTBEAT_THRESHOLD - last_heartbeat_ago * 0.75,
+                    MIN_HEARTBEAT_INTERVAL,
                 ),
             )
+            # Block until events are ready or the timeout is reached
+            # This listens for activity (e.g., subprocess output) on registered file objects
             events = self.selector.select(timeout=max_wait_time)
-            for key, _ in events:
-                socket_handler = key.data
-                need_more = socket_handler(key.fileobj)
-
-                if not need_more:
-                    self.selector.unregister(key.fileobj)
-                    key.fileobj.close()  # type: ignore[union-attr]
+            self._process_file_object_events(events)
 
             self._check_subprocess_exit()
             self._send_heartbeat_if_needed()
+
+    def _process_file_object_events(self, events: list[tuple[SelectorKey, int]]):
+        """
+        Process selector events by invoking handlers for each file object.
+
+        For each file object event, this method retrieves the associated handler and processes
+        the event. If the handler indicates that the file object no longer needs
+        monitoring (e.g., EOF or closed), the file object is unregistered and closed.
+        """
+        for key, _ in events:
+            # Retrieve the handler responsible for processing this file object (e.g., stdout, stderr)
+            socket_handler = key.data
+
+            # Example of handler behavior:
+            # If the subprocess writes "Hello, World!" to stdout:
+            # - `socket_handler` reads and processes the message.
+            # - If EOF is reached, the handler returns False to signal no more reads are expected.
+            need_more = socket_handler(key.fileobj)
+
+            # If the handler signals that the file object is no longer needed (EOF, closed, etc.)
+            # unregister it from the selector to stop monitoring; `wait()` blocks until all selectors
+            # are removed.
+            if not need_more:
+                self.selector.unregister(key.fileobj)
+                key.fileobj.close()  # type: ignore[union-attr]
 
     def _check_subprocess_exit(self):
         """Check if the subprocess has exited."""
@@ -455,14 +495,48 @@ class WatchedSubprocess:
 
     def _send_heartbeat_if_needed(self):
         """Send a heartbeat to the client if heartbeat interval has passed."""
-        if time.monotonic() - self._last_heartbeat >= FASTEST_HEARTBEAT_INTERVAL:
-            try:
-                self.client.task_instances.heartbeat(self.ti_id, pid=self._process.pid)
-                self._last_heartbeat = time.monotonic()
-            except Exception:
-                log.warning("Failed to send heartbeat", exc_info=True)
-                # TODO: If we couldn't heartbeat for X times the interval, kill ourselves
-                pass
+        # Respect the minimum interval between heartbeat attempts
+        if (time.monotonic() - self._last_heartbeat_attempt) < MIN_HEARTBEAT_INTERVAL:
+            return
+
+        self._last_heartbeat_attempt = time.monotonic()
+        try:
+            self.client.task_instances.heartbeat(self.ti_id, pid=self._process.pid)
+            # Update the last heartbeat time on success
+            self._last_successful_heartbeat = time.monotonic()
+
+            # Reset the counter on success
+            self.failed_heartbeats = 0
+        except ServerResponseError as e:
+            if e.response.status_code in {HTTPStatus.NOT_FOUND, HTTPStatus.CONFLICT}:
+                log.error(
+                    "Server indicated the task shouldn't be running anymore",
+                    detail=e.detail,
+                    status_code=e.response.status_code,
+                )
+                self.kill(signal.SIGTERM)
+            else:
+                # If we get any other error, we'll just log it and try again next time
+                self._handle_heartbeat_failures()
+        except Exception:
+            self._handle_heartbeat_failures()
+
+    def _handle_heartbeat_failures(self):
+        """Increment the failed heartbeats counter and kill the process if too many failures."""
+        self.failed_heartbeats += 1
+        log.warning(
+            "Failed to send heartbeat. Will be retried",
+            failed_heartbeats=self.failed_heartbeats,
+            ti_id=self.ti_id,
+            max_retries=MAX_FAILED_HEARTBEATS,
+            exc_info=True,
+        )
+        # If we've failed to heartbeat too many times, kill the process
+        if self.failed_heartbeats >= MAX_FAILED_HEARTBEATS:
+            log.error(
+                "Too many failed heartbeats; terminating process", failed_heartbeats=self.failed_heartbeats
+            )
+            self.kill(signal.SIGTERM)
 
     @property
     def final_state(self):
@@ -630,25 +704,57 @@ def forward_to_log(target_log: FilteringBoundLogger, level: int) -> Generator[No
             target_log.log(level, msg)
 
 
-def supervise(activity: ExecuteTaskActivity, server: str | None = None, dry_run: bool = False) -> int:
+def supervise(
+    *,
+    ti: TaskInstance,
+    dag_path: str | os.PathLike[str],
+    token: str,
+    server: str | None = None,
+    dry_run: bool = False,
+    log_path: str | None = None,
+) -> int:
     """
     Run a single task execution to completion.
 
     Returns the exit code of the process
     """
     # One or the other
-    if (server == "") ^ dry_run:
+    if (not server) ^ dry_run:
         raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
 
-    if not activity.path:
-        raise ValueError("path filed of activity missing")
+    if not dag_path:
+        raise ValueError("dag_path is required")
+
+    if (str_path := os.fspath(dag_path)).startswith("DAGS_FOLDER/"):
+        from airflow.settings import DAGS_FOLDER
+
+        dag_path = str_path.replace("DAGS_FOLDER/", DAGS_FOLDER + "/", 1)
 
     limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
-    client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=activity.token)
+    client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=token)
 
     start = time.monotonic()
 
-    process = WatchedSubprocess.start(activity.path, activity.ti, client=client)
+    # TODO: Use logging providers to handle the chunked upload for us etc.
+    logger: FilteringBoundLogger | None = None
+    if log_path:
+        # If we are told to write logs to a file, redirect the task logger to it.
+        from airflow.sdk.log import init_log_file, logging_processors
+
+        try:
+            log_file = init_log_file(log_path)
+        except OSError as e:
+            log.warning("OSError while changing ownership of the log file. ", e)
+
+        pretty_logs = False
+        if pretty_logs:
+            underlying_logger: WrappedLogger = structlog.WriteLogger(log_file.open("w", buffering=1))
+        else:
+            underlying_logger = structlog.BytesLogger(log_file.open("wb"))
+        processors = logging_processors(enable_pretty_log=pretty_logs)[0]
+        logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="task").bind()
+
+    process = WatchedSubprocess.start(dag_path, ti, client=client, logger=logger)
 
     exit_code = process.wait()
     end = time.monotonic()

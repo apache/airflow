@@ -39,6 +39,9 @@ class BigQueryToMySqlOperator(BigQueryToSqlBaseOperator):
         specific database. It is deprecated: use target_table_name instead. (templated)
     :param target_table_name: target MySQL table. It takes precedence over mysql_table. (templated)
     :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
+
+    .. warning::
+        The `mysql_table` parameter has been deprecated. Use `target_table_name` instead.
     """
 
     template_fields: Sequence[str] = (*BigQueryToSqlBaseOperator.template_fields, "dataset_id", "table_id")

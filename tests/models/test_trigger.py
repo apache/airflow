@@ -103,7 +103,6 @@ def test_clean_unused(session, create_task_instance):
     assert session.query(Trigger).one().id == trigger1.id
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_submit_event(session, create_task_instance):
     """
     Tests that events submitted to a trigger re-wake their dependent
@@ -131,7 +130,6 @@ def test_submit_event(session, create_task_instance):
     assert updated_task_instance.next_kwargs == {"event": 42, "cheesecake": True}
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_submit_failure(session, create_task_instance):
     """
     Tests that failures submitted to a trigger fail their dependent
@@ -154,7 +152,6 @@ def test_submit_failure(session, create_task_instance):
     assert updated_task_instance.next_method == "__fail__"
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @pytest.mark.parametrize(
     "event_cls, expected",
     [
@@ -311,7 +308,6 @@ def test_assign_unassigned(session, create_task_instance):
     )
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_get_sorted_triggers_same_priority_weight(session, create_task_instance):
     """
     Tests that triggers are sorted by the creation_date if they have the same priority.
@@ -362,7 +358,6 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance)
     assert trigger_ids_query == [(1,), (2,)]
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_get_sorted_triggers_different_priority_weights(session, create_task_instance):
     """
     Tests that triggers are sorted by the priority_weight.

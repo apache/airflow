@@ -279,7 +279,7 @@ class TestPubSubPullOperator:
         )
 
         mock_hook.return_value.pull.return_value = []
-        assert [] == operator.execute({})
+        assert operator.execute({}) == []
 
     @mock.patch("airflow.providers.google.cloud.operators.pubsub.PubSubHook")
     def test_execute_with_ack_messages(self, mock_hook):

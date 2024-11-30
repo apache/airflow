@@ -35,7 +35,7 @@ from pendulum.parsing.exceptions import ParserError
 from sqlalchemy import select
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound, TaskDeferred, TaskInstanceNotFound
@@ -300,6 +300,8 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
 
     This can result in the task being started by another host if the executor implementation does.
     """
+    from airflow.executors.base_executor import BaseExecutor
+
     if ti.executor:
         executor = ExecutorLoader.load_executor(ti.executor)
     else:
@@ -307,25 +309,30 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
     executor.job_id = None
     executor.start()
     print("Sending to executor.")
-    executor.queue_task_instance(
-        ti,
-        mark_success=args.mark_success,
-        ignore_all_deps=args.ignore_all_dependencies,
-        ignore_depends_on_past=should_ignore_depends_on_past(args),
-        wait_for_past_depends_before_skipping=(args.depends_on_past == "wait"),
-        ignore_task_deps=args.ignore_dependencies,
-        ignore_ti_state=args.force,
-        pool=args.pool,
-    )
-    executor.heartbeat()
+
+    # TODO: Task-SDK: this is temporary while we migrate the other executors over
+    if executor.queue_workload.__func__ is not BaseExecutor.queue_workload:  # type: ignore[attr-defined]
+        from airflow.executors import workloads
+
+        workload = workloads.ExecuteTask.make(ti, dag_path=dag.relative_fileloc)
+        executor.queue_workload(workload)
+    else:
+        executor.queue_task_instance(
+            ti,
+            mark_success=args.mark_success,
+            ignore_all_deps=args.ignore_all_dependencies,
+            ignore_depends_on_past=should_ignore_depends_on_past(args),
+            wait_for_past_depends_before_skipping=(args.depends_on_past == "wait"),
+            ignore_task_deps=args.ignore_dependencies,
+            ignore_ti_state=args.force,
+            pool=args.pool,
+        )
+        executor.heartbeat()
     executor.end()
 
 
 def _run_task_by_local_task_job(args, ti: TaskInstance | TaskInstancePydantic) -> TaskReturnCode | None:
     """Run LocalTaskJob, which monitors the raw task execution process."""
-    if InternalApiConfig.get_use_internal_api():
-        from airflow.models.renderedtifields import RenderedTaskInstanceFields  # noqa: F401
-        from airflow.models.trigger import Trigger  # noqa: F401
     job_runner = LocalTaskJobRunner(
         job=Job(dag_id=ti.dag_id),
         task_instance=ti,
@@ -480,14 +487,6 @@ def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
 
     log.info("Running %s on host %s", ti, hostname)
 
-    if not InternalApiConfig.get_use_internal_api():
-        # IMPORTANT, have to re-configure ORM with the NullPool, otherwise, each "run" command may leave
-        # behind multiple open sleeping connections while heartbeating, which could
-        # easily exceed the database connection limit when
-        # processing hundreds of simultaneous tasks.
-        # this should be last thing before running, to reduce likelihood of an open session
-        # which can cause trouble if running process in a fork.
-        settings.reconfigure_orm(disable_connection_pool=True)
     task_return_code = None
     try:
         if args.interactive:

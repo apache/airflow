@@ -63,3 +63,29 @@ def test_cli_assets_list(parser: ArgumentParser) -> None:
     assert "group" in asset_list[0]
     assert "extra" in asset_list[0]
     assert any(asset["uri"] == "s3://dag1/output_1.txt" for asset in asset_list)
+
+
+def test_cli_assets_details(parser: ArgumentParser) -> None:
+    args = parser.parse_args(["assets", "details", "--name=asset1_producer", "--output=json"])
+    with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+        asset_command.asset_details(args)
+
+    asset_detail_list = json.loads(temp_stdout.getvalue())
+    assert len(asset_detail_list) == 1
+
+    # No good way to statically compare these.
+    undeterministic = {
+        "id": None,
+        "created_at": None,
+        "updated_at": None,
+        "consuming_dags": None,
+        "producing_tasks": None,
+    }
+
+    assert asset_detail_list[0] | undeterministic == undeterministic | {
+        "name": "asset1_producer",
+        "uri": "s3://bucket/asset1_producer",
+        "group": "asset",
+        "extra": {},
+        "aliases": [],
+    }
