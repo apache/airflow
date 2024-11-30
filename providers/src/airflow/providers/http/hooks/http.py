@@ -87,11 +87,8 @@ class HttpHook(BaseHook):
         self.base_url: str = ""
         self._retry_obj: Callable[..., Any]
         self._auth_type: Any = auth_type
+        self.adapter = adapter or HTTPAdapter()
 
-        if not isinstance(adapter, HTTPAdapter):
-            raise TypeError("adapter must be an instance of requests.adapters.HTTPAdapter")
-
-        self.adapter = adapter
         self.tcp_keep_alive = tcp_keep_alive
         self.keep_alive_idle = tcp_keep_alive_idle
         self.keep_alive_count = tcp_keep_alive_count
@@ -143,7 +140,7 @@ class HttpHook(BaseHook):
         else:
             self.base_url = f"{schema}://{host}" if host else f"{schema}://"
             if connection.port:
-                self.base_url += f":{connection.port}"
+                self.base_url = f"{self.base_url}:{connection.port}"
         parsed = urlparse(self.base_url)
         if not parsed.scheme:
             raise ValueError(f"Invalid base URL: Missing scheme in {self.base_url}")

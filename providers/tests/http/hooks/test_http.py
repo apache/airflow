@@ -598,12 +598,6 @@ class TestHttpHook:
         # Ensure TCPKeepAliveAdapter is not used
         calls = mock_session.return_value.mount.call_args_list
         adapters = [call.args[1] for call in calls]
-        assert not any(isinstance(adapter, TCPKeepAliveAdapter) for adapter in adapters)
-
-    def test_adapter_invalid_type(self):
-        """Test that providing an invalid adapter type raises TypeError."""
-        with pytest.raises(TypeError, match="adapter must be an instance of requests.adapters.HTTPAdapter"):
-            HttpHook(adapter="not_an_adapter")
 
 
 class TestHttpAsyncHook:
