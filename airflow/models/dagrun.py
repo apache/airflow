@@ -52,7 +52,6 @@ from sqlalchemy.sql.functions import coalesce
 from sqlalchemy_utils import UUIDType
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
@@ -611,7 +610,6 @@ class DagRun(Base, LoggingMixin):
         return DagRunType(run_type).generate_run_id(logical_date)
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def fetch_task_instances(
         dag_id: str | None = None,
@@ -648,7 +646,6 @@ class DagRun(Base, LoggingMixin):
             tis = tis.where(TI.task_id.in_(task_ids))
         return session.scalars(tis).all()
 
-    @internal_api_call
     def _check_last_n_dagruns_failed(self, dag_id, max_consecutive_failed_dag_runs, session):
         """Check if last N dags failed."""
         dag_runs = (
@@ -735,7 +732,6 @@ class DagRun(Base, LoggingMixin):
         )
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def fetch_task_instance(
         dag_id: str,
@@ -768,7 +764,6 @@ class DagRun(Base, LoggingMixin):
         return self.dag
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def get_previous_dagrun(
         dag_run: DagRun | DagRunPydantic, state: DagRunState | None = None, session: Session = NEW_SESSION
@@ -789,7 +784,6 @@ class DagRun(Base, LoggingMixin):
         return session.scalar(select(DagRun).where(*filters).order_by(DagRun.logical_date.desc()).limit(1))
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def get_previous_scheduled_dagrun(
         dag_run_id: int,
@@ -1710,7 +1704,6 @@ class DagRun(Base, LoggingMixin):
         return DagRun._get_log_template(log_template_id=self.log_template_id, session=session)
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def _get_log_template(
         log_template_id: int | None, session: Session = NEW_SESSION
