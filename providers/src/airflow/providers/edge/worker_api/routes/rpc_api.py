@@ -56,8 +56,6 @@ rpc_api_router = AirflowRouter(tags=["JSONRPC"])
 
 @cache
 def _initialize_method_map() -> dict[str, Callable]:
-    from airflow.api.common.trigger_dag import trigger_dag
-    from airflow.assets.manager import AssetManager
     from airflow.cli.commands.task_command import _get_ti_db_access
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
@@ -86,7 +84,6 @@ def _initialize_method_map() -> dict[str, Callable]:
     from airflow.providers.edge.models.edge_logs import EdgeLogs
     from airflow.providers.edge.models.edge_worker import EdgeWorker
     from airflow.sdk.definitions.asset import expand_alias_to_assets
-    from airflow.secrets.metastore import MetastoreBackend
     from airflow.sensors.base import _orig_start_date
     from airflow.utils.cli_action_loggers import _default_action_log_internal
     from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -105,7 +102,6 @@ def _initialize_method_map() -> dict[str, Callable]:
         _add_log,
         _xcom_pull,
         _record_task_map_for_downstreams,
-        trigger_dag,
         DagModel.deactivate_deleted_dags,
         DagModel.get_paused_dag_ids,
         DagModel.get_current,
@@ -121,7 +117,6 @@ def _initialize_method_map() -> dict[str, Callable]:
         DagFileProcessorManager.deactivate_stale_dags,
         DagWarning.purge_inactive_dag_warnings,
         expand_alias_to_assets,
-        AssetManager.register_asset_change,
         FileTaskHandler._render_filename_db_access,
         Job._add_to_db,
         Job._fetch_from_db,
@@ -129,8 +124,6 @@ def _initialize_method_map() -> dict[str, Callable]:
         Job._update_heartbeat,
         Job._update_in_db,
         most_recent_job,
-        MetastoreBackend._fetch_connection,
-        MetastoreBackend._fetch_variable,
         XCom.get_value,
         XCom.get_one,
         # XCom.get_many, # Not supported because it returns query
