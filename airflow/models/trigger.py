@@ -25,7 +25,6 @@ from sqlalchemy import Column, Integer, String, Text, delete, func, or_, select,
 from sqlalchemy.orm import relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.models.asset import asset_trigger_association_table
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
@@ -139,14 +138,12 @@ class Trigger(Base):
         self.encrypted_kwargs = get_fernet().rotate(self.encrypted_kwargs.encode("utf-8")).decode("utf-8")
 
     @classmethod
-    @internal_api_call
     def from_object(cls, trigger: BaseTrigger) -> Trigger:
         """Alternative constructor that creates a trigger row based directly off of a Trigger object."""
         classpath, kwargs = trigger.serialize()
         return cls(classpath=classpath, kwargs=kwargs)
 
     @classmethod
-    @internal_api_call
     @provide_session
     def bulk_fetch(cls, ids: Iterable[int], session: Session = NEW_SESSION) -> dict[int, Trigger]:
         """Fetch all the Triggers by ID and return a dict mapping ID -> Trigger instance."""
@@ -162,7 +159,6 @@ class Trigger(Base):
         return {obj.id: obj for obj in session.scalars(stmt)}
 
     @classmethod
-    @internal_api_call
     @provide_session
     def clean_unused(cls, session: Session = NEW_SESSION) -> None:
         """
@@ -198,7 +194,6 @@ class Trigger(Base):
         )
 
     @classmethod
-    @internal_api_call
     @provide_session
     def submit_event(cls, trigger_id, event, session: Session = NEW_SESSION) -> None:
         """Take an event from an instance of itself, and trigger all dependent tasks to resume."""
@@ -210,7 +205,6 @@ class Trigger(Base):
             event.handle_submit(task_instance=task_instance)
 
     @classmethod
-    @internal_api_call
     @provide_session
     def submit_failure(cls, trigger_id, exc=None, session: Session = NEW_SESSION) -> None:
         """
@@ -243,14 +237,12 @@ class Trigger(Base):
             task_instance.state = TaskInstanceState.SCHEDULED
 
     @classmethod
-    @internal_api_call
     @provide_session
     def ids_for_triggerer(cls, triggerer_id, session: Session = NEW_SESSION) -> list[int]:
         """Retrieve a list of triggerer_ids."""
         return session.scalars(select(cls.id).where(cls.triggerer_id == triggerer_id)).all()
 
     @classmethod
-    @internal_api_call
     @provide_session
     def assign_unassigned(
         cls, triggerer_id, capacity, health_check_threshold, session: Session = NEW_SESSION
