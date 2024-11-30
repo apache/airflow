@@ -185,7 +185,6 @@ class TaskReturnCode(Enum):
     """When task exits with deferral to trigger."""
 
 
-@internal_api_call
 @provide_session
 def _merge_ti(ti, session: Session = NEW_SESSION):
     session.merge(ti)
