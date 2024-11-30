@@ -48,7 +48,6 @@ if TYPE_CHECKING:
     from airflow.models import DagRun
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 logger = logging.getLogger(__name__)
@@ -271,7 +270,7 @@ class FileTaskHandler(logging.Handler):
     @provide_session
     def _render_filename_db_access(
         *, ti: TaskInstance | TaskInstancePydantic, try_number: int, session=None
-    ) -> tuple[DagRun | DagRunPydantic, TaskInstance | TaskInstancePydantic, str | None, str | None]:
+    ) -> tuple[DagRun, TaskInstance | TaskInstancePydantic, str | None, str | None]:
         ti = _ensure_ti(ti, session)
         dag_run = ti.get_dagrun(session=session)
         template = dag_run.get_log_template(session=session).filename
