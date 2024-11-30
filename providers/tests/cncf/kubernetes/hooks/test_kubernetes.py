@@ -752,10 +752,7 @@ class TestAsyncKubernetesHook:
         assert not incluster_config.called
         assert hook._is_in_cluster is False
         kube_config_loader.assert_called_once_with(
-            config_dict={"a": "b"},
-            config_base_path=None,
-            active_context=None,
-            temp_file_path=None
+            config_dict={"a": "b"}, config_base_path=None, active_context=None, temp_file_path=None
         )
 
     @pytest.mark.asyncio
@@ -775,10 +772,7 @@ class TestAsyncKubernetesHook:
         assert not incluster_config.called
         assert hook._is_in_cluster is False
         kube_config_loader.assert_called_once_with(
-            config_dict={"a": "b"},
-            config_base_path=None,
-            active_context=cluster_context,
-            temp_file_path=None
+            config_dict={"a": "b"}, config_base_path=None, active_context=cluster_context, temp_file_path=None
         )
 
     @pytest.mark.asyncio
