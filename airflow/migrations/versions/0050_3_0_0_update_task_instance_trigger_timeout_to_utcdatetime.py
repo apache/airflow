@@ -17,7 +17,7 @@
 # under the License.
 
 """
-update task instance trigger timeout to utcdatetime.
+update trigger_timeout column in task_instance table to UTC.
 
 Revision ID: 038dc8bc6284
 Revises: eed27faa34e3
