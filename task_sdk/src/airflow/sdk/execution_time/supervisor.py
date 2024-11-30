@@ -347,12 +347,12 @@ class WatchedSubprocess:
             logs=read_logs,
         )
 
+        # Tell the task process what it needs to do!
+        proc._send_startup_message(ti, path, child_comms)
+
         # Close the remaining parent-end of the sockets we've passed to the child via fork. We still have the
         # other end of the pair open
         proc._close_unused_sockets(child_stdin, child_stdout, child_stderr, child_comms, child_logs)
-
-        # Tell the task process what it needs to do!
-        proc._send_startup_message(ti, path, child_comms)
         return proc
 
     def _register_pipe_readers(
