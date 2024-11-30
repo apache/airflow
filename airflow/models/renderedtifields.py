@@ -36,7 +36,6 @@ from sqlalchemy import (
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import relationship
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.models.base import StringID, TaskInstanceDependencies
 from airflow.serialization.helpers import serialize_template_field
@@ -155,7 +154,6 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
             self.rendered_fields[field] = redact(rendered, field)
 
     @classmethod
-    @internal_api_call
     @provide_session
     def _update_runtime_evaluated_template_fields(
         cls, ti: TaskInstance, session: Session = NEW_SESSION
