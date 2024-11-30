@@ -59,7 +59,7 @@ export const logGroupEnd = / INFO - (::|##\[])endgroup(::|\])/g;
 export const parseLogs = (
   data: string | undefined,
   timezone: string | null,
-  logLevelFilters: Array<LogLevel>,
+  logLevelFilters: Array<string>,
   fileSourceFilters: Array<string>,
   unfoldedLogGroups: Array<string>
 ) => {
@@ -89,8 +89,9 @@ export const parseLogs = (
   // Coloring (blue-60 as chakra style, is #0060df) and style such that log group appears like a link
   const logGroupStyle = "color:#0060df;cursor:pointer;font-weight:bold;";
 
+  // Example Log Format: [2021-08-26 00:00:00,000] {filename.py:42} INFO - Log message
   const regExp = /\[(.*?)\] \{(.*?)\} (.*?) -/;
-  let currentLevel = "";
+  let currentLevel: LogLevel = LogLevel.INFO;
   let currentFileSource = "";
   lines.forEach((line) => {
     let parsedLine = line;
@@ -114,7 +115,7 @@ export const parseLogs = (
 
       // The `currentLogLevel` and `currentFileSource` should remain same
       // until a new `logLevel` or `fileSource` is encountered.
-      currentLevel = logLevel;
+      currentLevel = logLevel as LogLevel;
       currentFileSource = fileSource;
     }
 
@@ -136,6 +137,7 @@ export const parseLogs = (
 
     parsedLine = highlightByKeywords(
       parsedLine,
+      currentLevel,
       errorKeywords,
       warningKeywords,
       logGroupStart,
