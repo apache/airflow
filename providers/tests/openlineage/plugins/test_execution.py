@@ -167,7 +167,6 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             assert has_value_in_events(events, ["inputs", "name"], "on-start")
             assert not has_value_in_events(events, ["inputs", "name"], "on-complete")
 
-        @pytest.mark.quarantined
         @conf_vars(
             {
                 ("openlineage", "transport"): f'{{"type": "file", "log_file_path": "{listener_path}"}}',
@@ -176,7 +175,9 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             }
         )
         @pytest.mark.db_test
-        def test_long_stalled_task_is_killed_by_listener_overtime_if_ol_timeout_long_enough(self):
+        def test_success_overtime_kills_tasks(self):
+            # This test checks whether LocalTaskJobRunner kills OL listener which take
+            # longer time than permitted by core.task_success_overtime setting
             dirpath = Path(tmp_dir)
             if dirpath.exists():
                 shutil.rmtree(dirpath)
@@ -203,7 +204,7 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
                 task=task,
                 run_id="test_long_stalled_task_is_killed_by_listener_overtime_if_ol_timeout_long_enough",
             )
-            job = Job(id="1", dag_id=ti.dag_id)
+            job = Job(dag_id=ti.dag_id)
             job_runner = LocalTaskJobRunner(job=job, task_instance=ti, ignore_ti_state=True)
             job_runner._execute()
 
