@@ -60,7 +60,7 @@ def fetch(
         WorkerQueuesBody,
         Body(
             title="Log data chunks",
-            description="The queues from which the worker can fetch jobs.",
+            description="The queues and capacity from which the worker can fetch jobs.",
         ),
     ],
     session: SessionDep,
@@ -68,7 +68,10 @@ def fetch(
     """Fetch a job to execute on the edge worker."""
     query = (
         select(EdgeJobModel)
-        .where(EdgeJobModel.state == TaskInstanceState.QUEUED)
+        .where(
+            EdgeJobModel.state == TaskInstanceState.QUEUED,
+            EdgeJobModel.concurrency_slots <= body.free_concurrency,
+        )
         .order_by(EdgeJobModel.queued_dttm)
     )
     if body.queues:
