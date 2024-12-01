@@ -95,14 +95,6 @@ def force_use_internal_api_on_edge_worker():
         logger.info("Starting worker with API endpoint %s", api_url)
         os.environ["AIRFLOW__CORE__INTERNAL_API_URL"] = api_url
 
-        from airflow.api_internal import internal_api_call
-        from airflow.serialization import serialized_objects
-
-        # Note: Need to patch internal settings as statically initialized before we get here
-        serialized_objects._ENABLE_AIP_44 = True
-        internal_api_call._ENABLE_AIP_44 = True
-        internal_api_call.InternalApiConfig.set_use_internal_api("edge-worker")
-
 
 force_use_internal_api_on_edge_worker()
 

@@ -202,7 +202,6 @@ if PACKAGE_NAME == "apache-airflow":
     exclude_patterns = [
         # We only link to selected subpackages.
         "_api/airflow/index.rst",
-        "_api/internal_api_call/index.rst",
         # Included in the cluster-policies doc
         "_api/airflow/policies/index.rst",
         "README.rst",
