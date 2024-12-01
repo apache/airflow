@@ -19,7 +19,8 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from airflow.providers.edge.worker_api.routes.health import health_router
-from airflow.providers.edge.worker_api.routes.rpc_api import rpc_api_router
+from airflow.providers.edge.worker_api.routes.logs import logs_router
+from airflow.providers.edge.worker_api.routes.worker import worker_router
 
 
 def create_edge_worker_api_app() -> FastAPI:
@@ -35,5 +36,6 @@ def create_edge_worker_api_app() -> FastAPI:
     )
 
     edge_worker_api_app.include_router(health_router)
-    edge_worker_api_app.include_router(rpc_api_router)
+    edge_worker_api_app.include_router(logs_router)
+    edge_worker_api_app.include_router(worker_router)
     return edge_worker_api_app

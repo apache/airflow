@@ -1619,6 +1619,7 @@ symlinking
 symlinks
 sync'ed
 sys
+sysinfo
 syspath
 Systemd
 systemd
