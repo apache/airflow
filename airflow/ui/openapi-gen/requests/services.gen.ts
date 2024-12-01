@@ -58,6 +58,8 @@ import type {
   GetConnectionsResponse,
   PostConnectionData,
   PostConnectionResponse,
+  PostConnectionsData,
+  PostConnectionsResponse,
   TestConnectionData,
   TestConnectionResponse,
   GetDagRunData,
@@ -986,6 +988,31 @@ export class ConnectionService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/public/connections",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Post Connections
+   * Create connection entry.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns ConnectionCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static postConnections(
+    data: PostConnectionsData,
+  ): CancelablePromise<PostConnectionsResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/connections/bulk",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
