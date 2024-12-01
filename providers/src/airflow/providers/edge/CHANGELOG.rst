@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.8.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Migrate worker job calls to FastAPI.``
+
 0.8.1pre0
 .........
 
