@@ -55,6 +55,7 @@ def _logfile_path(task: TaskInstanceKey, session=NEW_SESSION) -> str:
     )
     if TYPE_CHECKING:
         assert ti
+        assert isinstance(ti, TaskInstance)
     return FileTaskHandler(".")._render_filename(ti, task.try_number)
 
 
