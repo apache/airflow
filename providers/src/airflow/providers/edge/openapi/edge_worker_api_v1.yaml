@@ -179,7 +179,7 @@ paths:
       tags:
       - Worker
   /jobs/fetch/{worker_name}:
-    get:
+    post:
       description: Fetch a job to execute on the edge worker.
       x-openapi-router-controller: airflow.providers.edge.worker_api.routes._v2_routes
       operationId: job_fetch_v2

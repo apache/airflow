@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.9.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Remove dependency to Internal API after migration to FastAPI.``
+
 0.8.2pre0
 .........
 

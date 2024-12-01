@@ -20,23 +20,15 @@ import ast
 import json
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING, Optional
 
-from pydantic import BaseModel, ConfigDict
-from sqlalchemy import Column, Integer, String, select
+from sqlalchemy import Column, Integer, String
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.exceptions import AirflowException
 from airflow.models.base import Base
-from airflow.serialization.serialized_objects import add_pydantic_class_type_mapping
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm.session import Session
 
 
 class EdgeWorkerVersionException(AirflowException):
@@ -170,68 +162,3 @@ def reset_metrics(worker_name: str) -> None:
         free_concurrency=-1,
         queues=None,
     )
-
-
-class EdgeWorker(BaseModel, LoggingMixin):
-    """Deprecated Edge Worker internal API, keeping for one minor for graceful migration."""
-
-    worker_name: str
-    state: EdgeWorkerState
-    queues: Optional[list[str]]  # noqa: UP007 - prevent Sphinx failing
-    first_online: datetime
-    last_update: Optional[datetime] = None  # noqa: UP007 - prevent Sphinx failing
-    jobs_active: int
-    jobs_taken: int
-    jobs_success: int
-    jobs_failed: int
-    sysinfo: str
-    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
-
-    @staticmethod
-    @internal_api_call
-    @provide_session
-    def set_state(
-        worker_name: str,
-        state: EdgeWorkerState,
-        jobs_active: int,
-        sysinfo: dict[str, str],
-        session: Session = NEW_SESSION,
-    ) -> list[str] | None:
-        """Set state of worker and returns the current assigned queues."""
-        query = select(EdgeWorkerModel).where(EdgeWorkerModel.worker_name == worker_name)
-        worker: EdgeWorkerModel = session.scalar(query)
-        worker.state = state
-        worker.jobs_active = jobs_active
-        worker.sysinfo = json.dumps(sysinfo)
-        worker.last_update = timezone.utcnow()
-        session.commit()
-        Stats.incr(f"edge_worker.heartbeat_count.{worker_name}", 1, 1)
-        Stats.incr("edge_worker.heartbeat_count", 1, 1, tags={"worker_name": worker_name})
-        set_metrics(
-            worker_name=worker_name,
-            state=state,
-            jobs_active=jobs_active,
-            concurrency=int(sysinfo["concurrency"]),
-            free_concurrency=int(sysinfo["free_concurrency"]),
-            queues=worker.queues,
-        )
-        raise EdgeWorkerVersionException(
-            "Edge Worker runs on an old version. Rejecting access due to difference."
-        )
-
-    @staticmethod
-    @internal_api_call
-    def register_worker(
-        worker_name: str,
-        state: EdgeWorkerState,
-        queues: list[str] | None,
-        sysinfo: dict[str, str],
-    ) -> EdgeWorker:
-        raise EdgeWorkerVersionException(
-            "Edge Worker runs on an old version. Rejecting access due to difference."
-        )
-
-
-EdgeWorker.model_rebuild()
-
-add_pydantic_class_type_mapping("edge_worker", EdgeWorkerModel, EdgeWorker)

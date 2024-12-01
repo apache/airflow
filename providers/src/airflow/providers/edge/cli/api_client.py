@@ -110,7 +110,7 @@ def worker_register(
 def worker_set_state(
     hostname: str, state: EdgeWorkerState, jobs_active: int, queues: list[str] | None, sysinfo: dict
 ) -> list[str] | None:
-    """Register worker with the Edge API."""
+    """Update the state of the worker in the central site and thereby implicitly heartbeat."""
     return _make_generic_request(
         "PATCH",
         f"worker/{quote(hostname)}",
@@ -123,7 +123,7 @@ def worker_set_state(
 def jobs_fetch(hostname: str, queues: list[str] | None, free_concurrency: int) -> EdgeJobFetched | None:
     """Fetch a job to execute on the edge worker."""
     result = _make_generic_request(
-        "GET",
+        "POST",
         f"jobs/fetch/{quote(hostname)}",
         WorkerQueuesBody(queues=queues, free_concurrency=free_concurrency).model_dump_json(
             exclude_unset=True
