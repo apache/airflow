@@ -203,7 +203,7 @@ class TestPostConnection(TestConnectionEndpoint):
             },
         ],
     )
-    def test_post_should_respond_200(self, test_client, session, body):
+    def test_post_should_respond_201(self, test_client, session, body):
         response = test_client.post("/public/connections", json=body)
         assert response.status_code == 201
         connection = session.query(Connection).all()
@@ -341,7 +341,7 @@ class TestPostConnections(TestConnectionEndpoint):
             },
         ],
     )
-    def test_post_should_respond_200(self, test_client, session, body):
+    def test_post_should_respond_201(self, test_client, session, body):
         response = test_client.post("/public/connections/bulk", json=body)
         assert response.status_code == 201
         connection = session.query(Connection).all()
