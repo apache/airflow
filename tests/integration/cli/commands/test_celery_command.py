@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 
 from airflow.cli import cli_parser
-from airflow.cli.commands import celery_command
+from airflow.cli.commands.local_commands import celery_command
 from airflow.executors import executor_loader
 
 from tests_common.test_utils.config import conf_vars
