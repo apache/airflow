@@ -44,7 +44,7 @@ from airflow.utils.state import TaskInstanceState
 jobs_router = AirflowRouter(tags=["Jobs"], prefix="/jobs")
 
 
-@jobs_router.get(
+@jobs_router.post(
     "/fetch/{worker_name}",
     dependencies=[Depends(jwt_token_authorization_rest)],
     responses=create_openapi_http_exception_doc(
