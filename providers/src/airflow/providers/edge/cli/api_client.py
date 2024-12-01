@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from datetime import datetime
 from http import HTTPStatus
 from pathlib import Path
@@ -47,6 +48,13 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+# Hidden config options for Edge Worker how retries on HTTP requests should be handled
+# Note: Given defaults make attempts after 1, 3, 7, 15, 31seconds, 1:03, 2:07, 3:37 and fails after 5:07min
+AIRFLOW__EDGE__API_RETRIES = int(os.getenv("AIRFLOW__EDGE__API_RETRIES", 10))
+AIRFLOW__EDGE__API_RETRY_WAIT_MIN = int(os.getenv("AIRFLOW__EDGE__API_RETRY_WAIT_MIN", 1))
+AIRFLOW__EDGE__API_RETRY_WAIT_MAX = int(os.getenv("AIRFLOW__EDGE__API_RETRY_WAIT_MAX", 90))
+
+
 def _is_retryable_exception(exception: BaseException) -> bool:
     """
     Evaluate which exception types to retry.
@@ -66,8 +74,10 @@ def _is_retryable_exception(exception: BaseException) -> bool:
 
 
 @tenacity.retry(
-    stop=tenacity.stop_after_attempt(10),  # TODO: Make this configurable
-    wait=tenacity.wait_exponential(min=1),  # TODO: Make this configurable
+    stop=tenacity.stop_after_attempt(AIRFLOW__EDGE__API_RETRIES),
+    wait=tenacity.wait_exponential(
+        min=AIRFLOW__EDGE__API_RETRY_WAIT_MIN, max=AIRFLOW__EDGE__API_RETRY_WAIT_MAX
+    ),
     retry=tenacity.retry_if_exception(_is_retryable_exception),
     before_sleep=tenacity.before_log(logger, logging.WARNING),
 )
