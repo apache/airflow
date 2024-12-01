@@ -34,7 +34,6 @@ from typing import (
 import attrs
 from sqlalchemy import select
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.typing_compat import TypedDict
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -492,7 +491,6 @@ class AssetAny(_AssetBooleanCondition):
         return {"any": [o.as_expression() for o in self.objects]}
 
 
-@internal_api_call
 @provide_session
 def expand_alias_to_assets(alias: str | AssetAlias, *, session: Session = NEW_SESSION) -> list[BaseAsset]:
     """Expand asset alias to resolved assets."""
