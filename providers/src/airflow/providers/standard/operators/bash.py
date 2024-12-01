@@ -20,7 +20,6 @@ from __future__ import annotations
 import os
 import shutil
 import tempfile
-import warnings
 from collections.abc import Container, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, cast
@@ -161,7 +160,6 @@ class BashOperator(BaseOperator):
         env: dict[str, str] | None = None,
         append_env: bool = False,
         output_encoding: str = "utf-8",
-        skip_exit_code: int | None = None,
         skip_on_exit_code: int | Container[int] | None = 99,
         cwd: str | None = None,
         output_processor: Callable[[str], Any] = lambda result: result,
@@ -171,11 +169,6 @@ class BashOperator(BaseOperator):
         self.bash_command = bash_command
         self.env = env
         self.output_encoding = output_encoding
-        if skip_exit_code is not None:
-            warnings.warn(
-                "skip_exit_code is deprecated. Please use skip_on_exit_code", DeprecationWarning, stacklevel=2
-            )
-            skip_on_exit_code = skip_exit_code
         self.skip_on_exit_code = (
             skip_on_exit_code
             if isinstance(skip_on_exit_code, Container)

@@ -45,7 +45,6 @@ from airflow.decorators import task_group
 from airflow.exceptions import (
     AirflowException,
     DeserializingResultError,
-    RemovedInAirflow3Warning,
 )
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
@@ -1167,23 +1166,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             import dill  # noqa: F401
 
         self.run_as_task(f, serializer="dill", system_site_packages=False)
-
-    @DILL_MARKER
-    def test_add_dill_use_dill(self):
-        def f():
-            """Ensure dill is correctly installed."""
-            import dill  # noqa: F401
-
-        with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
-            self.run_as_task(f, use_dill=True, system_site_packages=False)
-
-    def test_ambiguous_serializer(self):
-        def f():
-            pass
-
-        with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
-            with pytest.raises(AirflowException, match="Both 'use_dill' and 'serializer' parameters are set"):
-                self.run_as_task(f, use_dill=True, serializer="dill")
 
     def test_invalid_serializer(self):
         def f():
