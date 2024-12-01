@@ -30,7 +30,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.models.base import Base, StringID
 from airflow.models.taskinstance import TaskInstance
@@ -99,7 +98,6 @@ class EdgeLogs(BaseModel, LoggingMixin):
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def push_logs(
         task: TaskInstanceKey | tuple,
