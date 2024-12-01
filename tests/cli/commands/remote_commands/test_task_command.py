@@ -21,6 +21,7 @@ import contextlib
 import io
 import json
 import logging
+import logging.config
 import os
 import shutil
 import sys
@@ -38,6 +39,7 @@ import pytest
 from airflow.cli import cli_parser
 from airflow.cli.commands.remote_commands import task_command
 from airflow.cli.commands.remote_commands.task_command import LoggerMutationHelper
+from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound
 from airflow.executors.local_executor import LocalExecutor
@@ -92,7 +94,9 @@ class TestCliTasks:
     dag_run: DagRun
 
     @classmethod
+    @pytest.fixture(autouse=True)
     def setup_class(cls):
+        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
         cls.dagbag = DagBag(include_examples=True)
         cls.parser = cli_parser.get_parser()
         clear_db_runs()
