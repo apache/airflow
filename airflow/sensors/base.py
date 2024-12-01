@@ -237,7 +237,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         """Override when deriving this class."""
         raise AirflowException("Override me.")
 
-    @provide_session
     def execute(self, context: Context) -> Any:
         started_at: datetime.datetime | float
 
