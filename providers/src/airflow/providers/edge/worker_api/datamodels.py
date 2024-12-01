@@ -17,9 +17,13 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import (
+from typing import (  # noqa: UP035 - Pydantic not able to parse in Python 3.9
     Annotated,
     Any,
+    Dict,
+    List,
+    Optional,
+    Union,
 )
 
 from pydantic import BaseModel, Field
@@ -57,7 +61,7 @@ class JsonRpcRequest(JsonRpcRequestBase):
 
     jsonrpc: Annotated[str, Field(description="JSON RPC Version", examples=["2.0"])]
     params: Annotated[
-        dict[str, Any] | None,
+        Optional[Dict[str, Any]],  # noqa: UP006, UP007 - Pydantic not able to parse in Python 3.9
         Field(description="Dictionary of parameters passed to the method."),
     ]
 
@@ -99,7 +103,7 @@ class WorkerQueuesBase(BaseModel):
     """Queues that a worker supports to run jobs on."""
 
     queues: Annotated[
-        list[str] | None,
+        Optional[List[str]],  # noqa: UP006, UP007 - Pydantic not able to parse in Python 3.9
         Field(
             None,
             description="List of queues the worker is pulling jobs from. If not provided, worker pulls from all queues.",
@@ -119,13 +123,13 @@ class WorkerStateBody(WorkerQueuesBase):
     state: Annotated[EdgeWorkerState, Field(description="State of the worker from the view of the worker.")]
     jobs_active: Annotated[int, Field(description="Number of active jobs the worker is running.")] = 0
     queues: Annotated[
-        list[str] | None,
+        Optional[List[str]],  # noqa: UP006, UP007 - Pydantic not able to parse in Python 3.9
         Field(
             description="List of queues the worker is pulling jobs from. If not provided, worker pulls from all queues."
         ),
     ] = None
     sysinfo: Annotated[
-        dict[str, str | int],
+        dict[str, Union[str, int]],  # noqa: UP007 - Pydantic not able to parse in Python 3.9
         Field(
             description="System information of the worker.",
             examples=[
@@ -144,11 +148,11 @@ class WorkerQueueUpdateBody(BaseModel):
     """Changed queues for the worker."""
 
     new_queues: Annotated[
-        list[str] | None,
+        Optional[List[str]],  # noqa: UP006, UP007 - Pydantic not able to parse in Python 3.9
         Field(description="Additional queues to be added to worker."),
     ]
     remove_queues: Annotated[
-        list[str] | None,
+        Optional[List[str]],  # noqa: UP006, UP007 - Pydantic not able to parse in Python 3.9
         Field(description="Queues to remove from worker."),
     ]
 
