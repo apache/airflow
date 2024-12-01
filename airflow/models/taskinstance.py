@@ -163,8 +163,6 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
     from airflow.sdk.definitions.dag import DAG
-    from airflow.serialization.pydantic.asset import AssetEventPydantic
-    from airflow.serialization.pydantic.dag import DagModelPydantic
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Literal, TypeGuard
     from airflow.utils.task_group import TaskGroup
@@ -984,7 +982,7 @@ def _get_template_context(
             return None
         return timezone.coerce_datetime(dagrun.end_date)
 
-    def get_triggering_events() -> dict[str, list[AssetEvent | AssetEventPydantic]]:
+    def get_triggering_events() -> dict[str, list[AssetEvent]]:
         if TYPE_CHECKING:
             assert session is not None
 
@@ -995,7 +993,7 @@ def _get_template_context(
         if dag_run not in session:
             dag_run = session.merge(dag_run, load=False)
         asset_events = dag_run.consumed_asset_events
-        triggering_events: dict[str, list[AssetEvent | AssetEventPydantic]] = defaultdict(list)
+        triggering_events: dict[str, list[AssetEvent]] = defaultdict(list)
         for event in asset_events:
             if event.asset:
                 triggering_events[event.asset.uri].append(event)
@@ -1890,7 +1888,7 @@ class TaskInstance(Base, LoggingMixin):
         pool: str | None = None,
         cfg_path: str | None = None,
     ) -> list[str]:
-        dag: DAG | DagModel | DagModelPydantic | None
+        dag: DAG | DagModel | None
         # Use the dag if we have it, else fallback to the ORM dag_model, which might not be loaded
         if hasattr(ti, "task") and getattr(ti.task, "dag", None) is not None:
             if TYPE_CHECKING:

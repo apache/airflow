@@ -1148,7 +1148,7 @@ export const $DAGDetailsResponse = {
     },
     tags: {
       items: {
-        $ref: "#/components/schemas/DagTagPydantic",
+        $ref: "#/components/schemas/DagTagResponse",
       },
       type: "array",
       title: "Tags",
@@ -1521,7 +1521,7 @@ export const $DAGResponse = {
     },
     tags: {
       items: {
-        $ref: "#/components/schemas/DagTagPydantic",
+        $ref: "#/components/schemas/DagTagResponse",
       },
       type: "array",
       title: "Tags",
@@ -2267,7 +2267,7 @@ export const $DAGWithLatestDagRunsResponse = {
     },
     tags: {
       items: {
-        $ref: "#/components/schemas/DagTagPydantic",
+        $ref: "#/components/schemas/DagTagResponse",
       },
       type: "array",
       title: "Tags",
@@ -2605,7 +2605,7 @@ export const $DagStatsStateResponse = {
   description: "DagStatsState serializer for responses.",
 } as const;
 
-export const $DagTagPydantic = {
+export const $DagTagResponse = {
   properties: {
     name: {
       type: "string",
@@ -2618,9 +2618,8 @@ export const $DagTagPydantic = {
   },
   type: "object",
   required: ["name", "dag_id"],
-  title: "DagTagPydantic",
-  description:
-    "Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.",
+  title: "DagTagResponse",
+  description: "DAG Tag serializer for responses.",
 } as const;
 
 export const $DagWarningType = {
