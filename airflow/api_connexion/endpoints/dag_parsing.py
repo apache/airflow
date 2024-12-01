@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from flask import Response, current_app
 from itsdangerous import BadSignature, URLSafeSerializer
@@ -28,6 +29,7 @@ from airflow.api_connexion.exceptions import NotFound, PermissionDenied
 from airflow.auth.managers.models.resource_details import DagDetails
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
@@ -37,6 +39,7 @@ if TYPE_CHECKING:
     from airflow.auth.managers.models.batch_apis import IsAuthorizedDagRequest
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("PUT")
 @provide_session
 def reparse_dag_file(*, file_token: str, session: Session = NEW_SESSION) -> Response:

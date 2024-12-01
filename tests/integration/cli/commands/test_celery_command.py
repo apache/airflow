@@ -25,7 +25,8 @@ import pytest
 from airflow.cli import cli_parser
 from airflow.cli.commands import celery_command
 from airflow.executors import executor_loader
-from tests.test_utils.config import conf_vars
+
+from tests_common.test_utils.config import conf_vars
 
 
 @pytest.mark.integration("celery")
@@ -42,8 +43,9 @@ class TestWorkerServeLogs:
 
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_serve_logs_on_worker_start(self):
-        with mock.patch("airflow.cli.commands.celery_command.Process") as mock_process, mock.patch(
-            "airflow.providers.celery.executors.celery_executor.app"
+        with (
+            mock.patch("airflow.cli.commands.celery_command.Process") as mock_process,
+            mock.patch("airflow.providers.celery.executors.celery_executor.app"),
         ):
             args = self.parser.parse_args(["celery", "worker", "--concurrency", "1"])
 
@@ -54,8 +56,9 @@ class TestWorkerServeLogs:
 
     @conf_vars({("core", "executor"): "CeleryExecutor"})
     def test_skip_serve_logs_on_worker_start(self):
-        with mock.patch("airflow.cli.commands.celery_command.Process") as mock_popen, mock.patch(
-            "airflow.providers.celery.executors.celery_executor.app"
+        with (
+            mock.patch("airflow.cli.commands.celery_command.Process") as mock_popen,
+            mock.patch("airflow.providers.celery.executors.celery_executor.app"),
         ):
             args = self.parser.parse_args(["celery", "worker", "--concurrency", "1", "--skip-serve-logs"])
 

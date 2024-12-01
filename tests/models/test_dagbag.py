@@ -41,14 +41,15 @@ from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.serialization.serialized_objects import SerializedDAG
-from airflow.utils.dates import timezone as tz
+from airflow.utils import timezone as tz
 from airflow.utils.session import create_session
 from airflow.www.security_appless import ApplessAirflowSecurityManager
+
 from tests import cluster_policies
 from tests.models import TEST_DAGS_FOLDER
-from tests.test_utils import db
-from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.config import conf_vars
+from tests_common.test_utils import db
+from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -94,7 +95,6 @@ class TestDagBag:
         non_existing_dag_id = "non_existing_dag_id"
         assert dagbag.get_dag(non_existing_dag_id) is None
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_serialized_dag_not_existing_doesnt_raise(self, tmp_path):
         """
         test that retrieving a non existing dag id returns None without crashing
@@ -152,7 +152,7 @@ class TestDagBag:
         path.write_text("\u3042")  # write multi-byte char (hiragana)
 
         dagbag = DagBag(dag_folder=os.fspath(path.parent), include_examples=False)
-        assert [] == dagbag.process_file(os.fspath(path))
+        assert dagbag.process_file(os.fspath(path)) == []
 
     def test_process_file_duplicated_dag_id(self, tmp_path):
         """Loading a DAG with ID that already existed in a DAG bag should result in an import error."""
@@ -344,9 +344,9 @@ class TestDagBag:
         dagbag.process_file_calls
 
         # Should not call process_file again, since it's already loaded during init.
-        assert 1 == dagbag.process_file_calls
+        assert dagbag.process_file_calls == 1
         assert dagbag.get_dag(dag_id) is not None
-        assert 1 == dagbag.process_file_calls
+        assert dagbag.process_file_calls == 1
 
     @pytest.mark.parametrize(
         ("file_to_load", "expected"),
@@ -377,7 +377,7 @@ class TestDagBag:
     def test_dag_registration_with_failure(self):
         dagbag = DagBag(dag_folder=os.devnull, include_examples=False)
         found = dagbag.process_file(str(TEST_DAGS_FOLDER / "test_invalid_dup_task.py"))
-        assert [] == found
+        assert found == []
 
     @pytest.fixture
     def zip_with_valid_dag_and_dup_tasks(self, tmp_path: pathlib.Path) -> str:
@@ -392,8 +392,8 @@ class TestDagBag:
     def test_dag_registration_with_failure_zipped(self, zip_with_valid_dag_and_dup_tasks):
         dagbag = DagBag(dag_folder=os.devnull, include_examples=False)
         found = dagbag.process_file(zip_with_valid_dag_and_dup_tasks)
-        assert 1 == len(found)
-        assert ["test_example_bash_operator"] == [dag.dag_id for dag in found]
+        assert len(found) == 1
+        assert [dag.dag_id for dag in found] == ["test_example_bash_operator"]
 
     @patch.object(DagModel, "get_current")
     def test_refresh_py_dag(self, mock_dagmodel, tmp_path):
@@ -418,11 +418,11 @@ class TestDagBag:
 
         dagbag = _TestDagBag(dag_folder=os.fspath(tmp_path), include_examples=True)
 
-        assert 1 == dagbag.process_file_calls
+        assert dagbag.process_file_calls == 1
         dag = dagbag.get_dag(dag_id)
         assert dag is not None
         assert dag_id == dag.dag_id
-        assert 2 == dagbag.process_file_calls
+        assert dagbag.process_file_calls == 2
 
     @patch.object(DagModel, "get_current")
     def test_refresh_packaged_dag(self, mock_dagmodel):
@@ -446,13 +446,12 @@ class TestDagBag:
 
         dagbag = _TestDagBag(dag_folder=os.path.realpath(TEST_DAGS_FOLDER), include_examples=False)
 
-        assert 1 == dagbag.process_file_calls
+        assert dagbag.process_file_calls == 1
         dag = dagbag.get_dag(dag_id)
         assert dag is not None
         assert dag_id == dag.dag_id
-        assert 2 == dagbag.process_file_calls
+        assert dagbag.process_file_calls == 2
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_dag_removed_if_serialized_dag_is_removed(self, dag_maker, tmp_path):
         """
         Test that if a DAG does not exist in serialized_dag table (as the DAG file was removed),
@@ -545,9 +544,8 @@ class TestDagBag:
         """
         dagbag = DagBag(dag_folder=os.fspath(tmp_path), include_examples=False)
 
-        assert [] == dagbag.process_file(None)
+        assert dagbag.process_file(None) == []
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_deactivate_unknown_dags(self):
         """
         Test that dag_ids not passed into deactivate_unknown_dags
@@ -571,7 +569,6 @@ class TestDagBag:
         with create_session() as session:
             session.query(DagModel).filter(DagModel.dag_id == "test_deactivate_unknown_dags").delete()
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_serialized_dags_are_written_to_db_on_sync(self):
         """
         Test that when dagbag.sync_to_db is called the DAGs are Serialized and written to DB
@@ -592,7 +589,6 @@ class TestDagBag:
             new_serialized_dags_count = session.query(func.count(SerializedDagModel.dag_id)).scalar()
             assert new_serialized_dags_count == 1
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @patch("airflow.models.serialized_dag.SerializedDagModel.write_dag")
     def test_serialized_dag_errors_are_import_errors(self, mock_serialize, caplog):
         """
@@ -628,9 +624,9 @@ import datetime
 import time
 
 import airflow
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 
-time.sleep(31)
+time.sleep(1)
 
 with airflow.DAG(
     "import_timeout",
@@ -638,7 +634,7 @@ with airflow.DAG(
     schedule=None) as dag:
     def f():
         print("Sleeping")
-        time.sleep(2)
+        time.sleep(1)
 
 
     for ind in range(10):
@@ -651,8 +647,9 @@ with airflow.DAG(
         with open("tmp_file.py", "w") as f:
             f.write(code_to_save)
 
-        dagbag = DagBag(dag_folder=os.fspath("tmp_file.py"), include_examples=False)
-        dag = dagbag._load_modules_from_file("tmp_file.py", safe_mode=False)
+        with conf_vars({("core", "DAGBAG_IMPORT_TIMEOUT"): "0.01"}):
+            dagbag = DagBag(dag_folder=os.fspath("tmp_file.py"), include_examples=False)
+            dag = dagbag._load_modules_from_file("tmp_file.py", safe_mode=False)
 
         assert dag is not None
         assert "tmp_file.py" in dagbag.import_errors
@@ -665,7 +662,7 @@ with airflow.DAG(
         """Test that dagbag.sync_to_db is retried on OperationalError"""
 
         dagbag = DagBag("/dev/null")
-        mock_dag = mock.MagicMock(spec=DAG)
+        mock_dag = mock.MagicMock()
         dagbag.dags["mock_dag"] = mock_dag
 
         op_error = OperationalError(statement=mock.ANY, params=mock.ANY, orig=mock.ANY)
@@ -699,7 +696,6 @@ with airflow.DAG(
             ]
         )
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.DagBag._sync_perm_for_dag")
     def test_sync_to_db_syncs_dag_specific_perms_on_update(self, mock_sync_perm_for_dag):
@@ -721,6 +717,7 @@ with airflow.DAG(
                 dagbag.sync_to_db(session=session)
 
             dag = dagbag.dags["test_example_bash_operator"]
+            dag.sync_to_db()
             _sync_to_db()
             mock_sync_perm_for_dag.assert_called_once_with(dag, session=session)
 
@@ -731,9 +728,9 @@ with airflow.DAG(
             # DAG is updated
             dag.tags = ["new_tag"]
             _sync_to_db()
+            session.commit()
             mock_sync_perm_for_dag.assert_called_once_with(dag, session=session)
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @patch("airflow.www.security_appless.ApplessAirflowSecurityManager")
     def test_sync_perm_for_dag(self, mock_security_manager):
         """
@@ -770,7 +767,6 @@ with airflow.DAG(
                 "test_example_bash_operator", {"Public": {"DAGs": {"can_read"}}}
             )
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @patch("airflow.www.security_appless.ApplessAirflowSecurityManager")
     def test_sync_perm_for_dag_with_dict_access_control(self, mock_security_manager):
         """
@@ -807,7 +803,6 @@ with airflow.DAG(
                 "test_example_bash_operator", {"Public": {"DAGs": {"can_read"}, "DAG Runs": {"can_create"}}}
             )
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
     def test_get_dag_with_dag_serialization(self):
@@ -818,6 +813,7 @@ with airflow.DAG(
 
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
+            example_bash_op_dag.sync_to_db()
             SerializedDagModel.write_dag(dag=example_bash_op_dag)
 
             dag_bag = DagBag(read_dags_from_db=True)
@@ -835,6 +831,7 @@ with airflow.DAG(
         # Make a change in the DAG and write Serialized DAG to the DB
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 6)), tick=False):
             example_bash_op_dag.tags.add("new_tag")
+            example_bash_op_dag.sync_to_db()
             SerializedDagModel.write_dag(dag=example_bash_op_dag)
 
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
@@ -847,18 +844,18 @@ with airflow.DAG(
         assert set(updated_ser_dag_1.tags) == {"example", "example2", "new_tag"}
         assert updated_ser_dag_1_update_time > ser_dag_1_update_time
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_FETCH_INTERVAL", 5)
-    def test_get_dag_refresh_race_condition(self):
+    def test_get_dag_refresh_race_condition(self, session):
         """
         Test that DagBag.get_dag correctly refresh the Serialized DAG even if SerializedDagModel.last_updated
         is before DagBag.dags_last_fetched.
         """
-
+        db_clean_up()
         # serialize the initial version of the DAG
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 0)), tick=False):
             example_bash_op_dag = DagBag(include_examples=True).dags.get("example_bash_operator")
+            example_bash_op_dag.sync_to_db()
             SerializedDagModel.write_dag(dag=example_bash_op_dag)
 
         # deserialize the DAG
@@ -884,6 +881,7 @@ with airflow.DAG(
         # long before the transaction is committed
         with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 0)), tick=False):
             example_bash_op_dag.tags.add("new_tag")
+            example_bash_op_dag.sync_to_db()
             SerializedDagModel.write_dag(dag=example_bash_op_dag)
 
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
@@ -896,7 +894,6 @@ with airflow.DAG(
         assert set(updated_ser_dag.tags) == {"example", "example2", "new_tag"}
         assert updated_ser_dag_update_time > ser_dag_update_time
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_collect_dags_from_db(self):
         """DAGs are collected from Database"""
         db.clear_db_dags()
@@ -904,6 +901,7 @@ with airflow.DAG(
 
         example_dags = dagbag.dags
         for dag in example_dags.values():
+            dag.sync_to_db()
             SerializedDagModel.write_dag(dag)
 
         new_dagbag = DagBag(read_dags_from_db=True)
@@ -971,7 +969,7 @@ with airflow.DAG(
         dagbag = DagBag(dag_folder=dag_file, include_examples=False)
         assert {"test_with_non_default_owner"} == set(dagbag.dag_ids)
 
-        assert {} == dagbag.import_errors
+        assert dagbag.import_errors == {}
 
     @patch("airflow.settings.dag_policy", cluster_policies.dag_policy)
     def test_dag_cluster_policy_obeyed(self):

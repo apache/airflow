@@ -52,7 +52,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/pinecone/index>
+    System Tests <_api/tests/system/pinecone/index>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
@@ -71,7 +71,7 @@ apache-airflow-providers-pinecone package
 `Pinecone <https://docs.pinecone.io/docs/overview>`__
 
 
-Release: 2.1.0
+Release: 2.1.1
 
 Provider package
 ----------------

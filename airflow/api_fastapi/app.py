@@ -16,66 +16,74 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+import logging
+from contextlib import AsyncExitStack, asynccontextmanager
 
-from airflow.www.extensions.init_dagbag import get_dag_bag
+from fastapi import FastAPI
+from starlette.routing import Mount
+
+from airflow.api_fastapi.core_api.app import (
+    init_config,
+    init_dag_bag,
+    init_error_handlers,
+    init_plugins,
+    init_views,
+)
+from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
+from airflow.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
+
+log = logging.getLogger(__name__)
 
 app: FastAPI | None = None
+auth_manager: BaseAuthManager | None = None
 
 
-def init_dag_bag(app: FastAPI) -> None:
-    """
-    Create global DagBag for the FastAPI application.
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with AsyncExitStack() as stack:
+        for route in app.routes:
+            if isinstance(route, Mount) and isinstance(route.app, FastAPI):
+                await stack.enter_async_context(
+                    route.app.router.lifespan_context(route.app),
+                )
+        app.state.lifespan_called = True
+        yield
 
-    To access it use ``request.app.state.dag_bag``.
-    """
-    app.state.dag_bag = get_dag_bag()
 
-
-def create_app() -> FastAPI:
-    from airflow.configuration import conf
+def create_app(apps: str = "all") -> FastAPI:
+    apps_list = apps.split(",") if apps else ["all"]
 
     app = FastAPI(
+        title="Airflow API",
         description="Airflow API. All endpoints located under ``/public`` can be used safely, are stable and backward compatible. "
         "Endpoints located under ``/ui`` are dedicated to the UI and are subject to breaking change "
-        "depending on the need of the frontend. Users should not rely on those but use the public ones instead."
+        "depending on the need of the frontend. Users should not rely on those but use the public ones instead.",
+        lifespan=lifespan,
     )
 
-    init_dag_bag(app)
+    if "core" in apps_list or "all" in apps_list:
+        init_dag_bag(app)
+        init_views(app)
+        init_plugins(app)
+        init_error_handlers(app)
+        init_auth_manager()
 
-    init_views(app)
+    if "execution" in apps_list or "all" in apps_list:
+        task_exec_api_app = create_task_execution_api_app(app)
+        app.mount("/execution", task_exec_api_app)
 
-    allow_origins = conf.getlist("api", "access_control_allow_origins")
-    allow_methods = conf.getlist("api", "access_control_allow_methods")
-    allow_headers = conf.getlist("api", "access_control_allow_headers")
-
-    if allow_origins or allow_methods or allow_headers:
-        app.add_middleware(
-            CORSMiddleware,
-            allow_origins=allow_origins,
-            allow_credentials=True,
-            allow_methods=allow_methods,
-            allow_headers=allow_headers,
-        )
+    init_config(app)
 
     return app
 
 
-def init_views(app) -> None:
-    """Init views by registering the different routers."""
-    from airflow.api_fastapi.views.public import public_router
-    from airflow.api_fastapi.views.ui import ui_router
-
-    app.include_router(ui_router)
-    app.include_router(public_router)
-
-
-def cached_app(config=None, testing=False) -> FastAPI:
-    """Return cached instance of Airflow UI app."""
+def cached_app(config=None, testing=False, apps="all") -> FastAPI:
+    """Return cached instance of Airflow API app."""
     global app
     if not app:
-        app = create_app()
+        app = create_app(apps=apps)
     return app
 
 
@@ -83,3 +91,43 @@ def purge_cached_app() -> None:
     """Remove the cached version of the app in global state."""
     global app
     app = None
+
+
+def get_auth_manager_cls() -> type[BaseAuthManager]:
+    """
+    Return just the auth manager class without initializing it.
+
+    Useful to save execution time if only static methods need to be called.
+    """
+    auth_manager_cls = conf.getimport(section="core", key="auth_manager")
+
+    if not auth_manager_cls:
+        raise AirflowConfigException(
+            "No auth manager defined in the config. "
+            "Please specify one using section/key [core/auth_manager]."
+        )
+
+    return auth_manager_cls
+
+
+def init_auth_manager() -> BaseAuthManager:
+    """
+    Initialize the auth manager.
+
+    Import the user manager class and instantiate it.
+    """
+    global auth_manager
+    auth_manager_cls = get_auth_manager_cls()
+    auth_manager = auth_manager_cls()
+    auth_manager.init()
+    return auth_manager
+
+
+def get_auth_manager() -> BaseAuthManager:
+    """Return the auth manager, provided it's been initialized before."""
+    if auth_manager is None:
+        raise RuntimeError(
+            "Auth Manager has not been initialized yet. "
+            "The `init_auth_manager` method needs to be called first."
+        )
+    return auth_manager

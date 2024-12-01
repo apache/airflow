@@ -48,7 +48,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/dingding/index>
+    System Tests <_api/tests/system/dingding/index>
 
 .. toctree::
     :hidden:

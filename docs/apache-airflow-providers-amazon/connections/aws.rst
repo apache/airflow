@@ -136,22 +136,6 @@ Extra (optional)
     * ``service_config``: json used to specify configuration/parameters per AWS service / Amazon provider hook,
       for more details please refer to :ref:`howto/connection:aws:per-service-configuration`.
 
-.. warning:: The extra parameters below are deprecated and will be removed in a future version of this provider.
-
-    * ``aws_account_id``: Used to construct ``role_arn`` if it was not specified.
-    * ``aws_iam_role``: Used to construct ``role_arn`` if it was not specified.
-    * ``external_id``: A unique identifier that might be required when you assume a role in another account.
-      Used if ``ExternalId`` in ``assume_role_kwargs`` was not specified.
-    * ``s3_config_file``: Path to local credentials file.
-    * ``s3_config_format``: ``s3_config_file`` format, one of
-      `aws <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-settings>`_,
-      `boto <http://boto.cloudhackers.com/en/latest/boto_config_tut.html#details>`_ or
-      `s3cmd <https://s3tools.org/kb/item14.htm>`_ if not specified then **boto** is used.
-    * ``profile``: If you are getting your credentials from the ``s3_config_file``
-      you can specify the profile with this parameter.
-    * ``host``: Used as connection's URL. Use ``endpoint_url`` instead.
-    * ``session_kwargs``: Additional **kwargs** passed to :external:py:class:`boto3.session.Session`.
-
 If you are configuring the connection via a URI, ensure that all components of the URI are URL-encoded.
 
 Examples

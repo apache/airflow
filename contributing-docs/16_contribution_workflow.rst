@@ -68,9 +68,9 @@ on your local machine, you might choose Local Virtualenv, or dockerized Breeze e
 also have support for popular remote development environments: GitHub Codespaces and GitPodify.
 You can see the differences between the various environments in `Development environments <06_development_environments.rst>`__.
 
-The local env instructions can be found in full in the `Local virtualenv <07_local_virtualenv.rst>`_ file.
+The local environment instructions can be found in full in the `Local virtualenv <07_local_virtualenv.rst>`_ file.
 
-The Breeze Docker Compose env is to maintain a consistent and common development environment so that you
+The Breeze Docker Compose environment is to maintain a consistent and common development environment so that you
 can replicate CI failures locally and work on solving them locally rather by pushing to CI.
 
 The Breeze instructions can be found in full in the `Breeze documentation <../dev/breeze/doc/README.rst>`_ file.
@@ -121,8 +121,8 @@ to make them immediately visible in the environment.
    ./scripts/tools/initialize_virtualenv.py
 
 
-6. Open your IDE (for example, PyCharm) and select the virtualenv you created
-   as the project's default virtualenv in your IDE.
+6. Open your IDE (for example, PyCharm) and select the virtual environment you created
+   as the project's default virtual environment in your IDE.
 
 Step 3: Connect with People
 ---------------------------
@@ -196,7 +196,13 @@ Step 4: Prepare PR
      and place in either `newsfragments <https://github.com/apache/airflow/blob/main/newsfragments>`__ for core newsfragments,
      or `chart/newsfragments <https://github.com/apache/airflow/blob/main/chart/newsfragments>`__ for helm chart newsfragments.
 
-     In general newsfragments must be one line.  For newsfragment type ``significant``, you may include summary and body separated by a blank line, similar to ``git`` commit messages.
+     In general newsfragments must be one line.  For newsfragment type ``significant``,
+     you should follow the template in ``newsfragments/template.significant.rst`` to include summary, body, change type and migrations rules needed.
+     This can also be done by the following command.
+
+     .. code-block:: bash
+
+        uv tool run towncrier create --dir . --config newsfragments/config.toml --content "`cat newsfragments/template.significant.rst`"
 
 2. Rebase your fork, squash commits, and resolve all conflicts. See `How to rebase PR <#how-to-rebase-pr>`_
    if you need help with rebasing your change. Remember to rebase often if your PR takes a lot of time to

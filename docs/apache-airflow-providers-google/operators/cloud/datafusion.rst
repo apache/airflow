@@ -40,7 +40,7 @@ Restart DataFusion Instance
 To restart Data Fusion instance use:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionRestartInstanceOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datafusion/example_datafusion.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datafusion/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_restart_instance_operator]
@@ -59,7 +59,7 @@ Delete DataFusion Instance
 To delete Data Fusion instance use:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionDeleteInstanceOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datafusion/example_datafusion.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datafusion/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_delete_instance_operator]
@@ -79,7 +79,7 @@ Create DataFusion Instance
 To create Data Fusion instance use:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionCreateInstanceOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datafusion/example_datafusion.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datafusion/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_create_instance_operator]
@@ -99,7 +99,7 @@ Update DataFusion Instance
 To update Data Fusion instance use:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionUpdateInstanceOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datafusion/example_datafusion.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datafusion/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_update_instance_operator]
@@ -118,7 +118,7 @@ Get DataFusion Instance
 To retrieve Data Fusion instance use:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionGetInstanceOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datafusion/example_datafusion.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datafusion/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_get_instance_operator]
@@ -138,7 +138,7 @@ Create a DataFusion pipeline
 To create Data Fusion pipeline use:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionCreatePipelineOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datafusion/example_datafusion.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datafusion/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_create_pipeline]
@@ -157,7 +157,7 @@ Start a DataFusion pipeline
 To start Data Fusion pipeline using synchronous mode:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionStartPipelineOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datafusion/example_datafusion.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datafusion/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_start_pipeline]
@@ -166,7 +166,7 @@ To start Data Fusion pipeline using synchronous mode:
 To start Data Fusion pipeline using asynchronous mode:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionStartPipelineOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datafusion/example_datafusion.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datafusion/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_start_pipeline_async]
@@ -179,7 +179,7 @@ It is not possible to use both asynchronous and deferrable parameters at the sam
 Please, check the example of using deferrable mode:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionStartPipelineOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datafusion/example_datafusion.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datafusion/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_start_pipeline_def]
@@ -198,7 +198,7 @@ Stop a DataFusion pipeline
 To stop Data Fusion pipeline use:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionStopPipelineOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datafusion/example_datafusion.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datafusion/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_stop_pipeline]
@@ -217,7 +217,7 @@ Delete a DataFusion pipeline
 To delete Data Fusion pipeline use:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionDeletePipelineOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datafusion/example_datafusion.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datafusion/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_delete_pipeline]
@@ -237,7 +237,7 @@ List DataFusion pipelines
 To list Data Fusion pipelines use:
 :class:`~airflow.providers.google.cloud.operators.datafusion.CloudDataFusionListPipelinesOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datafusion/example_datafusion.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datafusion/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_list_pipelines]
@@ -255,7 +255,7 @@ When start pipeline is triggered asynchronously sensors may be used to run check
 
 :class:`~airflow.providers.google.cloud.sensors.datafusion.CloudDataFusionPipelineStateSensor`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/datafusion/example_datafusion.py
+.. exampleinclude:: /../../providers/tests/system/google/cloud/datafusion/example_datafusion.py
     :language: python
     :dedent: 4
     :start-after: [START howto_cloud_data_fusion_start_pipeline_sensor]

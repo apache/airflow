@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
 import pytest
 
@@ -47,7 +47,7 @@ from airflow_breeze.utils.packages import (
     get_suspended_provider_ids,
     validate_provider_info_with_runtime_schema,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_PROVIDERS_ROOT, AIRFLOW_SOURCES_ROOT, DOCS_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DOCS_ROOT
 
 
 def test_get_available_packages():
@@ -109,17 +109,17 @@ def test_get_provider_requirements():
 
 def test_get_removed_providers():
     # Modify it every time we schedule provider for removal or remove it
-    assert [] == get_removed_provider_ids()
+    assert get_removed_provider_ids() == []
 
 
 def test_get_suspended_provider_ids():
     # Modify it every time we suspend/resume provider
-    assert [] == get_suspended_provider_ids()
+    assert get_suspended_provider_ids() == []
 
 
 def test_get_suspended_provider_folders():
     # Modify it every time we suspend/resume provider
-    assert [] == get_suspended_provider_folders()
+    assert get_suspended_provider_folders() == []
 
 
 @pytest.mark.parametrize(
@@ -151,7 +151,9 @@ def test_find_matching_long_package_name_bad_filter():
 
 
 def test_get_source_package_path():
-    assert get_source_package_path("apache.hdfs") == AIRFLOW_PROVIDERS_ROOT / "apache" / "hdfs"
+    assert get_source_package_path("apache.hdfs") == AIRFLOW_SOURCES_ROOT.joinpath(
+        "providers", "src", "airflow", "providers", "apache", "hdfs"
+    )
 
 
 def test_get_documentation_package_path():
@@ -165,8 +167,9 @@ def test_get_documentation_package_path():
             "fab",
             "",
             """
-    "apache-airflow>=2.9.0",
-    "flask-appbuilder==4.5.0",
+    "apache-airflow-providers-common-compat>=1.2.1",
+    "apache-airflow>=3.0.0.dev0",
+    "flask-appbuilder==4.5.2",
     "flask-login>=0.6.2",
     "flask>=2.2,<2.3",
     "google-re2>=1.0",
@@ -178,8 +181,9 @@ def test_get_documentation_package_path():
             "fab",
             "dev0",
             """
-    "apache-airflow>=2.9.0.dev0",
-    "flask-appbuilder==4.5.0",
+    "apache-airflow-providers-common-compat>=1.2.1.dev0",
+    "apache-airflow>=3.0.0.dev0",
+    "flask-appbuilder==4.5.2",
     "flask-login>=0.6.2",
     "flask>=2.2,<2.3",
     "google-re2>=1.0",
@@ -191,8 +195,9 @@ def test_get_documentation_package_path():
             "fab",
             "beta0",
             """
-    "apache-airflow>=2.9.0b0",
-    "flask-appbuilder==4.5.0",
+    "apache-airflow-providers-common-compat>=1.2.1b0",
+    "apache-airflow>=3.0.0b0",
+    "flask-appbuilder==4.5.2",
     "flask-login>=0.6.2",
     "flask>=2.2,<2.3",
     "google-re2>=1.0",
@@ -204,8 +209,9 @@ def test_get_documentation_package_path():
             "postgres",
             "beta0",
             """
-    "apache-airflow-providers-common-sql>=1.17.0b0",
+    "apache-airflow-providers-common-sql>=1.20.0b0",
     "apache-airflow>=2.8.0b0",
+    "asyncpg>=0.30.0",
     "psycopg2-binary>=2.9.4",
     """,
             id="beta0 suffix postgres",
@@ -214,8 +220,9 @@ def test_get_documentation_package_path():
             "postgres",
             "",
             """
-    "apache-airflow-providers-common-sql>=1.17.0",
+    "apache-airflow-providers-common-sql>=1.20.0",
     "apache-airflow>=2.8.0",
+    "asyncpg>=0.30.0",
     "psycopg2-binary>=2.9.4",
     """,
             id="No suffix postgres",
@@ -223,7 +230,8 @@ def test_get_documentation_package_path():
     ],
 )
 def test_get_install_requirements(provider: str, version_suffix: str, expected: str):
-    assert get_install_requirements(provider, version_suffix).strip() == expected.strip()
+    actual = get_install_requirements(provider, version_suffix)
+    assert actual.strip() == expected.strip()
 
 
 @pytest.mark.parametrize(
@@ -236,10 +244,8 @@ def test_get_install_requirements(provider: str, version_suffix: str, expected: 
                 "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
                 "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
                 "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0"],
-                "common.compat": ["apache-airflow-providers-common-compat"],
-                "common.sql": ["apache-airflow-providers-common-sql"],
                 "facebook": ["apache-airflow-providers-facebook>=2.2.0"],
-                "leveldb": ["plyvel"],
+                "leveldb": ["plyvel>=1.5.1"],
                 "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
                 "microsoft.mssql": ["apache-airflow-providers-microsoft-mssql"],
                 "mysql": ["apache-airflow-providers-mysql"],
@@ -261,10 +267,8 @@ def test_get_install_requirements(provider: str, version_suffix: str, expected: 
                 "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
                 "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
                 "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0.dev0"],
-                "common.compat": ["apache-airflow-providers-common-compat"],
-                "common.sql": ["apache-airflow-providers-common-sql"],
                 "facebook": ["apache-airflow-providers-facebook>=2.2.0.dev0"],
-                "leveldb": ["plyvel"],
+                "leveldb": ["plyvel>=1.5.1"],
                 "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
                 "microsoft.mssql": ["apache-airflow-providers-microsoft-mssql"],
                 "mysql": ["apache-airflow-providers-mysql"],
@@ -286,10 +290,8 @@ def test_get_install_requirements(provider: str, version_suffix: str, expected: 
                 "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
                 "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
                 "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0b0"],
-                "common.compat": ["apache-airflow-providers-common-compat"],
-                "common.sql": ["apache-airflow-providers-common-sql"],
                 "facebook": ["apache-airflow-providers-facebook>=2.2.0b0"],
-                "leveldb": ["plyvel"],
+                "leveldb": ["plyvel>=1.5.1"],
                 "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
                 "microsoft.mssql": ["apache-airflow-providers-microsoft-mssql"],
                 "mysql": ["apache-airflow-providers-mysql"],
@@ -307,7 +309,8 @@ def test_get_install_requirements(provider: str, version_suffix: str, expected: 
     ],
 )
 def test_get_package_extras(version_suffix: str, expected: dict[str, list[str]]):
-    assert get_package_extras("google", version_suffix=version_suffix) == expected
+    actual = get_package_extras("google", version_suffix=version_suffix)
+    assert actual == expected
 
 
 def test_get_provider_details():
@@ -315,9 +318,12 @@ def test_get_provider_details():
     assert provider_details.provider_id == "asana"
     assert provider_details.full_package_name == "airflow.providers.asana"
     assert provider_details.pypi_package_name == "apache-airflow-providers-asana"
-    assert (
-        provider_details.source_provider_package_path
-        == AIRFLOW_SOURCES_ROOT / "airflow" / "providers" / "asana"
+    assert provider_details.source_provider_package_path == AIRFLOW_SOURCES_ROOT.joinpath(
+        "providers",
+        "src",
+        "airflow",
+        "providers",
+        "asana",
     )
     assert (
         provider_details.documentation_provider_package_path == DOCS_ROOT / "apache-airflow-providers-asana"
@@ -372,8 +378,8 @@ def test_get_dist_package_name_prefix(provider_id: str, expected_package_name: s
             id="version-with-platform-marker",
         ),
         pytest.param(
-            "backports.zoneinfo>=0.2.1;python_version<'3.9'",
-            ("backports.zoneinfo", '>=0.2.1; python_version < "3.9"'),
+            "pendulum>=2.1.2,<4.0;python_version<'3.12'",
+            ("pendulum", '>=2.1.2,<4.0; python_version < "3.12"'),
             id="version-with-python-marker",
         ),
         pytest.param(
@@ -432,7 +438,7 @@ def test_validate_provider_info_with_schema():
     "provider_id, min_version",
     [
         ("amazon", "2.8.0"),
-        ("fab", "2.9.0"),
+        ("fab", "3.0.0.dev0"),
     ],
 )
 def test_get_min_airflow_version(provider_id: str, min_version: str):
@@ -493,8 +499,8 @@ def test_provider_jinja_context():
         "RELEASE_NO_LEADING_ZEROS": version,
         "VERSION_SUFFIX": ".rc1",
         "PROVIDER_DESCRIPTION": "Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).\n",
-        "CHANGELOG_RELATIVE_PATH": "../../airflow/providers/amazon",
-        "SUPPORTED_PYTHON_VERSIONS": ["3.8", "3.9", "3.10", "3.11", "3.12"],
+        "CHANGELOG_RELATIVE_PATH": "../../providers/src/airflow/providers/amazon",
+        "SUPPORTED_PYTHON_VERSIONS": ["3.9", "3.10", "3.11", "3.12"],
         "PLUGINS": [],
         "MIN_AIRFLOW_VERSION": "2.8.0",
         "PROVIDER_REMOVED": False,

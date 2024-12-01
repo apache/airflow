@@ -48,7 +48,7 @@ Send events to Amazon EventBridge
 To send custom events to Amazon EventBridge, use
 :class:`~airflow.providers.amazon.aws.operators.eventbridge.EventBridgePutEventsOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_eventbridge.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_eventbridge.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eventbridge_put_events]
@@ -63,7 +63,7 @@ Create or update a rule on Amazon EventBridge
 To create or update a rule on EventBridge, use
 :class:`~airflow.providers.amazon.aws.operators.eventbridge.EventBridgePutRuleOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_eventbridge.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_eventbridge.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eventbridge_put_rule]
@@ -78,7 +78,7 @@ Enable a rule on Amazon EventBridge
 To enable an existing rule on EventBridge, use
 :class:`~airflow.providers.amazon.aws.operators.eventbridge.EventBridgeEnableRuleOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_eventbridge.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_eventbridge.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eventbridge_enable_rule]
@@ -93,7 +93,7 @@ Disable a rule on Amazon EventBridge
 To disable an existing rule on EventBridge, use
 :class:`~airflow.providers.amazon.aws.operators.eventbridge.EventBridgeDisableRuleOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_eventbridge.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_eventbridge.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_eventbridge_disable_rule]

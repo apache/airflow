@@ -48,7 +48,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/apache/kylin/index>
+    System Tests <_api/tests/system/apache/kylin/index>
 
 .. toctree::
     :hidden:

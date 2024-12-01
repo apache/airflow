@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import sys
 import uuid
 from stat import S_ISDIR, S_ISREG
 from tempfile import NamedTemporaryFile
@@ -29,10 +28,10 @@ from fsspec.implementations.local import LocalFileSystem
 from fsspec.implementations.memory import MemoryFileSystem
 from fsspec.registry import _registry as _fsspec_registry, register_implementation
 
-from airflow.datasets import Dataset
 from airflow.io import _register_filesystems, get_fs
 from airflow.io.path import ObjectStoragePath
 from airflow.io.store import _STORE_CACHE, ObjectStore, attach
+from airflow.sdk.definitions.asset import Asset
 from airflow.utils.module_loading import qualname
 
 FAKE = "file:///fake"
@@ -247,7 +246,6 @@ class TestFs:
 
         e.unlink()
 
-    @pytest.mark.skipif(sys.version_info < (3, 9), reason="`is_relative_to` new in version 3.9")
     def test_is_relative_to(self):
         uuid_dir = f"/tmp/{str(uuid.uuid4())}"
         o1 = ObjectStoragePath(f"file://{uuid_dir}/aaa")
@@ -280,12 +278,12 @@ class TestFs:
 
         _to.unlink()
 
-        collected_datasets = hook_lineage_collector.collected_datasets
+        collected_assets = hook_lineage_collector.collected_assets
 
-        assert len(collected_datasets.inputs) == 1
-        assert len(collected_datasets.outputs) == 1
-        assert collected_datasets.inputs[0].dataset == Dataset(uri=_from_path)
-        assert collected_datasets.outputs[0].dataset == Dataset(uri=_to_path)
+        assert len(collected_assets.inputs) == 1
+        assert len(collected_assets.outputs) == 1
+        assert collected_assets.inputs[0].asset == Asset(uri=_from_path)
+        assert collected_assets.outputs[0].asset == Asset(uri=_to_path)
 
     def test_move_remote(self, hook_lineage_collector):
         attach("fakefs", fs=FakeRemoteFileSystem())
@@ -303,12 +301,12 @@ class TestFs:
 
         _to.unlink()
 
-        collected_datasets = hook_lineage_collector.collected_datasets
+        collected_assets = hook_lineage_collector.collected_assets
 
-        assert len(collected_datasets.inputs) == 1
-        assert len(collected_datasets.outputs) == 1
-        assert collected_datasets.inputs[0].dataset == Dataset(uri=str(_from))
-        assert collected_datasets.outputs[0].dataset == Dataset(uri=str(_to))
+        assert len(collected_assets.inputs) == 1
+        assert len(collected_assets.outputs) == 1
+        assert collected_assets.inputs[0].asset == Asset(uri=str(_from))
+        assert collected_assets.outputs[0].asset == Asset(uri=str(_to))
 
     def test_copy_remote_remote(self, hook_lineage_collector):
         attach("ffs", fs=FakeRemoteFileSystem(skip_instance_cache=True))
@@ -338,11 +336,11 @@ class TestFs:
         _from.rmdir(recursive=True)
         _to.rmdir(recursive=True)
 
-        assert len(hook_lineage_collector.collected_datasets.inputs) == 1
-        assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(uri=str(_from_file))
+        assert len(hook_lineage_collector.collected_assets.inputs) == 1
+        assert hook_lineage_collector.collected_assets.inputs[0].asset == Asset(uri=str(_from_file))
 
         # Empty file - shutil.copyfileobj does nothing
-        assert len(hook_lineage_collector.collected_datasets.outputs) == 0
+        assert len(hook_lineage_collector.collected_assets.outputs) == 0
 
     def test_serde_objectstoragepath(self):
         path = "file:///bucket/key/part1/part2"
@@ -402,12 +400,12 @@ class TestFs:
             # Reset the cache to avoid side effects
             _register_filesystems.cache_clear()
 
-    def test_dataset(self):
+    def test_asset(self):
         attach("s3", fs=FakeRemoteFileSystem())
 
         p = "s3"
-        f = "/tmp/foo"
-        i = Dataset(uri=f"{p}://{f}", extra={"foo": "bar"})
+        f = "bucket/object"
+        i = Asset(uri=f"{p}://{f}", extra={"foo": "bar"})
         o = ObjectStoragePath(i)
         assert o.protocol == p
         assert o.path == f

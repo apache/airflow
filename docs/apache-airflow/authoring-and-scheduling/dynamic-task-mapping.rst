@@ -84,6 +84,11 @@ The grid view also provides visibility into your mapped tasks in the details pan
 
     Although we show a "reduce" task here (``sum_it``) you don't have to have one, the mapped tasks will still be executed even if they have no downstream tasks.
 
+.. warning:: ``TriggerRule.ALWAYS`` cannot be utilized in expanded tasks
+
+    Assigning ``trigger_rule=TriggerRule.ALWAYS`` in expanded tasks is forbidden, as expanded parameters will be undefined with the task's immediate execution.
+    This is enforced at the time of the DAG parsing, and will raise an error if you try to use it.
+
 Task-generated Mapping
 ----------------------
 
@@ -196,7 +201,7 @@ Since the template is rendered after the main execution block, it is possible to
 
 .. code-block:: python
 
-    from airflow.operators.python import get_current_context
+    from airflow.providers.standard.operators.python import get_current_context
 
 
     @task(map_index_template="{{ my_variable }}")

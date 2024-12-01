@@ -20,9 +20,9 @@ from __future__ import annotations
 import inspect
 import json
 import warnings
+from collections.abc import Iterator
 from datetime import datetime, timedelta
 from importlib import import_module
-from typing import Iterator
 
 import pendulum
 import pytest
@@ -31,7 +31,6 @@ from kubernetes.client import models as k8s
 from pendulum.tz.timezone import Timezone
 from pydantic import BaseModel
 
-from airflow.datasets import Dataset, DatasetAlias, DatasetAliasEvent
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -40,25 +39,25 @@ from airflow.exceptions import (
     TaskDeferred,
 )
 from airflow.jobs.job import Job
+from airflow.models.asset import AssetEvent
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, DagModel, DagTag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetEvent
 from airflow.models.param import Param
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
+from airflow.serialization.pydantic.asset import AssetEventPydantic, AssetPydantic
 from airflow.serialization.pydantic.dag import DagModelPydantic, DagTagPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
-from airflow.serialization.pydantic.dataset import DatasetEventPydantic, DatasetPydantic
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
 from airflow.serialization.serialized_objects import BaseSerialization
-from airflow.settings import _ENABLE_AIP_44
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.context import OutletEventAccessor, OutletEventAccessors
@@ -67,6 +66,7 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.state import DagRunState, State
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
+
 from tests import REPO_ROOT
 
 
@@ -142,7 +142,7 @@ DAG_RUN = DagRun(
     dag_id="test_dag_id",
     run_id="test_dag_run_id",
     run_type=DagRunType.MANUAL,
-    execution_date=timezone.utcnow(),
+    logical_date=timezone.utcnow(),
     start_date=timezone.utcnow(),
     external_trigger=True,
     state=DagRunState.SUCCESS,
@@ -163,7 +163,7 @@ def equal_exception(a: AirflowException, b: AirflowException) -> bool:
 
 
 def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) -> bool:
-    return a.raw_key == b.raw_key and a.extra == b.extra and a.dataset_alias_events == b.dataset_alias_events
+    return a.raw_key == b.raw_key and a.extra == b.extra and a.asset_alias_events == b.asset_alias_events
 
 
 class MockLazySelectSequence(LazySelectSequence):
@@ -232,7 +232,7 @@ class MockLazySelectSequence(LazySelectSequence):
             None,
         ),
         (MockLazySelectSequence(), None, lambda a, b: len(a) == len(b) and isinstance(b, list)),
-        (Dataset(uri="test"), DAT.DATASET, equals),
+        (Asset(uri="test"), DAT.ASSET, equals),
         (SimpleTaskInstance.from_ti(ti=TI), DAT.SIMPLE_TASK_INSTANCE, equals),
         (
             Connection(conn_id="TEST_ID", uri="mysql://"),
@@ -240,24 +240,24 @@ class MockLazySelectSequence(LazySelectSequence):
             lambda a, b: a.get_uri() == b.get_uri(),
         ),
         (
-            OutletEventAccessor(raw_key=Dataset(uri="test"), extra={"key": "value"}, dataset_alias_events=[]),
-            DAT.DATASET_EVENT_ACCESSOR,
+            OutletEventAccessor(raw_key=Asset(uri="test"), extra={"key": "value"}, asset_alias_events=[]),
+            DAT.ASSET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
         ),
         (
             OutletEventAccessor(
-                raw_key=DatasetAlias(name="test_alias"),
+                raw_key=AssetAlias(name="test_alias"),
                 extra={"key": "value"},
-                dataset_alias_events=[
-                    DatasetAliasEvent(source_alias_name="test_alias", dest_dataset_uri="test_uri", extra={})
+                asset_alias_events=[
+                    AssetAliasEvent(source_alias_name="test_alias", dest_asset_uri="test_uri", extra={})
                 ],
             ),
-            DAT.DATASET_EVENT_ACCESSOR,
+            DAT.ASSET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
         ),
         (
-            OutletEventAccessor(raw_key="test", extra={"key": "value"}, dataset_alias_events=[]),
-            DAT.DATASET_EVENT_ACCESSOR,
+            OutletEventAccessor(raw_key="test", extra={"key": "value"}, asset_alias_events=[]),
+            DAT.ASSET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
         ),
         (
@@ -326,12 +326,11 @@ sample_objects = {
         id=1, filename="test_file", elasticsearch_id="test_id", created_at=datetime.now()
     ),
     DagTagPydantic: DagTag(),
-    DatasetPydantic: Dataset("uri", {}),
-    DatasetEventPydantic: DatasetEvent(),
+    AssetPydantic: Asset("uri", extra={}),
+    AssetEventPydantic: AssetEvent(),
 }
 
 
-@pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 @pytest.mark.parametrize(
     "input, pydantic_class, encoded_type, cmp_func",
     [
@@ -351,17 +350,17 @@ sample_objects = {
             sample_objects.get(DagRunPydantic),
             DagRunPydantic,
             DAT.DAG_RUN,
-            lambda a, b: equal_time(a.execution_date, b.execution_date)
+            lambda a, b: equal_time(a.logical_date, b.logical_date)
             and equal_time(a.start_date, b.start_date),
         ),
-        # DataSet is already serialized by non-Pydantic serialization. Is DatasetPydantic needed then?
+        # Asset is already serialized by non-Pydantic serialization. Is AssetPydantic needed then?
         # (
-        #     Dataset(
+        #     Asset(
         #         uri="foo://bar",
         #         extra={"foo": "bar"},
         #     ),
-        #     DatasetPydantic,
-        #     DAT.DATA_SET,
+        #     AssetPydantic,
+        #     DAT.ASSET,
         #     lambda a, b: a.uri == b.uri and a.extra == b.extra,
         # ),
         (
@@ -414,8 +413,6 @@ def test_serialize_deserialize_pydantic(input, pydantic_class, encoded_type, cmp
 
 def test_all_pydantic_models_round_trip():
     pytest.importorskip("pydantic", minversion="2.0.0")
-    if not _ENABLE_AIP_44:
-        pytest.skip("AIP-44 is disabled")
     classes = set()
     mods_folder = REPO_ROOT / "airflow/serialization/pydantic"
     for p in mods_folder.iterdir():
@@ -429,12 +426,12 @@ def test_all_pydantic_models_round_trip():
                     continue
                 classes.add(obj)
     exclusion_list = {
-        "DatasetPydantic",
+        "AssetPydantic",
         "DagTagPydantic",
-        "DagScheduleDatasetReferencePydantic",
-        "TaskOutletDatasetReferencePydantic",
+        "DagScheduleAssetReferencePydantic",
+        "TaskOutletAssetReferencePydantic",
         "DagOwnerAttributesPydantic",
-        "DatasetEventPydantic",
+        "AssetEventPydantic",
         "TriggerPydantic",
     }
     for c in sorted(classes, key=str):
@@ -471,7 +468,8 @@ def test_all_pydantic_models_round_trip():
 @pytest.mark.db_test
 def test_serialized_mapped_operator_unmap(dag_maker):
     from airflow.serialization.serialized_objects import SerializedDAG
-    from tests.test_utils.mock_operators import MockOperator
+
+    from tests_common.test_utils.mock_operators import MockOperator
 
     with dag_maker(dag_id="dag") as dag:
         MockOperator(task_id="task1", arg1="x")
@@ -490,7 +488,7 @@ def test_serialized_mapped_operator_unmap(dag_maker):
     assert serialized_unmapped_task.dag is serialized_dag
 
 
-def test_ser_of_dataset_event_accessor():
+def test_ser_of_asset_event_accessor():
     # todo: (Airflow 3.0) we should force reserialization on upgrade
     d = OutletEventAccessors()
     d["hi"].extra = "blah1"  # todo: this should maybe be forbidden?  i.e. can extra be any json or just dict?

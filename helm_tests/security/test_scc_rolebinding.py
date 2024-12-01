@@ -48,19 +48,19 @@ class TestSCCActivation:
 
         assert bool(docs) is created
         if created:
-            assert "RoleBinding" == jmespath.search("kind", docs[0])
-            assert "ClusterRole" == jmespath.search("roleRef.kind", docs[0])
-            assert "release-name-scc-rolebinding" == jmespath.search("metadata.name", docs[0])
-            assert "system:openshift:scc:anyuid" == jmespath.search("roleRef.name", docs[0])
-            assert "release-name-airflow-webserver" == jmespath.search("subjects[0].name", docs[0])
-            assert "release-name-airflow-worker" == jmespath.search("subjects[1].name", docs[0])
-            assert "release-name-airflow-scheduler" == jmespath.search("subjects[2].name", docs[0])
-            assert "release-name-airflow-statsd" == jmespath.search("subjects[3].name", docs[0])
-            assert "release-name-airflow-flower" == jmespath.search("subjects[4].name", docs[0])
-            assert "release-name-airflow-triggerer" == jmespath.search("subjects[5].name", docs[0])
-            assert "release-name-airflow-migrate-database-job" == jmespath.search("subjects[6].name", docs[0])
-            assert "release-name-airflow-create-user-job" == jmespath.search("subjects[7].name", docs[0])
-            assert "release-name-airflow-cleanup" == jmespath.search("subjects[8].name", docs[0])
+            assert jmespath.search("kind", docs[0]) == "RoleBinding"
+            assert jmespath.search("roleRef.kind", docs[0]) == "ClusterRole"
+            assert jmespath.search("metadata.name", docs[0]) == "release-name-scc-rolebinding"
+            assert jmespath.search("roleRef.name", docs[0]) == "system:openshift:scc:anyuid"
+            assert jmespath.search("subjects[0].name", docs[0]) == "release-name-airflow-webserver"
+            assert jmespath.search("subjects[1].name", docs[0]) == "release-name-airflow-worker"
+            assert jmespath.search("subjects[2].name", docs[0]) == "release-name-airflow-scheduler"
+            assert jmespath.search("subjects[3].name", docs[0]) == "release-name-airflow-statsd"
+            assert jmespath.search("subjects[4].name", docs[0]) == "release-name-airflow-flower"
+            assert jmespath.search("subjects[5].name", docs[0]) == "release-name-airflow-triggerer"
+            assert jmespath.search("subjects[6].name", docs[0]) == "release-name-airflow-migrate-database-job"
+            assert jmespath.search("subjects[7].name", docs[0]) == "release-name-airflow-create-user-job"
+            assert jmespath.search("subjects[8].name", docs[0]) == "release-name-airflow-cleanup"
 
     @pytest.mark.parametrize(
         "rbac_enabled,scc_enabled,created,namespace,expected_name",
@@ -84,10 +84,10 @@ class TestSCCActivation:
 
         assert bool(docs) is created
         if created:
-            assert "ClusterRoleBinding" == jmespath.search("kind", docs[0])
-            assert "ClusterRole" == jmespath.search("roleRef.kind", docs[0])
+            assert jmespath.search("kind", docs[0]) == "ClusterRoleBinding"
+            assert jmespath.search("roleRef.kind", docs[0]) == "ClusterRole"
             assert expected_name == jmespath.search("metadata.name", docs[0])
-            assert "system:openshift:scc:anyuid" == jmespath.search("roleRef.name", docs[0])
+            assert jmespath.search("roleRef.name", docs[0]) == "system:openshift:scc:anyuid"
 
     @pytest.mark.parametrize(
         "rbac_enabled,scc_enabled,created",
@@ -110,12 +110,12 @@ class TestSCCActivation:
 
         assert bool(docs) is created
         if created:
-            assert "RoleBinding" == jmespath.search("kind", docs[0])
-            assert "ClusterRole" == jmespath.search("roleRef.kind", docs[0])
-            assert "release-name-scc-rolebinding" == jmespath.search("metadata.name", docs[0])
-            assert "system:openshift:scc:anyuid" == jmespath.search("roleRef.name", docs[0])
-            assert "release-name-airflow-webserver" == jmespath.search("subjects[0].name", docs[0])
-            assert "release-name-airflow-worker" == jmespath.search("subjects[1].name", docs[0])
-            assert "release-name-airflow-scheduler" == jmespath.search("subjects[2].name", docs[0])
-            assert "release-name-airflow-triggerer" == jmespath.search("subjects[3].name", docs[0])
-            assert "release-name-airflow-migrate-database-job" == jmespath.search("subjects[4].name", docs[0])
+            assert jmespath.search("kind", docs[0]) == "RoleBinding"
+            assert jmespath.search("roleRef.kind", docs[0]) == "ClusterRole"
+            assert jmespath.search("metadata.name", docs[0]) == "release-name-scc-rolebinding"
+            assert jmespath.search("roleRef.name", docs[0]) == "system:openshift:scc:anyuid"
+            assert jmespath.search("subjects[0].name", docs[0]) == "release-name-airflow-webserver"
+            assert jmespath.search("subjects[1].name", docs[0]) == "release-name-airflow-worker"
+            assert jmespath.search("subjects[2].name", docs[0]) == "release-name-airflow-scheduler"
+            assert jmespath.search("subjects[3].name", docs[0]) == "release-name-airflow-triggerer"
+            assert jmespath.search("subjects[4].name", docs[0]) == "release-name-airflow-migrate-database-job"

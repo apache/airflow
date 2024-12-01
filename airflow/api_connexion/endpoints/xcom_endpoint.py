@@ -34,6 +34,7 @@ from airflow.api_connexion.schemas.xcom_schema import (
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models import DagRun as DR, XCom
 from airflow.settings import conf
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.extensions.init_auth_manager import get_auth_manager
@@ -44,6 +45,7 @@ if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.XCOM)
 @format_parameters({"limit": check_limit})
 @provide_session
@@ -83,6 +85,7 @@ def get_xcom_entries(
     return xcom_collection_schema.dump(XComCollection(xcom_entries=query, total_entries=total_entries))
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.XCOM)
 @provide_session
 def get_xcom_entry(

@@ -21,9 +21,10 @@ import copy
 import itertools
 import re
 import signal
+from collections.abc import Generator, Iterable, Mapping, MutableMapping
 from datetime import datetime
-from functools import reduce
-from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Mapping, MutableMapping, TypeVar, cast
+from functools import cache, reduce
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 from lazy_object_proxy import Proxy
 
@@ -50,7 +51,7 @@ def validate_key(k: str, max_length: int = 250):
     if not isinstance(k, str):
         raise TypeError(f"The key has to be a string and is {type(k)}:{k}")
     if len(k) > max_length:
-        raise AirflowException(f"The key has to be less than {max_length} characters")
+        raise AirflowException(f"The key: {k} has to be less than {max_length} characters")
     if not KEY_REGEX.match(k):
         raise AirflowException(
             f"The key {k!r} has to be made of alphanumeric characters, dashes, "
@@ -170,7 +171,7 @@ def as_flattened_list(iterable: Iterable[Iterable[T]]) -> list[T]:
     return [e for i in iterable for e in i]
 
 
-def parse_template_string(template_string: str) -> tuple[str | None, jinja2.Template | None]:
+def parse_template_string(template_string: str) -> tuple[str, None] | tuple[None, jinja2.Template]:
     """Parse Jinja template string."""
     import jinja2
 
@@ -178,6 +179,27 @@ def parse_template_string(template_string: str) -> tuple[str | None, jinja2.Temp
         return None, jinja2.Template(template_string)
     else:
         return template_string, None
+
+
+@cache
+def log_filename_template_renderer() -> Callable[..., str]:
+    template = conf.get("logging", "log_filename_template")
+
+    if "{{" in template:
+        import jinja2
+
+        return jinja2.Template(template).render
+    else:
+
+        def f_str_format(ti: TaskInstance, try_number: int | None = None):
+            return template.format(
+                dag_id=ti.dag_id,
+                task_id=ti.task_id,
+                logical_date=ti.logical_date.isoformat(),
+                try_number=try_number or ti.try_number,
+            )
+
+        return f_str_format
 
 
 def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
@@ -198,7 +220,7 @@ def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
     return filename_template.format(
         dag_id=ti.dag_id,
         task_id=ti.task_id,
-        execution_date=ti.execution_date.isoformat(),
+        logical_date=ti.logical_date.isoformat(),
         try_number=try_number,
     )
 
@@ -234,7 +256,7 @@ def build_airflow_url_with_query(query: dict[str, Any]) -> str:
     Build airflow url using base_url and default_view and provided query.
 
     For example:
-    http://0.0.0.0:8000/base/graph?dag_id=my-task&root=&execution_date=2020-10-27T10%3A59%3A25.615587
+    http://0.0.0.0:8000/base/graph?dag_id=my-task&root=&logical_date=2020-10-27T10%3A59%3A25.615587
     """
     import flask
 

@@ -18,7 +18,8 @@ from __future__ import annotations
 
 import datetime
 import json
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 from unittest.mock import patch
 
 import pendulum
@@ -42,7 +43,8 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.xcom import XCOM_RETURN_KEY
-from tests.test_utils.config import conf_vars
+
+from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
@@ -85,7 +87,7 @@ def test_clean_unused(session, create_task_instance):
     assert session.query(Trigger).count() == 3
     # Tie one to a fake TaskInstance that is not deferred, and one to one that is
     task_instance = create_task_instance(
-        session=session, task_id="fake", state=State.DEFERRED, execution_date=timezone.utcnow()
+        session=session, task_id="fake", state=State.DEFERRED, logical_date=timezone.utcnow()
     )
     task_instance.trigger_id = trigger1.id
     session.add(task_instance)
@@ -101,7 +103,6 @@ def test_clean_unused(session, create_task_instance):
     assert session.query(Trigger).one().id == trigger1.id
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_submit_event(session, create_task_instance):
     """
     Tests that events submitted to a trigger re-wake their dependent
@@ -114,7 +115,7 @@ def test_submit_event(session, create_task_instance):
     session.commit()
     # Make a TaskInstance that's deferred and waiting on it
     task_instance = create_task_instance(
-        session=session, execution_date=timezone.utcnow(), state=State.DEFERRED
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
     )
     task_instance.trigger_id = trigger.id
     task_instance.next_kwargs = {"cheesecake": True}
@@ -129,7 +130,6 @@ def test_submit_event(session, create_task_instance):
     assert updated_task_instance.next_kwargs == {"event": 42, "cheesecake": True}
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_submit_failure(session, create_task_instance):
     """
     Tests that failures submitted to a trigger fail their dependent
@@ -141,9 +141,7 @@ def test_submit_failure(session, create_task_instance):
     session.add(trigger)
     session.commit()
     # Make a TaskInstance that's deferred and waiting on it
-    task_instance = create_task_instance(
-        task_id="fake", execution_date=timezone.utcnow(), state=State.DEFERRED
-    )
+    task_instance = create_task_instance(task_id="fake", logical_date=timezone.utcnow(), state=State.DEFERRED)
     task_instance.trigger_id = trigger.id
     session.commit()
     # Call submit_event
@@ -154,7 +152,6 @@ def test_submit_failure(session, create_task_instance):
     assert updated_task_instance.next_method == "__fail__"
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @pytest.mark.parametrize(
     "event_cls, expected",
     [
@@ -179,7 +176,7 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     session.commit()
     # Make a TaskInstance that's deferred and waiting on it
     task_instance = create_task_instance(
-        session=session, execution_date=timezone.utcnow(), state=State.DEFERRED
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
     )
     task_instance.trigger_id = trigger.id
     session.commit()
@@ -248,7 +245,7 @@ def test_assign_unassigned(session, create_task_instance):
     session.add(trigger_on_healthy_triggerer)
     ti_trigger_on_healthy_triggerer = create_task_instance(
         task_id="ti_trigger_on_healthy_triggerer",
-        execution_date=time_now,
+        logical_date=time_now,
         run_id="trigger_on_healthy_triggerer_run_id",
     )
     ti_trigger_on_healthy_triggerer.trigger_id = trigger_on_healthy_triggerer.id
@@ -259,7 +256,7 @@ def test_assign_unassigned(session, create_task_instance):
     session.add(trigger_on_unhealthy_triggerer)
     ti_trigger_on_unhealthy_triggerer = create_task_instance(
         task_id="ti_trigger_on_unhealthy_triggerer",
-        execution_date=time_now + datetime.timedelta(hours=1),
+        logical_date=time_now + datetime.timedelta(hours=1),
         run_id="trigger_on_unhealthy_triggerer_run_id",
     )
     ti_trigger_on_unhealthy_triggerer.trigger_id = trigger_on_unhealthy_triggerer.id
@@ -270,7 +267,7 @@ def test_assign_unassigned(session, create_task_instance):
     session.add(trigger_on_killed_triggerer)
     ti_trigger_on_killed_triggerer = create_task_instance(
         task_id="ti_trigger_on_killed_triggerer",
-        execution_date=time_now + datetime.timedelta(hours=2),
+        logical_date=time_now + datetime.timedelta(hours=2),
         run_id="trigger_on_killed_triggerer_run_id",
     )
     ti_trigger_on_killed_triggerer.trigger_id = trigger_on_killed_triggerer.id
@@ -280,7 +277,7 @@ def test_assign_unassigned(session, create_task_instance):
     session.add(trigger_unassigned_to_triggerer)
     ti_trigger_unassigned_to_triggerer = create_task_instance(
         task_id="ti_trigger_unassigned_to_triggerer",
-        execution_date=time_now + datetime.timedelta(hours=3),
+        logical_date=time_now + datetime.timedelta(hours=3),
         run_id="trigger_unassigned_to_triggerer_run_id",
     )
     ti_trigger_unassigned_to_triggerer.trigger_id = trigger_unassigned_to_triggerer.id
@@ -311,43 +308,42 @@ def test_assign_unassigned(session, create_task_instance):
     )
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_get_sorted_triggers_same_priority_weight(session, create_task_instance):
     """
     Tests that triggers are sorted by the creation_date if they have the same priority.
     """
-    old_execution_date = datetime.datetime(
+    old_logical_date = datetime.datetime(
         2023, 5, 9, 12, 16, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
     )
     trigger_old = Trigger(
         classpath="airflow.triggers.testing.SuccessTrigger",
         kwargs={},
-        created_date=old_execution_date + datetime.timedelta(seconds=30),
+        created_date=old_logical_date + datetime.timedelta(seconds=30),
     )
     trigger_old.id = 1
     session.add(trigger_old)
     TI_old = create_task_instance(
         task_id="old",
-        execution_date=old_execution_date,
+        logical_date=old_logical_date,
         run_id="old_run_id",
     )
     TI_old.priority_weight = 1
     TI_old.trigger_id = trigger_old.id
     session.add(TI_old)
 
-    new_execution_date = datetime.datetime(
+    new_logical_date = datetime.datetime(
         2023, 5, 9, 12, 17, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
     )
     trigger_new = Trigger(
         classpath="airflow.triggers.testing.SuccessTrigger",
         kwargs={},
-        created_date=new_execution_date + datetime.timedelta(seconds=30),
+        created_date=new_logical_date + datetime.timedelta(seconds=30),
     )
     trigger_new.id = 2
     session.add(trigger_new)
     TI_new = create_task_instance(
         task_id="new",
-        execution_date=new_execution_date,
+        logical_date=new_logical_date,
         run_id="new_run_id",
     )
     TI_new.priority_weight = 1
@@ -362,43 +358,42 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance)
     assert trigger_ids_query == [(1,), (2,)]
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_get_sorted_triggers_different_priority_weights(session, create_task_instance):
     """
     Tests that triggers are sorted by the priority_weight.
     """
-    old_execution_date = datetime.datetime(
+    old_logical_date = datetime.datetime(
         2023, 5, 9, 12, 16, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
     )
     trigger_old = Trigger(
         classpath="airflow.triggers.testing.SuccessTrigger",
         kwargs={},
-        created_date=old_execution_date + datetime.timedelta(seconds=30),
+        created_date=old_logical_date + datetime.timedelta(seconds=30),
     )
     trigger_old.id = 1
     session.add(trigger_old)
     TI_old = create_task_instance(
         task_id="old",
-        execution_date=old_execution_date,
+        logical_date=old_logical_date,
         run_id="old_run_id",
     )
     TI_old.priority_weight = 1
     TI_old.trigger_id = trigger_old.id
     session.add(TI_old)
 
-    new_execution_date = datetime.datetime(
+    new_logical_date = datetime.datetime(
         2023, 5, 9, 12, 17, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
     )
     trigger_new = Trigger(
         classpath="airflow.triggers.testing.SuccessTrigger",
         kwargs={},
-        created_date=new_execution_date + datetime.timedelta(seconds=30),
+        created_date=new_logical_date + datetime.timedelta(seconds=30),
     )
     trigger_new.id = 2
     session.add(trigger_new)
     TI_new = create_task_instance(
         task_id="new",
-        execution_date=new_execution_date,
+        logical_date=new_logical_date,
         run_id="new_run_id",
     )
     TI_new.priority_weight = 2

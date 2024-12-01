@@ -37,7 +37,7 @@ https://app.codecov.io/github/apache/airflow
     "airflow/callbacks",
     "airflow/config_templates",
     "airflow/dag_processing",
-    "airflow/datasets",
+    "airflow/assets",
     "airflow/decorators",
     "airflow/hooks",
     "airflow/io",
@@ -66,20 +66,18 @@ files_not_fully_covered = [
 other_tests = [
     "tests/dag_processing",
     "tests/jobs",
-    "tests/triggers",
 ]
 
 """
 Other tests to potentially run against the source_file packages:
 
-    "tests/api_internal",
     "tests/auth",
     "tests/callbacks",
     "tests/charts",
     "tests/cluster_policies",
     "tests/config_templates",
     "tests/dag_processing",
-    "tests/datasets",
+    "tests/assets",
     "tests/decorators",
     "tests/hooks",
     "tests/io",
@@ -96,7 +94,6 @@ Other tests to potentially run against the source_file packages:
     "tests/template",
     "tests/testconfig",
     "tests/timetables",
-    "tests/triggers",
 """
 
 

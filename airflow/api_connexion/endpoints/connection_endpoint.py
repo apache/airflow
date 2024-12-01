@@ -40,6 +40,7 @@ from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.security import permissions
 from airflow.utils import helpers
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.strings import get_random_string
@@ -53,6 +54,7 @@ if TYPE_CHECKING:
 RESOURCE_EVENT_PREFIX = "connection"
 
 
+@mark_fastapi_migration_done
 @security.requires_access_connection("DELETE")
 @provide_session
 @action_logging(
@@ -73,6 +75,7 @@ def delete_connection(*, connection_id: str, session: Session = NEW_SESSION) -> 
     return NoContent, HTTPStatus.NO_CONTENT
 
 
+@mark_fastapi_migration_done
 @security.requires_access_connection("GET")
 @provide_session
 def get_connection(*, connection_id: str, session: Session = NEW_SESSION) -> APIResponse:
@@ -89,6 +92,7 @@ def get_connection(*, connection_id: str, session: Session = NEW_SESSION) -> API
 @security.requires_access_connection("GET")
 @format_parameters({"limit": check_limit})
 @provide_session
+@mark_fastapi_migration_done
 def get_connections(
     *,
     limit: int,
@@ -109,6 +113,7 @@ def get_connections(
     )
 
 
+@mark_fastapi_migration_done
 @security.requires_access_connection("PUT")
 @provide_session
 @action_logging(
@@ -147,6 +152,7 @@ def patch_connection(
     return connection_schema.dump(connection)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_connection("POST")
 @provide_session
 @action_logging(
@@ -176,6 +182,7 @@ def post_connection(*, session: Session = NEW_SESSION) -> APIResponse:
     raise AlreadyExists(detail=f"Connection already exist. ID: {conn_id}")
 
 
+@mark_fastapi_migration_done
 @security.requires_access_connection("POST")
 def test_connection() -> APIResponse:
     """

@@ -37,8 +37,9 @@ from airflow_breeze.utils.packages import (
     render_template,
     tag_exists_for_provider,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_PROVIDERS_SRC, AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.version_utils import is_local_package_version
 
 LICENCE_RST = """
 .. Licensed to the Apache Software Foundation (ASF) under one
@@ -83,7 +84,7 @@ def copy_provider_sources_to_target(provider_id: str) -> Path:
     rmtree(target_provider_root_path, ignore_errors=True)
     target_provider_root_path.mkdir(parents=True)
     source_provider_sources_path = get_source_package_path(provider_id)
-    relative_provider_path = source_provider_sources_path.relative_to(AIRFLOW_SOURCES_ROOT)
+    relative_provider_path = source_provider_sources_path.relative_to(AIRFLOW_PROVIDERS_SRC)
     target_providers_sub_folder = target_provider_root_path / relative_provider_path
     get_console().print(
         f"[info]Copying provider sources: {source_provider_sources_path} -> {target_providers_sub_folder}"
@@ -161,8 +162,11 @@ def should_skip_the_package(provider_id: str, version_suffix: str) -> tuple[bool
     For RC and official releases we check if the "officially released" version exists
     and skip the released if it was. This allows to skip packages that have not been
     marked for release in this wave. For "dev" suffixes, we always build all packages.
+    A local version of an RC release will always be built.
     """
-    if version_suffix != "" and not version_suffix.startswith("rc"):
+    if version_suffix != "" and (
+        not version_suffix.startswith("rc") or is_local_package_version(version_suffix)
+    ):
         return False, version_suffix
     if version_suffix == "":
         current_tag = get_latest_provider_tag(provider_id, "")

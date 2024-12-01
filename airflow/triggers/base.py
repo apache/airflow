@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import abc
 import logging
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, AsyncIterator
+from typing import TYPE_CHECKING, Any
 
 from airflow.callbacks.callback_requests import TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
@@ -115,10 +116,14 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         and handle it appropriately (in async-compatible way).
         """
 
-    def __repr__(self) -> str:
-        classpath, kwargs = self.serialize()
+    @staticmethod
+    def repr(classpath: str, kwargs: dict[str, Any]):
         kwargs_str = ", ".join(f"{k}={v}" for k, v in kwargs.items())
         return f"<{classpath} {kwargs_str}>"
+
+    def __repr__(self) -> str:
+        classpath, kwargs = self.serialize()
+        return self.repr(classpath, kwargs)
 
 
 class TriggerEvent:

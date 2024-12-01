@@ -46,6 +46,12 @@ mappings:
     labels:
       type: counter
 
+  - match: airflow.dag_processor_heartbeat
+    match_type: regex
+    name: "airflow_dag_processor_heartbeat"
+    labels:
+      type: counter
+
   - match: airflow.dag.*.*.duration
     name: "airflow_task_duration"
     labels:

@@ -29,6 +29,8 @@ import re2
 import requests
 import requests.exceptions
 from requests.adapters import HTTPAdapter
+from requests.exceptions import RetryError
+from urllib3.exceptions import MaxRetryError
 from urllib3.util.retry import Retry
 
 CLUSTER_FORWARDED_PORT = os.environ.get("CLUSTER_FORWARDED_PORT") or "8080"
@@ -123,7 +125,12 @@ class BaseK8STest:
     def _get_session_with_retries(self):
         session = requests.Session()
         session.auth = ("admin", "admin")
-        retries = Retry(total=3, backoff_factor=1)
+        retries = Retry(
+            total=3,
+            backoff_factor=10,
+            status_forcelist=[404],
+            allowed_methods=Retry.DEFAULT_ALLOWED_METHODS | frozenset(["PATCH", "POST"]),
+        )
         session.mount("http://", HTTPAdapter(max_retries=retries))
         session.mount("https://", HTTPAdapter(max_retries=retries))
         return session
@@ -176,6 +183,10 @@ class BaseK8STest:
 
                 if state == expected_final_state:
                     break
+                if state in {"failed", "upstream_failed", "removed"}:
+                    # If the TI is in failed state (and that's not the state we want) there's no point
+                    # continuing to poll, it won't change
+                    break
                 self._describe_resources(namespace="airflow")
                 self._describe_resources(namespace="default")
                 tries += 1
@@ -185,7 +196,7 @@ class BaseK8STest:
             print(f"The expected state is wrong {state} != {expected_final_state} (expected)!")
         assert state == expected_final_state
 
-    def ensure_dag_expected_state(self, host, execution_date, dag_id, expected_final_state, timeout):
+    def ensure_dag_expected_state(self, host, logical_date, dag_id, expected_final_state, timeout):
         tries = 0
         state = ""
         max_tries = max(int(timeout / 5), 1)
@@ -201,12 +212,15 @@ class BaseK8STest:
             print(f"Received: {result}")
             state = None
             for dag_run in result_json["dag_runs"]:
-                if dag_run["execution_date"] == execution_date:
+                if dag_run["logical_date"] == logical_date:
                     state = dag_run["state"]
             check_call(["echo", f"Attempt {tries}: Current state of dag is {state}"])
             print(f"Attempt {tries}: Current state of dag is {state}")
 
             if state == expected_final_state:
+                break
+            if state == "failed":
+                # If the DR is in failed state there's no point continuing to poll!
                 break
             self._describe_resources("airflow")
             self._describe_resources("default")
@@ -218,7 +232,22 @@ class BaseK8STest:
     def start_dag(self, dag_id, host):
         patch_string = f"http://{host}/api/v1/dags/{dag_id}"
         print(f"Calling [start_dag]#1 {patch_string}")
-        result = self.session.patch(patch_string, json={"is_paused": False})
+        max_attempts = 10
+        result = {}
+        # This loop retries until the DAG parser finishes with max_attempts and the DAG is available for execution.
+        # Keep the try/catch block, as the session object has a default retry configuration.
+        # If a MaxRetryError, RetryError is raised, it can be safely ignored, indicating that the DAG is not yet parsed.
+        while max_attempts:
+            try:
+                result = self.session.patch(patch_string, json={"is_paused": False})
+                if result.status_code == 200:
+                    break
+            except (MaxRetryError, RetryError):
+                pass
+
+            time.sleep(30)
+            max_attempts -= 1
+
         try:
             result_json = result.json()
         except ValueError:
@@ -250,12 +279,12 @@ class BaseK8STest:
         result_json = self.start_dag(dag_id=dag_id, host=host)
         dag_runs = result_json["dag_runs"]
         assert len(dag_runs) > 0
-        execution_date = None
+        logical_date = None
         dag_run_id = None
         for dag_run in dag_runs:
             if dag_run["dag_id"] == dag_id:
-                execution_date = dag_run["execution_date"]
+                logical_date = dag_run["logical_date"]
                 dag_run_id = dag_run["dag_run_id"]
                 break
-        assert execution_date is not None, f"No execution_date can be found for the dag with {dag_id}"
-        return dag_run_id, execution_date
+        assert logical_date is not None, f"No logical_date can be found for the dag with {dag_id}"
+        return dag_run_id, logical_date

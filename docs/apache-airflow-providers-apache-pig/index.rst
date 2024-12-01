@@ -47,7 +47,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/apache/pig/index>
+    System Tests <_api/tests/system/apache/pig/index>
 
 .. toctree::
     :hidden:

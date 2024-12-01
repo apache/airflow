@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.10.2"
+defaultAirflowTag: "2.10.3"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.10.2"
+airflowVersion: "2.10.3"
 
 # Images
 images:
@@ -105,7 +105,7 @@ images:
     pullPolicy: IfNotPresent
   statsd:
     repository: quay.io/prometheus/statsd-exporter
-    tag: v0.27.2-pr579
+    tag: v0.28.0
     pullPolicy: IfNotPresent
   redis:
     repository: redis
@@ -115,7 +115,7 @@ images:
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: apache/airflow
-    tag: airflow-pgbouncer-2024.01.19-1.21.0
+    tag: airflow-pgbouncer-2024.09.19-1.22.1
     pullPolicy: IfNotPresent
   pgbouncerExporter:
     repository: apache/airflow
@@ -123,7 +123,7 @@ images:
     pullPolicy: IfNotPresent
   gitSync:
     repository: registry.k8s.io/git-sync/git-sync
-    tag: v4.1.0
+    tag: v4.3.0
     pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.
@@ -324,6 +324,7 @@ rbac:
 
 # Airflow executor
 # One of: LocalExecutor, LocalKubernetesExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
+# Specify executors in a prioritized list to leverage multiple execution environments as needed.
 executor: "CeleryExecutor"
 
 # If this is true and using LocalExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the scheduler's
@@ -590,6 +591,9 @@ workers:
       maxSurge: "100%"
       maxUnavailable: "50%"
 
+  # Allow relaxing ordering guarantees while preserving its uniqueness and identity
+  # podManagementPolicy: Parallel
+
   # When not set, the values defined in the global securityContext will be used
   securityContext: {}
   #  runAsUser: 50000
@@ -652,7 +656,8 @@ workers:
       SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
       FROM task_instance
       WHERE (state='running' OR state='queued')
-      {{- if eq .Values.executor "CeleryKubernetesExecutor" }}
+      {{- if or (contains "CeleryKubernetesExecutor" .Values.executor)
+      (contains "KubernetesExecutor" .Values.executor) }}
       AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
       {{- end }}
 
@@ -1238,18 +1243,15 @@ migrateDatabaseJob:
   applyCustomEnv: true
   env: []
 
-# rpcServer support is experimental / dev purpose only and will later be renamed
-_rpcServer:
-  enabled: false
+apiServer:
 
   # Labels specific to workers objects and pods
   labels: {}
 
-  # Command to use when running the Airflow rpc server (templated).
-  command:
-    - "bash"
-  # Args to use when running the Airflow rpc server (templated).
-  args: ["-c", "exec airflow internal-api"]
+  # Command to use when running the Airflow API server (templated).
+  command: ~
+  # Args to use when running the Airflow API server (templated).
+  args: ["bash", "-c", "exec airflow fastapi-api"]
   env: []
   serviceAccount:
     # default value is true
@@ -1268,8 +1270,8 @@ _rpcServer:
     ## service annotations
     annotations: {}
     ports:
-      - name: rpc-server
-        port: "{{ .Values.ports._rpcServer }}"
+      - name: api-server
+        port: "{{ .Values.ports.apiServer }}"
 
     loadBalancerIP: ~
     ## Limit load balancer source ips to list of CIDRs
@@ -1302,15 +1304,13 @@ _rpcServer:
   # Launch additional containers into the flower pods.
   extraContainers: []
 
-  # Additional network policies as needed (Deprecated - renamed to `webserver.networkPolicy.ingress.from`)
-  extraNetworkPolicies: []
   networkPolicy:
     ingress:
       # Peers for webserver NetworkPolicy ingress
       from: []
       # Ports for webserver NetworkPolicy ingress (if `from` is set)
       ports:
-        - port: "{{ .Values.ports._rpcServer }}"
+        - port: "{{ .Values.ports.apiServer }}"
 
   resources: {}
   #   limits:
@@ -1334,8 +1334,6 @@ _rpcServer:
     periodSeconds: 10
     scheme: HTTP
 
-  # Wait for at most 1 minute (6*10s) for the RPC server container to startup.
-  # livenessProbe kicks in after the first successful startupProbe
   startupProbe:
     timeoutSeconds: 20
     failureThreshold: 6
@@ -2378,6 +2376,14 @@ redis:
     # Annotations to add to worker kubernetes service account.
     annotations: {}
 
+  service:
+    # service type, default: ClusterIP
+    type: "ClusterIP"
+    # If using ClusterIP service type, custom IP address can be specified
+    clusterIP:
+    # If using NodePort service type, custom node port can be specified
+    nodePort:
+
   persistence:
     # Enable persistent volumes
     enabled: true
@@ -2478,8 +2484,7 @@ ports:
   statsdScrape: 9102
   pgbouncer: 6543
   pgbouncerScrape: 9127
-  # rpcServer support is experimental / dev purpose only and will later be renamed
-  _rpcServer: 9080
+  apiServer: 9091
 
 # Define any ResourceQuotas for namespace
 quotas: {}

@@ -62,10 +62,10 @@ Variable                                    Type                  Description
 ``{{ prev_end_date_success }}``             `pendulum.DateTime`_  End date from prior successful :class:`~airflow.models.dagrun.DagRun` (if available).
                                             | ``None``
 ``{{ inlets }}``                            list                  List of inlets declared on the task.
-``{{ inlet_events }}``                      dict[str, ...]        Access past events of inlet datasets. See :doc:`Datasets <authoring-and-scheduling/datasets>`. Added in version 2.10.
+``{{ inlet_events }}``                      dict[str, ...]        Access past events of inlet assets. See :doc:`Assets <authoring-and-scheduling/datasets>`. Added in version 2.10.
 ``{{ outlets }}``                           list                  List of outlets declared on the task.
-``{{ outlet_events }}``                     dict[str, ...]        | Accessors to attach information to dataset events that will be emitted by the current task.
-                                                                  | See :doc:`Datasets <authoring-and-scheduling/datasets>`. Added in version 2.10.
+``{{ outlet_events }}``                     dict[str, ...]        | Accessors to attach information to asset events that will be emitted by the current task.
+                                                                  | See :doc:`Assets <authoring-and-scheduling/datasets>`. Added in version 2.10.
 ``{{ dag }}``                               DAG                   The currently running :class:`~airflow.models.dag.DAG`. You can read more about DAGs in :doc:`DAGs <core-concepts/dags>`.
 ``{{ task }}``                              BaseOperator          | The currently running :class:`~airflow.models.baseoperator.BaseOperator`. You can read more about Tasks in :doc:`core-concepts/operators`
 ``{{ macros }}``                                                  | A reference to the macros package. See Macros_ below.
@@ -88,9 +88,9 @@ Variable                                    Type                  Description
 ``{{ expanded_ti_count }}``                 int | ``None``        | Number of task instances that a mapped task was expanded into. If
                                                                   | the current task is not mapped, this should be ``None``.
                                                                   | Added in version 2.5.
-``{{ triggering_dataset_events }}``         dict[str,             | If in a Dataset Scheduled DAG, a map of Dataset URI to a list of triggering :class:`~airflow.models.dataset.DatasetEvent`
-                                            list[DatasetEvent]]   | (there may be more than one, if there are multiple Datasets with different frequencies).
-                                                                  | Read more here :doc:`Datasets <authoring-and-scheduling/datasets>`.
+``{{ triggering_asset_events }}``           dict[str,             | If in an Asset Scheduled DAG, a map of Asset URI to a list of triggering :class:`~airflow.models.asset.AssetEvent`
+                                            list[AssetEvent]]     | (there may be more than one, if there are multiple Assets with different frequencies).
+                                                                  | Read more here :doc:`Assets <authoring-and-scheduling/datasets>`.
                                                                   | Added in version 2.4.
 =========================================== ===================== ===================================================================
 
@@ -107,33 +107,6 @@ all of the variables listed above can be accessed directly from tasks. The follo
 is an example of accessing a ``task_instance`` object from its task:
 
 .. include:: ../shared/template-examples/taskflow.rst
-
-Deprecated variables
--------------------------------------------------------
-
-The following variables are deprecated. They are kept for backward compatibility, but you should convert
-existing code to use other variables instead.
-
-=====================================   ==========================================================================
-Deprecated Variable                     Description
-=====================================   ==========================================================================
-``{{ execution_date }}``                the execution date (logical date), same as ``logical_date``
-``{{ next_execution_date }}``           the logical date of the next scheduled run (if applicable);
-                                        you may be able to use ``data_interval_end`` instead
-``{{ next_ds }}``                       the next execution date as ``YYYY-MM-DD`` if exists, else ``None``
-``{{ next_ds_nodash }}``                the next execution date as ``YYYYMMDD`` if exists, else ``None``
-``{{ prev_execution_date }}``           the logical date of the previous scheduled run (if applicable)
-``{{ prev_ds }}``                       the previous execution date as ``YYYY-MM-DD`` if exists, else ``None``
-``{{ prev_ds_nodash }}``                the previous execution date as ``YYYYMMDD`` if exists, else ``None``
-``{{ yesterday_ds }}``                  the day before the execution date as ``YYYY-MM-DD``
-``{{ yesterday_ds_nodash }}``           the day before the execution date as ``YYYYMMDD``
-``{{ tomorrow_ds }}``                   the day after the execution date as ``YYYY-MM-DD``
-``{{ tomorrow_ds_nodash }}``            the day after the execution date as ``YYYYMMDD``
-``{{ prev_execution_date_success }}``   execution date from prior successful DAG run;
-                                        you may be able to use ``prev_data_interval_start_success`` instead if
-                                        the timetable/schedule you use for the DAG defines ``data_interval_start``
-                                        compatible with the legacy ``execution_date``.
-=====================================   ==========================================================================
 
 Note that you can access the object's attributes and methods with simple
 dot notation. Here are some examples of what is possible:

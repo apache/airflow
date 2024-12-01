@@ -49,7 +49,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/influxdb/index>
+    System Tests <_api/tests/system/influxdb/index>
 
 .. toctree::
     :hidden:

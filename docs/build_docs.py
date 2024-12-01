@@ -29,13 +29,14 @@ import multiprocessing
 import os
 import sys
 from collections import defaultdict
-from typing import Any, Callable, Iterable, NamedTuple, TypeVar
+from collections.abc import Iterable
+from typing import Any, Callable, NamedTuple, TypeVar
 
 from rich.console import Console
 from tabulate import tabulate
 
 from docs.exts.docs_build import dev_index_generator, lint_checks
-from docs.exts.docs_build.code_utils import CONSOLE_WIDTH, PROVIDER_INIT_FILE
+from docs.exts.docs_build.code_utils import CONSOLE_WIDTH
 from docs.exts.docs_build.docs_builder import DOCS_DIR, AirflowDocsBuilder, get_available_packages
 from docs.exts.docs_build.errors import DocBuildError, display_errors_summary
 from docs.exts.docs_build.fetch_inventories import fetch_inventories
@@ -565,9 +566,6 @@ def main():
 
     if not package_filters:
         _promote_new_flags()
-
-    if os.path.exists(PROVIDER_INIT_FILE):
-        os.remove(PROVIDER_INIT_FILE)
 
     print_build_errors_and_exit(
         all_build_errors,

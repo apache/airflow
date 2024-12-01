@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple
+from typing import NamedTuple
 
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 from marshmallow.utils import get_value
@@ -26,15 +26,10 @@ from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.common_schema import JsonObjectField
 from airflow.api_connexion.schemas.enum_schemas import TaskInstanceStateField
 from airflow.api_connexion.schemas.job_schema import JobSchema
-from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
 from airflow.api_connexion.schemas.trigger_schema import TriggerSchema
 from airflow.models import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
-from airflow.utils.helpers import exactly_one
 from airflow.utils.state import TaskInstanceState
-
-if TYPE_CHECKING:
-    from airflow.models import SlaMiss
 
 
 class TaskInstanceSchema(SQLAlchemySchema):
@@ -49,7 +44,7 @@ class TaskInstanceSchema(SQLAlchemySchema):
     dag_id = auto_field()
     run_id = auto_field(data_key="dag_run_id")
     map_index = auto_field()
-    execution_date = auto_field()
+    logical_date = auto_field()
     start_date = auto_field()
     end_date = auto_field()
     duration = auto_field()
@@ -69,22 +64,15 @@ class TaskInstanceSchema(SQLAlchemySchema):
     executor = auto_field()
     executor_config = auto_field()
     note = auto_field()
-    sla_miss = fields.Nested(SlaMissSchema, dump_default=None)
     rendered_map_index = auto_field()
     rendered_fields = JsonObjectField(dump_default={})
     trigger = fields.Nested(TriggerSchema)
     triggerer_job = fields.Nested(JobSchema)
 
     def get_attribute(self, obj, attr, default):
-        if attr == "sla_miss":
-            # Object is a tuple of task_instance and slamiss
-            # and the get_value expects a dict with key, value
-            # corresponding to the attr.
-            slamiss_instance = {"sla_miss": obj[1]}
-            return get_value(slamiss_instance, attr, default)
-        elif attr == "rendered_fields":
-            return get_value(obj[0], "rendered_task_instance_fields.rendered_fields", default)
-        return get_value(obj[0], attr, default)
+        if attr == "rendered_fields":
+            return get_value(obj, "rendered_task_instance_fields.rendered_fields", default)
+        return get_value(obj, attr, default)
 
 
 class TaskInstanceHistorySchema(SQLAlchemySchema):
@@ -122,7 +110,7 @@ class TaskInstanceHistorySchema(SQLAlchemySchema):
 class TaskInstanceCollection(NamedTuple):
     """List of task instances with metadata."""
 
-    task_instances: list[tuple[TaskInstance, SlaMiss | None]]
+    task_instances: list[TaskInstance | None]
     total_entries: int
 
 
@@ -207,8 +195,7 @@ class SetTaskInstanceStateFormSchema(Schema):
 
     dry_run = fields.Boolean(load_default=True)
     task_id = fields.Str(required=True)
-    execution_date = fields.DateTime(validate=validate_istimezone)
-    dag_run_id = fields.Str()
+    dag_run_id = fields.Str(required=True)
     include_upstream = fields.Boolean(required=True)
     include_downstream = fields.Boolean(required=True)
     include_future = fields.Boolean(required=True)
@@ -219,12 +206,6 @@ class SetTaskInstanceStateFormSchema(Schema):
             [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED]
         ),
     )
-
-    @validates_schema
-    def validate_form(self, data, **kwargs):
-        """Validate set task instance state form."""
-        if not exactly_one(data.get("execution_date"), data.get("dag_run_id")):
-            raise ValidationError("Exactly one of execution_date or dag_run_id must be provided")
 
 
 class SetSingleTaskInstanceStateFormSchema(Schema):
@@ -245,7 +226,7 @@ class TaskInstanceReferenceSchema(Schema):
     task_id = fields.Str()
     run_id = fields.Str(data_key="dag_run_id")
     dag_id = fields.Str()
-    execution_date = fields.DateTime()
+    logical_date = fields.DateTime()
 
 
 class TaskInstanceReferenceCollection(NamedTuple):

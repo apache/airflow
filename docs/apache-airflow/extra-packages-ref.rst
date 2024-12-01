@@ -87,8 +87,6 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | uv                  | ``pip install 'apache-airflow[uv]'``                | Install uv - fast, Rust-based package installer (experimental)             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| virtualenv          | ``pip install 'apache-airflow[virtualenv]'``        | Running python tasks in local virtualenv                                   |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | cloudpickle         | pip install apache-airflow[cloudpickle]             | Cloudpickle hooks and operators                                            |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 
@@ -113,7 +111,7 @@ with a consistent set of dependencies based on constraint files provided by Airf
     :substitutions:
 
     pip install apache-airflow[google,amazon,apache-spark]==|version| \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.9.txt"
 
 Note, that this will install providers in the versions that were released at the time of Airflow |version| release. You can later
 upgrade those providers manually if you want to use latest versions of the providers.

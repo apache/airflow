@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import ast
 import os
-from functools import lru_cache
+from collections.abc import Iterable, Iterator
+from functools import cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable, Iterator
+from typing import TYPE_CHECKING, Any
 
 import jinja2
 import rich_click as click
@@ -56,7 +57,7 @@ ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
 DOCS_DIR = os.path.join(ROOT_DIR, "docs")
 
 
-@lru_cache(maxsize=None)
+@cache
 def _get_jinja_env():
     loader = jinja2.FileSystemLoader(TEMPLATE_DIR, followlinks=True)
     env = jinja2.Environment(loader=loader, undefined=jinja2.StrictUndefined)
@@ -513,14 +514,14 @@ class DeprecationsDirective(BaseJinjaReferenceDirective):
         )
 
 
-class DatasetSchemeDirective(BaseJinjaReferenceDirective):
-    """Generate list of Dataset URI schemes"""
+class AssetSchemeDirective(BaseJinjaReferenceDirective):
+    """Generate list of Asset URI schemes"""
 
     def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         return _common_render_list_content(
             header_separator=header_separator,
-            resource_type="dataset-uris",
-            template="dataset-uri-schemes.rst.jinja2",
+            resource_type="asset-uris",
+            template="asset-uri-schemes.rst.jinja2",
         )
 
 
@@ -538,7 +539,7 @@ def setup(app):
     app.add_directive("airflow-executors", ExecutorsDirective)
     app.add_directive("airflow-deferrable-operators", DeferrableOperatorDirective)
     app.add_directive("airflow-deprecations", DeprecationsDirective)
-    app.add_directive("airflow-dataset-schemes", DatasetSchemeDirective)
+    app.add_directive("airflow-dataset-schemes", AssetSchemeDirective)
 
     return {"parallel_read_safe": True, "parallel_write_safe": True}
 

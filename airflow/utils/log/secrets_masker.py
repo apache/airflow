@@ -21,20 +21,15 @@ from __future__ import annotations
 import collections.abc
 import logging
 import sys
+from collections.abc import Generator, Iterable, Iterator
 from enum import Enum
-from functools import cached_property
+from functools import cache, cached_property
+from re import Pattern
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
-    Generator,
-    Iterable,
-    Iterator,
-    List,
-    Pattern,
     TextIO,
-    Tuple,
     TypeVar,
     Union,
 )
@@ -42,14 +37,13 @@ from typing import (
 import re2
 
 from airflow import settings
-from airflow.compat.functools import cache
 
 if TYPE_CHECKING:
     from kubernetes.client import V1EnvVar
 
     from airflow.typing_compat import TypeGuard
 
-Redactable = TypeVar("Redactable", str, "V1EnvVar", Dict[Any, Any], Tuple[Any, ...], List[Any])
+Redactable = TypeVar("Redactable", str, "V1EnvVar", dict[Any, Any], tuple[Any, ...], list[Any])
 Redacted = Union[Redactable, str]
 
 log = logging.getLogger(__name__)

@@ -49,7 +49,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/salesforce/index>
+    System Tests <_api/tests/system/salesforce/index>
 
 .. toctree::
     :hidden:

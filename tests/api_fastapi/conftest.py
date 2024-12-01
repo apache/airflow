@@ -25,3 +25,23 @@ from airflow.api_fastapi.app import create_app
 @pytest.fixture
 def test_client():
     return TestClient(create_app())
+
+
+@pytest.fixture
+def client():
+    """This fixture is more flexible than test_client, as it allows to specify which apps to include."""
+
+    def create_test_client(apps="all"):
+        app = create_app(apps=apps)
+        return TestClient(app)
+
+    return create_test_client
+
+
+@pytest.fixture(scope="module")
+def dagbag():
+    from airflow.models import DagBag
+
+    dagbag_instance = DagBag(include_examples=True, read_dags_from_db=False)
+    dagbag_instance.sync_to_db()
+    return dagbag_instance

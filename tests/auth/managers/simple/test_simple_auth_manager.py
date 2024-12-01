@@ -50,7 +50,7 @@ class TestSimpleAuthManager:
     @pytest.mark.db_test
     def test_init_with_no_user(self, auth_manager_with_appbuilder):
         auth_manager_with_appbuilder.init()
-        with open(SimpleAuthManager.GENERATED_PASSWORDS_FILE) as file:
+        with open(auth_manager_with_appbuilder.get_generated_password_file()) as file:
             passwords_str = file.read().strip()
             user_passwords_from_file = json.loads(passwords_str)
 
@@ -65,7 +65,7 @@ class TestSimpleAuthManager:
             }
         ]
         auth_manager_with_appbuilder.init()
-        with open(SimpleAuthManager.GENERATED_PASSWORDS_FILE) as file:
+        with open(auth_manager_with_appbuilder.get_generated_password_file()) as file:
             passwords_str = file.read().strip()
             user_passwords_from_file = json.loads(passwords_str)
 
@@ -132,6 +132,16 @@ class TestSimpleAuthManager:
 
         assert result is None
 
+    def test_deserialize_user(self, auth_manager):
+        result = auth_manager.deserialize_user({"username": "test", "role": "admin"})
+        assert result.username == "test"
+        assert result.role == "admin"
+
+    def test_serialize_user(self, auth_manager):
+        user = SimpleAuthManagerUser(username="test", role="admin")
+        result = auth_manager.serialize_user(user)
+        assert result == {"username": "test", "role": "admin"}
+
     @pytest.mark.db_test
     @patch.object(SimpleAuthManager, "is_logged_in")
     @pytest.mark.parametrize(
@@ -140,7 +150,7 @@ class TestSimpleAuthManager:
             "is_authorized_configuration",
             "is_authorized_connection",
             "is_authorized_dag",
-            "is_authorized_dataset",
+            "is_authorized_asset",
             "is_authorized_pool",
             "is_authorized_variable",
         ],
@@ -206,7 +216,7 @@ class TestSimpleAuthManager:
         [
             "is_authorized_configuration",
             "is_authorized_connection",
-            "is_authorized_dataset",
+            "is_authorized_asset",
             "is_authorized_pool",
             "is_authorized_variable",
         ],
@@ -258,7 +268,7 @@ class TestSimpleAuthManager:
     @patch.object(SimpleAuthManager, "is_logged_in")
     @pytest.mark.parametrize(
         "api",
-        ["is_authorized_dag", "is_authorized_dataset", "is_authorized_pool"],
+        ["is_authorized_dag", "is_authorized_asset", "is_authorized_pool"],
     )
     @pytest.mark.parametrize(
         "role, method, result",
@@ -280,10 +290,7 @@ class TestSimpleAuthManager:
             assert getattr(auth_manager_with_appbuilder, api)(method=method) is result
 
     @pytest.mark.db_test
-    @patch(
-        "airflow.providers.amazon.aws.auth_manager.views.auth.conf.get_mandatory_value", return_value="test"
-    )
-    def test_register_views(self, _, auth_manager_with_appbuilder):
+    def test_register_views(self, auth_manager_with_appbuilder):
         auth_manager_with_appbuilder.appbuilder.add_view_no_menu = Mock()
         auth_manager_with_appbuilder.register_views()
         auth_manager_with_appbuilder.appbuilder.add_view_no_menu.assert_called_once()

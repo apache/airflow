@@ -20,7 +20,10 @@ import time
 
 import pytest
 
-from kubernetes_tests.test_base import EXECUTOR, BaseK8STest  # isort:skip (needed to workaround isort bug)
+from kubernetes_tests.test_base import (
+    EXECUTOR,
+    BaseK8STest,  # isort:skip (needed to workaround isort bug)
+)
 
 
 # These tests are here because only KubernetesExecutor can run the tests in
@@ -30,8 +33,8 @@ from kubernetes_tests.test_base import EXECUTOR, BaseK8STest  # isort:skip (need
 class TestCeleryAndLocalExecutor(BaseK8STest):
     def test_integration_run_dag(self):
         dag_id = "example_bash_operator"
-        dag_run_id, execution_date = self.start_job_in_kubernetes(dag_id, self.host)
-        print(f"Found the job with execution_date {execution_date}")
+        dag_run_id, logical_date = self.start_job_in_kubernetes(dag_id, self.host)
+        print(f"Found the job with logical_date {logical_date}")
 
         # Wait some time for the operator to complete
         self.monitor_task(
@@ -45,16 +48,20 @@ class TestCeleryAndLocalExecutor(BaseK8STest):
 
         self.ensure_dag_expected_state(
             host=self.host,
-            execution_date=execution_date,
+            logical_date=logical_date,
             dag_id=dag_id,
             expected_final_state="success",
             timeout=300,
         )
 
+    @pytest.mark.xfail(
+        EXECUTOR == "LocalExecutor",
+        reason="https://github.com/apache/airflow/issues/44481 needs to be implemented",
+    )
     def test_integration_run_dag_with_scheduler_failure(self):
         dag_id = "example_xcom"
 
-        dag_run_id, execution_date = self.start_job_in_kubernetes(dag_id, self.host)
+        dag_run_id, logical_date = self.start_job_in_kubernetes(dag_id, self.host)
 
         self._delete_airflow_pod("scheduler")
 
@@ -81,7 +88,7 @@ class TestCeleryAndLocalExecutor(BaseK8STest):
 
         self.ensure_dag_expected_state(
             host=self.host,
-            execution_date=execution_date,
+            logical_date=logical_date,
             dag_id=dag_id,
             expected_final_state="success",
             timeout=60,

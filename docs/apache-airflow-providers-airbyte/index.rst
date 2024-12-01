@@ -48,7 +48,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/airbyte/index>
+    System Tests <_api/tests/system/airbyte/index>
 
 .. toctree::
     :hidden:

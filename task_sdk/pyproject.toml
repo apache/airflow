@@ -1,0 +1,134 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+[project]
+name = "apache-airflow-task-sdk"
+dynamic = ["version"]
+description = "Python Task SDK for Apache Airflow DAG Authors"
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.9, <3.13"
+dependencies = [
+    "attrs>=24.2.0",
+    "google-re2>=1.1.20240702",
+    "httpx>=0.27.0",
+    "jinja2>=3.1.4",
+    "methodtools>=0.4.7",
+    "msgspec>=0.18.6",
+    "psutil>=6.1.0",
+    "structlog>=24.4.0",
+]
+classifiers = [
+  "Framework :: Apache Airflow",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/airflow/sdk/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/airflow"]
+# This file only exists to make pyright/VSCode happy, don't ship it
+exclude = ["src/airflow/__init__.py"]
+
+[tool.ruff]
+extend = "../pyproject.toml"
+src = ["src"]
+namespace-packages = ["src/airflow"]
+
+[tool.ruff.lint.per-file-ignores]
+
+# Ignore Doc rules et al for anything outside of tests
+"!src/*" = ["D", "TID253", "S101", "TRY002"]
+
+# Ignore the pytest rules outside the tests folder - https://github.com/astral-sh/ruff/issues/14205
+"!tests/*" = ["PT"]
+
+# Pycharm barfs if this "stub" file has future imports
+"src/airflow/__init__.py" = ["I002"]
+
+"src/airflow/sdk/__init__.py" = ["TC004"]
+
+# msgspec needs types for annotations to be defined, even with future
+# annotations, so disable the "type check only import" for these files
+"src/airflow/sdk/api/datamodels/*.py" = ["TC001"]
+
+# Only the public API should _require_ docstrings on classes
+"!src/airflow/sdk/definitions/*" = ["D101"]
+
+# Generated file, be less strict
+"src/airflow/sdk/*/_generated.py" = ["D"]
+
+[tool.uv]
+dev-dependencies = [
+    "kgb>=7.1.1",
+    "pytest-asyncio>=0.24.0",
+    "pytest-mock>=3.14.0",
+    "pytest>=8.3.3",
+]
+
+
+[tool.coverage.run]
+branch = true
+relative_files = true
+source = ["src/airflow"]
+include_namespace_packages = true
+
+[tool.coverage.report]
+skip_empty = true
+exclude_also = [
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "@(abc\\.)?abstractmethod",
+    "@(typing(_extensions)?\\.)?overload",
+    "if (typing(_extensions)?\\.)?TYPE_CHECKING:",
+]
+
+[dependency-groups]
+codegen = [
+    "datamodel-code-generator[http]>=0.26.3",
+]
+
+[tool.black]
+# This is needed for datamodel-codegen to treat this as the "project" file
+
+# To use:
+#
+#   uv run --group codegen --project apache-airflow-task-sdk --directory task_sdk datamodel-codegen
+[tool.datamodel-codegen]
+capitalise-enum-members=true # `State.RUNNING` not `State.running`
+disable-timestamp=true
+enable-version-header=true
+enum-field-as-literal='one' # When a single enum member, make it output a `Literal["..."]`
+input-file-type='openapi'
+output-model-type='pydantic_v2.BaseModel'
+output-datetime-class='datetime'
+target-python-version='3.9'
+use-annotated=true
+use-default=true
+use-double-quotes=true
+use-schema-description=true  # Desc becomes class doc comment
+use-standard-collections=true # list[] not List[]
+use-subclass-enum=true # enum, not union of Literals
+use-union-operator=true # 3.9+annotations, not `Union[]`
+
+url = 'http://0.0.0.0:9091/execution/openapi.json'
+output = 'src/airflow/sdk/api/datamodels/_generated.py'

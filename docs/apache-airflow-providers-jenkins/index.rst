@@ -48,7 +48,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/jenkins/index>
+    System Tests <_api/tests/system/jenkins/index>
 
 .. toctree::
     :hidden:
@@ -76,7 +76,7 @@ apache-airflow-providers-jenkins package
 `Jenkins <https://jenkins.io/>`__
 
 
-Release: 3.7.1
+Release: 3.7.2
 
 Provider package
 ----------------

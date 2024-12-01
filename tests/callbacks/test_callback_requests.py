@@ -27,7 +27,7 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
-from airflow.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -100,7 +100,7 @@ class TestCallbackRequest:
         from airflow.callbacks.callback_requests import TaskCallbackRequest
         from airflow.models import TaskInstance
         from airflow.models.taskinstance import SimpleTaskInstance
-        from airflow.operators.bash import BashOperator
+        from airflow.providers.standard.operators.bash import BashOperator
 
         test_pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="hello", namespace="ns"))
         op = BashOperator(task_id="hi", executor_config={"pod_override": test_pod}, bash_command="hi")
@@ -115,7 +115,7 @@ class TestCallbackRequest:
         from airflow.callbacks.callback_requests import TaskCallbackRequest
         from airflow.models import TaskInstance
         from airflow.models.taskinstance import SimpleTaskInstance
-        from airflow.operators.bash import BashOperator
+        from airflow.providers.standard.operators.bash import BashOperator
 
         with dag_maker(schedule=timedelta(weeks=1), serialized=True):
             op = BashOperator(task_id="hi", bash_command="hi")
@@ -124,6 +124,7 @@ class TestCallbackRequest:
             external_trigger=True,
         )
         ti = TaskInstance(task=op, run_id=dr.run_id)
+        ti.refresh_from_db()
         ti.set_state("SUCCESS")
         start_date = ti.start_date
         end_date = ti.end_date

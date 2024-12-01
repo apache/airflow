@@ -139,21 +139,21 @@ describe("Test getDagRunLabel", () => {
     endDate: "2021-11-08T21:17:13.206426+00:00",
     state: "failed",
     runType: "scheduled",
-    executionDate: "2021-12-09T21:14:19.704433+00:00",
+    logicalDate: "2021-12-09T21:14:19.704433+00:00",
     lastSchedulingDecision: "2021-11-08T21:14:19.704433+00:00",
     externalTrigger: false,
     conf: null,
     note: "someRandomValue",
   } as DagRun;
 
-  test("Defaults to dataIntervalStart", async () => {
+  test("Defaults to executionDate", async () => {
     const runLabel = getDagRunLabel({ dagRun });
-    expect(runLabel).toBe(dagRun.dataIntervalStart);
+    expect(runLabel).toBe(dagRun.logicalDate);
   });
 
   test("Passing an order overrides default", async () => {
-    const runLabel = getDagRunLabel({ dagRun, ordering: ["executionDate"] });
-    expect(runLabel).toBe(dagRun.executionDate);
+    const runLabel = getDagRunLabel({ dagRun, ordering: ["dataIntervalEnd"] });
+    expect(runLabel).toBe(dagRun.dataIntervalEnd);
   });
 });
 

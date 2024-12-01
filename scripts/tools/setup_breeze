@@ -27,13 +27,14 @@ COLOR_YELLOW=$'\e[33m'
 COLOR_BLUE=$'\e[34m'
 COLOR_RESET=$'\e[0m'
 
+UV_VERSION="0.5.5"
+
 function manual_instructions() {
     echo
     echo "${COLOR_BLUE}Please run those commands manually (you might need to restart shell between them)${COLOR_RESET}"
     echo
-    echo "    python -m pip install \"pipx>=1.2.1\""
-    echo "    pipx ensurepath"
-    echo "    pipx install -e '${AIRFLOW_SOURCES}/dev/breeze/'"
+    echo "    python -m pip install \"uv==${UV_VERSION}\""
+    echo "    uv tool install -e '${AIRFLOW_SOURCES}/dev/breeze/'"
     echo "    breeze setup autocomplete --force"
     echo
     echo "   After that, both pipx and breeze should be available on your path"
@@ -43,20 +44,20 @@ function manual_instructions() {
 
 function check_breeze_installed() {
     set +e
-    command -v "${BREEZE_BINARY}" >/dev/null
+    command -v "${BREEZE_BINARY}" >/dev/null 2>/dev/null
     local breeze_on_path=$?
-    command -v "pipx" >/dev/null
-    local pipx_on_path=$?
+    command -v "uv" >/dev/null 2>/dev/null
+    local uv_on_path=$?
     set -e
-    if [[ ${breeze_on_path} != "0" || ${pipx_on_path} != "0"  ]]; then
+    if [[ ${breeze_on_path} != "0" || ${uv_on_path} != "0"  ]]; then
         echo
-        if [[ ${pipx_on_path} != 0 ]]; then
-            echo "${COLOR_RED}The 'pipx' is not on path. It should be installed and 'pipx' should be available on your PATH.${COLOR_RESET}"
+        if [[ ${uv_on_path} != 0 ]]; then
+            echo "${COLOR_RED}The 'uv' is not on path. It should be installed and 'uv' should be available on your PATH.${COLOR_RESET}"
             export TIMEOUT=0
-            if "${MY_DIR}/confirm" "Installing pipx?"; then
-                python -m pip install "pipx>=1.2.1" --upgrade
+            if "${MY_DIR}/confirm" "Installing uv?"; then
+                python -m pip install "uv==${UV_VERSION}" --upgrade
                 echo
-                echo "${COLOR_YELLOW}Please close and re-open the shell and retry. You might need to add 'pipx' to the PATH!${COLOR_RESET}"
+                echo "${COLOR_YELLOW}Please close and re-open the shell and retry. You might need to add 'uv' to the PATH!${COLOR_RESET}"
                 echo
                 exit
             else
@@ -67,11 +68,10 @@ function check_breeze_installed() {
             echo "${COLOR_RED}The '${BREEZE_BINARY}' is not on path. Breeze should be installed and 'breeze' should be available on your PATH!${COLOR_RESET}"
             export TIMEOUT=0
             echo
-            echo "${COLOR_YELLOW}Installing Breeze. This will install breeze via pipx and modify your local rc file for ${SHELL}${COLOR_RESET}"
+            echo "${COLOR_YELLOW}Installing Breeze. This will install breeze via uv and modify your ${SHELL} to run it${COLOR_RESET}"
             echo
             if "${MY_DIR}/confirm" "installing and modifying the startup scripts"; then
-                pipx ensurepath --force
-                pipx install -e "${AIRFLOW_SOURCES}/dev/breeze/" --force
+                uv tool install -e "${AIRFLOW_SOURCES}/dev/breeze/" --force
                 ${BREEZE_BINARY} setup-autocomplete --force --answer yes
                 echo
                 echo "${COLOR_YELLOW}Please close and re-open the shell and retry. Then rerun your last command!${COLOR_RESET}"

@@ -20,14 +20,14 @@ import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models.pool import Pool
-from airflow.security import permissions
 from airflow.utils.session import provide_session
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_pools
-from tests.test_utils.www import _check_last_log
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_pools
+from tests_common.test_utils.www import _check_last_log
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
@@ -35,22 +35,16 @@ def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
 
     create_user(
-        app,  # type: ignore
+        app,
         username="test",
-        role_name="Test",
-        permissions=[
-            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_POOL),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_POOL),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_POOL),
-        ],
+        role_name="admin",
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(app, username="test_no_permissions", role_name=None)
 
     yield app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(app, username="test")
+    delete_user(app, username="test_no_permissions")
 
 
 class TestBasePoolEndpoints:
@@ -73,7 +67,7 @@ class TestGetPools(TestBasePoolEndpoints):
         assert len(result) == 2  # accounts for the default pool as well
         response = self.client.get("/api/v1/pools", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert {
+        assert response.json == {
             "pools": [
                 {
                     "name": "default_pool",
@@ -101,7 +95,7 @@ class TestGetPools(TestBasePoolEndpoints):
                 },
             ],
             "total_entries": 2,
-        } == response.json
+        }
 
     def test_response_200_with_order_by(self, session):
         pool_model = Pool(pool="test_pool_a", slots=3, include_deferred=True)
@@ -111,7 +105,7 @@ class TestGetPools(TestBasePoolEndpoints):
         assert len(result) == 2  # accounts for the default pool as well
         response = self.client.get("/api/v1/pools?order_by=slots", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert {
+        assert response.json == {
             "pools": [
                 {
                     "name": "test_pool_a",
@@ -139,7 +133,7 @@ class TestGetPools(TestBasePoolEndpoints):
                 },
             ],
             "total_entries": 2,
-        } == response.json
+        }
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get("/api/v1/pools")
@@ -227,7 +221,7 @@ class TestGetPool(TestBasePoolEndpoints):
         session.commit()
         response = self.client.get("/api/v1/pools/test_pool_a", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert {
+        assert response.json == {
             "name": "test_pool_a",
             "slots": 3,
             "occupied_slots": 0,
@@ -238,17 +232,17 @@ class TestGetPool(TestBasePoolEndpoints):
             "open_slots": 3,
             "description": None,
             "include_deferred": True,
-        } == response.json
+        }
 
     def test_response_404(self):
         response = self.client.get("/api/v1/pools/invalid_pool", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "Pool with name:'invalid_pool' not found",
             "status": 404,
             "title": "Not Found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get("/api/v1/pools/default_pool")
@@ -268,17 +262,17 @@ class TestDeletePool(TestBasePoolEndpoints):
         # Check if the pool is deleted from the db
         response = self.client.get(f"api/v1/pools/{pool_name}", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
-        _check_last_log(session, dag_id=None, event="api.delete_pool", execution_date=None)
+        _check_last_log(session, dag_id=None, event="api.delete_pool", logical_date=None)
 
     def test_response_404(self):
         response = self.client.delete("api/v1/pools/invalid_pool", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "Pool with name:'invalid_pool' not found",
             "status": 404,
             "title": "Not Found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     def test_should_raises_401_unauthenticated(self, session):
         pool_name = "test_pool"
@@ -303,7 +297,7 @@ class TestPostPool(TestBasePoolEndpoints):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
-        assert {
+        assert response.json == {
             "name": "test_pool_a",
             "slots": 3,
             "occupied_slots": 0,
@@ -314,8 +308,8 @@ class TestPostPool(TestBasePoolEndpoints):
             "open_slots": 3,
             "description": "test pool",
             "include_deferred": True,
-        } == response.json
-        _check_last_log(session, dag_id=None, event="api.post_pool", execution_date=None)
+        }
+        _check_last_log(session, dag_id=None, event="api.post_pool", logical_date=None)
 
     def test_response_409(self, session):
         pool_name = "test_pool_a"
@@ -328,12 +322,12 @@ class TestPostPool(TestBasePoolEndpoints):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 409
-        assert {
+        assert response.json == {
             "detail": f"Pool: {pool_name} already exists",
             "status": 409,
             "title": "Conflict",
             "type": EXCEPTIONS_LINK_MAP[409],
-        } == response.json
+        }
 
     @pytest.mark.parametrize(
         "request_json, error_detail",
@@ -365,12 +359,12 @@ class TestPostPool(TestBasePoolEndpoints):
             "api/v1/pools", json=request_json, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 400
-        assert {
+        assert response.json == {
             "detail": error_detail,
             "status": 400,
             "title": "Bad Request",
             "type": EXCEPTIONS_LINK_MAP[400],
-        } == response.json
+        }
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.post("api/v1/pools", json={"name": "test_pool_a", "slots": 3})
@@ -389,7 +383,7 @@ class TestPatchPool(TestBasePoolEndpoints):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
-        assert {
+        assert response.json == {
             "occupied_slots": 0,
             "queued_slots": 0,
             "name": "test_pool_a",
@@ -400,8 +394,8 @@ class TestPatchPool(TestBasePoolEndpoints):
             "slots": 3,
             "description": None,
             "include_deferred": False,
-        } == response.json
-        _check_last_log(session, dag_id=None, event="api.patch_pool", execution_date=None)
+        }
+        _check_last_log(session, dag_id=None, event="api.patch_pool", logical_date=None)
 
     @pytest.mark.parametrize(
         "error_detail, request_json",
@@ -426,12 +420,12 @@ class TestPatchPool(TestBasePoolEndpoints):
             "api/v1/pools/test_pool", json=request_json, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 400
-        assert {
+        assert response.json == {
             "detail": error_detail,
             "status": 400,
             "title": "Bad Request",
             "type": EXCEPTIONS_LINK_MAP[400],
-        } == response.json
+        }
 
     def test_not_found_when_no_pool_available(self):
         response = self.client.patch(
@@ -440,12 +434,12 @@ class TestPatchPool(TestBasePoolEndpoints):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "Pool with name:'test_pool' not found",
             "status": 404,
             "title": "Not Found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     def test_should_raises_401_unauthenticated(self, session):
         pool = Pool(pool="test_pool", slots=2, include_deferred=False)
@@ -464,12 +458,12 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
     def test_delete_400(self):
         response = self.client.delete("api/v1/pools/default_pool", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 400
-        assert {
+        assert response.json == {
             "detail": "Default Pool can't be deleted",
             "status": 400,
             "title": "Bad Request",
             "type": EXCEPTIONS_LINK_MAP[400],
-        } == response.json
+        }
 
     @pytest.mark.parametrize(
         "status_code, url, json, expected_response",
@@ -598,7 +592,7 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
         response = self.client.patch(url, json=json, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == status_code
         assert response.json == expected_response
-        _check_last_log(session, dag_id=None, event="api.patch_pool", execution_date=None)
+        _check_last_log(session, dag_id=None, event="api.patch_pool", logical_date=None)
 
 
 class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
@@ -651,7 +645,7 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
         session.commit()
         response = self.client.patch(url, json=patch_json, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert {
+        assert response.json == {
             "name": expected_name,
             "slots": expected_slots,
             "occupied_slots": 0,
@@ -662,8 +656,8 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
             "open_slots": expected_slots,
             "description": None,
             "include_deferred": expected_include_deferred,
-        } == response.json
-        _check_last_log(session, dag_id=None, event="api.patch_pool", execution_date=None)
+        }
+        _check_last_log(session, dag_id=None, event="api.patch_pool", logical_date=None)
 
     @pytest.mark.parametrize(
         "error_detail, url, patch_json",
@@ -701,9 +695,9 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
         session.commit()
         response = self.client.patch(url, json=patch_json, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 400
-        assert {
+        assert response.json == {
             "detail": error_detail,
             "status": 400,
             "title": "Bad Request",
             "type": EXCEPTIONS_LINK_MAP[400],
-        } == response.json
+        }

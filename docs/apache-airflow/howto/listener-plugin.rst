@@ -44,8 +44,8 @@ Using this plugin, following events can be listened:
     * dag run is in running state.
     * dag run is in success state.
     * dag run is in failure state.
-    * on start before event like airflow job, scheduler or backfilljob
-    * before stop for event like airflow job, scheduler or backfilljob
+    * on start before event like airflow job, scheduler
+    * before stop for event like airflow job, scheduler
 
 Listener Registration
 ---------------------

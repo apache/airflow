@@ -25,4 +25,4 @@ Yandex Query Operators
 Using the operators
 ^^^^^^^^^^^^^^^^^^^
 To learn how to use Yandex Query operator,
-see `example DAG <https://github.com/apache/airflow/tree/providers-yandex/|version|/tests/system/providers/yandex/example_yandexcloud_yq.py>`__.
+see `example DAG <https://github.com/apache/airflow/tree/providers-yandex/|version|/providers/tests/system/yandex/example_yandexcloud_yq.py>`__.

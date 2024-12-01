@@ -48,7 +48,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/microsoft/winrm/index>
+    System Tests <_api/tests/system/microsoft/winrm/index>
 
 .. toctree::
     :hidden:
@@ -76,7 +76,7 @@ apache-airflow-providers-microsoft-winrm package
 `Windows Remote Management (WinRM) <https://docs.microsoft.com/windows/win32/winrm/portal>`__
 
 
-Release: 3.6.0
+Release: 3.6.1
 
 Provider package
 ----------------

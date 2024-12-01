@@ -38,7 +38,7 @@ _PENDULUM3 = version.parse(metadata.version("pendulum")).major == 3
 utc = pendulum.UTC
 
 
-def is_localized(value):
+def is_localized(value: dt.datetime) -> bool:
     """
     Determine if a given datetime.datetime is aware.
 

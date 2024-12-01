@@ -33,7 +33,7 @@ from airflow.utils.state import TaskInstanceState
 pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-PYTHON_VERSION = f"{sys.version_info.major}{sys.version_info.minor}"
+PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
 DILL_INSTALLED = find_spec("dill") is not None
 DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not installed")
 CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
@@ -390,7 +390,7 @@ class TestPythonVirtualenvDecorator:
             ret = in_venv(value)
 
         dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
         ti = dr.get_task_instances()[0]
 
         assert ti.state == TaskInstanceState.SUCCESS

@@ -48,7 +48,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/apache/cassandra/index>
+    System Tests <_api/tests/system/apache/cassandra/index>
 
 .. toctree::
     :hidden:

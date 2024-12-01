@@ -49,7 +49,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/alibaba/index>
+    System Tests <_api/tests/system/alibaba/index>
 
 .. toctree::
     :hidden:

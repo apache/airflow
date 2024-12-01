@@ -50,7 +50,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/opsgenie/index>
+    System Tests <_api/tests/system/opsgenie/index>
 
 .. toctree::
     :hidden:

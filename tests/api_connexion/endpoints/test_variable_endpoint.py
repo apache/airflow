@@ -22,13 +22,13 @@ import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Variable
-from airflow.security import permissions
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_variables
-from tests.test_utils.www import _check_last_log
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_variables
+from tests_common.test_utils.www import _check_last_log
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
@@ -36,40 +36,16 @@ def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
 
     create_user(
-        app,  # type: ignore
+        app,
         username="test",
-        role_name="Test",
-        permissions=[
-            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
-        ],
+        role_name="admin",
     )
-    create_user(
-        app,  # type: ignore
-        username="test_read_only",
-        role_name="TestReadOnly",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE),
-        ],
-    )
-    create_user(
-        app,  # type: ignore
-        username="test_delete_only",
-        role_name="TestDeleteOnly",
-        permissions=[
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
-        ],
-    )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(app, username="test_no_permissions", role_name=None)
 
     yield app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_read_only")  # type: ignore
-    delete_user(app, username="test_delete_only")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(app, username="test")
+    delete_user(app, username="test_no_permissions")
 
 
 class TestVariableEndpoint:
@@ -98,7 +74,7 @@ class TestDeleteVariable(TestVariableEndpoint):
         # make sure variable is deleted
         response = self.client.get("/api/v1/variables/delete_var1", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
-        _check_last_log(session, dag_id=None, event="api.variable.delete", execution_date=None)
+        _check_last_log(session, dag_id=None, event="api.variable.delete", logical_date=None)
 
     def test_should_respond_404_if_key_does_not_exist(self):
         response = self.client.delete(
@@ -131,8 +107,6 @@ class TestGetVariable(TestVariableEndpoint):
         "user, expected_status_code",
         [
             ("test", 200),
-            ("test_read_only", 200),
-            ("test_delete_only", 403),
             ("test_no_permissions", 403),
         ],
     )
@@ -262,7 +236,7 @@ class TestPatchVariable(TestVariableEndpoint):
         assert response.status_code == 200
         assert response.json == {"key": "var1", "value": "updated", "description": None}
         _check_last_log(
-            session, dag_id=None, event="api.variable.edit", execution_date=None, expected_extra=payload
+            session, dag_id=None, event="api.variable.edit", logical_date=None, expected_extra=payload
         )
 
     def test_should_update_variable_with_mask(self, session):
@@ -274,7 +248,7 @@ class TestPatchVariable(TestVariableEndpoint):
         )
         assert response.status_code == 200
         assert response.json == {"key": "var1", "value": "foo", "description": "after_update"}
-        _check_last_log(session, dag_id=None, event="api.variable.edit", execution_date=None)
+        _check_last_log(session, dag_id=None, event="api.variable.edit", logical_date=None)
 
     def test_should_reject_invalid_update(self):
         response = self.client.patch(
@@ -357,7 +331,7 @@ class TestPostVariables(TestVariableEndpoint):
         )
         assert response.status_code == 200
         _check_last_log(
-            session, dag_id=None, event="api.variable.create", execution_date=None, expected_extra=payload
+            session, dag_id=None, event="api.variable.create", logical_date=None, expected_extra=payload
         )
         response = self.client.get("/api/v1/variables/var_create", environ_overrides={"REMOTE_USER": "test"})
         assert response.json == {
@@ -383,7 +357,7 @@ class TestPostVariables(TestVariableEndpoint):
             session,
             dag_id=None,
             event="api.variable.create",
-            execution_date=None,
+            logical_date=None,
             expected_extra=expected_extra,
         )
         response = self.client.get("/api/v1/variables/api_key", environ_overrides={"REMOTE_USER": "test"})
@@ -405,7 +379,7 @@ class TestPostVariables(TestVariableEndpoint):
             "type": EXCEPTIONS_LINK_MAP[400],
             "detail": "{'value': ['Missing data for required field.'], 'v': ['Unknown field.']}",
         }
-        _check_last_log(session, dag_id=None, event="api.variable.create", execution_date=None)
+        _check_last_log(session, dag_id=None, event="api.variable.create", logical_date=None)
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.post(

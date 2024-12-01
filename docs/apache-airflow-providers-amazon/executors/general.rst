@@ -138,9 +138,9 @@ which is running the Airflow scheduler process (and thus, the |executorName|
 executor.) Apache Airflow images with specific python versions can be
 downloaded from the Dockerhub registry, and filtering tags by the
 `python
-version <https://hub.docker.com/r/apache/airflow/tags?page=1&name=3.8>`__.
-For example, the tag ``latest-python3.8`` specifies that the image will
-have python 3.8 installed.
+version <https://hub.docker.com/r/apache/airflow/tags?page=1&name=3.9>`__.
+For example, the tag ``latest-python3.9`` specifies that the image will
+have python 3.9 installed.
 
 
 Loading DAGs

@@ -24,36 +24,30 @@ import pytest
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
-from airflow.security import permissions
 from airflow.utils.session import provide_session
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_connections
-from tests.test_utils.www import _check_last_log
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_connections
+from tests_common.test_utils.www import _check_last_log
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
     create_user(
-        app,  # type: ignore
+        app,
         username="test",
-        role_name="Test",
-        permissions=[
-            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_CONNECTION),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_CONNECTION),
-        ],
+        role_name="admin",
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(app, username="test_no_permissions", role_name=None)
 
     yield app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(app, username="test")
+    delete_user(app, username="test_no_permissions")
 
 
 class TestConnectionEndpoint:
@@ -87,7 +81,7 @@ class TestDeleteConnection(TestConnectionEndpoint):
         assert response.status_code == 204
         connection = session.query(Connection).all()
         assert len(connection) == 0
-        _check_last_log(session, dag_id=None, event="api.connection.delete", execution_date=None)
+        _check_last_log(session, dag_id=None, event="api.connection.delete", logical_date=None)
 
     def test_delete_should_respond_404(self):
         response = self.client.delete(
@@ -166,12 +160,12 @@ class TestGetConnection(TestConnectionEndpoint):
             "/api/v1/connections/invalid-connection", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "The Connection with connection_id: `invalid-connection` was not found",
             "status": 404,
             "title": "Connection not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get("/api/v1/connections/test-connection-id")
@@ -376,7 +370,7 @@ class TestPatchConnection(TestConnectionEndpoint):
             "/api/v1/connections/test-connection-id", json=payload, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
-        _check_last_log(session, dag_id=None, event="api.connection.edit", execution_date=None)
+        _check_last_log(session, dag_id=None, event="api.connection.edit", logical_date=None)
 
     def test_patch_should_respond_200_with_update_mask(self, session):
         self._create_connection(session)
@@ -512,12 +506,12 @@ class TestPatchConnection(TestConnectionEndpoint):
             "/api/v1/connections/test-connection-id", json=payload, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "The Connection with connection_id: `test-connection-id` was not found",
             "status": 404,
             "title": "Connection not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     def test_should_raises_401_unauthenticated(self, session):
         self._create_connection(session)
@@ -541,7 +535,7 @@ class TestPostConnection(TestConnectionEndpoint):
         assert len(connection) == 1
         assert connection[0].conn_id == "test-connection-id"
         _check_last_log(
-            session, dag_id=None, event="api.connection.create", execution_date=None, expected_extra=payload
+            session, dag_id=None, event="api.connection.create", logical_date=None, expected_extra=payload
         )
 
     def test_post_should_respond_200_extra_null(self, session):

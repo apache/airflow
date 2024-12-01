@@ -36,7 +36,7 @@ class DagDependency:
     def node_id(self):
         """Node ID for graph rendering."""
         val = f"{self.dependency_type}"
-        if self.dependency_type not in ("dataset", "dataset-alias"):
+        if self.dependency_type not in ("asset", "asset-alias"):
             val += f":{self.source}:{self.target}"
         if self.dependency_id:
             val += f":{self.dependency_id}"

@@ -53,7 +53,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/apache/kafka/index>
+    System Tests <_api/tests/system/apache/kafka/index>
 
 
 .. toctree::
@@ -82,7 +82,7 @@ apache-airflow-providers-apache-kafka package
 `Apache Kafka  <https://kafka.apache.org/>`__
 
 
-Release: 1.6.0
+Release: 1.6.1
 
 Provider package
 ----------------

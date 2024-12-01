@@ -57,7 +57,8 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
-from tests.test_utils import db
+
+from tests_common.test_utils import db
 
 pytestmark = pytest.mark.db_test
 
@@ -68,7 +69,7 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_dag"
 DUMMY_OP = "dummy_op"
 SENSOR_OP = "sensor_op"
-DEV_NULL = "dev/null"
+DEV_NULL = "/dev/null"
 
 
 @pytest.fixture
@@ -108,7 +109,6 @@ class DummySensorWithXcomValue(BaseSensorOperator):
         return PokeReturnValue(self.return_value, self.xcom_value)
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 class TestBaseSensor:
     @staticmethod
     def clean_db():

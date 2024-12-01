@@ -28,8 +28,9 @@ import sys
 import traceback
 import warnings
 from enum import Enum
-from inspect import isclass
+from inspect import isabstract, isclass
 from pathlib import Path
+from types import GenericAlias
 from typing import NamedTuple
 
 from rich.console import Console
@@ -200,11 +201,23 @@ def import_all_classes(
                     for attribute_name in dir(_module):
                         class_name = modinfo.name + "." + attribute_name
                         attribute = getattr(_module, attribute_name)
-                        if isclass(attribute):
-                            imported_classes.append(class_name)
-                        if isclass(attribute) and (
-                            issubclass(attribute, logging.Handler)
-                            or issubclass(attribute, BaseSecretsBackend)
+
+                        # Skip
+                        #   - parameterized generics like Sequence[tuple[str, str]]
+                        #   - builtins like str, int, etc.
+                        #   - non-class objects
+                        if (
+                            isinstance(attribute, GenericAlias)
+                            or (hasattr(attribute, "__module__") and attribute.__module__ == "builtins")
+                            or not isclass(attribute)
+                        ):
+                            continue
+
+                        imported_classes.append(class_name)
+
+                        # Handle circular imports for specific subclasses
+                        if issubclass(attribute, logging.Handler) or (
+                            isabstract(attribute) and issubclass(attribute, BaseSecretsBackend)
                         ):
                             classes_with_potential_circular_import.append(class_name)
             except AirflowOptionalProviderFeatureException:
@@ -727,10 +740,6 @@ def verify_provider_classes() -> tuple[list[str], list[str]]:
 
 
 def run_provider_discovery():
-    import packaging.version
-
-    import airflow.version
-
     console.print("[bright_blue]List all providers[/]\n")
     subprocess.run(["airflow", "providers", "list"], check=True)
     console.print("[bright_blue]List all hooks[/]\n")
@@ -747,16 +756,10 @@ def run_provider_discovery():
     subprocess.run(["airflow", "providers", "secrets"], check=True)
     console.print("[bright_blue]List all auth backends[/]\n")
     subprocess.run(["airflow", "providers", "auth"], check=True)
-    if packaging.version.parse(airflow.version.version) >= packaging.version.parse("2.7.0.dev0"):
-        # CI also check if our providers are installable and discoverable in airflow older versions
-        # But the triggers command is not available till airflow 2.7.0
-        # TODO: Remove this condition once airflow dependency in providers are > 2.7.0
-        console.print("[bright_blue]List all triggers[/]\n")
-        subprocess.run(["airflow", "providers", "triggers"], check=True)
-        # CI also check if our providers are installable and discoverable in airflow older versions
-        # But the executors command is not available till airflow 2.7.0
-        console.print("[bright_blue]List all executors[/]\n")
-        subprocess.run(["airflow", "providers", "executors"], check=True)
+    console.print("[bright_blue]List all triggers[/]\n")
+    subprocess.run(["airflow", "providers", "triggers"], check=True)
+    console.print("[bright_blue]List all executors[/]\n")
+    subprocess.run(["airflow", "providers", "executors"], check=True)
 
 
 AIRFLOW_LOCAL_SETTINGS_PATH = Path("/opt/airflow") / "airflow_local_settings.py"

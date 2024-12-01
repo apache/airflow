@@ -49,7 +49,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/papermill/index>
+    System Tests <_api/tests/system/papermill/index>
 
 .. toctree::
     :hidden:
@@ -77,7 +77,7 @@ apache-airflow-providers-papermill package
 `Papermill <https://github.com/nteract/papermill>`__
 
 
-Release: 3.8.1
+Release: 3.8.2
 
 Provider package
 ----------------
@@ -102,8 +102,8 @@ PIP package         Version required
 ==================  =========================================
 ``apache-airflow``  ``>=2.8.0``
 ``papermill[all]``  ``>=2.6.0``
-``scrapbook[all]``
-``ipykernel``
+``scrapbook[all]``  ``>=0.5.0``
+``ipykernel``       ``>=6.29.4``
 ``pandas``          ``>=2.1.2,<2.2; python_version >= "3.9"``
 ``pandas``          ``>=1.5.3,<2.2; python_version < "3.9"``
 ==================  =========================================

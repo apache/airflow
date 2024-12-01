@@ -29,7 +29,7 @@ Wasb Blob Sensor
 Waits for a blob to arrive on Azure Blob Storage.
 :class:`~airflow.providers.microsoft.azure.sensors.wasb.WasbBlobSensor`
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_wasb_sensors.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_wasb_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START wasb_blob_sensor]
@@ -41,7 +41,7 @@ Wasb Prefix Sensor
 Waits for blobs matching a prefix to arrive on Azure Blob Storage.
 :class:`~airflow.providers.microsoft.azure.sensors.wasb.WasbPrefixSensor`
 
-.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_wasb_sensors.py
+.. exampleinclude:: /../../providers/tests/system/microsoft/azure/example_wasb_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START wasb_prefix_sensor]

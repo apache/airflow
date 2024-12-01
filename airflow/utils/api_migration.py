@@ -31,7 +31,7 @@ PS = ParamSpec("PS")
 RT = TypeVar("RT")
 
 
-def mark_fastapi_migration_done(function: Callable[PS, RT]) -> Callable[PS, RT]:
+def mark_fastapi_migration_done(function: Callable[..., RT]) -> Callable[..., RT]:
     """
     Mark an endpoint as migrated over to the new FastAPI API.
 

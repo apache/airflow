@@ -35,14 +35,86 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.0.1
+......
+
+Latest change: 2024-11-24
+
+=================================================================================================  ===========  ===========================================================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================================================================================================
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`4bce3a353a <https://github.com/apache/airflow/commit/4bce3a353accf8709e69b0e71b72bcf333b2bba6>`_  2024-11-18   ``Bugfix KubernetesJobOperator.on_kill() by removing unexpected 'job' argument from the k8s job client method 'delete_namespaced_job' invocation (#44131)``
+`a41feeb5ae <https://github.com/apache/airflow/commit/a41feeb5aedad842be2b0f954e0be30c767dbc5e>`_  2024-11-15   ``Re-queue tassk when they are stuck in queued (#43520)``
+`123dadda0e <https://github.com/apache/airflow/commit/123dadda0e0648ef1412053d1743128333eecb63>`_  2024-11-15   ``Rename execution_date to logical_date across codebase (#43902)``
+=================================================================================================  ===========  ===========================================================================================================================================================
+
+10.0.0
+......
+
+Latest change: 2024-11-14
+
+=================================================================================================  ===========  ================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
+`66d86f5166 <https://github.com/apache/airflow/commit/66d86f51663718300917a5194eabd20ee67efdb5>`_  2024-11-14   ``Update 'namespace' priority for 'find_pod' function (#43762)``
+`ac4dec163c <https://github.com/apache/airflow/commit/ac4dec163c59fab4f4edffd880720cea70c81b4b>`_  2024-11-12   ``terminate kubernetes watch in case of unknown error (#43645)``
+`6d85a0466d <https://github.com/apache/airflow/commit/6d85a0466d91d501af87c8904b902ea92cee466d>`_  2024-11-09   ``Remove deprecations cncf.kubernetes (#43689)``
+`63b2bbd167 <https://github.com/apache/airflow/commit/63b2bbd167af1105f1fdd340c24fbf0f1bb6ec90>`_  2024-11-09   ``Add random_name_suffix to SparkKubernetesOperator (#43800) (#43847)``
+`9ede38adad <https://github.com/apache/airflow/commit/9ede38adad6f57c644771846c1920a53346e584f>`_  2024-11-05   ``Change default value of 'namespace' in 'task.kubernetes' to be None (#43402)``
+`b9b0614049 <https://github.com/apache/airflow/commit/b9b06140491d55878954b1a490c76ce7593b6357>`_  2024-11-05   ``AIP-72: Remove DAG pickling (#43667)``
+`d8c7d28411 <https://github.com/apache/airflow/commit/d8c7d28411bea04ae5771fc1e2973d92eb0a144e>`_  2024-10-30   ``Start porting DAG definition code to the Task SDK (#43076)``
+=================================================================================================  ===========  ================================================================================
+
+9.0.1
+.....
+
+Latest change: 2024-10-27
+
+=================================================================================================  ===========  =================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================================
+`78ff0a9970 <https://github.com/apache/airflow/commit/78ff0a99700125121b7f0647023503750f14a11b>`_  2024-10-27   ``Prepare docs for Oct 2nd wave of providers (#43409)``
+`57500b6608 <https://github.com/apache/airflow/commit/57500b6608fcbd3bfaa1ddbe6364899ac3f8c251>`_  2024-10-20   ``(fix): HybridExecutor tasks of other executor rescheduled in kubernetes executor (#43003)``
+`dfa6ad4b7e <https://github.com/apache/airflow/commit/dfa6ad4b7e5e584832b9e6c126a2318a8f48b3f8>`_  2024-10-16   ``add kubernetes_conn_id to templated fields (#42786)``
+`e939c42d4f <https://github.com/apache/airflow/commit/e939c42d4f67be77aab70969fac4dcf984242358>`_  2024-10-15   ``✨ Allow node_selector templating in KPO (#43051)``
+`2eaa90fd36 <https://github.com/apache/airflow/commit/2eaa90fd369ef9bd51e239ea2cd5c7641ffc4779>`_  2024-10-15   ``kubernetes package version bump to 31.0.0 (#42907)``
+`794b153fcd <https://github.com/apache/airflow/commit/794b153fcd72f1b2daf6b57ea14ee146d9c2a171>`_  2024-10-12   ``fix: use instance base_container_name to fetch logs on trigger_reentry (#42960)``
+`a052d9eebe <https://github.com/apache/airflow/commit/a052d9eebe3e7cd601c0718a4e48dbeff87deaaf>`_  2024-10-11   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505) (#42624)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  =================================================================================================
+
+9.0.0
+.....
+
+Latest change: 2024-10-09
+
+=================================================================================================  ===========  ==========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
+`00d6ae72e2 <https://github.com/apache/airflow/commit/00d6ae72e2c712a77a9ee2ac262fcecf414ddff0>`_  2024-10-09   ``Fix mark as success when pod fails while fetching log (#42815)``
+`63ff22f403 <https://github.com/apache/airflow/commit/63ff22f4038f34354dc5807036d1bf10653c2ecd>`_  2024-10-08   ``Drop python3.8 support core and providers (#42766)``
+`e5a474bdd1 <https://github.com/apache/airflow/commit/e5a474bdd173263b628d9a8a2efa3860cb88a1c8>`_  2024-10-07   ``kubernetes executor cleanup_stuck_queued_tasks optimization (#41220)``
+`573e5f9de6 <https://github.com/apache/airflow/commit/573e5f9de6b6d220ba133af204c9cb21a3ff660f>`_  2024-10-05   ``Minor changes in the SparkKubernetesOperator documentaiont. (#42613)``
+`24b7c5b151 <https://github.com/apache/airflow/commit/24b7c5b15163d0040b3ba54f5711e923790ae201>`_  2024-10-04   ``Remove airflow_version from k8s executor pod selector (#42751)``
+`0120515f6c <https://github.com/apache/airflow/commit/0120515f6c0061711feba4990cfc61db47a5b4f0>`_  2024-10-03   ``Added unit tests and restructred 'await_xcom_sidecar_container_start' method. (#42504)``
+`c72dad7eaf <https://github.com/apache/airflow/commit/c72dad7eaf045c74b66a38de5cf5d899c7c5f6d8>`_  2024-10-01   ``All executors should inherit from BaseExecutor (#41904)``
+`6808619ec5 <https://github.com/apache/airflow/commit/6808619ec5cfe286f9e19cf4d8d21fd2feafbb8a>`_  2024-09-30   ``KubernetesHook kube_config extra can take dict (#41413)``
+`223acdb13f <https://github.com/apache/airflow/commit/223acdb13fd479f4a0aede9f866bcae8d918b91f>`_  2024-09-27   ``Fix SparkKubernetesOperator spark name. (#42427)``
+`7782050201 <https://github.com/apache/airflow/commit/778205020142bd63baee6c933ae15e80b6a37b61>`_  2024-09-27   ``KubernetesPodOperator never stops if credentials are refreshed (#42361)``
+=================================================================================================  ===========  ==========================================================================================
+
 8.4.2
 .....
 
-Latest change: 2024-09-16
+Latest change: 2024-09-21
 
 =================================================================================================  ===========  ================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================
+`7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
 `d1e500c450 <https://github.com/apache/airflow/commit/d1e500c45069dc42254d55d8175e2c494cb41167>`_  2024-09-16   ``Deprecated configuration removed (#42129)``
 `1379376b66 <https://github.com/apache/airflow/commit/1379376b66da034c2e0c0960bd6efe60e10dfbb9>`_  2024-09-02   ``Add TODOs in providers code for Subdag code removal (#41963)``
 `86af316c87 <https://github.com/apache/airflow/commit/86af316c8716c0535e8bebb95c10dfa8227a5049>`_  2024-09-02   ``docstring update (#41929)``
@@ -104,6 +176,7 @@ Commit                                                                          
 =================================================================================================  ===========  ====================================================================================
 `09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``
 `95e6ee9868 <https://github.com/apache/airflow/commit/95e6ee9868d4abda0be31bb79c30c47de0704bb8>`_  2024-07-08   ``Solve failing KPO task with task decorator and imported typing elements (#40642)``
+`07e6eb8e36 <https://github.com/apache/airflow/commit/07e6eb8e36d2a1c4a7f2e408821997a06d57d0fe>`_  2024-07-01   ``Add notes about passing secrets via environment variables (#40519)``
 `a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
 =================================================================================================  ===========  ====================================================================================
 
@@ -176,6 +249,7 @@ Commit                                                                          
 `ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
 `4920ab25b3 <https://github.com/apache/airflow/commit/4920ab25b3062c04222823f3c47b8d4d8be7bd97>`_  2024-04-25   ``Remove unnecessary validation from cncf provider. (#39238)``
 `84f1ae23cc <https://github.com/apache/airflow/commit/84f1ae23cc817c4e1e8066702938aeccc0a0d826>`_  2024-04-24   ``Add missing informative logs in KPO trigger until container has not finished (#37546)``
+`bcbcb8e39c <https://github.com/apache/airflow/commit/bcbcb8e39cccab4cb375c6f972add9762a151ae8>`_  2024-04-22   ``Fix docs on what KE pod_override can override (#39169)``
 `85bc9afcaa <https://github.com/apache/airflow/commit/85bc9afcaa7408c62b106ac97aeed355ebfbf8e2>`_  2024-04-20   ``fixes templated env vars for k8s pod operator (#39139)``
 `cf56402f5e <https://github.com/apache/airflow/commit/cf56402f5e2ede2d8dd89d1bd418e5344276cf50>`_  2024-04-16   ``KPO xcom sidecar PodDefault usage (#38951)``
 `b59cef1c83 <https://github.com/apache/airflow/commit/b59cef1c8374d53e1ffdeb46c94e6c9ff30c239d>`_  2024-04-16   ``Moves airflow import in deprecated pod_generator to local (#39062)``
@@ -266,7 +340,9 @@ Commit                                                                          
 `e99487946a <https://github.com/apache/airflow/commit/e99487946a39849e078b52ac5b4a226359978254>`_  2024-02-10   ``The task is stuck in a queued state forever in case of pod launch errors  (#36882)``
 `9a529a8d43 <https://github.com/apache/airflow/commit/9a529a8d432c2ec568a361199c643557004291bb>`_  2024-02-10   ``Fix hanging KPO on deferrable task with do_xcom_push (#37300)``
 `f691adf710 <https://github.com/apache/airflow/commit/f691adf7105b687b6ba2885c8977607065856fd3>`_  2024-02-09   ``Fix rendering 'SparkKubernetesOperator.template_body' (#37271)``
+`d155ee8288 <https://github.com/apache/airflow/commit/d155ee8288dd22a9675aee13991982e2738f58f2>`_  2024-02-07   ``Update KubernetesPodOperator docs argument precedence  (#37047)``
 `7932958488 <https://github.com/apache/airflow/commit/7932958488761cd01cd94b7eea0c646dc41c3981>`_  2024-02-05   ``Fix assignment of template field in '__init__' in 'KubernetesPodOperator' (#37010)``
+`b7731280fc <https://github.com/apache/airflow/commit/b7731280fc5cc37c4b74bf95c2f293eafd9cef5e>`_  2024-02-05   ``[Doc]: cncf provider fix spark operator doc link (#37179)``
 `dec2662190 <https://github.com/apache/airflow/commit/dec2662190dd4480d0c631da733e19d2ec9a479d>`_  2024-01-30   ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
 `c36c4db3f7 <https://github.com/apache/airflow/commit/c36c4db3f723ccb43add4b562a1820dcae523753>`_  2024-01-29   ``Kubernetes version bump (#37040)``
 =================================================================================================  ===========  ==============================================================================================================
@@ -290,6 +366,7 @@ Commit                                                                          
 `142f08abb5 <https://github.com/apache/airflow/commit/142f08abb5fad30fd0d0d79f270b826793b273d7>`_  2024-01-12   ``Change field type for kube_config (#36752)``
 `aa25affec6 <https://github.com/apache/airflow/commit/aa25affec68fe1ddcaa162ecfbd4199156bb88d1>`_  2024-01-12   ``Add SparkKubernetesOperator crd implementation (#22253)``
 `2ffa6e4c4c <https://github.com/apache/airflow/commit/2ffa6e4c4c9dc129daa54491d5af8f535cd0d479>`_  2024-01-12   ``Add support of Pendulum 3 (#36281)``
+`c0e2786dbf <https://github.com/apache/airflow/commit/c0e2786dbfb534574268906dbfe32fd1a7edc736>`_  2024-01-11   ``Replace the depreacted cncf-kubernetes modules in the doc and tests (#36727)``
 `19ebcac239 <https://github.com/apache/airflow/commit/19ebcac2395ef9a6b6ded3a2faa29dc960c1e635>`_  2024-01-07   ``Prepare docs 1st wave of Providers January 2024 (#36640)``
 `2f15c95a28 <https://github.com/apache/airflow/commit/2f15c95a28677cd311283f2185f3b936e13c4da8>`_  2024-01-03   ``Changing wording in docstring for CNCF provider (#36547)``
 `6937ae7647 <https://github.com/apache/airflow/commit/6937ae76476b3bc869ef912d000bcc94ad642db1>`_  2023-12-30   ``Speed up autocompletion of Breeze by simplifying provider state (#36499)``
@@ -384,6 +461,8 @@ Commit                                                                          
 `be2c3b9d9e <https://github.com/apache/airflow/commit/be2c3b9d9ee1140805716efd69eeba066e35bd23>`_  2023-11-05   ``Remove PodLoggingStatus object (#35422)``
 `c67a2b0413 <https://github.com/apache/airflow/commit/c67a2b0413994e799ed3f1969d7f0194683cba13>`_  2023-11-05   ``Use constant for empty xcom result sentinel (#35451)``
 `a61da3cc87 <https://github.com/apache/airflow/commit/a61da3cc8792db9944721874bbc172c2e96b27c0>`_  2023-11-04   ``Add verificationy that provider docs are as expected (#35424)``
+`706878ec35 <https://github.com/apache/airflow/commit/706878ec354cf867440c367a95c85753c19e54de>`_  2023-11-04   ``Remove empty lines in generated changelog (#35436)``
+`052e26ad47 <https://github.com/apache/airflow/commit/052e26ad473a9d50f0b96456ed094f2087ee4434>`_  2023-11-04   ``Change security.rst to use includes in providers (#35435)``
 `2023a76037 <https://github.com/apache/airflow/commit/2023a76037f07a2003ace1d1a7497019316db7a6>`_  2023-11-03   ``Remove before_log in KPO retry and add traceback when interrupted (#35423)``
 `2b0bfea837 <https://github.com/apache/airflow/commit/2b0bfea8374ec0f0289763b064d6425df6d4270f>`_  2023-11-01   ``Add startup_check_interval_seconds to PodManager's await_pod_start (#34231)``
 `3724a029da <https://github.com/apache/airflow/commit/3724a029dadf4678d1cc89049b247f6d2bc233e2>`_  2023-11-01   ``Improve clear_not_launched_queued_tasks call duration (#34985)``
@@ -497,6 +576,7 @@ Commit                                                                          
 `bfe08a79db <https://github.com/apache/airflow/commit/bfe08a79db8130c499883f014121be570ec071bd>`_  2023-08-16   ``Import utc from datetime and normalize its import (#33450)``
 `46ffc25995 <https://github.com/apache/airflow/commit/46ffc259956d3782bb0c09e782fca634ff4215b9>`_  2023-08-14   ``Adding typing for KPO SCC objects (#33381)``
 `38aada7b8b <https://github.com/apache/airflow/commit/38aada7b8b6afab177c009b237dd5e75d60d51af>`_  2023-08-14   ``Introducing class constant to make worker pod log lines configurable (#33378)``
+`1695a63291 <https://github.com/apache/airflow/commit/1695a632918370513efe6a2fdf9ea4d676cee51d>`_  2023-08-12   ``doc: KPO - xcom - only valid json content (#33224)``
 `7e79997594 <https://github.com/apache/airflow/commit/7e799975948573ca2a1c4b2051d3eadc32bb8ba7>`_  2023-08-11   ``D205 Support - Providers - Final Pass (#33303)``
 =================================================================================================  ===========  ================================================================================================================
 
@@ -513,6 +593,7 @@ Commit                                                                          
 `0b528e2b2e <https://github.com/apache/airflow/commit/0b528e2b2e0a9942b38a78cf79e0995d9eb8a8d8>`_  2023-08-09   ``Add missing re2 dependency to cncf.kubernetes and celery providers (#33237)``
 `056f1670fe <https://github.com/apache/airflow/commit/056f1670fe85a6f9d70cd72ec2e88287e20e6827>`_  2023-08-08   ``Refactor: Simplify code in providers/cncf (#33230)``
 `9556d6d5f6 <https://github.com/apache/airflow/commit/9556d6d5f611428ac8a3a5891647b720d4498ace>`_  2023-08-08   ``Replace State by TaskInstanceState in Airflow executors (#32627)``
+`8542cdd1c5 <https://github.com/apache/airflow/commit/8542cdd1c550d85558ac4eeb1c83f378ad7eed8a>`_  2023-08-07   ``docs: Link to 'EksPodOperator' from 'KubernetesPodOperator' docs (#33168)``
 =================================================================================================  ===========  ==============================================================================================================
 
 7.4.1
@@ -529,6 +610,7 @@ Commit                                                                          
 `164526d4c7 <https://github.com/apache/airflow/commit/164526d4c798a72dba3087d71f30f60f60595b0e>`_  2023-08-04   ``Consider custom pod labels on pod finding process on 'KubernetesPodOperator' (#33057)``
 `d31c77510c <https://github.com/apache/airflow/commit/d31c77510cc9141011c65c513d9f07580c639717>`_  2023-08-04   ``Fix waiting the base container when reading the logs of other containers (#33092)``
 `900ad8c190 <https://github.com/apache/airflow/commit/900ad8c1907d3342ba1777ad99db37a0d3f5d61a>`_  2023-08-04   ``Fix: Configurable Docker image of 'xcom_sidecar' (#32858)``
+`9adb265e0e <https://github.com/apache/airflow/commit/9adb265e0ee697375970c8eeb83f279a8671d91a>`_  2023-08-04   ``Add notes about pre-2-7 config and cli options in providers (#33123)``
 `879fd34e97 <https://github.com/apache/airflow/commit/879fd34e97a5343e6d2bbf3d5373831b9641b5ad>`_  2023-08-04   ``aDd documentation generation for CLI commands from executors (#33081)``
 `f83d63ea54 <https://github.com/apache/airflow/commit/f83d63ea54df788b472941c07dce4301fc0f1c91>`_  2023-08-04   ``Fix 'KubernetesPodOperator' sub classes default container_logs (#33090)``
 =================================================================================================  ===========  =======================================================================================================
@@ -547,6 +629,7 @@ Commit                                                                          
 `fcbbf47864 <https://github.com/apache/airflow/commit/fcbbf47864c251046de108aafdad394d66e1df23>`_  2023-07-29   ``[AIP-51] Executors vending CLI commands (#29055)``
 `e93460383f <https://github.com/apache/airflow/commit/e93460383f287f9b2af4b6bda3ea6ba17ba3c08b>`_  2023-07-26   ``Move all k8S classes to cncf.kubernetes provider (#32767)``
 `fcc6f284c7 <https://github.com/apache/airflow/commit/fcc6f284c742bdc554edecc5a83d9eaa7d9d7ba4>`_  2023-07-22   ``Update the watcher resource version in SparkK8SOp when it's too old (#32768)``
+`73b90c48b1 <https://github.com/apache/airflow/commit/73b90c48b1933b49086d34176527947bd727ec85>`_  2023-07-21   ``Allow configuration to be contributed by providers (#32604)``
 `e01323635a <https://github.com/apache/airflow/commit/e01323635a88ecf313a415ea41d32d6d28fa0794>`_  2023-07-13   ``Add deprecation info to the providers modules and classes docstring (#32536)``
 =================================================================================================  ===========  ==================================================================================
 
@@ -595,11 +678,13 @@ Commit                                                                          
 `79bcc2e668 <https://github.com/apache/airflow/commit/79bcc2e668e648098aad6eaa87fe8823c76bc69a>`_  2023-06-20   ``Prepare RC1 docs for June 2023 wave of Providers (#32001)``
 `8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
 `66299338eb <https://github.com/apache/airflow/commit/66299338eb24aa71eb2e27ebd8b76079b39fd305>`_  2023-06-18   ``add a return when the event is yielded in a loop to stop the execution (#31985)``
+`0c485ae40e <https://github.com/apache/airflow/commit/0c485ae40eb783efdc9bf98c357cce3529f513b9>`_  2023-06-08   ``doc: Include error message in k8s pod email alert (#31785)``
 `07ea574fed <https://github.com/apache/airflow/commit/07ea574fed5d56ca9405ee9e47828841289e3a3c>`_  2023-06-07   ``Add D400 pydocstyle check (#31742)``
 `d8086a3db5 <https://github.com/apache/airflow/commit/d8086a3db5ef020ef28158249105e7ce5639b1a5>`_  2023-06-05   ``Add possibility to disable logging the pod template in a case when task fails (#31595)``
 `def4b53765 <https://github.com/apache/airflow/commit/def4b5376517919ca08d783ebcfa5f1751cc2aa3>`_  2023-06-05   ``Fix Fargate logging for AWS system tests (#31622)``
 `86b5ba2802 <https://github.com/apache/airflow/commit/86b5ba28026fc6e8b7d868b83080189df9b09306>`_  2023-06-04   ``Remove return statement after yield from triggers class (#31703)``
 `0fa8c44527 <https://github.com/apache/airflow/commit/0fa8c4452764fbc403fc2e1f5c2f61a6aa4f383a>`_  2023-06-04   ``KubernetesResourceOperator - KubernetesDeleteResourceOperator & KubernetesCreateResourceOperator (#29930)``
+`ec2db30267 <https://github.com/apache/airflow/commit/ec2db302675f41d1ba43673895cfc44b13b25349>`_  2023-06-02   ``update path of KubernetesPodOperator in docs (#31682)``
 `dc5bf3fd02 <https://github.com/apache/airflow/commit/dc5bf3fd02c589578209cb0dd5b7d005b1516ae9>`_  2023-06-02   ``Add discoverability for triggers in provider.yaml (#31576)``
 `a59076eaee <https://github.com/apache/airflow/commit/a59076eaeed03dd46e749ad58160193b4ef3660c>`_  2023-06-02   ``Add D400 pydocstyle check - Providers (#31427)``
 `9fa75aaf7a <https://github.com/apache/airflow/commit/9fa75aaf7a391ebf0e6b6949445c060f6de2ceb9>`_  2023-05-29   ``Remove Python 3.7 support (#30963)``
@@ -618,6 +703,7 @@ Commit                                                                          
 `54f1fb0574 <https://github.com/apache/airflow/commit/54f1fb0574a6ecf8f415bbf6da1aaf6f1999bb29>`_  2023-05-19   ``Docstring improvements (#31375)``
 `abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
 `f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`7ebda3898d <https://github.com/apache/airflow/commit/7ebda3898db2eee72d043a9565a674dea72cd8fa>`_  2023-05-17   ``Fix missing line in index.rst for provider documentation (#31343)``
 `d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
 `caeca2d143 <https://github.com/apache/airflow/commit/caeca2d143152ef037ccbaae858f1e2fa6763674>`_  2023-05-15   ``Add protocol to define methods relied upon by KubernetesPodOperator (#31298)``
 `774a5a9038 <https://github.com/apache/airflow/commit/774a5a90383ef4da61d7d00967751ee69292166c>`_  2023-05-11   ``Empty xcom result file log message more specific (#31228)``
@@ -730,6 +816,7 @@ Commit                                                                          
 `911b708ffd <https://github.com/apache/airflow/commit/911b708ffddd4e7cb6aaeac84048291891eb0f1f>`_  2023-01-14   ``Prepare docs for Jan 2023 mid-month wave of Providers (#28929)``
 `ce858a5d71 <https://github.com/apache/airflow/commit/ce858a5d719fb1dff85ad7e4747f0777404d1f56>`_  2023-01-12   ``Switch to ruff for faster static checks (#28893)``
 `ce677862be <https://github.com/apache/airflow/commit/ce677862be4a7de777208ba9ba9e62bcd0415393>`_  2023-01-07   ``Fix Incorrect 'await_container_completion' (#28771)``
+`2b92c3c74d <https://github.com/apache/airflow/commit/2b92c3c74d3259ebac714f157c525836f0af50f0>`_  2023-01-05   ``Fix providers documentation formatting (#28754)``
 =================================================================================================  ===========  ==================================================================
 
 5.1.0
@@ -746,6 +833,7 @@ Commit                                                                          
 `38e40c6dc4 <https://github.com/apache/airflow/commit/38e40c6dc45b92b274a06eafd8790140a0c3c7b8>`_  2022-12-21   ``Remove outdated compat imports/code from providers (#28507)``
 `401fc57e8b <https://github.com/apache/airflow/commit/401fc57e8ba1dddb041e0d777bb0277a09f227db>`_  2022-12-16   ``Restructure Docs  (#27235)``
 `bdc3d2e647 <https://github.com/apache/airflow/commit/bdc3d2e6474f7f23f75683fd072b4a07ef5aaeaa>`_  2022-12-08   ``Keep pod name for k8s executor under 63 characters (#28237)``
+`c8e348dcb0 <https://github.com/apache/airflow/commit/c8e348dcb0bae27e98d68545b59388c9f91fc382>`_  2022-12-05   ``Add automated version replacement in example dag indexes (#28090)``
 `d93240696b <https://github.com/apache/airflow/commit/d93240696beeca7d28542d0fe0b53871b3d6612c>`_  2022-12-05   ``Allow longer pod names for k8s executor / KPO (#27736)``
 `33c445d92f <https://github.com/apache/airflow/commit/33c445d92f1386ca0167356a9514cfd8a27e360e>`_  2022-12-03   ``Add volume-related nested template fields for KPO (#27719)``
 `ebd7b67dcb <https://github.com/apache/airflow/commit/ebd7b67dcb9ac0864fbc5c1aefe5d7a4531df5fe>`_  2022-12-02   ``Patch "checked" when pod not successful (#27845)``
@@ -772,6 +860,7 @@ Commit                                                                          
 `701239abc3 <https://github.com/apache/airflow/commit/701239abc372cb235b1c313198ae2ec429be4f91>`_  2022-11-05   ``Remove deprecated backcompat objects for KPO (#27518)``
 `9337aa92c0 <https://github.com/apache/airflow/commit/9337aa92c082db36e82eb314585591394fe8ff27>`_  2022-11-05   ``Remove support for node_selectors param in KPO (#27515)``
 `3aadc44a13 <https://github.com/apache/airflow/commit/3aadc44a13d0d100778792691a0341818723c51c>`_  2022-11-03   ``Remove unused backcompat method in k8s hook (#27490)``
+`4cdea86d4c <https://github.com/apache/airflow/commit/4cdea86d4cc92a51905aa44fb713f530e6bdadcf>`_  2022-11-01   ``[DOC] fix K8S hook with KPO (#27445)``
 `0c26ec07be <https://github.com/apache/airflow/commit/0c26ec07be96ae250dd2052f3c3bf552221d0e03>`_  2022-10-28   ``Drop support for providing ''resource'' as dict in ''KubernetesPodOperator'' (#27197)``
 `4797a0322e <https://github.com/apache/airflow/commit/4797a0322ed4b73bc34d3967376479a42d9ba190>`_  2022-10-28   ``Fix log message for kubernetes hooks (#26999)``
 `9ab1a6a3e7 <https://github.com/apache/airflow/commit/9ab1a6a3e70b32a3cddddf0adede5d2f3f7e29ea>`_  2022-10-27   ``Update old style typing (#26872)``
@@ -837,6 +926,7 @@ Commit                                                                          
 `9c59831ee7 <https://github.com/apache/airflow/commit/9c59831ee78f14de96421c74986933c494407afa>`_  2022-06-21   ``Update providers to use functools compat for ''cached_property'' (#24582)``
 `78ac48872b <https://github.com/apache/airflow/commit/78ac48872bd02d1c08c6e55525f0bb4d6e983d32>`_  2022-06-21   ``Use found pod for deletion in KubernetesPodOperator (#22092)``
 `dba3e4ec51 <https://github.com/apache/airflow/commit/dba3e4ec51c03dc08449a3954fa3539388d0bc73>`_  2022-06-15   ``Revert "Fix await_container_completion condition (#23883)" (#24474)``
+`08b675cf66 <https://github.com/apache/airflow/commit/08b675cf6642171cb1c5ddfb09607b541db70b29>`_  2022-06-13   ``Fix links to sources for examples (#24386)``
 =================================================================================================  ===========  =============================================================================
 
 4.1.0
@@ -1004,7 +1094,10 @@ Commit                                                                          
 `f200bb1977 <https://github.com/apache/airflow/commit/f200bb1977655455f8acb79c9bd265df36f8ffce>`_  2021-12-29   ``Simplify ''KubernetesPodOperator'' (#19572)``
 `4b8a1201ae <https://github.com/apache/airflow/commit/4b8a1201ae7635e5a751dd079a887831783bb6cb>`_  2021-12-16   ``Fix Volume/VolumeMount KPO DeprecationWarning (#19726)``
 `2fb5e1d0ec <https://github.com/apache/airflow/commit/2fb5e1d0ec306839a3ff21d0bddbde1d022ee8c7>`_  2021-12-15   ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
+`fa96b09395 <https://github.com/apache/airflow/commit/fa96b093952f96449d6d328a2b9e9300b81cf08e>`_  2021-12-09   ``Update Sphinx and Sphinx-AutoAPI (#20079)``
 `f9eab1c185 <https://github.com/apache/airflow/commit/f9eab1c1859dc2a9549e2ffd9af821d0d8d72a4f>`_  2021-12-06   ``Add params config, in_cluster, and cluster_context to KubernetesHook (#19695)``
+`43de625d42 <https://github.com/apache/airflow/commit/43de625d4246af7014f64941f8effb09997731cb>`_  2021-12-01   ``Correctly capitalize names and abbreviations in docs (#19908)``
+`9a469d813f <https://github.com/apache/airflow/commit/9a469d813fc083a7a5f402727e93df3e3f9c9118>`_  2021-11-30   ``Capitalize names in docs (#19893)``
 =================================================================================================  ===========  =================================================================================
 
 2.2.0
@@ -1037,6 +1130,7 @@ Commit                                                                          
 `1571f80546 <https://github.com/apache/airflow/commit/1571f80546853688778c2a3ec5194e5c8be0edbd>`_  2021-10-14   ``Add pre-commit hook for common misspelling check in files (#18964)``
 `b2045d6d1d <https://github.com/apache/airflow/commit/b2045d6d1d4d2424c02d7d9b40520440aa4e5070>`_  2021-10-13   ``Add more type hints to PodLauncher (#18928)``
 `c8b86e69e4 <https://github.com/apache/airflow/commit/c8b86e69e49e330ab2f551358a6998d5800adb9a>`_  2021-10-12   ``Add more information to PodLauncher timeout error (#17953)``
+`af4a5e006e <https://github.com/apache/airflow/commit/af4a5e006e4f5c9f203afeac039b22c6adee317f>`_  2021-10-01   ``Remove cargo-culted local in-page ToCs (#18668)``
 =================================================================================================  ===========  ======================================================================
 
 2.0.3
@@ -1048,8 +1142,11 @@ Latest change: 2021-09-30
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================
 `840ea3efb9 <https://github.com/apache/airflow/commit/840ea3efb9533837e9f36b75fa527a0fbafeb23a>`_  2021-09-30   ``Update documentation for September providers release (#18613)``
+`afec743a60 <https://github.com/apache/airflow/commit/afec743a60fa56bd743a21e85d718e685cad0778>`_  2021-09-29   ``Spelling fix (#18606)``
 `ef037e7021 <https://github.com/apache/airflow/commit/ef037e702182e4370cb00c853c4fb0e246a0479c>`_  2021-09-29   ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
 `7808be7ffb <https://github.com/apache/airflow/commit/7808be7ffb693de2e4ea73d0c1e6e2470cde9095>`_  2021-09-21   ``Make Kubernetes job description fit on one log line (#18377)``
+`1cb456cba1 <https://github.com/apache/airflow/commit/1cb456cba1099198bbdba50c2d1ad79664be8ce6>`_  2021-09-12   ``Add official download page for providers (#18187)``
+`046f02e5a7 <https://github.com/apache/airflow/commit/046f02e5a7097a6e6c928c28196b38b37e776916>`_  2021-09-09   ``fix misspelling (#18121)``
 `b8d06e812a <https://github.com/apache/airflow/commit/b8d06e812ac56af6b0d17830c63b705ace9d4959>`_  2021-09-08   ``Fix KubernetesPodOperator reattach when not deleting pods (#18070)``
 `64d2f5488f <https://github.com/apache/airflow/commit/64d2f5488f6764194a2f4f8a01f961990c75b840>`_  2021-09-07   ``Do not fail KubernetesPodOperator tasks if log reading fails (#17649)``
 `0a68588479 <https://github.com/apache/airflow/commit/0a68588479e34cf175d744ea77b283d9d78ea71a>`_  2021-08-30   ``Add August 2021 Provider's documentation (#17890)``
@@ -1068,6 +1165,7 @@ Commit                                                                          
 `be75dcd39c <https://github.com/apache/airflow/commit/be75dcd39cd10264048c86e74110365bd5daf8b7>`_  2021-08-23   ``Update description about the new ''connection-types'' provider meta-data``
 `73d2b720e0 <https://github.com/apache/airflow/commit/73d2b720e0c79323a29741882a07eb8962256762>`_  2021-08-21   ``Fix using XCom with ''KubernetesPodOperator'' (#17760)``
 `76ed2a49c6 <https://github.com/apache/airflow/commit/76ed2a49c6cd285bf59706cf04f39a7444c382c9>`_  2021-08-19   ``Import Hooks lazily individually in providers manager (#17682)``
+`fbf5163ce9 <https://github.com/apache/airflow/commit/fbf5163ce918cdcc1ed3109be3f1bb3c1c354ea6>`_  2021-08-19   ``Add a note about XCOMs push condition for K8sPodOperator docs (#17690)``
 `97428efc41 <https://github.com/apache/airflow/commit/97428efc41e5902183827fb9e4e56d067ca771df>`_  2021-08-02   ``Fix messed-up changelog in 3 providers (#17380)``
 `b0b2591071 <https://github.com/apache/airflow/commit/b0b25910713dd39e0193bdcd95b2cfd9e3fed5e7>`_  2021-07-27   ``Fix static checks (#17256)``
 `997f7d0beb <https://github.com/apache/airflow/commit/997f7d0beb1f0a954ba0127efeb3b250daf8b290>`_  2021-07-27   ``Update spark_kubernetes.py (#17237)``
@@ -1106,6 +1204,7 @@ Commit                                                                          
 `4752fb3eb8 <https://github.com/apache/airflow/commit/4752fb3eb8ac8827e6af6022fbcf751829ecb17a>`_  2021-06-14   ``Fix issue with parsing error logs in the KPO (#15638)``
 `9c94b72d44 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
 `2f16757e1a <https://github.com/apache/airflow/commit/2f16757e1a11ef42ac2b1a62622a5d34f8a1e996>`_  2021-06-03   ``Bug Pod Template File Values Ignored (#16095)``
+`1e647029e4 <https://github.com/apache/airflow/commit/1e647029e469c1bb17e9ad051d0184f3357644c3>`_  2021-06-01   ``Rename the main branch of the Airflow repo to be 'main' (#16149)``
 `476d0f6e3d <https://github.com/apache/airflow/commit/476d0f6e3d2059f56532cda36cdc51aa86bafb37>`_  2021-05-22   ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
 `85b2ccb0c5 <https://github.com/apache/airflow/commit/85b2ccb0c5e03495c58e7c4fb0513ceb4419a103>`_  2021-05-20   ``Add 'KubernetesPodOperat' 'pod-template-file' jinja template support (#15942)``
 `733bec9a04 <https://github.com/apache/airflow/commit/733bec9a04ab718a0f6289d93f4e2e4ea3e03d54>`_  2021-05-20   ``Bug Fix Pod-Template Affinity Ignored due to empty Affinity K8S Object (#15787)``
@@ -1138,9 +1237,11 @@ Latest change: 2021-04-07
 =================================================================================================  ===========  =============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================
+`4e018a870c <https://github.com/apache/airflow/commit/4e018a870ccdece6b0985db0c8ae68d10ae1d055>`_  2021-04-07   ``Refreshed provider's upcoming release with k8s retries (#15239)``
 `1806670383 <https://github.com/apache/airflow/commit/18066703832319968ee3d6122907746fdfda5d4c>`_  2021-04-07   ``Retry pod launching on 409 ApiExceptions (#15137)``
 `042be2e4e0 <https://github.com/apache/airflow/commit/042be2e4e06b988f5ba2dc146f53774dabc8b76b>`_  2021-04-06   ``Updated documentation for provider packages before April release (#15236)``
 `6d7a70b88e <https://github.com/apache/airflow/commit/6d7a70b88e8b1d1edc04c6c50bde02c4d407e15a>`_  2021-04-05   ``Separate Kubernetes pod_launcher from core airflow (#15165)``
+`7757fe32e0 <https://github.com/apache/airflow/commit/7757fe32e0aa627cb849f2d69fbbb01f1d180a64>`_  2021-03-31   ``Doc: Update kubernetes.rst to clarify Kubernetes Connection (#14954)``
 `00453dc4a2 <https://github.com/apache/airflow/commit/00453dc4a2d41da6c46e73cd66cac88e7556de71>`_  2021-03-20   ``Add ability to specify api group and version for Spark operators (#14898)``
 `68e4c4dcb0 <https://github.com/apache/airflow/commit/68e4c4dcb0416eb51a7011a3bb040f1e23d7bba8>`_  2021-03-20   ``Remove Backport Providers (#14886)``
 `e7bb17aeb8 <https://github.com/apache/airflow/commit/e7bb17aeb83b2218620c5320241b0c9f902d74ff>`_  2021-03-06   ``Use built-in 'cached_property' on Python 3.8 where possible (#14606)``
@@ -1179,6 +1280,7 @@ Commit                                                                          
 `295d66f914 <https://github.com/apache/airflow/commit/295d66f91446a69610576d040ba687b38f1c5d0a>`_  2020-12-30   ``Fix Grammar in PIP warning (#13380)``
 `7a560ab6de <https://github.com/apache/airflow/commit/7a560ab6de7243e736b66599842b241ae60d1cda>`_  2020-12-24   ``Pass image_pull_policy in KubernetesPodOperator correctly (#13289)``
 `6cf76d7ac0 <https://github.com/apache/airflow/commit/6cf76d7ac01270930de7f105fb26428763ee1d4e>`_  2020-12-18   ``Fix typo in pip upgrade command :( (#13148)``
+`f6448b4e48 <https://github.com/apache/airflow/commit/f6448b4e482fd96339ae65c26d08e6a2bdb51aaf>`_  2020-12-15   ``Add link to PyPI Repository to provider docs (#13064)``
 =================================================================================================  ===========  ==========================================================================================
 
 1.0.0
@@ -1196,6 +1298,7 @@ Commit                                                                          
 `2037303eef <https://github.com/apache/airflow/commit/2037303eef93fd36ab13746b045d1c1fee6aa143>`_  2020-11-29   ``Adds support for Connection/Hook discovery from providers (#12466)``
 `de3b1e687b <https://github.com/apache/airflow/commit/de3b1e687b26c524c6909b7b4dfbb60d25019751>`_  2020-11-28   ``Move connection guides to provider documentation packages (#12653)``
 `c02a3f59e4 <https://github.com/apache/airflow/commit/c02a3f59e45d3cdd0e4c1c3bda2c62b951bcbea3>`_  2020-11-23   ``Spark-on-k8s sensor logs - properly pass defined namespace to pod log call (#11199)``
+`f2569de7d1 <https://github.com/apache/airflow/commit/f2569de7d1a7b100774f397a641e977c307cbb91>`_  2020-11-22   ``Add example DAGs to provider docs (#12528)``
 `c34ef853c8 <https://github.com/apache/airflow/commit/c34ef853c890e08f5468183c03dc8f3f3ce84af2>`_  2020-11-20   ``Separate out documentation building per provider  (#12444)``
 `9e089ab895 <https://github.com/apache/airflow/commit/9e089ab89567b0a52b232f22ed3e708a05137924>`_  2020-11-19   ``Fix Kube tests (#12479)``
 `d32fe78c0d <https://github.com/apache/airflow/commit/d32fe78c0d9d14f016df70a462dc3972f28abe9d>`_  2020-11-18   ``Update readmes for cncf.kube provider fixes (#12457)``

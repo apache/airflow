@@ -34,7 +34,6 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 
 class TaskReschedule(TaskInstanceDependencies):
@@ -75,7 +74,7 @@ class TaskReschedule(TaskInstanceDependencies):
         ),
     )
     dag_run = relationship("DagRun")
-    execution_date = association_proxy("dag_run", "execution_date")
+    logical_date = association_proxy("dag_run", "logical_date")
 
     def __init__(
         self,
@@ -101,7 +100,7 @@ class TaskReschedule(TaskInstanceDependencies):
     @classmethod
     def stmt_for_task_instance(
         cls,
-        ti: TaskInstance | TaskInstancePydantic,
+        ti: TaskInstance,
         *,
         try_number: int | None = None,
         descending: bool = False,

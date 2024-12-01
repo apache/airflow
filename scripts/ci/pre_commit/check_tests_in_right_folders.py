@@ -34,6 +34,7 @@ POSSIBLE_TEST_FOLDERS = [
     "api_connexion",
     "api_internal",
     "api_fastapi",
+    "assets",
     "auth",
     "callbacks",
     "charts",

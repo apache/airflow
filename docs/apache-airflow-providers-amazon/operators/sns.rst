@@ -48,7 +48,7 @@ Publish a message to an existing SNS topic
 To publish a message to an Amazon SNS Topic you can use
 :class:`~airflow.providers.amazon.aws.operators.sns.SnsPublishOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sns.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_sns.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sns_publish_operator]

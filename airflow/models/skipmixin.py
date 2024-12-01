@@ -17,8 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from types import GeneratorType
-from typing import TYPE_CHECKING, Iterable, Sequence
+from typing import TYPE_CHECKING
 
 from sqlalchemy import update
 
@@ -36,9 +37,8 @@ if TYPE_CHECKING:
 
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
-    from airflow.models.taskmixin import DAGNode
+    from airflow.sdk.definitions.node import DAGNode
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
-    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 # The key used by SkipMixin to store XCom data.
 XCOM_SKIPMIXIN_KEY = "skipmixin_key"
@@ -152,7 +152,7 @@ class SkipMixin(LoggingMixin):
 
     def skip_all_except(
         self,
-        ti: TaskInstance | TaskInstancePydantic,
+        ti: TaskInstance,
         branch_task_ids: None | str | Iterable[str],
     ):
         """Facade for compatibility for call to internal API."""
@@ -166,7 +166,7 @@ class SkipMixin(LoggingMixin):
     @provide_session
     def _skip_all_except(
         cls,
-        ti: TaskInstance | TaskInstancePydantic,
+        ti: TaskInstance,
         branch_task_ids: None | str | Iterable[str],
         session: Session = NEW_SESSION,
     ):

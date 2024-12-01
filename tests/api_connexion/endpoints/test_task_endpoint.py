@@ -27,32 +27,27 @@ from airflow.models.dag import DAG
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
-from airflow.security import permissions
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
-from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+from tests_common.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
+
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
     create_user(
-        app,  # type: ignore
+        app,
         username="test",
-        role_name="Test",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-        ],
+        role_name="admin",
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(app, username="test_no_permissions", role_name=None)
 
     yield app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(app, username="test")
+    delete_user(app, username="test_no_permissions")
 
 
 class TestTaskEndpoint:
@@ -83,7 +78,6 @@ class TestTaskEndpoint:
         with DAG(self.unscheduled_dag_id, start_date=None, schedule=None) as unscheduled_dag:
             task4 = EmptyOperator(task_id=self.unscheduled_task_id1, params={"is_unscheduled": True})
             task5 = EmptyOperator(task_id=self.unscheduled_task_id2, params={"is_unscheduled": True})
-
         task1 >> task2
         task4 >> task5
         dag_bag = DagBag(os.devnull, include_examples=False)
@@ -92,6 +86,7 @@ class TestTaskEndpoint:
             mapped_dag.dag_id: mapped_dag,
             unscheduled_dag.dag_id: unscheduled_dag,
         }
+        DagBag._sync_to_db(dag_bag.dags)
         configured_app.dag_bag = dag_bag  # type:ignore
 
     @staticmethod
@@ -251,7 +246,9 @@ class TestGetTask(TestTaskEndpoint):
 
     def test_should_respond_200_serialized(self):
         # Get the dag out of the dagbag before we patch it to an empty one
-        SerializedDagModel.write_dag(self.app.dag_bag.get_dag(self.dag_id))
+        dag = self.app.dag_bag.get_dag(self.dag_id)
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag)
 
         dag_bag = DagBag(os.devnull, include_examples=False, read_dags_from_db=True)
         patcher = unittest.mock.patch.object(self.app, "dag_bag", dag_bag)

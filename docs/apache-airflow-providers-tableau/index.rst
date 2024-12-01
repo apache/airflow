@@ -43,7 +43,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/tableau/index>
+    System Tests <_api/tests/system/tableau/index>
 
 .. toctree::
     :hidden:

@@ -35,16 +35,58 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.8.5
+.....
+
+Latest change: 2024-11-24
+
+=================================================================================================  ===========  ====================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================
+`1275fec92f <https://github.com/apache/airflow/commit/1275fec92fd7cd7135b100d66d41bdcb79ade29d>`_  2024-11-24   ``Use Python 3.9 as target version for Ruff & Black rules (#44298)``
+`a41feeb5ae <https://github.com/apache/airflow/commit/a41feeb5aedad842be2b0f954e0be30c767dbc5e>`_  2024-11-15   ``Re-queue tassk when they are stuck in queued (#43520)``
+=================================================================================================  ===========  ====================================================================
+
+3.8.4
+.....
+
+Latest change: 2024-11-14
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`a53d9f6d25 <https://github.com/apache/airflow/commit/a53d9f6d257f193ea5026ba4cd007d5ddeab968f>`_  2024-11-14   ``Prepare docs for Nov 1st wave of providers (#44011)``
+`b9b0614049 <https://github.com/apache/airflow/commit/b9b06140491d55878954b1a490c76ce7593b6357>`_  2024-11-05   ``AIP-72: Remove DAG pickling (#43667)``
+`06088a3abc <https://github.com/apache/airflow/commit/06088a3abcbb46533e74de360746db766d50cf66>`_  2024-10-31   ``Standard provider python operator (#42081)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ========================================================================================
+
+3.8.3
+.....
+
+Latest change: 2024-10-09
+
+=================================================================================================  ===========  =============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
+`a5ffbbda17 <https://github.com/apache/airflow/commit/a5ffbbda17450a5c99037b292844087119b5676a>`_  2024-10-09   ``Standard provider bash operator (#42252)``
+`be9fdfe036 <https://github.com/apache/airflow/commit/be9fdfe036f32b7289f743332c848ae8f1f784aa>`_  2024-10-05   ``Update celery_executor.rst (#42741)``
+`c72dad7eaf <https://github.com/apache/airflow/commit/c72dad7eaf045c74b66a38de5cf5d899c7c5f6d8>`_  2024-10-01   ``All executors should inherit from BaseExecutor (#41904)``
+`f463e2a0dd <https://github.com/apache/airflow/commit/f463e2a0dde51581a5a03e8d511e6a2603d51393>`_  2024-10-01   ``Remove state sync during celery task processing (#41870)``
+=================================================================================================  ===========  =============================================================
+
 3.8.2
 .....
 
-Latest change: 2024-08-25
+Latest change: 2024-09-21
 
-=================================================================================================  ===========  =============================
+=================================================================================================  ===========  =======================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  =============================
+=================================================================================================  ===========  =======================================================
+`7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
 `1613e9ec1c <https://github.com/apache/airflow/commit/1613e9ec1c4e5523953e045c8adcef1b9d4ce95d>`_  2024-08-25   ``remove soft_fail (#41710)``
-=================================================================================================  ===========  =============================
+=================================================================================================  ===========  =======================================================
 
 3.8.1
 .....
@@ -143,6 +185,7 @@ Commit                                                                          
 `6296f7e224 <https://github.com/apache/airflow/commit/6296f7e224e0c7772e49f2f3b42a398482f2c986>`_  2024-03-22   ``Allow to use 'redis'>=5 (#38385)``
 `095c5fe313 <https://github.com/apache/airflow/commit/095c5fe3137e2cb6d45e8f3184bae149cb2850d1>`_  2024-03-21   ``Ensure __exit__ is called in decorator context managers (#38383)``
 `0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
+`98153af7fa <https://github.com/apache/airflow/commit/98153af7fa04a874c48dc79209134b352f57a379>`_  2024-03-07   ``doc(celery): Explicit broker dependencies (#37973)``
 =================================================================================================  ===========  ===============================================================================
 
 3.6.1
@@ -218,6 +261,8 @@ Commit                                                                          
 `99534e47f3 <https://github.com/apache/airflow/commit/99534e47f330ce0efb96402629dda5b2a4f16e8f>`_  2023-11-19   ``Use reproducible builds for provider packages (#35693)``
 `99df205f42 <https://github.com/apache/airflow/commit/99df205f42a754aa67f80b5983e1d228ff23267f>`_  2023-11-16   ``Fix and reapply templates for provider documentation (#35686)``
 `1b059c57d6 <https://github.com/apache/airflow/commit/1b059c57d6d57d198463e5388138bee8a08591b1>`_  2023-11-08   ``Prepare docs 1st wave of Providers November 2023 (#35537)``
+`706878ec35 <https://github.com/apache/airflow/commit/706878ec354cf867440c367a95c85753c19e54de>`_  2023-11-04   ``Remove empty lines in generated changelog (#35436)``
+`052e26ad47 <https://github.com/apache/airflow/commit/052e26ad473a9d50f0b96456ed094f2087ee4434>`_  2023-11-04   ``Change security.rst to use includes in providers (#35435)``
 `d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
 `3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
 `dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
@@ -303,6 +348,7 @@ Latest change: 2023-08-05
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================
 `60677b0ba3 <https://github.com/apache/airflow/commit/60677b0ba3c9e81595ec2aa3d4be2737e5b32054>`_  2023-08-05   ``Prepare docs for Aug 2023 1st wave of Providers (#33128)``
+`9adb265e0e <https://github.com/apache/airflow/commit/9adb265e0ee697375970c8eeb83f279a8671d91a>`_  2023-08-04   ``Add notes about pre-2-7 config and cli options in providers (#33123)``
 `879fd34e97 <https://github.com/apache/airflow/commit/879fd34e97a5343e6d2bbf3d5373831b9641b5ad>`_  2023-08-04   ``aDd documentation generation for CLI commands from executors (#33081)``
 `e3d82c6be0 <https://github.com/apache/airflow/commit/e3d82c6be0e0e1468ade053c37690aa1e0e4882d>`_  2023-08-04   ``Get rid of Python2 numeric relics (#33050)``
 =================================================================================================  ===========  =========================================================================
@@ -355,6 +401,7 @@ Commit                                                                          
 `45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
 `abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
 `f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`7ebda3898d <https://github.com/apache/airflow/commit/7ebda3898db2eee72d043a9565a674dea72cd8fa>`_  2023-05-17   ``Fix missing line in index.rst for provider documentation (#31343)``
 `d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
 `eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
 `a7eb32a5b2 <https://github.com/apache/airflow/commit/a7eb32a5b222e236454d3e474eec478ded7c368d>`_  2023-04-30   ``Bump minimum Airflow version in providers (#30917)``
@@ -443,6 +490,9 @@ Commit                                                                          
 `f77417eb0d <https://github.com/apache/airflow/commit/f77417eb0d3f12e4849d80645325c02a48829278>`_  2021-12-31   ``Fix K8S changelog to be PyPI-compatible (#20614)``
 `97496ba2b4 <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
 `a0821235fb <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
+`43de625d42 <https://github.com/apache/airflow/commit/43de625d4246af7014f64941f8effb09997731cb>`_  2021-12-01   ``Correctly capitalize names and abbreviations in docs (#19908)``
+`1cb456cba1 <https://github.com/apache/airflow/commit/1cb456cba1099198bbdba50c2d1ad79664be8ce6>`_  2021-09-12   ``Add official download page for providers (#18187)``
+`046f02e5a7 <https://github.com/apache/airflow/commit/046f02e5a7097a6e6c928c28196b38b37e776916>`_  2021-09-09   ``fix misspelling (#18121)``
 =================================================================================================  ===========  ==========================================================================
 
 2.1.0
@@ -480,15 +530,16 @@ Commit                                                                          
 
 Latest change: 2021-02-04
 
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  =========================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  =========================================================
 `88bdcfa0df <https://github.com/apache/airflow/commit/88bdcfa0df5bcb4c489486e05826544b428c8f43>`_  2021-02-04   ``Prepare to release a new wave of providers. (#14013)``
 `ac2f72c98d <https://github.com/apache/airflow/commit/ac2f72c98dc0821b33721054588adbf2bb53bb0b>`_  2021-02-01   ``Implement provider versioning tools (#13767)``
 `3fd5ef3555 <https://github.com/apache/airflow/commit/3fd5ef355556cf0ad7896bb570bbe4b2eabbf46e>`_  2021-01-21   ``Add missing logos for integrations (#13717)``
 `295d66f914 <https://github.com/apache/airflow/commit/295d66f91446a69610576d040ba687b38f1c5d0a>`_  2020-12-30   ``Fix Grammar in PIP warning (#13380)``
 `6cf76d7ac0 <https://github.com/apache/airflow/commit/6cf76d7ac01270930de7f105fb26428763ee1d4e>`_  2020-12-18   ``Fix typo in pip upgrade command :( (#13148)``
-=================================================================================================  ===========  ========================================================
+`f6448b4e48 <https://github.com/apache/airflow/commit/f6448b4e482fd96339ae65c26d08e6a2bdb51aaf>`_  2020-12-15   ``Add link to PyPI Repository to provider docs (#13064)``
+=================================================================================================  ===========  =========================================================
 
 1.0.0
 .....

@@ -24,7 +24,6 @@ from docs.exts.provider_yaml_utils import load_package_data
 ROOT_PROJECT_DIR = os.path.abspath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, os.pardir)
 )
-PROVIDER_INIT_FILE = os.path.join(ROOT_PROJECT_DIR, "airflow", "providers", "__init__.py")
 DOCS_DIR = os.path.join(ROOT_PROJECT_DIR, "docs")
 AIRFLOW_DIR = os.path.join(ROOT_PROJECT_DIR, "airflow")
 

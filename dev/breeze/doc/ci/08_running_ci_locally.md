@@ -63,7 +63,7 @@ In the output of the CI jobs, you will find both - the flags passed and
 environment variables set.
 
 You can read more about it in [Breeze](../README.rst) and
-[Testing](contributing-docs/09_testing.rst)
+[Testing](../../../../contributing-docs/09_testing.rst)
 
 Since we store images from every CI run, you should be able easily
 reproduce any of the CI tests problems locally. You can do it by pulling
@@ -72,19 +72,19 @@ For example knowing that the CI job was for commit
 `cd27124534b46c9688a1d89e75fcd137ab5137e3`:
 
 ``` bash
-docker pull ghcr.io/apache/airflow/main/ci/python3.8:cd27124534b46c9688a1d89e75fcd137ab5137e3
+docker pull ghcr.io/apache/airflow/main/ci/python3.9:cd27124534b46c9688a1d89e75fcd137ab5137e3
 
-docker run -it ghcr.io/apache/airflow/main/ci/python3.8:cd27124534b46c9688a1d89e75fcd137ab5137e3
+docker run -it ghcr.io/apache/airflow/main/ci/python3.9:cd27124534b46c9688a1d89e75fcd137ab5137e3
 ```
 
 But you usually need to pass more variables and complex setup if you
 want to connect to a database or enable some integrations. Therefore it
 is easiest to use [Breeze](../README.rst) for that. For
-example if you need to reproduce a MySQL environment in python 3.8
+example if you need to reproduce a MySQL environment in python 3.9
 environment you can run:
 
 ``` bash
-breeze --image-tag cd27124534b46c9688a1d89e75fcd137ab5137e3 --python 3.8 --backend mysql
+breeze --image-tag cd27124534b46c9688a1d89e75fcd137ab5137e3 --python 3.9 --backend mysql
 ```
 
 You will be dropped into a shell with the exact version that was used
@@ -119,7 +119,7 @@ passed to `breeze shell` command.
 | In container environment initialization |                    |                        |              |                                                                                |
 | SKIP_ENVIRONMENT_INITIALIZATION         | false*             | false*                 | false*       | Skip initialization of test environment * set to true in pre-commits           |
 | SKIP_IMAGE_UPGRADE_CHECK                | false*             | false*                 | false*       | Skip checking if image should be upgraded * set to true in pre-commits         |
-| SKIP_PROVIDER_TESTS                     | false*             | false*                 | false*       | Skip running provider integration tests                                        |
+| SKIP_PROVIDERS_TESTS                    | false*             | false*                 | false*       | Skip running provider integration tests                                        |
 | SKIP_SSH_SETUP                          | false*             | false*                 | false*       | Skip setting up SSH server for tests. * set to true in GitHub CodeSpaces       |
 | VERBOSE_COMMANDS                        | false              | false                  | false        | Determines whether every command executed in docker should be printed.         |
 | Image build variables                   |                    |                        |              |                                                                                |

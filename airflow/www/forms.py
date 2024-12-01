@@ -20,7 +20,8 @@ from __future__ import annotations
 import datetime
 import json
 import operator
-from typing import Iterator
+from collections.abc import Iterator
+from functools import cache
 
 import pendulum
 from flask_appbuilder.fieldwidgets import (
@@ -36,7 +37,6 @@ from wtforms import widgets
 from wtforms.fields import Field, IntegerField, PasswordField, SelectField, StringField, TextAreaField
 from wtforms.validators import InputRequired, Optional
 
-from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.types import DagRunType
@@ -95,7 +95,7 @@ class DateTimeWithTimezoneField(Field):
 class DateTimeForm(FlaskForm):
     """Date filter form needed for task views."""
 
-    execution_date = DateTimeWithTimezoneField("Logical date", widget=AirflowDateTimePickerWidget())
+    logical_date = DateTimeWithTimezoneField("Logical date", widget=AirflowDateTimePickerWidget())
 
 
 class DagRunEditForm(DynamicForm):
@@ -114,7 +114,7 @@ class DagRunEditForm(DynamicForm):
     )
     run_id = StringField(lazy_gettext("Run Id"), validators=[ReadOnly()], widget=BS3TextFieldROWidget())
     state = StringField(lazy_gettext("State"), validators=[ReadOnly()], widget=BS3TextFieldROWidget())
-    execution_date = DateTimeWithTimezoneField(
+    logical_date = DateTimeWithTimezoneField(
         lazy_gettext("Logical Date"),
         validators=[ReadOnly()],
         widget=AirflowDateTimePickerROWidget(),
@@ -162,7 +162,7 @@ class TaskInstanceEditForm(DynamicForm):
         widget=Select2Widget(),
         validators=[InputRequired()],
     )
-    execution_date = DateTimeWithTimezoneField(
+    logical_date = DateTimeWithTimezoneField(
         lazy_gettext("Logical Date"),
         widget=AirflowDateTimePickerROWidget(),
         validators=[InputRequired(), ReadOnly()],

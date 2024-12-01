@@ -49,7 +49,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/neo4j/index>
+    System Tests <_api/tests/system/neo4j/index>
 
 .. toctree::
     :hidden:

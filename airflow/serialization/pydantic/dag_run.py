@@ -16,21 +16,22 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
-from typing import TYPE_CHECKING, Iterable, List, Optional
+from typing import TYPE_CHECKING, Optional
+from uuid import UUID
 
 from pydantic import BaseModel as BaseModelPydantic, ConfigDict
 
 from airflow.models.dagrun import DagRun
+from airflow.serialization.pydantic.asset import AssetEventPydantic
 from airflow.serialization.pydantic.dag import PydanticDag
-from airflow.serialization.pydantic.dataset import DatasetEventPydantic
 from airflow.utils.types import DagRunTriggeredByType
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.jobs.scheduler_job_runner import TI
-    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.utils.state import TaskInstanceState
 
 
@@ -40,7 +41,7 @@ class DagRunPydantic(BaseModelPydantic):
     id: int
     dag_id: str
     queued_at: Optional[datetime]
-    execution_date: datetime
+    logical_date: datetime
     start_date: Optional[datetime]
     end_date: Optional[datetime]
     state: str
@@ -52,18 +53,14 @@ class DagRunPydantic(BaseModelPydantic):
     data_interval_start: Optional[datetime]
     data_interval_end: Optional[datetime]
     last_scheduling_decision: Optional[datetime]
-    dag_hash: Optional[str]
+    dag_version_id: Optional[UUID]
     updated_at: Optional[datetime]
     dag: Optional[PydanticDag]
-    consumed_dataset_events: List[DatasetEventPydantic]  # noqa: UP006
+    consumed_asset_events: list[AssetEventPydantic]
     log_template_id: Optional[int]
     triggered_by: Optional[DagRunTriggeredByType]
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
-
-    @property
-    def logical_date(self) -> datetime:
-        return self.execution_date
 
     def get_task_instances(
         self,
@@ -91,7 +88,7 @@ class DagRunPydantic(BaseModelPydantic):
         session: Session,
         *,
         map_index: int = -1,
-    ) -> TI | TaskInstancePydantic | None:
+    ) -> TI | None:
         """
         Return the task instance specified by task_id for this dag run.
 

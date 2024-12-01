@@ -17,8 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Any, Generator, NamedTuple
+from typing import Any, NamedTuple
 
 import flask
 import jinja2
@@ -27,10 +28,15 @@ import pytest
 from airflow import settings
 from airflow.models import DagBag
 from airflow.www.app import create_app
-from tests.test_utils.api_connexion_utils import delete_user
-from tests.test_utils.config import conf_vars
-from tests.test_utils.decorators import dont_initialize_flask_app_submodules
-from tests.test_utils.www import client_with_login, client_without_login, client_without_login_as_admin
+
+from tests_common.test_utils.api_connexion_utils import delete_user
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.decorators import dont_initialize_flask_app_submodules
+from tests_common.test_utils.www import (
+    client_with_login,
+    client_without_login,
+    client_without_login_as_admin,
+)
 
 
 @pytest.fixture(autouse=True, scope="module")

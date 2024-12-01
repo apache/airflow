@@ -35,14 +35,40 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.9.0
+.....
+
+Latest change: 2024-11-13
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`e7194dff6a <https://github.com/apache/airflow/commit/e7194dff6a816bf3a721cbf579ceac19c11cd111>`_  2024-11-13   ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+`d8c7d28411 <https://github.com/apache/airflow/commit/d8c7d28411bea04ae5771fc1e2973d92eb0a144e>`_  2024-10-30   ``Start porting DAG definition code to the Task SDK (#43076)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ========================================================================================
+
+5.8.1
+.....
+
+Latest change: 2024-10-09
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
+`ede7cb27fd <https://github.com/apache/airflow/commit/ede7cb27fd39e233889d127490a2255df8c5d27d>`_  2024-09-30   ``Rename dataset related python variable names to asset (#41348)``
+=================================================================================================  ===========  ==================================================================
+
 5.8.0
 .....
 
-Latest change: 2024-08-12
+Latest change: 2024-08-19
 
 =================================================================================================  ===========  =======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================
+`75fb7acbac <https://github.com/apache/airflow/commit/75fb7acbaca09a040067f0a5a37637ff44eb9e14>`_  2024-08-19   ``Prepare docs for Aug 2nd wave of providers (#41559)``
 `fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
 =================================================================================================  ===========  =======================================================================
 
@@ -57,6 +83,7 @@ Commit                                                                          
 `6e5ae26382 <https://github.com/apache/airflow/commit/6e5ae26382b328e88907e8301d4b2352ef8524c5>`_  2024-06-22   ``Prepare docs 2nd wave June 2024 (#40273)``
 `81c331e29a <https://github.com/apache/airflow/commit/81c331e29a0e112380b634966c69342fa69bdd55>`_  2024-06-17   ``Update pandas minimum requirement for Python 3.12 (#40272)``
 `c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
+`21e6a49db5 <https://github.com/apache/airflow/commit/21e6a49db57cb99601bf0ea8c9d2c8980f474614>`_  2024-06-01   ``resolving conflicts (#39728)``
 =================================================================================================  ===========  ==================================================================================
 
 5.7.1
@@ -98,6 +125,7 @@ Commit                                                                          
 `83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
 `9e4bdc9e45 <https://github.com/apache/airflow/commit/9e4bdc9e457c275eb2cead5d80c2f79c3b9a0085>`_  2024-02-27   ``Limit 'pandas' to '<2.2' (#37748)``
 `b52b227c04 <https://github.com/apache/airflow/commit/b52b227c048674117e11d720dfd01c4eeacea854>`_  2024-02-26   ``Implement AIP-60 Dataset URI formats (#37005)``
+`de4502ff2c <https://github.com/apache/airflow/commit/de4502ff2c138ef878d2c374f86670fee8094753>`_  2024-02-20   ``Add presto/trino connection documentation (#37536)``
 `5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
 `e346253760 <https://github.com/apache/airflow/commit/e3462537608854368b04f58c25835c8097dec51c>`_  2024-02-15   ``Fix remaining D401 checks (#37434)``
 =================================================================================================  ===========  ==================================================================
@@ -170,6 +198,8 @@ Commit                                                                          
 `99df205f42 <https://github.com/apache/airflow/commit/99df205f42a754aa67f80b5983e1d228ff23267f>`_  2023-11-16   ``Fix and reapply templates for provider documentation (#35686)``
 `1b059c57d6 <https://github.com/apache/airflow/commit/1b059c57d6d57d198463e5388138bee8a08591b1>`_  2023-11-08   ``Prepare docs 1st wave of Providers November 2023 (#35537)``
 `11bdfe4c12 <https://github.com/apache/airflow/commit/11bdfe4c12efa2f5d256cc49916a20beaa5487eb>`_  2023-11-07   ``Work around typing issue in examples and providers (#35494)``
+`706878ec35 <https://github.com/apache/airflow/commit/706878ec354cf867440c367a95c85753c19e54de>`_  2023-11-04   ``Remove empty lines in generated changelog (#35436)``
+`052e26ad47 <https://github.com/apache/airflow/commit/052e26ad473a9d50f0b96456ed094f2087ee4434>`_  2023-11-04   ``Change security.rst to use includes in providers (#35435)``
 `63cc915cd3 <https://github.com/apache/airflow/commit/63cc915cd38a5034df6bf9c618e12f8690eeade0>`_  2023-10-31   ``Switch from Black to Ruff formatter (#35287)``
 `d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
 `3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
@@ -199,6 +229,7 @@ Commit                                                                          
 =================================================================================================  ===========  ===================================================================================================
 `21990ed894 <https://github.com/apache/airflow/commit/21990ed8943ee4dc6e060ee2f11648490c714a3b>`_  2023-09-08   ``Prepare docs for 09 2023 - 1st wave of Providers (#34201)``
 `9d8c77e447 <https://github.com/apache/airflow/commit/9d8c77e447f5515b9a6aa85fa72511a86a128c28>`_  2023-08-27   ``Improve modules import in Airflow providers by some of them into a type-checking block (#33754)``
+`bcb97d05ad <https://github.com/apache/airflow/commit/bcb97d05add522220d99759352bc5a0de9b69ae8>`_  2023-08-26   ``Fix partial doc reference error due to missing space (#33770)``
 =================================================================================================  ===========  ===================================================================================================
 
 5.3.0
@@ -223,6 +254,7 @@ Latest change: 2023-07-29
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================
 `d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
+`73b90c48b1 <https://github.com/apache/airflow/commit/73b90c48b1933b49086d34176527947bd727ec85>`_  2023-07-21   ``Allow configuration to be contributed by providers (#32604)``
 `60c49ab2df <https://github.com/apache/airflow/commit/60c49ab2dfabaf450b80a5c7569743dd383500a6>`_  2023-07-19   ``Add more accurate typing for DbApiHook.run method (#31846)``
 `e01323635a <https://github.com/apache/airflow/commit/e01323635a88ecf313a415ea41d32d6d28fa0794>`_  2023-07-13   ``Add deprecation info to the providers modules and classes docstring (#32536)``
 `21e8f878a3 <https://github.com/apache/airflow/commit/21e8f878a3c91250d0d198c6c3675b4b350fcb61>`_  2023-07-06   ``D205 Support - Providers: Snowflake to Zendesk (inclusive) (#32359)``
@@ -267,6 +299,7 @@ Commit                                                                          
 `45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
 `abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
 `f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`7ebda3898d <https://github.com/apache/airflow/commit/7ebda3898db2eee72d043a9565a674dea72cd8fa>`_  2023-05-17   ``Fix missing line in index.rst for provider documentation (#31343)``
 `d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
 `0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
 `eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
@@ -303,12 +336,13 @@ Commit                                                                          
 
 Latest change: 2023-01-02
 
-=================================================================================================  ===========  ===============================================================
+=================================================================================================  ===========  =====================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ===============================================================
+=================================================================================================  ===========  =====================================================================
 `5246c009c5 <https://github.com/apache/airflow/commit/5246c009c557b4f6bdf1cd62bf9b89a2da63f630>`_  2023-01-02   ``Prepare docs for Jan 2023 wave of Providers (#28651)``
 `38e40c6dc4 <https://github.com/apache/airflow/commit/38e40c6dc45b92b274a06eafd8790140a0c3c7b8>`_  2022-12-21   ``Remove outdated compat imports/code from providers (#28507)``
-=================================================================================================  ===========  ===============================================================
+`c8e348dcb0 <https://github.com/apache/airflow/commit/c8e348dcb0bae27e98d68545b59388c9f91fc382>`_  2022-12-05   ``Add automated version replacement in example dag indexes (#28090)``
+=================================================================================================  ===========  =====================================================================
 
 4.3.0
 .....
@@ -396,6 +430,7 @@ Commit                                                                          
 `122d2f69bb <https://github.com/apache/airflow/commit/122d2f69bbf39c445ddcaa5a9c09a9ea86434a55>`_  2022-06-21   ``Add test_connection method to Trino hook (#24583)``
 `4f4f37c855 <https://github.com/apache/airflow/commit/4f4f37c855d58f99c9b999fa0f19e0c0505274f4>`_  2022-06-20   ``Add 'on_kill()' to kill Trino query if the task is killed (#24559)``
 `865406cbab <https://github.com/apache/airflow/commit/865406cbab4defd35c95afbf0a8d5987ff7788b1>`_  2022-06-20   ``Add TrinoOperator (#24415)``
+`08b675cf66 <https://github.com/apache/airflow/commit/08b675cf6642171cb1c5ddfb09607b541db70b29>`_  2022-06-13   ``Fix links to sources for examples (#24386)``
 =================================================================================================  ===========  ======================================================================
 
 3.0.0
@@ -480,6 +515,7 @@ Commit                                                                          
 `f77417eb0d <https://github.com/apache/airflow/commit/f77417eb0d3f12e4849d80645325c02a48829278>`_  2021-12-31   ``Fix K8S changelog to be PyPI-compatible (#20614)``
 `97496ba2b4 <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
 `dad2f8103b <https://github.com/apache/airflow/commit/dad2f8103be954afaedf15e9d098ee417b0d5d02>`_  2021-12-15   ``Fix mypy providers (#20190)``
+`43de625d42 <https://github.com/apache/airflow/commit/43de625d4246af7014f64941f8effb09997731cb>`_  2021-12-01   ``Correctly capitalize names and abbreviations in docs (#19908)``
 =================================================================================================  ===========  ==========================================================================
 
 2.0.2
@@ -492,6 +528,7 @@ Commit                                                                          
 =================================================================================================  ===========  =================================================================
 `d9567eb106 <https://github.com/apache/airflow/commit/d9567eb106929b21329c01171fd398fbef2dc6c6>`_  2021-10-29   ``Prepare documentation for October Provider's release (#19321)``
 `6bc0f87755 <https://github.com/apache/airflow/commit/6bc0f87755e3f9b3d736d7c1232b7cd93001ad06>`_  2021-10-07   ``Properly handle verify parameter in TrinoHook (#18791)``
+`1cb456cba1 <https://github.com/apache/airflow/commit/1cb456cba1099198bbdba50c2d1ad79664be8ce6>`_  2021-09-12   ``Add official download page for providers (#18187)``
 =================================================================================================  ===========  =================================================================
 
 2.0.1
@@ -522,6 +559,7 @@ Commit                                                                          
 `cbf8001d76 <https://github.com/apache/airflow/commit/cbf8001d7630530773f623a786f9eb319783b33c>`_  2021-06-16   ``Synchronizes updated changelog after buggfix release (#16464)``
 `1fba5402bb <https://github.com/apache/airflow/commit/1fba5402bb14b3ffa6429fdc683121935f88472f>`_  2021-06-15   ``More documentation update for June providers release (#16405)``
 `9c94b72d44 <https://github.com/apache/airflow/commit/9c94b72d440b18a9e42123d20d48b951712038f9>`_  2021-06-07   ``Updated documentation for June 2021 provider release (#16294)``
+`807ad32ce5 <https://github.com/apache/airflow/commit/807ad32ce59e001cb3532d98a05fa7d0d7fabb95>`_  2021-05-01   ``Prepares provider release after PIP 21 compatibility (#15576)``
 =================================================================================================  ===========  =================================================================
 
 1.0.0
@@ -529,8 +567,9 @@ Commit                                                                          
 
 Latest change: 2021-04-06
 
-=================================================================================================  ===========  ==========================================================================
+=================================================================================================  ===========  =============================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ==========================================================================
+=================================================================================================  ===========  =============================================================================
+`042be2e4e0 <https://github.com/apache/airflow/commit/042be2e4e06b988f5ba2dc146f53774dabc8b76b>`_  2021-04-06   ``Updated documentation for provider packages before April release (#15236)``
 `eae22cec9c <https://github.com/apache/airflow/commit/eae22cec9c87e8dad4d6e8599e45af1bdd452062>`_  2021-04-06   ``Adds 'Trino' provider (with lower memory footprint for tests) (#15187)``
-=================================================================================================  ===========  ==========================================================================
+=================================================================================================  ===========  =============================================================================

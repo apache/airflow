@@ -54,10 +54,10 @@ def check_system_test_entry_hidden(provider_index: Path):
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/{provider_path}/index>
+    System Tests <_api/tests/system/{provider_path}/index>
 """
     index_text = provider_index.read_text()
-    system_tests_path = AIRFLOW_SOURCES_ROOT / "tests" / "system" / "providers" / provider_path
+    system_tests_path = AIRFLOW_SOURCES_ROOT / "providers" / "tests" / "system" / provider_path
     index_text_manual = index_text.split(
         ".. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!"
     )[0]

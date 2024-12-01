@@ -17,12 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
-from typing import Sequence
 
-from airflow.datasets import Dataset
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
+from airflow.sdk.definitions.asset import Asset
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 
@@ -56,4 +56,4 @@ with dag:
 
     EmptyOperator(task_id="test_task_on_success", on_success_callback=lambda *args, **kwargs: None)
 
-    EmptyOperator(task_id="test_task_outlets", outlets=[Dataset("hello")])
+    EmptyOperator(task_id="test_task_outlets", outlets=[Asset("hello")])

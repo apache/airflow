@@ -42,6 +42,7 @@ Here you can find detailed documentation about each one of the core concepts of 
     executor/index
     auth-manager/index
     objectstorage
+    backfill
 
 **Communication**
 

@@ -30,8 +30,9 @@ from airflow import settings
 from airflow.cli import cli_parser
 from airflow.cli.commands import webserver_command
 from airflow.cli.commands.webserver_command import GunicornMonitor
+
 from tests.cli.commands._common_cli_classes import _CommonCLIGunicornTestClass
-from tests.test_utils.config import conf_vars
+from tests_common.test_utils.config import conf_vars
 
 console = Console(width=400, color_system="standard")
 
@@ -153,7 +154,7 @@ class TestGunicornMonitorGeneratePluginState:
             state_b = monitor._generate_plugin_state()
 
             assert state_a == state_b
-            assert 3 == len(state_a)
+            assert len(state_a) == 3
 
             # Should detect new file
             (tmp_path / "file4.txt").write_text("A" * 400)
@@ -161,7 +162,7 @@ class TestGunicornMonitorGeneratePluginState:
             state_c = monitor._generate_plugin_state()
 
             assert state_b != state_c
-            assert 4 == len(state_c)
+            assert len(state_c) == 4
 
             # Should detect changes in files
             (tmp_path / "file4.txt").write_text("A" * 450)
@@ -169,7 +170,7 @@ class TestGunicornMonitorGeneratePluginState:
             state_d = monitor._generate_plugin_state()
 
             assert state_c != state_d
-            assert 4 == len(state_d)
+            assert len(state_d) == 4
 
             # Should support large files
             (tmp_path / "file4.txt").write_text("A" * 4_000_000)
@@ -177,7 +178,7 @@ class TestGunicornMonitorGeneratePluginState:
             state_d = monitor._generate_plugin_state()
 
             assert state_c != state_d
-            assert 4 == len(state_d)
+            assert len(state_d) == 4
 
 
 class TestCLIGetNumReadyWorkersRunning:
@@ -312,9 +313,10 @@ class TestCliWebServer(_CommonCLIGunicornTestClass):
         assert ctx.value.code == 1
 
     def test_cli_webserver_debug(self, app):
-        with mock.patch("airflow.www.app.create_app", return_value=app), mock.patch.object(
-            app, "run"
-        ) as app_run:
+        with (
+            mock.patch("airflow.www.app.create_app", return_value=app),
+            mock.patch.object(app, "run") as app_run,
+        ):
             args = self.parser.parse_args(
                 [
                     "webserver",

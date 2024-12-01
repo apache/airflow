@@ -32,15 +32,16 @@ from airflow.utils import timezone
 from airflow.utils.json import WebEncoder
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
-from tests.test_utils.api_connexion_utils import create_test_client
-from tests.test_utils.config import conf_vars
-from tests.test_utils.www import check_content_in_response
+
+from providers.tests.fab.auth_manager.api_endpoints.api_connexion_utils import create_test_client
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.www import check_content_in_response
 
 pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(autouse=True)
-def initialize_one_dag():
+def _initialize_one_dag():
     with create_session() as session:
         DagBag().get_dag("example_bash_operator").sync_to_db(session=session)
     yield
@@ -142,25 +143,25 @@ def test_trigger_dag_conf_not_dict(admin_client):
     assert run is None
 
 
-def test_trigger_dag_wrong_execution_date(admin_client):
+def test_trigger_dag_wrong_logical_date(admin_client):
     test_dag_id = "example_bash_operator"
 
     response = admin_client.post(
-        f"dags/{test_dag_id}/trigger", data={"conf": "{}", "execution_date": "not_a_date"}
+        f"dags/{test_dag_id}/trigger", data={"conf": "{}", "logical_date": "not_a_date"}
     )
-    check_content_in_response("Invalid execution date", response)
+    check_content_in_response("Invalid logical date", response)
 
     with create_session() as session:
         run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
     assert run is None
 
 
-def test_trigger_dag_execution_date_data_interval(admin_client):
+def test_trigger_dag_logical_date_data_interval(admin_client):
     test_dag_id = "example_bash_operator"
     exec_date = timezone.utcnow()
 
     admin_client.post(
-        f"dags/{test_dag_id}/trigger", data={"conf": "{}", "execution_date": exec_date.isoformat()}
+        f"dags/{test_dag_id}/trigger", data={"conf": "{}", "logical_date": exec_date.isoformat()}
     )
 
     with create_session() as session:
@@ -168,7 +169,7 @@ def test_trigger_dag_execution_date_data_interval(admin_client):
     assert run is not None
     assert DagRunType.MANUAL in run.run_id
     assert run.run_type == DagRunType.MANUAL
-    assert run.execution_date == exec_date
+    assert run.logical_date == exec_date
 
     # Since example_bash_operator runs once per day, the data interval should be
     # between midnight yesterday and midnight today.
@@ -341,7 +342,7 @@ def test_trigger_dag_params_array_value_none_render(admin_client, dag_maker, ses
         ["", "manual__2023-01-01T00:00:00+00:00", True],
         ["", "scheduled_2023-01-01T00", False],
         ["", "manual_2023-01-01T00", False],
-        ["", "dataset_triggered_2023-01-01T00", False],
+        ["", "asset_triggered_2023-01-01T00", False],
         ["^[0-9]", "manual__2023-01-01T00:00:00+00:00", True],
         ["^[a-z]", "manual__2023-01-01T00:00:00+00:00", True],
     ],

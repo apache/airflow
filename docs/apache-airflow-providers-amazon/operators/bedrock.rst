@@ -52,7 +52,7 @@ for details on the different formats, see
 
 For example, to invoke a Meta Llama model you would use:
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_bedrock.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_invoke_llama_model]
@@ -60,7 +60,7 @@ For example, to invoke a Meta Llama model you would use:
 
 To invoke an Amazon Titan model you would use:
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_bedrock.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_invoke_titan_model]
@@ -68,7 +68,7 @@ To invoke an Amazon Titan model you would use:
 
 To invoke a Claude V2 model using the Completions API you would use:
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_invoke_claude_model]
@@ -90,7 +90,7 @@ and the training/validation data size. To monitor the state of the job, you can 
 or the :class:`~airflow.providers.amazon.aws.triggers.BedrockCustomizeModelCompletedTrigger` Trigger.
 
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_bedrock.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_customize_model]
@@ -112,7 +112,7 @@ or the :class:`~airflow.providers.amazon.aws.triggers.BedrockProvisionModelThrou
 Trigger.
 
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_bedrock.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_provision_throughput]
@@ -129,7 +129,7 @@ To create an Amazon Bedrock Knowledge Base, you can use
 For more information on which models support embedding data into a vector store, see
 https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-supported.html
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bedrock_create_knowledge_base]
@@ -142,7 +142,7 @@ Delete an Amazon Bedrock Knowledge Base
 
 Deleting a Knowledge Base is a simple boto API call and can be done in a TaskFlow task like the example below.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :start-after: [START howto_operator_bedrock_delete_knowledge_base]
     :end-before: [END howto_operator_bedrock_delete_knowledge_base]
@@ -155,7 +155,7 @@ Create an Amazon Bedrock Data Source
 To create an Amazon Bedrock Data Source, you can use
 :class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockCreateDataSourceOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bedrock_create_data_source]
@@ -168,7 +168,7 @@ Delete an Amazon Bedrock Data Source
 
 Deleting a Data Source is a simple boto API call and can be done in a TaskFlow task like the example below.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :start-after: [START howto_operator_bedrock_delete_data_source]
     :end-before: [END howto_operator_bedrock_delete_data_source]
@@ -181,7 +181,7 @@ Ingest data into an Amazon Bedrock Data Source
 To add data from an Amazon S3 bucket into an Amazon Bedrock Data Source, you can use
 :class:`~airflow.providers.amazon.aws.operators.bedrock.BedrockIngestDataOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bedrock_ingest_data]
@@ -201,7 +201,7 @@ would like to pass the results through an LLM in order to generate a text respon
 For more information on which models support retrieving information from a knowledge base, see
 https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-supported.html
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bedrock_retrieve]
@@ -223,7 +223,7 @@ NOTE:  Support for "external sources" was added in boto 1.34.90
 
 Example using an Amazon Bedrock Knowledge Base:
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bedrock_knowledge_base_rag]
@@ -231,7 +231,7 @@ Example using an Amazon Bedrock Knowledge Base:
 
 Example using a PDF file in an Amazon S3 Bucket:
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_bedrock_external_sources_rag]
@@ -249,7 +249,7 @@ Wait for an Amazon Bedrock customize model job
 To wait on the state of an Amazon Bedrock customize model job until it reaches a terminal state you can use
 :class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockCustomizeModelCompletedSensor`
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_bedrock.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_customize_model]
@@ -264,7 +264,7 @@ To wait on the state of an Amazon Bedrock provision model throughput job until i
 terminal state you can use
 :class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockProvisionModelThroughputCompletedSensor`
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_bedrock.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_provision_throughput]
@@ -278,7 +278,7 @@ Wait for an Amazon Bedrock Knowledge Base
 To wait on the state of an Amazon Bedrock Knowledge Base until it reaches a terminal state you can use
 :class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockKnowledgeBaseActiveSensor`
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_bedrock_knowledge_base_active]
@@ -292,7 +292,7 @@ Wait for an Amazon Bedrock ingestion job to finish
 To wait on the state of an Amazon Bedrock data ingestion job until it reaches a terminal state you can use
 :class:`~airflow.providers.amazon.aws.sensors.bedrock.BedrockIngestionJobSensor`
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_bedrock_retrieve_and_generate.py
+.. exampleinclude:: /../../providers/tests/system/amazon/aws/example_bedrock_retrieve_and_generate.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_bedrock_ingest_data]

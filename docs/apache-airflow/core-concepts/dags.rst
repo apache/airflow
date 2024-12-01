@@ -125,7 +125,7 @@ And if you want to chain together dependencies, you can use ``chain``::
     chain(op1, op2, op3, op4)
 
     # You can also do it dynamically
-    chain(*[EmptyOperator(task_id='op' + i) for i in range(1, 6)])
+    chain(*[EmptyOperator(task_id=f"op{i}") for i in range(1, 6)])
 
 Chain can also do *pairwise* dependencies for lists the same size (this is different from the *cross dependencies* created by ``cross_downstream``!)::
 
@@ -362,7 +362,7 @@ The ``@task.branch`` can also be used with XComs allowing branching context to d
 If you wish to implement your own operators with branching functionality, you can inherit from :class:`~airflow.operators.branch.BaseBranchOperator`, which behaves similarly to ``@task.branch`` decorator but expects you to provide an implementation of the method ``choose_branch``.
 
 .. note::
-    The ``@task.branch`` decorator is recommended over directly instantiating :class:`~airflow.operators.python.BranchPythonOperator` in a DAG. The latter should generally only be subclassed to implement a custom operator.
+    The ``@task.branch`` decorator is recommended over directly instantiating :class:`~airflow.providers.standard.operators.python.BranchPythonOperator` in a DAG. The latter should generally only be subclassed to implement a custom operator.
 
 As with the callable for ``@task.branch``, this method can return the ID of a downstream task, or a list of task IDs, which will be run, and all others will be skipped. It can also return None to skip all downstream task::
 
@@ -574,7 +574,7 @@ TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``defau
 
     from airflow import DAG
     from airflow.decorators import task_group
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.operators.bash import BashOperator
     from airflow.operators.empty import EmptyOperator
 
     with DAG(
@@ -663,6 +663,7 @@ This is especially useful if your tasks are built dynamically from configuration
     """
     ### My great DAG
     """
+
     import pendulum
 
     dag = DAG(
@@ -712,19 +713,9 @@ configuration parameter (*added in Airflow 2.3*): ``regexp`` and ``glob``.
 
 .. note::
 
-    The default ``DAG_IGNORE_FILE_SYNTAX`` is ``regexp`` to ensure backwards compatibility.
+    The default ``DAG_IGNORE_FILE_SYNTAX`` is ``glob`` in Airflow 3 or later (in previous versions it was ``regexp``).
 
-For the ``regexp`` pattern syntax (the default), each line in ``.airflowignore``
-specifies a regular expression pattern, and directories or files whose names (not DAG id)
-match any of the patterns would be ignored (under the hood, ``Pattern.search()`` is used
-to match the pattern). Use the ``#`` character to indicate a comment; all characters
-on lines starting with ``#`` will be ignored.
-
-As with most regexp matching in Airflow, the regexp engine is ``re2``, which explicitly
-doesn't support many advanced features, please check its
-`documentation <https://github.com/google/re2/wiki/Syntax>`_ for more information.
-
-With the ``glob`` syntax, the patterns work just like those in a ``.gitignore`` file:
+With the ``glob`` syntax (the default), the patterns work just like those in a ``.gitignore`` file:
 
 * The ``*`` character will match any number of characters, except ``/``
 * The ``?`` character will match any single character, except ``/``
@@ -738,15 +729,18 @@ With the ``glob`` syntax, the patterns work just like those in a ``.gitignore`` 
   is relative to the directory level of the particular .airflowignore file itself. Otherwise the
   pattern may also match at any level below the .airflowignore level.
 
+For the ``regexp`` pattern syntax, each line in ``.airflowignore``
+specifies a regular expression pattern, and directories or files whose names (not DAG id)
+match any of the patterns would be ignored (under the hood, ``Pattern.search()`` is used
+to match the pattern). Use the ``#`` character to indicate a comment; all characters
+on lines starting with ``#`` will be ignored.
+
+As with most regexp matching in Airflow, the regexp engine is ``re2``, which explicitly
+doesn't support many advanced features, please check its
+`documentation <https://github.com/google/re2/wiki/Syntax>`_ for more information.
+
 The ``.airflowignore`` file should be put in your ``DAG_FOLDER``. For example, you can prepare
-a ``.airflowignore`` file using the ``regexp`` syntax with content
-
-.. code-block::
-
-    project_a
-    tenant_[\d]
-
-Or, equivalently, in the ``glob`` syntax
+a ``.airflowignore`` file with the ``glob`` syntax
 
 .. code-block::
 
@@ -771,8 +765,8 @@ While dependencies between tasks in a DAG are explicitly defined through upstrea
 relationships, dependencies between DAGs are a bit more complex. In general, there are two ways
 in which one DAG can depend on another:
 
-- triggering - :class:`~airflow.operators.trigger_dagrun.TriggerDagRunOperator`
-- waiting - :class:`~airflow.sensors.external_task_sensor.ExternalTaskSensor`
+- triggering - :class:`~airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator`
+- waiting - :class:`~airflow.providers.standard.sensors.external_task_sensor.ExternalTaskSensor`
 
 Additional difficulty is that one DAG could wait for or trigger several runs of the other DAG
 with different data intervals. The **Dag Dependencies** view

@@ -39,6 +39,24 @@ Setup your project
              alt="Cloning github fork to Pycharm">
       </div>
 
+3. Configure the source root directories for providers as well as for task_sdk.
+
+   .. raw:: html
+
+      <div align="center" style="padding-bottom:10px">
+        <img src="images/pycharm_adding_source_root_directories.png"
+             alt="Adding Source Root directories to Pycharm">
+      </div>
+
+4. Once step 3 is done it is recommended to invalidate caches and restart Pycharm.
+
+   .. raw:: html
+
+      <div align="center" style="padding-bottom:10px">
+        <img src="images/pycharm_invalidate_caches.png"
+             alt="Invalidate caches and restart Pycharm">
+      </div>
+
 Setting up debugging
 ####################
 
@@ -78,35 +96,14 @@ It requires "airflow-env" virtual environment configured locally.
 
 - Copy any example DAG present in the ``/airflow/example_dags`` directory to ``/files/dags/``.
 
-- Add a ``__main__`` block at the end of your DAG file to make it runnable. It will run a ``back_fill`` job:
+- Add a ``__main__`` block at the end of your DAG file to make it runnable:
 
   .. code-block:: python
 
     if __name__ == "__main__":
-        dag.clear()
-        dag.run()
+        dag.test()
 
-- Add ``AIRFLOW__CORE__EXECUTOR=DebugExecutor`` to Environment variable of Run Configuration.
-
-  - Click on Add configuration
-
-    .. raw:: html
-
-        <div align="center" style="padding-bottom:10px">
-          <img src="images/pycharm_add_configuration.png"
-               alt="Add Configuration pycharm">
-        </div>
-
-  - Add Script Path and Environment Variable to new Python configuration
-
-    .. raw:: html
-
-        <div align="center" style="padding-bottom:10px">
-          <img src="images/pycharm_add_env_variable.png"
-               alt="Add environment variable pycharm">
-        </div>
-
-- Now Debug an example dag and view the entries in tables such as ``dag_run, xcom`` etc in MySQL Workbench.
+- Run the file.
 
 Creating a branch
 #################

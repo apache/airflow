@@ -33,7 +33,7 @@ For parameter definition take a look at :class:`~airflow.providers.ftp.operators
 
 The below example shows how to use the FTPFileTransmitOperator to transfer a locally stored file to a remote FTP Server:
 
-.. exampleinclude:: /../../tests/system/providers/ftp/example_ftp.py
+.. exampleinclude:: /../../providers/tests/system/ftp/example_ftp.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_ftp_put]
@@ -41,7 +41,7 @@ The below example shows how to use the FTPFileTransmitOperator to transfer a loc
 
 The below example shows how to use the FTPFileTransmitOperator to pull a file from a remote FTP Server.
 
-.. exampleinclude:: /../../tests/system/providers/ftp/example_ftp.py
+.. exampleinclude:: /../../providers/tests/system/ftp/example_ftp.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_ftp_get]
@@ -63,7 +63,7 @@ For parameter definition take a look at :class:`~airflow.providers.ftp.operators
 
 The below example shows how to use the FTPSFileTransmitOperator to transfer a locally stored file to a remote FTPS Server:
 
-.. exampleinclude:: /../../tests/system/providers/ftp/example_ftp.py
+.. exampleinclude:: /../../providers/tests/system/ftp/example_ftp.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_ftps_put]
@@ -71,7 +71,7 @@ The below example shows how to use the FTPSFileTransmitOperator to transfer a lo
 
 The below example shows how to use the FTPSFileTransmitOperator to pull a file from a remote FTPS Server.
 
-.. exampleinclude:: /../../tests/system/providers/ftp/example_ftp.py
+.. exampleinclude:: /../../providers/tests/system/ftp/example_ftp.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_ftps_get]

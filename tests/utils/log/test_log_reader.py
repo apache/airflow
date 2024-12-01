@@ -31,17 +31,18 @@ import pytest
 from airflow import settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models.tasklog import LogTemplate
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.timetables.base import DataInterval
 from airflow.utils import timezone
 from airflow.utils.log.log_reader import TaskLogReader
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.types import DagRunType
-from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_dags, clear_db_runs
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+
+pytestmark = pytest.mark.db_test
 
 
 if TYPE_CHECKING:
@@ -108,7 +109,7 @@ class TestLogView:
             task_id=self.TASK_ID,
             start_date=self.DEFAULT_DATE,
             run_type=DagRunType.SCHEDULED,
-            execution_date=self.DEFAULT_DATE,
+            logical_date=self.DEFAULT_DATE,
             state=TaskInstanceState.RUNNING,
         )
         ti.try_number = 3
@@ -128,8 +129,10 @@ class TestLogView:
         assert logs[0] == [
             (
                 "localhost",
+                " INFO - ::group::Log message source details\n"
                 "*** Found local files:\n"
                 f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
+                " INFO - ::endgroup::\n"
                 "try_number=1.",
             )
         ]
@@ -141,32 +144,13 @@ class TestLogView:
         ti.state = TaskInstanceState.SUCCESS
         logs, metadatas = task_log_reader.read_log_chunks(ti=ti, try_number=None, metadata={})
 
-        assert logs == [
-            [
-                (
-                    "localhost",
-                    "*** Found local files:\n"
-                    f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-                    "try_number=1.",
-                )
-            ],
-            [
-                (
-                    "localhost",
-                    "*** Found local files:\n"
-                    f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
-                    f"try_number=2.",
-                )
-            ],
-            [
-                (
-                    "localhost",
-                    "*** Found local files:\n"
-                    f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
-                    f"try_number=3.",
-                )
-            ],
-        ]
+        for i in range(0, 3):
+            assert logs[i][0][0] == "localhost"
+            assert (
+                "*** Found local files:\n"
+                f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/{i + 1}.log\n"
+            ) in logs[i][0][1]
+            assert f"try_number={i + 1}." in logs[i][0][1]
         assert metadatas == {"end_of_log": True, "log_pos": 13}
 
     def test_test_test_read_log_stream_should_read_one_try(self):
@@ -175,9 +159,9 @@ class TestLogView:
         ti.state = TaskInstanceState.SUCCESS
         stream = task_log_reader.read_log_stream(ti=ti, try_number=1, metadata={})
         assert list(stream) == [
-            "localhost\n*** Found local files:\n"
+            "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-            "try_number=1.\n"
+            " INFO - ::endgroup::\ntry_number=1.\n"
         ]
 
     def test_test_test_read_log_stream_should_read_all_logs(self):
@@ -185,17 +169,17 @@ class TestLogView:
         self.ti.state = TaskInstanceState.SUCCESS  # Ensure mocked instance is completed to return stream
         stream = task_log_reader.read_log_stream(ti=self.ti, try_number=None, metadata={})
         assert list(stream) == [
-            "localhost\n*** Found local files:\n"
+            "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-            "try_number=1."
+            " INFO - ::endgroup::\ntry_number=1."
             "\n",
-            "localhost\n*** Found local files:\n"
+            "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
-            "try_number=2."
+            " INFO - ::endgroup::\ntry_number=2."
             "\n",
-            "localhost\n*** Found local files:\n"
+            "localhost\n INFO - ::group::Log message source details\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
-            "try_number=3."
+            " INFO - ::endgroup::\ntry_number=3."
             "\n",
         ]
 
@@ -210,7 +194,7 @@ class TestLogView:
         task_log_reader = TaskLogReader()
         self.ti.state = TaskInstanceState.SUCCESS
         log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=1, metadata={})
-        assert ["\n1st line\n", "\n2nd line\n", "\n3rd line\n"] == list(log_stream)
+        assert list(log_stream) == ["\n1st line\n", "\n2nd line\n", "\n3rd line\n"]
 
         mock_read.assert_has_calls(
             [
@@ -231,7 +215,7 @@ class TestLogView:
 
         task_log_reader = TaskLogReader()
         log_stream = task_log_reader.read_log_stream(ti=self.ti, try_number=None, metadata={})
-        assert ["\ntry_number=1.\n", "\ntry_number=2.\n", "\ntry_number=3.\n"] == list(log_stream)
+        assert list(log_stream) == ["\ntry_number=1.\n", "\ntry_number=2.\n", "\ntry_number=3.\n"]
 
         mock_read.assert_has_calls(
             [
@@ -286,15 +270,15 @@ class TestLogView:
         trigger_time = end + datetime.timedelta(hours=4, minutes=29)  # Arbitrary.
 
         # Create two DAG runs that have the same data interval, but not the same
-        # execution date, to check if they correctly use different log files.
+        # logical date, to check if they correctly use different log files.
         scheduled_dagrun: DagRun = dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
-            execution_date=start,
+            logical_date=start,
             data_interval=DataInterval(start, end),
         )
         manual_dagrun: DagRun = dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
-            execution_date=trigger_time,
+            logical_date=trigger_time,
             data_interval=DataInterval(start, end),
         )
 

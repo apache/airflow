@@ -23,134 +23,36 @@ import errno
 import json
 import logging
 import operator
-import signal
 import subprocess
 import sys
 from typing import TYPE_CHECKING
 
 import re2
-from sqlalchemy import delete, select
+from sqlalchemy import select
 
-from airflow import settings
 from airflow.api.client import get_current_api_client
 from airflow.api_connexion.schemas.dag_schema import dag_schema
 from airflow.cli.simple_table import AirflowConsole
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
-from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import cli as cli_utils, timezone
-from airflow.utils.cli import get_dag, get_dags, process_subdir, sigint_handler, suppress_logs_and_warning
+from airflow.utils.cli import get_dag, process_subdir, suppress_logs_and_warning
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.helpers import ask_yesno
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunTriggeredByType
 
 if TYPE_CHECKING:
     from graphviz.dot import Dot
     from sqlalchemy.orm import Session
 
+    from airflow.models.dag import DAG
     from airflow.timetables.base import DataInterval
-
 log = logging.getLogger(__name__)
-
-
-def _run_dag_backfill(dags: list[DAG], args) -> None:
-    # If only one date is passed, using same as start and end
-    args.end_date = args.end_date or args.start_date
-    args.start_date = args.start_date or args.end_date
-
-    run_conf = None
-    if args.conf:
-        run_conf = json.loads(args.conf)
-
-    for dag in dags:
-        if args.task_regex:
-            dag = dag.partial_subset(
-                task_ids_or_regex=args.task_regex, include_upstream=not args.ignore_dependencies
-            )
-            if not dag.task_dict:
-                raise AirflowException(
-                    f"There are no tasks that match '{args.task_regex}' regex. Nothing to run, exiting..."
-                )
-
-        if args.dry_run:
-            print(f"Dry run of DAG {dag.dag_id} on {args.start_date}")
-            dagrun_infos = dag.iter_dagrun_infos_between(earliest=args.start_date, latest=args.end_date)
-            for dagrun_info in dagrun_infos:
-                dr = DagRun(
-                    dag.dag_id,
-                    execution_date=dagrun_info.logical_date,
-                    data_interval=dagrun_info.data_interval,
-                    triggered_by=DagRunTriggeredByType.CLI,
-                )
-
-                for task in dag.tasks:
-                    print(f"Task {task.task_id} located in DAG {dag.dag_id}")
-                    ti = TaskInstance(task, run_id=None)
-                    ti.dag_run = dr
-                    ti.dry_run()
-        else:
-            if args.reset_dagruns:
-                DAG.clear_dags(
-                    [dag],
-                    start_date=args.start_date,
-                    end_date=args.end_date,
-                    confirm_prompt=not args.yes,
-                    dag_run_state=DagRunState.QUEUED,
-                )
-
-            try:
-                dag.run(
-                    start_date=args.start_date,
-                    end_date=args.end_date,
-                    mark_success=args.mark_success,
-                    local=args.local,
-                    donot_pickle=(args.donot_pickle or conf.getboolean("core", "donot_pickle")),
-                    ignore_first_depends_on_past=args.ignore_first_depends_on_past,
-                    ignore_task_deps=args.ignore_dependencies,
-                    pool=args.pool,
-                    delay_on_limit_secs=args.delay_on_limit,
-                    verbose=args.verbose,
-                    conf=run_conf,
-                    rerun_failed_tasks=args.rerun_failed_tasks,
-                    run_backwards=args.run_backwards,
-                    continue_on_failures=args.continue_on_failures,
-                    disable_retry=args.disable_retry,
-                )
-            except ValueError as vr:
-                print(str(vr))
-                sys.exit(1)
-
-
-@cli_utils.action_cli
-@providers_configuration_loaded
-def dag_backfill(args, dag: list[DAG] | DAG | None = None) -> None:
-    """Create backfill job or dry run for a DAG or list of DAGs using regex."""
-    logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
-    signal.signal(signal.SIGTERM, sigint_handler)
-    args.ignore_first_depends_on_past = True
-
-    if not args.start_date and not args.end_date:
-        raise AirflowException("Provide a start_date and/or end_date")
-
-    if not dag:
-        dags = get_dags(args.subdir, dag_id=args.dag_id, use_regex=args.treat_dag_id_as_regex)
-    elif isinstance(dag, list):
-        dags = dag
-    else:
-        dags = [dag]
-    del dag
-
-    dags.sort(key=lambda d: d.dag_id)
-    _run_dag_backfill(dags, args)
-    if len(dags) > 1:
-        log.info("All of the backfills are done.")
 
 
 @cli_utils.action_cli
@@ -163,7 +65,7 @@ def dag_trigger(args) -> None:
             dag_id=args.dag_id,
             run_id=args.run_id,
             conf=args.conf,
-            execution_date=args.exec_date,
+            logical_date=args.exec_date,
             replace_microseconds=args.replace_microseconds,
         )
         AirflowConsole().print_as(
@@ -323,10 +225,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "is_paused": dag.get_is_paused(),
         "is_active": dag.get_is_active(),
         "last_parsed_time": None,
-        "last_pickled": None,
         "last_expired": None,
-        "scheduler_lock": None,
-        "pickle_id": dag.pickle_id,
         "default_view": dag.default_view,
         "fileloc": dag.fileloc,
         "file_token": None,
@@ -365,7 +264,7 @@ def dag_state(args, session: Session = NEW_SESSION) -> None:
 
     if not dag:
         raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
-    dr = session.scalar(select(DagRun).filter_by(dag_id=args.dag_id, execution_date=args.execution_date))
+    dr = session.scalar(select(DagRun).filter_by(dag_id=args.dag_id, logical_date=args.logical_date))
     out = dr.state if dr else None
     conf_out = ""
     if out and dr.conf:
@@ -377,7 +276,7 @@ def dag_state(args, session: Session = NEW_SESSION) -> None:
 @providers_configuration_loaded
 def dag_next_execution(args) -> None:
     """
-    Return the next execution datetime of a DAG at the command line.
+    Return the next logical datetime of a DAG at the command line.
 
     >>> airflow dags next-execution tutorial
     2018-08-31 10:38:00
@@ -562,12 +461,12 @@ def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSI
         dag_id=args.dag_id,
         state=state,
         no_backfills=args.no_backfill,
-        execution_start_date=args.start_date,
-        execution_end_date=args.end_date,
+        logical_start_date=args.start_date,
+        logical_end_date=args.end_date,
         session=session,
     )
 
-    dag_runs.sort(key=lambda x: x.execution_date, reverse=True)
+    dag_runs.sort(key=lambda x: x.logical_date, reverse=True)
     AirflowConsole().print_as(
         data=dag_runs,
         output=args.output,
@@ -575,7 +474,7 @@ def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSI
             "dag_id": dr.dag_id,
             "run_id": dr.run_id,
             "state": dr.state,
-            "execution_date": dr.execution_date.isoformat(),
+            "logical_date": dr.logical_date.isoformat(),
             "start_date": dr.start_date.isoformat() if dr.start_date else "",
             "end_date": dr.end_date.isoformat() if dr.end_date else "",
         },
@@ -586,14 +485,14 @@ def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSI
 @providers_configuration_loaded
 @provide_session
 def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> None:
-    """Execute one single DagRun for a given DAG and execution date."""
+    """Execute one single DagRun for a given DAG and logical date."""
     run_conf = None
     if args.conf:
         try:
             run_conf = json.loads(args.conf)
         except ValueError as e:
             raise SystemExit(f"Configuration {args.conf!r} is not valid JSON. Error: {e}")
-    execution_date = args.execution_date or timezone.utcnow()
+    logical_date = args.logical_date or timezone.utcnow()
     use_executor = args.use_executor
 
     mark_success_pattern = (
@@ -603,7 +502,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
     with _airflow_parsing_context_manager(dag_id=args.dag_id):
         dag = dag or get_dag(subdir=args.subdir, dag_id=args.dag_id)
     dr: DagRun = dag.test(
-        execution_date=execution_date,
+        logical_date=logical_date,
         run_conf=run_conf,
         use_executor=use_executor,
         mark_success_pattern=mark_success_pattern,
@@ -616,7 +515,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
         tis = session.scalars(
             select(TaskInstance).where(
                 TaskInstance.dag_id == args.dag_id,
-                TaskInstance.execution_date == execution_date,
+                TaskInstance.logical_date == logical_date,
             )
         ).all()
 
@@ -638,8 +537,5 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
 @provide_session
 def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
     """Serialize a DAG instance."""
-    session.execute(delete(SerializedDagModel).execution_options(synchronize_session=False))
-
-    if not args.clear_only:
-        dagbag = DagBag(process_subdir(args.subdir))
-        dagbag.sync_to_db(session=session)
+    dagbag = DagBag(process_subdir(args.subdir))
+    dagbag.sync_to_db(session=session)

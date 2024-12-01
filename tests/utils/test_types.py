@@ -25,13 +25,14 @@ from airflow.models.dagrun import DagRun
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+
 from tests.models import DEFAULT_DATE
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 def test_runtype_enum_escape():
@@ -46,7 +47,7 @@ def test_runtype_enum_escape():
         dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             state=State.RUNNING,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
             session=session,
             data_interval=data_interval,

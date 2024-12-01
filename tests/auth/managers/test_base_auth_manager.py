@@ -16,13 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from flask_appbuilder.menu import Menu
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
+from airflow.auth.managers.models.base_user import BaseUser
 from airflow.auth.managers.models.resource_details import (
     ConnectionDetails,
     DagDetails,
@@ -32,17 +33,22 @@ from airflow.auth.managers.models.resource_details import (
 from airflow.exceptions import AirflowException
 
 if TYPE_CHECKING:
-    from airflow.auth.managers.models.base_user import BaseUser
     from airflow.auth.managers.models.resource_details import (
         AccessView,
+        AssetDetails,
         ConfigurationDetails,
         DagAccessEntity,
-        DatasetDetails,
     )
 
 
-class EmptyAuthManager(BaseAuthManager):
+class EmptyAuthManager(BaseAuthManager[BaseUser]):
     def get_user(self) -> BaseUser:
+        raise NotImplementedError()
+
+    def deserialize_user(self, token: dict[str, Any]) -> BaseUser:
+        raise NotImplementedError()
+
+    def serialize_user(self, user: BaseUser) -> dict[str, Any]:
         raise NotImplementedError()
 
     def is_authorized_configuration(
@@ -73,8 +79,8 @@ class EmptyAuthManager(BaseAuthManager):
     ) -> bool:
         raise NotImplementedError()
 
-    def is_authorized_dataset(
-        self, *, method: ResourceMethod, details: DatasetDetails | None = None, user: BaseUser | None = None
+    def is_authorized_asset(
+        self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
     ) -> bool:
         raise NotImplementedError()
 

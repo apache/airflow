@@ -26,31 +26,35 @@ import math
 import operator
 import os
 import signal
-import warnings
 from collections import defaultdict
-from contextlib import nullcontext
+from collections.abc import Collection, Generator, Iterable, Mapping
 from datetime import timedelta
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Mapping, Tuple
+from functools import cache
+from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import quote
 
 import dill
 import jinja2
 import lazy_object_proxy
 import pendulum
+import uuid6
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
     Column,
     DateTime,
     Float,
+    ForeignKey,
     ForeignKeyConstraint,
     Index,
     Integer,
     PrimaryKeyConstraint,
     String,
     Text,
+    UniqueConstraint,
     and_,
     delete,
+    extract,
     false,
     func,
     inspect,
@@ -58,23 +62,21 @@ from sqlalchemy import (
     text,
     update,
 )
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import lazyload, reconstructor, relationship
 from sqlalchemy.orm.attributes import NO_VALUE, set_committed_value
 from sqlalchemy.sql.expression import case, select
+from sqlalchemy_utils import UUIDType
 
 from airflow import settings
-from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
-from airflow.compat.functools import cache
+from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
-from airflow.datasets import Dataset, DatasetAlias
-from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
-    AirflowProviderDeprecationWarning,
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
@@ -87,18 +89,18 @@ from airflow.exceptions import (
     XComForMappingNotPushed,
 )
 from airflow.listeners.listener import get_listener_manager
+from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
-from airflow.models.dataset import DatasetModel
 from airflow.models.log import Log
 from airflow.models.param import process_params
 from airflow.models.renderedtifields import get_serialized_template_fields
-from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComSelectSequence, XCom
 from airflow.plugins_manager import integrate_macros_plugins
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sentry import Sentry
 from airflow.settings import task_instance_mutation_hook
 from airflow.stats import Stats
@@ -129,9 +131,8 @@ from airflow.utils.sqlalchemy import (
     ExtendedJSON,
     UtcDateTime,
     tuple_in_condition,
-    with_row_locks,
 )
-from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.timeout import timeout
@@ -149,33 +150,26 @@ if TYPE_CHECKING:
     from pathlib import PurePath
     from types import TracebackType
 
+    from sqlalchemy.engine import Connection as SAConnection, Engine
     from sqlalchemy.orm.session import Session
+    from sqlalchemy.sql import Update
     from sqlalchemy.sql.elements import BooleanClauseList
     from sqlalchemy.sql.expression import ColumnOperators
 
     from airflow.models.abstractoperator import TaskStateChangeCallback
     from airflow.models.baseoperator import BaseOperator
-    from airflow.models.dag import DAG, DagModel
+    from airflow.models.dag import DAG as SchedulerDAG, DagModel
     from airflow.models.dagrun import DagRun
-    from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
+    from airflow.sdk.definitions.dag import DAG
+    from airflow.serialization.pydantic.asset import AssetEventPydantic
     from airflow.serialization.pydantic.dag import DagModelPydantic
-    from airflow.serialization.pydantic.dataset import DatasetEventPydantic
-    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Literal, TypeGuard
     from airflow.utils.task_group import TaskGroup
 
 
 PAST_DEPENDS_MET = "past_depends_met"
-
-metrics_consistency_on = conf.getboolean("metrics", "metrics_consistency_on", fallback=True)
-if not metrics_consistency_on:
-    warnings.warn(
-        "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
-        AirflowProviderDeprecationWarning,
-        stacklevel=2,
-    )
 
 
 class TaskReturnCode(Enum):
@@ -189,14 +183,6 @@ class TaskReturnCode(Enum):
     """When task exits with deferral to trigger."""
 
 
-@internal_api_call
-@provide_session
-def _merge_ti(ti, session: Session = NEW_SESSION):
-    session.merge(ti)
-    session.commit()
-
-
-@internal_api_call
 @provide_session
 def _add_log(
     event,
@@ -219,11 +205,15 @@ def _add_log(
     )
 
 
+@provide_session
+def _update_ti_heartbeat(id: str, when: datetime, session: Session = NEW_SESSION):
+    session.execute(update(TaskInstance).where(TaskInstance.id == id).values(last_heartbeat_at=when))
+
+
 def _run_raw_task(
-    ti: TaskInstance | TaskInstancePydantic,
+    ti: TaskInstance,
     mark_success: bool = False,
     test_mode: bool = False,
-    job_id: str | None = None,
     pool: str | None = None,
     raise_on_defer: bool = False,
     session: Session | None = None,
@@ -247,7 +237,6 @@ def _run_raw_task(
     ti.test_mode = test_mode
     ti.refresh_from_task(ti.task, pool_override=pool)
     ti.refresh_from_db(session=session)
-    ti.job_id = job_id
     ti.hostname = get_hostname()
     ti.pid = os.getpid()
     if not test_mode:
@@ -291,11 +280,11 @@ def _run_raw_task(
                 raise
             ti.defer_task(exception=defer, session=session)
             ti.log.info(
-                "Pausing task as DEFERRED. dag_id=%s, task_id=%s, run_id=%s, execution_date=%s, start_date=%s",
+                "Pausing task as DEFERRED. dag_id=%s, task_id=%s, run_id=%s, logical_date=%s, start_date=%s",
                 ti.dag_id,
                 ti.task_id,
                 ti.run_id,
-                _date_or_empty(task_instance=ti, attr="execution_date"),
+                _date_or_empty(task_instance=ti, attr="logical_date"),
                 _date_or_empty(task_instance=ti, attr="start_date"),
             )
             return TaskReturnCode.DEFERRED
@@ -366,7 +355,7 @@ def _run_raw_task(
         if not test_mode:
             _add_log(event=ti.state, task_instance=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
-                ti._register_dataset_changes(events=context["outlet_events"], session=session)
+                ti._register_asset_changes(events=context["outlet_events"], session=session)
 
             TaskInstance.save_to_db(ti=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
@@ -397,7 +386,7 @@ def set_current_context(context: Context) -> Generator[Context, None, None]:
             )
 
 
-def _stop_remaining_tasks(*, task_instance: TaskInstance | TaskInstancePydantic, session: Session):
+def _stop_remaining_tasks(*, task_instance: TaskInstance, session: Session):
     """
     Stop non-teardown tasks in dag.
 
@@ -449,7 +438,6 @@ def clear_task_instances(
         If set to False, DagRuns state will not be changed.
     :param dag: DAG object
     """
-    job_ids = []
     # Keys: dag_id -> run_id -> map_indexes -> try_numbers -> task_id
     task_id_by_key: dict[str, dict[str, dict[int, dict[int, set[str]]]]] = defaultdict(
         lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(set)))
@@ -460,11 +448,9 @@ def clear_task_instances(
     for ti in tis:
         TaskInstanceHistory.record_ti(ti, session)
         if ti.state == TaskInstanceState.RUNNING:
-            if ti.job_id:
-                # If a task is cleared when running, set its state to RESTARTING so that
-                # the task is terminated and becomes eligible for retry.
-                ti.state = TaskInstanceState.RESTARTING
-                job_ids.append(ti.job_id)
+            # If a task is cleared when running, set its state to RESTARTING so that
+            # the task is terminated and becomes eligible for retry.
+            ti.state = TaskInstanceState.RESTARTING
         else:
             ti_dag = dag if dag and dag.dag_id == ti.dag_id else dag_bag.get_dag(ti.dag_id, session=session)
             task_id = ti.task_id
@@ -520,11 +506,6 @@ def clear_task_instances(
         delete_qry = TR.__table__.delete().where(conditions)
         session.execute(delete_qry)
 
-    if job_ids:
-        from airflow.jobs.job import Job
-
-        session.execute(update(Job).where(Job.id.in_(job_ids)).values(state=JobState.RESTARTING))
-
     if dag_run_state is not False and tis:
         from airflow.models.dagrun import DagRun  # Avoid circular import
 
@@ -554,7 +535,6 @@ def clear_task_instances(
     session.flush()
 
 
-@internal_api_call
 @provide_session
 def _xcom_pull(
     *,
@@ -566,6 +546,7 @@ def _xcom_pull(
     session: Session = NEW_SESSION,
     map_indexes: int | Iterable[int] | None = None,
     default: Any = None,
+    run_id: str | None = None,
 ) -> Any:
     """
     Pull XComs that optionally meet certain criteria.
@@ -583,8 +564,10 @@ def _xcom_pull(
         If *None* (default), this is inferred from the task(s) being pulled
         (see below for details).
     :param include_prior_dates: If False, only XComs from the current
-        execution_date are returned. If *True*, XComs from previous dates
+        logical_date are returned. If *True*, XComs from previous dates
         are returned as well.
+    :param run_id: If provided, only pulls XComs from a DagRun w/a matching run_id.
+        If *None* (default), the run_id of the calling task is used.
 
     When pulling one single task (``task_id`` is *None* or a str) without
     specifying ``map_indexes``, the return value is inferred from whether
@@ -600,10 +583,12 @@ def _xcom_pull(
     """
     if dag_id is None:
         dag_id = ti.dag_id
+    if run_id is None:
+        run_id = ti.run_id
 
     query = XCom.get_many(
         key=key,
-        run_id=ti.run_id,
+        run_id=run_id,
         dag_ids=dag_id,
         task_ids=task_ids,
         map_indexes=map_indexes,
@@ -681,7 +666,7 @@ def _creator_note(val):
         return TaskInstanceNote(*val)
 
 
-def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: Context, task_orig: Operator):
+def _execute_task(task_instance: TaskInstance, context: Context, task_orig: Operator):
     """
     Execute Task (optionally with a Timeout) and push Xcom results.
 
@@ -759,7 +744,7 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
             raise
     else:
         result = _execute_callable(context=context, **execute_callable_kwargs)
-    cm = nullcontext() if InternalApiConfig.get_use_internal_api() else create_session()
+    cm = create_session()
     with cm as session_or_null:
         if task_to_execute.do_xcom_push:
             xcom_value = result
@@ -795,6 +780,7 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context: C
 
 def _set_ti_attrs(target, source, include_dag_run=False):
     # Fields ordered per model definition
+    target.id = source.id
     target.start_date = source.start_date
     target.end_date = source.end_date
     target.duration = source.duration
@@ -803,7 +789,6 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.max_tries = source.max_tries
     target.hostname = source.hostname
     target.unixname = source.unixname
-    target.job_id = source.job_id
     target.pool = source.pool
     target.pool_slots = source.pool_slots or 1
     target.queue = source.queue
@@ -812,6 +797,7 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.custom_operator_name = source.custom_operator_name
     target.queued_dttm = source.queued_dttm
     target.queued_by_job_id = source.queued_by_job_id
+    target.last_heartbeat_at = source.last_heartbeat_at
     target.pid = source.pid
     target.executor = source.executor
     target.executor_config = source.executor_config
@@ -819,13 +805,14 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.trigger_id = source.trigger_id
     target.next_method = source.next_method
     target.next_kwargs = source.next_kwargs
+    target.dag_version_id = source.dag_version_id
 
     if include_dag_run:
-        target.execution_date = source.execution_date
+        target.logical_date = source.logical_date
         target.dag_run.id = source.dag_run.id
         target.dag_run.dag_id = source.dag_run.dag_id
         target.dag_run.queued_at = source.dag_run.queued_at
-        target.dag_run.execution_date = source.dag_run.execution_date
+        target.dag_run.logical_date = source.dag_run.logical_date
         target.dag_run.start_date = source.dag_run.start_date
         target.dag_run.end_date = source.dag_run.end_date
         target.dag_run.state = source.dag_run.state
@@ -837,14 +824,14 @@ def _set_ti_attrs(target, source, include_dag_run=False):
         target.dag_run.data_interval_start = source.dag_run.data_interval_start
         target.dag_run.data_interval_end = source.dag_run.data_interval_end
         target.dag_run.last_scheduling_decision = source.dag_run.last_scheduling_decision
-        target.dag_run.dag_hash = source.dag_run.dag_hash
+        target.dag_run.dag_version_id = source.dag_run.dag_version_id
         target.dag_run.updated_at = source.dag_run.updated_at
         target.dag_run.log_template_id = source.dag_run.log_template_id
 
 
 def _refresh_from_db(
     *,
-    task_instance: TaskInstance | TaskInstancePydantic,
+    task_instance: TaskInstance,
     session: Session | None = None,
     lock_for_update: bool = False,
 ) -> None:
@@ -859,10 +846,6 @@ def _refresh_from_db(
 
     :meta private:
     """
-    if not InternalApiConfig.get_use_internal_api():
-        if session and task_instance in session:
-            session.refresh(task_instance, TaskInstance.__mapper__.column_attrs.keys())
-
     ti = TaskInstance.get_task_instance(
         dag_id=task_instance.dag_id,
         task_id=task_instance.task_id,
@@ -873,19 +856,12 @@ def _refresh_from_db(
     )
 
     if ti:
-        from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
-
-        include_dag_run = isinstance(ti, TaskInstancePydantic)
-        # in case of internal API, what we get is TaskInstancePydantic value, and we are supposed
-        # to also update dag_run information as it might not be available. We cannot always do it in
-        # case ti is TaskInstance, because it might be detached/ not loaded yet and dag_run might
-        # not be available.
-        _set_ti_attrs(task_instance, ti, include_dag_run=include_dag_run)
+        _set_ti_attrs(task_instance, ti, include_dag_run=False)
     else:
         task_instance.state = None
 
 
-def _set_duration(*, task_instance: TaskInstance | TaskInstancePydantic) -> None:
+def _set_duration(*, task_instance: TaskInstance) -> None:
     """
     Set task instance duration.
 
@@ -900,7 +876,7 @@ def _set_duration(*, task_instance: TaskInstance | TaskInstancePydantic) -> None
     log.debug("Task Duration set to %s", task_instance.duration)
 
 
-def _stats_tags(*, task_instance: TaskInstance | TaskInstancePydantic) -> dict[str, str]:
+def _stats_tags(*, task_instance: TaskInstance) -> dict[str, str]:
     """
     Return task instance tags.
 
@@ -911,7 +887,7 @@ def _stats_tags(*, task_instance: TaskInstance | TaskInstancePydantic) -> dict[s
     return prune_dict({"dag_id": task_instance.dag_id, "task_id": task_instance.task_id})
 
 
-def _clear_next_method_args(*, task_instance: TaskInstance | TaskInstancePydantic) -> None:
+def _clear_next_method_args(*, task_instance: TaskInstance) -> None:
     """
     Ensure we unset next_method and next_kwargs to ensure that any retries don't reuse them.
 
@@ -925,11 +901,10 @@ def _clear_next_method_args(*, task_instance: TaskInstance | TaskInstancePydanti
     task_instance.next_kwargs = None
 
 
-@internal_api_call
 def _get_template_context(
     *,
-    task_instance: TaskInstance | TaskInstancePydantic,
-    dag: DAG,
+    task_instance: TaskInstance,
+    dag: SchedulerDAG,
     session: Session | None = None,
     ignore_param_exceptions: bool = True,
 ) -> Context:
@@ -959,14 +934,15 @@ def _get_template_context(
         assert task.dag
 
     if task.dag.__class__ is AttributeRemoved:
-        task.dag = dag  # required after deserialization
+        # TODO: Task-SDK: Remove this after AIP-44 code is removed
+        task.dag = dag  # type: ignore[assignment]  # required after deserialization
 
     dag_run = task_instance.get_dagrun(session)
     data_interval = dag.get_run_data_interval(dag_run)
 
     validated_params = process_params(dag, task, dag_run, suppress_exception=ignore_param_exceptions)
 
-    logical_date: DateTime = timezone.coerce_datetime(task_instance.execution_date)
+    logical_date: DateTime = timezone.coerce_datetime(task_instance.logical_date)
     ds = logical_date.strftime("%Y-%m-%d")
     ds_nodash = ds.replace("-", "")
     ts = logical_date.isoformat()
@@ -1007,77 +983,7 @@ def _get_template_context(
             return None
         return timezone.coerce_datetime(dagrun.end_date)
 
-    @cache
-    def get_yesterday_ds() -> str:
-        return (logical_date - timedelta(1)).strftime("%Y-%m-%d")
-
-    def get_yesterday_ds_nodash() -> str:
-        return get_yesterday_ds().replace("-", "")
-
-    @cache
-    def get_tomorrow_ds() -> str:
-        return (logical_date + timedelta(1)).strftime("%Y-%m-%d")
-
-    def get_tomorrow_ds_nodash() -> str:
-        return get_tomorrow_ds().replace("-", "")
-
-    @cache
-    def get_next_execution_date() -> pendulum.DateTime | None:
-        # For manually triggered dagruns that aren't run on a schedule,
-        # the "next" execution date doesn't make sense, and should be set
-        # to execution date for consistency with how execution_date is set
-        # for manually triggered tasks, i.e. triggered_date == execution_date.
-        if dag_run.external_trigger:
-            return logical_date
-        if dag is None:
-            return None
-        next_info = dag.next_dagrun_info(data_interval, restricted=False)
-        if next_info is None:
-            return None
-        return timezone.coerce_datetime(next_info.logical_date)
-
-    def get_next_ds() -> str | None:
-        execution_date = get_next_execution_date()
-        if execution_date is None:
-            return None
-        return execution_date.strftime("%Y-%m-%d")
-
-    def get_next_ds_nodash() -> str | None:
-        ds = get_next_ds()
-        if ds is None:
-            return ds
-        return ds.replace("-", "")
-
-    @cache
-    def get_prev_execution_date():
-        # For manually triggered dagruns that aren't run on a schedule,
-        # the "previous" execution date doesn't make sense, and should be set
-        # to execution date for consistency with how execution_date is set
-        # for manually triggered tasks, i.e. triggered_date == execution_date.
-        if dag_run.external_trigger:
-            return logical_date
-
-        # Workaround code copy until deprecated context fields are removed in Airflow 3
-        from airflow.timetables.interval import _DataIntervalTimetable
-
-        if not isinstance(dag.timetable, _DataIntervalTimetable):
-            return None
-        return dag.timetable._get_prev(timezone.coerce_datetime(logical_date))
-
-    @cache
-    def get_prev_ds() -> str | None:
-        execution_date = get_prev_execution_date()
-        if execution_date is None:
-            return None
-        return execution_date.strftime("%Y-%m-%d")
-
-    def get_prev_ds_nodash() -> str | None:
-        prev_ds = get_prev_ds()
-        if prev_ds is None:
-            return None
-        return prev_ds.replace("-", "")
-
-    def get_triggering_events() -> dict[str, list[DatasetEvent | DatasetEventPydantic]]:
+    def get_triggering_events() -> dict[str, list[AssetEvent | AssetEventPydantic]]:
         if TYPE_CHECKING:
             assert session is not None
 
@@ -1087,11 +993,11 @@ def _get_template_context(
         nonlocal dag_run
         if dag_run not in session:
             dag_run = session.merge(dag_run, load=False)
-        dataset_events = dag_run.consumed_dataset_events
-        triggering_events: dict[str, list[DatasetEvent | DatasetEventPydantic]] = defaultdict(list)
-        for event in dataset_events:
-            if event.dataset:
-                triggering_events[event.dataset.uri].append(event)
+        asset_events = dag_run.consumed_asset_events
+        triggering_events: dict[str, list[AssetEvent | AssetEventPydantic]] = defaultdict(list)
+        for event in asset_events:
+            if event.asset:
+                triggering_events[event.asset.uri].append(event)
 
         return triggering_events
 
@@ -1113,27 +1019,16 @@ def _get_template_context(
         "outlet_events": OutletEventAccessors(),
         "ds": ds,
         "ds_nodash": ds_nodash,
-        "execution_date": logical_date,
         "expanded_ti_count": expanded_ti_count,
         "inlets": task.inlets,
         "inlet_events": InletEventsAccessors(task.inlets, session=session),
         "logical_date": logical_date,
         "macros": macros,
         "map_index_template": task.map_index_template,
-        "next_ds": get_next_ds(),
-        "next_ds_nodash": get_next_ds_nodash(),
-        "next_execution_date": get_next_execution_date(),
         "outlets": task.outlets,
         "params": validated_params,
         "prev_data_interval_start_success": get_prev_data_interval_start_success(),
         "prev_data_interval_end_success": get_prev_data_interval_end_success(),
-        "prev_ds": get_prev_ds(),
-        "prev_ds_nodash": get_prev_ds_nodash(),
-        "prev_execution_date": get_prev_execution_date(),
-        "prev_execution_date_success": task_instance.get_previous_execution_date(
-            state=DagRunState.SUCCESS,
-            session=session,
-        ),
         "prev_start_date_success": get_prev_start_date_success(),
         "prev_end_date_success": get_prev_end_date_success(),
         "run_id": task_instance.run_id,
@@ -1142,9 +1037,7 @@ def _get_template_context(
         "task_instance_key_str": f"{task.dag_id}__{task.task_id}__{ds_nodash}",
         "test_mode": task_instance.test_mode,
         "ti": task_instance,
-        "tomorrow_ds": get_tomorrow_ds(),
-        "tomorrow_ds_nodash": get_tomorrow_ds_nodash(),
-        "triggering_dataset_events": lazy_object_proxy.Proxy(get_triggering_events),
+        "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
         "ts": ts,
         "ts_nodash": ts_nodash,
         "ts_nodash_with_tz": ts_nodash_with_tz,
@@ -1153,15 +1046,13 @@ def _get_template_context(
             "value": VariableAccessor(deserialize_json=False),
         },
         "conn": ConnectionAccessor(),
-        "yesterday_ds": get_yesterday_ds(),
-        "yesterday_ds_nodash": get_yesterday_ds_nodash(),
     }
     # Mypy doesn't like turning existing dicts in to a TypeDict -- and we "lie" in the type stub to say it
     # is one, but in practice it isn't. See https://github.com/python/mypy/issues/8890
     return Context(context)  # type: ignore
 
 
-def _is_eligible_to_retry(*, task_instance: TaskInstance | TaskInstancePydantic):
+def _is_eligible_to_retry(*, task_instance: TaskInstance):
     """
     Is task instance is eligible for retry.
 
@@ -1184,10 +1075,9 @@ def _is_eligible_to_retry(*, task_instance: TaskInstance | TaskInstancePydantic)
 
 
 @provide_session
-@internal_api_call
 def _handle_failure(
     *,
-    task_instance: TaskInstance | TaskInstancePydantic,
+    task_instance: TaskInstance,
     error: None | str | BaseException,
     session: Session,
     test_mode: bool | None = None,
@@ -1209,7 +1099,6 @@ def _handle_failure(
     """
     if test_mode is None:
         test_mode = task_instance.test_mode
-    task_instance = _coalesce_to_orm_ti(ti=task_instance, session=session)
     failure_context = TaskInstance.fetch_handle_failure_context(
         ti=task_instance,  # type: ignore[arg-type]
         error=error,
@@ -1241,29 +1130,31 @@ def _handle_failure(
         TaskInstance.save_to_db(failure_context["ti"], session)
 
     with Trace.start_span_from_taskinstance(ti=task_instance) as span:
-        # ---- error info ----
-        span.set_attribute("error", "true")
-        span.set_attribute("error_msg", str(error))
-        span.set_attribute("context", context)
-        span.set_attribute("force_fail", force_fail)
-        # ---- common info ----
-        span.set_attribute("category", "DAG runs")
-        span.set_attribute("task_id", task_instance.task_id)
-        span.set_attribute("dag_id", task_instance.dag_id)
-        span.set_attribute("state", task_instance.state)
-        span.set_attribute("start_date", str(task_instance.start_date))
-        span.set_attribute("end_date", str(task_instance.end_date))
-        span.set_attribute("duration", task_instance.duration)
-        span.set_attribute("executor_config", str(task_instance.executor_config))
-        span.set_attribute("execution_date", str(task_instance.execution_date))
-        span.set_attribute("hostname", task_instance.hostname)
-        if isinstance(task_instance, TaskInstance):
-            span.set_attribute("log_url", task_instance.log_url)
-        span.set_attribute("operator", str(task_instance.operator))
+        span.set_attributes(
+            {
+                # ---- error info ----
+                "error": "true",
+                "error_msg": str(error),
+                "force_fail": force_fail,
+                # ---- common info ----
+                "category": "DAG runs",
+                "task_id": task_instance.task_id,
+                "dag_id": task_instance.dag_id,
+                "state": task_instance.state,
+                "start_date": str(task_instance.start_date),
+                "end_date": str(task_instance.end_date),
+                "duration": task_instance.duration,
+                "executor_config": str(task_instance.executor_config),
+                "logical_date": str(task_instance.logical_date),
+                "hostname": task_instance.hostname,
+                "operator": str(task_instance.operator),
+            }
+        )
+        span.set_attribute("log_url", task_instance.log_url)
 
 
 def _refresh_from_task(
-    *, task_instance: TaskInstance | TaskInstancePydantic, task: Operator, pool_override: str | None = None
+    *, task_instance: TaskInstance, task: Operator, pool_override: str | None = None
 ) -> None:
     """
     Copy common attributes from the given task.
@@ -1294,11 +1185,10 @@ def _refresh_from_task(
     task_instance_mutation_hook(task_instance)
 
 
-@internal_api_call
 @provide_session
 def _record_task_map_for_downstreams(
     *,
-    task_instance: TaskInstance | TaskInstancePydantic,
+    task_instance: TaskInstance,
     task: Operator,
     dag: DAG,
     value: Any,
@@ -1317,8 +1207,10 @@ def _record_task_map_for_downstreams(
     """
     from airflow.models.mappedoperator import MappedOperator
 
+    # TODO: Task-SDK: Remove this after AIP-44 code is removed
     if task.dag.__class__ is AttributeRemoved:
-        task.dag = dag  # required after deserialization
+        # required after deserialization
+        task.dag = dag  # type: ignore[assignment]
 
     if next(task.iter_mapped_dependants(), None) is None:  # No mapped dependants, no need to validate.
         return
@@ -1341,7 +1233,7 @@ def _record_task_map_for_downstreams(
 
 def _get_previous_dagrun(
     *,
-    task_instance: TaskInstance | TaskInstancePydantic,
+    task_instance: TaskInstance,
     state: DagRunState | None = None,
     session: Session | None = None,
 ) -> DagRun | None:
@@ -1382,14 +1274,14 @@ def _get_previous_dagrun(
     return None
 
 
-def _get_previous_execution_date(
+def _get_previous_logical_date(
     *,
-    task_instance: TaskInstance | TaskInstancePydantic,
+    task_instance: TaskInstance,
     state: DagRunState | None,
     session: Session,
 ) -> pendulum.DateTime | None:
     """
-    Get execution date from property previous_ti_success.
+    Get logical date from property previous_ti_success.
 
     :param task_instance: the task instance
     :param session: SQLAlchemy ORM Session
@@ -1397,14 +1289,14 @@ def _get_previous_execution_date(
 
     :meta private:
     """
-    log.debug("previous_execution_date was called")
+    log.debug("previous_logical_date was called")
     prev_ti = task_instance.get_previous_ti(state=state, session=session)
-    return pendulum.instance(prev_ti.execution_date) if prev_ti and prev_ti.execution_date else None
+    return pendulum.instance(prev_ti.logical_date) if prev_ti and prev_ti.logical_date else None
 
 
 def _get_previous_start_date(
     *,
-    task_instance: TaskInstance | TaskInstancePydantic,
+    task_instance: TaskInstance,
     state: DagRunState | None,
     session: Session,
 ) -> pendulum.DateTime | None:
@@ -1421,9 +1313,7 @@ def _get_previous_start_date(
     return pendulum.instance(prev_ti.start_date) if prev_ti and prev_ti.start_date else None
 
 
-def _email_alert(
-    *, task_instance: TaskInstance | TaskInstancePydantic, exception, task: BaseOperator
-) -> None:
+def _email_alert(*, task_instance: TaskInstance, exception, task: BaseOperator) -> None:
     """
     Send alert email with exception information.
 
@@ -1444,7 +1334,7 @@ def _email_alert(
 
 def _get_email_subject_content(
     *,
-    task_instance: TaskInstance | TaskInstancePydantic,
+    task_instance: TaskInstance,
     exception: BaseException,
     task: BaseOperator | None = None,
 ) -> tuple[str, str, str]:
@@ -1565,7 +1455,7 @@ def _run_finished_callback(
                 log.exception("Error in callback at index %d: %s", idx, callback_repr)
 
 
-def _log_state(*, task_instance: TaskInstance | TaskInstancePydantic, lead_msg: str = "") -> None:
+def _log_state(*, task_instance: TaskInstance, lead_msg: str = "") -> None:
     """
     Log task state.
 
@@ -1585,18 +1475,18 @@ def _log_state(*, task_instance: TaskInstance | TaskInstancePydantic, lead_msg: 
     if task_instance.map_index >= 0:
         params.append(task_instance.map_index)
         message += "map_index=%d, "
-    message += "execution_date=%s, start_date=%s, end_date=%s"
+    message += "logical_date=%s, start_date=%s, end_date=%s"
     log.info(
         message,
         *params,
-        _date_or_empty(task_instance=task_instance, attr="execution_date"),
+        _date_or_empty(task_instance=task_instance, attr="logical_date"),
         _date_or_empty(task_instance=task_instance, attr="start_date"),
         _date_or_empty(task_instance=task_instance, attr="end_date"),
         stacklevel=2,
     )
 
 
-def _date_or_empty(*, task_instance: TaskInstance | TaskInstancePydantic, attr: str) -> str:
+def _date_or_empty(*, task_instance: TaskInstance, attr: str) -> str:
     """
     Fetch a date attribute or None of it does not exist.
 
@@ -1611,10 +1501,10 @@ def _date_or_empty(*, task_instance: TaskInstance | TaskInstancePydantic, attr: 
 
 def _get_previous_ti(
     *,
-    task_instance: TaskInstance | TaskInstancePydantic,
+    task_instance: TaskInstance,
     session: Session,
     state: DagRunState | None = None,
-) -> TaskInstance | TaskInstancePydantic | None:
+) -> TaskInstance | None:
     """
     Get task instance for the task that ran before this task instance.
 
@@ -1630,43 +1520,22 @@ def _get_previous_ti(
     return dagrun.get_task_instance(task_instance.task_id, session=session)
 
 
-@internal_api_call
 @provide_session
-def _update_rtif(ti, rendered_fields, session: Session | None = None):
+def _update_rtif(ti, rendered_fields, session: Session = NEW_SESSION):
     from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
     rtif = RenderedTaskInstanceFields(ti=ti, render_templates=False, rendered_fields=rendered_fields)
     RenderedTaskInstanceFields.write(rtif, session=session)
+    session.flush()
     RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id, session=session)
 
 
-def _coalesce_to_orm_ti(*, ti: TaskInstancePydantic | TaskInstance, session: Session):
-    from airflow.models.dagrun import DagRun
-    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
-
-    if isinstance(ti, TaskInstancePydantic):
-        orm_ti = DagRun.fetch_task_instance(
-            dag_id=ti.dag_id,
-            dag_run_id=ti.run_id,
-            task_id=ti.task_id,
-            map_index=ti.map_index,
-            session=session,
-        )
-        if TYPE_CHECKING:
-            assert orm_ti
-        ti, pydantic_ti = orm_ti, ti
-        _set_ti_attrs(ti, pydantic_ti)
-        ti.task = pydantic_ti.task
-    return ti
-
-
-@internal_api_call
 @provide_session
 def _defer_task(
-    ti: TaskInstance | TaskInstancePydantic,
+    ti: TaskInstance,
     exception: TaskDeferred | None = None,
     session: Session = NEW_SESSION,
-) -> TaskInstancePydantic | TaskInstance:
+) -> TaskInstance:
     from airflow.models.trigger import Trigger
 
     if exception is not None:
@@ -1696,8 +1565,6 @@ def _defer_task(
     # First, make the trigger entry
     session.add(trigger_row)
     session.flush()
-
-    ti = _coalesce_to_orm_ti(ti=ti, session=session)  # ensure orm obj in case it's pydantic
 
     if TYPE_CHECKING:
         assert ti.task
@@ -1735,7 +1602,6 @@ def _defer_task(
     return ti
 
 
-@internal_api_call
 @provide_session
 def _handle_reschedule(
     ti,
@@ -1748,10 +1614,6 @@ def _handle_reschedule(
     if test_mode:
         return
 
-    ti = _coalesce_to_orm_ti(ti=ti, session=session)
-
-    from airflow.models.dagrun import DagRun  # Avoid circular import
-
     ti.refresh_from_db(session)
 
     if TYPE_CHECKING:
@@ -1760,16 +1622,16 @@ def _handle_reschedule(
     ti.end_date = timezone.utcnow()
     ti.set_duration()
 
-    # Lock DAG run to be sure not to get into a deadlock situation when trying to insert
-    # TaskReschedule which apparently also creates lock on corresponding DagRun entity
-    with_row_locks(
-        session.query(DagRun).filter_by(
-            dag_id=ti.dag_id,
-            run_id=ti.run_id,
-        ),
-        session=session,
-    ).one()
-    # Log reschedule request
+    # set state
+    ti.state = TaskInstanceState.UP_FOR_RESCHEDULE
+
+    ti.clear_next_method_args()
+
+    session.merge(ti)
+    session.commit()
+
+    # we add this in separate commit to reduce likelihood of deadlock
+    # see https://github.com/apache/airflow/pull/21362 for more info
     session.add(
         TaskReschedule(
             ti.task_id,
@@ -1782,15 +1644,13 @@ def _handle_reschedule(
             ti.map_index,
         )
     )
-
-    # set state
-    ti.state = TaskInstanceState.UP_FOR_RESCHEDULE
-
-    ti.clear_next_method_args()
-
-    session.merge(ti)
     session.commit()
     return ti
+
+
+def uuid7() -> str:
+    """Generate a new UUID7 string."""
+    return str(uuid6.uuid7())
 
 
 class TaskInstance(Base, LoggingMixin):
@@ -1813,10 +1673,16 @@ class TaskInstance(Base, LoggingMixin):
     """
 
     __tablename__ = "task_instance"
-    task_id = Column(StringID(), primary_key=True, nullable=False)
-    dag_id = Column(StringID(), primary_key=True, nullable=False)
-    run_id = Column(StringID(), primary_key=True, nullable=False)
-    map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
+    id = Column(
+        String(36).with_variant(postgresql.UUID(as_uuid=False), "postgresql"),
+        primary_key=True,
+        default=uuid7,
+        nullable=False,
+    )
+    task_id = Column(StringID(), nullable=False)
+    dag_id = Column(StringID(), nullable=False)
+    run_id = Column(StringID(), nullable=False)
+    map_index = Column(Integer, nullable=False, server_default=text("-1"))
 
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
@@ -1826,7 +1692,6 @@ class TaskInstance(Base, LoggingMixin):
     max_tries = Column(Integer, server_default=text("-1"))
     hostname = Column(String(1000))
     unixname = Column(String(1000))
-    job_id = Column(Integer)
     pool = Column(String(256), nullable=False)
     pool_slots = Column(Integer, default=1, nullable=False)
     queue = Column(String(256))
@@ -1835,6 +1700,8 @@ class TaskInstance(Base, LoggingMixin):
     custom_operator_name = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
     queued_by_job_id = Column(Integer)
+
+    last_heartbeat_at = Column(UtcDateTime)
     pid = Column(Integer)
     executor = Column(String(1000))
     executor_config = Column(ExecutorConfigType(pickler=dill))
@@ -1858,8 +1725,10 @@ class TaskInstance(Base, LoggingMixin):
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
     _task_display_property_value = Column("task_display_name", String(2000), nullable=True)
+    dag_version_id = Column(UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"))
+    dag_version = relationship("DagVersion", back_populates="task_instances")
     # If adding new fields here then remember to add them to
-    # refresh_from_db() or they won't display in the UI correctly
+    # _set_ti_attrs() or they won't display in the UI correctly
 
     __table_args__ = (
         Index("ti_dag_state", dag_id, state),
@@ -1867,9 +1736,10 @@ class TaskInstance(Base, LoggingMixin):
         Index("ti_state", state),
         Index("ti_state_lkp", dag_id, task_id, run_id, state),
         Index("ti_pool", pool, state, priority_weight),
-        Index("ti_job_id", job_id),
         Index("ti_trigger_id", trigger_id),
-        PrimaryKeyConstraint("dag_id", "task_id", "run_id", "map_index", name="task_instance_pkey"),
+        Index("ti_heartbeat", last_heartbeat_at),
+        PrimaryKeyConstraint("id", name="task_instance_pkey"),
+        UniqueConstraint("dag_id", "task_id", "run_id", "map_index", name="task_instance_composite_key"),
         ForeignKeyConstraint(
             [trigger_id],
             ["trigger.id"],
@@ -1897,7 +1767,7 @@ class TaskInstance(Base, LoggingMixin):
     triggerer_job = association_proxy("trigger", "triggerer_job")
     dag_run = relationship("DagRun", back_populates="task_instances", lazy="joined", innerjoin=True)
     rendered_task_instance_fields = relationship("RenderedTaskInstanceFields", lazy="noload", uselist=False)
-    execution_date = association_proxy("dag_run", "execution_date")
+    logical_date = association_proxy("dag_run", "logical_date")
     task_instance_note = relationship(
         "TaskInstanceNote",
         back_populates="task_instance",
@@ -1923,11 +1793,13 @@ class TaskInstance(Base, LoggingMixin):
         run_id: str | None = None,
         state: str | None = None,
         map_index: int = -1,
+        dag_version_id: UUIDType | None = None,
     ):
         super().__init__()
         self.dag_id = task.dag_id
         self.task_id = task.task_id
         self.map_index = map_index
+        self.dag_version_id = dag_version_id
         self.refresh_from_task(task)
         if TYPE_CHECKING:
             assert self.task
@@ -1938,6 +1810,8 @@ class TaskInstance(Base, LoggingMixin):
         self.run_id = run_id
         self.try_number = 0
         self.max_tries = self.task.retries
+        if not self.id:
+            self.id = uuid7()
         self.unixname = getuser()
         if state:
             self.state = state
@@ -1957,7 +1831,7 @@ class TaskInstance(Base, LoggingMixin):
         return _stats_tags(task_instance=self)
 
     @staticmethod
-    def insert_mapping(run_id: str, task: Operator, map_index: int) -> dict[str, Any]:
+    def insert_mapping(run_id: str, task: Operator, map_index: int, dag_version_id: int) -> dict[str, Any]:
         """
         Insert mapping.
 
@@ -1986,6 +1860,7 @@ class TaskInstance(Base, LoggingMixin):
             "custom_operator_name": getattr(task, "custom_operator_name", None),
             "map_index": map_index,
             "_task_display_property_value": task.task_display_name,
+            "dag_version_id": dag_version_id,
         }
 
     @reconstructor
@@ -2004,7 +1879,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @staticmethod
     def _command_as_list(
-        ti: TaskInstance | TaskInstancePydantic,
+        ti: TaskInstance,
         mark_success: bool = False,
         ignore_all_deps: bool = False,
         ignore_task_deps: bool = False,
@@ -2012,9 +1887,7 @@ class TaskInstance(Base, LoggingMixin):
         wait_for_past_depends_before_skipping: bool = False,
         ignore_ti_state: bool = False,
         local: bool = False,
-        pickle_id: int | None = None,
         raw: bool = False,
-        job_id: str | None = None,
         pool: str | None = None,
         cfg_path: str | None = None,
     ) -> list[str]:
@@ -2030,14 +1903,11 @@ class TaskInstance(Base, LoggingMixin):
         if dag is None:
             raise ValueError("DagModel is empty")
 
-        should_pass_filepath = not pickle_id and dag
-        path: PurePath | None = None
-        if should_pass_filepath:
-            path = dag.relative_fileloc
+        path = dag.relative_fileloc
 
-            if path:
-                if not path.is_absolute():
-                    path = "DAGS_FOLDER" / path
+        if path:
+            if not path.is_absolute():
+                path = "DAGS_FOLDER" / path
 
         return TaskInstance.generate_command(
             ti.dag_id,
@@ -2050,10 +1920,8 @@ class TaskInstance(Base, LoggingMixin):
             wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
             ignore_ti_state=ignore_ti_state,
             local=local,
-            pickle_id=pickle_id,
             file_path=path,
             raw=raw,
-            job_id=job_id,
             pool=pool,
             cfg_path=cfg_path,
             map_index=ti.map_index,
@@ -2068,9 +1936,7 @@ class TaskInstance(Base, LoggingMixin):
         wait_for_past_depends_before_skipping: bool = False,
         ignore_ti_state: bool = False,
         local: bool = False,
-        pickle_id: int | None = None,
         raw: bool = False,
-        job_id: str | None = None,
         pool: str | None = None,
         cfg_path: str | None = None,
     ) -> list[str]:
@@ -2088,9 +1954,7 @@ class TaskInstance(Base, LoggingMixin):
             wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
             ignore_ti_state=ignore_ti_state,
             local=local,
-            pickle_id=pickle_id,
             raw=raw,
-            job_id=job_id,
             pool=pool,
             cfg_path=cfg_path,
         )
@@ -2107,10 +1971,8 @@ class TaskInstance(Base, LoggingMixin):
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         local: bool = False,
-        pickle_id: int | None = None,
         file_path: PurePath | str | None = None,
         raw: bool = False,
-        job_id: str | None = None,
         pool: str | None = None,
         cfg_path: str | None = None,
         map_index: int = -1,
@@ -2131,11 +1993,8 @@ class TaskInstance(Base, LoggingMixin):
             and trigger rule
         :param ignore_ti_state: Ignore the task instance's previous failure/success
         :param local: Whether to run the task locally
-        :param pickle_id: If the DAG was serialized to the DB, the ID
-            associated with the pickled DAG
         :param file_path: path to the file containing the DAG definition
         :param raw: raw mode (needs more details)
-        :param job_id: job ID (needs more details)
         :param pool: the Airflow pool that the task should run in
         :param cfg_path: the Path to the configuration file
         :return: shell command that can be used to run the task instance
@@ -2143,10 +2002,6 @@ class TaskInstance(Base, LoggingMixin):
         cmd = ["airflow", "tasks", "run", dag_id, task_id, run_id]
         if mark_success:
             cmd.extend(["--mark-success"])
-        if pickle_id:
-            cmd.extend(["--pickle", str(pickle_id)])
-        if job_id:
-            cmd.extend(["--job-id", str(job_id)])
         if ignore_all_deps:
             cmd.extend(["--ignore-all-dependencies"])
         if ignore_task_deps:
@@ -2175,7 +2030,7 @@ class TaskInstance(Base, LoggingMixin):
     def log_url(self) -> str:
         """Log URL for TaskInstance."""
         run_id = quote(self.run_id)
-        base_date = quote(self.execution_date.strftime("%Y-%m-%dT%H:%M:%S%z"))
+        base_date = quote(self.logical_date.strftime("%Y-%m-%dT%H:%M:%S%z"))
         base_url = conf.get_mandatory_value("webserver", "BASE_URL")
         map_index = f"&map_index={self.map_index}" if self.map_index >= 0 else ""
         return (
@@ -2234,7 +2089,6 @@ class TaskInstance(Base, LoggingMixin):
         session.commit()
 
     @classmethod
-    @internal_api_call
     @provide_session
     def get_task_instance(
         cls,
@@ -2244,7 +2098,7 @@ class TaskInstance(Base, LoggingMixin):
         map_index: int,
         lock_for_update: bool = False,
         session: Session = NEW_SESSION,
-    ) -> TaskInstance | TaskInstancePydantic | None:
+    ) -> TaskInstance | None:
         query = (
             session.query(TaskInstance)
             .options(lazyload(TaskInstance.dag_run))  # lazy load dag run to avoid locking it
@@ -2287,9 +2141,8 @@ class TaskInstance(Base, LoggingMixin):
         _refresh_from_task(task_instance=self, task=task, pool_override=pool_override)
 
     @staticmethod
-    @internal_api_call
     @provide_session
-    def _clear_xcom_data(ti: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION) -> None:
+    def _clear_xcom_data(ti: TaskInstance, session: Session = NEW_SESSION) -> None:
         """
         Clear all XCom data from the database for the task instance.
 
@@ -2323,8 +2176,7 @@ class TaskInstance(Base, LoggingMixin):
         return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
 
     @staticmethod
-    @internal_api_call
-    def _set_state(ti: TaskInstance | TaskInstancePydantic, state, session: Session) -> bool:
+    def _set_state(ti: TaskInstance, state, session: Session) -> bool:
         if not isinstance(ti, TaskInstance):
             ti = session.scalars(
                 select(TaskInstance).where(
@@ -2414,7 +2266,7 @@ class TaskInstance(Base, LoggingMixin):
         self,
         state: DagRunState | None = None,
         session: Session = NEW_SESSION,
-    ) -> TaskInstance | TaskInstancePydantic | None:
+    ) -> TaskInstance | None:
         """
         Return the task instance for the task that ran before this task instance.
 
@@ -2424,18 +2276,18 @@ class TaskInstance(Base, LoggingMixin):
         return _get_previous_ti(task_instance=self, state=state, session=session)
 
     @provide_session
-    def get_previous_execution_date(
+    def get_previous_logical_date(
         self,
         state: DagRunState | None = None,
         session: Session = NEW_SESSION,
     ) -> pendulum.DateTime | None:
         """
-        Return the execution date from property previous_ti_success.
+        Return the logical date from property previous_ti_success.
 
         :param state: If passed, it only take into account instances of a specific state.
         :param session: SQLAlchemy ORM Session
         """
-        return _get_previous_execution_date(task_instance=self, state=state, session=session)
+        return _get_previous_logical_date(task_instance=self, state=state, session=session)
 
     @provide_session
     def get_previous_start_date(
@@ -2534,7 +2386,8 @@ class TaskInstance(Base, LoggingMixin):
             # deterministic per task instance
             ti_hash = int(
                 hashlib.sha1(
-                    f"{self.dag_id}#{self.task_id}#{self.execution_date}#{self.try_number}".encode()
+                    f"{self.dag_id}#{self.task_id}#{self.logical_date}#{self.try_number}".encode(),
+                    usedforsecurity=False,
                 ).hexdigest(),
                 16,
             )
@@ -2556,7 +2409,6 @@ class TaskInstance(Base, LoggingMixin):
         return self.state == TaskInstanceState.UP_FOR_RETRY and self.next_retry_datetime() < timezone.utcnow()
 
     @staticmethod
-    @internal_api_call
     def _get_dagrun(dag_id, run_id, session) -> DagRun:
         from airflow.models.dagrun import DagRun  # Avoid circular import
 
@@ -2584,16 +2436,14 @@ class TaskInstance(Base, LoggingMixin):
             if TYPE_CHECKING:
                 assert self.task
             dr.dag = self.task.dag
-        # Record it in the instance for next time. This means that `self.execution_date` will work correctly
+        # Record it in the instance for next time. This means that `self.logical_date` will work correctly
         set_committed_value(self, "dag_run", dr)
 
         return dr
 
     @classmethod
     @provide_session
-    def ensure_dag(
-        cls, task_instance: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION
-    ) -> DAG:
+    def ensure_dag(cls, task_instance: TaskInstance, session: Session = NEW_SESSION) -> DAG:
         """Ensure that task has a dag object associated, might have been removed by serialization."""
         if TYPE_CHECKING:
             assert task_instance.task
@@ -2606,11 +2456,10 @@ class TaskInstance(Base, LoggingMixin):
         return task_instance.task.dag
 
     @classmethod
-    @internal_api_call
     @provide_session
     def _check_and_change_state_before_execution(
         cls,
-        task_instance: TaskInstance | TaskInstancePydantic,
+        task_instance: TaskInstance,
         verbose: bool = True,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
@@ -2620,7 +2469,6 @@ class TaskInstance(Base, LoggingMixin):
         mark_success: bool = False,
         test_mode: bool = False,
         hostname: str = "",
-        job_id: str | None = None,
         pool: str | None = None,
         external_executor_id: str | None = None,
         session: Session = NEW_SESSION,
@@ -2640,7 +2488,6 @@ class TaskInstance(Base, LoggingMixin):
         :param mark_success: Don't run the task, mark its state as success
         :param test_mode: Doesn't record success or failure in the DB
         :param hostname: The hostname of the worker running the task instance.
-        :param job_id: Job (BackfillJob / LocalTaskJob / SchedulerJob) ID
         :param pool: specifies the pool to use to run the task instance
         :param external_executor_id: The identifier of the celery executor
         :param session: SQLAlchemy ORM Session
@@ -2649,21 +2496,13 @@ class TaskInstance(Base, LoggingMixin):
         if TYPE_CHECKING:
             assert task_instance.task
 
-        if isinstance(task_instance, TaskInstance):
-            ti: TaskInstance = task_instance
-        else:  # isinstance(task_instance, TaskInstancePydantic)
-            filters = (col == getattr(task_instance, col.name) for col in inspect(TaskInstance).primary_key)
-            ti = session.query(TaskInstance).filter(*filters).scalar()
-            dag = DagBag(read_dags_from_db=True).get_dag(task_instance.dag_id, session=session)
-            task_instance.task = dag.task_dict[ti.task_id]
-            ti.task = task_instance.task
+        ti: TaskInstance = task_instance
         task = task_instance.task
         if TYPE_CHECKING:
             assert task
         ti.refresh_from_task(task, pool_override=pool)
         ti.test_mode = test_mode
         ti.refresh_from_db(session=session, lock_for_update=True)
-        ti.job_id = job_id
         ti.hostname = hostname
         ti.pid = None
 
@@ -2752,9 +2591,9 @@ class TaskInstance(Base, LoggingMixin):
         settings.engine.dispose()  # type: ignore
         if verbose:
             if mark_success:
-                cls.logger().info("Marking success for %s on %s", ti.task, ti.execution_date)
+                cls.logger().info("Marking success for %s on %s", ti.task, ti.logical_date)
             else:
-                cls.logger().info("Executing %s on %s", ti.task, ti.execution_date)
+                cls.logger().info("Executing %s on %s", ti.task, ti.logical_date)
         return True
 
     @provide_session
@@ -2768,7 +2607,6 @@ class TaskInstance(Base, LoggingMixin):
         ignore_ti_state: bool = False,
         mark_success: bool = False,
         test_mode: bool = False,
-        job_id: str | None = None,
         pool: str | None = None,
         external_executor_id: str | None = None,
         session: Session = NEW_SESSION,
@@ -2784,7 +2622,6 @@ class TaskInstance(Base, LoggingMixin):
             mark_success=mark_success,
             test_mode=test_mode,
             hostname=get_hostname(),
-            job_id=job_id,
             pool=pool,
             external_executor_id=external_executor_id,
             session=session,
@@ -2818,10 +2655,7 @@ class TaskInstance(Base, LoggingMixin):
                     self.task_id,
                 )
                 return
-            if metrics_consistency_on:
-                timing = timezone.utcnow() - self.queued_dttm
-            else:
-                timing = (timezone.utcnow() - self.queued_dttm).total_seconds()
+            timing = timezone.utcnow() - self.queued_dttm
         elif new_state == TaskInstanceState.QUEUED:
             metric_name = "scheduled_duration"
             if self.start_date is None:
@@ -2834,10 +2668,7 @@ class TaskInstance(Base, LoggingMixin):
                     self.task_id,
                 )
                 return
-            if metrics_consistency_on:
-                timing = timezone.utcnow() - self.start_date
-            else:
-                timing = (timezone.utcnow() - self.start_date).total_seconds()
+            timing = timezone.utcnow() - self.start_date
         else:
             raise NotImplementedError("no metric emission setup for state %s", new_state)
 
@@ -2855,7 +2686,6 @@ class TaskInstance(Base, LoggingMixin):
         self,
         mark_success: bool = False,
         test_mode: bool = False,
-        job_id: str | None = None,
         pool: str | None = None,
         raise_on_defer: bool = False,
         session: Session = NEW_SESSION,
@@ -2880,62 +2710,73 @@ class TaskInstance(Base, LoggingMixin):
             ti=self,
             mark_success=mark_success,
             test_mode=test_mode,
-            job_id=job_id,
             pool=pool,
             raise_on_defer=raise_on_defer,
             session=session,
         )
 
-    def _register_dataset_changes(self, *, events: OutletEventAccessors, session: Session) -> None:
-        if TYPE_CHECKING:
-            assert self.task
+    def _register_asset_changes(
+        self, *, events: OutletEventAccessors, session: Session | None = None
+    ) -> None:
+        if session:
+            TaskInstance._register_asset_changes_int(ti=self, events=events, session=session)
+        else:
+            TaskInstance._register_asset_changes_int(ti=self, events=events)
 
-        # One task only triggers one dataset event for each dataset with the same extra.
-        # This tuple[dataset uri, extra] to sets alias names mapping is used to find whether
-        # there're datasets with same uri but different extra that we need to emit more than one dataset events.
-        dataset_alias_names: dict[tuple[str, frozenset], set[str]] = defaultdict(set)
-        for obj in self.task.outlets or []:
-            self.log.debug("outlet obj %s", obj)
-            # Lineage can have other types of objects besides datasets
-            if isinstance(obj, Dataset):
-                dataset_manager.register_dataset_change(
-                    task_instance=self,
-                    dataset=obj,
+    @staticmethod
+    @provide_session
+    def _register_asset_changes_int(
+        ti: TaskInstance, *, events: OutletEventAccessors, session: Session = NEW_SESSION
+    ) -> None:
+        if TYPE_CHECKING:
+            assert ti.task
+
+        # One task only triggers one asset event for each asset with the same extra.
+        # This tuple[asset uri, extra] to sets alias names mapping is used to find whether
+        # there're assets with same uri but different extra that we need to emit more than one asset events.
+        asset_alias_names: dict[tuple[str, frozenset], set[str]] = defaultdict(set)
+        for obj in ti.task.outlets or []:
+            ti.log.debug("outlet obj %s", obj)
+            # Lineage can have other types of objects besides assets
+            if isinstance(obj, Asset):
+                asset_manager.register_asset_change(
+                    task_instance=ti,
+                    asset=obj,
                     extra=events[obj].extra,
                     session=session,
                 )
-            elif isinstance(obj, DatasetAlias):
-                for dataset_alias_event in events[obj].dataset_alias_events:
-                    dataset_alias_name = dataset_alias_event["source_alias_name"]
-                    dataset_uri = dataset_alias_event["dest_dataset_uri"]
-                    frozen_extra = frozenset(dataset_alias_event["extra"].items())
-                    dataset_alias_names[(dataset_uri, frozen_extra)].add(dataset_alias_name)
+            elif isinstance(obj, AssetAlias):
+                for asset_alias_event in events[obj].asset_alias_events:
+                    asset_alias_name = asset_alias_event["source_alias_name"]
+                    asset_uri = asset_alias_event["dest_asset_uri"]
+                    frozen_extra = frozenset(asset_alias_event["extra"].items())
+                    asset_alias_names[(asset_uri, frozen_extra)].add(asset_alias_name)
 
-        dataset_models: dict[str, DatasetModel] = {
-            dataset_obj.uri: dataset_obj
-            for dataset_obj in session.scalars(
-                select(DatasetModel).where(DatasetModel.uri.in_(uri for uri, _ in dataset_alias_names))
+        asset_models: dict[str, AssetModel] = {
+            asset_obj.uri: asset_obj
+            for asset_obj in session.scalars(
+                select(AssetModel).where(AssetModel.uri.in_(uri for uri, _ in asset_alias_names))
             )
         }
-        if missing_datasets := [Dataset(uri=u) for u, _ in dataset_alias_names if u not in dataset_models]:
-            dataset_models.update(
-                (dataset_obj.uri, dataset_obj)
-                for dataset_obj in dataset_manager.create_datasets(missing_datasets, session=session)
+        if missing_assets := [Asset(uri=u) for u, _ in asset_alias_names if u not in asset_models]:
+            asset_models.update(
+                (asset_obj.uri, asset_obj)
+                for asset_obj in asset_manager.create_assets(missing_assets, session=session)
             )
-            self.log.warning("Created new datasets for alias reference: %s", missing_datasets)
+            ti.log.warning("Created new assets for alias reference: %s", missing_assets)
             session.flush()  # Needed because we need the id for fk.
 
-        for (uri, extra_items), alias_names in dataset_alias_names.items():
-            dataset_obj = dataset_models[uri]
-            self.log.info(
+        for (uri, extra_items), alias_names in asset_alias_names.items():
+            asset_obj = asset_models[uri]
+            ti.log.info(
                 'Creating event for %r through aliases "%s"',
-                dataset_obj,
+                asset_obj,
                 ", ".join(alias_names),
             )
-            dataset_manager.register_dataset_change(
-                task_instance=self,
-                dataset=dataset_obj.to_public(),
-                aliases=[DatasetAlias(name) for name in alias_names],
+            asset_manager.register_asset_change(
+                task_instance=ti,
+                asset=asset_obj,
+                aliases=[AssetAlias(name=name) for name in alias_names],
                 extra=dict(extra_items),
                 session=session,
                 source_alias_names=alias_names,
@@ -2968,8 +2809,9 @@ class TaskInstance(Base, LoggingMixin):
         if not self.next_method:
             self.clear_xcom_data()
 
-        with Stats.timer(f"dag.{self.task.dag_id}.{self.task.task_id}.duration"), Stats.timer(
-            "task.duration", tags=self.stats_tags
+        with (
+            Stats.timer(f"dag.{self.task.dag_id}.{self.task.task_id}.duration"),
+            Stats.timer("task.duration", tags=self.stats_tags),
         ):
             # Set the validated/merged params on the task object.
             self.task.params = context["params"]
@@ -3050,6 +2892,11 @@ class TaskInstance(Base, LoggingMixin):
         """
         return _execute_task(self, context, task_orig)
 
+    def update_heartbeat(self):
+        cm = create_session()
+        with cm as session_or_null:
+            _update_ti_heartbeat(self.id, timezone.utcnow(), session_or_null)
+
     @provide_session
     def defer_task(self, exception: TaskDeferred | None, session: Session = NEW_SESSION) -> None:
         """
@@ -3080,7 +2927,6 @@ class TaskInstance(Base, LoggingMixin):
         ignore_ti_state: bool = False,
         mark_success: bool = False,
         test_mode: bool = False,
-        job_id: str | None = None,
         pool: str | None = None,
         session: Session = NEW_SESSION,
         raise_on_defer: bool = False,
@@ -3095,7 +2941,6 @@ class TaskInstance(Base, LoggingMixin):
             ignore_ti_state=ignore_ti_state,
             mark_success=mark_success,
             test_mode=test_mode,
-            job_id=job_id,
             pool=pool,
             session=session,
         )
@@ -3105,7 +2950,6 @@ class TaskInstance(Base, LoggingMixin):
         self._run_raw_task(
             mark_success=mark_success,
             test_mode=test_mode,
-            job_id=job_id,
             pool=pool,
             session=session,
             raise_on_defer=raise_on_defer,
@@ -3169,9 +3013,15 @@ class TaskInstance(Base, LoggingMixin):
         fail_stop: bool = False,
     ):
         """
-        Handle Failure for the TaskInstance.
+        Fetch the context needed to handle a failure.
 
-        :param fail_stop: if true, stop remaining tasks in dag
+        :param ti: TaskInstance
+        :param error: if specified, log the specific exception if thrown
+        :param test_mode: doesn't record success or failure in the DB if True
+        :param context: Jinja2 context
+        :param force_fail: if True, task does not retry
+        :param session: SQLAlchemy ORM Session
+        :param fail_stop: if True, fail all downstream tasks
         """
         if error:
             if isinstance(error, BaseException):
@@ -3192,9 +3042,6 @@ class TaskInstance(Base, LoggingMixin):
 
         if not test_mode:
             session.add(Log(TaskInstanceState.FAILED.value, ti))
-
-            # Log failure duration
-            session.add(TaskFail(ti=ti))
 
         ti.clear_next_method_args()
 
@@ -3259,10 +3106,8 @@ class TaskInstance(Base, LoggingMixin):
         }
 
     @staticmethod
-    @internal_api_call
     @provide_session
-    def save_to_db(ti: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION):
-        ti = _coalesce_to_orm_ti(ti=ti, session=session)
+    def save_to_db(ti: TaskInstance, session: Session = NEW_SESSION):
         ti.updated_at = timezone.utcnow()
         session.merge(ti)
         session.flush()
@@ -3405,53 +3250,6 @@ class TaskInstance(Base, LoggingMixin):
 
         return original_task
 
-    def render_k8s_pod_yaml(self) -> dict | None:
-        """Render the k8s pod yaml."""
-        try:
-            from airflow.providers.cncf.kubernetes.template_rendering import (
-                render_k8s_pod_yaml as render_k8s_pod_yaml_from_provider,
-            )
-        except ImportError:
-            raise RuntimeError(
-                "You need to have the `cncf.kubernetes` provider installed to use this feature. "
-                "Also rather than calling it directly you should import "
-                "render_k8s_pod_yaml from airflow.providers.cncf.kubernetes.template_rendering "
-                "and call it with TaskInstance as the first argument."
-            )
-        warnings.warn(
-            "You should not call `task_instance.render_k8s_pod_yaml` directly. This method will be removed"
-            "in Airflow 3. Rather than calling it directly you should import "
-            "`render_k8s_pod_yaml` from `airflow.providers.cncf.kubernetes.template_rendering` "
-            "and call it with `TaskInstance` as the first argument.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return render_k8s_pod_yaml_from_provider(self)
-
-    @provide_session
-    def get_rendered_k8s_spec(self, session: Session = NEW_SESSION):
-        """Render the k8s pod yaml."""
-        try:
-            from airflow.providers.cncf.kubernetes.template_rendering import (
-                get_rendered_k8s_spec as get_rendered_k8s_spec_from_provider,
-            )
-        except ImportError:
-            raise RuntimeError(
-                "You need to have the `cncf.kubernetes` provider installed to use this feature. "
-                "Also rather than calling it directly you should import "
-                "`get_rendered_k8s_spec` from `airflow.providers.cncf.kubernetes.template_rendering` "
-                "and call it with `TaskInstance` as the first argument."
-            )
-        warnings.warn(
-            "You should not call `task_instance.render_k8s_pod_yaml` directly. This method will be removed"
-            "in Airflow 3. Rather than calling it directly you should import "
-            "`get_rendered_k8s_spec` from `airflow.providers.cncf.kubernetes.template_rendering` "
-            "and call it with `TaskInstance` as the first argument.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return get_rendered_k8s_spec_from_provider(self, session=session)
-
     def get_email_subject_content(
         self, exception: BaseException, task: BaseOperator | None = None
     ) -> tuple[str, str, str]:
@@ -3487,9 +3285,7 @@ class TaskInstance(Base, LoggingMixin):
         Make an XCom available for tasks to pull.
 
         :param key: Key to store the value under.
-        :param value: Value to store. What types are possible depends on whether
-            ``enable_xcom_pickling`` is true or not. If so, this can be any
-            picklable object; only be JSON-serializable may be used otherwise.
+        :param value: Value to store. Only be JSON-serializable may be used otherwise.
         """
         XCom.set(
             key=key,
@@ -3512,6 +3308,7 @@ class TaskInstance(Base, LoggingMixin):
         *,
         map_indexes: int | Iterable[int] | None = None,
         default: Any = None,
+        run_id: str | None = None,
     ) -> Any:
         """
         Pull XComs that optionally meet certain criteria.
@@ -3529,8 +3326,10 @@ class TaskInstance(Base, LoggingMixin):
             If *None* (default), this is inferred from the task(s) being pulled
             (see below for details).
         :param include_prior_dates: If False, only XComs from the current
-            execution_date are returned. If *True*, XComs from previous dates
+            logical_date are returned. If *True*, XComs from previous dates
             are returned as well.
+        :param run_id: If provided, only pulls XComs from a DagRun w/a matching run_id.
+            If *None* (default), the run_id of the calling task is used.
 
         When pulling one single task (``task_id`` is *None* or a str) without
         specifying ``map_indexes``, the return value is inferred from whether
@@ -3553,6 +3352,7 @@ class TaskInstance(Base, LoggingMixin):
             session=session,
             map_indexes=map_indexes,
             default=default,
+            run_id=run_id,
         )
 
     @provide_session
@@ -3687,106 +3487,6 @@ class TaskInstance(Base, LoggingMixin):
             return filters[0]
         return or_(*filters)
 
-    @classmethod
-    @provide_session
-    def _schedule_downstream_tasks(
-        cls,
-        ti: TaskInstance | TaskInstancePydantic,
-        session: Session = NEW_SESSION,
-        max_tis_per_query: int | None = None,
-    ):
-        from sqlalchemy.exc import OperationalError
-
-        from airflow.models.dagrun import DagRun
-
-        try:
-            # Re-select the row with a lock
-            dag_run = with_row_locks(
-                session.query(DagRun).filter_by(
-                    dag_id=ti.dag_id,
-                    run_id=ti.run_id,
-                ),
-                session=session,
-                skip_locked=True,
-            ).one_or_none()
-
-            if not dag_run:
-                cls.logger().debug("Skip locked rows, rollback")
-                session.rollback()
-                return
-
-            task = ti.task
-            if TYPE_CHECKING:
-                assert task
-                assert task.dag
-
-            # Get a partial DAG with just the specific tasks we want to examine.
-            # In order for dep checks to work correctly, we include ourself (so
-            # TriggerRuleDep can check the state of the task we just executed).
-            partial_dag = task.dag.partial_subset(
-                task.downstream_task_ids,
-                include_downstream=True,
-                include_upstream=False,
-                include_direct_upstream=True,
-            )
-
-            dag_run.dag = partial_dag
-            info = dag_run.task_instance_scheduling_decisions(session)
-
-            skippable_task_ids = {
-                task_id for task_id in partial_dag.task_ids if task_id not in task.downstream_task_ids
-            }
-
-            schedulable_tis = [
-                ti
-                for ti in info.schedulable_tis
-                if ti.task_id not in skippable_task_ids
-                and not (
-                    ti.task.inherits_from_empty_operator
-                    and not ti.task.on_execute_callback
-                    and not ti.task.on_success_callback
-                    and not ti.task.outlets
-                )
-            ]
-            for schedulable_ti in schedulable_tis:
-                if getattr(schedulable_ti, "task", None) is None:
-                    schedulable_ti.task = task.dag.get_task(schedulable_ti.task_id)
-
-            num = dag_run.schedule_tis(schedulable_tis, session=session, max_tis_per_query=max_tis_per_query)
-            cls.logger().info("%d downstream tasks scheduled from follow-on schedule check", num)
-
-            session.flush()
-
-        except OperationalError as e:
-            # Any kind of DB error here is _non fatal_ as this block is just an optimisation.
-            cls.logger().warning(
-                "Skipping mini scheduling run due to exception: %s",
-                e.statement,
-                exc_info=True,
-            )
-            session.rollback()
-
-    @provide_session
-    def schedule_downstream_tasks(self, session: Session = NEW_SESSION, max_tis_per_query: int | None = None):
-        """
-        Schedule downstream tasks of this task instance.
-
-        :meta: private
-        """
-        try:
-            return TaskInstance._schedule_downstream_tasks(
-                ti=self, session=session, max_tis_per_query=max_tis_per_query
-            )
-        except Exception:
-            self.log.exception(
-                "Error scheduling downstream tasks. Skipping it as this is entirely optional optimisation. "
-                "There might be various reasons for it, please take a look at the stack trace to figure "
-                "out if the root cause can be diagnosed and fixed. See the issue "
-                "https://github.com/apache/airflow/issues/39717 for details and an example problem. If you "
-                "would like to get help in solving root cause, open discussion with all details with your "
-                "managed service support or in Airflow repository."
-            )
-
     def get_relevant_upstream_map_indexes(
         self,
         upstream: Operator,
@@ -3884,7 +3584,6 @@ class TaskInstance(Base, LoggingMixin):
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         tables: list[type[TaskInstanceDependencies]] = [
-            TaskFail,
             TaskInstanceNote,
             TaskReschedule,
             XCom,
@@ -3900,6 +3599,39 @@ class TaskInstance(Base, LoggingMixin):
                     table.map_index == self.map_index,
                 )
             )
+
+    @classmethod
+    def duration_expression_update(
+        cls, end_date: datetime, query: Update, bind: Engine | SAConnection
+    ) -> Update:
+        """Return a SQL expression for calculating the duration of this TI, based on the start and end date columns."""
+        # TODO: Compare it with self._set_duration method
+
+        if bind.dialect.name == "sqlite":
+            return query.values(
+                {
+                    "end_date": end_date,
+                    "duration": (func.julianday(end_date) - func.julianday(cls.start_date)) * 86400,
+                }
+            )
+        elif bind.dialect.name == "postgresql":
+            return query.values(
+                {
+                    "end_date": end_date,
+                    "duration": extract("EPOCH", end_date - cls.start_date),
+                }
+            )
+
+        return query.values(
+            {
+                "end_date": end_date,
+                "duration": (
+                    func.timestampdiff(text("MICROSECOND"), cls.start_date, end_date)
+                    # Turn microseconds into floating point seconds.
+                    / 1_000_000
+                ),
+            }
+        )
 
 
 def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:
@@ -3927,7 +3659,7 @@ def _is_further_mapped_inside(operator: Operator, container: TaskGroup) -> bool:
 
 # State of the task instance.
 # Stores string version of the task state.
-TaskInstanceStateType = Tuple[TaskInstanceKey, TaskInstanceState]
+TaskInstanceStateType = tuple[TaskInstanceKey, TaskInstanceState]
 
 
 class SimpleTaskInstance:
@@ -3971,7 +3703,11 @@ class SimpleTaskInstance:
         self.queue = queue
         self.key = key
 
-    def __eq__(self, other):
+    def __repr__(self) -> str:
+        attrs = ", ".join(f"{k}={v!r}" for k, v in self.__dict__.items())
+        return f"SimpleTaskInstance({attrs})"
+
+    def __eq__(self, other) -> bool:
         if isinstance(other, self.__class__):
             return self.__dict__ == other.__dict__
         return NotImplemented
@@ -4002,7 +3738,7 @@ class TaskInstanceNote(TaskInstanceDependencies):
 
     __tablename__ = "task_instance_note"
 
-    user_id = Column(Integer, nullable=True)
+    user_id = Column(String(128), nullable=True)
     task_id = Column(StringID(), primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     run_id = Column(StringID(), primary_key=True, nullable=False)

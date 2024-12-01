@@ -32,7 +32,8 @@ from airflow.cli.commands import info_command
 from airflow.config_templates import airflow_local_settings
 from airflow.logging_config import configure_logging
 from airflow.version import version as airflow_version
-from tests.test_utils.config import conf_vars
+
+from tests_common.test_utils.config import conf_vars
 
 
 def capture_show_output(instance):
@@ -48,7 +49,7 @@ class TestPiiAnonymizer:
 
     def test_should_remove_pii_from_path(self):
         home_path = os.path.expanduser("~/airflow/config")
-        assert "${HOME}/airflow/config" == self.instance.process_path(home_path)
+        assert self.instance.process_path(home_path) == "${HOME}/airflow/config"
 
     @pytest.mark.parametrize(
         "before, after",

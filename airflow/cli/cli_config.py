@@ -24,14 +24,14 @@ import argparse
 import json
 import os
 import textwrap
-from typing import Callable, Iterable, NamedTuple, Union
+from collections.abc import Iterable
+from typing import Callable, NamedTuple, Union
 
 import lazy_object_proxy
 
 from airflow import settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
-from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.cli import ColorMode
 from airflow.utils.module_loading import import_string
 from airflow.utils.state import DagRunState, JobState
@@ -144,17 +144,17 @@ def string_lower_type(val):
 # Shared
 ARG_DAG_ID = Arg(("dag_id",), help="The id of the dag")
 ARG_TASK_ID = Arg(("task_id",), help="The id of the task")
-ARG_EXECUTION_DATE = Arg(("execution_date",), help="The execution date of the DAG", type=parsedate)
-ARG_EXECUTION_DATE_OPTIONAL = Arg(
-    ("execution_date",), nargs="?", help="The execution date of the DAG (optional)", type=parsedate
+ARG_LOGICAL_DATE = Arg(("logical_date",), help="The logical date of the DAG", type=parsedate)
+ARG_LOGICAL_DATE_OPTIONAL = Arg(
+    ("logical_date",), nargs="?", help="The logical date of the DAG (optional)", type=parsedate
 )
-ARG_EXECUTION_DATE_OR_RUN_ID = Arg(
-    ("execution_date_or_run_id",), help="The execution_date of the DAG or run_id of the DAGRun"
+ARG_LOGICAL_DATE_OR_RUN_ID = Arg(
+    ("logical_date_or_run_id",), help="The logical date of the DAG or run_id of the DAGRun"
 )
-ARG_EXECUTION_DATE_OR_RUN_ID_OPTIONAL = Arg(
-    ("execution_date_or_run_id",),
+ARG_LOGICAL_DATE_OR_RUN_ID_OPTIONAL = Arg(
+    ("logical_date_or_run_id",),
     nargs="?",
-    help="The execution_date of the DAG or run_id of the DAGRun (optional)",
+    help="The logical date of the DAG or run_id of the DAGRun (optional)",
 )
 ARG_TASK_REGEX = Arg(("-t", "--task-regex"), help="The regex to filter specific task_ids (optional)")
 ARG_SUBDIR = Arg(
@@ -234,9 +234,6 @@ ARG_SKIP_SERVE_LOGS = Arg(
 )
 
 # list_dag_runs
-ARG_DAG_ID_REQ_FLAG = Arg(
-    ("-d", "--dag-id"), required=True, help="The id of the dag"
-)  # TODO: convert this to a positional arg in Airflow 3
 ARG_NO_BACKFILL = Arg(
     ("--no-backfill",), help="filter all the backfill dagruns given the dag id", action="store_true"
 )
@@ -264,10 +261,10 @@ ARG_NUM_EXECUTIONS = Arg(
     ("-n", "--num-executions"),
     default=1,
     type=positive_int(allow_zero=False),
-    help="The number of next execution datetimes to show",
+    help="The number of next logical date times to show",
 )
 
-# backfill
+# misc
 ARG_MARK_SUCCESS = Arg(
     ("-m", "--mark-success"), help="Mark jobs as succeeded without running them", action="store_true"
 )
@@ -303,78 +300,47 @@ ARG_DEFAULTS = Arg(
 )
 ARG_VERBOSE = Arg(("-v", "--verbose"), help="Make logging output more verbose", action="store_true")
 ARG_LOCAL = Arg(("-l", "--local"), help="Run the task using the LocalExecutor", action="store_true")
-ARG_DONOT_PICKLE = Arg(
-    ("-x", "--donot-pickle"),
-    help=(
-        "Do not attempt to pickle the DAG object to send over "
-        "to the workers, just tell the workers to run their version "
-        "of the code"
-    ),
-    action="store_true",
-)
-ARG_BF_IGNORE_DEPENDENCIES = Arg(
-    ("-i", "--ignore-dependencies"),
-    help=(
-        "Skip upstream tasks, run only the tasks "
-        "matching the regexp. Only works in conjunction "
-        "with task_regex"
-    ),
-    action="store_true",
-)
 ARG_POOL = Arg(("--pool",), "Resource pool to use")
-ARG_DELAY_ON_LIMIT = Arg(
-    ("--delay-on-limit",),
-    help=(
-        "Amount of time in seconds to wait when the limit "
-        "on maximum active dag runs (max_active_runs) has "
-        "been reached before trying to execute a dag run "
-        "again"
-    ),
-    type=float,
-    default=1.0,
+
+
+# backfill
+ARG_BACKFILL_DAG = Arg(flags=("--dag-id",), help="The dag to backfill.", required=True)
+ARG_BACKFILL_FROM_DATE = Arg(
+    ("--from-date",), help="Earliest logical date to backfill.", type=parsedate, required=True
 )
-ARG_RESET_DAG_RUN = Arg(
-    ("--reset-dagruns",),
-    help=(
-        "if set, the backfill will delete existing "
-        "backfill-related DAG runs and start "
-        "anew with fresh, running DAG runs"
-    ),
-    action="store_true",
+ARG_BACKFILL_TO_DATE = Arg(
+    ("--to-date",), help="Latest logical date to backfill", type=parsedate, required=True
 )
-ARG_RERUN_FAILED_TASKS = Arg(
-    ("--rerun-failed-tasks",),
-    help=(
-        "if set, the backfill will auto-rerun "
-        "all the failed tasks for the backfill date range "
-        "instead of throwing exceptions"
-    ),
-    action="store_true",
-)
-ARG_CONTINUE_ON_FAILURES = Arg(
-    ("--continue-on-failures",),
-    help=("if set, the backfill will keep going even if some of the tasks failed"),
-    action="store_true",
-)
-ARG_DISABLE_RETRY = Arg(
-    ("--disable-retry",),
-    help=("if set, the backfill will set tasks as failed without retrying."),
-    action="store_true",
-)
+ARG_DAG_RUN_CONF = Arg(flags=("--dag-run-conf",), help="JSON dag run configuration.")
 ARG_RUN_BACKWARDS = Arg(
-    (
-        "-B",
-        "--run-backwards",
-    ),
+    flags=("--run-backwards",),
     help=(
-        "if set, the backfill will run tasks from the most "
-        "recent day first.  if there are tasks that depend_on_past "
-        "this option will throw an exception"
+        "If set, the backfill will run tasks from the most recent logical date first. "
+        "Not supported if there are tasks that depend_on_past."
     ),
     action="store_true",
 )
+ARG_MAX_ACTIVE_RUNS = Arg(
+    ("--max-active-runs",),
+    type=positive_int(allow_zero=False),
+    help="Max active runs for this backfill.",
+)
+ARG_BACKFILL_DRY_RUN = Arg(
+    ("--dry-run",),
+    help="Perform a dry run",
+    action="store_true",
+)
+ARG_BACKFILL_REPROCESS_BEHAVIOR = Arg(
+    ("--reprocess-behavior",),
+    help=(
+        "When a run exists for the logical date, controls whether new runs will be "
+        "created for the date. Default is none."
+    ),
+    choices=("none", "completed", "failed"),
+)
 
 
+# misc
 ARG_TREAT_DAG_ID_AS_REGEX = Arg(
     ("--treat-dag-id-as-regex",),
     help=("if set, dag_id will be treated as regex instead of an exact string"),
@@ -444,7 +410,7 @@ ARG_IMGCAT = Arg(("--imgcat",), help="Displays graph using the imgcat tool.", ac
 # trigger_dag
 ARG_RUN_ID = Arg(("-r", "--run-id"), help="Helps to identify this run")
 ARG_CONF = Arg(("-c", "--conf"), help="JSON string that gets pickled into the DagRun's conf attribute")
-ARG_EXEC_DATE = Arg(("-e", "--exec-date"), help="The execution date of the DAG", type=parsedate)
+ARG_EXEC_DATE = Arg(("-e", "--exec-date"), help="The logical date of the DAG", type=parsedate)
 ARG_REPLACE_MICRO = Arg(
     ("--no-replace-microseconds",),
     help="whether microseconds should be zeroed",
@@ -610,11 +576,6 @@ ARG_DEPENDS_ON_PAST = Arg(
     choices={"check", "ignore", "wait"},
     default="check",
 )
-ARG_SHIP_DAG = Arg(
-    ("--ship-dag",), help="Pickles (serializes) the DAG and ships it to the worker", action="store_true"
-)
-ARG_PICKLE = Arg(("-p", "--pickle"), help="Serialized pickle object of the entire dag (used internally)")
-ARG_JOB_ID = Arg(("-j", "--job-id"), help=argparse.SUPPRESS)
 ARG_CFG_PATH = Arg(("--cfg-path",), help="Path to config file to use instead of airflow.cfg")
 ARG_MAP_INDEX = Arg(("--map-index",), type=int, default=-1, help="Mapped task index")
 ARG_READ_FROM_DB = Arg(("--read-from-db",), help="Read dag from DB instead of dag file", action="store_true")
@@ -735,51 +696,6 @@ ARG_ACCESS_LOGFORMAT = Arg(
     help="The access log format for gunicorn logs",
 )
 
-
-# internal-api
-ARG_INTERNAL_API_PORT = Arg(
-    ("-p", "--port"),
-    default=9080,
-    type=int,
-    help="The port on which to run the server",
-)
-ARG_INTERNAL_API_WORKERS = Arg(
-    ("-w", "--workers"),
-    default=4,
-    type=int,
-    help="Number of workers to run the Internal API-on",
-)
-ARG_INTERNAL_API_WORKERCLASS = Arg(
-    ("-k", "--workerclass"),
-    default="sync",
-    choices=["sync", "eventlet", "gevent", "tornado"],
-    help="The worker class to use for Gunicorn",
-)
-ARG_INTERNAL_API_WORKER_TIMEOUT = Arg(
-    ("-t", "--worker-timeout"),
-    default=120,
-    type=int,
-    help="The timeout for waiting on Internal API workers",
-)
-ARG_INTERNAL_API_HOSTNAME = Arg(
-    ("-H", "--hostname"),
-    default="0.0.0.0",  # nosec
-    help="Set the hostname on which to run the web server",
-)
-ARG_INTERNAL_API_ACCESS_LOGFILE = Arg(
-    ("-A", "--access-logfile"),
-    help="The logfile to store the access log. Use '-' to print to stdout",
-)
-ARG_INTERNAL_API_ERROR_LOGFILE = Arg(
-    ("-E", "--error-logfile"),
-    help="The logfile to store the error log. Use '-' to print to stderr",
-)
-ARG_INTERNAL_API_ACCESS_LOGFORMAT = Arg(
-    ("-L", "--access-logformat"),
-    help="The access log format for gunicorn logs",
-)
-
-
 # fastapi-api
 ARG_FASTAPI_API_PORT = Arg(
     ("-p", "--port"),
@@ -816,6 +732,11 @@ ARG_FASTAPI_API_ACCESS_LOGFORMAT = Arg(
     ("-L", "--access-logformat"),
     help="The access log format for gunicorn logs",
 )
+ARG_FASTAPI_API_APPS = Arg(
+    ("--apps",),
+    help="Applications to run (comma-separated). Default is all. Options: core, execution, all",
+    default="all",
+)
 
 
 # scheduler
@@ -824,16 +745,6 @@ ARG_NUM_RUNS = Arg(
     default=conf.getint("scheduler", "num_runs"),
     type=int,
     help="Set the number of runs to execute before exiting",
-)
-ARG_DO_PICKLE = Arg(
-    ("-p", "--do-pickle"),
-    default=False,
-    help=(
-        "Attempt to pickle the DAG object to send over "
-        "to the workers, instead of letting workers run their version "
-        "of the code"
-    ),
-    action="store_true",
 )
 
 ARG_WITHOUT_MINGLE = Arg(
@@ -971,7 +882,7 @@ ARG_MIN_PENDING_MINUTES = Arg(
 # jobs check
 ARG_JOB_TYPE_FILTER = Arg(
     ("--job-type",),
-    choices=("BackfillJob", "LocalTaskJob", "SchedulerJob", "TriggererJob", "DagProcessorJob"),
+    choices=("LocalTaskJob", "SchedulerJob", "TriggererJob", "DagProcessorJob"),
     action="store",
     help="The type of job(s) that will be checked.",
 )
@@ -1010,19 +921,22 @@ ARG_CAPACITY = Arg(
     help="The maximum number of triggers that a Triggerer will run at one time.",
 )
 
-# reserialize
-ARG_CLEAR_ONLY = Arg(
-    ("--clear-only",),
-    action="store_true",
-    help="If passed, serialized DAGs will be cleared but not reserialized.",
-)
-
 ARG_DAG_LIST_COLUMNS = Arg(
     ("--columns",),
     type=string_list_type,
     help="List of columns to render. (default: ['dag_id', 'fileloc', 'owner', 'is_paused'])",
     default=("dag_id", "fileloc", "owners", "is_paused"),
 )
+
+ARG_ASSET_LIST_COLUMNS = Arg(
+    ("--columns",),
+    type=string_list_type,
+    help="List of columns to render. (default: ['name', 'uri', 'group', 'extra'])",
+    default=("name", "uri", "group", "extra"),
+)
+
+ARG_ASSET_NAME = Arg(("--name",), help="Asset name")
+ARG_ASSET_URI = Arg(("--uri",), help="Asset URI")
 
 ALTERNATIVE_CONN_SPECS_ARGS = [
     ARG_CONN_TYPE,
@@ -1059,6 +973,38 @@ class GroupCommand(NamedTuple):
 
 CLICommand = Union[ActionCommand, GroupCommand]
 
+ASSETS_COMMANDS = (
+    ActionCommand(
+        name="list",
+        help="List assets",
+        func=lazy_load_command("airflow.cli.commands.asset_command.asset_list"),
+        args=(ARG_OUTPUT, ARG_VERBOSE, ARG_ASSET_LIST_COLUMNS),
+    ),
+    ActionCommand(
+        name="details",
+        help="Show asset details",
+        func=lazy_load_command("airflow.cli.commands.asset_command.asset_details"),
+        args=(ARG_ASSET_NAME, ARG_ASSET_URI, ARG_OUTPUT, ARG_VERBOSE),
+    ),
+)
+BACKFILL_COMMANDS = (
+    ActionCommand(
+        name="create",
+        help="Create a backfill for a dag.",
+        description="Run subsections of a DAG for a specified date range.",
+        func=lazy_load_command("airflow.cli.commands.backfill_command.create_backfill"),
+        args=(
+            ARG_BACKFILL_DAG,
+            ARG_BACKFILL_FROM_DATE,
+            ARG_BACKFILL_TO_DATE,
+            ARG_DAG_RUN_CONF,
+            ARG_RUN_BACKWARDS,
+            ARG_MAX_ACTIVE_RUNS,
+            ARG_BACKFILL_REPROCESS_BEHAVIOR,
+            ARG_BACKFILL_DRY_RUN,
+        ),
+    ),
+)
 DAGS_COMMANDS = (
     ActionCommand(
         name="details",
@@ -1096,7 +1042,7 @@ DAGS_COMMANDS = (
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_dag_runs"),
         args=(
-            ARG_DAG_ID_REQ_FLAG,
+            ARG_DAG_ID,
             ARG_NO_BACKFILL,
             ARG_DR_STATE,
             ARG_OUTPUT,
@@ -1115,13 +1061,13 @@ DAGS_COMMANDS = (
         name="state",
         help="Get the status of a dag run",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_state"),
-        args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_LOGICAL_DATE, ARG_SUBDIR, ARG_VERBOSE),
     ),
     ActionCommand(
         name="next-execution",
-        help="Get the next execution datetimes of a DAG",
+        help="Get the next logical datetimes of a DAG",
         description=(
-            "Get the next execution datetimes of a DAG. It returns one execution unless the "
+            "Get the next logical datetimes of a DAG. It returns one execution unless the "
             "num-executions option is given"
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_next_execution"),
@@ -1231,44 +1177,10 @@ DAGS_COMMANDS = (
         ),
     ),
     ActionCommand(
-        name="backfill",
-        help="Run subsections of a DAG for a specified date range",
-        description=(
-            "Run subsections of a DAG for a specified date range. If reset_dag_run option is used, "
-            "backfill will first prompt users whether airflow should clear all the previous dag_run and "
-            "task_instances within the backfill date range. If rerun_failed_tasks is used, backfill "
-            "will auto re-run the previous failed task instances  within the backfill date range"
-        ),
-        func=lazy_load_command("airflow.cli.commands.dag_command.dag_backfill"),
-        args=(
-            ARG_DAG_ID,
-            ARG_TASK_REGEX,
-            ARG_START_DATE,
-            ARG_END_DATE,
-            ARG_MARK_SUCCESS,
-            ARG_LOCAL,
-            ARG_DONOT_PICKLE,
-            ARG_YES,
-            ARG_CONTINUE_ON_FAILURES,
-            ARG_DISABLE_RETRY,
-            ARG_BF_IGNORE_DEPENDENCIES,
-            ARG_SUBDIR,
-            ARG_POOL,
-            ARG_DELAY_ON_LIMIT,
-            ARG_DRY_RUN,
-            ARG_VERBOSE,
-            ARG_CONF,
-            ARG_RESET_DAG_RUN,
-            ARG_RERUN_FAILED_TASKS,
-            ARG_RUN_BACKWARDS,
-            ARG_TREAT_DAG_ID_AS_REGEX,
-        ),
-    ),
-    ActionCommand(
         name="test",
         help="Execute one single DagRun",
         description=(
-            "Execute one single DagRun for a given DAG and execution date.\n"
+            "Execute one single DagRun for a given DAG and logical date.\n"
             "\n"
             "The --imgcat-dagrun option only works in iTerm.\n"
             "\n"
@@ -1281,15 +1193,15 @@ DAGS_COMMANDS = (
             "see: https://www.graphviz.org/doc/info/output.html\n"
             "\n"
             "If you want to create a PNG file then you should execute the following command:\n"
-            "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.png\n"
+            "airflow dags test <DAG_ID> <LOGICAL_DATE> --save-dagrun output.png\n"
             "\n"
             "If you want to create a DOT file then you should execute the following command:\n"
-            "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.dot\n"
+            "airflow dags test <DAG_ID> <LOGICAL_DATE> --save-dagrun output.dot\n"
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_test"),
         args=(
             ARG_DAG_ID,
-            ARG_EXECUTION_DATE_OPTIONAL,
+            ARG_LOGICAL_DATE_OPTIONAL,
             ARG_CONF,
             ARG_SUBDIR,
             ARG_SHOW_DAGRUN,
@@ -1302,15 +1214,14 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name="reserialize",
-        help="Reserialize all DAGs by parsing the DagBag files",
+        help="Reserialize DAGs by parsing the DagBag files",
         description=(
-            "Drop all serialized dags from the metadata DB. This will cause all DAGs to be reserialized "
-            "from the DagBag folder. This can be helpful if your serialized DAGs get out of sync with the "
-            "version of Airflow that you are running."
+            "Reserialize DAGs in the metadata DB. This can be "
+            "particularly useful if your serialized DAGs become out of sync with the Airflow "
+            "version you are using."
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_reserialize"),
         args=(
-            ARG_CLEAR_ONLY,
             ARG_SUBDIR,
             ARG_VERBOSE,
         ),
@@ -1349,7 +1260,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_RUN_ID,
+            ARG_LOGICAL_DATE_OR_RUN_ID,
             ARG_SUBDIR,
             ARG_VERBOSE,
             ARG_MAP_INDEX,
@@ -1364,7 +1275,7 @@ TASKS_COMMANDS = (
             "and then run by an executor."
         ),
         func=lazy_load_command("airflow.cli.commands.task_command.task_failed_deps"),
-        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_EXECUTION_DATE_OR_RUN_ID, ARG_SUBDIR, ARG_MAP_INDEX, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_TASK_ID, ARG_LOGICAL_DATE_OR_RUN_ID, ARG_SUBDIR, ARG_MAP_INDEX, ARG_VERBOSE),
     ),
     ActionCommand(
         name="render",
@@ -1373,7 +1284,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_RUN_ID,
+            ARG_LOGICAL_DATE_OR_RUN_ID,
             ARG_SUBDIR,
             ARG_VERBOSE,
             ARG_MAP_INDEX,
@@ -1386,7 +1297,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_RUN_ID,
+            ARG_LOGICAL_DATE_OR_RUN_ID,
             ARG_SUBDIR,
             ARG_MARK_SUCCESS,
             ARG_FORCE,
@@ -1397,9 +1308,6 @@ TASKS_COMMANDS = (
             ARG_IGNORE_ALL_DEPENDENCIES,
             ARG_IGNORE_DEPENDENCIES,
             ARG_DEPENDS_ON_PAST,
-            ARG_SHIP_DAG,
-            ARG_PICKLE,
-            ARG_JOB_ID,
             ARG_INTERACTIVE,
             ARG_SHUT_DOWN_LOGGING,
             ARG_MAP_INDEX,
@@ -1418,7 +1326,7 @@ TASKS_COMMANDS = (
         args=(
             ARG_DAG_ID,
             ARG_TASK_ID,
-            ARG_EXECUTION_DATE_OR_RUN_ID_OPTIONAL,
+            ARG_LOGICAL_DATE_OR_RUN_ID_OPTIONAL,
             ARG_SUBDIR,
             ARG_DRY_RUN,
             ARG_TASK_PARAMS,
@@ -1432,7 +1340,7 @@ TASKS_COMMANDS = (
         name="states-for-dag-run",
         help="Get the status of all task instances in a dag run",
         func=lazy_load_command("airflow.cli.commands.task_command.task_states_for_dag_run"),
-        args=(ARG_DAG_ID, ARG_EXECUTION_DATE_OR_RUN_ID, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_LOGICAL_DATE_OR_RUN_ID, ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
 POOLS_COMMANDS = (
@@ -1880,7 +1788,7 @@ KUBERNETES_COMMANDS = (
         help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
         "launching into a cluster",
         func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.generate_pod_yaml"),
-        args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_LOGICAL_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH, ARG_VERBOSE),
     ),
 )
 
@@ -1917,9 +1825,19 @@ core_commands: list[CLICommand] = [
         subcommands=DAGS_COMMANDS,
     ),
     GroupCommand(
+        name="backfill",
+        help="Manage backfills",
+        subcommands=BACKFILL_COMMANDS,
+    ),
+    GroupCommand(
         name="tasks",
         help="Manage tasks",
         subcommands=TASKS_COMMANDS,
+    ),
+    GroupCommand(
+        name="assets",
+        help="Manage assets",
+        subcommands=ASSETS_COMMANDS,
     ),
     GroupCommand(
         name="pools",
@@ -1996,6 +1914,7 @@ core_commands: list[CLICommand] = [
             ARG_FASTAPI_API_ACCESS_LOGFILE,
             ARG_FASTAPI_API_ERROR_LOGFILE,
             ARG_FASTAPI_API_ACCESS_LOGFORMAT,
+            ARG_FASTAPI_API_APPS,
             ARG_LOG_FILE,
             ARG_SSL_CERT,
             ARG_SSL_KEY,
@@ -2009,7 +1928,6 @@ core_commands: list[CLICommand] = [
         args=(
             ARG_SUBDIR,
             ARG_NUM_RUNS,
-            ARG_DO_PICKLE,
             ARG_PID,
             ARG_DAEMON,
             ARG_STDOUT,
@@ -2051,7 +1969,6 @@ core_commands: list[CLICommand] = [
             ARG_DAEMON,
             ARG_SUBDIR,
             ARG_NUM_RUNS,
-            ARG_DO_PICKLE,
             ARG_STDOUT,
             ARG_STDERR,
             ARG_LOG_FILE,
@@ -2116,33 +2033,6 @@ core_commands: list[CLICommand] = [
         args=(),
     ),
 ]
-
-if _ENABLE_AIP_44:
-    core_commands.append(
-        ActionCommand(
-            name="internal-api",
-            help="Start an Airflow Internal API instance",
-            func=lazy_load_command("airflow.cli.commands.internal_api_command.internal_api"),
-            args=(
-                ARG_INTERNAL_API_PORT,
-                ARG_INTERNAL_API_WORKERS,
-                ARG_INTERNAL_API_WORKERCLASS,
-                ARG_INTERNAL_API_WORKER_TIMEOUT,
-                ARG_INTERNAL_API_HOSTNAME,
-                ARG_PID,
-                ARG_DAEMON,
-                ARG_STDOUT,
-                ARG_STDERR,
-                ARG_INTERNAL_API_ACCESS_LOGFILE,
-                ARG_INTERNAL_API_ERROR_LOGFILE,
-                ARG_INTERNAL_API_ACCESS_LOGFORMAT,
-                ARG_LOG_FILE,
-                ARG_SSL_CERT,
-                ARG_SSL_KEY,
-                ARG_DEBUG,
-            ),
-        ),
-    )
 
 
 def _remove_dag_id_opt(command: ActionCommand):

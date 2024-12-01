@@ -607,7 +607,7 @@ USER airflow
 
 COPY --chown=airflow:0 airflow/example_dags/ /opt/airflow/dags/
 
-COPY --chown=airflow:0 airflow/providers/cncf/kubernetes/kubernetes_executor_templates/ /opt/airflow/pod_templates/
+COPY --chown=airflow:0 providers/src/airflow/providers/cncf/kubernetes/kubernetes_executor_templates/ /opt/airflow/pod_templates/
 
 ENV GUNICORN_CMD_ARGS='--preload' AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL=0
 """
@@ -974,8 +974,15 @@ def configure_cluster(
             output=None,
         )
         if return_code == 0:
-            get_console().print("\n[warning]NEXT STEP:[/][info] You might now build your k8s image by:\n")
-            get_console().print("\nbreeze k8s build-k8s-image\n")
+            get_console().print(
+                "\n[warning]NEXT STEP:[/][info] You might now build your k8s image "
+                "with all latest dependencies:\n"
+            )
+            get_console().print("\n breeze k8s build-k8s-image --rebuild-base-image\n")
+            get_console().print(
+                "\n[info]Later you can build image without --rebuild-base-image until "
+                "airflow dependencies change (to speed up rebuilds).\n"
+            )
         sys.exit(return_code)
 
 
@@ -998,7 +1005,6 @@ def _deploy_helm_chart(
         get_console(output=output).print(f"[info]Copied chart sources to {tmp_chart_path}")
         kubectl_context = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
         params = BuildProdParams(python=python)
-        airflow_kubernetes_image_name = params.airflow_image_kubernetes
         helm_command = [
             "helm",
             "upgrade" if upgrade else "install",
@@ -1011,13 +1017,13 @@ def _deploy_helm_chart(
             "--namespace",
             HELM_AIRFLOW_NAMESPACE,
             "--set",
-            f"defaultAirflowRepository={airflow_kubernetes_image_name}",
+            f"defaultAirflowRepository={params.airflow_image_kubernetes}",
             "--set",
             "defaultAirflowTag=latest",
             "-v",
             "1",
             "--set",
-            f"images.airflow.repository={airflow_kubernetes_image_name}",
+            f"images.airflow.repository={params.airflow_image_kubernetes}",
             "--set",
             "images.airflow.tag=latest",
             "-v",
@@ -1028,6 +1034,8 @@ def _deploy_helm_chart(
             "config.logging.logging_level=DEBUG",
             "--set",
             f"executor={executor}",
+            "--set",
+            f"airflowVersion={params.airflow_semver_version}",
         ]
         if multi_namespace_mode:
             helm_command.extend(["--set", "multiNamespaceMode=true"])
@@ -1429,15 +1437,14 @@ def _run_tests(
         extra_shell_args.append("--no-rcs")
     elif shell_binary.endswith("bash"):
         extra_shell_args.extend(["--norc", "--noprofile"])
-    the_tests: list[str] = []
-    command_to_run = " ".join([quote(arg) for arg in ["pytest", *the_tests, *test_args]])
+    the_tests: list[str] = ["kubernetes_tests/"]
+    command_to_run = " ".join([quote(arg) for arg in ["uv", "run", "pytest", *the_tests, *test_args]])
     get_console(output).print(f"[info] Command to run:[/] {command_to_run}")
     result = run_command(
         [shell_binary, *extra_shell_args, "-c", command_to_run],
         output=output,
         env=env,
         check=False,
-        cwd="kubernetes_tests",
     )
     return result.returncode, f"Tests {kubectl_cluster_name}"
 

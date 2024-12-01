@@ -20,6 +20,7 @@
 /**
  * @import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
  */
+import { fixupPluginRules } from "@eslint/compat";
 import jsxA11y from "eslint-plugin-jsx-a11y";
 import react from "eslint-plugin-react";
 import reactHooks from "eslint-plugin-react-hooks";
@@ -57,7 +58,7 @@ export const reactRefreshNamespace = "react-refresh";
 export const reactRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
   plugins: {
     [jsxA11yNamespace]: jsxA11y,
-    [reactHooksNamespace]: reactHooks,
+    [reactHooksNamespace]: fixupPluginRules(reactHooks),
     [reactNamespace]: react,
     [reactRefreshNamespace]: reactRefresh,
   },
@@ -439,17 +440,6 @@ export const reactRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
     [`${reactNamespace}/iframe-missing-sandbox`]: ERROR,
 
     /**
-     * Enforce boolean attributes notation in JSX to never set it explicitly.
-     *
-     * @see [react/jsx-boolean-value](https://github.com/jsx-eslint/eslint-plugin-react/blob/HEAD/docs/rules/jsx-boolean-value.md)
-     */
-    [`${reactNamespace}/jsx-boolean-value`]: [
-      ERROR,
-      "never",
-      { assumeUndefinedIsFalse: true },
-    ],
-
-    /**
      * Enforce curly braces or braces in JSX props and/or children.
      *
      * @see [react/jsx-curly-brace-presence](https://github.com/jsx-eslint/eslint-plugin-react/blob/HEAD/docs/rules/jsx-curly-brace-presence.md)
@@ -476,13 +466,6 @@ export const reactRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * @see [react/jsx-max-depth](https://github.com/jsx-eslint/eslint-plugin-react/blob/HEAD/docs/rules/jsx-max-depth.md)
      */
     [`${reactNamespace}/jsx-max-depth`]: [ERROR, { max: 5 }],
-
-    /**
-     * Disallow `Function#bind` or arrow functions in JSX props.
-     *
-     * @see [react/jsx-no-bind](https://github.com/jsx-eslint/eslint-plugin-react/blob/HEAD/docs/rules/jsx-no-bind.md)
-     */
-    [`${reactNamespace}/jsx-no-bind`]: ERROR,
 
     /**
      * Disallow comments from being inserted as text nodes.

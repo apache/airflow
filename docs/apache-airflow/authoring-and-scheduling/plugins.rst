@@ -108,12 +108,12 @@ looks like:
     class AirflowPlugin:
         # The name of your plugin (str)
         name = None
-        # A list of class(es) derived from BaseHook
-        hooks = []
         # A list of references to inject into the macros namespace
         macros = []
         # A list of Blueprint object created from flask.Blueprint. For use with the flask_appbuilder based GUI
         flask_blueprints = []
+        # A list of dictionaries contanning FastAPI object and some metadata. See example below.
+        fastapi_apps = []
         # A list of dictionaries containing FlaskAppBuilder BaseView object and some metadata. See example below
         appbuilder_views = []
         # A list of dictionaries containing kwargs for FlaskAppBuilder add_link. See example below
@@ -171,17 +171,13 @@ definitions in Airflow.
     from airflow.security import permissions
     from airflow.www.auth import has_access
 
+    from fastapi import FastAPI
     from flask import Blueprint
     from flask_appbuilder import expose, BaseView as AppBuilderBaseView
 
     # Importing base classes that we need to derive
     from airflow.hooks.base import BaseHook
     from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
-
-
-    # Will show up in Connections screen in a future version
-    class PluginHook(BaseHook):
-        pass
 
 
     # Will show up under airflow.macros.test_plugin.plugin_macro
@@ -198,6 +194,17 @@ definitions in Airflow.
         static_folder="static",
         static_url_path="/static/test_plugin",
     )
+
+    # Creating a FastAPI application to integrate in airflow Rest API.
+    app = FastAPI()
+
+
+    @app.get("/")
+    async def root():
+        return {"message": "Hello World from FastAPI plugin"}
+
+
+    app_with_metadata = {"app": app, "url_prefix": "/some_prefix", "name": "Name of the App"}
 
 
     # Creating a flask appbuilder BaseView
@@ -253,9 +260,9 @@ definitions in Airflow.
     # Defining the plugin class
     class AirflowTestPlugin(AirflowPlugin):
         name = "test_plugin"
-        hooks = [PluginHook]
         macros = [plugin_macro]
         flask_blueprints = [bp]
+        fastapi_apps = [app_with_metadata]
         appbuilder_views = [v_appbuilder_package, v_appbuilder_nomenu_package]
         appbuilder_menu_items = [appbuilder_mitem, appbuilder_mitem_toplevel]
 

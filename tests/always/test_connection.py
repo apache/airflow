@@ -32,8 +32,8 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection, crypto
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
-from airflow.providers_manager import HookInfo
-from tests.test_utils.config import conf_vars
+
+from tests_common.test_utils.config import conf_vars
 
 ConnectionParts = namedtuple("ConnectionParts", ["conn_type", "login", "password", "host", "port", "schema"])
 
@@ -592,11 +592,11 @@ class TestConnection:
     )
     def test_using_env_var(self):
         conn = SqliteHook.get_connection(conn_id="test_uri")
-        assert "ec2.compute.com" == conn.host
-        assert "the_database" == conn.schema
-        assert "username" == conn.login
-        assert "password!" == conn.password
-        assert 5432 == conn.port
+        assert conn.host == "ec2.compute.com"
+        assert conn.schema == "the_database"
+        assert conn.login == "username"
+        assert conn.password == "password!"
+        assert conn.port == 5432
 
         self.mask_secret.assert_has_calls([mock.call("password!"), mock.call(quote("password!"))])
 
@@ -608,8 +608,8 @@ class TestConnection:
     )
     def test_using_unix_socket_env_var(self):
         conn = SqliteHook.get_connection(conn_id="test_uri_no_creds")
-        assert "ec2.compute.com" == conn.host
-        assert "the_database" == conn.schema
+        assert conn.host == "ec2.compute.com"
+        assert conn.schema == "the_database"
         assert conn.login is None
         assert conn.password is None
         assert conn.port is None
@@ -623,16 +623,16 @@ class TestConnection:
             password="airflow",
             schema="airflow",
         )
-        assert "localhost" == conn.host
-        assert "airflow" == conn.schema
-        assert "airflow" == conn.login
-        assert "airflow" == conn.password
+        assert conn.host == "localhost"
+        assert conn.schema == "airflow"
+        assert conn.login == "airflow"
+        assert conn.password == "airflow"
         assert conn.port is None
 
     @pytest.mark.db_test
     def test_env_var_priority(self):
         conn = SqliteHook.get_connection(conn_id="airflow_db")
-        assert "ec2.compute.com" != conn.host
+        assert conn.host != "ec2.compute.com"
 
         with mock.patch.dict(
             "os.environ",
@@ -641,11 +641,11 @@ class TestConnection:
             },
         ):
             conn = SqliteHook.get_connection(conn_id="airflow_db")
-            assert "ec2.compute.com" == conn.host
-            assert "the_database" == conn.schema
-            assert "username" == conn.login
-            assert "password" == conn.password
-            assert 5432 == conn.port
+            assert conn.host == "ec2.compute.com"
+            assert conn.schema == "the_database"
+            assert conn.login == "username"
+            assert conn.password == "password"
+            assert conn.port == 5432
 
     @mock.patch.dict(
         "os.environ",
@@ -657,10 +657,10 @@ class TestConnection:
     def test_dbapi_get_uri(self):
         conn = BaseHook.get_connection(conn_id="test_uri")
         hook = conn.get_hook()
-        assert "postgresql://username:password@ec2.compute.com:5432/the_database" == hook.get_uri()
+        assert hook.get_uri() == "postgresql://username:password@ec2.compute.com:5432/the_database"
         conn2 = BaseHook.get_connection(conn_id="test_uri_no_creds")
         hook2 = conn2.get_hook()
-        assert "postgresql://ec2.compute.com/the_database" == hook2.get_uri()
+        assert hook2.get_uri() == "postgresql://ec2.compute.com/the_database"
 
     @mock.patch.dict(
         "os.environ",
@@ -674,7 +674,7 @@ class TestConnection:
         hook = conn.get_hook()
         engine = hook.get_sqlalchemy_engine()
         assert isinstance(engine, sqlalchemy.engine.Engine)
-        assert "postgresql://username:password@ec2.compute.com:5432/the_database" == str(engine.url)
+        assert str(engine.url) == "postgresql://username:password@ec2.compute.com:5432/the_database"
 
     @mock.patch.dict(
         "os.environ",
@@ -834,31 +834,3 @@ class TestConnection:
         assert restored_conn.schema == conn.schema
         assert restored_conn.port == conn.port
         assert restored_conn.extra_dejson == conn.extra_dejson
-
-    def test_get_hook_not_found(self):
-        with mock.patch("airflow.providers_manager.ProvidersManager") as m:
-            m.return_value.hooks = {}
-            with pytest.raises(AirflowException, match='Unknown hook type "awesome-test-conn-type"'):
-                Connection(conn_type="awesome-test-conn-type").get_hook()
-
-    def test_get_hook_import_error(self, caplog):
-        with mock.patch("airflow.providers_manager.ProvidersManager") as m:
-            m.return_value.hooks = {
-                "awesome-test-conn-type": HookInfo(
-                    hook_class_name="foo.bar.AwesomeTest",
-                    connection_id_attribute_name="conn-id",
-                    package_name="test.package",
-                    hook_name="Awesome Connection",
-                    connection_type="awesome-test-conn-type",
-                    connection_testable=False,
-                )
-            }
-            caplog.clear()
-            caplog.set_level("ERROR", "airflow.models.connection")
-            with pytest.raises(ImportError):
-                Connection(conn_type="awesome-test-conn-type").get_hook()
-
-            assert caplog.messages
-            assert caplog.messages[0] == (
-                "Could not import foo.bar.AwesomeTest when discovering Awesome Connection test.package"
-            )

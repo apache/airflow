@@ -35,14 +35,69 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.20.0
+......
+
+Latest change: 2024-11-13
+
+=================================================================================================  ===========  ========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================
+`e7194dff6a <https://github.com/apache/airflow/commit/e7194dff6a816bf3a721cbf579ceac19c11cd111>`_  2024-11-13   ``Add support for semicolon stripping to DbApiHook, PrestoHook, and TrinoHook (#41916)``
+`d8c7d28411 <https://github.com/apache/airflow/commit/d8c7d28411bea04ae5771fc1e2973d92eb0a144e>`_  2024-10-30   ``Start porting DAG definition code to the Task SDK (#43076)``
+=================================================================================================  ===========  ========================================================================================
+
+1.19.0
+......
+
+Latest change: 2024-10-27
+
+=================================================================================================  ===========  ================================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================================================================
+`78ff0a9970 <https://github.com/apache/airflow/commit/78ff0a99700125121b7f0647023503750f14a11b>`_  2024-10-27   ``Prepare docs for Oct 2nd wave of providers (#43409)``
+`a70038223e <https://github.com/apache/airflow/commit/a70038223e4a516576cdbab353f4e59ac61e1657>`_  2024-10-26   ``fix mypy failure (#43206)``
+`2c394e3c85 <https://github.com/apache/airflow/commit/2c394e3c85d77a3a0331687186dfcee89e286035>`_  2024-10-25   ``Feature: Added fast_executemany parameter to insert_rows of DbApiHook (#43357)``
+`4d54cda411 <https://github.com/apache/airflow/commit/4d54cda4114125bb671b0bfccddc73b646855a2d>`_  2024-10-24   ``Make conn id parameters templated in GenericTransfer and also allow passing hook parameters like in BaseSQLOperator (#42891)``
+`b86bb24984 <https://github.com/apache/airflow/commit/b86bb24984b69067f09dd13c03c785058d2ed572>`_  2024-10-18   ``37437 (#43107)``
+`857ca4c06c <https://github.com/apache/airflow/commit/857ca4c06c9008593674cabdd28d3c30e3e7f97b>`_  2024-10-09   ``Split providers out of the main "airflow/" tree into a UV workspace project (#42505)``
+=================================================================================================  ===========  ================================================================================================================================
+
+1.18.0
+......
+
+Latest change: 2024-10-09
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`2bb8628463 <https://github.com/apache/airflow/commit/2bb862846358d1c5a59b354adb39bc68d5aeae5e>`_  2024-10-09   ``Prepare docs for Oct 1st adhoc wave of providers (#42862)``
+`9ba45b6d5f <https://github.com/apache/airflow/commit/9ba45b6d5f474f5c39c563f98dd87afa4245a115>`_  2024-10-07   ``FIX: Only pass connection to sqlalchemy engine in JdbcHook (#42705)``
+`5973c9cce1 <https://github.com/apache/airflow/commit/5973c9cce1a51042298e198df2097a94fd48ac5d>`_  2024-10-04   ``feat(providers/common/sql): add warning to connection setter (#42736)``
+=================================================================================================  ===========  =========================================================================
+
+1.17.1
+......
+
+Latest change: 2024-09-27
+
+=================================================================================================  ===========  ==============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================================
+`bcee926d49 <https://github.com/apache/airflow/commit/bcee926d494cabf4ddfa9f2569e36acc5b4d281d>`_  2024-09-27   ``Prepare docs for Sep 2nd adhoc wave of providers (#42519)``
+`7ad586ed6a <https://github.com/apache/airflow/commit/7ad586ed6a6cb93fc25ae0405eb9f6c17d360ef0>`_  2024-09-26   ``fix(providers/common/sql): add dummy connection setter for backward compatibility (#42490)``
+`47c71108a8 <https://github.com/apache/airflow/commit/47c71108a8d0c1dcddc027554ec2747070f8f6ad>`_  2024-09-22   ``Changed type hinting for handler function (#42275)``
+=================================================================================================  ===========  ==============================================================================================
+
 1.17.0
 ......
 
-Latest change: 2024-09-05
+Latest change: 2024-09-21
 
 =================================================================================================  ===========  =================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================
+`7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
 `17c30b4f21 <https://github.com/apache/airflow/commit/17c30b4f21432d7fc419e048305315bba6d04522>`_  2024-09-05   ``feat: log client db messages for provider postgres (#40171)``
 `2e813eb87d <https://github.com/apache/airflow/commit/2e813eb87d7793d7bb2a2fbb4e485c896c1dc2c4>`_  2024-09-04   ``Generalize caching of connection in DbApiHook to improve performance (#40751)``
 `1613e9ec1c <https://github.com/apache/airflow/commit/1613e9ec1c4e5523953e045c8adcef1b9d4ce95d>`_  2024-08-25   ``remove soft_fail (#41710)``
@@ -176,6 +231,7 @@ Commit                                                                          
 =================================================================================================  ===========  ===========================================================================================================================
 `75182363a2 <https://github.com/apache/airflow/commit/75182363a2070145745b98fa040e9bc590e3853b>`_  2024-02-17   ``Prepare docs 1st wave (RC2) of Providers February 2024 (#37471)``
 `5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+`a457a75c05 <https://github.com/apache/airflow/commit/a457a75c05a36309ff6d1b486590dcdab8f94838>`_  2024-02-15   ``Added Supported Database Types (#37376)``
 `b6ca84701e <https://github.com/apache/airflow/commit/b6ca84701e278667bd62c829f7b1f781d27555fe>`_  2024-02-15   ``Fix SQLThresholdCheckOperator error on falsey vals (#37150)``
 `560d073943 <https://github.com/apache/airflow/commit/560d07394330e3fe356561a955f619a685edc511>`_  2024-02-12   ``Add more-itertools as dependency of common-sql (#37359)``
 `bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
@@ -243,6 +299,8 @@ Commit                                                                          
 `99df205f42 <https://github.com/apache/airflow/commit/99df205f42a754aa67f80b5983e1d228ff23267f>`_  2023-11-16   ``Fix and reapply templates for provider documentation (#35686)``
 `1b059c57d6 <https://github.com/apache/airflow/commit/1b059c57d6d57d198463e5388138bee8a08591b1>`_  2023-11-08   ``Prepare docs 1st wave of Providers November 2023 (#35537)``
 `11bdfe4c12 <https://github.com/apache/airflow/commit/11bdfe4c12efa2f5d256cc49916a20beaa5487eb>`_  2023-11-07   ``Work around typing issue in examples and providers (#35494)``
+`706878ec35 <https://github.com/apache/airflow/commit/706878ec354cf867440c367a95c85753c19e54de>`_  2023-11-04   ``Remove empty lines in generated changelog (#35436)``
+`052e26ad47 <https://github.com/apache/airflow/commit/052e26ad473a9d50f0b96456ed094f2087ee4434>`_  2023-11-04   ``Change security.rst to use includes in providers (#35435)``
 `d1c58d86de <https://github.com/apache/airflow/commit/d1c58d86de1267d9268a1efe0a0c102633c051a1>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 - FIX (#35233)``
 `3592ff4046 <https://github.com/apache/airflow/commit/3592ff40465032fa041600be740ee6bc25e7c242>`_  2023-10-28   ``Prepare docs 3rd wave of Providers October 2023 (#35187)``
 `dd7ba3cae1 <https://github.com/apache/airflow/commit/dd7ba3cae139cb10d71c5ebc25fc496c67ee784e>`_  2023-10-19   ``Pre-upgrade 'ruff==0.0.292' changes in providers (#35053)``
@@ -328,6 +386,7 @@ Commit                                                                          
 =================================================================================================  ===========  =======================================================================
 `d06b7af69a <https://github.com/apache/airflow/commit/d06b7af69a65c50321ba2a9904551f3b8affc7f1>`_  2023-07-29   ``Prepare docs for July 2023 3rd wave of Providers (#32875)``
 `ce2841bf6a <https://github.com/apache/airflow/commit/ce2841bf6ab609f31cb04aea9a39473de281bf24>`_  2023-07-25   ``Add default port to Openlineage authority method. (#32828)``
+`73b90c48b1 <https://github.com/apache/airflow/commit/73b90c48b1933b49086d34176527947bd727ec85>`_  2023-07-21   ``Allow configuration to be contributed by providers (#32604)``
 `60c49ab2df <https://github.com/apache/airflow/commit/60c49ab2dfabaf450b80a5c7569743dd383500a6>`_  2023-07-19   ``Add more accurate typing for DbApiHook.run method (#31846)``
 `ef0ed1aacc <https://github.com/apache/airflow/commit/ef0ed1aacc208be9e52a35211d2beaefb735173a>`_  2023-07-06   ``Fix local OpenLineage import in 'SQLExecuteQueryOperator'. (#32400)``
 =================================================================================================  ===========  =======================================================================
@@ -416,6 +475,7 @@ Commit                                                                          
 =================================================================================================  ===========  =============================================================================
 `fcd3c0149f <https://github.com/apache/airflow/commit/fcd3c0149f17b364dfb94c0523d23e3145976bbe>`_  2023-03-03   ``Prepare docs for 03/2023 wave of Providers (#29878)``
 `19f1e7c27b <https://github.com/apache/airflow/commit/19f1e7c27b85e297497842c73f13533767ebd6ba>`_  2023-02-22   ``Do not process output when do_xcom_push=False  (#29599)``
+`ce6ae2457e <https://github.com/apache/airflow/commit/ce6ae2457ef3d9f44f0086b58026909170bbf22a>`_  2023-02-08   ``Prepare docs for Feb 2023 wave of Providers (#29379)``
 `0af6f20c5f <https://github.com/apache/airflow/commit/0af6f20c5f36c6cac3fc1b23ff47763ea2c24ba2>`_  2023-01-30   ``Make the S3-to-SQL system test self-contained (#29204)``
 `129f0820cd <https://github.com/apache/airflow/commit/129f0820cd03c721ebebe3461489f255bb9e752c>`_  2023-01-23   ``Make static checks generated file  more stable accross the board (#29080)``
 =================================================================================================  ===========  =============================================================================
@@ -445,6 +505,7 @@ Commit                                                                          
 `f115b207bc <https://github.com/apache/airflow/commit/f115b207bc844c10569b2df6fc9acfa32a3c7f41>`_  2022-12-18   ``fIx isort problems introduced by recent isort release (#28434)``
 `a6cda7cd23 <https://github.com/apache/airflow/commit/a6cda7cd230ef22f7fe042d6d5e9f78c660c4a75>`_  2022-12-10   ``Fix template rendering for Common SQL operators (#28202)``
 `6852f3fbea <https://github.com/apache/airflow/commit/6852f3fbea5dd0fa6b8a289d2f9f11dd2159053d>`_  2022-12-05   ``Add pre-commits preventing accidental API changes in common.sql (#27962)``
+`c8e348dcb0 <https://github.com/apache/airflow/commit/c8e348dcb0bae27e98d68545b59388c9f91fc382>`_  2022-12-05   ``Add automated version replacement in example dag indexes (#28090)``
 `a158fbb6bd <https://github.com/apache/airflow/commit/a158fbb6bde07cd20003680a4cf5e7811b9eda98>`_  2022-11-28   ``Clarify docstrings for updated DbApiHook (#27966)``
 =================================================================================================  ===========  ==================================================================================
 
@@ -481,6 +542,7 @@ Commit                                                                          
 `2a34dc9e84 <https://github.com/apache/airflow/commit/2a34dc9e8470285b0ed2db71109ef4265e29688b>`_  2022-10-23   ``Enable string normalization in python formatting - providers (#27205)``
 `ecd4d6654f <https://github.com/apache/airflow/commit/ecd4d6654ff8e0da4a7b8f29fd23c37c9c219076>`_  2022-10-18   ``Add SQLExecuteQueryOperator (#25717)``
 `76014609c0 <https://github.com/apache/airflow/commit/76014609c07bfa307ef7598794d1c0404c5279bd>`_  2022-10-09   ``DbApiHook consistent insert_rows logging (#26758)``
+`674f9ce6ea <https://github.com/apache/airflow/commit/674f9ce6eaae533cfe31bc92cc92fa75ed7223fc>`_  2022-10-01   ``A few docs fixups (#26788)``
 `f8db64c35c <https://github.com/apache/airflow/commit/f8db64c35c8589840591021a48901577cff39c07>`_  2022-09-28   ``Update docs for September Provider's release (#26731)``
 `06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
 =================================================================================================  ===========  ====================================================================================
@@ -512,6 +574,7 @@ Commit                                                                          
 `7d0525a55b <https://github.com/apache/airflow/commit/7d0525a55b93e5c8de8a9ef0c8dde0f9c93bb80c>`_  2022-08-15   ``Prepare documentation for RC4 release of providers (#25720)``
 `7a19651369 <https://github.com/apache/airflow/commit/7a19651369790e2abb563d96a42f41ec31ebfb85>`_  2022-08-15   ``Fix SQL split string to include ';-less' statements (#25713)``
 `5923788143 <https://github.com/apache/airflow/commit/5923788143e7871b56de5164b96a407b2fba75b8>`_  2022-08-10   ``Fix CHANGELOG for common.sql provider and add amazon commit (#25636)``
+`e5ac6c7cfb <https://github.com/apache/airflow/commit/e5ac6c7cfb189c33e3b247f7d5aec59fe5e89a00>`_  2022-08-10   ``Prepare docs for new providers release (August 2022) (#25618)``
 `d82436b382 <https://github.com/apache/airflow/commit/d82436b382c41643a7385af8a58c50c106b0d01a>`_  2022-08-05   ``Fix fetch_all_handler & db-api tests for it (#25430)``
 `348a28957a <https://github.com/apache/airflow/commit/348a28957ae9c4601d69be4f312dae07a6a521a7>`_  2022-08-04   ``Align Common SQL provider logo location (#25538)``
 `acab8f52dd <https://github.com/apache/airflow/commit/acab8f52dd8d90fd6583779127895dd343780f79>`_  2022-07-29   ``Move all "old" SQL operators to common.sql providers (#25350)``
@@ -524,10 +587,11 @@ Commit                                                                          
 1.0.0
 .....
 
-Latest change: 2022-07-07
+Latest change: 2022-07-13
 
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  ===============================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  ===============================================================
+`d2459a241b <https://github.com/apache/airflow/commit/d2459a241b54d596ebdb9d81637400279fff4f2d>`_  2022-07-13   ``Add documentation for July 2022 Provider's release (#25030)``
 `46bbfdade0 <https://github.com/apache/airflow/commit/46bbfdade0638cb8a5d187e47034b84e68ddf762>`_  2022-07-07   ``Move all SQL classes to common-sql provider (#24836)``
-=================================================================================================  ===========  ========================================================
+=================================================================================================  ===========  ===============================================================

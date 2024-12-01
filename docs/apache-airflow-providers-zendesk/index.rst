@@ -48,7 +48,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/zendesk/index>
+    System Tests <_api/tests/system/zendesk/index>
 
 .. toctree::
     :hidden:

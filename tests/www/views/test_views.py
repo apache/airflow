@@ -25,7 +25,6 @@ from unittest.mock import patch
 import pytest
 from markupsafe import Markup
 
-from airflow import __version__ as airflow_version
 from airflow.configuration import (
     initialize_config,
     write_default_airflow_configuration_if_needed,
@@ -36,16 +35,16 @@ from airflow.utils.docs import get_doc_url_for_provider
 from airflow.utils.task_group import TaskGroup
 from airflow.www.views import (
     ProviderView,
-    build_scarf_url,
     get_key_paths,
     get_safe_url,
     get_task_stats_from_query,
     get_value_from_path,
 )
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from tests.test_utils.config import conf_vars
-from tests.test_utils.mock_plugins import mock_plugin_manager
-from tests.test_utils.www import check_content_in_response, check_content_not_in_response
+
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.mock_plugins import mock_plugin_manager
+from tests_common.test_utils.www import check_content_in_response, check_content_not_in_response
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
@@ -85,7 +84,7 @@ def test_webserver_configuration_config_file(mock_webserver_config_global, admin
         conf = write_default_airflow_configuration_if_needed()
         write_webserver_configuration_if_needed(conf)
         initialize_config()
-        assert airflow.configuration.WEBSERVER_CONFIG == config_file
+        assert config_file == airflow.configuration.WEBSERVER_CONFIG
 
     assert os.path.isfile(config_file)
 
@@ -225,11 +224,11 @@ def test_endpoint_should_not_be_unauthenticated(app):
     "url, content",
     [
         (
-            "/taskinstance/list/?_flt_0_execution_date=2018-10-09+22:44:31",
+            "/taskinstance/list/?_flt_0_logical_date=2018-10-09+22:44:31",
             "List Task Instance",
         ),
         (
-            "/taskreschedule/list/?_flt_0_execution_date=2018-10-09+22:44:31",
+            "/taskreschedule/list/?_flt_0_logical_date=2018-10-09+22:44:31",
             "List Task Reschedule",
         ),
     ],
@@ -318,7 +317,6 @@ def test_mark_task_instance_state(test_app):
     Test that _mark_task_instance_state() does all three things:
     - Marks the given TaskInstance as SUCCESS;
     - Clears downstream TaskInstances in FAILED/UPSTREAM_FAILED state;
-    - Set DagRun to QUEUED.
     """
     from airflow.models.dag import DAG
     from airflow.models.dagbag import DagBag
@@ -329,7 +327,8 @@ def test_mark_task_instance_state(test_app):
     from airflow.utils.timezone import datetime
     from airflow.utils.types import DagRunType
     from airflow.www.views import Airflow
-    from tests.test_utils.db import clear_db_runs
+
+    from tests_common.test_utils.db import clear_db_runs
 
     clear_db_runs()
     start_date = datetime(2020, 1, 1)
@@ -345,7 +344,7 @@ def test_mark_task_instance_state(test_app):
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dagrun = dag.create_dagrun(
         start_date=start_date,
-        execution_date=start_date,
+        logical_date=start_date,
         data_interval=(start_date, start_date),
         state=State.FAILED,
         run_type=DagRunType.SCHEDULED,
@@ -358,7 +357,7 @@ def test_mark_task_instance_state(test_app):
             .filter(
                 TaskInstance.dag_id == dag.dag_id,
                 TaskInstance.task_id == task.task_id,
-                TaskInstance.execution_date == start_date,
+                TaskInstance.logical_date == start_date,
             )
             .one()
         )
@@ -422,7 +421,8 @@ def test_mark_task_group_state(test_app):
     from airflow.utils.timezone import datetime
     from airflow.utils.types import DagRunType
     from airflow.www.views import Airflow
-    from tests.test_utils.db import clear_db_runs
+
+    from tests_common.test_utils.db import clear_db_runs
 
     clear_db_runs()
     start_date = datetime(2020, 1, 1)
@@ -447,7 +447,7 @@ def test_mark_task_group_state(test_app):
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dagrun = dag.create_dagrun(
         start_date=start_date,
-        execution_date=start_date,
+        logical_date=start_date,
         data_interval=(start_date, start_date),
         state=State.FAILED,
         run_type=DagRunType.SCHEDULED,
@@ -460,7 +460,7 @@ def test_mark_task_group_state(test_app):
             .filter(
                 TaskInstance.dag_id == dag.dag_id,
                 TaskInstance.task_id == task.task_id,
-                TaskInstance.execution_date == start_date,
+                TaskInstance.logical_date == start_date,
             )
             .one()
         )
@@ -570,31 +570,31 @@ INVALID_DATETIME_RESPONSE = re.compile(r"Invalid datetime: &#x?\d+;invalid&#x?\d
     "url, content",
     [
         (
-            "/rendered-templates?execution_date=invalid",
+            "/rendered-templates?logical_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "/log?dag_id=tutorial&execution_date=invalid",
+            "/log?dag_id=tutorial&logical_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "/redirect_to_external_log?execution_date=invalid",
+            "/redirect_to_external_log?logical_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "/task?execution_date=invalid",
+            "/task?logical_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "dags/example_bash_operator/graph?execution_date=invalid",
+            "dags/example_bash_operator/graph?logical_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "dags/example_bash_operator/gantt?execution_date=invalid",
+            "dags/example_bash_operator/gantt?logical_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            "extra_links?execution_date=invalid",
+            "extra_links?logical_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
     ],
@@ -605,39 +605,3 @@ def test_invalid_dates(app, admin_client, url, content):
 
     assert resp.status_code == 400
     assert re.search(content, resp.get_data().decode())
-
-
-@pytest.mark.parametrize("enabled", [False, True])
-@patch("airflow.utils.usage_data_collection.get_platform_info", return_value=("Linux", "x86_64"))
-@patch("airflow.utils.usage_data_collection.get_database_version", return_value="12.3")
-@patch("airflow.utils.usage_data_collection.get_database_name", return_value="postgres")
-@patch("airflow.utils.usage_data_collection.get_executor", return_value="SequentialExecutor")
-@patch("airflow.utils.usage_data_collection.get_python_version", return_value="3.8")
-@patch("airflow.utils.usage_data_collection.get_plugin_counts")
-def test_build_scarf_url(
-    get_plugin_counts,
-    get_python_version,
-    get_executor,
-    get_database_name,
-    get_database_version,
-    get_platform_info,
-    enabled,
-):
-    get_plugin_counts.return_value = {
-        "plugins": 10,
-        "flask_blueprints": 15,
-        "appbuilder_views": 20,
-        "appbuilder_menu_items": 25,
-        "timetables": 30,
-    }
-    with patch("airflow.settings.is_usage_data_collection_enabled", return_value=enabled):
-        result = build_scarf_url(5)
-        expected_url = (
-            "https://apacheairflow.gateway.scarf.sh/webserver/"
-            f"{airflow_version}/3.8/Linux/x86_64/postgres/12.3/SequentialExecutor/1-5"
-            f"/6-10/15/20/25/21-50"
-        )
-        if enabled:
-            assert result == expected_url
-        else:
-            assert result == ""

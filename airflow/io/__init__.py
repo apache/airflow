@@ -18,15 +18,15 @@ from __future__ import annotations
 
 import inspect
 import logging
+from collections.abc import Mapping
+from functools import cache
 from typing import (
     TYPE_CHECKING,
     Callable,
-    Mapping,
 )
 
 from fsspec.implementations.local import LocalFileSystem
 
-from airflow.compat.functools import cache
 from airflow.providers_manager import ProvidersManager
 from airflow.stats import Stats
 from airflow.utils.module_loading import import_string

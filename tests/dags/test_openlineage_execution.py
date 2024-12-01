@@ -27,13 +27,16 @@ from airflow.providers.openlineage.extractors import OperatorLineage
 
 
 class OpenLineageExecutionOperator(BaseOperator):
-    def __init__(self, *, stall_amount=0, **kwargs) -> None:
+    def __init__(self, *, stall_amount=0, fail=False, **kwargs) -> None:
         super().__init__(**kwargs)
         self.stall_amount = stall_amount
+        self.fail = fail
 
     def execute(self, context):
         self.log.error("STALL AMOUNT %s", self.stall_amount)
         time.sleep(1)
+        if self.fail:
+            raise Exception("Failed")
 
     def get_openlineage_facets_on_start(self):
         return OperatorLineage(inputs=[Dataset(namespace="test", name="on-start")])
@@ -42,6 +45,11 @@ class OpenLineageExecutionOperator(BaseOperator):
         self.log.error("STALL AMOUNT %s", self.stall_amount)
         time.sleep(self.stall_amount)
         return OperatorLineage(inputs=[Dataset(namespace="test", name="on-complete")])
+
+    def get_openlineage_facets_on_failure(self, task_instance):
+        self.log.error("STALL AMOUNT %s", self.stall_amount)
+        time.sleep(self.stall_amount)
+        return OperatorLineage(inputs=[Dataset(namespace="test", name="on-failure")])
 
 
 with DAG(
@@ -57,3 +65,5 @@ with DAG(
     mid_stall = OpenLineageExecutionOperator(task_id="execute_mid_stall", stall_amount=15)
 
     long_stall = OpenLineageExecutionOperator(task_id="execute_long_stall", stall_amount=30)
+
+    fail = OpenLineageExecutionOperator(task_id="execute_fail", fail=True)

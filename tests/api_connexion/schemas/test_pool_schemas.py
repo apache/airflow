@@ -21,9 +21,10 @@ import pytest
 from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
 from airflow.models.pool import Pool
 from airflow.utils.session import provide_session
-from tests.test_utils.db import clear_db_pools
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+from tests_common.test_utils.db import clear_db_pools
+
+pytestmark = pytest.mark.db_test
 
 
 class TestPoolSchema:
@@ -71,7 +72,7 @@ class TestPoolCollectionSchema:
         pool_model_a = Pool(pool="test_pool_a", slots=3, include_deferred=False)
         pool_model_b = Pool(pool="test_pool_b", slots=3, include_deferred=True)
         instance = PoolCollection(pools=[pool_model_a, pool_model_b], total_entries=2)
-        assert {
+        assert pool_collection_schema.dump(instance) == {
             "pools": [
                 {
                     "name": "test_pool_a",
@@ -99,4 +100,4 @@ class TestPoolCollectionSchema:
                 },
             ],
             "total_entries": 2,
-        } == pool_collection_schema.dump(instance)
+        }

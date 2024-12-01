@@ -41,7 +41,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/apache/iceberg/index>
+    System Tests <_api/tests/system/apache/iceberg/index>
 
 
 .. toctree::

@@ -76,8 +76,7 @@ The ``dag.test`` command has the following benefits over the :class:`~airflow.ex
 class, which is now deprecated:
 
 1. It does not require running an executor at all. Tasks are run one at a time with no executor or scheduler logs.
-2. It is significantly faster than running code with a DebugExecutor as it does not need to go through a scheduler loop.
-3. It does not perform a backfill.
+2. It is faster than running code with a DebugExecutor as it does not need to go through a scheduler loop.
 
 
 Debugging Airflow DAGs on the command line
@@ -122,18 +121,9 @@ For more information on setting the configuration, see :doc:`../../howto/set-con
 
 1. Add ``main`` block at the end of your DAG file to make it runnable.
 
-It will run a backfill job:
-
 .. code-block:: python
 
   if __name__ == "__main__":
-      from airflow.utils.state import State
+      dag.test()
 
-      dag.clear()
-      dag.run()
-
-
-2. Setup ``AIRFLOW__CORE__EXECUTOR=DebugExecutor`` in run configuration of your IDE. In
-   this step you should also setup all environment variables required by your DAG.
-
-3. Run / debug the DAG file.
+2. Run / debug the DAG file.

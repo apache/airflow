@@ -33,6 +33,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy_utils import UUIDType
 
 from airflow.models.base import Base, StringID
 from airflow.utils import timezone
@@ -46,7 +47,6 @@ from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 
 class TaskInstanceHistory(Base):
@@ -70,7 +70,6 @@ class TaskInstanceHistory(Base):
     max_tries = Column(Integer, server_default=text("-1"))
     hostname = Column(String(1000))
     unixname = Column(String(1000))
-    job_id = Column(Integer)
     pool = Column(String(256), nullable=False)
     pool_slots = Column(Integer, default=1, nullable=False)
     queue = Column(String(256))
@@ -92,10 +91,11 @@ class TaskInstanceHistory(Base):
     next_kwargs = Column(MutableDict.as_mutable(ExtendedJSON))
 
     task_display_name = Column("task_display_name", String(2000), nullable=True)
+    dag_version_id = Column(UUIDType(binary=False))
 
     def __init__(
         self,
-        ti: TaskInstance | TaskInstancePydantic,
+        ti: TaskInstance,
         state: str | None = None,
     ):
         super().__init__()
