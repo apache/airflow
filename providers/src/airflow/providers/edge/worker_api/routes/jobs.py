@@ -60,7 +60,7 @@ def fetch(
         WorkerQueuesBody,
         Body(
             title="Log data chunks",
-            description="The worker remote has no access to log sink and with this can send log chunks to the central site.",
+            description="The queues from which the worker can fetch jobs.",
         ),
     ],
     session: SessionDep,
