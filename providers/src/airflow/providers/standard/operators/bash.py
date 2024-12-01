@@ -29,9 +29,12 @@ from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.baseoperator import BaseOperator
 from airflow.providers.standard.hooks.subprocess import SubprocessHook, SubprocessResult, working_directory
 from airflow.utils.operator_helpers import context_to_airflow_vars
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.types import ArgNotSet
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session as SASession
+
     from airflow.models.taskinstance import TaskInstance
     from airflow.utils.context import Context
 
@@ -199,8 +202,10 @@ class BashOperator(BaseOperator):
         """Returns hook for running the bash command."""
         return SubprocessHook()
 
+    # TODO: This should be replaced with Task SDK API call
     @staticmethod
-    def refresh_bash_command(ti: TaskInstance) -> None:
+    @provide_session
+    def refresh_bash_command(ti: TaskInstance, session: SASession = NEW_SESSION) -> None:
         """
         Rewrite the underlying rendered bash_command value for a task instance in the metadatabase.
 
@@ -212,7 +217,16 @@ class BashOperator(BaseOperator):
         """
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
-        RenderedTaskInstanceFields._update_runtime_evaluated_template_fields(ti)
+        """Update rendered task instance fields for cases where runtime evaluated, not templated."""
+        # Note: Need lazy import to break the partly loaded class loop
+        from airflow.models.taskinstance import TaskInstance
+
+        # If called via remote API the DAG needs to be re-loaded
+        TaskInstance.ensure_dag(ti, session=session)
+
+        rtif = RenderedTaskInstanceFields(ti)
+        RenderedTaskInstanceFields.write(rtif, session=session)
+        RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id, session=session)
 
     def get_env(self, context) -> dict:
         """Build the set of environment variables to be exposed for the bash command."""
