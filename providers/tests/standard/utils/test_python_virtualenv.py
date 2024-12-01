@@ -193,7 +193,7 @@ class TestPrepareVirtualenv:
         )
 
     def test_remove_task_decorator(self):
-        py_source = "@task.virtualenv(use_dill=True)\ndef f():\nimport funcsigs"
+        py_source = '@task.virtualenv(serializer="dill")\ndef f():\nimport funcsigs'
         res = remove_task_decorator(python_source=py_source, task_decorator_name="@task.virtualenv")
         assert res == "def f():\nimport funcsigs"
 
