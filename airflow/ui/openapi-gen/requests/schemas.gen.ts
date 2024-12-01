@@ -750,6 +750,8 @@ export const $ConnectionBody = {
   properties: {
     connection_id: {
       type: "string",
+      maxLength: 200,
+      pattern: "^[\\w.-]+$",
       title: "Connection Id",
     },
     conn_type: {
@@ -838,6 +840,22 @@ export const $ConnectionBody = {
   required: ["connection_id", "conn_type"],
   title: "ConnectionBody",
   description: "Connection Serializer for requests body.",
+} as const;
+
+export const $ConnectionBulkBody = {
+  properties: {
+    connections: {
+      items: {
+        $ref: "#/components/schemas/ConnectionBody",
+      },
+      type: "array",
+      title: "Connections",
+    },
+  },
+  type: "object",
+  required: ["connections"],
+  title: "ConnectionBulkBody",
+  description: "Connections Serializer for requests body.",
 } as const;
 
 export const $ConnectionCollectionResponse = {

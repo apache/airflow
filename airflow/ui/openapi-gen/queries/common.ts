@@ -1594,6 +1594,9 @@ export type BackfillServiceCreateBackfillMutationResult = Awaited<
 export type ConnectionServicePostConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.postConnection>
 >;
+export type ConnectionServicePostConnectionsMutationResult = Awaited<
+  ReturnType<typeof ConnectionService.postConnections>
+>;
 export type ConnectionServiceTestConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.testConnection>
 >;
