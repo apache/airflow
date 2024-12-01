@@ -33,7 +33,7 @@ class TIEnterRunningPayload(BaseModel):
 
     state: Annotated[
         Literal[TIState.RUNNING],
-        # Specify a default in the schema, but not in code, so Pydantic marks it as required.
+        # Specify a default in the schema, but not in code.
         WithJsonSchema({"type": "string", "enum": [TIState.RUNNING], "default": TIState.RUNNING}),
     ]
     hostname: str
