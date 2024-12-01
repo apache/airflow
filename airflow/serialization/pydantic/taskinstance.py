@@ -220,7 +220,7 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
             session=session,
         )
 
-    def get_dagrun(self, session: Session | None = None) -> DagRunPydantic:
+    def get_dagrun(self, session: Session | None = None) -> DagRun:
         """
         Return the DagRun for this TaskInstance.
 
