@@ -21,16 +21,14 @@ import collections
 import itertools
 import operator
 from functools import cache
-from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import HTTPException, Request, status
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
 from sqlalchemy.sql.operators import ColumnOperators
 from typing_extensions import Any
 
 from airflow import DAG
-from airflow.api_fastapi.common.db.common import get_session, paginated_select
+from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     OptionalDateTimeQuery,
     QueryDagRunRunTypesFilter,
@@ -67,7 +65,7 @@ def grid_data(
     dag_id: str,
     run_types: QueryDagRunRunTypesFilter,
     run_states: QueryDagRunStateFilter,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     offset: QueryOffset,
     request: Request,
     num_runs: QueryLimit,
