@@ -49,7 +49,6 @@ def _initialize_method_map() -> dict[str, Callable]:
     #       for compatibility with Airflow 2.10-line.
     #       Methods are potentially not existing more on main branch for Airflow 3.
     from airflow.api.common.trigger_dag import trigger_dag
-    from airflow.cli.commands.task_command import _get_ti_db_access
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
 
@@ -81,18 +80,12 @@ def _initialize_method_map() -> dict[str, Callable]:
     from airflow.providers.edge.models.edge_logs import EdgeLogs
     from airflow.providers.edge.models.edge_worker import EdgeWorker
     from airflow.secrets.metastore import MetastoreBackend
-    from airflow.sensors.base import _orig_start_date
-    from airflow.utils.cli_action_loggers import _default_action_log_internal
-    from airflow.utils.log.file_task_handler import FileTaskHandler
 
     functions: list[Callable] = [
-        _default_action_log_internal,
         _defer_task,
         _get_template_context,
-        _get_ti_db_access,
         _get_task_map_length,
         _update_rtif,
-        _orig_start_date,
         _handle_failure,
         _handle_reschedule,
         _add_log,
@@ -118,7 +111,6 @@ def _initialize_method_map() -> dict[str, Callable]:
         DagWarning.purge_inactive_dag_warnings,
         expand_alias_to_datasets,
         DatasetManager.register_dataset_change,
-        FileTaskHandler._render_filename_db_access,
         Job._add_to_db,
         Job._fetch_from_db,
         Job._kill,
