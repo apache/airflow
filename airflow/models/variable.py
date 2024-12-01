@@ -25,7 +25,6 @@ from sqlalchemy import Boolean, Column, Integer, String, Text, delete, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import declared_attr, reconstructor, synonym
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import ensure_secrets_loaded
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
@@ -182,7 +181,6 @@ class Variable(Base, LoggingMixin):
 
     @staticmethod
     @provide_session
-    @internal_api_call
     def _set(
         key: str,
         value: Any,
@@ -238,7 +236,6 @@ class Variable(Base, LoggingMixin):
 
     @staticmethod
     @provide_session
-    @internal_api_call
     def _update(
         key: str,
         value: Any,
@@ -279,7 +276,6 @@ class Variable(Base, LoggingMixin):
 
     @staticmethod
     @provide_session
-    @internal_api_call
     def _delete(key: str, session: Session = None) -> int:
         """
         Delete an Airflow Variable for a given key.
