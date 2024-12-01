@@ -134,7 +134,7 @@ class TestPluginsCommand:
         expected_output = textwrap.dedent(
             """\
             name            | global_operator_extra_links
-            ================+================================================================
+            ================+===============================================================================
             test-plugin-cli | <tests.cli.commands.local_commands.test_plugins_command.AirflowNewLink object>
             """
         )
