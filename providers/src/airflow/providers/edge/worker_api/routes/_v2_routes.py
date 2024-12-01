@@ -28,8 +28,15 @@ from flask import Response, request
 
 from airflow.exceptions import AirflowException
 from airflow.providers.edge.worker_api.auth import jwt_token_authorization, jwt_token_authorization_rpc
-from airflow.providers.edge.worker_api.datamodels import JsonRpcRequest, PushLogsBody, WorkerStateBody
+from airflow.providers.edge.worker_api.datamodels import (
+    EdgeJobFetched,
+    JsonRpcRequest,
+    PushLogsBody,
+    WorkerQueuesBody,
+    WorkerStateBody,
+)
 from airflow.providers.edge.worker_api.routes._v2_compat import HTTPException, status
+from airflow.providers.edge.worker_api.routes.jobs import fetch, state as state_api
 from airflow.providers.edge.worker_api.routes.logs import logfile_path, push_logs
 from airflow.providers.edge.worker_api.routes.worker import register, set_state
 from airflow.serialization.serialized_objects import BaseSerialization
@@ -37,6 +44,7 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse
+    from airflow.utils.state import TaskInstanceState
 
 
 log = logging.getLogger(__name__)
@@ -263,6 +271,44 @@ def set_state_v2(worker_name: str, body: dict[str, Any], session=NEW_SESSION) ->
             sysinfo=body["sysinfo"],
         )
         return set_state(worker_name, request_obj, session)
+    except HTTPException as e:
+        return e.to_response()  # type: ignore[attr-defined]
+
+
+@provide_session
+def job_fetch_v2(worker_name: str, body: dict[str, Any] | None = None, session=NEW_SESSION) -> Any:
+    """Handle Edge Worker API `/edge_worker/v1/jobs/fetch/{worker_name}` endpoint for Airflow 2.10."""
+    from flask import request
+
+    try:
+        auth = request.headers.get("Authorization", "")
+        jwt_token_authorization(request.path, auth)
+        queues = body["queues"] if body else None
+        free_concurrency = body["free_concurrency"] if body else 1
+        request_obj = WorkerQueuesBody(queues=queues, free_concurrency=free_concurrency)
+        job: EdgeJobFetched | None = fetch(worker_name, request_obj, session)
+        return job.model_dump() if job is not None else None
+    except HTTPException as e:
+        return e.to_response()  # type: ignore[attr-defined]
+
+
+@provide_session
+def job_state_v2(
+    dag_id: str,
+    task_id: str,
+    run_id: str,
+    try_number: int,
+    map_index: str,  # Note: Connexion can not have negative numbers in path parameters, use string therefore
+    state: TaskInstanceState,
+    session=NEW_SESSION,
+) -> Any:
+    """Handle Edge Worker API `/jobs/state/{dag_id}/{task_id}/{run_id}/{try_number}/{map_index}/{state}` endpoint for Airflow 2.10."""
+    from flask import request
+
+    try:
+        auth = request.headers.get("Authorization", "")
+        jwt_token_authorization(request.path, auth)
+        state_api(dag_id, task_id, run_id, try_number, int(map_index), state, session)
     except HTTPException as e:
         return e.to_response()  # type: ignore[attr-defined]
 
