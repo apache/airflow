@@ -153,7 +153,7 @@ class TestCliTasks:
         When the dag processor has a different dags folder
         from the worker, ``airflow tasks run --local`` should still work.
         """
-        repo_root = Path(__file__).parents[3]
+        repo_root = Path(__file__).parents[4]
         orig_file_path = repo_root / "tests/dags/test_dags_folder.py"
         orig_dags_folder = orig_file_path.parent
 

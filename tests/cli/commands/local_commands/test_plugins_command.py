@@ -16,10 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import io
 import json
 import textwrap
 from contextlib import redirect_stdout
-from io import StringIO
 
 import pytest
 
@@ -56,14 +56,14 @@ class TestPluginsCommand:
 
     @mock_plugin_manager(plugins=[])
     def test_should_display_no_plugins(self):
-        with redirect_stdout(StringIO()) as temp_stdout:
+        with redirect_stdout(io.StringIO()) as temp_stdout:
             plugins_command.dump_plugins(self.parser.parse_args(["plugins", "--output=json"]))
             stdout = temp_stdout.getvalue()
         assert "No plugins loaded" in stdout
 
     @mock_plugin_manager(plugins=[ComplexAirflowPlugin])
     def test_should_display_one_plugin(self):
-        with redirect_stdout(StringIO()) as temp_stdout:
+        with redirect_stdout(io.StringIO()) as temp_stdout:
             plugins_command.dump_plugins(self.parser.parse_args(["plugins", "--output=json"]))
             stdout = temp_stdout.getvalue()
         print(stdout)
@@ -124,7 +124,7 @@ class TestPluginsCommand:
 
     @mock_plugin_manager(plugins=[TestPlugin])
     def test_should_display_one_plugins_as_table(self):
-        with redirect_stdout(StringIO()) as temp_stdout:
+        with redirect_stdout(io.StringIO()) as temp_stdout:
             plugins_command.dump_plugins(self.parser.parse_args(["plugins", "--output=table"]))
             stdout = temp_stdout.getvalue()
 
@@ -135,7 +135,7 @@ class TestPluginsCommand:
             """\
             name            | global_operator_extra_links
             ================+================================================================
-            test-plugin-cli | <tests.cli.commands.test_plugins_command.AirflowNewLink object>
+            test-plugin-cli | <tests.cli.commands.local_commands.test_plugins_command.AirflowNewLink object>
             """
         )
         assert stdout == expected_output
