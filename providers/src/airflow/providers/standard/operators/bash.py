@@ -249,7 +249,7 @@ class BashOperator(BaseOperator):
         # displays the executed command (otherwise it will display as an ArgNotSet type).
         if self._init_bash_command_not_set:
             is_inline_command = self._is_inline_command(bash_command=cast(str, self.bash_command))
-            ti = cast("TaskInstance", context["ti"])
+            ti = context["ti"]
             self.refresh_bash_command(ti)
         else:
             is_inline_command = self._is_inline_command(bash_command=cast(str, self._unrendered_bash_command))

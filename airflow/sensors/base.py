@@ -45,9 +45,11 @@ from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
-from airflow.utils.session import create_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
+
     from airflow.utils.context import Context
 
 # As documented in https://dev.mysql.com/doc/refman/5.7/en/datetime.html.
@@ -78,6 +80,30 @@ class PokeReturnValue:
 
     def __bool__(self) -> bool:
         return self.is_done
+
+
+@provide_session
+def _orig_start_date(
+    dag_id: str, task_id: str, run_id: str, map_index: int, try_number: int, session: Session = NEW_SESSION
+):
+    """
+    Get the original start_date for a rescheduled task.
+
+    :meta private:
+    """
+    return session.scalar(
+        select(TaskReschedule)
+        .where(
+            TaskReschedule.dag_id == dag_id,
+            TaskReschedule.task_id == task_id,
+            TaskReschedule.run_id == run_id,
+            TaskReschedule.map_index == map_index,
+            TaskReschedule.try_number == try_number,
+        )
+        .order_by(TaskReschedule.id.asc())
+        .with_only_columns(TaskReschedule.start_date)
+        .limit(1)
+    )
 
 
 class BaseSensorOperator(BaseOperator, SkipMixin):

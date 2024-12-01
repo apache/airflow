@@ -49,7 +49,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import FromClause
 
     from airflow.models import Operator
-    from airflow.models.taskinstance import TaskInstance, TaskInstancePydantic
+    from airflow.models.taskinstance import TaskInstance
 
 
 def get_serialized_template_fields(task: Operator):
@@ -173,9 +173,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
 
     @classmethod
     @provide_session
-    def get_templated_fields(
-        cls, ti: TaskInstance | TaskInstancePydantic, session: Session = NEW_SESSION
-    ) -> dict | None:
+    def get_templated_fields(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> dict | None:
         """
         Get templated field for a TaskInstance from the RenderedTaskInstanceFields table.
 
