@@ -144,6 +144,7 @@ class EdgeLogs(BaseModel, LoggingMixin):
         )
         if TYPE_CHECKING:
             assert ti
+            assert isinstance(ti, TaskInstance)
         base_log_folder = conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
         return Path(base_log_folder, FileTaskHandler(base_log_folder)._render_filename(ti, task.try_number))
 
