@@ -227,7 +227,7 @@ def _get_ti(
     )
 
     ti_or_none = dag_run.get_task_instance(task.task_id, map_index=map_index, session=session)
-    ti: TaskInstance | TaskInstancePydantic
+    ti: TaskInstance
     if ti_or_none is None:
         if not create_if_necessary:
             raise TaskInstanceNotFound(
@@ -249,9 +249,7 @@ def _get_ti(
     return ti, dr_created
 
 
-def _run_task_by_selected_method(
-    args, dag: DAG, ti: TaskInstance | TaskInstancePydantic
-) -> None | TaskReturnCode:
+def _run_task_by_selected_method(args, dag: DAG, ti: TaskInstance) -> None | TaskReturnCode:
     """
     Run the task based on a mode.
 
@@ -308,7 +306,7 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
     executor.end()
 
 
-def _run_task_by_local_task_job(args, ti: TaskInstance | TaskInstancePydantic) -> TaskReturnCode | None:
+def _run_task_by_local_task_job(args, ti: TaskInstance) -> TaskReturnCode | None:
     """Run LocalTaskJob, which monitors the raw task execution process."""
     job_runner = LocalTaskJobRunner(
         job=Job(dag_id=ti.dag_id),
@@ -354,7 +352,7 @@ def _extract_external_executor_id(args) -> str | None:
 
 
 @contextmanager
-def _move_task_handlers_to_root(ti: TaskInstance | TaskInstancePydantic) -> Generator[None, None, None]:
+def _move_task_handlers_to_root(ti: TaskInstance) -> Generator[None, None, None]:
     """
     Move handlers for task logging to root logger.
 
@@ -381,7 +379,7 @@ def _move_task_handlers_to_root(ti: TaskInstance | TaskInstancePydantic) -> Gene
 
 
 @contextmanager
-def _redirect_stdout_to_ti_log(ti: TaskInstance | TaskInstancePydantic) -> Generator[None, None, None]:
+def _redirect_stdout_to_ti_log(ti: TaskInstance) -> Generator[None, None, None]:
     """
     Redirect stdout to ti logger.
 

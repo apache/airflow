@@ -46,7 +46,6 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
-    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +136,7 @@ def _interleave_logs(*logs):
         last = line
 
 
-def _ensure_ti(ti: TaskInstanceKey | TaskInstance | TaskInstancePydantic, session) -> TaskInstance:
+def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
     """
     Given TI | TIKey, return a TI object.
 
