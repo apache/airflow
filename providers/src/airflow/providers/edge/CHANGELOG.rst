@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+0.9.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Make API retries configurable via ENV. Connection loss is sustained for 5min by default.``
+
 0.9.1pre0
 .........
 
