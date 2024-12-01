@@ -17,11 +17,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from functools import lru_cache
-from pathlib import Path
-from typing import TYPE_CHECKING
 
-from pydantic import BaseModel, ConfigDict
 from sqlalchemy import (
     Column,
     Integer,
@@ -30,18 +26,9 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 
-from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.configuration import conf
 from airflow.models.base import Base, StringID
-from airflow.models.taskinstance import TaskInstance
-from airflow.models.taskinstancekey import TaskInstanceKey
-from airflow.serialization.serialized_objects import add_pydantic_class_type_mapping
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm.session import Session
 
 
 class EdgeLogsModel(Base, LoggingMixin):
@@ -84,70 +71,3 @@ class EdgeLogsModel(Base, LoggingMixin):
         self.log_chunk_time = log_chunk_time
         self.log_chunk_data = log_chunk_data
         super().__init__()
-
-
-class EdgeLogs(BaseModel, LoggingMixin):
-    """Deprecated Internal API for Edge Worker instances as logical model."""
-
-    dag_id: str
-    task_id: str
-    run_id: str
-    map_index: int
-    try_number: int
-    log_chunk_time: datetime
-    log_chunk_data: str
-    model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
-
-    @staticmethod
-    @internal_api_call
-    @provide_session
-    def push_logs(
-        task: TaskInstanceKey | tuple,
-        log_chunk_time: datetime,
-        log_chunk_data: str,
-        session: Session = NEW_SESSION,
-    ) -> None:
-        """Push an incremental log chunk from Edge Worker to central site."""
-        if isinstance(task, tuple):
-            task = TaskInstanceKey(*task)
-        log_chunk = EdgeLogsModel(
-            dag_id=task.dag_id,
-            task_id=task.task_id,
-            run_id=task.run_id,
-            map_index=task.map_index,
-            try_number=task.try_number,
-            log_chunk_time=log_chunk_time,
-            log_chunk_data=log_chunk_data,
-        )
-        session.add(log_chunk)
-        # Write logs to local file to make them accessible
-        logfile_path = EdgeLogs.logfile_path(task)
-        if not logfile_path.exists():
-            new_folder_permissions = int(
-                conf.get("logging", "file_task_handler_new_folder_permissions", fallback="0o775"), 8
-            )
-            logfile_path.parent.mkdir(parents=True, exist_ok=True, mode=new_folder_permissions)
-        with logfile_path.open("a") as logfile:
-            logfile.write(log_chunk_data)
-
-    @staticmethod
-    @lru_cache
-    def logfile_path(task: TaskInstanceKey) -> Path:
-        """Elaborate the path and filename to expect from task execution."""
-        from airflow.utils.log.file_task_handler import FileTaskHandler
-
-        ti = TaskInstance.get_task_instance(
-            dag_id=task.dag_id,
-            run_id=task.run_id,
-            task_id=task.task_id,
-            map_index=task.map_index,
-        )
-        if TYPE_CHECKING:
-            assert ti
-        base_log_folder = conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
-        return Path(base_log_folder, FileTaskHandler(base_log_folder)._render_filename(ti, task.try_number))
-
-
-EdgeLogs.model_rebuild()
-
-add_pydantic_class_type_mapping("edge_logs", EdgeLogsModel, EdgeLogs)

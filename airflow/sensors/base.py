@@ -45,7 +45,7 @@ from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -211,8 +211,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         """Override when deriving this class."""
         raise AirflowException("Override me.")
 
-    @provide_session
-    def execute(self, context: Context, session=NEW_SESSION) -> Any:
+    def execute(self, context: Context) -> Any:
         started_at: datetime.datetime | float
 
         if self.reschedule:
@@ -222,20 +221,20 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             # If reschedule, use the start date of the first try (first try can be either the very
             # first execution of the task, or the first execution after the task was cleared.)
             first_try_number = max_tries - retries + 1
-
-            start_date = session.scalar(
-                select(TaskReschedule)
-                .where(
-                    TaskReschedule.dag_id == ti.dag_id,
-                    TaskReschedule.task_id == ti.task_id,
-                    TaskReschedule.run_id == ti.run_id,
-                    TaskReschedule.map_index == ti.map_index,
-                    TaskReschedule.try_number == first_try_number,
+            with create_session() as session:
+                start_date = session.scalar(
+                    select(TaskReschedule)
+                    .where(
+                        TaskReschedule.dag_id == ti.dag_id,
+                        TaskReschedule.task_id == ti.task_id,
+                        TaskReschedule.run_id == ti.run_id,
+                        TaskReschedule.map_index == ti.map_index,
+                        TaskReschedule.try_number == first_try_number,
+                    )
+                    .order_by(TaskReschedule.id.asc())
+                    .with_only_columns(TaskReschedule.start_date)
+                    .limit(1)
                 )
-                .order_by(TaskReschedule.id.asc())
-                .with_only_columns(TaskReschedule.start_date)
-                .limit(1)
-            )
             if not start_date:
                 start_date = timezone.utcnow()
             started_at = start_date
