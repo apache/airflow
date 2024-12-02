@@ -29,6 +29,15 @@
 Changelog
 ---------
 
+4.11.4
+......
+
+Misc
+~~~~
+
+* ``Remove _sql() support for SparkSqlOperator. Please use sql attribute instead.``
+
+
 4.11.3
 ......
 
