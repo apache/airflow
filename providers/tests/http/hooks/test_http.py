@@ -544,10 +544,10 @@ class TestHttpHook:
             custom_adapter = HTTPAdapter()
             hook = HttpHook(method="GET", adapter=custom_adapter)
             session = hook.get_conn()
-
-            # 验证适配器的类型，而不是对象引用
-            assert isinstance(session.adapters["http://"], type(custom_adapter)), "Custom HTTP adapter not correctly mounted"
-            assert isinstance(session.adapters["https://"], type(custom_adapter)), "Custom HTTPS adapter not correctly mounted"
+            assert isinstance(session.adapters["http://"], type(custom_adapter)
+                              ), "Custom HTTP adapter not correctly mounted"
+            assert isinstance(session.adapters["https://"], type(custom_adapter)
+                              ), "Custom HTTPS adapter not correctly mounted"
 
 class TestHttpAsyncHook:
     @pytest.mark.asyncio
