@@ -40,7 +40,7 @@ Breaking changes
 
   * Hooks
      * Remove attribute ``timeout`` from ``airflow.providers.ssh.hooks.ssh.SSHHook``. Use parameter ``conn_timeout`` instead.
-     * The contextmanager of ``SSHHook`` is deprecated. Please use ``get_conn()`` as a contextmanager instead.
+     * The context manager of ``SSHHook`` is deprecated. Please use ``get_conn()`` as a context manager instead.
      * ``SSHHook.create_tunnel()`` is deprecated, Please use ``get_tunnel()`` instead.
        But please note that the order of the parameters have changed.
   * operators
