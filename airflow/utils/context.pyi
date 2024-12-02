@@ -59,9 +59,12 @@ class ConnectionAccessor:
 
 class AssetAliasEvent:
     source_alias_name: str
+    dest_asset_name: str
     dest_asset_uri: str
     extra: dict[str, Any]
-    def __init__(self, source_alias_name: str, dest_asset_uri: str, extra: dict[str, Any]) -> None: ...
+    def __init__(
+        self, source_alias_name: str, dest_asset_name: str, dest_asset_uri: str, extra: dict[str, Any]
+    ) -> None: ...
 
 class OutletEventAccessor:
     def __init__(
