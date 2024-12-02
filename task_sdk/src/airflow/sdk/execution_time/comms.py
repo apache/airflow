@@ -129,7 +129,14 @@ class GetVariable(BaseModel):
     type: Literal["GetVariable"] = "GetVariable"
 
 
+class PutVariable(BaseModel):
+    key: str
+    value: str | None
+    description: str | None
+    type: Literal["PutVariable"] = "PutVariable"
+
+
 ToSupervisor = Annotated[
-    Union[TaskState, GetXCom, GetConnection, GetVariable, DeferTask],
+    Union[TaskState, GetXCom, GetConnection, GetVariable, DeferTask, PutVariable],
     Field(discriminator="type"),
 ]

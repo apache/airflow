@@ -50,6 +50,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetVariable,
     GetXCom,
+    PutVariable,
     StartupDetails,
     ToSupervisor,
 )
@@ -656,6 +657,9 @@ class WatchedSubprocess:
                 self.final_state = IntermediateTIState.DEFERRED
                 self.client.task_instances.defer(self.ti_id, msg)
                 resp = None
+            elif isinstance(msg, PutVariable):
+                var = self.client.variables.put(msg)
+                resp = var.model_dump_json(exclude_unset=True).encode()
             else:
                 log.error("Unhandled request", msg=msg)
                 continue

@@ -157,6 +157,11 @@ class VariableOperations:
         resp = self.client.get(f"variables/{key}")
         return VariableResponse.model_validate_json(resp.read())
 
+    def put(self, msg):
+        """Put a variable through the API server."""
+        key = msg.key
+        self.client.put(f"variables/{key}", content=msg.model_dump_json())
+
 
 class XComOperations:
     __slots__ = ("client",)

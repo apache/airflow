@@ -116,6 +116,15 @@ class ValidationError(BaseModel):
     type: Annotated[str, Field(title="Error Type")]
 
 
+class VariablePostBody(BaseModel):
+    """
+    Request body schema for creating variables.
+    """
+
+    value: Annotated[str | None, Field(title="Value")] = None
+    description: Annotated[str | None, Field(title="Description")] = None
+
+
 class VariableResponse(BaseModel):
     """
     Variable schema for responses with fields that are needed for Runtime.
