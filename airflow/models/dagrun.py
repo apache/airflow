@@ -252,8 +252,6 @@ class DagRun(Base, LoggingMixin):
         fallback=20,
     )
 
-    otel_use_context_propagation = airflow_conf.getboolean("traces", "otel_use_context_propagation")
-
     def __init__(
         self,
         dag_id: str | None = None,
@@ -1073,11 +1071,7 @@ class DagRun(Base, LoggingMixin):
         # finally, if the leaves aren't done, the dag is still running
         else:
             # If there is no value in active_dagrun_spans, then the span hasn't already been started.
-            if (
-                self.otel_use_context_propagation
-                and self.active_dagrun_spans is not None
-                and self.active_dagrun_spans.get(self.run_id) is None
-            ):
+            if self.active_dagrun_spans is not None and self.active_dagrun_spans.get(self.run_id) is None:
                 if (
                     self.span_status == SpanStatus.NOT_STARTED
                     or self.span_status == SpanStatus.NEEDS_CONTINUANCE
@@ -1176,44 +1170,41 @@ class DagRun(Base, LoggingMixin):
                 dagv.version if dagv else None,
             )
 
-            if self.otel_use_context_propagation:
-                if self.active_dagrun_spans is not None:
-                    active_span = self.active_dagrun_spans.get(self.run_id)
-                    if active_span is not None:
+            if self.active_dagrun_spans is not None:
+                active_span = self.active_dagrun_spans.get(self.run_id)
+                if active_span is not None:
+                    self.log.debug(
+                        "Found active span with span_id: %s, for dag_id: %s, run_id: %s, state: %s",
+                        active_span.get_span_context().span_id,
+                        self.dag_id,
+                        self.run_id,
+                        self.state,
+                    )
+
+                    self.set_dagrun_span_attrs(span=active_span, dag_run=self, dagv=dagv)
+                    active_span.end(end_time=datetime_to_nano(self.end_date))
+                    # Remove the span from the dict.
+                    self.active_dagrun_spans.delete(self.run_id)
+                    self.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
+                else:
+                    if self.span_status == SpanStatus.ACTIVE:
+                        # Another scheduler has started the span.
+                        # Update the DB SpanStatus to notify the owner to end it.
+                        self.set_span_status(status=SpanStatus.SHOULD_END, session=session, with_commit=False)
+                    elif self.span_status == SpanStatus.NEEDS_CONTINUANCE:
+                        # This is a corner case where the scheduler exited gracefully
+                        # while the dag_run was almost done.
+                        # Since it reached this point, the dag has finished but there has been no time
+                        # to create a new span for the current scheduler.
+                        # There is no need for more spans, update the status on the db.
+                        self.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
+                    else:
                         self.log.debug(
-                            "Found active span with span_id: %s, for dag_id: %s, run_id: %s, state: %s",
-                            active_span.get_span_context().span_id,
+                            "No active span has been found for dag_id: %s, run_id: %s, state: %s",
                             self.dag_id,
                             self.run_id,
                             self.state,
                         )
-
-                        self.set_dagrun_span_attrs(span=active_span, dag_run=self, dagv=dagv)
-                        active_span.end(end_time=datetime_to_nano(self.end_date))
-                        # Remove the span from the dict.
-                        self.active_dagrun_spans.delete(self.run_id)
-                        self.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
-                    else:
-                        if self.span_status == SpanStatus.ACTIVE:
-                            # Another scheduler has started the span.
-                            # Update the DB SpanStatus to notify the owner to end it.
-                            self.set_span_status(
-                                status=SpanStatus.SHOULD_END, session=session, with_commit=False
-                            )
-                        elif self.span_status == SpanStatus.NEEDS_CONTINUANCE:
-                            # This is a corner case where the scheduler exited gracefully
-                            # while the dag_run was almost done.
-                            # Since it reached this point, the dag has finished but there has been no time
-                            # to create a new span for the current scheduler.
-                            # There is no need for more spans, update the status on the db.
-                            self.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
-                        else:
-                            self.log.debug(
-                                "No active span has been found for dag_id: %s, run_id: %s, state: %s",
-                                self.dag_id,
-                                self.run_id,
-                                self.state,
-                            )
 
             session.flush()
 

@@ -444,8 +444,6 @@ class TestOtelIntegration:
         if cls.use_otel != "true":
             os.environ["AIRFLOW__TRACES__OTEL_DEBUGGING_ON"] = "True"
 
-        os.environ["AIRFLOW__TRACES__OTEL_USE_CONTEXT_PROPAGATION"] = "True"
-
         os.environ["AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR"] = "False"
         os.environ["AIRFLOW__SCHEDULER__PROCESSOR_POLL_INTERVAL"] = "2"
 

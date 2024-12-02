@@ -129,8 +129,6 @@ class BaseExecutor(LoggingMixin):
     name: None | ExecutorName = None
     callback_sink: BaseCallbackSink | None = None
 
-    otel_use_context_propagation = conf.getboolean("traces", "otel_use_context_propagation")
-
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__()
         self.parallelism: int = parallelism
@@ -340,30 +338,29 @@ class BaseExecutor(LoggingMixin):
         for _ in range(min((open_slots, len(self.queued_tasks)))):
             key, (command, _, queue, ti) = sorted_queue.pop(0)
 
-            if self.otel_use_context_propagation:
-                # If it's None, then the span for the current TaskInstanceKey hasn't been started.
-                if self.active_spans is not None and self.active_spans.get(key) is None:
-                    parent_context = Trace.extract(ti.dag_run.context_carrier)
-                    # Start a new span using the context from the parent.
-                    # Attributes will be set once the task has finished so that all
-                    # values will be available (end_time, duration, etc.).
-                    span = Trace.start_child_span(
-                        span_name=f"{ti.task_id}",
-                        parent_context=parent_context,
-                        component="task",
-                        start_time=ti.queued_dttm,
-                        start_as_current=False,
-                    )
-                    self.active_spans.set(key, span)
-                    # Inject the current context into the carrier.
-                    carrier = Trace.inject()
-                    # The carrier needs to be set on the ti, but it can't happen here because db calls are expensive.
-                    # By the time the db update has finished, another heartbeat will have started
-                    # and the tasks will have been triggered again.
-                    # So set the carrier as an argument to the command.
-                    # The command execution will set it on the ti, and it will be propagated to the task itself.
-                    command.append("--carrier")
-                    command.append(json.dumps(carrier))
+            # If it's None, then the span for the current TaskInstanceKey hasn't been started.
+            if self.active_spans is not None and self.active_spans.get(key) is None:
+                parent_context = Trace.extract(ti.dag_run.context_carrier)
+                # Start a new span using the context from the parent.
+                # Attributes will be set once the task has finished so that all
+                # values will be available (end_time, duration, etc.).
+                span = Trace.start_child_span(
+                    span_name=f"{ti.task_id}",
+                    parent_context=parent_context,
+                    component="task",
+                    start_time=ti.queued_dttm,
+                    start_as_current=False,
+                )
+                self.active_spans.set(key, span)
+                # Inject the current context into the carrier.
+                carrier = Trace.inject()
+                # The carrier needs to be set on the ti, but it can't happen here because db calls are expensive.
+                # By the time the db update has finished, another heartbeat will have started
+                # and the tasks will have been triggered again.
+                # So set the carrier as an argument to the command.
+                # The command execution will set it on the ti, and it will be propagated to the task itself.
+                command.append("--carrier")
+                command.append(json.dumps(carrier))
 
             # If a task makes it here but is still understood by the executor
             # to be running, it generally means that the task has been killed

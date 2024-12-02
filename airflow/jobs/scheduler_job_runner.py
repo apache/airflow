@@ -807,18 +807,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
             active_ti_span = cls.active_ti_spans.get(ti.key)
-            if conf.getboolean("traces", "otel_use_context_propagation"):
-                if active_ti_span is not None:
-                    cls._set_span_attrs__process_executor_events(span=active_ti_span, state=state, ti=ti)
-                    # End the span and remove it from the active_ti_spans dict.
-                    active_ti_span.end(end_time=datetime_to_nano(ti.end_date))
-                    cls.active_ti_spans.delete(ti.key)
-                    ti.set_span_status(status=SpanStatus.ENDED, session=session)
-                else:
-                    if ti.span_status == SpanStatus.ACTIVE:
-                        # Another scheduler has started the span.
-                        # Update the SpanStatus to let the process know that it must end it.
-                        ti.set_span_status(status=SpanStatus.SHOULD_END, session=session)
+            if active_ti_span is not None:
+                cls._set_span_attrs__process_executor_events(span=active_ti_span, state=state, ti=ti)
+                # End the span and remove it from the active_ti_spans dict.
+                active_ti_span.end(end_time=datetime_to_nano(ti.end_date))
+                cls.active_ti_spans.delete(ti.key)
+                ti.set_span_status(status=SpanStatus.ENDED, session=session)
+            else:
+                if ti.span_status == SpanStatus.ACTIVE:
+                    # Another scheduler has started the span.
+                    # Update the SpanStatus to let the process know that it must end it.
+                    ti.set_span_status(status=SpanStatus.SHOULD_END, session=session)
 
             # There are two scenarios why the same TI with the same try_number is queued
             # after executor is finished with it:
