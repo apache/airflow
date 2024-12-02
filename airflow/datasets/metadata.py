@@ -15,26 +15,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# We do not use "from __future__ import annotations" here because it is not supported
-# by Pycharm when we want to make sure all imports in airflow work from namespace packages
-# Adding it automatically is excluded in pyproject.toml via I002 ruff rule exclusion
-
-# Make `airflow` a namespace package, supporting installing
-# airflow.providers.* in different locations (i.e. one in site, and one in user
-# lib.)  This is required by some IDEs to resolve the import paths.
 from __future__ import annotations
 
 import warnings
 
-from airflow.sdk.definitions.asset import AssetAlias as DatasetAlias, Dataset
+from airflow.sdk.definitions.asset.metadata import Metadata
 
 # TODO: Remove this module in Airflow 3.2
 
 warnings.warn(
     "Import from the airflow.dataset module is deprecated and "
-    "will be removed in the Airflow 3.2. Please import it from 'airflow.sdk.definitions.asset'.",
+    "will be removed in the Airflow 3.2. Please import it from 'airflow.sdk.definitions.asset.metadata'.",
     DeprecationWarning,
     stacklevel=2,
 )
 
-__all__ = ["Dataset", "DatasetAlias"]
+__all__ = ["Metadata"]
