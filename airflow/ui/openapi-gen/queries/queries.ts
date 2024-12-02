@@ -21,13 +21,13 @@ import {
   DashboardService,
   EventLogService,
   ExtraLinksService,
-  GraphService,
   ImportErrorService,
   JobService,
   MonitorService,
   PluginService,
   PoolService,
   ProviderService,
+  StructureService,
   TaskInstanceService,
   TaskService,
   VariableService,
@@ -523,18 +523,18 @@ export const useDashboardServiceHistoricalMetrics = <
     ...options,
   });
 /**
- * Graph Data
- * Get Graph Data.
+ * Structure Data
+ * Get Structure Data.
  * @param data The data for the request.
  * @param data.dagId
  * @param data.root
  * @param data.includeUpstream
  * @param data.includeDownstream
- * @returns GraphDataResponse Successful Response
+ * @returns StructureDataResponse Successful Response
  * @throws ApiError
  */
-export const useGraphServiceGraphData = <
-  TData = Common.GraphServiceGraphDataDefaultResponse,
+export const useStructureServiceStructureData = <
+  TData = Common.StructureServiceStructureDataDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -553,12 +553,12 @@ export const useGraphServiceGraphData = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseGraphServiceGraphDataKeyFn(
+    queryKey: Common.UseStructureServiceStructureDataKeyFn(
       { dagId, includeDownstream, includeUpstream, root },
       queryKey,
     ),
     queryFn: () =>
-      GraphService.graphData({
+      StructureService.structureData({
         dagId,
         includeDownstream,
         includeUpstream,
