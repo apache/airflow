@@ -56,4 +56,6 @@ with dag:
 
     EmptyOperator(task_id="test_task_on_success", on_success_callback=lambda *args, **kwargs: None)
 
-    EmptyOperator(task_id="test_task_outlets", outlets=[Asset("hello")])
+    EmptyOperator(
+        task_id="test_task_outlets", outlets=[Asset(name="hello", uri="test://asset1", group="test-group")]
+    )

@@ -163,7 +163,7 @@ def equal_exception(a: AirflowException, b: AirflowException) -> bool:
 
 
 def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) -> bool:
-    return a.raw_key == b.raw_key and a.extra == b.extra and a.asset_alias_events == b.asset_alias_events
+    return a.key == b.key and a.extra == b.extra and a.asset_alias_events == b.asset_alias_events
 
 
 class MockLazySelectSequence(LazySelectSequence):
@@ -187,7 +187,11 @@ class MockLazySelectSequence(LazySelectSequence):
         (timezone.utcnow(), DAT.DATETIME, equal_time),
         (timedelta(minutes=2), DAT.TIMEDELTA, equals),
         (Timezone("UTC"), DAT.TIMEZONE, lambda a, b: a.name == b.name),
-        (relativedelta.relativedelta(hours=+1), DAT.RELATIVEDELTA, lambda a, b: a.hours == b.hours),
+        (
+            relativedelta.relativedelta(hours=+1),
+            DAT.RELATIVEDELTA,
+            lambda a, b: a.hours == b.hours,
+        ),
         ({"test": "dict", "test-1": 1}, None, equals),
         (["array_item", 2], None, equals),
         (("tuple_item", 3), DAT.TUPLE, equals),
@@ -195,7 +199,9 @@ class MockLazySelectSequence(LazySelectSequence):
         (
             k8s.V1Pod(
                 metadata=k8s.V1ObjectMeta(
-                    name="test", annotations={"test": "annotation"}, creation_timestamp=timezone.utcnow()
+                    name="test",
+                    annotations={"test": "annotation"},
+                    creation_timestamp=timezone.utcnow(),
                 )
             ),
             DAT.POD,
@@ -214,7 +220,14 @@ class MockLazySelectSequence(LazySelectSequence):
         ),
         (Resources(cpus=0.1, ram=2048), None, None),
         (EmptyOperator(task_id="test-task"), None, None),
-        (TaskGroup(group_id="test-group", dag=DAG(dag_id="test_dag", start_date=datetime.now())), None, None),
+        (
+            TaskGroup(
+                group_id="test-group",
+                dag=DAG(dag_id="test_dag", start_date=datetime.now()),
+            ),
+            None,
+            None,
+        ),
         (
             Param("test", "desc"),
             DAT.PARAM,
@@ -231,8 +244,12 @@ class MockLazySelectSequence(LazySelectSequence):
             DAT.XCOM_REF,
             None,
         ),
-        (MockLazySelectSequence(), None, lambda a, b: len(a) == len(b) and isinstance(b, list)),
-        (Asset(uri="test"), DAT.ASSET, equals),
+        (
+            MockLazySelectSequence(),
+            None,
+            lambda a, b: len(a) == len(b) and isinstance(b, list),
+        ),
+        (Asset(uri="test://asset1", name="test"), DAT.ASSET, equals),
         (SimpleTaskInstance.from_ti(ti=TI), DAT.SIMPLE_TASK_INSTANCE, equals),
         (
             Connection(conn_id="TEST_ID", uri="mysql://"),
@@ -240,23 +257,26 @@ class MockLazySelectSequence(LazySelectSequence):
             lambda a, b: a.get_uri() == b.get_uri(),
         ),
         (
-            OutletEventAccessor(raw_key=Asset(uri="test"), extra={"key": "value"}, asset_alias_events=[]),
-            DAT.ASSET_EVENT_ACCESSOR,
-            equal_outlet_event_accessor,
-        ),
-        (
             OutletEventAccessor(
-                raw_key=AssetAlias(name="test_alias"),
+                key=Asset(uri="test", name="test", group="test-group"),
                 extra={"key": "value"},
-                asset_alias_events=[
-                    AssetAliasEvent(source_alias_name="test_alias", dest_asset_uri="test_uri", extra={})
-                ],
+                asset_alias_events=[],
             ),
             DAT.ASSET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
         ),
         (
-            OutletEventAccessor(raw_key="test", extra={"key": "value"}, asset_alias_events=[]),
+            OutletEventAccessor(
+                key=AssetAlias(name="test_alias", group="test-alias-group"),
+                extra={"key": "value"},
+                asset_alias_events=[
+                    AssetAliasEvent(
+                        source_alias_name="test_alias",
+                        dest_asset_uri="test_uri",
+                        extra={},
+                    )
+                ],
+            ),
             DAT.ASSET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
         ),
@@ -295,7 +315,10 @@ def test_serialize_deserialize(input, encoded_type, cmp_func):
     "conn_uri",
     [
         pytest.param("aws://", id="only-conn-type"),
-        pytest.param("postgres://username:password@ec2.compute.com:5432/the_database", id="all-non-extra"),
+        pytest.param(
+            "postgres://username:password@ec2.compute.com:5432/the_database",
+            id="all-non-extra",
+        ),
         pytest.param(
             "///?__extra__=%7B%22foo%22%3A+%22bar%22%2C+%22answer%22%3A+42%2C+%22"
             "nullable%22%3A+null%2C+%22empty%22%3A+%22%22%2C+%22zero%22%3A+0%7D",
@@ -307,7 +330,10 @@ def test_backcompat_deserialize_connection(conn_uri):
     """Test deserialize connection which serialised by previous serializer implementation."""
     from airflow.serialization.serialized_objects import BaseSerialization
 
-    conn_obj = {Encoding.TYPE: DAT.CONNECTION, Encoding.VAR: {"conn_id": "TEST_ID", "uri": conn_uri}}
+    conn_obj = {
+        Encoding.TYPE: DAT.CONNECTION,
+        Encoding.VAR: {"conn_id": "TEST_ID", "uri": conn_uri},
+    }
     deserialized = BaseSerialization.deserialize(conn_obj)
     assert deserialized.get_uri() == conn_uri
 
@@ -323,10 +349,13 @@ sample_objects = {
         is_paused=True,
     ),
     LogTemplatePydantic: LogTemplate(
-        id=1, filename="test_file", elasticsearch_id="test_id", created_at=datetime.now()
+        id=1,
+        filename="test_file",
+        elasticsearch_id="test_id",
+        created_at=datetime.now(),
     ),
     DagTagPydantic: DagTag(),
-    AssetPydantic: Asset("uri", extra={}),
+    AssetPydantic: Asset(name="test", uri="test://asset1", extra={}),
     AssetEventPydantic: AssetEvent(),
 }
 

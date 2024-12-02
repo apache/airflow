@@ -24,6 +24,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Protocol, TypeVar
 
 from airflow import settings
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.sdk.definitions.asset.metadata import Metadata
 from airflow.typing_compat import ParamSpec
 from airflow.utils.context import Context, lazy_mapping_from_context
@@ -276,10 +277,14 @@ def ExecutionCallableRunner(
 
             for metadata in _run():
                 if isinstance(metadata, Metadata):
-                    outlet_events[metadata.uri].extra.update(metadata.extra)
+                    # TODO: handle asset name
+                    outlet_events[Asset(uri=metadata.uri)].extra.update(metadata.extra)
 
                     if metadata.alias_name:
-                        outlet_events[metadata.alias_name].add(metadata.uri, extra=metadata.extra)
+                        # TODO: handle asset name
+                        outlet_events[AssetAlias(name=metadata.alias_name)].add(
+                            Asset(uri=metadata.uri), extra=metadata.extra
+                        )
 
                     continue
                 logger.warning("Ignoring unknown data of %r received from task", type(metadata))

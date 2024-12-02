@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Iterator, Sequence
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from airflow.sdk.definitions.asset import BaseAsset
+from airflow.sdk.definitions.asset import AssetUniqueKey, BaseAsset
 from airflow.typing_compat import Protocol, runtime_checkable
 
 if TYPE_CHECKING:
@@ -55,7 +55,7 @@ class _NullAsset(BaseAsset):
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return False
 
-    def iter_assets(self) -> Iterator[tuple[str, Asset]]:
+    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
         return iter(())
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:

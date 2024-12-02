@@ -51,7 +51,6 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
-from airflow.sdk.definitions.asset import Asset
 from airflow.utils import timezone
 
 assets_router = AirflowRouter(tags=["Asset"])
@@ -171,13 +170,13 @@ def create_asset_event(
     session: SessionDep,
 ) -> AssetEventResponse:
     """Create asset events."""
-    asset = session.scalar(select(AssetModel).where(AssetModel.uri == body.uri).limit(1))
-    if not asset:
+    asset_model = session.scalar(select(AssetModel).where(AssetModel.uri == body.uri).limit(1))
+    if not asset_model:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Asset with uri: `{body.uri}` was not found")
     timestamp = timezone.utcnow()
 
     assets_event = asset_manager.register_asset_change(
-        asset=Asset(uri=body.uri),
+        asset=asset_model.to_public(),
         timestamp=timestamp,
         extra=body.extra,
         session=session,

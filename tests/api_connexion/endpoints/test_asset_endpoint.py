@@ -80,6 +80,8 @@ class TestAssetEndpoint:
         asset_model = AssetModel(
             id=1,
             uri="s3://bucket/key",
+            name="asset-name",
+            group="asset",
             extra={"foo": "bar"},
             created_at=timezone.parse(self.default_time),
             updated_at=timezone.parse(self.default_time),
@@ -103,6 +105,8 @@ class TestGetAssetEndpoint(TestAssetEndpoint):
         assert response.json == {
             "id": 1,
             "uri": "s3://bucket/key",
+            "name": "asset-name",
+            "group": "asset",
             "extra": {"foo": "bar"},
             "created_at": self.default_time,
             "updated_at": self.default_time,
@@ -136,6 +140,8 @@ class TestGetAssets(TestAssetEndpoint):
             AssetModel(
                 id=i,
                 uri=f"s3://bucket/key/{i}",
+                name=f"asset_{i}",
+                group="asset",
                 extra={"foo": "bar"},
                 created_at=timezone.parse(self.default_time),
                 updated_at=timezone.parse(self.default_time),
@@ -156,6 +162,8 @@ class TestGetAssets(TestAssetEndpoint):
                 {
                     "id": 1,
                     "uri": "s3://bucket/key/1",
+                    "name": "asset_1",
+                    "group": "asset",
                     "extra": {"foo": "bar"},
                     "created_at": self.default_time,
                     "updated_at": self.default_time,
@@ -166,6 +174,8 @@ class TestGetAssets(TestAssetEndpoint):
                 {
                     "id": 2,
                     "uri": "s3://bucket/key/2",
+                    "name": "asset_2",
+                    "group": "asset",
                     "extra": {"foo": "bar"},
                     "created_at": self.default_time,
                     "updated_at": self.default_time,

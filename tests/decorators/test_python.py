@@ -975,12 +975,13 @@ def test_task_decorator_asset(dag_maker, session):
 
     result = None
     uri = "s3://bucket/name"
+    asset_name = "test_asset"
 
     with dag_maker(session=session) as dag:
 
         @dag.task()
         def up1() -> Asset:
-            return Asset(uri)
+            return Asset(uri=uri, name=asset_name)
 
         @dag.task()
         def up2(src: Asset) -> str:
