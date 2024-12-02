@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
     from urllib.parse import SplitResult
 
+    from airflow.models.asset import AssetModel
     from airflow.triggers.base import BaseTrigger
 
 
@@ -54,8 +55,11 @@ class AssetUniqueKey(NamedTuple):
     uri: str
 
     @staticmethod
-    def from_asset(asset: Asset) -> AssetUniqueKey:
+    def from_asset(asset: Asset | AssetModel) -> AssetUniqueKey:
         return AssetUniqueKey(name=asset.name, uri=asset.uri)
+
+    def to_asset(self) -> Asset:
+        return Asset(name=self.name, uri=self.uri)
 
 
 @attrs.define()
