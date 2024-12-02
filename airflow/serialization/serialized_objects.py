@@ -372,9 +372,12 @@ def encode_start_trigger_args(var: StartTriggerArgs) -> dict[str, Any]:
 
     :meta private:
     """
-    serialize_kwargs = lambda key: (
-        BaseSerialization.serialize(getattr(var, key)) if getattr(var, key) is not None else None
-    )
+
+    def serialize_kwargs(key: str) -> Any:
+        if (val := getattr(var, key)) is None:
+            return None
+        return BaseSerialization.serialize(val)
+
     return {
         "__type": "START_TRIGGER_ARGS",
         "trigger_cls": var.trigger_cls,
@@ -391,7 +394,11 @@ def decode_start_trigger_args(var: dict[str, Any]) -> StartTriggerArgs:
 
     :meta private:
     """
-    deserialize_kwargs = lambda key: BaseSerialization.deserialize(var[key]) if var[key] is not None else None
+
+    def deserialize_kwargs(key: str) -> Any:
+        if (val := var[key]) is None:
+            return None
+        return BaseSerialization.deserialize(val)
 
     return StartTriggerArgs(
         trigger_cls=var["trigger_cls"],
