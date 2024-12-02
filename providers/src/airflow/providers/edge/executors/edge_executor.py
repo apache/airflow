@@ -33,7 +33,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.providers.edge.cli.edge_command import EDGE_COMMANDS
 from airflow.providers.edge.models.edge_job import EdgeJobModel
 from airflow.providers.edge.models.edge_logs import EdgeLogsModel
-from airflow.providers.edge.models.edge_worker import EdgeWorker, EdgeWorkerModel, EdgeWorkerState
+from airflow.providers.edge.models.edge_worker import EdgeWorkerModel, EdgeWorkerState, reset_metrics
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.db import DBLocks, create_global_lock
@@ -145,7 +145,7 @@ class EdgeExecutor(BaseExecutor):
         for worker in lifeless_workers:
             changed = True
             worker.state = EdgeWorkerState.UNKNOWN
-            EdgeWorker.reset_metrics(worker.worker_name)
+            reset_metrics(worker.worker_name)
 
         return changed
 

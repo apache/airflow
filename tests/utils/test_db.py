@@ -96,6 +96,8 @@ class TestDb:
             lambda t: (t[0] == "remove_table" and t[1].name == "sqlite_sequence"),
             # fab version table
             lambda t: (t[0] == "remove_table" and t[1].name == "alembic_version_fab"),
+            # Ignore _xcom_archive table
+            lambda t: (t[0] == "remove_table" and t[1].name == "_xcom_archive"),
         ]
 
         for ignore in ignores:

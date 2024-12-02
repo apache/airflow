@@ -291,7 +291,6 @@ TEST_TYPE_MATCHES = HashableDict(
         SelectiveCoreTestType.API: [
             r"^airflow/api/",
             r"^airflow/api_connexion/",
-            r"^airflow/api_internal/",
             r"^airflow/api_fastapi/",
             r"^tests/api/",
             r"^tests/api_connexion/",
