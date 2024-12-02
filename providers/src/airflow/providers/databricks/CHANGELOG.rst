@@ -21,6 +21,19 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+main
+.....
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the databricks provider package.
+  The following breaking changes were introduced:
+
+  * Removed deprecated DatabricksRunNowDeferrableOperator. Use DatabricksRunNowOperator with deferrable=True instead.
+  * Removed deprecated DatabricksSubmitRunDeferrableOperator. Use DatabricksSubmitRunOperator with deferrable=True instead.
+  * Removed deprecated return_tuple parameter from DatabricksSqlHook. Now namedtuple will always returned
+
+
+
 ``apache-airflow-providers-databricks``
 
 Changelog
