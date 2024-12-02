@@ -26,6 +26,18 @@
 Changelog
 ---------
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the Apache Beam provider package.
+  The following breaking changes were introduced:
+
+  * Triggers
+
+    * Removed ``BeamPipelineTrigger``. Please use ``BeamPythonPipelineTrigger`` class instead
+
+
 5.9.1
 .....
 
