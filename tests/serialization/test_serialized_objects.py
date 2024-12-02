@@ -49,7 +49,7 @@ from airflow.models.tasklog import LogTemplate
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
-from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.pydantic.asset import AssetEventPydantic, AssetPydantic
 from airflow.serialization.pydantic.dag import DagModelPydantic, DagTagPydantic
@@ -272,8 +272,7 @@ class MockLazySelectSequence(LazySelectSequence):
                 asset_alias_events=[
                     AssetAliasEvent(
                         source_alias_name="test_alias",
-                        dest_asset_name="test_name",
-                        dest_asset_uri="test://asset-uri",
+                        dest_asset_key=AssetUniqueKey(name="test_name", uri="test://asset-uri"),
                         extra={},
                     )
                 ],

@@ -39,7 +39,7 @@ from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
-from airflow.sdk.definitions.asset import Asset, AssetAlias
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey
 from airflow.serialization.pydantic.asset import AssetEventPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.typing_compat import TypedDict
@@ -59,11 +59,10 @@ class ConnectionAccessor:
 
 class AssetAliasEvent:
     source_alias_name: str
-    dest_asset_name: str
-    dest_asset_uri: str
+    dest_asset_key: AssetUniqueKey
     extra: dict[str, Any]
     def __init__(
-        self, source_alias_name: str, dest_asset_name: str, dest_asset_uri: str, extra: dict[str, Any]
+        self, source_alias_name: str, dest_asset_key: AssetUniqueKey, extra: dict[str, Any]
     ) -> None: ...
 
 class OutletEventAccessor:

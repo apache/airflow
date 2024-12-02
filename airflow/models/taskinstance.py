@@ -2750,9 +2750,7 @@ class TaskInstance(Base, LoggingMixin):
             elif isinstance(obj, AssetAlias):
                 for asset_alias_event in events[obj].asset_alias_events:
                     asset_alias_name = asset_alias_event.source_alias_name
-                    asset_unique_key = AssetUniqueKey(
-                        name=asset_alias_event.dest_asset_name, uri=asset_alias_event.dest_asset_uri
-                    )
+                    asset_unique_key = asset_alias_event.dest_asset_key
                     frozen_extra = frozenset(asset_alias_event.extra.items())
                     asset_alias_names[(asset_unique_key, frozen_extra)].add(asset_alias_name)
 
