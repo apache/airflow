@@ -1399,6 +1399,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/connections/bulk:
+    post:
+      tags:
+      - Connection
+      summary: Post Connections
+      description: Create connection entry.
+      operationId: post_connections
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionBulkBody'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionCollectionResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/connections/test:
     post:
       tags:
@@ -6207,6 +6251,8 @@ components:
       properties:
         connection_id:
           type: string
+          maxLength: 200
+          pattern: ^[\w.-]+$
           title: Connection Id
         conn_type:
           type: string
@@ -6252,6 +6298,18 @@ components:
       - conn_type
       title: ConnectionBody
       description: Connection Serializer for requests body.
+    ConnectionBulkBody:
+      properties:
+        connections:
+          items:
+            $ref: '#/components/schemas/ConnectionBody'
+          type: array
+          title: Connections
+      type: object
+      required:
+      - connections
+      title: ConnectionBulkBody
+      description: Connections Serializer for requests body.
     ConnectionCollectionResponse:
       properties:
         connections:

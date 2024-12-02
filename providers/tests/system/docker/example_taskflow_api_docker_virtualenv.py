@@ -44,7 +44,7 @@ def tutorial_taskflow_api_docker_virtualenv():
 
     # [START extract_virtualenv]
     @task.virtualenv(
-        use_dill=True,
+        serializer="dill",
         system_site_packages=False,
         requirements=["funcsigs"],
     )

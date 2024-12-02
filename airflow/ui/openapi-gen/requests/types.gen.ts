@@ -215,6 +215,13 @@ export type ConnectionBody = {
 };
 
 /**
+ * Connections Serializer for requests body.
+ */
+export type ConnectionBulkBody = {
+  connections: Array<ConnectionBody>;
+};
+
+/**
  * Connection Collection serializer for responses.
  */
 export type ConnectionCollectionResponse = {
@@ -1499,6 +1506,12 @@ export type PostConnectionData = {
 
 export type PostConnectionResponse = ConnectionResponse;
 
+export type PostConnectionsData = {
+  requestBody: ConnectionBulkBody;
+};
+
+export type PostConnectionsResponse = ConnectionCollectionResponse;
+
 export type TestConnectionData = {
   requestBody: ConnectionBody;
 };
@@ -2747,6 +2760,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         201: ConnectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/connections/bulk": {
+    post: {
+      req: PostConnectionsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        201: ConnectionCollectionResponse;
         /**
          * Unauthorized
          */

@@ -55,8 +55,6 @@ from airflow.sdk.execution_time.comms import (
 )
 
 if TYPE_CHECKING:
-    from selectors import SelectorKey
-
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
 
@@ -347,12 +345,12 @@ class WatchedSubprocess:
             logs=read_logs,
         )
 
+        # Tell the task process what it needs to do!
+        proc._send_startup_message(ti, path, child_comms)
+
         # Close the remaining parent-end of the sockets we've passed to the child via fork. We still have the
         # other end of the pair open
         proc._close_unused_sockets(child_stdin, child_stdout, child_stderr, child_comms, child_logs)
-
-        # Tell the task process what it needs to do!
-        proc._send_startup_message(ti, path, child_comms)
         return proc
 
     def _register_pipe_readers(
@@ -403,12 +401,53 @@ class WatchedSubprocess:
         self.stdin.write(msg.model_dump_json().encode())
         self.stdin.write(b"\n")
 
-    def kill(self, signal: signal.Signals = signal.SIGINT):
+    def kill(
+        self,
+        signal_to_send: signal.Signals = signal.SIGINT,
+        escalation_delay: float = 5.0,
+        force: bool = False,
+    ):
+        """
+        Attempt to terminate the subprocess with a given signal.
+
+        If the process does not exit within `escalation_delay` seconds, escalate to SIGTERM and eventually SIGKILL if necessary.
+
+        :param signal_to_send: The signal to send initially (default is SIGINT).
+        :param escalation_delay: Time in seconds to wait before escalating to a stronger signal.
+        :param force: If True, ensure escalation through all signals without skipping.
+        """
         if self._exit_code is not None:
             return
 
-        with suppress(ProcessLookupError):
-            os.kill(self.pid, signal)
+        # Escalation sequence: SIGINT -> SIGTERM -> SIGKILL
+        escalation_path = [signal.SIGINT, signal.SIGTERM, signal.SIGKILL]
+
+        if force and signal_to_send in escalation_path:
+            # Start from `signal_to_send` and escalate to the end of the escalation path
+            escalation_path = escalation_path[escalation_path.index(signal_to_send) :]
+        else:
+            escalation_path = [signal_to_send]
+
+        for sig in escalation_path:
+            try:
+                self._process.send_signal(sig)
+
+                # Service subprocess events during the escalation delay
+                self._service_subprocess(max_wait_time=escalation_delay, raise_on_timeout=True)
+                if self._exit_code is not None:
+                    log.info("Process exited", pid=self.pid, exit_code=self._exit_code, signal=sig.name)
+                    return
+            except psutil.TimeoutExpired:
+                msg = "Process did not terminate in time"
+                if sig != escalation_path[-1]:
+                    msg += "; escalating"
+                log.warning(msg, pid=self.pid, signal=sig.name)
+            except psutil.NoSuchProcess:
+                log.debug("Process already terminated", pid=self.pid)
+                self._exit_code = -1
+                return
+
+        log.error("Failed to terminate process after full escalation", pid=self.pid)
 
     def wait(self) -> int:
         if self._exit_code is not None:
@@ -453,20 +492,23 @@ class WatchedSubprocess:
             )
             # Block until events are ready or the timeout is reached
             # This listens for activity (e.g., subprocess output) on registered file objects
-            events = self.selector.select(timeout=max_wait_time)
-            self._process_file_object_events(events)
+            self._service_subprocess(max_wait_time=max_wait_time)
 
-            self._check_subprocess_exit()
             self._send_heartbeat_if_needed()
 
-    def _process_file_object_events(self, events: list[tuple[SelectorKey, int]]):
+    def _service_subprocess(self, max_wait_time: float, raise_on_timeout: bool = False):
         """
-        Process selector events by invoking handlers for each file object.
+        Service subprocess events by processing socket activity and checking for process exit.
 
-        For each file object event, this method retrieves the associated handler and processes
-        the event. If the handler indicates that the file object no longer needs
-        monitoring (e.g., EOF or closed), the file object is unregistered and closed.
+        This method:
+        - Waits for activity on the registered file objects (via `self.selector.select`).
+        - Processes any events triggered on these file objects.
+        - Checks if the subprocess has exited during the wait.
+
+        :param max_wait_time: Maximum time to block while waiting for events, in seconds.
+        :param raise_on_timeout: If True, raise an exception if the subprocess does not exit within the timeout.
         """
+        events = self.selector.select(timeout=max_wait_time)
         for key, _ in events:
             # Retrieve the handler responsible for processing this file object (e.g., stdout, stderr)
             socket_handler = key.data
@@ -484,13 +526,18 @@ class WatchedSubprocess:
                 self.selector.unregister(key.fileobj)
                 key.fileobj.close()  # type: ignore[union-attr]
 
-    def _check_subprocess_exit(self):
+        # Check if the subprocess has exited
+        self._check_subprocess_exit(raise_on_timeout=raise_on_timeout)
+
+    def _check_subprocess_exit(self, raise_on_timeout: bool = False):
         """Check if the subprocess has exited."""
         if self._exit_code is None:
             try:
                 self._exit_code = self._process.wait(timeout=0)
                 log.debug("Task process exited", exit_code=self._exit_code)
             except psutil.TimeoutExpired:
+                if raise_on_timeout:
+                    raise
                 pass
 
     def _send_heartbeat_if_needed(self):
@@ -514,7 +561,7 @@ class WatchedSubprocess:
                     detail=e.detail,
                     status_code=e.response.status_code,
                 )
-                self.kill(signal.SIGTERM)
+                self.kill(signal.SIGTERM, force=True)
             else:
                 # If we get any other error, we'll just log it and try again next time
                 self._handle_heartbeat_failures()
@@ -536,7 +583,7 @@ class WatchedSubprocess:
             log.error(
                 "Too many failed heartbeats; terminating process", failed_heartbeats=self.failed_heartbeats
             )
-            self.kill(signal.SIGTERM)
+            self.kill(signal.SIGTERM, force=True)
 
     @property
     def final_state(self):
