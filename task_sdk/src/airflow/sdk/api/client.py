@@ -45,6 +45,7 @@ from airflow.utils.platform import getuser
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from airflow.sdk.execution_time.comms import PutVariable
     from airflow.typing_compat import ParamSpec
 
     P = ParamSpec("P")
@@ -157,11 +158,10 @@ class VariableOperations:
         resp = self.client.get(f"variables/{key}")
         return VariableResponse.model_validate_json(resp.read())
 
-    def put(self, msg):
-        """Put a variable through the API server."""
+    def set(self, msg: PutVariable):
+        """Set an Airflow Variable via the API server."""
         key = msg.key
-        put_resp = self.client.put(f"variables/{key}", content=msg.model_dump_json())
-        return put_resp
+        self.client.put(f"variables/{key}", content=msg.model_dump_json())
 
 
 class XComOperations:

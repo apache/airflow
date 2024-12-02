@@ -692,15 +692,15 @@ class TestHandleRequest:
             ),
             pytest.param(
                 PutVariable(key="test_key", value="test_value", description="test_description"),
-                b'{"message": "Variable successfully set"}\n',
-                "variables.put",
+                b"",
+                "variables.set",
                 (
                     PutVariable(
                         key="test_key", value="test_value", description="test_description", type="PutVariable"
                     ),
                 ),
                 {"message": "Variable successfully set"},
-                id="put_variable",
+                id="set_variable",
             ),
         ],
     )
