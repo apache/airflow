@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-02T13:54:34.471183
+# This constraints file was automatically generated on 2024-12-02T19:48:18.608805
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -482,7 +482,7 @@ networkx==3.4.2
 nh3==0.2.19
 numpy==1.26.4
 oauthlib==3.2.2
-openai==1.55.3
+openai==1.56.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.25.0
@@ -523,7 +523,7 @@ pinecone-plugin-inference==1.1.0
 pinecone-plugin-interface==0.0.7
 pinotdb==5.6.0
 pipdeptree==2.24.0
-pkginfo==1.11.2
+pkginfo==1.12.0
 platformdirs==4.3.6
 pluggy==1.5.0
 ply==3.11
@@ -613,7 +613,7 @@ rfc3986==2.0.0
 rich-argparse==1.6.0
 rich-click==1.8.5
 rich==13.9.4
-rpds-py==0.21.0
+rpds-py==0.22.0
 rsa==4.9
 ruff==0.8.0
 s3fs==2024.10.0
