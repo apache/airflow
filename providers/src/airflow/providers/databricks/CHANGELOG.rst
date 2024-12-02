@@ -21,6 +21,11 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-databricks``
+
+Changelog
+---------
+
 main
 .....
 
@@ -32,12 +37,6 @@ main
   * Removed deprecated DatabricksSubmitRunDeferrableOperator. Use DatabricksSubmitRunOperator with deferrable=True instead.
   * Removed deprecated return_tuple parameter from DatabricksSqlHook. Now namedtuple will always returned
 
-
-
-``apache-airflow-providers-databricks``
-
-Changelog
----------
 
 6.13.0
 ......
