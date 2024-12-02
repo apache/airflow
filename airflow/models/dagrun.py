@@ -193,6 +193,7 @@ class DagRun(Base, LoggingMixin):
     dag_version_id = Column(UUIDType(binary=False), ForeignKey("dag_version.id", ondelete="CASCADE"))
     dag_version = relationship("DagVersion", back_populates="dag_runs")
 
+    scheduled_by_job_id = Column(Integer)
     # Span context carrier, used for context propagation.
     context_carrier = Column(MutableDict.as_mutable(ExtendedJSON))
     span_status = Column(String(50), default=SpanStatus.NOT_STARTED)
@@ -295,6 +296,7 @@ class DagRun(Base, LoggingMixin):
         self.clear_number = 0
         self.triggered_by = triggered_by
         self.dag_version = dag_version
+        self.scheduled_by_job_id = None
         self.context_carrier = {}
         super().__init__()
 
@@ -949,7 +951,6 @@ class DagRun(Base, LoggingMixin):
         """
         # Callback to execute in case of Task Failures
         callback: DagCallbackRequest | None = None
-        print(f"x: dag_state: {self._state} | span_status: {self.span_status}")
 
         class _UnfinishedStates(NamedTuple):
             tis: Sequence[TI]
@@ -1082,10 +1083,10 @@ class DagRun(Base, LoggingMixin):
                     self.span_status == SpanStatus.NOT_STARTED
                     or self.span_status == SpanStatus.NEEDS_CONTINUANCE
                 ):
-                    span = None
+                    dr_span = None
                     continue_ti_spans = False
                     if self.span_status == SpanStatus.NOT_STARTED:
-                        span = Trace.start_root_span(
+                        dr_span = Trace.start_root_span(
                             span_name=f"{self.dag_id}{CTX_PROP_SUFFIX}",
                             component=f"dag{CTX_PROP_SUFFIX}",
                             start_time=self.queued_at,  # This is later converted to nano.
@@ -1099,7 +1100,7 @@ class DagRun(Base, LoggingMixin):
                         ) as s:
                             s.set_attribute("trace_status", "continued")
 
-                        span = Trace.start_child_span(
+                        dr_span = Trace.start_child_span(
                             span_name=f"{self.dag_id}_continued{CTX_PROP_SUFFIX}",
                             parent_context=parent_context,
                             component=f"dag{CTX_PROP_SUFFIX}",
@@ -1113,7 +1114,7 @@ class DagRun(Base, LoggingMixin):
                     self.set_context_carrier(context_carrier=carrier, session=session, with_commit=False)
                     self.set_span_status(status=SpanStatus.ACTIVE, session=session, with_commit=False)
                     # Set the span in a synchronized dictionary, so that the variable can be used to end the span.
-                    self.active_dagrun_spans.set(self.run_id, span)
+                    self.active_dagrun_spans.set(self.run_id, dr_span)
                     self.log.debug(
                         "DagRun span has been started and the injected context_carrier is: %s",
                         self.context_carrier,
@@ -1200,6 +1201,13 @@ class DagRun(Base, LoggingMixin):
                             self.set_span_status(
                                 status=SpanStatus.SHOULD_END, session=session, with_commit=False
                             )
+                        elif self.span_status == SpanStatus.NEEDS_CONTINUANCE:
+                            # This is a corner case where the scheduler exited gracefully
+                            # while the dag_run was almost done.
+                            # Since it reached this point, the dag has finished but there has been no time
+                            # to create a new span for the current scheduler.
+                            # There is no need for more spans, update the status on the db.
+                            self.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
                         else:
                             self.log.debug(
                                 "No active span has been found for dag_id: %s, run_id: %s, state: %s",
@@ -1270,6 +1278,46 @@ class DagRun(Base, LoggingMixin):
             changed_tis=changed_tis,
             unfinished_tis=unfinished_tis,
             finished_tis=finished_tis,
+        )
+
+    @staticmethod
+    @internal_api_call
+    def _set_scheduled_by_job_id(dag_run: DagRun, job_id: int, session: Session, with_commit: bool) -> bool:
+        if not isinstance(dag_run, DagRun):
+            dag_run = session.scalars(
+                select(DagRun).where(
+                    DagRun.dag_id == dag_run.dag_id,
+                    DagRun.run_id == dag_run.run_id,
+                )
+            ).one()
+
+        if dag_run.scheduled_by_job_id == job_id:
+            return False
+
+        dag_run.log.debug("Setting dag_run scheduled_by_job_id for run_id: %s", dag_run.run_id)
+        dag_run.scheduled_by_job_id = job_id
+
+        session.merge(dag_run)
+
+        if with_commit:
+            session.commit()
+
+        return True
+
+    @provide_session
+    def set_scheduled_by_job_id(
+        self, job_id: int, session: Session = NEW_SESSION, with_commit: bool = False
+    ) -> bool:
+        """
+        Set DagRun scheduled_by_job_id.
+
+        :param job_id: integer with the scheduled_by_job_id to set for the dag_run
+        :param session: SQLAlchemy ORM Session
+        :param with_commit: should the scheduled_by_job_id be committed?
+        :return: has the scheduled_by_job_id been changed?
+        """
+        return self._set_scheduled_by_job_id(
+            dag_run=self, job_id=job_id, session=session, with_commit=with_commit
         )
 
     @staticmethod

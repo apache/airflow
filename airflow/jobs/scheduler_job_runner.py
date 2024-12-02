@@ -63,6 +63,7 @@ from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.traces import utils as trace_utils
+from airflow.traces.otel_tracer import CTX_PROP_SUFFIX
 from airflow.traces.tracer import Trace, add_span
 from airflow.utils import timezone
 from airflow.utils.dates import datetime_to_nano
@@ -1052,11 +1053,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _cleanup_active_spans_before_process_exit(self, session: Session = NEW_SESSION):
         # No need to do a commit for every update. The annotation will commit all of them once at the end.
         for run_id, span in self.active_dagrun_spans.get_all().items():
-            span.end()
             dag_run: DagRun = session.scalars(select(DagRun).where(DagRun.run_id == run_id)).one()
             if dag_run.state in State.finished_dr_states:
+                span.end(end_time=datetime_to_nano(dag_run.end_date))
                 dag_run.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
             else:
+                span.end()
                 dag_run.set_span_status(
                     status=SpanStatus.NEEDS_CONTINUANCE, session=session, with_commit=False
                 )
@@ -1067,7 +1069,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     s.set_attribute("trace_status", "needs continuance")
 
         for key, span in self.active_ti_spans.get_all().items():
-            span.end()
             # Can't compare the key directly because the try_number or the map_index might not be the same.
             ti: TaskInstance = session.scalars(
                 select(TaskInstance).where(
@@ -1077,8 +1078,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             ).one()
             if ti.state in State.finished:
+                span.end(end_time=datetime_to_nano(ti.end_date))
                 ti.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
             else:
+                span.end()
                 ti.set_span_status(status=SpanStatus.NEEDS_CONTINUANCE, session=session, with_commit=False)
 
         self.active_dagrun_spans.clear()
@@ -1126,6 +1129,83 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     active_ti_span.end()
                 self.active_ti_spans.delete(ti.key)
                 ti.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
+
+    @provide_session
+    def _recreate_dead_scheduler_spans_if_needed(self, dag_run: DagRun, session: Session = NEW_SESSION):
+        scheduler_health_timeout = conf.getint("scheduler", "scheduler_health_check_threshold")
+
+        # There are two scenarios:
+        #   1. scheduler is unhealthy but managed to update span_status
+        #   2. scheduler is unhealthy and didn't manage to make any updates
+        # Check the span_status first, in case the 2nd db query can be avoided (scenario 1).
+
+        # Get the latest values from the db.
+        dr: DagRun = session.scalars(
+            select(DagRun).where(
+                DagRun.run_id == dag_run.run_id,
+                DagRun.dag_id == dag_run.dag_id,
+            )
+        ).one()
+
+        # If the dag_run is scheduled by a different scheduler, and it's still running and the span is active,
+        # then check the Job table to determine if the initial scheduler is still healthy.
+        if (
+            dr.scheduled_by_job_id != self.job.id
+            and dr.state in State.unfinished_dr_states
+            and dr.span_status == SpanStatus.ACTIVE
+        ):
+            job: Job = session.scalars(
+                select(Job).where(
+                    Job.id == dr.scheduled_by_job_id,
+                    Job.job_type == "SchedulerJob",
+                )
+            ).one()
+
+            # If the time passed since the last heartbeat is less than the timeout.
+            is_healthy = scheduler_health_timeout > (timezone.utcnow() - job.latest_heartbeat).total_seconds()
+
+            if not is_healthy:
+                # Start a new span for the dag_run.
+                dr_span = Trace.start_root_span(
+                    span_name=f"{dr.dag_id}_recreated{CTX_PROP_SUFFIX}",
+                    component="dag",
+                    start_time=dr.queued_at,
+                    start_as_current=False,
+                )
+                carrier = Trace.inject()
+                # Update the context_carrier and leave the SpanStatus as ACTIVE.
+                dr.set_context_carrier(context_carrier=carrier, session=session, with_commit=False)
+                self.active_dagrun_spans.set(dr.run_id, dr_span)
+
+                tis = dr.get_task_instances(session=session)
+
+                # At this point, any tis will have been adopted by the current scheduler.
+                # If the span_status is ACTIVE but there isn't an entry on the active spans,
+                # then it was started by the unhealthy scheduler.
+                tis_needing_spans = [
+                    ti
+                    for ti in tis
+                    if ti.span_status == SpanStatus.ACTIVE and self.active_ti_spans.get(ti.key) is None
+                ]
+
+                dr_context = Trace.extract(dr.context_carrier)
+                for ti in tis_needing_spans:
+                    ti_span = Trace.start_child_span(
+                        span_name=f"{ti.task_id}_recreated{CTX_PROP_SUFFIX}",
+                        parent_context=dr_context,
+                        start_time=ti.queued_dttm,
+                        start_as_current=False,
+                    )
+                    ti_carrier = Trace.inject()
+                    ti.set_context_carrier(context_carrier=ti_carrier, session=session, with_commit=False)
+
+                    if ti.state in State.finished:
+                        ti_span.end(end_time=datetime_to_nano(ti.end_date))
+                        ti.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
+                    else:
+                        # TODO: revisit this. Will the current scheduler end the span?
+                        ti.set_span_status(status=SpanStatus.ACTIVE, session=session, with_commit=False)
+                        self.active_ti_spans.set(ti.key, ti_span)
 
     def _run_scheduler_loop(self) -> None:
         """
@@ -1850,6 +1930,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     "The DAG disappeared before verifying integrity: %s. Skipping.", dag_run.dag_id
                 )
                 return callback
+
+            if (
+                dag_run.scheduled_by_job_id is not None
+                and dag_run.set_scheduled_by_job_id != self.job.id
+                and self.active_dagrun_spans.get(dag_run.run_id) is None
+            ):
+                # If the dag_run has been previously scheduled by another job and there is no active span,
+                # then check if the job is still healthy.
+                # If it's not healthy, then recreate the spans.
+                self._recreate_dead_scheduler_spans_if_needed(dag_run, session)
+
+            dag_run.set_scheduled_by_job_id(job_id=self.job.id, session=session, with_commit=False)
+
             # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
             schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
 

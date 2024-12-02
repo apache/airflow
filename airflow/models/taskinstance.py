@@ -831,6 +831,7 @@ def _set_ti_attrs(target, source, include_dag_run=False):
     target.next_kwargs = source.next_kwargs
     target.dag_version_id = source.dag_version_id
     target.context_carrier = source.context_carrier
+    target.span_status = source.span_status
 
     if include_dag_run:
         target.execution_date = source.execution_date
@@ -852,7 +853,9 @@ def _set_ti_attrs(target, source, include_dag_run=False):
         target.dag_run.dag_version_id = source.dag_run.dag_version_id
         target.dag_run.updated_at = source.dag_run.updated_at
         target.dag_run.log_template_id = source.dag_run.log_template_id
+        target.dag_run.scheduled_by_job_id = source.dag_run.scheduled_by_job_id
         target.dag_run.context_carrier = source.dag_run.context_carrier
+        target.dag_run.span_status = source.dag_run.span_status
 
 
 def _refresh_from_db(
@@ -895,10 +898,11 @@ def _refresh_from_db(
         # not be available.
         if not include_dag_run:
             inspector = inspect(ti)
-            # Check if the ti is detached or the dag_run isn't loaded.
-            if not inspector.detached and "dag_run" not in inspector.unloaded:
-                # It's best to include the dag_run whenever possible,
-                # in case there are changes to the span context_carrier.
+            # Check if the ti is detached or not loaded.
+            if not inspector.detached and "task_instance" not in inspector.unloaded:
+                # If the scheduler that started the dag_run has exited (gracefully or forcefully),
+                # there will be changes to the dag_run span context_carrier.
+                # It's best to include the dag_run whenever possible, so that the ti contains the updates.
                 include_dag_run = True
 
         _set_ti_attrs(task_instance, ti, include_dag_run=include_dag_run)

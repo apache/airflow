@@ -58,6 +58,7 @@ class DagRunPydantic(BaseModelPydantic):
     consumed_asset_events: List[AssetEventPydantic]  # noqa: UP006
     log_template_id: Optional[int]
     triggered_by: Optional[DagRunTriggeredByType]
+    scheduled_by_job_id: Optional[int]
     context_carrier: Optional[dict]
     span_status: Optional[str]
 

@@ -44,6 +44,7 @@ from tests.integration.otel.test_utils import (
     extract_spans_from_output,
     get_parent_child_dict,
 )
+from tests_common.test_utils.db import initial_db_init
 
 log = logging.getLogger("test_otel.TestOtelIntegration")
 
@@ -94,10 +95,10 @@ def wait_for_dag_run_and_check_span_status(dag_id: str, run_id: str, max_wait_ti
                 continue
 
             dag_run_state = dag_run.state
-            log.info("DAG Run state: %s.", dag_run_state)
+            log.debug("DAG Run state: %s.", dag_run_state)
 
             dag_run_span_status = dag_run.span_status
-            log.info("DAG Run span status: %s.", dag_run_span_status)
+            log.debug("DAG Run span status: %s.", dag_run_span_status)
 
             if dag_run_state in [State.SUCCESS, State.FAILED]:
                 break
@@ -111,7 +112,41 @@ def wait_for_dag_run_and_check_span_status(dag_id: str, run_id: str, max_wait_ti
     ), f"Dag run span status isn't {span_status} as expected.Actual status: {dag_run_span_status}."
 
 
-def check_spans_with_continuance(output: str, dag: DAG):
+def check_dag_run_state_and_span_status(dag_id: str, run_id: str, state: str, span_status: str):
+    with create_session() as session:
+        dag_run = (
+            session.query(DagRun)
+            .filter(
+                DagRun.dag_id == dag_id,
+                DagRun.run_id == run_id,
+            )
+            .first()
+        )
+
+        assert dag_run.state == state, f"Dag Run state isn't {state}. State: {dag_run.state}"
+        assert (
+            dag_run.span_status == span_status
+        ), f"Dag Run span_status isn't {span_status}. Span_status: {dag_run.span_status}"
+
+
+def check_ti_state_and_span_status(task_id: str, run_id: str, state: str, span_status: str):
+    with create_session() as session:
+        ti = (
+            session.query(TaskInstance)
+            .filter(
+                TaskInstance.task_id == task_id,
+                TaskInstance.run_id == run_id,
+            )
+            .first()
+        )
+
+        assert ti.state == state, f"Task instance state isn't {state}. State: {ti.state}"
+        assert (
+            ti.span_status == span_status
+        ), f"Task instance span_status isn't {span_status}. Span_status: {ti.span_status}"
+
+
+def check_spans_with_continuance(output: str, dag: DAG, continuance_for_t1: bool = True):
     # Get a list of lines from the captured output.
     output_lines = output.splitlines()
 
@@ -134,6 +169,18 @@ def check_spans_with_continuance(output: str, dag: DAG):
     #                   |_ sub_span_3
     #           |_ sub_span_4
     #       |_ task_2 span
+    #
+    # If there is no continuance for task_1, then the span hierarchy is
+    # dag span
+    #   |_ task_1 span
+    #       |_ sub_span_1
+    #           |_ sub_span_2
+    #               |_ sub_span_3
+    #       |_ sub_span_4
+    #   |_ scheduler_exited span
+    #   |_ new_scheduler span
+    #   |_ dag span (continued)
+    #       |_ task_2 span
 
     dag_id = dag.dag_id
 
@@ -150,10 +197,15 @@ def check_spans_with_continuance(output: str, dag: DAG):
         f"{dag_id}_continued{CTX_PROP_SUFFIX}",
     ]
 
-    dag_continued_span_children_names = [
-        f"{task1_id}_continued{CTX_PROP_SUFFIX}",
-        f"{task2_id}{CTX_PROP_SUFFIX}",
-    ]
+    if continuance_for_t1:
+        dag_continued_span_children_names = [
+            f"{task1_id}_continued{CTX_PROP_SUFFIX}",
+            f"{task2_id}{CTX_PROP_SUFFIX}",
+        ]
+    else:
+        dag_continued_span_children_names = [
+            f"{task2_id}{CTX_PROP_SUFFIX}",
+        ]
 
     task1_span_children_names = [
         f"{task1_id}_sub_span1{CTX_PROP_SUFFIX}",
@@ -203,12 +255,20 @@ def check_spans_with_continuance(output: str, dag: DAG):
         children_names=dag_continued_span_children_names,
     )
 
-    # Check children of the continued task1 span.
-    assert_parent_children_spans_for_non_root(
-        span_dict=span_dict,
-        parent_name=f"{task1_id}_continued{CTX_PROP_SUFFIX}",
-        children_names=task1_span_children_names,
-    )
+    if continuance_for_t1:
+        # Check children of the continued task1 span.
+        assert_parent_children_spans_for_non_root(
+            span_dict=span_dict,
+            parent_name=f"{task1_id}_continued{CTX_PROP_SUFFIX}",
+            children_names=task1_span_children_names,
+        )
+    else:
+        # Check children of the task1 span.
+        assert_parent_children_spans_for_non_root(
+            span_dict=span_dict,
+            parent_name=f"{task1_id}{CTX_PROP_SUFFIX}",
+            children_names=task1_span_children_names,
+        )
 
     # Check children of task1 sub span1.
     assert_parent_children_spans_for_non_root(
@@ -225,7 +285,11 @@ def check_spans_with_continuance(output: str, dag: DAG):
     )
 
 
-def check_spans_without_continuance(output: str, dag: DAG):
+def check_spans_without_continuance(
+    output: str, dag: DAG, is_recreated: bool = False, check_t1_sub_spans: bool = True
+):
+    recreated_suffix = "_recreated" if is_recreated else ""
+
     # Get a list of lines from the captured output.
     output_lines = output.splitlines()
 
@@ -245,6 +309,12 @@ def check_spans_without_continuance(output: str, dag: DAG):
     #               |_ sub_span_3
     #       |_ sub_span_4
     #   |_ task_2 span
+    #
+    # In case task_1 has finished running and the span is recreated,
+    # the sub spans are lost and can't be recreated. The span hierarchy will be
+    # dag span
+    #   |_ task_1 span
+    #   |_ task_2 span
 
     dag_id = dag.dag_id
 
@@ -252,10 +322,13 @@ def check_spans_without_continuance(output: str, dag: DAG):
     task1_id = task_instance_ids[0]
     task2_id = task_instance_ids[1]
 
-    dag_root_span_name = f"{dag_id}{CTX_PROP_SUFFIX}"
+    # Based on the current tests, only the root span and the task1 span will be recreated.
+    # TODO: Adjust accordingly, if there are more tests in the future
+    #  that require other spans to be recreated as well.
+    dag_root_span_name = f"{dag_id}{recreated_suffix}{CTX_PROP_SUFFIX}"
 
     dag_root_span_children_names = [
-        f"{task1_id}{CTX_PROP_SUFFIX}",
+        f"{task1_id}{recreated_suffix}{CTX_PROP_SUFFIX}",
         f"{task2_id}{CTX_PROP_SUFFIX}",
     ]
 
@@ -300,26 +373,27 @@ def check_spans_without_continuance(output: str, dag: DAG):
         span_exists=False,
     )
 
-    # Check children of the task1 span.
-    assert_parent_children_spans_for_non_root(
-        span_dict=span_dict,
-        parent_name=f"{task1_id}{CTX_PROP_SUFFIX}",
-        children_names=task1_span_children_names,
-    )
+    if check_t1_sub_spans:
+        # Check children of the task1 span.
+        assert_parent_children_spans_for_non_root(
+            span_dict=span_dict,
+            parent_name=f"{task1_id}{recreated_suffix}{CTX_PROP_SUFFIX}",
+            children_names=task1_span_children_names,
+        )
 
-    # Check children of task1 sub span1.
-    assert_parent_children_spans_for_non_root(
-        span_dict=span_dict,
-        parent_name=f"{task1_id}_sub_span1{CTX_PROP_SUFFIX}",
-        children_names=task1_sub_span1_children_span_names,
-    )
+        # Check children of task1 sub span1.
+        assert_parent_children_spans_for_non_root(
+            span_dict=span_dict,
+            parent_name=f"{task1_id}_sub_span1{CTX_PROP_SUFFIX}",
+            children_names=task1_sub_span1_children_span_names,
+        )
 
-    # Check children of task1 sub span2.
-    assert_parent_children_spans_for_non_root(
-        span_dict=span_dict,
-        parent_name=f"{task1_id}_sub_span2{CTX_PROP_SUFFIX}",
-        children_names=task1_sub_span2_children_span_names,
-    )
+        # Check children of task1 sub span2.
+        assert_parent_children_spans_for_non_root(
+            span_dict=span_dict,
+            parent_name=f"{task1_id}_sub_span2{CTX_PROP_SUFFIX}",
+            children_names=task1_sub_span2_children_span_names,
+        )
 
 
 @pytest.mark.integration("redis")
@@ -336,7 +410,7 @@ class TestOtelIntegration:
     - run the test
     - check 'http://localhost:36686/'
 
-    To get span dumps on the stdout, run 'export log_level=debug'.
+    To get a db dump on the stdout, run 'export log_level=debug'.
     """
 
     test_dir = os.path.dirname(os.path.abspath(__file__))
@@ -361,6 +435,8 @@ class TestOtelIntegration:
         "scheduler",
     ]
 
+    dags: dict[str, DAG] = {}
+
     @classmethod
     def setup_class(cls):
         os.environ["AIRFLOW__TRACES__OTEL_ON"] = "True"
@@ -374,6 +450,15 @@ class TestOtelIntegration:
         os.environ["AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR"] = "False"
         os.environ["AIRFLOW__SCHEDULER__PROCESSOR_POLL_INTERVAL"] = "2"
 
+        # The heartrate is determined by the conf "AIRFLOW__SCHEDULER__SCHEDULER_HEARTBEAT_SEC".
+        # By default, the heartrate is 5 seconds. Every iteration of the scheduler loop check the
+        # time passed since the last heartbeat and if it was longer than the 5 second heartrate,
+        # it performs a heartbeat update.
+        # If there hasn't been a heartbeat for an amount of time longer than the
+        # SCHEDULER_HEALTH_CHECK_THRESHOLD, then the scheduler is considered unhealthy.
+        # Approximately, there is a scheduler heartbeat every 5-6 seconds. Set the threshold to 15.
+        os.environ["AIRFLOW__SCHEDULER__SCHEDULER_HEALTH_CHECK_THRESHOLD"] = "15"
+
         os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = f"{cls.dag_folder}"
 
         os.environ["AIRFLOW__CORE__LOAD_EXAMPLES"] = "False"
@@ -381,6 +466,35 @@ class TestOtelIntegration:
 
         if cls.log_level == "debug":
             log.setLevel(logging.DEBUG)
+
+        initial_db_init()
+
+        cls.dags = cls.serialize_and_get_dags()
+
+    @classmethod
+    def serialize_and_get_dags(cls) -> dict[str, DAG]:
+        # Load DAGs from the dag directory.
+        dag_bag = DagBag(dag_folder=cls.dag_folder, include_examples=False)
+
+        dag_ids = dag_bag.dag_ids
+        assert len(dag_ids) == 2
+
+        dag_dict: dict[str, DAG] = {}
+        with create_session() as session:
+            for dag_id in dag_ids:
+                dag = dag_bag.get_dag(dag_id)
+                dag_dict[dag_id] = dag
+
+                assert dag is not None, f"DAG with ID {dag_id} not found."
+
+                # Sync the DAG to the database.
+                dag.sync_to_db(session=session)
+                # Manually serialize the dag and write it to the db to avoid a db error.
+                SerializedDagModel.write_dag(dag, session=session)
+
+            session.commit()
+
+        return dag_dict
 
     @pytest.fixture
     def celery_worker_env_vars(self, monkeypatch):
@@ -391,13 +505,17 @@ class TestOtelIntegration:
         )
         monkeypatch.setattr(executor_loader, "_alias_to_executors", {"CeleryExecutor": executor_name})
 
+    @pytest.fixture(autouse=True)
+    def reset_db(self):
+        reset_command = ["airflow", "db", "reset", "--yes"]
+
+        # Reset the db using the cli.
+        subprocess.run(reset_command, check=True, env=os.environ.copy())
+
     def test_same_scheduler_processing_the_entire_dag(
         self, monkeypatch, celery_worker_env_vars, capfd, session
     ):
-        """
-        Test that a DAG runs successfully and exports the correct spans.
-        Integration with a scheduler, a celery worker, a postgres db and a redis broker.
-        """
+        """The same scheduler will start and finish the dag processing."""
         celery_worker_process = None
         scheduler_process = None
         try:
@@ -406,7 +524,11 @@ class TestOtelIntegration:
             celery_worker_process, scheduler_process = self.start_worker_and_scheduler1()
 
             dag_id = "otel_test_dag"
-            dag = self.serialize_and_get_dag(dag_id=dag_id)
+
+            assert len(self.dags) > 0
+            dag = self.dags[dag_id]
+
+            assert dag is not None
 
             run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
 
@@ -414,40 +536,53 @@ class TestOtelIntegration:
                 dag_id=dag_id, run_id=run_id, max_wait_time=90, span_status=SpanStatus.ENDED
             )
 
-            if logging.root.level == logging.DEBUG:
+            # The ti span_status is updated while processing the executor events,
+            # which is after the dag_run state has been updated.
+            time.sleep(10)
+
+            with create_session() as session:
+                tis: list[TaskInstance] = dag.get_task_instances(session=session)
+
+            for ti in tis:
+                check_ti_state_and_span_status(
+                    task_id=ti.task_id, run_id=run_id, state=State.SUCCESS, span_status=SpanStatus.ENDED
+                )
+        finally:
+            if self.log_level == "debug":
                 with create_session() as session:
                     dump_airflow_metadata_db(session)
-        finally:
+
             # Terminate the processes.
             celery_worker_process.terminate()
             celery_worker_process.wait()
 
+            celery_status = celery_worker_process.poll()
+            assert (
+                celery_status is not None
+            ), "The celery worker process status is None, which means that it hasn't terminated as expected."
+
             scheduler_process.terminate()
             scheduler_process.wait()
 
+            scheduler_status = scheduler_process.poll()
+            assert (
+                scheduler_status is not None
+            ), "The scheduler_1 process status is None, which means that it hasn't terminated as expected."
+
         out, err = capfd.readouterr()
-        log.debug("out-start --\n%s\n-- out-end", out)
-        log.debug("err-start --\n%s\n-- err-end", err)
+        log.info("out-start --\n%s\n-- out-end", out)
+        log.info("err-start --\n%s\n-- err-end", err)
 
         if self.use_otel != "true":
             # Dag run should have succeeded. Test the spans from the output.
             check_spans_without_continuance(output=out, dag=dag)
 
-    def test_another_scheduler_executing_the_second_task_and_the_rest_of_the_dag(
+    def test_scheduler_change_after_the_first_task_finishes(
         self, monkeypatch, celery_worker_env_vars, capfd, session
     ):
         """
-        Similar to test_dag_spans_with_context_propagation but this test will start with one scheduler,
-        and during the dag execution, it will stop the process and start a new one.
-
-        A txt file will be used for signaling the test and the dag in order to make sure that
-        the 1st scheduler is stopped while the first task is executing and that
-        the 2nd scheduler picks up the task and dag processing.
-        The steps will be
-        - The dag starts running, creates the file with a signal word and waits until the word is changed.
-        - The test checks if the file exist, stops the scheduler, starts a new scheduler and updates the file.
-        - The dag gets the update and continues until the task is finished.
-        At this point, the second scheduler should handle the rest of the dag processing.
+        The scheduler thread will be paused after the first task ends and a new scheduler process
+        will handle the rest of the dag processing. The paused thread will be resumed afterwards.
         """
 
         celery_worker_process = None
@@ -459,7 +594,7 @@ class TestOtelIntegration:
             celery_worker_process, scheduler_process_1 = self.start_worker_and_scheduler1()
 
             dag_id = "otel_test_dag"
-            dag = self.serialize_and_get_dag(dag_id=dag_id)
+            dag = self.dags[dag_id]
 
             run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
 
@@ -489,47 +624,28 @@ class TestOtelIntegration:
             with capfd.disabled():
                 # When we pause the scheduler1 thread, capfd keeps trying to read the
                 # file descriptors for the process and ends up freezing the test.
-                # There won't be any exported spans from the following code,
-                # so not capturing the output, doesn't make a difference.
+                # Temporarily disable capfd to avoid that.
                 scheduler_process_1.send_signal(signal.SIGSTOP)
 
-                scheduler_process_2 = subprocess.Popen(
-                    self.scheduler_command_args,
-                    env=os.environ.copy(),
-                    stdout=None,
-                    stderr=None,
-                )
+            scheduler_process_2 = subprocess.Popen(
+                self.scheduler_command_args,
+                env=os.environ.copy(),
+                stdout=None,
+                stderr=None,
+            )
 
-                with create_session() as session:
-                    dag_run = (
-                        session.query(DagRun)
-                        .filter(
-                            DagRun.dag_id == dag_id,
-                            DagRun.run_id == run_id,
-                        )
-                        .first()
-                    )
+            check_dag_run_state_and_span_status(
+                dag_id=dag_id, run_id=run_id, state=State.RUNNING, span_status=SpanStatus.ACTIVE
+            )
 
-                    assert (
-                        dag_run.state == State.RUNNING
-                    ), f"Dag Run state isn't RUNNING. State: {dag_run.state}"
-                    assert (
-                        dag_run.span_status == SpanStatus.ACTIVE
-                    ), f"Dag Run span_status isn't ACTIVE. Span_status: {dag_run.span_status}"
+            # Wait for scheduler2 to be up and running.
+            time.sleep(10)
 
-                # Wait for scheduler2 to be up and running.
-                time.sleep(10)
+            wait_for_dag_run_and_check_span_status(
+                dag_id=dag_id, run_id=run_id, max_wait_time=120, span_status=SpanStatus.SHOULD_END
+            )
 
-                wait_for_dag_run_and_check_span_status(
-                    dag_id=dag_id, run_id=run_id, max_wait_time=120, span_status=SpanStatus.SHOULD_END
-                )
-
-                if logging.root.level == logging.DEBUG:
-                    with create_session() as session:
-                        dump_airflow_metadata_db(session)
-
-                scheduler_process_1.send_signal(signal.SIGCONT)
-                scheduler_process_2.terminate()
+            scheduler_process_1.send_signal(signal.SIGCONT)
 
             # Wait for the scheduler to start again and continue running.
             time.sleep(10)
@@ -539,6 +655,10 @@ class TestOtelIntegration:
             )
 
         finally:
+            if self.log_level == "debug":
+                with create_session() as session:
+                    dump_airflow_metadata_db(session)
+
             # Terminate the processes.
             celery_worker_process.terminate()
             celery_worker_process.wait()
@@ -546,26 +666,27 @@ class TestOtelIntegration:
             scheduler_process_1.terminate()
             scheduler_process_1.wait()
 
-            # scheduler_process_2.terminate()
+            scheduler_process_2.terminate()
             scheduler_process_2.wait()
 
         out, err = capfd.readouterr()
-        log.debug("out-start --\n%s\n-- out-end", out)
-        log.debug("err-start --\n%s\n-- err-end", err)
+        log.info("out-start --\n%s\n-- out-end", out)
+        log.info("err-start --\n%s\n-- err-end", err)
 
         if self.use_otel != "true":
             # Dag run should have succeeded. Test the spans in the output.
             check_spans_without_continuance(output=out, dag=dag)
 
-    def test_scheduler_change_in_the_middle_of_first_task_execution_until_the_end(
+    def test_scheduler_change_in_the_middle_of_first_task_until_the_end(
         self, monkeypatch, celery_worker_env_vars, capfd, session
     ):
         """
-        Similar to test_dag_spans_with_context_propagation but this test will start with one scheduler,
-        and during the dag execution, it will stop the process and start a new one.
+        The scheduler that starts the dag run, will be paused and a new scheduler process will handle
+        the rest of the dag processing. The paused thread will be resumed so that the test
+        can check that it properly handles the spans.
 
         A txt file will be used for signaling the test and the dag in order to make sure that
-        the 1st scheduler is stopped while the first task is executing and that
+        the 1st scheduler is handled accordingly while the first task is executing and that
         the 2nd scheduler picks up the task and dag processing.
         The steps will be
         - The dag starts running, creates the file with a signal word and waits until the word is changed.
@@ -582,86 +703,68 @@ class TestOtelIntegration:
             # so that the test can capture their output.
             celery_worker_process, scheduler_process_1 = self.start_worker_and_scheduler1()
 
-            dag_id = "otel_test_dag"
-            dag = self.serialize_and_get_dag(dag_id=dag_id)
+            dag_id = "otel_test_dag_with_pause"
+            dag = self.dags[dag_id]
 
             run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
 
-            with create_session() as session:
-                tis: list[TaskInstance] = dag.get_task_instances(session=session)
-
-            task_1 = tis[0]
+            # Control file path.
+            control_file = os.path.join(self.dag_folder, "dag_control.txt")
 
             while True:
-                with create_session() as session:
-                    ti = (
-                        session.query(TaskInstance)
-                        .filter(
-                            TaskInstance.task_id == task_1.task_id,
-                            TaskInstance.run_id == task_1.run_id,
-                        )
-                        .first()
-                    )
-
-                    if ti is None:
-                        continue
-
-                    # Wait until the task has been finished.
-                    if ti.state in State.finished:
+                try:
+                    with open(control_file) as file:
+                        # If it reaches inside the block, then the file exists and the test can read it.
                         break
+                except FileNotFoundError:
+                    print("Control file not found. Waiting...")
+                    time.sleep(1)
+                    continue
 
             with capfd.disabled():
                 # When we pause the scheduler1 thread, capfd keeps trying to read the
                 # file descriptors for the process and ends up freezing the test.
-                # There won't be any exported spans from the following code,
-                # so not capturing the output, doesn't make a difference.
+                # Temporarily disable capfd to avoid that.
                 scheduler_process_1.send_signal(signal.SIGSTOP)
 
-                scheduler_process_2 = subprocess.Popen(
-                    self.scheduler_command_args,
-                    env=os.environ.copy(),
-                    stdout=None,
-                    stderr=None,
-                )
+            scheduler_process_2 = subprocess.Popen(
+                self.scheduler_command_args,
+                env=os.environ.copy(),
+                stdout=None,
+                stderr=None,
+            )
 
-                with create_session() as session:
-                    dag_run = (
-                        session.query(DagRun)
-                        .filter(
-                            DagRun.dag_id == dag_id,
-                            DagRun.run_id == run_id,
-                        )
-                        .first()
-                    )
+            # Wait for scheduler2 to be up and running.
+            time.sleep(10)
 
-                    assert (
-                        dag_run.state == State.RUNNING
-                    ), f"Dag Run state isn't RUNNING. State: {dag_run.state}"
-                    assert (
-                        dag_run.span_status == SpanStatus.ACTIVE
-                    ), f"Dag Run span_status isn't ACTIVE. Span_status: {dag_run.span_status}"
+            check_dag_run_state_and_span_status(
+                dag_id=dag_id, run_id=run_id, state=State.RUNNING, span_status=SpanStatus.ACTIVE
+            )
 
-                # Wait for scheduler2 to be up and running.
-                time.sleep(10)
+            # Rewrite the file to unpause the dag.
+            with open(control_file, "w") as file:
+                file.write("continue")
 
-                wait_for_dag_run_and_check_span_status(
-                    dag_id=dag_id, run_id=run_id, max_wait_time=120, span_status=SpanStatus.SHOULD_END
-                )
+            # Scheduler2 should finish processing the dag and set the status
+            # so that scheduler1 can end the spans when it is resumed.
+            wait_for_dag_run_and_check_span_status(
+                dag_id=dag_id, run_id=run_id, max_wait_time=120, span_status=SpanStatus.SHOULD_END
+            )
 
-                if logging.root.level == logging.DEBUG:
-                    with create_session() as session:
-                        dump_airflow_metadata_db(session)
-
-                scheduler_process_1.send_signal(signal.SIGCONT)
-                scheduler_process_2.terminate()
+            scheduler_process_1.send_signal(signal.SIGCONT)
 
             # Wait for the scheduler to start again and continue running.
             time.sleep(10)
 
+            # Scheduler1 should end the spans and update the status.
             wait_for_dag_run_and_check_span_status(
                 dag_id=dag_id, run_id=run_id, max_wait_time=30, span_status=SpanStatus.ENDED
             )
         finally:
+            if self.log_level == "debug":
+                with create_session() as session:
+                    dump_airflow_metadata_db(session)
+
             # Terminate the processes.
             celery_worker_process.terminate()
             celery_worker_process.wait()
@@ -669,12 +772,12 @@ class TestOtelIntegration:
             scheduler_process_1.terminate()
             scheduler_process_1.wait()
 
-            # scheduler_process_2.terminate()
+            scheduler_process_2.terminate()
             scheduler_process_2.wait()
 
         out, err = capfd.readouterr()
-        log.debug("out-start --\n%s\n-- out-end", out)
-        log.debug("err-start --\n%s\n-- err-end", err)
+        log.info("out-start --\n%s\n-- out-end", out)
+        log.info("err-start --\n%s\n-- err-end", err)
 
         if self.use_otel != "true":
             # Dag run should have succeeded. Test the spans in the output.
@@ -684,17 +787,9 @@ class TestOtelIntegration:
         self, monkeypatch, celery_worker_env_vars, capfd, session
     ):
         """
-        Similar to test_dag_spans_with_context_propagation but this test will start with one scheduler,
-        and during the dag execution, it will stop the process and start a new one.
-
-        A txt file will be used for signaling the test and the dag in order to make sure that
-        the 1st scheduler is stopped while the first task is executing and that
-        the 2nd scheduler picks up the task and dag processing.
-        The steps will be
-        - The dag starts running, creates the file with a signal word and waits until the word is changed.
-        - The test checks if the file exist, stops the scheduler, starts a new scheduler and updates the file.
-        - The dag gets the update and continues until the task is finished.
-        At this point, the second scheduler should handle the rest of the dag processing.
+        The scheduler that starts the dag run will be stopped, while the first task is executing,
+        and start a new scheduler will be started. That way, the new process will pick up the dag processing.
+        The initial scheduler will exit gracefully.
         """
 
         celery_worker_process = None
@@ -706,7 +801,7 @@ class TestOtelIntegration:
             celery_worker_process, scheduler_process_1 = self.start_worker_and_scheduler1()
 
             dag_id = "otel_test_dag_with_pause"
-            dag = self.serialize_and_get_dag(dag_id=dag_id)
+            dag = self.dags[dag_id]
 
             run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
 
@@ -727,6 +822,10 @@ class TestOtelIntegration:
             # Terminate scheduler1 and start scheduler2.
             scheduler_process_1.terminate()
 
+            check_dag_run_state_and_span_status(
+                dag_id=dag_id, run_id=run_id, state=State.RUNNING, span_status=SpanStatus.NEEDS_CONTINUANCE
+            )
+
             scheduler_process_2 = subprocess.Popen(
                 self.scheduler_command_args,
                 env=os.environ.copy(),
@@ -744,12 +843,11 @@ class TestOtelIntegration:
             wait_for_dag_run_and_check_span_status(
                 dag_id=dag_id, run_id=run_id, max_wait_time=120, span_status=SpanStatus.ENDED
             )
-
-            if logging.root.level == logging.DEBUG:
+        finally:
+            if self.log_level == "debug":
                 with create_session() as session:
                     dump_airflow_metadata_db(session)
 
-        finally:
             # Terminate the processes.
             celery_worker_process.terminate()
             celery_worker_process.wait()
@@ -760,8 +858,8 @@ class TestOtelIntegration:
             scheduler_process_2.wait()
 
         out, err = capfd.readouterr()
-        log.debug("out-start --\n%s\n-- out-end", out)
-        log.debug("err-start --\n%s\n-- err-end", err)
+        log.info("out-start --\n%s\n-- out-end", out)
+        log.info("err-start --\n%s\n-- err-end", err)
 
         if self.use_otel != "true":
             # Dag run should have succeeded. Test the spans in the output.
@@ -771,21 +869,11 @@ class TestOtelIntegration:
         self, monkeypatch, celery_worker_env_vars, capfd, session
     ):
         """
-        This test will start with one scheduler, and during the dag execution,
-        it will stop the process and start a new one.
-
-        A txt file will be used for signaling the test and the dag in order to make sure that
-        the 1st scheduler is stopped while the first task is executing and that
-        the 2nd scheduler picks up the task and dag processing.
-        The steps will be
-        - The dag starts running, creates the file with a signal word and waits until the word is changed.
-        - The test checks if the file exist, stops the scheduler, starts a new scheduler and updates the file.
-        - The dag gets the update and continues until the task is finished.
-        At this point, the second scheduler should handle the rest of the dag processing.
+        The first scheduler will exit forcefully while the first task is running,
+        so that it won't have time end any active spans.
         """
 
         celery_worker_process = None
-        scheduler_process_1 = None
         scheduler_process_2 = None
         try:
             # Start the processes here and not as fixtures or in a common setup,
@@ -793,7 +881,7 @@ class TestOtelIntegration:
             celery_worker_process, scheduler_process_1 = self.start_worker_and_scheduler1()
 
             dag_id = "otel_test_dag_with_pause"
-            dag = self.serialize_and_get_dag(dag_id=dag_id)
+            dag = self.dags[dag_id]
 
             run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
 
@@ -811,8 +899,16 @@ class TestOtelIntegration:
                     continue
 
             # Since, we are past the loop, then the file exists and the dag has been paused.
-            # Terminate scheduler1 and start scheduler2.
-            scheduler_process_1.terminate()
+            # Kill scheduler1 and start scheduler2.
+            scheduler_process_1.send_signal(signal.SIGKILL)
+
+            # The process shouldn't have changed the span_status.
+            check_dag_run_state_and_span_status(
+                dag_id=dag_id, run_id=run_id, state=State.RUNNING, span_status=SpanStatus.ACTIVE
+            )
+
+            # Wait so that the health threshold passes and scheduler1 is considered unhealthy.
+            time.sleep(15)
 
             scheduler_process_2 = subprocess.Popen(
                 self.scheduler_command_args,
@@ -831,28 +927,115 @@ class TestOtelIntegration:
             wait_for_dag_run_and_check_span_status(
                 dag_id=dag_id, run_id=run_id, max_wait_time=120, span_status=SpanStatus.ENDED
             )
-
-            if logging.root.level == logging.DEBUG:
+        finally:
+            if self.log_level == "debug":
                 with create_session() as session:
                     dump_airflow_metadata_db(session)
 
-        finally:
             # Terminate the processes.
             celery_worker_process.terminate()
             celery_worker_process.wait()
-
-            scheduler_process_1.wait()
 
             scheduler_process_2.terminate()
             scheduler_process_2.wait()
 
         out, err = capfd.readouterr()
-        log.debug("out-start --\n%s\n-- out-end", out)
-        log.debug("err-start --\n%s\n-- err-end", err)
+        log.info("out-start --\n%s\n-- out-end", out)
+        log.info("err-start --\n%s\n-- err-end", err)
 
         if self.use_otel != "true":
             # Dag run should have succeeded. Test the spans in the output.
-            check_spans_with_continuance(output=out, dag=dag)
+            check_spans_without_continuance(output=out, dag=dag, is_recreated=True)
+
+    def test_scheduler_exits_forcefully_after_the_first_task_finishes(
+        self, monkeypatch, celery_worker_env_vars, capfd, session
+    ):
+        """
+        The first scheduler will exit forcefully after the first task finishes,
+        so that it won't have time end any active spans.
+        In this scenario, the sub-spans for the first task will be lost.
+        The only way to retrieve them, would be to re-run the task.
+        """
+
+        celery_worker_process = None
+        scheduler_process_2 = None
+        try:
+            # Start the processes here and not as fixtures or in a common setup,
+            # so that the test can capture their output.
+            celery_worker_process, scheduler_process_1 = self.start_worker_and_scheduler1()
+
+            dag_id = "otel_test_dag"
+            dag = self.dags[dag_id]
+
+            run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
+
+            with create_session() as session:
+                tis: list[TaskInstance] = dag.get_task_instances(session=session)
+
+            task_1 = tis[0]
+
+            while True:
+                with create_session() as session:
+                    ti = (
+                        session.query(TaskInstance)
+                        .filter(
+                            TaskInstance.task_id == task_1.task_id,
+                            TaskInstance.run_id == task_1.run_id,
+                        )
+                        .first()
+                    )
+
+                    if ti is None:
+                        continue
+
+                    # Wait until the task has been finished.
+                    if ti.state in State.finished:
+                        break
+
+            # Since, we are past the loop, then the file exists and the dag has been paused.
+            # Kill scheduler1 and start scheduler2.
+            scheduler_process_1.send_signal(signal.SIGKILL)
+
+            # The process shouldn't have changed the span_status.
+            check_dag_run_state_and_span_status(
+                dag_id=dag_id, run_id=run_id, state=State.RUNNING, span_status=SpanStatus.ACTIVE
+            )
+
+            time.sleep(15)
+            # The task should be adopted.
+
+            scheduler_process_2 = subprocess.Popen(
+                self.scheduler_command_args,
+                env=os.environ.copy(),
+                stdout=None,
+                stderr=None,
+            )
+
+            # Wait for scheduler2 to be up and running.
+            time.sleep(10)
+
+            wait_for_dag_run_and_check_span_status(
+                dag_id=dag_id, run_id=run_id, max_wait_time=120, span_status=SpanStatus.ENDED
+            )
+        finally:
+            if self.log_level == "debug":
+                with create_session() as session:
+                    dump_airflow_metadata_db(session)
+
+            # Terminate the processes.
+            celery_worker_process.terminate()
+            celery_worker_process.wait()
+
+            scheduler_process_2.terminate()
+            scheduler_process_2.wait()
+
+        out, err = capfd.readouterr()
+        log.info("out-start --\n%s\n-- out-end", out)
+        log.info("err-start --\n%s\n-- err-end", err)
+
+        if self.use_otel != "true":
+            # Dag run should have succeeded. Test the spans in the output.
+            check_spans_without_continuance(output=out, dag=dag, is_recreated=True, check_t1_sub_spans=False)
 
     def start_worker_and_scheduler1(self):
         celery_worker_process = subprocess.Popen(
@@ -873,20 +1056,3 @@ class TestOtelIntegration:
         time.sleep(10)
 
         return celery_worker_process, scheduler_process
-
-    def serialize_and_get_dag(self, dag_id: str) -> DAG:
-        # Load DAGs from the dag directory.
-        dag_bag = DagBag(dag_folder=self.dag_folder, include_examples=False)
-
-        dag = dag_bag.get_dag(dag_id)
-
-        assert dag is not None, f"DAG with ID {dag_id} not found."
-
-        with create_session() as session:
-            # Sync the DAG to the database.
-            dag.sync_to_db(session=session)
-            # Manually serialize the dag and write it to the db to avoid a db error.
-            SerializedDagModel.write_dag(dag, session=session)
-            session.commit()
-
-        return dag
