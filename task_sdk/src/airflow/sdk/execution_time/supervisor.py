@@ -462,6 +462,10 @@ class WatchedSubprocess:
         # If it hasn't, assume it's failed
         self._exit_code = self._exit_code if self._exit_code is not None else 1
 
+        # If the process has finished in a terminal state, update the state of the TaskInstance
+        # to reflect the final state of the process.
+        # For states like `deferred`, the process will exit with 0, but the state will be updated
+        # by the subprocess in the `handle_requests` method.
         if self.final_state in TerminalTIState:
             self.client.task_instances.finish(
                 id=self.ti_id, state=self.final_state, when=datetime.now(tz=timezone.utc)
@@ -590,25 +594,15 @@ class WatchedSubprocess:
         """
         The final state of the TaskInstance.
 
-        By default this will be derived from the exit code of the task
+        By default, this will be derived from the exit code of the task
         (0=success, failed otherwise) but can be changed by the subprocess
         sending a TaskState message, as long as the process exits with 0
 
         Not valid before the process has finished.
         """
-        if self._final_state:
-            return self._final_state
         if self._exit_code == 0:
             return self._terminal_state or TerminalTIState.SUCCESS
         return TerminalTIState.FAILED
-
-    @final_state.setter
-    def final_state(self, value):
-        """Setter for final_state for certain task instance stated present in IntermediateTIState."""
-        # TODO: Remove the setter and manage using the final_state property
-        # to be taken in a follow up
-        if value not in TerminalTIState:
-            self._final_state = value
 
     def __rich_repr__(self):
         yield "ti_id", self.ti_id
@@ -639,10 +633,6 @@ class WatchedSubprocess:
 
             # if isinstance(msg, TaskState):
             #     self._terminal_state = msg.state
-            # elif isinstance(msg, ReadXCom):
-            #     resp = XComResponse(key="secret", value=True)
-            #     encoder.encode_into(resp, buffer)
-            #     self.stdin.write(buffer + b"\n")
             if isinstance(msg, GetConnection):
                 conn = self.client.connections.get(msg.conn_id)
                 resp = conn.model_dump_json(exclude_unset=True).encode()
@@ -653,7 +643,7 @@ class WatchedSubprocess:
                 xcom = self.client.xcoms.get(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
                 resp = xcom.model_dump_json(exclude_unset=True).encode()
             elif isinstance(msg, DeferTask):
-                self.final_state = IntermediateTIState.DEFERRED
+                self._terminal_state = IntermediateTIState.DEFERRED
                 self.client.task_instances.defer(self.ti_id, msg)
                 resp = None
             else:
@@ -694,11 +684,7 @@ def make_buffered_socket_reader(
 
         # We could have read multiple lines in one go, yield them all
         while (newline_pos := buffer.find(b"\n")) != -1:
-            if TYPE_CHECKING:
-                # We send in a memoryvuew, but pretend it's a bytes, as Buffer is only in 3.12+
-                line = buffer[: newline_pos + 1]
-            else:
-                line = memoryview(buffer)[: newline_pos + 1]  # Include the newline character
+            line = buffer[: newline_pos + 1]
             gen.send(line)
             buffer = buffer[newline_pos + 1 :]  # Update the buffer with remaining data
 
@@ -759,14 +745,22 @@ def supervise(
     server: str | None = None,
     dry_run: bool = False,
     log_path: str | None = None,
+    client: Client | None = None,
 ) -> int:
     """
     Run a single task execution to completion.
 
-    Returns the exit code of the process
+    :param ti: The task instance to run.
+    :param dag_path: The file path to the DAG.
+    :param token: Authentication token for the API client.
+    :param server: Base URL of the API server.
+    :param dry_run: If True, execute without actual task execution (simulate run).
+    :param log_path: Path to write logs, if required.
+    :param client: Optional preconfigured client for communication with the server (Mostly for tests).
+    :return: Exit code of the process.
     """
     # One or the other
-    if (not server) ^ dry_run:
+    if not client and ((not server) ^ dry_run):
         raise ValueError(f"Can only specify one of {server=} or {dry_run=}")
 
     if not dag_path:
@@ -777,8 +771,9 @@ def supervise(
 
         dag_path = str_path.replace("DAGS_FOLDER/", DAGS_FOLDER + "/", 1)
 
-    limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
-    client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=token)
+    if not client:
+        limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
+        client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=token)
 
     start = time.monotonic()
 
@@ -805,5 +800,5 @@ def supervise(
 
     exit_code = process.wait()
     end = time.monotonic()
-    log.debug("Task finished", exit_code=exit_code, duration=end - start)
+    log.info("Task finished", exit_code=exit_code, duration=end - start, final_state=process.final_state)
     return exit_code
