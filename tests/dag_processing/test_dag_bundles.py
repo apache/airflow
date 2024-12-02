@@ -47,13 +47,12 @@ class TestLocalDagBundle:
         bundle = LocalDagBundle(name="test", local_folder="/hello")
         assert bundle.path == Path("/hello")
 
-    def test_does_not_support_versioning(self):
+    def test_none_for_version(self):
         assert LocalDagBundle.supports_versioning is False
 
         bundle = LocalDagBundle(name="test", local_folder="/hello")
 
-        with pytest.raises(AirflowException):
-            bundle.get_current_version()
+        assert bundle.get_current_version() is None
 
 
 @pytest.fixture
