@@ -31,7 +31,13 @@ class TestOutletEventAccessor:
         (
             (
                 AssetAliasUniqueKey.from_asset_alias(AssetAlias("test_alias")),
-                [AssetAliasEvent(source_alias_name="test_alias", dest_asset_uri="test_uri", extra={})],
+                [
+                    AssetAliasEvent(
+                        source_alias_name="test_alias",
+                        dest_asset_key=AssetUniqueKey(uri="test_uri", name="test_uri"),
+                        extra={},
+                    )
+                ],
             ),
             (AssetUniqueKey.from_asset(Asset("test_uri")), []),
         ),
@@ -49,7 +55,9 @@ class TestOutletEventAccessor:
                 AssetAliasUniqueKey.from_asset_alias(AssetAlias("test_alias")),
                 [
                     AssetAliasEvent(
-                        source_alias_name="test_alias", dest_asset_uri="test://asset-uri/", extra={}
+                        source_alias_name="test_alias",
+                        dest_asset_key=AssetUniqueKey(name="test-asset", uri="test://asset-uri/"),
+                        extra={},
                     )
                 ],
             ),
