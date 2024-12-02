@@ -177,7 +177,7 @@ class HttpSensorTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Make a series of asynchronous http calls via an http hook."""
+        """Make a series of asynchronous http calls via a http hook."""
         hook = self._get_async_hook()
         while True:
             try:
@@ -188,7 +188,6 @@ class HttpSensorTrigger(BaseTrigger):
                     extra_options=self.extra_options,
                 )
                 yield TriggerEvent(True)
-                return
             except AirflowException as exc:
                 if str(exc).startswith("404"):
                     await asyncio.sleep(self.poke_interval)
