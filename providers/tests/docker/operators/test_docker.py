@@ -26,7 +26,7 @@ from docker import APIClient
 from docker.errors import APIError
 from docker.types import DeviceRequest, LogConfig, Mount, Ulimit
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.providers.docker.exceptions import DockerContainerFailedException
 from airflow.providers.docker.operators.docker import DockerOperator, fetch_logs
 
@@ -82,8 +82,6 @@ def test_hook_usage(docker_hook_patcher, docker_conn_id, tls_params: dict):
         **tls_params,
     )
     hook = op.hook
-    with pytest.warns(AirflowProviderDeprecationWarning, match="use `hook` property instead"):
-        assert hook is op.get_hook()
 
     docker_hook_patcher.assert_called_once_with(
         docker_conn_id=docker_conn_id,
@@ -728,18 +726,6 @@ class TestDockerOperator:
         assert "host_config" in self.client_mock.create_container.call_args.kwargs
         assert "ulimits" in self.client_mock.create_host_config.call_args.kwargs
         assert ulimits == self.client_mock.create_host_config.call_args.kwargs["ulimits"]
-
-    @pytest.mark.parametrize(
-        "auto_remove, expected",
-        [
-            pytest.param(True, "success", id="true"),
-            pytest.param(False, "never", id="false"),
-        ],
-    )
-    def test_bool_auto_remove_fallback(self, auto_remove, expected):
-        with pytest.warns(AirflowProviderDeprecationWarning, match="bool value for `auto_remove`"):
-            op = DockerOperator(task_id="test", image="test", auto_remove=auto_remove)
-        assert op.auto_remove == expected
 
     @pytest.mark.parametrize(
         "auto_remove",

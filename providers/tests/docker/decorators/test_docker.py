@@ -261,7 +261,6 @@ class TestDockerDecorator:
         assert some_task.command == clone_of_docker_operator.command
         assert some_task.expect_airflow == clone_of_docker_operator.expect_airflow
         assert some_task.serializer == clone_of_docker_operator.serializer
-        assert some_task.use_dill == clone_of_docker_operator.use_dill
         assert some_task.pickling_library is clone_of_docker_operator.pickling_library
 
     def test_respect_docker_host_env(self, monkeypatch, dag_maker):
