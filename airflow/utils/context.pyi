@@ -39,7 +39,7 @@ from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
-from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey
+from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, BaseAsset, BaseAssetUniqueKey
 from airflow.serialization.pydantic.asset import AssetEventPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.typing_compat import TypedDict
@@ -70,18 +70,18 @@ class OutletEventAccessor:
         self,
         *,
         extra: dict[str, Any],
-        key: Asset | AssetAlias,
+        key: BaseAssetUniqueKey,
         asset_alias_events: list[AssetAliasEvent],
     ) -> None: ...
     def add(self, asset: Asset, extra: dict[str, Any] | None = None) -> None: ...
     extra: dict[str, Any]
-    key: Asset | AssetAlias
+    key: BaseAssetUniqueKey
     asset_alias_events: list[AssetAliasEvent]
 
-class OutletEventAccessors(Mapping[Asset | AssetAlias, OutletEventAccessor]):
-    def __iter__(self) -> Iterator[Asset | AssetAlias]: ...
+class OutletEventAccessors(Mapping[BaseAsset, OutletEventAccessor]):
+    def __iter__(self) -> Iterator[BaseAsset]: ...
     def __len__(self) -> int: ...
-    def __getitem__(self, key: Asset | AssetAlias) -> OutletEventAccessor: ...
+    def __getitem__(self, key: BaseAsset) -> OutletEventAccessor: ...
 
 class InletEventsAccessor(Sequence[AssetEvent]):
     @overload
