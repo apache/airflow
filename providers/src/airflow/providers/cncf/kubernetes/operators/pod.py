@@ -26,11 +26,11 @@ import os
 import re
 import shlex
 import string
-from collections.abc import Container, Mapping
+from collections.abc import Container, Iterable, Mapping, Sequence
 from contextlib import AbstractContextManager
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Literal, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 import kubernetes
 import tenacity
@@ -541,7 +541,7 @@ class KubernetesPodOperator(BaseOperator):
 
     def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context: Context) -> k8s.V1Pod:
         if self.reattach_on_restart:
-            pod = self.find_pod(self.namespace or pod_request_obj.metadata.namespace, context=context)
+            pod = self.find_pod(pod_request_obj.metadata.namespace, context=context)
             if pod:
                 return pod
         self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod_request_obj.to_dict()))

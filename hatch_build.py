@@ -22,9 +22,10 @@ import logging
 import os
 import re
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 from subprocess import run
-from typing import Any, Callable, Iterable
+from typing import Any, Callable
 
 from hatchling.builders.config import BuilderConfig
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
@@ -141,7 +142,7 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "statsd>=3.3.0",
     ],
     "uv": [
-        "uv>=0.5.1",
+        "uv>=0.5.5",
     ],
 }
 
@@ -240,7 +241,6 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "types-requests>=2.31.0.6",
         "types-setuptools>=69.5.0.20240423",
         "types-tabulate>=0.9.0.20240106",
-        "types-termcolor>=1.1.6.2",
         "types-toml>=0.10.8.20240310",
     ],
     "devel-sentry": [
@@ -248,8 +248,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     ],
     "devel-static-checks": [
         "black>=23.12.0",
-        "pre-commit>=3.5.0",
-        "ruff==0.7.3",
+        "ruff==0.8.0",
         "yamllint>=1.33.0",
     ],
     "devel-tests": [
@@ -378,7 +377,7 @@ DEPENDENCIES = [
     "dill>=0.2.2",
     # Required for python 3.9 to work with new annotations styles. Check package
     # description on PyPI for more details: https://pypi.org/project/eval-type-backport/
-    "eval-type-backport>=0.2.0",
+    'eval-type-backport>=0.2.0;python_version<"3.10"',
     "fastapi[standard]>=0.112.2",
     "flask-caching>=2.0.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
@@ -415,7 +414,7 @@ DEPENDENCIES = [
     'pendulum>=3.0.0,<4.0;python_version>="3.12"',
     "pluggy>=1.5.0",
     "psutil>=5.8.0",
-    "pydantic>=2.7.0",
+    "pydantic>=2.10.2",
     "pygments>=2.0.1",
     "pyjwt>=2.0.0",
     "python-daemon>=3.0.0",
@@ -438,7 +437,7 @@ DEPENDENCIES = [
     "sqlalchemy-utils>=0.41.2",
     "tabulate>=0.7.5",
     "tenacity>=8.0.0,!=8.2.0",
-    "termcolor>=1.1.0",
+    "termcolor>=2.5.0",
     # Universal Pathlib 0.2.4 adds extra validation for Paths and our integration with local file paths
     # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
     "universal-pathlib>=0.2.2,!=0.2.4",

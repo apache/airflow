@@ -44,8 +44,6 @@ from tests_common.test_utils.db import clear_db_dags, clear_db_runs
 if TYPE_CHECKING:
     from airflow.jobs.job import Job
 
-pytestmark = pytest.mark.skip_if_database_isolation_mode
-
 
 @pytest.fixture
 def clear_db():
@@ -63,9 +61,9 @@ class TestHelpers:
         try_number = 1
         dag_id = "test_render_log_filename_dag"
         task_id = "test_render_log_filename_task"
-        execution_date = timezone.datetime(2016, 1, 1)
+        logical_date = timezone.datetime(2016, 1, 1)
 
-        ti = create_task_instance(dag_id=dag_id, task_id=task_id, execution_date=execution_date)
+        ti = create_task_instance(dag_id=dag_id, task_id=task_id, logical_date=logical_date)
         filename_template = "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log"
 
         ts = ti.get_template_context()["ts"]

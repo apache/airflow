@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.XCOM)
 @format_parameters({"limit": check_limit})
 @provide_session
@@ -127,7 +128,7 @@ def get_xcom_entry(
         stub.value = XCom.deserialize_value(stub)
         item = stub
 
-    if stringify or conf.getboolean("core", "enable_xcom_pickling"):
+    if stringify:
         return xcom_schema_string.dump(item)
 
     return xcom_schema_native.dump(item)

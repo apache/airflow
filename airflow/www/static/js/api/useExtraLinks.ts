@@ -31,20 +31,20 @@ interface LinkData {
 export default function useExtraLinks({
   dagId,
   taskId,
-  executionDate,
+  logicalDate,
   mapIndex,
   extraLinks,
   tryNumber,
 }: {
   dagId: string;
   taskId: string;
-  executionDate: string;
+  logicalDate: string;
   mapIndex?: number | undefined;
   extraLinks: string[];
   tryNumber?: number | undefined;
 }) {
   return useQuery(
-    ["extraLinks", dagId, taskId, executionDate, mapIndex, tryNumber],
+    ["extraLinks", dagId, taskId, logicalDate, mapIndex, tryNumber],
     async () => {
       const data = await Promise.all(
         extraLinks.map(async (link) => {
@@ -55,8 +55,8 @@ export default function useExtraLinks({
             taskId
           )}&dag_id=${encodeURIComponent(
             dagId
-          )}&execution_date=${encodeURIComponent(
-            executionDate
+          )}&logical_date=${encodeURIComponent(
+            logicalDate
           )}&link_name=${encodeURIComponent(
             link
           )}&map_index=${definedMapIndex}${tryNumberParam}`;

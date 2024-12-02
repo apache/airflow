@@ -27,13 +27,13 @@ from airflow.api_connexion.schemas.asset_schema import (
     asset_event_schema,
     asset_schema,
 )
-from airflow.assets import Asset
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
 from airflow.operators.empty import EmptyOperator
+from airflow.sdk.definitions.asset import Asset
 
 from tests_common.test_utils.db import clear_db_assets, clear_db_dags
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestAssetSchemaBase:
@@ -54,6 +54,8 @@ class TestAssetSchema(TestAssetSchemaBase):
     def test_serialize(self, dag_maker, session):
         asset = Asset(
             uri="s3://bucket/key",
+            name="test_asset",
+            group="test-group",
             extra={"foo": "bar"},
         )
         with dag_maker(dag_id="test_asset_upstream_schema", serialized=True, session=session):
@@ -70,6 +72,8 @@ class TestAssetSchema(TestAssetSchemaBase):
         assert serialized_data == {
             "id": 1,
             "uri": "s3://bucket/key",
+            "name": "test_asset",
+            "group": "test-group",
             "extra": {"foo": "bar"},
             "created_at": self.timestamp,
             "updated_at": self.timestamp,
@@ -96,12 +100,14 @@ class TestAssetCollectionSchema(TestAssetSchemaBase):
     def test_serialize(self, session):
         assets = [
             AssetModel(
-                uri=f"s3://bucket/key/{i+1}",
+                uri=f"s3://bucket/key/{i}",
+                name=f"asset_{i}",
+                group="test-group",
                 extra={"foo": "bar"},
             )
-            for i in range(2)
+            for i in range(1, 3)
         ]
-        asset_aliases = [AssetAliasModel(name=f"alias_{i}") for i in range(2)]
+        asset_aliases = [AssetAliasModel(name=f"alias_{i}", group="test-alias-group") for i in range(2)]
         for asset_alias in asset_aliases:
             asset_alias.assets.append(assets[0])
         session.add_all(assets)
@@ -117,19 +123,23 @@ class TestAssetCollectionSchema(TestAssetSchemaBase):
                 {
                     "id": 1,
                     "uri": "s3://bucket/key/1",
+                    "name": "asset_1",
+                    "group": "test-group",
                     "extra": {"foo": "bar"},
                     "created_at": self.timestamp,
                     "updated_at": self.timestamp,
                     "consuming_dags": [],
                     "producing_tasks": [],
                     "aliases": [
-                        {"id": 1, "name": "alias_0"},
-                        {"id": 2, "name": "alias_1"},
+                        {"id": 1, "name": "alias_0", "group": "test-alias-group"},
+                        {"id": 2, "name": "alias_1", "group": "test-alias-group"},
                     ],
                 },
                 {
                     "id": 2,
                     "uri": "s3://bucket/key/2",
+                    "name": "asset_2",
+                    "group": "test-group",
                     "extra": {"foo": "bar"},
                     "created_at": self.timestamp,
                     "updated_at": self.timestamp,

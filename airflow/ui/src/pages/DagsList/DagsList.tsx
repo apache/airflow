@@ -22,7 +22,6 @@ import {
   Skeleton,
   VStack,
   Link,
-  createListCollection,
   type SelectValueChangeDetails,
   Box,
 } from "@chakra-ui/react";
@@ -43,11 +42,12 @@ import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
-import { Select } from "src/components/ui";
+import TriggerDAGIconButton from "src/components/TriggerDag/TriggerDAGIconButton";
 import {
   SearchParamsKeys,
   type SearchParamsKeysType,
 } from "src/constants/searchParams";
+import { useConfig } from "src/queries/useConfig";
 import { useDags } from "src/queries/useDags";
 import { pluralize } from "src/utils";
 
@@ -55,12 +55,17 @@ import { DagCard } from "./DagCard";
 import { DagTags } from "./DagTags";
 import { DagsFilters } from "./DagsFilters";
 import { Schedule } from "./Schedule";
+import { SortSelect } from "./SortSelect";
 
 const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
   {
     accessorKey: "is_paused",
     cell: ({ row: { original } }) => (
-      <TogglePause dagId={original.dag_id} isPaused={original.is_paused} />
+      <TogglePause
+        dagDisplayName={original.dag_display_name}
+        dagId={original.dag_id}
+        isPaused={original.is_paused}
+      />
     ),
     enableSorting: false,
     header: "",
@@ -106,8 +111,8 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
           dataIntervalEnd={original.latest_dag_runs[0].data_interval_end}
           dataIntervalStart={original.latest_dag_runs[0].data_interval_start}
           endDate={original.latest_dag_runs[0].end_date}
-          logicalDate={original.latest_dag_runs[0].logical_date}
           startDate={original.latest_dag_runs[0].start_date}
+          state={original.latest_dag_runs[0].state}
         />
       ) : undefined,
     enableSorting: false,
@@ -122,6 +127,12 @@ const columns: Array<ColumnDef<DAGWithLatestDagRunsResponse>> = [
     }) => <DagTags hideIcon tags={tags} />,
     enableSorting: false,
     header: () => "Tags",
+  },
+  {
+    accessorKey: "trigger",
+    cell: ({ row }) => <TriggerDAGIconButton dag={row.original} />,
+    enableSorting: false,
+    header: "",
   },
 ];
 
@@ -141,13 +152,6 @@ const cardDef: CardDef<DAGWithLatestDagRunsResponse> = {
 
 const DAGS_LIST_DISPLAY = "dags_list_display";
 
-const sortOptions = createListCollection({
-  items: [
-    { label: "Sort by Dag ID (A-Z)", value: "dag_id" },
-    { label: "Sort by Dag ID (Z-A)", value: "-dag_id" },
-  ],
-});
-
 export const DagsList = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [display, setDisplay] = useLocalStorage<"card" | "table">(
@@ -155,7 +159,13 @@ export const DagsList = () => {
     "card",
   );
 
+  const hidePausedDagsByDefault = Boolean(
+    useConfig("hide_paused_dags_by_default"),
+  );
+  const defaultShowPaused = hidePausedDagsByDefault ? false : undefined;
+
   const showPaused = searchParams.get(PAUSED_PARAM);
+
   const lastDagRunState = searchParams.get(
     LAST_DAG_RUN_STATE_PARAM,
   ) as DagRunState;
@@ -167,7 +177,6 @@ export const DagsList = () => {
     searchParams.get(NAME_PATTERN_PARAM) ?? undefined,
   );
 
-  // TODO: update API to accept multiple orderBy params
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
 
@@ -185,6 +194,16 @@ export const DagsList = () => {
     setDagDisplayNamePattern(value);
   };
 
+  let paused = defaultShowPaused;
+
+  if (showPaused === "all") {
+    paused = undefined;
+  } else if (showPaused === "true") {
+    paused = true;
+  } else if (showPaused === "false") {
+    paused = false;
+  }
+
   const { data, error, isFetching, isLoading } = useDags({
     dagDisplayNamePattern: Boolean(dagDisplayNamePattern)
       ? `%${dagDisplayNamePattern}%`
@@ -194,7 +213,7 @@ export const DagsList = () => {
     offset: pagination.pageIndex * pagination.pageSize,
     onlyActive: true,
     orderBy,
-    paused: showPaused === null ? undefined : showPaused === "true",
+    paused,
     tags: selectedTags,
   });
 
@@ -225,27 +244,8 @@ export const DagsList = () => {
             {pluralize("Dag", data.total_entries)}
           </Heading>
           {display === "card" ? (
-            <Select.Root
-              collection={sortOptions}
-              data-testid="sort-by-select"
-              onValueChange={handleSortChange}
-              value={orderBy === undefined ? undefined : [orderBy]}
-              width="200px"
-            >
-              <Select.Trigger>
-                <Select.ValueText placeholder="Sort by" />
-              </Select.Trigger>
-              <Select.Content>
-                {sortOptions.items.map((option) => (
-                  <Select.Item item={option} key={option.value}>
-                    {option.label}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select.Root>
-          ) : (
-            false
-          )}
+            <SortSelect handleSortChange={handleSortChange} orderBy={orderBy} />
+          ) : undefined}
         </HStack>
       </VStack>
       <ToggleTableDisplay display={display} setDisplay={setDisplay} />

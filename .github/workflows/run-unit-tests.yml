@@ -24,6 +24,10 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining default runner used for the build."
         required: true
         type: string
+      test-groups:
+        description: "The json representing list of test test groups to run"
+        required: true
+        type: string
       backend:
         description: "The backend to run the tests on"
         required: true
@@ -61,8 +65,12 @@ on:  # yamllint disable-line rule:truthy
         description: "Excluded combos (stringified JSON array of python-version/backend-version dicts)"
         required: true
         type: string
-      parallel-test-types-list-as-string:
-        description: "The list of parallel test types to run separated by spaces"
+      core-test-types-list-as-string:
+        description: "The list of core test types to run separated by spaces"
+        required: true
+        type: string
+      providers-test-types-list-as-string:
+        description: "The list of providers test types to run separated by spaces"
         required: true
         type: string
       run-migration-tests:
@@ -98,11 +106,6 @@ on:  # yamllint disable-line rule:truthy
         required: false
         default: "false"
         type: string
-      enable-aip-44:
-        description: "Whether to enable AIP-44 or not (true/false)"
-        required: false
-        default: "true"
-        type: string
       force-lowest-dependencies:
         description: "Whether to force lowest dependencies for the tests or not (true/false)"
         required: false
@@ -117,9 +120,9 @@ jobs:
   tests:
     timeout-minutes: 120
     name: "\
-      ${{ inputs.test-scope }}:\
+      ${{ inputs.test-scope }}-${{ matrix.test-group }}:\
       ${{ inputs.test-name }}${{ inputs.test-name-separator }}${{ matrix.backend-version }}:\
-      ${{matrix.python-version}}: ${{ inputs.parallel-test-types-list-as-string }}"
+      ${{matrix.python-version}}"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     strategy:
       fail-fast: false
@@ -127,9 +130,8 @@ jobs:
         python-version: "${{fromJSON(inputs.python-versions)}}"
         backend-version: "${{fromJSON(inputs.backend-versions)}}"
         exclude: "${{fromJSON(inputs.excludes)}}"
+        test-group: "${{fromJSON(inputs.test-groups)}}"
     env:
-      # yamllint disable rule:line-length
-      AIRFLOW_ENABLE_AIP_44: "${{ inputs.enable-aip-44 }}"
       BACKEND: "${{ inputs.backend }}"
       BACKEND_VERSION: "${{ matrix.backend-version }}"
       DB_RESET: "true"
@@ -145,9 +147,10 @@ jobs:
       IMAGE_TAG: "${{ inputs.image-tag }}"
       INCLUDE_SUCCESS_OUTPUTS: ${{ inputs.include-success-outputs }}
       # yamllint disable rule:line-length
-      JOB_ID: "${{ inputs.test-scope }}-${{ inputs.test-name }}-${{inputs.backend}}-${{ matrix.backend-version }}-${{ matrix.python-version }}"
+      JOB_ID: "${{ matrix.test-group }}-${{ inputs.test-scope }}-${{ inputs.test-name }}-${{inputs.backend}}-${{ matrix.backend-version }}-${{ matrix.python-version }}"
       MOUNT_SOURCES: "skip"
-      PARALLEL_TEST_TYPES: "${{ inputs.parallel-test-types-list-as-string }}"
+      # yamllint disable rule:line-length
+      PARALLEL_TEST_TYPES: ${{ matrix.test-group == 'core' && inputs.core-test-types-list-as-string || inputs.providers-test-types-list-as-string }}
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       UPGRADE_BOTO: "${{ inputs.upgrade-boto }}"
       AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS: "${{inputs.monitor-delay-time-in-seconds}}"
@@ -165,33 +168,13 @@ jobs:
       - name: "Prepare breeze & CI image: ${{matrix.python-version}}:${{ inputs.image-tag }}"
         uses: ./.github/actions/prepare_breeze_and_image
       - name: >
-          Migration Tests:
-          ${{ matrix.python-version }}:${{ inputs.parallel-test-types-list-as-string }}
+          Migration Tests: ${{ matrix.python-version }}:${{ env.PARALLEL_TEST_TYPES }}
         uses: ./.github/actions/migration_tests
-        if: inputs.run-migration-tests == 'true'
+        if: inputs.run-migration-tests == 'true' && matrix.test-group == 'core'
       - name: >
-          ${{ inputs.test-scope }} Tests ${{ inputs.test-name }} ${{ matrix.backend-version }}
-          Py${{ matrix.python-version }}:${{ inputs.parallel-test-types-list-as-string}}
-        run: |
-          if [[ "${{ inputs.test-scope }}" == "DB" ]]; then
-            breeze testing db-tests \
-              --parallel-test-types "${{ inputs.parallel-test-types-list-as-string }}"
-          elif [[ "${{ inputs.test-scope }}" == "Non-DB" ]]; then
-            breeze testing non-db-tests \
-              --parallel-test-types "${{ inputs.parallel-test-types-list-as-string }}"
-          elif [[ "${{ inputs.test-scope }}" == "All" ]]; then
-            breeze testing tests --run-in-parallel \
-              --parallel-test-types "${{ inputs.parallel-test-types-list-as-string }}"
-          elif [[ "${{ inputs.test-scope }}" == "Quarantined" ]]; then
-            breeze testing tests --test-type "All-Quarantined" || true
-          elif [[ "${{ inputs.test-scope }}" == "ARM collection" ]]; then
-            breeze testing tests --collect-only --remove-arm-packages
-          elif [[ "${{ inputs.test-scope }}" == "System" ]]; then
-            breeze testing tests tests/system/example_empty.py --system core
-          else
-            echo "Unknown test scope: ${{ inputs.test-scope }}"
-            exit 1
-          fi
+          ${{ matrix.test-group}}:${{ inputs.test-scope }} Tests ${{ inputs.test-name }} ${{ matrix.backend-version }}
+          Py${{ matrix.python-version }}:${{ env.PARALLEL_TEST_TYPES }}
+        run: ./scripts/ci/testing/run_unit_tests.sh "${{ matrix.test-group }}" "${{ inputs.test-scope }}"
       - name: "Post Tests success"
         uses: ./.github/actions/post_tests_success
         with:

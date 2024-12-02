@@ -200,7 +200,6 @@ class TestPapermillOperator:
             # TI Settings
             dag_id="test_render_template",
             task_id="render_dag_test",
-            execution_date=DEFAULT_DATE,
         )
         task = ti.render_templates()
 
@@ -209,5 +208,5 @@ class TestPapermillOperator:
         assert task.output_nb == "/tmp/out-test_render_template.ipynb"
 
         # Test render other templated attributes
-        assert "python3" == task.kernel_name
-        assert "python" == task.language_name
+        assert task.kernel_name == "python3"
+        assert task.language_name == "python"

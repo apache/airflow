@@ -112,7 +112,7 @@ class TestUtils:
             if node_text == str(current_page + 1):
                 if check_middle:
                     assert mid == i
-                assert "javascript:void(0)" == href_link
+                assert href_link == "javascript:void(0)"
                 assert "active" in item["class"]
             else:
                 assert re.search(r"^\?", href_link), "Link is page-relative"
@@ -142,29 +142,30 @@ class TestUtils:
 
     def test_params_no_values(self):
         """Should return an empty string if no params are passed"""
-        assert "" == utils.get_params()
+        assert utils.get_params() == ""
 
     def test_params_search(self):
-        assert "search=bash_" == utils.get_params(search="bash_")
+        assert utils.get_params(search="bash_") == "search=bash_"
 
     def test_params_none_and_zero(self):
         query_str = utils.get_params(a=0, b=None, c="true")
         # The order won't be consistent, but that doesn't affect behaviour of a browser
         pairs = sorted(query_str.split("&"))
-        assert ["a=0", "c=true"] == pairs
+        assert pairs == ["a=0", "c=true"]
 
     def test_params_all(self):
         query = utils.get_params(tags=["tag1", "tag2"], status="active", page=3, search="bash_")
-        assert {
+        assert parse_qs(query) == {
             "tags": ["tag1", "tag2"],
             "page": ["3"],
             "search": ["bash_"],
             "status": ["active"],
-        } == parse_qs(query)
+        }
 
     def test_params_escape(self):
-        assert "search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E" == utils.get_params(
-            search="'>\"/><img src=x onerror=alert(1)>"
+        assert (
+            utils.get_params(search="'>\"/><img src=x onerror=alert(1)>")
+            == "search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E"
         )
 
     def test_state_token(self):
@@ -214,7 +215,6 @@ class TestUtils:
 
         assert epoch_time == expected_epoch_time
 
-    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     def test_make_cache_key(self):
         from airflow.www.app import cached_app
@@ -227,7 +227,6 @@ class TestUtils:
             result_cache_key = utils.make_cache_key()
             assert result_cache_key == expected_cache_key
 
-    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     def test_task_instance_link(self):
         from airflow.www.app import cached_app
@@ -235,13 +234,13 @@ class TestUtils:
         with cached_app(testing=True).test_request_context():
             html = str(
                 utils.task_instance_link(
-                    {"dag_id": "<a&1>", "task_id": "<b2>", "map_index": 1, "execution_date": datetime.now()}
+                    {"dag_id": "<a&1>", "task_id": "<b2>", "map_index": 1, "logical_date": datetime.now()}
                 )
             )
 
             html_map_index_none = str(
                 utils.task_instance_link(
-                    {"dag_id": "<a&1>", "task_id": "<b2>", "map_index": -1, "execution_date": datetime.now()}
+                    {"dag_id": "<a&1>", "task_id": "<b2>", "map_index": -1, "logical_date": datetime.now()}
                 )
             )
 
@@ -257,18 +256,16 @@ class TestUtils:
         assert "<a&1>" not in html_map_index_none
         assert "<b2>" not in html_map_index_none
 
-    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     def test_dag_link(self):
         from airflow.www.app import cached_app
 
         with cached_app(testing=True).test_request_context():
-            html = str(utils.dag_link({"dag_id": "<a&1>", "execution_date": datetime.now()}))
+            html = str(utils.dag_link({"dag_id": "<a&1>", "logical_date": datetime.now()}))
 
         assert "%3Ca%261%3E" in html
         assert "<a&1>" not in html
 
-    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     def test_dag_link_when_dag_is_none(self):
         """Test that when there is no dag_id, dag_link does not contain hyperlink"""
@@ -280,14 +277,13 @@ class TestUtils:
         assert "None" in html
         assert "<a href=" not in html
 
-    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     def test_dag_run_link(self):
         from airflow.www.app import cached_app
 
         with cached_app(testing=True).test_request_context():
             html = str(
-                utils.dag_run_link({"dag_id": "<a&1>", "run_id": "<b2>", "execution_date": datetime.now()})
+                utils.dag_run_link({"dag_id": "<a&1>", "run_id": "<b2>", "logical_date": datetime.now()})
             )
 
         assert "%3Ca%261%3E" in html
@@ -309,7 +305,7 @@ class TestAttrRenderer:
 
     def test_python_callable_none(self):
         rendered = self.attr_renderer["python_callable"](None)
-        assert "" == rendered
+        assert rendered == ""
 
     def test_markdown(self):
         markdown = "* foo\n* bar"
@@ -373,9 +369,9 @@ class TestWrappedMarkdown:
     def test_wrapped_markdown_with_docstring_curly_braces(self):
         rendered = wrapped_markdown("{braces}", css_class="a_class")
         assert (
-            """<div class="a_class" ><p>{braces}</p>
+            rendered
+            == """<div class="a_class" ><p>{braces}</p>
 </div>"""
-            == rendered
         )
 
     def test_wrapped_markdown_with_some_markdown(self):
@@ -387,10 +383,10 @@ class TestWrappedMarkdown:
         )
 
         assert (
-            """<div class="a_class" ><p><em>italic</em>
+            rendered
+            == """<div class="a_class" ><p><em>italic</em>
 <strong>bold</strong></p>
 </div>"""
-            == rendered
         )
 
     def test_wrapped_markdown_with_table(self):
@@ -403,7 +399,8 @@ class TestWrappedMarkdown:
         )
 
         assert (
-            """<div class="rich_doc" ><table>
+            rendered
+            == """<div class="rich_doc" ><table>
 <thead>
 <tr>
 <th>Job</th>
@@ -418,7 +415,6 @@ class TestWrappedMarkdown:
 </tbody>
 </table>
 </div>"""
-            == rendered
         )
 
     def test_wrapped_markdown_with_indented_lines(self):
@@ -431,9 +427,9 @@ class TestWrappedMarkdown:
         )
 
         assert (
-            """<div class="rich_doc" ><h1>header</h1>\n<p>1st line\n2nd line</p>
+            rendered
+            == """<div class="rich_doc" ><h1>header</h1>\n<p>1st line\n2nd line</p>
 </div>"""
-            == rendered
         )
 
     def test_wrapped_markdown_with_raw_code_block(self):
@@ -452,11 +448,11 @@ class TestWrappedMarkdown:
         )
 
         assert (
-            """<div class="rich_doc" ><h1>Markdown code block</h1>
+            rendered
+            == """<div class="rich_doc" ><h1>Markdown code block</h1>
 <p>Inline <code>code</code> works well.</p>
 <pre><code>Code block\ndoes not\nrespect\nnewlines\n</code></pre>
 </div>"""
-            == rendered
         )
 
     def test_wrapped_markdown_with_nested_list(self):
@@ -470,7 +466,8 @@ class TestWrappedMarkdown:
         )
 
         assert (
-            """<div class="rich_doc" ><h3>Docstring with a code block</h3>
+            rendered
+            == """<div class="rich_doc" ><h3>Docstring with a code block</h3>
 <ul>
 <li>And
 <ul>
@@ -479,7 +476,6 @@ class TestWrappedMarkdown:
 </li>
 </ul>
 </div>"""
-            == rendered
         )
 
     @pytest.mark.parametrize(
@@ -509,7 +505,7 @@ class TestWrappedMarkdown:
                         "data_interval_end": None,
                         "data_interval_start": None,
                         "end_date": None,
-                        "execution_date": None,
+                        "logical_date": None,
                         "external_trigger": None,
                         "last_scheduling_decision": None,
                         "note": None,
@@ -615,7 +611,6 @@ def test_get_col_default_not_existing(session):
     assert default_value is None
 
 
-@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 def test_dag_run_custom_sqla_interface_delete_no_collateral_damage(dag_maker, session):
     interface = DagRunCustomSQLAInterface(obj=DagRun, session=session)
@@ -625,7 +620,7 @@ def test_dag_run_custom_sqla_interface_delete_no_collateral_damage(dag_maker, se
     for dag_id, date in itertools.product(dag_ids, dates):
         with dag_maker(dag_id=dag_id) as dag:
             dag.create_dagrun(
-                execution_date=date,
+                logical_date=date,
                 state="running",
                 run_type="scheduled",
                 data_interval=(date, date),

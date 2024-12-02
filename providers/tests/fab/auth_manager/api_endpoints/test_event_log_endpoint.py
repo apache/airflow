@@ -28,7 +28,6 @@ from tests_common.test_utils.db import clear_db_logs
 
 pytestmark = [
     pytest.mark.db_test,
-    pytest.mark.skip_if_database_isolation_mode,
     pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0+"),
 ]
 
@@ -63,7 +62,7 @@ def task_instance(session, create_task_instance, request):
         dag_id="TEST_DAG_ID",
         task_id="TEST_TASK_ID",
         run_id="TEST_RUN_ID",
-        execution_date=request.instance.default_time,
+        logical_date=request.instance.default_time,
     )
 
 

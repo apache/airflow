@@ -40,7 +40,7 @@ from tests_common.test_utils.gcp_system_helpers import (
 )
 
 
-@pytest.mark.system("google")
+@pytest.mark.system
 @pytest.mark.credential_file(GCP_STACKDRIVER)
 class TestStackdriverLoggingHandlerSystem(GoogleSystemTest):
     def setup_method(self) -> None:
@@ -64,8 +64,8 @@ class TestStackdriverLoggingHandlerSystem(GoogleSystemTest):
             AIRFLOW__CORE__LOAD_EXAMPLES="false",
             AIRFLOW__CORE__DAGS_FOLDER=example_complex.__file__,
         ):
-            assert 0 == subprocess.Popen(["airflow", "dags", "trigger", "example_complex"]).wait()
-            assert 0 == subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait()
+            assert subprocess.Popen(["airflow", "dags", "trigger", "example_complex"]).wait() == 0
+            assert subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait() == 0
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == "create_entry_group").first()
 
         self.assert_remote_logs("terminated with exit code 0", ti)
@@ -80,8 +80,8 @@ class TestStackdriverLoggingHandlerSystem(GoogleSystemTest):
             AIRFLOW__CORE__DAGS_FOLDER=example_complex.__file__,
             GOOGLE_APPLICATION_CREDENTIALS=resolve_full_gcp_key_path(GCP_STACKDRIVER),
         ):
-            assert 0 == subprocess.Popen(["airflow", "dags", "trigger", "example_complex"]).wait()
-            assert 0 == subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait()
+            assert subprocess.Popen(["airflow", "dags", "trigger", "example_complex"]).wait() == 0
+            assert subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait() == 0
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == "create_entry_group").first()
 
         self.assert_remote_logs("terminated with exit code 0", ti)

@@ -18,8 +18,8 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.assets import Asset
 from airflow.operators.empty import EmptyOperator
+from airflow.sdk.definitions.asset import Asset
 
 from tests_common.test_utils.db import initial_db_init
 
@@ -36,7 +36,11 @@ def cleanup():
 
 
 def test_next_run_assets(test_client, dag_maker):
-    with dag_maker(dag_id="upstream", schedule=[Asset(uri="s3://bucket/key/1")], serialized=True):
+    with dag_maker(
+        dag_id="upstream",
+        schedule=[Asset(uri="s3://bucket/next-run-asset/1", name="asset1")],
+        serialized=True,
+    ):
         EmptyOperator(task_id="task1")
 
     dag_maker.create_dagrun()
@@ -46,6 +50,16 @@ def test_next_run_assets(test_client, dag_maker):
 
     assert response.status_code == 200
     assert response.json() == {
-        "asset_expression": {"all": ["s3://bucket/key/1"]},
-        "events": [{"id": 17, "uri": "s3://bucket/key/1", "lastUpdate": None}],
+        "asset_expression": {
+            "all": [
+                {
+                    "asset": {
+                        "uri": "s3://bucket/next-run-asset/1",
+                        "name": "asset1",
+                        "group": "asset",
+                    }
+                }
+            ]
+        },
+        "events": [{"id": 20, "uri": "s3://bucket/next-run-asset/1", "lastUpdate": None}],
     }

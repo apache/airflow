@@ -18,10 +18,12 @@
 from __future__ import annotations
 
 import datetime
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, NoReturn, Sequence
+from typing import TYPE_CHECKING, Any, NoReturn
 
-from airflow.providers.standard import AIRFLOW_V_3_0_PLUS
+from airflow.providers.standard.triggers.temporal import DateTimeTrigger
+from airflow.providers.standard.utils.version_references import AIRFLOW_V_3_0_PLUS
 from airflow.sensors.base import BaseSensorOperator
 
 try:
@@ -39,7 +41,6 @@ except ImportError:
         timeout: datetime.timedelta | None = None
 
 
-from airflow.triggers.temporal import DateTimeTrigger
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
@@ -54,7 +55,7 @@ class DateTimeSensor(BaseSensorOperator):
     It handles some cases for which ``TimeSensor`` and ``TimeDeltaSensor`` are not suited.
 
     **Example** 1 :
-        If a task needs to wait for 11am on each ``execution_date``. Using
+        If a task needs to wait for 11am on each ``logical_date``. Using
         ``TimeSensor`` or ``TimeDeltaSensor``, all backfill tasks started at
         1am have to wait for 10 hours. This is unnecessary, e.g. a backfill
         task with ``{{ ds }} = '1970-01-01'`` does not need to wait because
@@ -69,7 +70,7 @@ class DateTimeSensor(BaseSensorOperator):
 
             DateTimeSensor(
                 task_id="wait_for_0100",
-                target_time="{{ next_execution_date.tomorrow().replace(hour=1) }}",
+                target_time="{{ data_interval_end.tomorrow().replace(hour=1) }}",
             )
 
     :param target_time: datetime after which the job succeeds. (templated)
@@ -110,7 +111,7 @@ class DateTimeSensorAsync(DateTimeSensor):
     """
 
     start_trigger_args = StartTriggerArgs(
-        trigger_cls="airflow.triggers.temporal.DateTimeTrigger",
+        trigger_cls="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
         trigger_kwargs={"moment": "", "end_from_trigger": False},
         next_method="execute_complete",
         next_kwargs=None,

@@ -26,11 +26,12 @@ import os
 import shutil
 import time
 import warnings
+from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from functools import partial
 from io import BytesIO
 from tempfile import NamedTemporaryFile
-from typing import IO, TYPE_CHECKING, Any, Callable, Generator, Sequence, TypeVar, cast, overload
+from typing import IO, TYPE_CHECKING, Any, Callable, TypeVar, cast, overload
 from urllib.parse import urlsplit
 
 from gcloud.aio.storage import Storage
@@ -150,23 +151,6 @@ class GCSHook(GoogleBaseHook):
     """Use the Google Cloud connection to interact with Google Cloud Storage."""
 
     _conn: storage.Client | None = None
-
-    def __init__(
-        self,
-        gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: str | Sequence[str] | None = None,
-        **kwargs,
-    ) -> None:
-        if kwargs.get("delegate_to") is not None:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
-            )
-
-        super().__init__(
-            gcp_conn_id=gcp_conn_id,
-            impersonation_chain=impersonation_chain,
-        )
 
     def get_conn(self) -> storage.Client:
         """Return a Google Cloud Storage service object."""

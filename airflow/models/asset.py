@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 import sqlalchemy_jsonfield
@@ -29,15 +30,36 @@ from sqlalchemy import (
     PrimaryKeyConstraint,
     String,
     Table,
+    select,
     text,
 )
 from sqlalchemy.orm import relationship
 
-from airflow.assets import Asset, AssetAlias
 from airflow.models.base import Base, StringID
+from airflow.sdk.definitions.asset import Asset, AssetAlias
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from sqlalchemy.orm import Session
+
+
+def _fetch_active_assets_by_name(
+    names: Sequence[str],
+    session: Session,
+) -> dict[str, Asset]:
+    return {
+        asset_model[0].name: asset_model[0].to_public()
+        for asset_model in session.execute(
+            select(AssetModel)
+            .join(AssetActive, AssetActive.name == AssetModel.name)
+            .where(AssetActive.name.in_(name for name in names))
+        )
+    }
+
 
 alias_association_table = Table(
     "asset_alias_asset",
@@ -97,7 +119,7 @@ class AssetAliasModel(Base):
             ),
             "mysql",
         ),
-        default=str,
+        default="",
         nullable=False,
     )
 

@@ -26,8 +26,8 @@ import pytest
 
 from airflow.exceptions import AirflowSensorTimeout, TaskDeferred
 from airflow.models.dag import DAG
-from airflow.sensors.filesystem import FileSensor
-from airflow.triggers.file import FileTrigger
+from airflow.providers.standard.sensors.filesystem import FileSensor
+from airflow.providers.standard.triggers.file import FileTrigger
 from airflow.utils.timezone import datetime
 
 pytestmark = pytest.mark.db_test
@@ -37,7 +37,6 @@ TEST_DAG_ID = "unit_tests_file_sensor"
 DEFAULT_DATE = datetime(2015, 1, 1)
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 class TestFileSensor:
     def setup_method(self):
         from airflow.providers.standard.hooks.filesystem import FSHook

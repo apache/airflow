@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import json
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
+from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.utils.log.secrets_masker import redact
 
 
@@ -67,11 +68,18 @@ class ConnectionCollectionResponse(BaseModel):
     total_entries: int
 
 
+class ConnectionTestResponse(BaseModel):
+    """Connection Test serializer for responses."""
+
+    status: bool
+    message: str
+
+
 # Request Models
 class ConnectionBody(BaseModel):
     """Connection Serializer for requests body."""
 
-    connection_id: str = Field(serialization_alias="conn_id")
+    connection_id: str = Field(serialization_alias="conn_id", max_length=200, pattern=r"^[\w.-]+$")
     conn_type: str
     description: str | None = Field(default=None)
     host: str | None = Field(default=None)
@@ -80,3 +88,9 @@ class ConnectionBody(BaseModel):
     port: int | None = Field(default=None)
     password: str | None = Field(default=None)
     extra: str | None = Field(default=None)
+
+
+class ConnectionBulkBody(BaseModel):
+    """Connections Serializer for requests body."""
+
+    connections: list[ConnectionBody]

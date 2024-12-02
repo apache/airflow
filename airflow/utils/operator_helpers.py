@@ -19,11 +19,12 @@ from __future__ import annotations
 
 import inspect
 import logging
+from collections.abc import Collection, Mapping
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Callable, Collection, Mapping, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Protocol, TypeVar
 
 from airflow import settings
-from airflow.assets.metadata import Metadata
+from airflow.sdk.definitions.asset.metadata import Metadata
 from airflow.typing_compat import ParamSpec
 from airflow.utils.context import Context, lazy_mapping_from_context
 from airflow.utils.types import NOTSET
@@ -46,9 +47,9 @@ AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
         "default": f"{DEFAULT_FORMAT_PREFIX}task_id",
         "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}TASK_ID",
     },
-    "AIRFLOW_CONTEXT_EXECUTION_DATE": {
-        "default": f"{DEFAULT_FORMAT_PREFIX}execution_date",
-        "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}EXECUTION_DATE",
+    "AIRFLOW_CONTEXT_LOGICAL_DATE": {
+        "default": f"{DEFAULT_FORMAT_PREFIX}logical_date",
+        "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}LOGICAL_DATE",
     },
     "AIRFLOW_CONTEXT_TRY_NUMBER": {
         "default": f"{DEFAULT_FORMAT_PREFIX}try_number",
@@ -97,7 +98,7 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
         (task, "owner", "AIRFLOW_CONTEXT_DAG_OWNER"),
         (task_instance, "dag_id", "AIRFLOW_CONTEXT_DAG_ID"),
         (task_instance, "task_id", "AIRFLOW_CONTEXT_TASK_ID"),
-        (task_instance, "execution_date", "AIRFLOW_CONTEXT_EXECUTION_DATE"),
+        (task_instance, "logical_date", "AIRFLOW_CONTEXT_LOGICAL_DATE"),
         (task_instance, "try_number", "AIRFLOW_CONTEXT_TRY_NUMBER"),
         (dag_run, "run_id", "AIRFLOW_CONTEXT_DAG_RUN_ID"),
     ]

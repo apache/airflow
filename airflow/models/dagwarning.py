@@ -22,8 +22,8 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, ForeignKeyConstraint, Index, String, Text, delete, false, select
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.models.base import Base, StringID
+from airflow.models.dag import DagModel
 from airflow.utils import timezone
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -38,7 +38,7 @@ class DagWarning(Base):
     A table to store DAG warnings.
 
     DAG warnings are problems that don't rise to the level of failing the DAG parse
-    but which users should nonetheless be warned about.  These warnings are recorded
+    but which users should nonetheless be warned about. These warnings are recorded
     when parsing DAG and displayed on the Webserver in a flash message.
     """
 
@@ -58,10 +58,10 @@ class DagWarning(Base):
         Index("idx_dag_warning_dag_id", dag_id),
     )
 
-    def __init__(self, dag_id: str, error_type: str, message: str, **kwargs):
+    def __init__(self, dag_id: str, warning_type: str, message: str, **kwargs):
         super().__init__(**kwargs)
         self.dag_id = dag_id
-        self.warning_type = DagWarningType(error_type).value  # make sure valid type
+        self.warning_type = DagWarningType(warning_type).value  # make sure valid type
         self.message = message
 
     def __eq__(self, other) -> bool:
@@ -71,21 +71,14 @@ class DagWarning(Base):
         return hash((self.dag_id, self.warning_type))
 
     @classmethod
-    @internal_api_call
     @provide_session
+    @retry_db_transaction
     def purge_inactive_dag_warnings(cls, session: Session = NEW_SESSION) -> None:
         """
         Deactivate DagWarning records for inactive dags.
 
         :return: None
         """
-        cls._purge_inactive_dag_warnings_with_retry(session)
-
-    @classmethod
-    @retry_db_transaction
-    def _purge_inactive_dag_warnings_with_retry(cls, session: Session) -> None:
-        from airflow.models.dag import DagModel
-
         if session.get_bind().dialect.name == "sqlite":
             dag_ids_stmt = select(DagModel.dag_id).where(DagModel.is_active == false())
             query = delete(cls).where(cls.dag_id.in_(dag_ids_stmt.scalar_subquery()))

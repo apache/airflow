@@ -36,13 +36,9 @@ from airflow.utils.state import TaskInstanceState
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.config import conf_vars
 
-if AIRFLOW_V_3_0_PLUS:
-    pass
-
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 TASK_LOGGER = "airflow.task"
@@ -68,12 +64,11 @@ class TestFileTaskLogHandler:
         """Test for executors which do not have `get_task_log` method, it fallbacks to reading
         log from worker"""
         executor_name = "CeleryExecutor"
-
         ti = create_task_instance(
             dag_id="dag_for_testing_celery_executor_log_read",
             task_id="task_for_testing_celery_executor_log_read",
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
         )
         ti.state = TaskInstanceState.RUNNING
         ti.try_number = 1
@@ -85,4 +80,6 @@ class TestFileTaskLogHandler:
             fth._read_from_logs_server.return_value = ["this message"], ["this\nlog\ncontent"]
             actual = fth._read(ti=ti, try_number=1)
             fth._read_from_logs_server.assert_called_once()
-        assert actual == ("*** this message\nthis\nlog\ncontent", {"end_of_log": False, "log_pos": 16})
+        assert "*** this message\n" in actual[0]
+        assert actual[0].endswith("this\nlog\ncontent")
+        assert actual[1] == {"end_of_log": False, "log_pos": 16}

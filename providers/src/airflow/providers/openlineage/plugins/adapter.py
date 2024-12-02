@@ -32,7 +32,6 @@ from openlineage.client.facet_v2 import (
     nominal_time_run,
     ownership_job,
     parent_run,
-    processing_engine_run,
     source_code_location_job,
 )
 from openlineage.client.uuid import generate_static_uuid
@@ -42,6 +41,7 @@ from airflow.providers.openlineage.utils.utils import (
     OpenLineageRedactor,
     get_airflow_debug_facet,
     get_airflow_state_run_facet,
+    get_processing_engine_facet,
 )
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -84,7 +84,7 @@ class OpenLineageAdapter(LoggingMixin):
                     "OpenLineage configuration found. Transport type: `%s`",
                     config.get("type", "no type provided"),
                 )
-                self._client = OpenLineageClient(config=config)
+                self._client = OpenLineageClient(config=config)  # type: ignore[call-arg]
             else:
                 self.log.debug(
                     "OpenLineage configuration not found directly in Airflow. "
@@ -128,12 +128,13 @@ class OpenLineageAdapter(LoggingMixin):
         dag_id: str,
         task_id: str,
         try_number: int,
-        execution_date: datetime,
+        logical_date: datetime,
+        map_index: int,
     ):
         return str(
             generate_static_uuid(
-                instant=execution_date,
-                data=f"{conf.namespace()}.{dag_id}.{task_id}.{try_number}".encode(),
+                instant=logical_date,
+                data=f"{conf.namespace()}.{dag_id}.{task_id}.{try_number}.{map_index}".encode(),
             )
         )
 
@@ -156,10 +157,10 @@ class OpenLineageAdapter(LoggingMixin):
                 stack.enter_context(Stats.timer("ol.emit.attempts"))
                 self._client.emit(redacted_event)
                 self.log.debug("Successfully emitted OpenLineage event of id %s", event.run.runId)
-        except Exception as e:
+        except Exception:
             Stats.incr("ol.emit.failed")
             self.log.warning("Failed to emit OpenLineage event of id %s", event.run.runId)
-            self.log.debug("OpenLineage emission failure: %s", e)
+            self.log.debug("OpenLineage emission failure: %s", exc_info=True)
 
         return redacted_event
 
@@ -195,18 +196,10 @@ class OpenLineageAdapter(LoggingMixin):
         :param task: metadata container with information extracted from operator
         :param run_facets: custom run facets
         """
-        from airflow.version import version as AIRFLOW_VERSION
-
-        processing_engine_version_facet = processing_engine_run.ProcessingEngineRunFacet(
-            version=AIRFLOW_VERSION,
-            name="Airflow",
-            openlineageAdapterVersion=OPENLINEAGE_PROVIDER_VERSION,
-        )
-
         run_facets = run_facets or {}
         if task:
             run_facets = {**task.run_facets, **run_facets}
-        run_facets["processing_engine"] = processing_engine_version_facet  # type: ignore
+        run_facets = {**run_facets, **get_processing_engine_facet()}  # type: ignore
         event = RunEvent(
             eventType=RunState.START,
             eventTime=event_time,
@@ -362,7 +355,7 @@ class OpenLineageAdapter(LoggingMixin):
                     job_name=dag_id,
                     nominal_start_time=nominal_start_time,
                     nominal_end_time=nominal_end_time,
-                    run_facets={**run_facets, **get_airflow_debug_facet()},
+                    run_facets={**run_facets, **get_airflow_debug_facet(), **get_processing_engine_facet()},
                 ),
                 inputs=[],
                 outputs=[],

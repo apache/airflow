@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import logging
 from base64 import b64encode
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -97,7 +98,8 @@ class WinRMOperator(BaseOperator):
 
         if return_code == 0:
             # returning output if do_xcom_push is set
-            enable_pickling = conf.getboolean("core", "enable_xcom_pickling")
+            # TODO: Remove this after minimum Airflow version is 3.0
+            enable_pickling = conf.getboolean("core", "enable_xcom_pickling", fallback=False)
 
             if enable_pickling:
                 return stdout_buffer

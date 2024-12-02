@@ -36,7 +36,7 @@ from tests_common.test_utils.db import clear_db_runs
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 START_DATE = convert_to_utc(datetime(2016, 1, 1))
 
@@ -63,7 +63,7 @@ class TestPrevDagrunDep:
         dag.create_dagrun(
             run_id="old_run",
             state=TaskInstanceState.SUCCESS,
-            execution_date=old_task.start_date,
+            logical_date=old_task.start_date,
             run_type=DagRunType.SCHEDULED,
             data_interval=(old_task.start_date, old_task.start_date),
             **triggered_by_kwargs,
@@ -78,13 +78,13 @@ class TestPrevDagrunDep:
         )
 
         # New DAG run will include 1st TaskInstance of new_task
-        execution_date = convert_to_utc(datetime(2016, 1, 2))
+        logical_date = convert_to_utc(datetime(2016, 1, 2))
         dr = dag.create_dagrun(
             run_id="new_run",
             state=DagRunState.RUNNING,
-            execution_date=execution_date,
+            logical_date=logical_date,
             run_type=DagRunType.SCHEDULED,
-            data_interval=(execution_date, execution_date),
+            data_interval=(logical_date, logical_date),
             **triggered_by_kwargs,
         )
 
@@ -275,7 +275,7 @@ def test_dagrun_dep(mock_get_previous_scheduled_dagrun, kwargs):
         wait_for_downstream=wait_for_downstream,
     )
     if prev_tis:
-        prev_dagrun = Mock(execution_date=datetime(2016, 1, 2))
+        prev_dagrun = Mock(logical_date=datetime(2016, 1, 2))
     else:
         prev_dagrun = None
     mock_get_previous_scheduled_dagrun.return_value = prev_dagrun

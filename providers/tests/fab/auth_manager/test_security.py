@@ -277,25 +277,6 @@ def assert_user_does_not_have_dag_perms(has_dag_perm):
 
 @pytest.mark.parametrize(
     "role",
-    [{"name": "MyRole7", "permissions": [("can_some_other_action", "AnotherBaseView")], "create": False}],
-    indirect=True,
-)
-def test_init_role_baseview(app, security_manager, role):
-    _, params = role
-
-    with pytest.warns(
-        DeprecationWarning,
-        match="`init_role` has been deprecated\\. Please use `bulk_sync_roles` instead\\.",
-    ):
-        security_manager.init_role(params["name"], params["permissions"])
-
-    _role = security_manager.find_role(params["name"])
-    assert _role is not None
-    assert len(_role.permissions) == len(params["permissions"])
-
-
-@pytest.mark.parametrize(
-    "role",
     [{"name": "MyRole3", "permissions": [("can_some_action", "SomeBaseView")]}],
     indirect=True,
 )
@@ -919,7 +900,7 @@ def test_no_additional_dag_permission_views_created(db, security_manager):
 def test_override_role_vm(app_builder):
     test_security_manager = MockSecurityManager(appbuilder=app_builder)
     assert len(test_security_manager.VIEWER_VMS) == 1
-    assert test_security_manager.VIEWER_VMS == {"Airflow"}
+    assert {"Airflow"} == test_security_manager.VIEWER_VMS
 
 
 def test_correct_roles_have_perms_to_read_config(security_manager):
@@ -1020,17 +1001,6 @@ def test_get_all_roles_with_permissions(security_manager):
         assert isinstance(role, security_manager.role_model)
 
     assert "Admin" in roles
-
-
-def test_prefixed_dag_id_is_deprecated(security_manager):
-    with pytest.warns(
-        DeprecationWarning,
-        match=(
-            "`prefixed_dag_id` has been deprecated. "
-            "Please use `airflow.security.permissions.resource_name` instead."
-        ),
-    ):
-        security_manager.prefixed_dag_id("hello")
 
 
 def test_permissions_work_for_dags_with_dot_in_dagname(

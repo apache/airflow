@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Generator
+from collections.abc import Generator
 
 import pytest
 import time_machine
@@ -40,7 +40,6 @@ except ImportError:
 
 pytestmark = [
     pytest.mark.db_test,
-    pytest.mark.skip_if_database_isolation_mode,
     pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0+"),
 ]
 
@@ -139,12 +138,12 @@ class TestGetDagAssetQueuedEvent(TestQueuedEventEndpoint):
         )
 
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "Queue event with dag_id: `not_exists` and asset uri: `not_exists` was not found",
             "status": 404,
             "title": "Queue event not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
 
 class TestDeleteDagAssetQueuedEvent(TestAssetEndpoint):
@@ -168,9 +167,7 @@ class TestDeleteDagAssetQueuedEvent(TestAssetEndpoint):
         assert response.status_code == 204
         conn = session.query(AssetDagRunQueue).all()
         assert len(conn) == 0
-        _check_last_log(
-            session, dag_id=dag_id, event="api.delete_dag_asset_queued_event", execution_date=None
-        )
+        _check_last_log(session, dag_id=dag_id, event="api.delete_dag_asset_queued_event", logical_date=None)
 
     def test_should_respond_404(self):
         dag_id = "not_exists"
@@ -182,12 +179,12 @@ class TestDeleteDagAssetQueuedEvent(TestAssetEndpoint):
         )
 
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "Queue event with dag_id: `not_exists` and asset uri: `not_exists` was not found",
             "status": 404,
             "title": "Queue event not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
 
 class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
@@ -224,12 +221,12 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
         )
 
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "Queue event with dag_id: `not_exists` was not found",
             "status": 404,
             "title": "Queue event not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
 
 class TestDeleteDagDatasetQueuedEvents(TestAssetEndpoint):
@@ -242,12 +239,12 @@ class TestDeleteDagDatasetQueuedEvents(TestAssetEndpoint):
         )
 
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "Queue event with dag_id: `not_exists` was not found",
             "status": 404,
             "title": "Queue event not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
 
 class TestGetDatasetQueuedEvents(TestQueuedEventEndpoint):
@@ -285,12 +282,12 @@ class TestGetDatasetQueuedEvents(TestQueuedEventEndpoint):
         )
 
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "Queue event with asset uri: `not_exists` was not found",
             "status": 404,
             "title": "Queue event not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
 
 class TestDeleteDatasetQueuedEvents(TestQueuedEventEndpoint):
@@ -309,7 +306,7 @@ class TestDeleteDatasetQueuedEvents(TestQueuedEventEndpoint):
         assert response.status_code == 204
         conn = session.query(AssetDagRunQueue).all()
         assert len(conn) == 0
-        _check_last_log(session, dag_id=None, event="api.delete_asset_queued_events", execution_date=None)
+        _check_last_log(session, dag_id=None, event="api.delete_asset_queued_events", logical_date=None)
 
     def test_should_respond_404(self):
         asset_uri = "not_exists"
@@ -320,9 +317,9 @@ class TestDeleteDatasetQueuedEvents(TestQueuedEventEndpoint):
         )
 
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "Queue event with asset uri: `not_exists` was not found",
             "status": 404,
             "title": "Queue event not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }

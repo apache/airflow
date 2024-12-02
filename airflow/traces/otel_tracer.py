@@ -333,7 +333,7 @@ def get_otel_tracer(cls, use_simple_processor: bool = False) -> OtelTrace:
     endpoint = f"{protocol}://{host}:{port}/v1/traces"
     log.info("[OTLPSpanExporter] Connecting to OpenTelemetry Collector at %s", endpoint)
     return OtelTrace(
-        span_exporter=OTLPSpanExporter(endpoint=endpoint, headers={"Content-Type": "application/json"}),
+        span_exporter=OTLPSpanExporter(endpoint=endpoint),
         tag_string=tag_string,
         use_simple_processor=use_simple_processor,
     )

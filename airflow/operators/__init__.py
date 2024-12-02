@@ -21,3 +21,39 @@ Operators.
 
 :sphinx-autoapi-skip:
 """
+
+from __future__ import annotations
+
+from airflow.utils.deprecation_tools import add_deprecated_classes
+
+__deprecated_classes = {
+    "python":{
+        "PythonOperator": "airflow.providers.standard.operators.python.PythonOperator",
+        "BranchPythonOperator": "airflow.providers.standard.operators.python.BranchPythonOperator",
+        "ShortCircuitOperator": "airflow.providers.standard.operators.python.ShortCircuitOperator",
+        "PythonVirtualenvOperator": "airflow.providers.standard.operators.python.PythonVirtualenvOperator",
+        "ExternalPythonOperator": "airflow.providers.standard.operators.python.ExternalPythonOperator",
+        "BranchExternalPythonOperator": "airflow.providers.standard.operators.python.BranchExternalPythonOperator",
+        "BranchPythonVirtualenvOperator": "airflow.providers.standard.operators.python.BranchPythonVirtualenvOperator",
+    },
+    "bash":{
+        "BashOperator": "airflow.providers.standard.operators.bash.BashOperator",
+    },
+    "datetime":{
+        "BranchDateTimeOperator": "airflow.providers.standard.operators.datetime.BranchDateTimeOperator",
+    },
+    "generic_transfer": {
+        "GenericTransfer": "airflow.providers.standard.operators.generic_transfer.GenericTransfer",
+    },
+    "weekday": {
+        "BranchDayOfWeekOperator": "airflow.providers.standard.operators.weekday.BranchDayOfWeekOperator",
+    },
+    "trigger_dagrun": {
+        "TriggerDagRunOperator": "airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator",
+    },
+    "latest_only": {
+        "LatestOnlyOperator": "airflow.providers.standard.operators.latest_only.LatestOnlyOperator",
+    }
+
+}
+add_deprecated_classes(__deprecated_classes, __name__)

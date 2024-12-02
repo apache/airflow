@@ -131,27 +131,14 @@ class StandardTaskRunner(LoggingMixin):
             self.log.info("Started process %d to run task", pid)
             return psutil.Process(pid)
         else:
-            from airflow.api_internal.internal_api_call import InternalApiConfig
-            from airflow.configuration import conf
-
-            if conf.getboolean("core", "database_access_isolation", fallback=False):
-                InternalApiConfig.set_use_internal_api("Forked task runner")
             # Start a new process group
             set_new_process_group()
 
             signal.signal(signal.SIGINT, signal.SIG_DFL)
             signal.signal(signal.SIGTERM, signal.SIG_DFL)
 
-            from airflow import settings
             from airflow.cli.cli_parser import get_parser
             from airflow.sentry import Sentry
-
-            if not InternalApiConfig.get_use_internal_api():
-                # Force a new SQLAlchemy session. We can't share open DB handles
-                # between process. The cli code will re-create this as part of its
-                # normal startup
-                settings.engine.pool.dispose()
-                settings.engine.dispose()
 
             parser = get_parser()
             # [1:] - remove "airflow" from the start of the command
@@ -160,7 +147,7 @@ class StandardTaskRunner(LoggingMixin):
             self.log.info("Running: %s", self._command)
             self.log.info("Subtask %s", self._task_instance.task_id)
 
-            proc_title = "airflow task runner: {0.dag_id} {0.task_id} {0.execution_date_or_run_id}"
+            proc_title = "airflow task runner: {0.dag_id} {0.task_id} {0.logical_date_or_run_id}"
             setproctitle(proc_title.format(args))
             return_code = 0
             try:

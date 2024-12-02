@@ -46,7 +46,6 @@ except ImportError:
 
 pytestmark = [
     pytest.mark.db_test,
-    pytest.mark.skip_if_database_isolation_mode,
     pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0+"),
 ]
 
@@ -153,7 +152,7 @@ class TestDagRunEndpoint:
                 dag_id="TEST_DAG_ID",
                 run_id=f"TEST_DAG_RUN_ID_{i}",
                 run_type=DagRunType.MANUAL,
-                execution_date=timezone.parse(self.default_time) + timedelta(days=i - 1),
+                logical_date=timezone.parse(self.default_time) + timedelta(days=i - 1),
                 start_date=timezone.parse(self.default_time),
                 external_trigger=True,
                 state=state,
@@ -170,7 +169,7 @@ class TestDagRunEndpoint:
                         dag_id=f"TEST_DAG_ID_{i}",
                         run_id=f"TEST_DAG_RUN_ID_{i}",
                         run_type=DagRunType.MANUAL,
-                        execution_date=timezone.parse(self.default_time_2),
+                        logical_date=timezone.parse(self.default_time_2),
                         start_date=timezone.parse(self.default_time),
                         external_trigger=True,
                         state=state,
@@ -203,7 +202,6 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             "dag_run_id": "TEST_DAG_RUN_ID_1",
             "end_date": None,
             "state": "running",
-            "execution_date": self.default_time,
             "logical_date": self.default_time,
             "external_trigger": True,
             "start_date": self.default_time,
@@ -220,7 +218,6 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
             "dag_run_id": "TEST_DAG_RUN_ID_2",
             "end_date": None,
             "state": "running",
-            "execution_date": self.default_time_2,
             "logical_date": self.default_time_2,
             "external_trigger": True,
             "start_date": self.default_time,
@@ -268,7 +265,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             "api/v1/dags/TEST_DAG_ID/dagRuns",
             json={
                 "dag_run_id": "TEST_DAG_RUN_ID_1",
-                "execution_date": self.default_time,
+                "logical_date": self.default_time,
             },
             environ_overrides={"REMOTE_USER": username},
         )

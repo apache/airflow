@@ -21,15 +21,16 @@ name: Standard
 description: |
     Airflow Standard Provider
 state: ready
-source-date-epoch: 1718603992
+source-date-epoch: 1732434919
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 0.0.2
   - 0.0.1
 
 dependencies:
   - apache-airflow>=2.8.0
-  - apache-airflow-providers-common-sql>=1.18.0
+  - apache-airflow-providers-common-sql>=1.20.0
 
 integrations:
   - integration-name: Standard
@@ -48,6 +49,8 @@ operators:
       - airflow.providers.standard.operators.bash
       - airflow.providers.standard.operators.python
       - airflow.providers.standard.operators.generic_transfer
+      - airflow.providers.standard.operators.trigger_dagrun
+      - airflow.providers.standard.operators.latest_only
 
 sensors:
   - integration-name: Standard
@@ -58,12 +61,21 @@ sensors:
       - airflow.providers.standard.sensors.weekday
       - airflow.providers.standard.sensors.bash
       - airflow.providers.standard.sensors.python
+      - airflow.providers.standard.sensors.filesystem
+      - airflow.providers.standard.sensors.external_task
 hooks:
   - integration-name: Standard
     python-modules:
       - airflow.providers.standard.hooks.filesystem
       - airflow.providers.standard.hooks.package_index
       - airflow.providers.standard.hooks.subprocess
+
+triggers:
+  - integration-name: Standard
+    python-modules:
+      - airflow.providers.standard.triggers.external_task
+      - airflow.providers.standard.triggers.file
+      - airflow.providers.standard.triggers.temporal
 
 config:
   standard:

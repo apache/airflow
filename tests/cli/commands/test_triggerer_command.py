@@ -24,7 +24,7 @@ import pytest
 from airflow.cli import cli_parser
 from airflow.cli.commands import triggerer_command
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestTriggererCommand:

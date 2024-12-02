@@ -17,18 +17,25 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
-import subprocess
+import multiprocessing
+import os
 from unittest import mock
 
 import pytest
+from kgb import spy_on
+from uuid6 import uuid7
 
-from airflow import settings
-from airflow.exceptions import AirflowException
+from airflow.executors import workloads
 from airflow.executors.local_executor import LocalExecutor
 from airflow.utils.state import State
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
+
+# Runtime is fine, we just can't run the tests on macOS
+skip_spawn_mp_start = pytest.mark.skipif(
+    multiprocessing.get_context().get_start_method() == "spawn",
+    reason="mock patching in test don't work with 'spawn' mode (default on macOS)",
+)
 
 
 class TestLocalExecutor:
@@ -43,86 +50,68 @@ class TestLocalExecutor:
     def test_serve_logs_default_value(self):
         assert LocalExecutor.serve_logs
 
-    @mock.patch("airflow.executors.local_executor.subprocess.check_call")
-    def execution_parallelism_subprocess(self, mock_check_call, parallelism=0):
-        success_command = ["airflow", "tasks", "run", "true", "some_parameter", "2020-10-07"]
-        fail_command = ["airflow", "tasks", "run", "false", "task_id", "2020-10-07"]
+    @mock.patch("airflow.sdk.execution_time.supervisor.supervise")
+    def _test_execute(self, mock_supervise, parallelism=1):
+        success_tis = [
+            workloads.TaskInstance(
+                id=uuid7(),
+                task_id=f"success_{i}",
+                dag_id="mydag",
+                run_id="run1",
+                try_number=1,
+                state="queued",
+            )
+            for i in range(self.TEST_SUCCESS_COMMANDS)
+        ]
+        fail_ti = success_tis[0].model_copy(update={"id": uuid7(), "task_id": "failure"})
 
-        def fake_execute_command(command, close_fds=True):
-            if command != success_command:
-                raise subprocess.CalledProcessError(returncode=1, cmd=command)
-            else:
-                return 0
+        # We just mock both styles here, only one will be hit though
+        def fake_supervise(ti, **kwargs):
+            if ti.id == fail_ti.id:
+                raise RuntimeError("fake failure")
+            return 0
 
-        mock_check_call.side_effect = fake_execute_command
+        mock_supervise.side_effect = fake_supervise
 
-        self._test_execute(parallelism, success_command, fail_command)
-
-    @mock.patch("airflow.cli.commands.task_command.task_run")
-    def execution_parallelism_fork(self, mock_run, parallelism=0):
-        success_command = ["airflow", "tasks", "run", "success", "some_parameter", "2020-10-07"]
-        fail_command = ["airflow", "tasks", "run", "failure", "some_parameter", "2020-10-07"]
-
-        def fake_task_run(args):
-            if args.dag_id != "success":
-                raise AirflowException("Simulate failed task")
-
-        mock_run.side_effect = fake_task_run
-
-        self._test_execute(parallelism, success_command, fail_command)
-
-    def _test_execute(self, parallelism, success_command, fail_command):
         executor = LocalExecutor(parallelism=parallelism)
         executor.start()
 
-        success_key = "success {}"
         assert executor.result_queue.empty()
 
-        execution_date = datetime.datetime.now()
-        for i in range(self.TEST_SUCCESS_COMMANDS):
-            key_id, command = success_key.format(i), success_command
-            key = key_id, "fake_ti", execution_date, 0
-            executor.running.add(key)
-            executor.execute_async(key=key, command=command)
+        with spy_on(executor._spawn_worker) as spawn_worker:
+            for ti in success_tis:
+                executor.queue_workload(
+                    workloads.ExecuteTask(token="", ti=ti, dag_path="some/path", log_path=None)
+                )
 
-        fail_key = "fail", "fake_ti", execution_date, 0
-        executor.running.add(fail_key)
-        executor.execute_async(key=fail_key, command=fail_command)
+            executor.queue_workload(
+                workloads.ExecuteTask(token="", ti=fail_ti, dag_path="some/path", log_path=None)
+            )
 
-        executor.end()
+            executor.end()
+
+            expected = self.TEST_SUCCESS_COMMANDS + 1 if parallelism == 0 else parallelism
+            # Depending on how quickly the tasks run, we might not need to create all the workers we could
+            assert 1 <= len(spawn_worker.calls) <= expected
+
         # By that time Queues are already shutdown so we cannot check if they are empty
         assert len(executor.running) == 0
+        assert executor._unread_messages.value == 0
 
-        for i in range(self.TEST_SUCCESS_COMMANDS):
-            key_id = success_key.format(i)
-            key = key_id, "fake_ti", execution_date, 0
-            assert executor.event_buffer[key][0] == State.SUCCESS
-        assert executor.event_buffer[fail_key][0] == State.FAILED
+        for ti in success_tis:
+            assert executor.event_buffer[ti.key][0] == State.SUCCESS
+        assert executor.event_buffer[fail_ti.key][0] == State.FAILED
 
-        expected = self.TEST_SUCCESS_COMMANDS + 1 if parallelism == 0 else parallelism
-        assert executor.workers_used == expected
-
-    def test_execution_subprocess_unlimited_parallelism(self):
-        with mock.patch.object(
-            settings, "EXECUTE_TASKS_NEW_PYTHON_INTERPRETER", new_callable=mock.PropertyMock
-        ) as option:
-            option.return_value = True
-            self.execution_parallelism_subprocess(parallelism=0)
-
-    def test_execution_subprocess_limited_parallelism(self):
-        with mock.patch.object(
-            settings, "EXECUTE_TASKS_NEW_PYTHON_INTERPRETER", new_callable=mock.PropertyMock
-        ) as option:
-            option.return_value = True
-            self.execution_parallelism_subprocess(parallelism=2)
-
-    @mock.patch.object(settings, "EXECUTE_TASKS_NEW_PYTHON_INTERPRETER", False)
-    def test_execution_unlimited_parallelism_fork(self):
-        self.execution_parallelism_fork(parallelism=0)
-
-    @mock.patch.object(settings, "EXECUTE_TASKS_NEW_PYTHON_INTERPRETER", False)
-    def test_execution_limited_parallelism_fork(self):
-        self.execution_parallelism_fork(parallelism=2)
+    @skip_spawn_mp_start
+    @pytest.mark.parametrize(
+        ("parallelism",),
+        [
+            pytest.param(0, id="unlimited"),
+            pytest.param(2, id="limited"),
+        ],
+    )
+    def test_execution(self, parallelism: int):
+        self._test_execute(parallelism=parallelism)
 
     @mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
     @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
@@ -142,3 +131,20 @@ class TestLocalExecutor:
             ),
         ]
         mock_stats_gauge.assert_has_calls(calls)
+
+    @pytest.mark.execution_timeout(5)
+    def test_clean_stop_on_signal(self):
+        import signal
+
+        executor = LocalExecutor(parallelism=2)
+        executor.start()
+
+        # We want to ensure we start a worker process, as we now only create them on demand
+        executor._spawn_worker()
+
+        try:
+            os.kill(os.getpid(), signal.SIGINT)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            executor.end()

@@ -26,7 +26,7 @@ from tests_common.test_utils.api_connexion_utils import assert_401, create_user,
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_logs
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
@@ -52,7 +52,7 @@ def task_instance(session, create_task_instance, request):
         dag_id="TEST_DAG_ID",
         task_id="TEST_TASK_ID",
         run_id="TEST_RUN_ID",
-        execution_date=request.instance.default_time,
+        logical_date=request.instance.default_time,
     )
 
 
@@ -111,7 +111,7 @@ class TestGetEventLog(TestEventLogEndpoint):
             "run_id": "TEST_RUN_ID",
             "map_index": -1,
             "try_number": 0,
-            "execution_date": self.default_time.isoformat(),
+            "logical_date": self.default_time.isoformat(),
             "owner": "airflow",
             "when": self.default_time.isoformat(),
             "extra": None,
@@ -120,12 +120,12 @@ class TestGetEventLog(TestEventLogEndpoint):
     def test_should_respond_404(self):
         response = self.client.get("/api/v1/eventLogs/1", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": None,
             "status": 404,
             "title": "Event Log not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     def test_should_raises_401_unauthenticated(self, log_model):
         event_log_id = log_model.id
@@ -162,7 +162,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "run_id": "TEST_RUN_ID",
                     "map_index": -1,
                     "try_number": 0,
-                    "execution_date": self.default_time.isoformat(),
+                    "logical_date": self.default_time.isoformat(),
                     "owner": "airflow",
                     "when": self.default_time.isoformat(),
                     "extra": None,
@@ -175,7 +175,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "run_id": "TEST_RUN_ID",
                     "map_index": -1,
                     "try_number": 0,
-                    "execution_date": self.default_time.isoformat(),
+                    "logical_date": self.default_time.isoformat(),
                     "owner": "airflow",
                     "when": self.default_time_2.isoformat(),
                     "extra": None,
@@ -188,7 +188,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "run_id": None,
                     "map_index": None,
                     "try_number": None,
-                    "execution_date": None,
+                    "logical_date": None,
                     "owner": "root",
                     "when": self.default_time_2.isoformat(),
                     "extra": '{"host_name": "e24b454f002a"}',
@@ -218,7 +218,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "run_id": "TEST_RUN_ID",
                     "map_index": -1,
                     "try_number": 0,
-                    "execution_date": self.default_time.isoformat(),
+                    "logical_date": self.default_time.isoformat(),
                     "owner": "zsh",  # Order by name, sort order is descending(-)
                     "when": self.default_time_2.isoformat(),
                     "extra": None,
@@ -231,7 +231,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "run_id": None,
                     "map_index": None,
                     "try_number": None,
-                    "execution_date": None,
+                    "logical_date": None,
                     "owner": "root",
                     "when": self.default_time_2.isoformat(),
                     "extra": '{"host_name": "e24b454f002a"}',
@@ -244,7 +244,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "run_id": "TEST_RUN_ID",
                     "map_index": -1,
                     "try_number": 0,
-                    "execution_date": self.default_time.isoformat(),
+                    "logical_date": self.default_time.isoformat(),
                     "owner": "airflow",
                     "when": self.default_time.isoformat(),
                     "extra": None,

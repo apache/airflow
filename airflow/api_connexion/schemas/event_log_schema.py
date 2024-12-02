@@ -40,7 +40,7 @@ class EventLogSchema(SQLAlchemySchema):
     map_index = auto_field(dump_only=True)
     try_number = auto_field(dump_only=True)
     event = auto_field(dump_only=True)
-    execution_date = auto_field(dump_only=True)
+    logical_date = auto_field(dump_only=True)
     owner = auto_field(dump_only=True)
     extra = auto_field(dump_only=True)
 

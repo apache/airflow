@@ -28,7 +28,7 @@ import attr
 import pytest
 from pydantic import BaseModel
 
-from airflow.assets import Asset
+from airflow.sdk.definitions.asset import Asset
 from airflow.serialization.serde import (
     CLASSNAME,
     DATA,
@@ -337,7 +337,7 @@ class TestSerDe:
         """
         uri = "s3://does/not/exist"
         data = {
-            "__type": "airflow.assets.Asset",
+            "__type": "airflow.sdk.definitions.asset.Asset",
             "__source": None,
             "__var": {
                 "__var": {
@@ -365,7 +365,7 @@ class TestSerDe:
         assert e["extra"] == {"hi": "bye"}
 
     def test_encode_asset(self):
-        asset = Asset("mytest://asset")
+        asset = Asset(uri="mytest://asset", name="test")
         obj = deserialize(serialize(asset))
         assert asset.uri == obj.uri
 

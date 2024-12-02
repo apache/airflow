@@ -20,7 +20,8 @@ from __future__ import annotations
 import itertools
 import json
 import time
-from typing import TYPE_CHECKING, Iterable, Sequence
+from collections.abc import Iterable, Sequence
+from typing import TYPE_CHECKING
 
 from google.cloud.batch import ListJobsRequest, ListTasksRequest
 from google.cloud.batch_v1 import (
@@ -60,8 +61,9 @@ class CloudBatchHook(GoogleBaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
+        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
         self._client: BatchServiceClient | None = None
 
     def get_conn(self):
@@ -143,12 +145,20 @@ class CloudBatchHook(GoogleBaseHook):
             try:
                 job = client.get_job(name=f"{job_name}")
                 status: JobStatus.State = job.status.state
-                if (
-                    status == JobStatus.State.SUCCEEDED
-                    or status == JobStatus.State.FAILED
-                    or status == JobStatus.State.DELETION_IN_PROGRESS
-                ):
+                if status == JobStatus.State.SUCCEEDED:
                     return job
+                elif status == JobStatus.State.FAILED:
+                    message = (
+                        "Unexpected error in the operation: "
+                        "Batch job with name {job_name} has failed its execution."
+                    )
+                    raise AirflowException(message)
+                elif status == JobStatus.State.DELETION_IN_PROGRESS:
+                    message = (
+                        "Unexpected error in the operation: "
+                        "Batch job with name {job_name} is being deleted."
+                    )
+                    raise AirflowException(message)
                 else:
                     time.sleep(polling_period_seconds)
             except Exception as e:
@@ -183,9 +193,10 @@ class CloudBatchAsyncHook(GoogleBaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ):
         self._client: BatchServiceAsyncClient | None = None
-        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
+        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain, **kwargs)
 
     def get_conn(self):
         if self._client is None:

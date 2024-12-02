@@ -33,7 +33,7 @@ from airflow.executors import executor_loader
 
 from tests_common.test_utils.config import conf_vars
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestWorkerPrecheck:
@@ -276,6 +276,7 @@ class TestFlowerCommand:
     @mock.patch("airflow.cli.commands.daemon_utils.setup_locations")
     @mock.patch("airflow.cli.commands.daemon_utils.daemon")
     @mock.patch("airflow.providers.celery.executors.celery_executor.app")
+    @pytest.mark.usefixtures("capfd")  # This test needs fd capturing to work
     def test_run_command_daemon(self, mock_celery_app, mock_daemon, mock_setup_locations, mock_pid_file):
         mock_setup_locations.return_value = (
             mock.MagicMock(name="pidfile"),

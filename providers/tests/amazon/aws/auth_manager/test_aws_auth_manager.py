@@ -60,10 +60,8 @@ else:
     from airflow.providers.common.compat.assets import AssetDetails
     from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 
-pytestmark = [
-    pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Test requires Airflow 2.9+"),
-    pytest.mark.skip_if_database_isolation_mode,
-]
+
+pytestmark = pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Test requires Airflow 2.9+")
 
 mock = Mock()
 

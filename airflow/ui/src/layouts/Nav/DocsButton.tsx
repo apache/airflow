@@ -20,6 +20,7 @@ import { Link } from "@chakra-ui/react";
 import { FiBookOpen } from "react-icons/fi";
 
 import { Menu } from "src/components/ui";
+import { useConfig } from "src/queries/useConfig";
 
 import { NavButton } from "./NavButton";
 
@@ -33,29 +34,35 @@ const links = [
     title: "GitHub Repo",
   },
   {
-    href: `/docs`,
+    href: "/docs",
     title: "REST API Reference",
   },
 ];
 
-export const DocsButton = () => (
-  <Menu.Root positioning={{ placement: "right" }}>
-    <Menu.Trigger asChild>
-      <NavButton icon={<FiBookOpen size="1.75rem" />} title="Docs" />
-    </Menu.Trigger>
-    <Menu.Content>
-      {links.map((link) => (
-        <Menu.Item asChild key={link.title} value={link.title}>
-          <Link
-            aria-label={link.title}
-            href={link.href}
-            rel="noopener noreferrer"
-            target="_blank"
-          >
-            {link.title}
-          </Link>
-        </Menu.Item>
-      ))}
-    </Menu.Content>
-  </Menu.Root>
-);
+export const DocsButton = () => {
+  const showAPIDocs = Boolean(useConfig("enable_swagger_ui"));
+
+  return (
+    <Menu.Root positioning={{ placement: "right" }}>
+      <Menu.Trigger asChild>
+        <NavButton icon={<FiBookOpen size="1.75rem" />} title="Docs" />
+      </Menu.Trigger>
+      <Menu.Content>
+        {links
+          .filter((link) => !(!showAPIDocs && link.href === "/docs"))
+          .map((link) => (
+            <Menu.Item asChild key={link.title} value={link.title}>
+              <Link
+                aria-label={link.title}
+                href={link.href}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                {link.title}
+              </Link>
+            </Menu.Item>
+          ))}
+      </Menu.Content>
+    </Menu.Root>
+  );
+};

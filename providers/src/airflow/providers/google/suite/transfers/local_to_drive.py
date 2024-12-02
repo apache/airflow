@@ -19,8 +19,9 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowFailException
 from airflow.models import BaseOperator
@@ -55,9 +56,6 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
         larger than 5MB, or to -1.
     :param resumable: True if this is a resumable upload. False means upload
         in a single request.
-    :param delegate_to: The account to impersonate using domain-wide delegation
-        of authority, if any. For this to work, the service account making the
-        request must have domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using
         short-term credentials, or chained list of accounts required to get the
         access token of the last account in the list, which will be impersonated
@@ -87,7 +85,6 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
         ignore_if_missing: bool = False,
         chunk_size: int = 100 * 1024 * 1024,
         resumable: bool = False,
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         folder_id: str = "root",
         show_full_target_path: bool = True,
@@ -101,7 +98,6 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
         self.ignore_if_missing = ignore_if_missing
         self.chunk_size = chunk_size
         self.resumable = resumable
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.folder_id = folder_id
         self.show_full_target_path = show_full_target_path
@@ -109,7 +105,6 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
     def execute(self, context: Context) -> list[str]:
         hook = GoogleDriveHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 

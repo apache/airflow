@@ -20,9 +20,10 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 import airflow.example_dags as example_dags_module
-from airflow.exceptions import AirflowException
+from airflow.decorators import task as task_decorator
 from airflow.models import DagBag
 from airflow.models.dag import DAG
 from airflow.models.dag_version import DagVersion
@@ -35,7 +36,7 @@ from airflow.utils.session import create_session
 
 from tests_common.test_utils.db import clear_db_dag_code, clear_db_dags
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 def make_example_dags(module):
@@ -56,14 +57,20 @@ class TestDagCode:
         clear_db_dags()
         clear_db_dag_code()
 
-    def _write_two_example_dags(self):
+    def _write_two_example_dags(self, session):
         example_dags = make_example_dags(example_dags_module)
         bash_dag = example_dags["example_bash_operator"]
+        SDM.write_dag(bash_dag)
         dag_version = DagVersion.get_latest_version("example_bash_operator")
-        DagCode(dag_version, bash_dag.fileloc).sync_to_db()
+        x = DagCode(dag_version, bash_dag.fileloc)
+        session.add(x)
+        session.commit()
         xcom_dag = example_dags["example_xcom"]
+        SDM.write_dag(xcom_dag)
         dag_version = DagVersion.get_latest_version("example_xcom")
-        DagCode(dag_version, xcom_dag.fileloc).sync_to_db()
+        x = DagCode(dag_version, xcom_dag.fileloc)
+        session.add(x)
+        session.commit()
         return [bash_dag, xcom_dag]
 
     def _write_example_dags(self):
@@ -78,23 +85,21 @@ class TestDagCode:
 
         self._compare_example_dags(example_dags)
 
-    @patch.object(DagCode, "dag_fileloc_hash")
-    def test_detecting_duplicate_key(self, mock_hash):
+    @patch.object(DagCode, "dag_source_hash")
+    def test_detecting_duplicate_key(self, mock_hash, session):
         """Dag code detects duplicate key."""
         mock_hash.return_value = 0
 
-        with pytest.raises(AirflowException):
-            self._write_two_example_dags()
+        with pytest.raises(IntegrityError):
+            self._write_two_example_dags(session)
 
     def _compare_example_dags(self, example_dags):
         with create_session() as session:
             for dag in example_dags.values():
-                assert DagCode.has_dag(dag.fileloc)
-                dag_fileloc_hash = DagCode.dag_fileloc_hash(dag.fileloc)
+                assert DagCode.has_dag(dag.dag_id)
                 result = (
-                    session.query(DagCode.fileloc, DagCode.fileloc_hash, DagCode.source_code)
-                    .filter(DagCode.fileloc == dag.fileloc)
-                    .filter(DagCode.fileloc_hash == dag_fileloc_hash)
+                    session.query(DagCode.fileloc, DagCode.dag_id, DagCode.source_code)
+                    .filter(DagCode.dag_id == dag.dag_id)
                     .order_by(DagCode.last_updated.desc())
                     .limit(1)
                     .one()
@@ -116,7 +121,7 @@ class TestDagCode:
         # Mock that there is no access to the Dag File
         with patch("airflow.models.dagcode.open_maybe_zipped") as mock_open:
             mock_open.side_effect = FileNotFoundError
-            dag_code = DagCode.get_code_by_fileloc(example_dag.fileloc)
+            dag_code = DagCode.code(example_dag.dag_id)
 
             for test_string in ["example_bash_operator", "also_run_this", "run_this_last"]:
                 assert test_string in dag_code
@@ -139,7 +144,7 @@ class TestDagCode:
 
         example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
         SDM.write_dag(example_dag, processor_subdir="/tmp")
-        with patch("airflow.models.dagcode.DagCode._get_code_from_file") as mock_code:
+        with patch("airflow.models.dagcode.DagCode.get_code_from_file") as mock_code:
             mock_code.return_value = "# dummy code"
             SDM.write_dag(example_dag)
 
@@ -167,4 +172,26 @@ class TestDagCode:
         dag2.sync_to_db()
         SDM.write_dag(dag2)
 
-        assert DagCode.has_dag(dag.fileloc)
+        assert DagCode.has_dag(dag.dag_id)
+
+    def test_update_source_code(self, dag_maker, session):
+        """Test that dag code can be updated."""
+
+        with dag_maker("dag1") as dag:
+
+            @task_decorator
+            def mytask():
+                print("task4")
+
+            mytask()
+        dag.sync_to_db()
+        SDM.write_dag(dag)
+        dag_code = DagCode.get_latest_dagcode(dag.dag_id)
+        dag_code.source_code_hash = 2
+        session.add(dag_code)
+        session.commit()
+        dagcode2 = DagCode.get_latest_dagcode(dag.dag_id)
+        assert dagcode2.source_code_hash == 2
+        DagCode.update_source_code(dag)
+        dag_code3 = DagCode.get_latest_dagcode(dag.dag_id)
+        assert dag_code3.source_code_hash != 2

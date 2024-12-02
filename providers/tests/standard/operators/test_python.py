@@ -27,12 +27,13 @@ import sys
 import tempfile
 import warnings
 from collections import namedtuple
+from collections.abc import Generator
 from datetime import date, datetime, timedelta, timezone as _timezone
 from functools import partial
 from importlib.util import find_spec
 from subprocess import CalledProcessError
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -44,7 +45,6 @@ from airflow.decorators import task_group
 from airflow.exceptions import (
     AirflowException,
     DeserializingResultError,
-    RemovedInAirflow3Warning,
 )
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
@@ -63,7 +63,6 @@ from airflow.providers.standard.operators.python import (
     get_current_context,
 )
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv
-from airflow.settings import _ENABLE_AIP_44
 from airflow.utils import timezone
 from airflow.utils.context import AirflowContextDeprecationWarning, Context
 from airflow.utils.session import create_session
@@ -74,10 +73,6 @@ from airflow.utils.types import NOTSET, DagRunType
 from tests_common.test_utils import AIRFLOW_MAIN_FOLDER
 from tests_common.test_utils.compat import AIRFLOW_V_2_9_PLUS, AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 from tests_common.test_utils.db import clear_db_runs
-
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
-
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
@@ -94,8 +89,6 @@ DILL_INSTALLED = find_spec("dill") is not None
 DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not installed")
 CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
 CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
-
-USE_AIRFLOW_CONTEXT_MARKER = pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is not enabled")
 
 AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE = (
     r"The `use_airflow_context=True` is only supported in Airflow 3.0.0 and later."
@@ -148,15 +141,13 @@ class BasePythonTest:
         return kwargs
 
     def create_dag_run(self) -> DagRun:
-        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         return self.dag_maker.create_dagrun(
             state=DagRunState.RUNNING,
             start_date=self.dag_maker.start_date,
             session=self.dag_maker.session,
-            execution_date=self.default_date,
+            logical_date=self.default_date,
             run_type=DagRunType.MANUAL,
             data_interval=(self.default_date, self.default_date),
-            **triggered_by_kwargs,  # type: ignore
         )
 
     def create_ti(self, fn, **kwargs) -> TI:
@@ -167,7 +158,7 @@ class BasePythonTest:
             **self.default_kwargs(**kwargs),
             dag_id=self.dag_id,
             task_id=self.task_id,
-            execution_date=self.default_date,
+            logical_date=self.default_date,
         )
 
     def run_as_operator(self, fn, **kwargs):
@@ -300,7 +291,7 @@ class TestPythonOperator(BasePythonTest):
         """Ensures that provide_context doesn't break dags in 2.0."""
 
         def func(custom, dag):
-            assert 1 == custom, "custom should be 1"
+            assert custom == 1, "custom should be 1"
             assert dag is not None, "dag should be set"
 
         error_message = "Invalid arguments were passed to PythonOperator \\(task_id: task_test-provide-context-does-not-fail\\). Invalid arguments were:\n\\*\\*kwargs: {'provide_context': True}"
@@ -310,7 +301,7 @@ class TestPythonOperator(BasePythonTest):
 
     def test_context_with_conflicting_op_args(self):
         def func(custom, dag):
-            assert 1 == custom, "custom should be 1"
+            assert custom == 1, "custom should be 1"
             assert dag is not None, "dag should be set"
 
         self.run_as_task(func, op_kwargs={"custom": 1})
@@ -465,7 +456,6 @@ class TestBranchOperator(BasePythonTest):
         else:
             pytest.fail(f"{self.task_id!r} not found.")
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests logic with clear_task_instances(), this needs DB access
     def test_clear_skipped_downstream_task(self):
         """
         After a downstream task is skipped by BranchPythonOperator, clearing the skipped task
@@ -527,7 +517,6 @@ class TestBranchOperator(BasePythonTest):
         ):
             ti.run()
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, can not run in isolation mode
     @pytest.mark.parametrize(
         "choice,expected_states",
         [
@@ -583,7 +572,6 @@ class TestShortCircuitOperator(BasePythonTest):
     }
     all_success_states = {"short_circuit": State.SUCCESS, "op1": State.SUCCESS, "op2": State.SUCCESS}
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, can not run in isolation mode
     @pytest.mark.parametrize(
         argnames=(
             "callable_return, test_ignore_downstream_trigger_rules, test_trigger_rule, expected_task_states"
@@ -702,7 +690,6 @@ class TestShortCircuitOperator(BasePythonTest):
         assert self.op2.trigger_rule == test_trigger_rule
         self.assert_expected_task_states(dr, expected_task_states)
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests logic with clear_task_instances(), this needs DB access
     def test_clear_skipped_downstream_task(self):
         """
         After a downstream task is skipped by ShortCircuitOperator, clearing the skipped task
@@ -755,7 +742,6 @@ class TestShortCircuitOperator(BasePythonTest):
         assert tis[0].xcom_pull(task_ids=short_op_push_xcom.task_id, key="return_value") == "signature"
         assert tis[0].xcom_pull(task_ids=short_op_no_push_xcom.task_id, key="return_value") is False
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, can not run in isolation mode
     def test_xcom_push_skipped_tasks(self):
         with self.dag_non_serialized:
             short_op_push_xcom = ShortCircuitOperator(
@@ -770,7 +756,6 @@ class TestShortCircuitOperator(BasePythonTest):
             "skipped": ["empty_task"]
         }
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, can not run in isolation mode
     def test_mapped_xcom_push_skipped_tasks(self, session):
         with self.dag_non_serialized:
 
@@ -904,21 +889,19 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         # These are intentionally NOT serialized into the virtual environment:
         # * Variables pointing to the task instance itself.
         # * Variables that are accessor instances.
-        intentionally_excluded_context_keys = [
+        intentionally_excluded_context_keys = {
             "task_instance",
             "ti",
             "var",  # Accessor for Variable; var->json and var->value.
             "conn",  # Accessor for Connection.
-        ]
+        }
         if AIRFLOW_V_2_9_PLUS:
-            intentionally_excluded_context_keys.extend(
-                ["map_index_template"],
-            )
+            intentionally_excluded_context_keys.add("map_index_template")
         if AIRFLOW_V_2_10_PLUS:
-            intentionally_excluded_context_keys.extend(
-                # Accessors for inlet_events and outlet_events
-                ["inlet_events", "outlet_events"],
-            )
+            intentionally_excluded_context_keys |= {
+                "inlet_events",
+                "outlet_events",
+            }
 
         ti = create_task_instance(dag_id=self.dag_id, task_id=self.task_id, schedule=None)
         context = ti.get_template_context()
@@ -929,6 +912,25 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             *PythonVirtualenvOperator.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS,
             *intentionally_excluded_context_keys,
         }
+        if AIRFLOW_V_3_0_PLUS:
+            declared_keys -= {
+                "execution_date",
+                "next_ds",
+                "next_ds_nodash",
+                "prev_ds",
+                "prev_ds_nodash",
+                "tomorrow_ds",
+                "tomorrow_ds_nodash",
+                "triggering_dataset_events",
+                "yesterday_ds",
+                "yesterday_ds_nodash",
+                "next_execution_date",
+                "prev_execution_date",
+                "prev_execution_date_success",
+            }
+        else:
+            declared_keys.remove("triggering_asset_events")
+
         assert set(context) == declared_keys
 
     @pytest.mark.parametrize(
@@ -1040,7 +1042,6 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         task = self.run_as_task(f, env_vars={"MY_ENV_VAR": "EFGHI"}, inherit_env=True)
         assert task.execute_callable() == "EFGHI"
 
-    @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context(self):
         def f():
             from airflow.providers.standard.operators.python import get_current_context
@@ -1060,7 +1061,6 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE):
                 self.run_as_task(f, return_ti=True, use_airflow_context=True)
 
-    @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_not_found_error(self):
         def f():
             from airflow.providers.standard.operators.python import get_current_context
@@ -1083,7 +1083,6 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             ):
                 self.run_as_task(f, return_ti=True, use_airflow_context=False)
 
-    @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_airflow_not_found_error(self):
         airflow_flag: dict[str, bool] = {"expect_airflow": False}
         error_msg = r"The `use_airflow_context` parameter is set to True, but expect_airflow is set to False."
@@ -1110,7 +1109,6 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE):
                 self.run_as_task(f, return_ti=True, use_airflow_context=True, **airflow_flag)
 
-    @USE_AIRFLOW_CONTEXT_MARKER
     def test_use_airflow_context_touch_other_variables(self):
         def f():
             from airflow.providers.standard.operators.python import get_current_context
@@ -1128,22 +1126,6 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             assert ti.state == TaskInstanceState.SUCCESS
         else:
             with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE):
-                self.run_as_task(f, return_ti=True, use_airflow_context=True)
-
-    @pytest.mark.skipif(_ENABLE_AIP_44, reason="AIP-44 is enabled")
-    def test_use_airflow_context_without_aip_44_error(self):
-        def f():
-            from airflow.providers.standard.operators.python import get_current_context
-
-            get_current_context()
-            return []
-
-        error_msg = "`get_current_context()` needs to be used with AIP-44 enabled."
-        if AIRFLOW_V_3_0_PLUS:
-            with pytest.raises(AirflowException, match=re.escape(error_msg)):
-                self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
-        else:
-            with pytest.raises(AirflowException, match=re.escape(AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE)):
                 self.run_as_task(f, return_ti=True, use_airflow_context=True)
 
 
@@ -1184,23 +1166,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             import dill  # noqa: F401
 
         self.run_as_task(f, serializer="dill", system_site_packages=False)
-
-    @DILL_MARKER
-    def test_add_dill_use_dill(self):
-        def f():
-            """Ensure dill is correctly installed."""
-            import dill  # noqa: F401
-
-        with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
-            self.run_as_task(f, use_dill=True, system_site_packages=False)
-
-    def test_ambiguous_serializer(self):
-        def f():
-            pass
-
-        with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
-            with pytest.raises(AirflowException, match="Both 'use_dill' and 'serializer' parameters are set"):
-                self.run_as_task(f, use_dill=True, serializer="dill")
 
     def test_invalid_serializer(self):
         def f():
@@ -1437,27 +1402,16 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             # basic
             ds_nodash,
             inlets,
-            next_ds,
-            next_ds_nodash,
             outlets,
             params,
-            prev_ds,
-            prev_ds_nodash,
             run_id,
             task_instance_key_str,
             test_mode,
-            tomorrow_ds,
-            tomorrow_ds_nodash,
             ts,
             ts_nodash,
             ts_nodash_with_tz,
-            yesterday_ds,
-            yesterday_ds_nodash,
             # pendulum-specific
-            execution_date,
-            next_execution_date,
-            prev_execution_date,
-            prev_execution_date_success,
+            logical_date,
             prev_start_date_success,
             prev_end_date_success,
             # airflow-specific
@@ -1486,26 +1440,15 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             # basic
             ds_nodash,
             inlets,
-            next_ds,
-            next_ds_nodash,
             outlets,
-            prev_ds,
-            prev_ds_nodash,
             run_id,
             task_instance_key_str,
             test_mode,
-            tomorrow_ds,
-            tomorrow_ds_nodash,
             ts,
             ts_nodash,
             ts_nodash_with_tz,
-            yesterday_ds,
-            yesterday_ds_nodash,
             # pendulum-specific
-            execution_date,
-            next_execution_date,
-            prev_execution_date,
-            prev_execution_date_success,
+            logical_date,
             prev_start_date_success,
             prev_end_date_success,
             # other
@@ -1530,21 +1473,13 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             # basic
             ds_nodash,
             inlets,
-            next_ds,
-            next_ds_nodash,
             outlets,
-            prev_ds,
-            prev_ds_nodash,
             run_id,
             task_instance_key_str,
             test_mode,
-            tomorrow_ds,
-            tomorrow_ds_nodash,
             ts,
             ts_nodash,
             ts_nodash_with_tz,
-            yesterday_ds,
-            yesterday_ds_nodash,
             # other
             **context,
         ):
@@ -1552,7 +1487,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_task(f, serializer=serializer, system_site_packages=False, requirements=None)
 
-    @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_system_site_packages(self, session):
         def f():
             from airflow.providers.standard.operators.python import get_current_context
@@ -1835,7 +1769,6 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         else:
             pytest.fail(f"{self.task_id!r} not found.")
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests logic with clear_task_instances(), this needs DB access
     def test_clear_skipped_downstream_task(self):
         """
         After a downstream task is skipped by BranchPythonOperator, clearing the skipped task
@@ -1917,7 +1850,6 @@ class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator)
                 kwargs["venv_cache_path"] = venv_cache_path
         return kwargs
 
-    @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_system_site_packages(self, session):
         def f():
             from airflow.providers.standard.operators.python import get_current_context
@@ -2040,7 +1972,6 @@ DEFAULT_ARGS = {
 }
 
 
-@pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, can not run in isolation mode
 @pytest.mark.usefixtures("clear_db")
 class TestCurrentContextRuntime:
     def test_context_in_task(self):
@@ -2056,7 +1987,6 @@ class TestCurrentContextRuntime:
 
 @pytest.mark.need_serialized_dag(False)
 class TestShortCircuitWithTeardown:
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, mix of pydantic and mock fails
     @pytest.mark.parametrize(
         "ignore_downstream_trigger_rules, with_teardown, should_skip, expected",
         [
@@ -2098,7 +2028,6 @@ class TestShortCircuitWithTeardown:
         else:
             op1.skip.assert_not_called()
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, mix of pydantic and mock fails
     @pytest.mark.parametrize("config", ["sequence", "parallel"])
     def test_short_circuit_with_teardowns_complicated(self, dag_maker, config):
         with dag_maker():
@@ -2126,7 +2055,6 @@ class TestShortCircuitWithTeardown:
             actual_skipped = set(op1.skip.call_args.kwargs["tasks"])
             assert actual_skipped == {s2, op2}
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, mix of pydantic and mock fails
     def test_short_circuit_with_teardowns_complicated_2(self, dag_maker):
         with dag_maker():
             s1 = PythonOperator(task_id="s1", python_callable=print).as_setup()
@@ -2155,7 +2083,6 @@ class TestShortCircuitWithTeardown:
             actual_skipped = set(actual_kwargs["tasks"])
             assert actual_skipped == {op3}
 
-    @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, mix of pydantic and mock fails
     @pytest.mark.parametrize("level", [logging.DEBUG, logging.INFO])
     def test_short_circuit_with_teardowns_debug_level(self, dag_maker, level, clear_db):
         """

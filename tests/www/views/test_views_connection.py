@@ -61,7 +61,7 @@ def _clear_connections():
 def test_create_connection(admin_client, session):
     resp = admin_client.post("/connection/add", data=CONNECTION, follow_redirects=True)
     check_content_in_response("Added Row", resp)
-    _check_last_log(session, dag_id=None, event="connection.create", execution_date=None)
+    _check_last_log(session, dag_id=None, event="connection.create", logical_date=None)
 
 
 def test_connection_id_trailing_blanks(admin_client, session):
@@ -71,7 +71,7 @@ def test_connection_id_trailing_blanks(admin_client, session):
     check_content_in_response("Added Row", resp)
 
     conn = session.query(Connection).one()
-    assert "conn_id_with_trailing_blanks" == conn.conn_id
+    assert conn.conn_id == "conn_id_with_trailing_blanks"
 
 
 def test_connection_id_leading_blanks(admin_client, session):
@@ -81,7 +81,7 @@ def test_connection_id_leading_blanks(admin_client, session):
     check_content_in_response("Added Row", resp)
 
     conn = session.query(Connection).one()
-    assert "conn_id_with_leading_blanks" == conn.conn_id
+    assert conn.conn_id == "conn_id_with_leading_blanks"
 
 
 def test_all_fields_with_blanks(admin_client, session):
@@ -99,16 +99,16 @@ def test_all_fields_with_blanks(admin_client, session):
 
     # validate all the fields
     conn = session.query(Connection).one()
-    assert "connection_id_with_space" == conn.conn_id
-    assert "a sample http connection with leading and trailing blanks" == conn.description
-    assert "localhost" == conn.host
-    assert "airflow" == conn.schema
+    assert conn.conn_id == "connection_id_with_space"
+    assert conn.description == "a sample http connection with leading and trailing blanks"
+    assert conn.host == "localhost"
+    assert conn.schema == "airflow"
 
 
 @pytest.mark.enable_redact
 def test_action_logging_connection_masked_secrets(session, admin_client):
     admin_client.post("/connection/add", data=conn_with_extra(), follow_redirects=True)
-    _check_last_log_masked_connection(session, dag_id=None, event="connection.create", execution_date=None)
+    _check_last_log_masked_connection(session, dag_id=None, event="connection.create", logical_date=None)
 
 
 def test_prefill_form_null_extra():
@@ -321,6 +321,32 @@ def test_process_form_extras_updates_sensitive_placeholder_unchanged(
     }
 
 
+@mock.patch("airflow.utils.module_loading.import_string")
+@mock.patch("airflow.providers_manager.ProvidersManager.hooks", new_callable=PropertyMock)
+def test_process_form_extras_remove(mock_pm_hooks, mock_import_str):
+    """
+    Test the remove value from field.
+    """
+    # Testing parameters set in both extra and custom fields (connection updates).
+    mock_form = mock.Mock()
+    mock_form.data = {
+        "conn_type": "test4",
+        "conn_id": "extras_test4",
+        "extra": '{"extra__test4__remove_field": "remove_field_val3"}',
+        "extra__test4__remove_field": "",
+    }
+
+    cmv = ConnectionModelView()
+    cmv._iter_extra_field_names_and_sensitivity = mock.Mock(
+        return_value=[("extra__test4__remove_field", "remove_field", False)]
+    )
+    cmv.process_form(form=mock_form, is_created=True)
+
+    assert json.loads(mock_form.extra.data) == {
+        "extra__test4__remove_field": "remove_field_val3",
+    }
+
+
 def test_duplicate_connection(admin_client):
     """Test Duplicate multiple connection with suffix"""
     conn1 = Connection(
@@ -426,7 +452,7 @@ def test_connection_form_widgets_testable_types(mock_pm_hooks, admin_client):
         "third": None,
     }
 
-    assert ["first"] == ConnectionFormWidget().testable_connection_types
+    assert ConnectionFormWidget().testable_connection_types == ["first"]
 
 
 def test_process_form_invalid_extra_removed(admin_client):

@@ -28,13 +28,14 @@ Edge Executor
 
 .. note::
 
-    As of Airflow 2.10.0, you can install the ``edge`` provider package to use this executor.
-    This can be done by installing ``apache-airflow-providers-edge`` or by installing Airflow
-    with the ``edge`` extra: ``pip install 'apache-airflow[edge]'``.
+    As of Airflow 2.10.3, the ``edge`` provider package is not included in normal release cycle.
+    Thus you can not directly install it via: ``pip install 'apache-airflow[edge]'`` as the dependency
+    can not be downloaded.
 
     While it is in not-ready state, a wheel release package must be manually built from source tree
     via ``breeze release-management prepare-provider-packages --include-not-ready-providers edge``
-    and then installed via pip from the generated wheel file.
+    and then installed via pip or uv from the generated wheel file. like:
+    ``pip install apache_airflow_providers_edge-<version>-py3-none-any.whl``.
 
 
 ``EdgeExecutor`` is an option if you want to distribute tasks to workers distributed in different locations.
@@ -45,7 +46,7 @@ The configuration parameters of the Edge Executor can be found in the Edge provi
 
 Here are a few imperative requirements for your workers:
 
-- ``airflow`` needs to be installed, and the CLI needs to be in the path
+- ``airflow`` needs to be installed, and the airflow CLI needs to be in the path
 - Airflow configuration settings should be homogeneous across the cluster
 - Operators that are executed on the Edge Worker need to have their dependencies
   met in that context. Please take a look to the respective provider package
@@ -99,6 +100,7 @@ is included in the provider package and install it on the webserver and use the
 Some caveats:
 
 - Tasks can consume resources. Make sure your worker has enough resources to run ``worker_concurrency`` tasks
+- Make sure that the ``pool_slots`` of a Tasks matches with the ``worker_concurrency`` of the worker
 - Queue names are limited to 256 characters
 
 See :doc:`apache-airflow:administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
@@ -209,6 +211,51 @@ could take thousands of tasks without a problem), or from an environment
 perspective (you want a worker running from a specific location where required
 infrastructure is available).
 
+Concurrency slot handling
+-------------------------
+
+Some tasks may need more resources than other tasks, to handle these use case the Edge worker supports
+concurrency slot handling. The logic behind this is the same as the pool slot feature
+see :doc:`apache-airflow:administration-and-deployment/pools`.
+Edge worker reuses ``pool_slots`` of task_instance to keep number if task instance parameter as low as possible.
+The ``pool_slots`` value works together with the ``worker_concurrency`` value which is defined during start of worker.
+If a task needs more resources, the ``pool_slots`` value can be increased to reduce number of tasks running in parallel.
+The value can be used to block other tasks from being executed in parallel on the same worker.
+A ``pool_slots`` of 2 and a ``worker_concurrency`` of 3 means
+that a worker which executes this task can only execute a job with a ``pool_slots`` of 1 in parallel.
+If no ``pool_slots`` is defined for a task the default value is 1. The ``pool_slots`` value only supports
+integer values.
+
+Here is an example setting pool_slots for a task:
+
+.. code-block:: python
+
+    import os
+
+    import pendulum
+
+    from airflow import DAG
+    from airflow.decorators import task
+    from airflow.example_dags.libs.helper import print_stuff
+    from airflow.settings import AIRFLOW_HOME
+
+    with DAG(
+        dag_id="example_edge_pool_slots",
+        schedule=None,
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        catchup=False,
+        tags=["example"],
+    ) as dag:
+
+        @task(executor="EdgeExecutor", pool_slots=2)
+        def task_with_template():
+            print_stuff()
+
+        task_with_template()
+
+
+
+
 Feature Backlog of MVP to Release Readiness
 -------------------------------------------
 
@@ -237,6 +284,8 @@ The following features are known missing and will be implemented in increments:
   - Allow ``airflow edge stop`` to wait until completed to terminated
   - Publish system metrics with heartbeats (CPU, Disk space, RAM, Load)
   - Be more liberal e.g. on patch version. MVP requires exact version match
+    (In current state if versions do not match, the worker will gracefully shut
+    down when jobs are completed, no new jobs will be started)
 
 - Tests
 

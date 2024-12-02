@@ -28,8 +28,9 @@ import time_machine
 
 from airflow.exceptions import AirflowException
 from airflow.providers.edge.cli.edge_command import _EdgeWorkerCli, _Job, _write_pid_to_pidfile
-from airflow.providers.edge.models.edge_job import EdgeJob
-from airflow.providers.edge.models.edge_worker import EdgeWorker, EdgeWorkerState, EdgeWorkerVersionException
+from airflow.providers.edge.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
+from airflow.providers.edge.worker_api.datamodels import EdgeJobFetched
+from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
@@ -68,14 +69,22 @@ def test_write_pid_to_pidfile_created_by_crashed_instance(tmp_path):
     with patch("os.getpid", return_value=0):
         pid_file_path = tmp_path / "file.pid"
         _write_pid_to_pidfile(pid_file_path)
-        assert "0" == pid_file_path.read_text().strip()
+        assert pid_file_path.read_text().strip() == "0"
     # write a PID file with the current process ID, call should not raise an exception
     _write_pid_to_pidfile(pid_file_path)
     assert str(os.getpid()) == pid_file_path.read_text().strip()
 
 
-# Ignore the following error for mocking
-# mypy: disable-error-code="attr-defined"
+class _MockPopen(Popen):
+    def __init__(self, returncode=None):
+        self.generated_returncode = None
+
+    def poll(self):
+        pass
+
+    @property
+    def returncode(self):
+        return self.generated_returncode
 
 
 class TestEdgeWorkerCli:
@@ -84,35 +93,18 @@ class TestEdgeWorkerCli:
         logfile = tmp_path / "file.log"
         logfile.touch()
 
-        class MockPopen(Popen):
-            generated_returncode = None
-
-            def __init__(self):
-                pass
-
-            def poll(self):
-                pass
-
-            @property
-            def returncode(self):
-                return self.generated_returncode
-
         return [
             _Job(
-                edge_job=EdgeJob(
+                edge_job=EdgeJobFetched(
                     dag_id="test",
                     task_id="test1",
                     run_id="test",
                     map_index=-1,
                     try_number=1,
-                    state=TaskInstanceState.RUNNING,
-                    queue="test",
+                    concurrency_slots=1,
                     command=["test", "command"],
-                    queued_dttm=datetime.now(),
-                    edge_worker=None,
-                    last_update=None,
                 ),
-                process=MockPopen(),
+                process=_MockPopen(),
                 logfile=logfile,
                 logsize=0,
             ),
@@ -129,18 +121,14 @@ class TestEdgeWorkerCli:
         [
             pytest.param(None, False, (0, 0), id="no_job"),
             pytest.param(
-                EdgeJob(
+                EdgeJobFetched(
                     dag_id="test",
                     task_id="test",
                     run_id="test",
                     map_index=-1,
                     try_number=1,
-                    state=TaskInstanceState.QUEUED,
-                    queue="test",
+                    concurrency_slots=1,
                     command=["test", "command"],
-                    queued_dttm=datetime.now(),
-                    edge_worker=None,
-                    last_update=None,
                 ),
                 True,
                 (1, 1),
@@ -148,9 +136,9 @@ class TestEdgeWorkerCli:
             ),
         ],
     )
-    @patch("airflow.providers.edge.models.edge_job.EdgeJob.reserve_task")
-    @patch("airflow.providers.edge.models.edge_logs.EdgeLogs.logfile_path")
-    @patch("airflow.providers.edge.models.edge_job.EdgeJob.set_state")
+    @patch("airflow.providers.edge.cli.edge_command.jobs_fetch")
+    @patch("airflow.providers.edge.cli.edge_command.logs_logfile_path")
+    @patch("airflow.providers.edge.cli.edge_command.jobs_set_state")
     @patch("subprocess.Popen")
     def test_fetch_job(
         self,
@@ -166,7 +154,7 @@ class TestEdgeWorkerCli:
         logfile_path_call_count, set_state_call_count = expected_calls
         mock_reserve_task.side_effect = [reserve_result]
         mock_popen.side_effect = ["dummy"]
-        with conf_vars({("edge", "api_url"): "https://mock.server"}):
+        with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
             got_job = worker_with_job.fetch_job()
         mock_reserve_task.assert_called_once()
         assert got_job == fetch_result
@@ -174,75 +162,95 @@ class TestEdgeWorkerCli:
         assert mock_set_state.call_count == set_state_call_count
 
     def test_check_running_jobs_running(self, worker_with_job: _EdgeWorkerCli):
-        worker_with_job.jobs[0].process.generated_returncode = None
-        with conf_vars({("edge", "api_url"): "https://mock.server"}):
+        assert worker_with_job.free_concurrency == worker_with_job.concurrency
+        with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
             worker_with_job.check_running_jobs()
         assert len(worker_with_job.jobs) == 1
+        assert (
+            worker_with_job.free_concurrency
+            == worker_with_job.concurrency - worker_with_job.jobs[0].edge_job.concurrency_slots
+        )
 
-    @patch("airflow.providers.edge.models.edge_job.EdgeJob.set_state")
+    @patch("airflow.providers.edge.cli.edge_command.jobs_set_state")
     def test_check_running_jobs_success(self, mock_set_state, worker_with_job: _EdgeWorkerCli):
         job = worker_with_job.jobs[0]
-        job.process.generated_returncode = 0
-        with conf_vars({("edge", "api_url"): "https://mock.server"}):
+        job.process.generated_returncode = 0  # type: ignore[attr-defined]
+        with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
             worker_with_job.check_running_jobs()
         assert len(worker_with_job.jobs) == 0
         mock_set_state.assert_called_once_with(job.edge_job.key, TaskInstanceState.SUCCESS)
+        assert worker_with_job.free_concurrency == worker_with_job.concurrency
 
-    @patch("airflow.providers.edge.models.edge_job.EdgeJob.set_state")
+    @patch("airflow.providers.edge.cli.edge_command.jobs_set_state")
     def test_check_running_jobs_failed(self, mock_set_state, worker_with_job: _EdgeWorkerCli):
         job = worker_with_job.jobs[0]
-        job.process.generated_returncode = 42
-        with conf_vars({("edge", "api_url"): "https://mock.server"}):
+        job.process.generated_returncode = 42  # type: ignore[attr-defined]
+        with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
             worker_with_job.check_running_jobs()
         assert len(worker_with_job.jobs) == 0
         mock_set_state.assert_called_once_with(job.edge_job.key, TaskInstanceState.FAILED)
+        assert worker_with_job.free_concurrency == worker_with_job.concurrency
 
     @time_machine.travel(datetime.now(), tick=False)
-    @patch("airflow.providers.edge.models.edge_logs.EdgeLogs.push_logs")
-    def test_check_running_jobs_log_push(self, mock_push_logs, worker_with_job: _EdgeWorkerCli):
+    @patch("airflow.providers.edge.cli.edge_command.logs_push")
+    def test_check_running_jobs_log_push(self, mock_logs_push, worker_with_job: _EdgeWorkerCli):
         job = worker_with_job.jobs[0]
-        job.process.generated_returncode = None
         job.logfile.write_text("some log content")
         with conf_vars(
-            {("edge", "api_url"): "https://mock.server", ("edge", "push_log_chunk_size"): "524288"}
+            {
+                ("edge", "api_url"): "https://invalid-api-test-endpoint",
+                ("edge", "push_log_chunk_size"): "524288",
+            }
         ):
             worker_with_job.check_running_jobs()
         assert len(worker_with_job.jobs) == 1
-        mock_push_logs.assert_called_once_with(
-            task=job.edge_job.key, log_chunk_time=datetime.now(), log_chunk_data="some log content"
+        mock_logs_push.assert_called_once_with(
+            task=job.edge_job.key, log_chunk_time=timezone.utcnow(), log_chunk_data="some log content"
         )
 
     @time_machine.travel(datetime.now(), tick=False)
-    @patch("airflow.providers.edge.models.edge_logs.EdgeLogs.push_logs")
-    def test_check_running_jobs_log_push_increment(self, mock_push_logs, worker_with_job: _EdgeWorkerCli):
+    @patch("airflow.providers.edge.cli.edge_command.logs_push")
+    def test_check_running_jobs_log_push_increment(self, mock_logs_push, worker_with_job: _EdgeWorkerCli):
         job = worker_with_job.jobs[0]
-        job.process.generated_returncode = None
         job.logfile.write_text("hello ")
         job.logsize = job.logfile.stat().st_size
         job.logfile.write_text("hello world")
         with conf_vars(
-            {("edge", "api_url"): "https://mock.server", ("edge", "push_log_chunk_size"): "524288"}
+            {
+                ("edge", "api_url"): "https://invalid-api-test-endpoint",
+                ("edge", "push_log_chunk_size"): "524288",
+            }
         ):
             worker_with_job.check_running_jobs()
         assert len(worker_with_job.jobs) == 1
-        mock_push_logs.assert_called_once_with(
-            task=job.edge_job.key, log_chunk_time=datetime.now(), log_chunk_data="world"
+        mock_logs_push.assert_called_once_with(
+            task=job.edge_job.key, log_chunk_time=timezone.utcnow(), log_chunk_data="world"
         )
 
     @time_machine.travel(datetime.now(), tick=False)
-    @patch("airflow.providers.edge.models.edge_logs.EdgeLogs.push_logs")
-    def test_check_running_jobs_log_push_chunks(self, mock_push_logs, worker_with_job: _EdgeWorkerCli):
+    @patch("airflow.providers.edge.cli.edge_command.logs_push")
+    def test_check_running_jobs_log_push_chunks(self, mock_logs_push, worker_with_job: _EdgeWorkerCli):
         job = worker_with_job.jobs[0]
-        job.process.generated_returncode = None
-        job.logfile.write_text("log1log2log3")
-        with conf_vars({("edge", "api_url"): "https://mock.server", ("edge", "push_log_chunk_size"): "4"}):
+        job.logfile.write_bytes("log1log2ülog3".encode("latin-1"))
+        with conf_vars(
+            {("edge", "api_url"): "https://invalid-api-test-endpoint", ("edge", "push_log_chunk_size"): "4"}
+        ):
             worker_with_job.check_running_jobs()
         assert len(worker_with_job.jobs) == 1
-        calls = mock_push_logs.call_args_list
-        len(calls) == 3
-        assert calls[0] == call(task=job.edge_job.key, log_chunk_time=datetime.now(), log_chunk_data="log1")
-        assert calls[1] == call(task=job.edge_job.key, log_chunk_time=datetime.now(), log_chunk_data="log2")
-        assert calls[2] == call(task=job.edge_job.key, log_chunk_time=datetime.now(), log_chunk_data="log3")
+        calls = mock_logs_push.call_args_list
+        assert len(calls) == 4
+        assert calls[0] == call(
+            task=job.edge_job.key, log_chunk_time=timezone.utcnow(), log_chunk_data="log1"
+        )
+        assert calls[1] == call(
+            task=job.edge_job.key, log_chunk_time=timezone.utcnow(), log_chunk_data="log2"
+        )
+        assert calls[2] == call(
+            task=job.edge_job.key, log_chunk_time=timezone.utcnow(), log_chunk_data="\\xfc"
+        )
+        assert calls[3] == call(
+            task=job.edge_job.key, log_chunk_time=timezone.utcnow(), log_chunk_data="log3"
+        )
 
     @pytest.mark.parametrize(
         "drain, jobs, expected_state",
@@ -252,13 +260,13 @@ class TestEdgeWorkerCli:
             pytest.param(False, False, EdgeWorkerState.IDLE, id="idle"),
         ],
     )
-    @patch("airflow.providers.edge.models.edge_worker.EdgeWorker.set_state")
+    @patch("airflow.providers.edge.cli.edge_command.worker_set_state")
     def test_heartbeat(self, mock_set_state, drain, jobs, expected_state, worker_with_job: _EdgeWorkerCli):
         if not jobs:
             worker_with_job.jobs = []
         _EdgeWorkerCli.drain = drain
         mock_set_state.return_value = ["queue1", "queue2"]
-        with conf_vars({("edge", "api_url"): "https://mock.server"}):
+        with conf_vars({("edge", "api_url"): "https://invalid-api-test-endpoint"}):
             worker_with_job.heartbeat()
         assert mock_set_state.call_args.args[1] == expected_state
         queue_list = worker_with_job.queues or []
@@ -266,13 +274,13 @@ class TestEdgeWorkerCli:
         assert "queue1" in (queue_list)
         assert "queue2" in (queue_list)
 
-    @patch("airflow.providers.edge.models.edge_worker.EdgeWorker.set_state")
+    @patch("airflow.providers.edge.cli.edge_command.worker_set_state")
     def test_version_mismatch(self, mock_set_state, worker_with_job):
         mock_set_state.side_effect = EdgeWorkerVersionException("")
         worker_with_job.heartbeat()
         assert worker_with_job.drain
 
-    @patch("airflow.providers.edge.models.edge_worker.EdgeWorker.register_worker")
+    @patch("airflow.providers.edge.cli.edge_command.worker_register")
     def test_start_missing_apiserver(self, mock_register_worker, worker_with_job: _EdgeWorkerCli):
         mock_register_worker.side_effect = AirflowException(
             "Something with 404:NOT FOUND means API is not active"
@@ -280,42 +288,28 @@ class TestEdgeWorkerCli:
         with pytest.raises(SystemExit, match=r"API endpoint is not ready"):
             worker_with_job.start()
 
-    @patch("airflow.providers.edge.models.edge_worker.EdgeWorker.register_worker")
+    @patch("airflow.providers.edge.cli.edge_command.worker_register")
     def test_start_server_error(self, mock_register_worker, worker_with_job: _EdgeWorkerCli):
         mock_register_worker.side_effect = AirflowException("Something other error not FourhundretFour")
         with pytest.raises(SystemExit, match=r"Something other"):
             worker_with_job.start()
 
-    @patch("airflow.providers.edge.models.edge_worker.EdgeWorker.register_worker")
+    @patch("airflow.providers.edge.cli.edge_command.worker_register")
     @patch("airflow.providers.edge.cli.edge_command._EdgeWorkerCli.loop")
-    @patch("airflow.providers.edge.models.edge_worker.EdgeWorker.set_state")
+    @patch("airflow.providers.edge.cli.edge_command.worker_set_state")
     def test_start_and_run_one(
-        self, mock_set_state, mock_loop, mock_register_worker, worker_with_job: _EdgeWorkerCli
+        self, mock_set_state, mock_loop, mock_register, worker_with_job: _EdgeWorkerCli
     ):
-        mock_register_worker.side_effect = [
-            EdgeWorker(
-                worker_name="test",
-                state=EdgeWorkerState.STARTING,
-                queues=None,
-                first_online=datetime.now(),
-                last_update=datetime.now(),
-                jobs_active=0,
-                jobs_taken=0,
-                jobs_success=0,
-                jobs_failed=0,
-                sysinfo="",
-            )
-        ]
-
         def stop_running():
             _EdgeWorkerCli.drain = True
             worker_with_job.jobs = []
 
         mock_loop.side_effect = stop_running
+        mock_register.side_effect = [datetime.now()]
 
         worker_with_job.start()
 
-        mock_register_worker.assert_called_once()
+        mock_register.assert_called_once()
         mock_loop.assert_called_once()
         mock_set_state.assert_called_once()
 

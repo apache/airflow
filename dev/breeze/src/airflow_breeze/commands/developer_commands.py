@@ -33,11 +33,11 @@ from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_i
 from airflow_breeze.commands.common_options import (
     argument_doc_packages,
     option_airflow_extras,
+    option_all_integration,
     option_answer,
     option_backend,
     option_builder,
     option_clean_airflow_installation,
-    option_database_isolation,
     option_db_reset,
     option_docker_host,
     option_downgrade_pendulum,
@@ -50,7 +50,6 @@ from airflow_breeze.commands.common_options import (
     option_include_not_ready_providers,
     option_include_removed_providers,
     option_installation_package_format,
-    option_integration,
     option_keep_env_variables,
     option_max_time,
     option_mount_sources,
@@ -83,7 +82,6 @@ from airflow_breeze.commands.common_package_installation_options import (
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.commands.testing_commands import (
     option_force_lowest_dependencies,
-    option_test_type,
 )
 from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
@@ -237,6 +235,21 @@ option_install_airflow_with_constraints_default_true = click.option(
     help="Install airflow in a separate step, with constraints determined from package or airflow version.",
 )
 
+option_install_airflow_python_client = click.option(
+    "--install-airflow-python-client",
+    is_flag=True,
+    help="Install airflow python client packages (--package-format determines type) from 'dist' folder "
+    "when entering breeze.",
+    envvar="INSTALL_AIRFLOW_PYTHON_CLIENT",
+)
+
+option_start_webserver_with_examples = click.option(
+    "--start-webserver-with-examples",
+    is_flag=True,
+    help="Start minimal airflow webserver with examples (for testing purposes) when entering breeze.",
+    envvar="START_WEBSERVER_WITH_EXAMPLES",
+)
+
 
 @main.command()
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
@@ -256,6 +269,8 @@ option_install_airflow_with_constraints_default_true = click.option(
     is_flag=True,
     envvar="VERBOSE_COMMANDS",
 )
+@option_install_airflow_python_client
+@option_start_webserver_with_examples
 @option_airflow_constraints_location
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference
@@ -267,7 +282,6 @@ option_install_airflow_with_constraints_default_true = click.option(
 @option_celery_broker
 @option_celery_flower
 @option_clean_airflow_installation
-@option_database_isolation
 @option_db_reset
 @option_docker_host
 @option_downgrade_sqlalchemy
@@ -284,7 +298,7 @@ option_install_airflow_with_constraints_default_true = click.option(
 @option_install_airflow_with_constraints_default_true
 @option_install_selected_providers
 @option_installation_package_format
-@option_integration
+@option_all_integration
 @option_keep_env_variables
 @option_max_time
 @option_mount_sources
@@ -300,7 +314,6 @@ option_install_airflow_with_constraints_default_true = click.option(
 @option_python
 @option_restart
 @option_run_db_tests_only
-@option_test_type
 @option_skip_db_tests
 @option_skip_environment_initialization
 @option_skip_image_upgrade_check
@@ -323,7 +336,6 @@ def shell(
     celery_broker: str,
     celery_flower: bool,
     clean_airflow_installation: bool,
-    database_isolation: bool,
     db_reset: bool,
     downgrade_sqlalchemy: bool,
     downgrade_pendulum: bool,
@@ -339,6 +351,7 @@ def shell(
     include_mypy_volume: bool,
     install_selected_providers: str,
     install_airflow_with_constraints: bool,
+    install_airflow_python_client: bool,
     integration: tuple[str, ...],
     keep_env_variables: bool,
     max_time: int | None,
@@ -361,7 +374,7 @@ def shell(
     skip_db_tests: bool,
     skip_image_upgrade_check: bool,
     standalone_dag_processor: bool,
-    test_type: str,
+    start_webserver_with_examples: bool,
     tty: str,
     upgrade_boto: bool,
     use_airflow_version: str | None,
@@ -392,7 +405,6 @@ def shell(
         celery_broker=celery_broker,
         celery_flower=celery_flower,
         clean_airflow_installation=clean_airflow_installation,
-        database_isolation=database_isolation,
         db_reset=db_reset,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         downgrade_pendulum=downgrade_pendulum,
@@ -407,6 +419,7 @@ def shell(
         image_tag=image_tag,
         include_mypy_volume=include_mypy_volume,
         install_airflow_with_constraints=install_airflow_with_constraints,
+        install_airflow_python_client=install_airflow_python_client,
         install_selected_providers=install_selected_providers,
         integration=integration,
         keep_env_variables=keep_env_variables,
@@ -429,7 +442,7 @@ def shell(
         skip_image_upgrade_check=skip_image_upgrade_check,
         skip_environment_initialization=skip_environment_initialization,
         standalone_dag_processor=standalone_dag_processor,
-        test_type=test_type,
+        start_webserver_with_examples=start_webserver_with_examples,
         tty=tty,
         upgrade_boto=upgrade_boto,
         use_airflow_version=use_airflow_version,
@@ -494,7 +507,6 @@ option_executor_start_airflow = click.option(
 @option_clean_airflow_installation
 @option_celery_broker
 @option_celery_flower
-@option_database_isolation
 @option_db_reset
 @option_docker_host
 @option_dry_run
@@ -505,7 +517,7 @@ option_executor_start_airflow = click.option(
 @option_image_tag_for_running
 @option_installation_package_format
 @option_install_selected_providers
-@option_integration
+@option_all_integration
 @option_load_default_connection
 @option_load_example_dags
 @option_mount_sources
@@ -536,7 +548,6 @@ def start_airflow(
     celery_broker: str,
     celery_flower: bool,
     clean_airflow_installation: bool,
-    database_isolation: bool,
     db_reset: bool,
     dev_mode: bool,
     docker_host: str | None,
@@ -605,7 +616,6 @@ def start_airflow(
         celery_broker=celery_broker,
         celery_flower=celery_flower,
         clean_airflow_installation=clean_airflow_installation,
-        database_isolation=database_isolation,
         db_reset=db_reset,
         dev_mode=dev_mode,
         docker_host=docker_host,

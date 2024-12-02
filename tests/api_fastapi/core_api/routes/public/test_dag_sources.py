@@ -17,17 +17,18 @@
 
 from __future__ import annotations
 
-import ast
 import json
 import os
 
 import pytest
 from httpx import Response
+from sqlalchemy import select
 
-from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
+from airflow.models.dagcode import DagCode
+from airflow.models.serialized_dag import SerializedDagModel
 
-from tests_common.test_utils.db import clear_db_dag_code, clear_db_dags, clear_db_serialized_dags
+from tests_common.test_utils.db import clear_db_dags
 
 pytestmark = pytest.mark.db_test
 
@@ -38,73 +39,108 @@ EXAMPLE_DAG_FILE = os.path.join("airflow", "example_dags", "example_bash_operato
 TEST_DAG_ID = "latest_only"
 
 
+@pytest.fixture
+def test_dag():
+    dagbag = DagBag(include_examples=True)
+    dagbag.sync_to_db()
+    return dagbag.dags[TEST_DAG_ID]
+
+
 class TestGetDAGSource:
     @pytest.fixture(autouse=True)
     def setup(self, url_safe_serializer) -> None:
         self.clear_db()
-        self.test_dag, self.dag_docstring = self.create_dag_source()
-        fileloc = url_safe_serializer.dumps(self.test_dag.fileloc)
-        self.dag_sources_url = f"{API_PREFIX}/{fileloc}"
 
     def teardown_method(self) -> None:
         self.clear_db()
 
     @staticmethod
-    def _get_dag_file_docstring(fileloc: str) -> str | None:
+    def _get_dag_file_code(fileloc: str) -> str | None:
         with open(fileloc) as f:
             file_contents = f.read()
-        module = ast.parse(file_contents)
-        docstring = ast.get_docstring(module)
-        return docstring
-
-    def create_dag_source(self) -> tuple[DAG, str | None]:
-        dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
-        dagbag.sync_to_db()
-        test_dag: DAG = dagbag.dags[TEST_DAG_ID]
-        return test_dag, self._get_dag_file_docstring(test_dag.fileloc)
+        return file_contents
 
     def clear_db(self):
         clear_db_dags()
-        clear_db_serialized_dags()
-        clear_db_dag_code()
 
-    def test_should_respond_200_text(self, test_client):
-        response: Response = test_client.get(self.dag_sources_url, headers={"Accept": "text/plain"})
+    def test_should_respond_200_text(self, test_client, test_dag):
+        dag_content = self._get_dag_file_code(test_dag.fileloc)
+        response: Response = test_client.get(f"{API_PREFIX}/{TEST_DAG_ID}", headers={"Accept": "text/plain"})
 
         assert isinstance(response, Response)
-        assert 200 == response.status_code
-        assert len(self.dag_docstring) > 0
-        assert self.dag_docstring in response.content.decode()
+        assert response.status_code == 200
+        assert dag_content == response.content.decode()
         with pytest.raises(json.JSONDecodeError):
             json.loads(response.content.decode())
         assert response.headers["Content-Type"].startswith("text/plain")
 
-    @pytest.mark.parametrize("headers", [{"Accept": "application/json"}, {}])
-    def test_should_respond_200_json(self, test_client, headers):
+    @pytest.mark.parametrize(
+        "headers", [{"Accept": "application/json"}, {"Accept": "application/json; charset=utf-8"}, {}]
+    )
+    def test_should_respond_200_json(self, test_client, test_dag, headers):
+        dag_content = self._get_dag_file_code(test_dag.fileloc)
         response: Response = test_client.get(
-            self.dag_sources_url,
+            f"{API_PREFIX}/{TEST_DAG_ID}",
             headers=headers,
         )
         assert isinstance(response, Response)
-        assert 200 == response.status_code
-        assert len(self.dag_docstring) > 0
-        res_json = response.json()
-        assert isinstance(res_json, dict)
-        assert len(res_json.keys()) == 1
-        assert len(res_json["content"]) > 0
-        assert isinstance(res_json["content"], str)
-        assert self.dag_docstring in res_json["content"]
+        assert response.status_code == 200
+        assert response.json() == {
+            "content": dag_content,
+            "dag_id": TEST_DAG_ID,
+            "version_number": 1,
+        }
         assert response.headers["Content-Type"].startswith("application/json")
 
+    @pytest.mark.parametrize("accept", ["application/json", "text/plain"])
+    def test_should_respond_200_version(self, test_client, accept, session, test_dag):
+        dag_content = self._get_dag_file_code(test_dag.fileloc)
+        # force reserialization
+        SerializedDagModel.write_dag(test_dag, processor_subdir="/tmp")
+        dagcode = (
+            session.query(DagCode)
+            .filter(DagCode.fileloc == test_dag.fileloc)
+            .order_by(DagCode.id.desc())
+            .first()
+        )
+        assert dagcode.dag_version.version_number == 2
+        # populate the latest dagcode with a value
+        dag_content2 = "new source code"
+        dagcode.source_code = dag_content2
+        session.merge(dagcode)
+        session.commit()
+
+        dagcodes = session.scalars(select(DagCode).where(DagCode.fileloc == test_dag.fileloc)).all()
+        assert len(dagcodes) == 2
+        url = f"{API_PREFIX}/{TEST_DAG_ID}"
+        response = test_client.get(url, headers={"Accept": accept})
+
+        assert response.status_code == 200
+        if accept == "text/plain":
+            assert dag_content2 == response.content.decode()
+            assert dag_content != response.content.decode()
+            assert response.headers["Content-Type"].startswith("text/plain")
+        else:
+            assert dag_content2 == response.json()["content"]
+            assert dag_content != response.json()["content"]
+            assert response.headers["Content-Type"] == "application/json"
+            assert response.json() == {
+                "content": dag_content2,
+                "dag_id": TEST_DAG_ID,
+                "version_number": 2,
+            }
+
     def test_should_respond_406_unsupport_mime_type(self, test_client):
+        dagbag = DagBag(include_examples=True)
+        dagbag.sync_to_db()
         response = test_client.get(
-            self.dag_sources_url,
+            f"{API_PREFIX}/{TEST_DAG_ID}",
             headers={"Accept": "text/html"},
         )
-        assert 406 == response.status_code
+        assert response.status_code == 406
 
     def test_should_respond_404(self, test_client):
         wrong_fileloc = "abcd1234"
         url = f"{API_PREFIX}/{wrong_fileloc}"
         response = test_client.get(url, headers={"Accept": "application/json"})
-        assert 404 == response.status_code
+        assert response.status_code == 404

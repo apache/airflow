@@ -81,7 +81,7 @@ class TestNamedHivePartitionSensor:
         partition = "ds=2016-01-01/state=IT"
         name = f"{table}/{partition}"
         parsed_schema, parsed_table, parsed_partition = NamedHivePartitionSensor.parse_partition_name(name)
-        assert "default" == parsed_schema
+        assert parsed_schema == "default"
         assert table == parsed_table
         assert partition == parsed_partition
 

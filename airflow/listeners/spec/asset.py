@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 from pluggy import HookspecMarker
 
 if TYPE_CHECKING:
-    from airflow.assets import Asset, AssetAlias
+    from airflow.sdk.definitions.asset import Asset, AssetAlias
 
 hookspec = HookspecMarker("airflow")
 

@@ -28,6 +28,7 @@ from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3 import HTTPResponse
 
+from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
@@ -64,7 +65,10 @@ from airflow.utils.state import State, TaskInstanceState
 from tests_common.test_utils.compat import BashOperator
 from tests_common.test_utils.config import conf_vars
 
-pytestmark = pytest.mark.skip_if_database_isolation_mode
+if __version__.startswith("2."):
+    LOGICAL_DATE_KEY = "execution_date"
+else:
+    LOGICAL_DATE_KEY = "logical_date"
 
 
 class TestAirflowKubernetesScheduler:
@@ -116,12 +120,12 @@ class TestAirflowKubernetesScheduler:
         # so None will be passed to deserialize_model_dict().
         pod_template_file_path = "/bar/biz"
         get_base_pod_from_template(pod_template_file_path, None)
-        assert "deserialize_model_dict" == mock_generator.mock_calls[0][0]
+        assert mock_generator.mock_calls[0][0] == "deserialize_model_dict"
         assert mock_generator.mock_calls[0][1][0] is None
 
         mock_kubeconfig.pod_template_file = "/foo/bar"
         get_base_pod_from_template(None, mock_kubeconfig)
-        assert "deserialize_model_dict" == mock_generator.mock_calls[1][0]
+        assert mock_generator.mock_calls[1][0] == "deserialize_model_dict"
         assert mock_generator.mock_calls[1][1][0] is None
 
         # Provide existent file path,
@@ -132,12 +136,12 @@ class TestAirflowKubernetesScheduler:
 
         pod_template_file_path = pod_template_file.as_posix()
         get_base_pod_from_template(pod_template_file_path, None)
-        assert "deserialize_model_dict" == mock_generator.mock_calls[2][0]
+        assert mock_generator.mock_calls[2][0] == "deserialize_model_dict"
         assert mock_generator.mock_calls[2][1][0] == expected_pod_dict
 
         mock_kubeconfig.pod_template_file = pod_template_file.as_posix()
         get_base_pod_from_template(None, mock_kubeconfig)
-        assert "deserialize_model_dict" == mock_generator.mock_calls[3][0]
+        assert mock_generator.mock_calls[3][0] == "deserialize_model_dict"
         assert mock_generator.mock_calls[3][1][0] == expected_pod_dict
 
     def test_make_safe_label_value(self):
@@ -151,7 +155,7 @@ class TestAirflowKubernetesScheduler:
         dag_id = "my_dag_id"
         assert dag_id == pod_generator.make_safe_label_value(dag_id)
         dag_id = "my_dag_id_" + "a" * 64
-        assert "my_dag_id_" + "a" * 43 + "-0ce114c45" == pod_generator.make_safe_label_value(dag_id)
+        assert pod_generator.make_safe_label_value(dag_id) == "my_dag_id_" + "a" * 43 + "-0ce114c45"
 
     def test_execution_date_serialize_deserialize(self):
         datetime_obj = datetime.now()
@@ -1214,7 +1218,14 @@ class TestKubernetesExecutor:
     @pytest.mark.db_test
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
     def test_cleanup_stuck_queued_tasks(self, mock_kube_dynamic_client, dag_maker, create_dummy_dag, session):
-        """Delete any pods associated with a task stuck in queued."""
+        """
+        This verifies legacy behavior.  Remove when removing ``cleanup_stuck_queued_tasks``.
+
+        It's expected that that method, ``cleanup_stuck_queued_tasks`` will patch the pod
+        such that it is ignored by watcher, delete the pod, remove from running set, and
+        fail the task.
+
+        """
         mock_kube_client = mock.MagicMock()
         mock_kube_dynamic_client.return_value = mock.MagicMock()
         mock_pod_resource = mock.MagicMock()
@@ -1255,8 +1266,64 @@ class TestKubernetesExecutor:
         executor.kube_scheduler = mock.MagicMock()
         ti.refresh_from_db()
         tis = [ti]
-        executor.cleanup_stuck_queued_tasks(tis)
+        with pytest.warns(DeprecationWarning):
+            executor.cleanup_stuck_queued_tasks(tis=tis)
         executor.kube_scheduler.delete_pod.assert_called_once()
+        assert executor.running == set()
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
+    def test_revoke_task(self, mock_kube_dynamic_client, dag_maker, create_dummy_dag, session):
+        """
+        It's expected that that ``revoke_tasks`` will patch the pod
+        such that it is ignored by watcher, delete the pod and remove from running set.
+        """
+        mock_kube_client = mock.MagicMock()
+        mock_kube_dynamic_client.return_value = mock.MagicMock()
+        mock_pod_resource = mock.MagicMock()
+        mock_kube_dynamic_client.return_value.resources.get.return_value = mock_pod_resource
+        mock_kube_dynamic_client.return_value.get.return_value = k8s.V1PodList(
+            items=[
+                k8s.V1Pod(
+                    metadata=k8s.V1ObjectMeta(
+                        annotations={
+                            "dag_id": "test_cleanup_stuck_queued_tasks",
+                            "task_id": "bash",
+                            "run_id": "test",
+                            "try_number": 0,
+                        },
+                        labels={
+                            "role": "airflow-worker",
+                            "dag_id": "test_cleanup_stuck_queued_tasks",
+                            "task_id": "bash",
+                            "airflow-worker": 123,
+                            "run_id": "test",
+                            "try_number": 0,
+                        },
+                    ),
+                    status=k8s.V1PodStatus(phase="Pending"),
+                )
+            ]
+        )
+        create_dummy_dag(dag_id="test_cleanup_stuck_queued_tasks", task_id="bash", with_dagrun_type=None)
+        dag_run = dag_maker.create_dagrun()
+        ti = dag_run.task_instances[0]
+        ti.state = State.QUEUED
+        ti.queued_by_job_id = 123
+        session.flush()
+
+        executor = self.kubernetes_executor
+        executor.job_id = 123
+        executor.kube_client = mock_kube_client
+        executor.kube_scheduler = mock.MagicMock()
+        ti.refresh_from_db()
+        executor.running.add(ti.key)  # so we can verify it gets removed after revoke
+        assert executor.has_task(task_instance=ti)
+        executor.revoke_task(ti=ti)
+        assert not executor.has_task(task_instance=ti)
+        executor.kube_scheduler.patch_pod_revoked.assert_called_once()
+        executor.kube_scheduler.delete_pod.assert_called_once()
+        mock_kube_client.patch_namespaced_pod.calls[0] == []
         assert executor.running == set()
 
     @pytest.mark.parametrize(
@@ -1818,7 +1885,7 @@ class TestKubernetesJobWatcher:
             "task_id": "task",
             "run_id": "run_id",
             "try_number": "1",
-            "execution_date": None,
+            LOGICAL_DATE_KEY: None,
         }
         self.pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(

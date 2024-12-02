@@ -21,11 +21,10 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import select, update
-from sqlalchemy.orm import Session
 
 from airflow.api.common import delete_dag as delete_dag_module
 from airflow.api_fastapi.common.db.common import (
-    get_session,
+    SessionDep,
     paginated_select,
 )
 from airflow.api_fastapi.common.db.dags import dags_select_with_latest_dag_run
@@ -54,11 +53,12 @@ from airflow.api_fastapi.core_api.datamodels.dags import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models import DAG, DagModel, DagTag
+from airflow.models.dagrun import DagRun
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
 
-@dags_router.get("/")
+@dags_router.get("")
 def get_dags(
     limit: QueryLimit,
     offset: QueryOffset,
@@ -73,34 +73,42 @@ def get_dags(
         SortParam,
         Depends(
             SortParam(
-                ["dag_id", "dag_display_name", "next_dagrun", "last_run_state", "last_run_start_date"],
+                ["dag_id", "dag_display_name", "next_dagrun", "state", "start_date"],
                 DagModel,
+                {"last_run_state": DagRun.state, "last_run_start_date": DagRun.start_date},
             ).dynamic_depends()
         ),
     ],
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
     dags_select, total_entries = paginated_select(
-        dags_select_with_latest_dag_run,
-        [only_active, paused, dag_id_pattern, dag_display_name_pattern, tags, owners, last_dag_run_state],
-        order_by,
-        offset,
-        limit,
-        session,
+        statement=dags_select_with_latest_dag_run,
+        filters=[
+            only_active,
+            paused,
+            dag_id_pattern,
+            dag_display_name_pattern,
+            tags,
+            owners,
+            last_dag_run_state,
+        ],
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
 
-    dags = session.scalars(dags_select).all()
+    dags = session.scalars(dags_select)
 
     return DAGCollectionResponse(
-        dags=[DAGResponse.model_validate(dag, from_attributes=True) for dag in dags],
+        dags=dags,
         total_entries=total_entries,
     )
 
 
 @dags_router.get(
     "/tags",
-    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
 def get_dag_tags(
     limit: QueryLimit,
@@ -115,12 +123,12 @@ def get_dag_tags(
         ),
     ],
     tag_name_pattern: QueryDagTagPatternSearch,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> DAGTagCollectionResponse:
     """Get all DAG tags."""
-    base_select = select(DagTag.name).group_by(DagTag.name)
+    query = select(DagTag.name).group_by(DagTag.name)
     dag_tags_select, total_entries = paginated_select(
-        base_select=base_select,
+        statement=query,
         filters=[tag_name_pattern],
         order_by=order_by,
         offset=offset,
@@ -128,7 +136,7 @@ def get_dag_tags(
         session=session,
     )
     dag_tags = session.execute(dag_tags_select).scalars().all()
-    return DAGTagCollectionResponse(tags=[dag_tag for dag_tag in dag_tags], total_entries=total_entries)
+    return DAGTagCollectionResponse(tags=[x for x in dag_tags], total_entries=total_entries)
 
 
 @dags_router.get(
@@ -136,14 +144,12 @@ def get_dag_tags(
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_422_UNPROCESSABLE_ENTITY,
         ]
     ),
 )
-def get_dag(dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request) -> DAGResponse:
+def get_dag(dag_id: str, session: SessionDep, request: Request) -> DAGResponse:
     """Get basic information about a DAG."""
     dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
     if not dag:
@@ -157,7 +163,7 @@ def get_dag(dag_id: str, session: Annotated[Session, Depends(get_session)], requ
         if not key.startswith("_") and not hasattr(dag_model, key):
             setattr(dag_model, key, value)
 
-    return DAGResponse.model_validate(dag_model, from_attributes=True)
+    return dag_model
 
 
 @dags_router.get(
@@ -165,15 +171,11 @@ def get_dag(dag_id: str, session: Annotated[Session, Depends(get_session)], requ
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
         ]
     ),
 )
-def get_dag_details(
-    dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request
-) -> DAGDetailsResponse:
+def get_dag_details(dag_id: str, session: SessionDep, request: Request) -> DAGDetailsResponse:
     """Get details of DAG."""
     dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
     if not dag:
@@ -187,7 +189,7 @@ def get_dag_details(
         if not key.startswith("_") and not hasattr(dag_model, key):
             setattr(dag_model, key, value)
 
-    return DAGDetailsResponse.model_validate(dag_model, from_attributes=True)
+    return dag_model
 
 
 @dags_router.patch(
@@ -195,8 +197,6 @@ def get_dag_details(
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
         ]
     ),
@@ -204,7 +204,7 @@ def get_dag_details(
 def patch_dag(
     dag_id: str,
     patch_body: DAGPatchBody,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     update_mask: list[str] | None = Query(None),
 ) -> DAGResponse:
     """Patch the specific DAG."""
@@ -226,16 +226,14 @@ def patch_dag(
     for key, val in data.items():
         setattr(dag, key, val)
 
-    return DAGResponse.model_validate(dag, from_attributes=True)
+    return dag
 
 
 @dags_router.patch(
-    "/",
+    "",
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
         ]
     ),
@@ -250,7 +248,7 @@ def patch_dags(
     only_active: QueryOnlyActiveFilter,
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     update_mask: list[str] | None = Query(None),
 ) -> DAGCollectionResponse:
     """Patch multiple DAGs."""
@@ -260,21 +258,19 @@ def patch_dags(
                 status.HTTP_400_BAD_REQUEST, "Only `is_paused` field can be updated through the REST API"
             )
     else:
+        # todo: this is not used?
         update_mask = ["is_paused"]
 
     dags_select, total_entries = paginated_select(
-        dags_select_with_latest_dag_run,
-        [only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state],
-        None,
-        offset,
-        limit,
-        session,
+        statement=dags_select_with_latest_dag_run,
+        filters=[only_active, paused, dag_id_pattern, tags, owners, last_dag_run_state],
+        order_by=None,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
-
     dags = session.scalars(dags_select).all()
-
     dags_to_update = {dag.dag_id for dag in dags}
-
     session.execute(
         update(DagModel)
         .where(DagModel.dag_id.in_(dags_to_update))
@@ -283,7 +279,7 @@ def patch_dags(
     )
 
     return DAGCollectionResponse(
-        dags=[DAGResponse.model_validate(dag, from_attributes=True) for dag in dags],
+        dags=dags,
         total_entries=total_entries,
     )
 
@@ -293,8 +289,6 @@ def patch_dags(
     responses=create_openapi_http_exception_doc(
         [
             status.HTTP_400_BAD_REQUEST,
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_422_UNPROCESSABLE_ENTITY,
         ]
@@ -302,7 +296,7 @@ def patch_dags(
 )
 def delete_dag(
     dag_id: str,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> Response:
     """Delete the specific DAG."""
     try:

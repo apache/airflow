@@ -40,7 +40,7 @@ from tests_common.test_utils.gcp_system_helpers import (
 )
 
 
-@pytest.mark.system("google")
+@pytest.mark.system
 @pytest.mark.credential_file(GCP_GCS_KEY)
 class TestGCSTaskHandlerSystem(GoogleSystemTest):
     @classmethod
@@ -75,8 +75,8 @@ class TestGCSTaskHandlerSystem(GoogleSystemTest):
             AIRFLOW__CORE__DAGS_FOLDER=example_complex.__file__,
             GOOGLE_APPLICATION_CREDENTIALS=resolve_full_gcp_key_path(GCP_GCS_KEY),
         ):
-            assert 0 == subprocess.Popen(["airflow", "dags", "trigger", "example_complex"]).wait()
-            assert 0 == subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait()
+            assert subprocess.Popen(["airflow", "dags", "trigger", "example_complex"]).wait() == 0
+            assert subprocess.Popen(["airflow", "scheduler", "--num-runs", "1"]).wait() == 0
 
         ti = session.query(TaskInstance).filter(TaskInstance.task_id == "create_entry_group").first()
         dag = DagBag(dag_folder=example_complex.__file__).dags["example_complex"]

@@ -27,6 +27,86 @@
 Changelog
 ---------
 
+0.9.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Remove dependency to Internal API after migration to FastAPI.``
+
+0.8.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Migrate worker job calls to FastAPI.``
+
+0.8.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Migrate worker log calls to FastAPI.``
+
+0.8.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Migrate worker registration and heartbeat to FastAPI.``
+
+0.7.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge worker state is sent as 0 to DB if offline or unknown.``
+
+0.7.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Edge worker supports concurrency slots feature so that jobs which need more concurrency blocking other jobs beeing executed on the same worker in parallel.``
+
+0.6.2pre0
+.........
+
+Misc
+~~~~
+
+* ``Fix race that reporting status fails if the task has been cleaned in parallel.``
+
+0.6.1pre0
+.........
+
+Misc
+~~~~
+
+* ``Update jobs or edge workers who have been killed to clean up job table.``
+
+0.6.0pre0
+.........
+
+Misc
+~~~~
+
+* ``Support for FastAPI in Airflow 3 as API backend.``
+
+0.5.5pre0
+.........
+
+Misc
+~~~~
+
+* ``Fixed reading none UTF-8 signs in log file.``
+
 0.5.4pre0
 .........
 
@@ -35,7 +115,6 @@ Misc
 
 * ``Fix SIGINT handling of child processes. Ensure graceful shutdown when SIGINT in received (not killing working tasks).``
 * ``Fix SIGTERM handling of child processes. Ensure all childs are terminated on SIGTERM.``
-
 
 0.5.3pre0
 .........

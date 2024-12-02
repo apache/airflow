@@ -27,7 +27,7 @@ the default database and collection to use (see connection `azure_cosmos_default
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING, Any, List, Union
+from typing import TYPE_CHECKING, Any, Union
 from urllib.parse import urlparse
 
 from azure.cosmos import PartitionKey
@@ -44,7 +44,7 @@ from airflow.providers.microsoft.azure.utils import (
 )
 
 if TYPE_CHECKING:
-    PartitionKeyType = Union[str, List[str]]
+    PartitionKeyType = Union[str, list[str]]
 
 
 class AzureCosmosDBHook(BaseHook):

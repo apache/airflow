@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import datetime
 import operator
-import os
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock
@@ -28,7 +27,6 @@ import pytest
 from airflow.configuration import conf
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.xcom import BaseXCom, XCom, resolve_xcom_backend
 from airflow.operators.empty import EmptyOperator
 from airflow.settings import json
@@ -37,7 +35,6 @@ from airflow.utils.session import create_session
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import is_db_isolation_mode
 
 pytestmark = pytest.mark.db_test
 
@@ -60,13 +57,13 @@ def reset_db():
 
 @pytest.fixture
 def task_instance_factory(request, session: Session):
-    def func(*, dag_id, task_id, execution_date):
-        run_id = DagRun.generate_run_id(DagRunType.SCHEDULED, execution_date)
+    def func(*, dag_id, task_id, logical_date):
+        run_id = DagRun.generate_run_id(DagRunType.SCHEDULED, logical_date)
         run = DagRun(
             dag_id=dag_id,
             run_type=DagRunType.SCHEDULED,
             run_id=run_id,
-            execution_date=execution_date,
+            logical_date=logical_date,
         )
         session.add(run)
         ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id)
@@ -90,7 +87,7 @@ def task_instance(task_instance_factory):
     return task_instance_factory(
         dag_id="dag",
         task_id="task_1",
-        execution_date=timezone.datetime(2021, 12, 3, 4, 56),
+        logical_date=timezone.datetime(2021, 12, 3, 4, 56),
     )
 
 
@@ -109,76 +106,18 @@ class TestXCom:
         cls = resolve_xcom_backend()
         assert issubclass(cls, CustomXCom)
 
-    @conf_vars({("core", "xcom_backend"): "", ("core", "enable_xcom_pickling"): "False"})
+    @conf_vars({("core", "xcom_backend"): ""})
     def test_resolve_xcom_class_fallback_to_basexcom(self):
         cls = resolve_xcom_backend()
         assert issubclass(cls, BaseXCom)
-        assert cls.serialize_value([1]) == b"[1]"
+        assert cls.serialize_value([1]) == "[1]"
 
-    @conf_vars({("core", "enable_xcom_pickling"): "False"})
     @conf_vars({("core", "xcom_backend"): "to be removed"})
     def test_resolve_xcom_class_fallback_to_basexcom_no_config(self):
         conf.remove_option("core", "xcom_backend")
         cls = resolve_xcom_backend()
         assert issubclass(cls, BaseXCom)
-        assert cls.serialize_value([1]) == b"[1]"
-
-    def test_xcom_deserialize_with_json_to_pickle_switch(self, task_instance, session):
-        ti_key = TaskInstanceKey(
-            dag_id=task_instance.dag_id,
-            task_id=task_instance.task_id,
-            run_id=task_instance.run_id,
-        )
-        with conf_vars({("core", "enable_xcom_pickling"): "False"}):
-            XCom.set(
-                key="xcom_test3",
-                value={"key": "value"},
-                dag_id=task_instance.dag_id,
-                task_id=task_instance.task_id,
-                run_id=task_instance.run_id,
-                session=session,
-            )
-        with conf_vars({("core", "enable_xcom_pickling"): "True"}):
-            ret_value = XCom.get_value(key="xcom_test3", ti_key=ti_key, session=session)
-        assert ret_value == {"key": "value"}
-
-    @pytest.mark.skip_if_database_isolation_mode
-    def test_xcom_deserialize_pickle_when_xcom_pickling_is_disabled(self, task_instance, session):
-        with conf_vars({("core", "enable_xcom_pickling"): "True"}):
-            XCom.set(
-                key="xcom_test3",
-                value={"key": "value"},
-                dag_id=task_instance.dag_id,
-                task_id=task_instance.task_id,
-                run_id=task_instance.run_id,
-                session=session,
-            )
-        with conf_vars({("core", "enable_xcom_pickling"): "False"}):
-            with pytest.raises(UnicodeDecodeError):
-                XCom.get_one(
-                    key="xcom_test3",
-                    dag_id=task_instance.dag_id,
-                    task_id=task_instance.task_id,
-                    run_id=task_instance.run_id,
-                    session=session,
-                )
-
-    @pytest.mark.skip_if_database_isolation_mode
-    @conf_vars({("core", "xcom_enable_pickling"): "False"})
-    def test_xcom_disable_pickle_type_fail_on_non_json(self, task_instance, session):
-        class PickleRce:
-            def __reduce__(self):
-                return os.system, ("ls -alt",)
-
-        with pytest.raises(TypeError):
-            XCom.set(
-                key="xcom_test3",
-                value=PickleRce(),
-                dag_id=task_instance.dag_id,
-                task_id=task_instance.task_id,
-                run_id=task_instance.run_id,
-                session=session,
-            )
+        assert cls.serialize_value([1]) == "[1]"
 
     @mock.patch("airflow.models.xcom.XCom.orm_deserialize_value")
     def test_xcom_init_on_load_uses_orm_deserialize_value(self, mock_orm_deserialize):
@@ -186,7 +125,7 @@ class TestXCom:
             key="key",
             value="value",
             timestamp=timezone.utcnow(),
-            execution_date=timezone.utcnow(),
+            logical_date=timezone.utcnow(),
             task_id="task_id",
             dag_id="dag_id",
         )
@@ -215,12 +154,10 @@ class TestXCom:
         assert value == {"key": "value"}
         XCom.orm_deserialize_value.assert_not_called()
 
-    @pytest.mark.skip_if_database_isolation_mode
-    @conf_vars({("core", "enable_xcom_pickling"): "False"})
     @mock.patch("airflow.models.xcom.conf.getimport")
     def test_set_serialize_call_current_signature(self, get_import, task_instance):
         """
-        When XCom.serialize_value includes params execution_date, key, dag_id, task_id and run_id,
+        When XCom.serialize_value includes params logical_date, key, dag_id, task_id and run_id,
         then XCom.set should pass all of them.
         """
         serialize_watcher = MagicMock()
@@ -243,7 +180,7 @@ class TestXCom:
                     run_id=run_id,
                     map_index=map_index,
                 )
-                return json.dumps(value).encode("utf-8")
+                return json.dumps(value)
 
         get_import.return_value = CurrentSignatureXCom
 
@@ -266,17 +203,6 @@ class TestXCom:
         )
 
 
-@pytest.fixture(
-    params=[
-        pytest.param("true", id="enable_xcom_pickling=true"),
-        pytest.param("false", id="enable_xcom_pickling=false"),
-    ],
-)
-def setup_xcom_pickling(request):
-    with conf_vars({("core", "enable_xcom_pickling"): str(request.param)}):
-        yield
-
-
 @pytest.fixture
 def push_simple_json_xcom(session):
     def func(*, ti: TaskInstance, key: str, value):
@@ -292,7 +218,6 @@ def push_simple_json_xcom(session):
     return func
 
 
-@pytest.mark.usefixtures("setup_xcom_pickling")
 class TestXComGet:
     @pytest.fixture
     def setup_for_xcom_get_one(self, task_instance, push_simple_json_xcom):
@@ -312,10 +237,10 @@ class TestXComGet:
     @pytest.fixture
     def tis_for_xcom_get_one_from_prior_date(self, task_instance_factory, push_simple_json_xcom):
         date1 = timezone.datetime(2021, 12, 3, 4, 56)
-        ti1 = task_instance_factory(dag_id="dag", execution_date=date1, task_id="task_1")
+        ti1 = task_instance_factory(dag_id="dag", logical_date=date1, task_id="task_1")
         ti2 = task_instance_factory(
             dag_id="dag",
-            execution_date=date1 + datetime.timedelta(days=1),
+            logical_date=date1 + datetime.timedelta(days=1),
             task_id="task_1",
         )
 
@@ -337,12 +262,10 @@ class TestXComGet:
         )
         assert retrieved_value == {"key": "value"}
 
-    @pytest.mark.skip_if_database_isolation_mode
     @pytest.fixture
     def setup_for_xcom_get_many_single_argument_value(self, task_instance, push_simple_json_xcom):
         push_simple_json_xcom(ti=task_instance, key="xcom_1", value={"key": "value"})
 
-    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.usefixtures("setup_for_xcom_get_many_single_argument_value")
     def test_xcom_get_many_single_argument_value(self, session, task_instance):
         stored_xcoms = XCom.get_many(
@@ -356,14 +279,12 @@ class TestXComGet:
         assert stored_xcoms[0].key == "xcom_1"
         assert stored_xcoms[0].value == {"key": "value"}
 
-    @pytest.mark.skip_if_database_isolation_mode
     @pytest.fixture
     def setup_for_xcom_get_many_multiple_tasks(self, task_instances, push_simple_json_xcom):
         ti1, ti2 = task_instances
         push_simple_json_xcom(ti=ti1, key="xcom_1", value={"key1": "value1"})
         push_simple_json_xcom(ti=ti2, key="xcom_1", value={"key2": "value2"})
 
-    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.usefixtures("setup_for_xcom_get_many_multiple_tasks")
     def test_xcom_get_many_multiple_tasks(self, session, task_instance):
         stored_xcoms = XCom.get_many(
@@ -380,13 +301,12 @@ class TestXComGet:
     def tis_for_xcom_get_many_from_prior_dates(self, task_instance_factory, push_simple_json_xcom):
         date1 = timezone.datetime(2021, 12, 3, 4, 56)
         date2 = date1 + datetime.timedelta(days=1)
-        ti1 = task_instance_factory(dag_id="dag", task_id="task_1", execution_date=date1)
-        ti2 = task_instance_factory(dag_id="dag", task_id="task_1", execution_date=date2)
+        ti1 = task_instance_factory(dag_id="dag", task_id="task_1", logical_date=date1)
+        ti2 = task_instance_factory(dag_id="dag", task_id="task_1", logical_date=date2)
         push_simple_json_xcom(ti=ti1, key="xcom_1", value={"key1": "value1"})
         push_simple_json_xcom(ti=ti2, key="xcom_1", value={"key2": "value2"})
         return ti1, ti2
 
-    @pytest.mark.skip_if_database_isolation_mode
     def test_xcom_get_many_from_prior_dates(self, session, tis_for_xcom_get_many_from_prior_dates):
         ti1, ti2 = tis_for_xcom_get_many_from_prior_dates
         stored_xcoms = XCom.get_many(
@@ -400,10 +320,9 @@ class TestXComGet:
 
         # The retrieved XComs should be ordered by logical date, latest first.
         assert [x.value for x in stored_xcoms] == [{"key2": "value2"}, {"key1": "value1"}]
-        assert [x.execution_date for x in stored_xcoms] == [ti2.execution_date, ti1.execution_date]
+        assert [x.logical_date for x in stored_xcoms] == [ti2.logical_date, ti1.logical_date]
 
 
-@pytest.mark.usefixtures("setup_xcom_pickling")
 class TestXComSet:
     def test_xcom_set(self, session, task_instance):
         XCom.set(
@@ -419,7 +338,7 @@ class TestXComSet:
         assert stored_xcoms[0].value == {"key": "value"}
         assert stored_xcoms[0].dag_id == "dag"
         assert stored_xcoms[0].task_id == "task_1"
-        assert stored_xcoms[0].execution_date == task_instance.execution_date
+        assert stored_xcoms[0].logical_date == task_instance.logical_date
 
     @pytest.fixture
     def setup_for_xcom_set_again_replace(self, task_instance, push_simple_json_xcom):
@@ -439,7 +358,6 @@ class TestXComSet:
         assert session.query(XCom).one().value == {"key2": "value2"}
 
 
-@pytest.mark.usefixtures("setup_xcom_pickling")
 class TestXComClear:
     @pytest.fixture
     def setup_for_xcom_clear(self, task_instance, push_simple_json_xcom):
@@ -456,7 +374,7 @@ class TestXComClear:
             session=session,
         )
         assert session.query(XCom).count() == 0
-        assert mock_purge.call_count == 0 if is_db_isolation_mode() else 1
+        assert mock_purge.call_count == 1
 
     @pytest.mark.usefixtures("setup_for_xcom_clear")
     def test_xcom_clear_different_run(self, session, task_instance):

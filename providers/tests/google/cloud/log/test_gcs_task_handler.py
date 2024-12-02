@@ -39,7 +39,7 @@ class TestGCSTaskHandler:
         self.ti = ti = create_task_instance(
             dag_id="dag_for_testing_gcs_task_handler",
             task_id="task_for_testing_gcs_task_handler",
-            execution_date=datetime(2020, 1, 1),
+            logical_date=datetime(2020, 1, 1),
             state=TaskInstanceState.RUNNING,
         )
         ti.try_number = 1
@@ -107,8 +107,9 @@ class TestGCSTaskHandler:
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
         )
-        assert logs == "*** Found remote logs:\n***   * gs://bucket/remote/log/location/1.log\nCONTENT"
-        assert {"end_of_log": True, "log_pos": 7} == metadata
+        assert "*** Found remote logs:\n***   * gs://bucket/remote/log/location/1.log\n" in logs
+        assert logs.endswith("CONTENT")
+        assert metadata == {"end_of_log": True, "log_pos": 7}
 
     @mock.patch(
         "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",
@@ -127,13 +128,13 @@ class TestGCSTaskHandler:
         ti.state = TaskInstanceState.SUCCESS
         log, metadata = self.gcs_task_handler._read(ti, self.ti.try_number)
 
-        assert log == (
+        assert (
             "*** Found remote logs:\n"
             "***   * gs://bucket/remote/log/location/1.log\n"
             "*** Unable to read remote log Failed to connect\n"
             "*** Found local files:\n"
             f"***   * {self.gcs_task_handler.local_base}/1.log\n"
-        )
+        ) in log
         assert metadata == {"end_of_log": True, "log_pos": 0}
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value

@@ -26,13 +26,12 @@ import subprocess
 import sys
 import textwrap
 import types
-import warnings
 from abc import ABCMeta, abstractmethod
-from collections.abc import Container
+from collections.abc import Collection, Container, Iterable, Mapping, Sequence
 from functools import cache
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, NamedTuple, cast
 
 import lazy_object_proxy
 
@@ -41,16 +40,14 @@ from airflow.exceptions import (
     AirflowException,
     AirflowSkipException,
     DeserializingResultError,
-    RemovedInAirflow3Warning,
 )
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.models.variable import Variable
 from airflow.operators.branch import BranchMixIn
-from airflow.providers.standard import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv, write_python_script
-from airflow.settings import _ENABLE_AIP_44
+from airflow.providers.standard.utils.version_references import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 from airflow.typing_compat import Literal
 from airflow.utils import hashlib_wrapper
 from airflow.utils.context import context_copy_partial, context_merge
@@ -114,13 +111,13 @@ class PythonOperator(BaseOperator):
     function. This set of kwargs correspond exactly to what you can use in your jinja templates.
     For this to work, you need to define ``**kwargs`` in your function header, or you can add directly the
     keyword arguments you would like to get - for example with the below code your callable will get
-    the values of ``ti`` and ``next_ds`` context variables.
+    the values of ``ti`` context variables.
 
     With explicit arguments:
 
     .. code-block:: python
 
-       def my_python_callable(ti, next_ds):
+       def my_python_callable(ti):
            pass
 
     With kwargs:
@@ -129,7 +126,6 @@ class PythonOperator(BaseOperator):
 
        def my_python_callable(**kwargs):
            ti = kwargs["ti"]
-           next_ds = kwargs["next_ds"]
 
 
     :param python_callable: A reference to an object that is callable
@@ -310,7 +306,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
             self.skip(
                 dag_run=dag_run,
                 tasks=to_skip,
-                execution_date=cast("DateTime", dag_run.execution_date),  # type: ignore[call-arg]
+                execution_date=cast("DateTime", dag_run.logical_date),  # type: ignore[call-arg, union-attr]
                 map_index=context["ti"].map_index,
             )
 
@@ -360,34 +356,36 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "ds_nodash",
         "expanded_ti_count",
         "inlets",
-        "next_ds",
-        "next_ds_nodash",
         "outlets",
-        "prev_ds",
-        "prev_ds_nodash",
         "run_id",
         "task_instance_key_str",
         "test_mode",
-        "tomorrow_ds",
-        "tomorrow_ds_nodash",
         "ts",
         "ts_nodash",
         "ts_nodash_with_tz",
+        # The following should be removed when Airflow 2 support is dropped.
+        "next_ds",
+        "next_ds_nodash",
+        "prev_ds",
+        "prev_ds_nodash",
+        "tomorrow_ds",
+        "tomorrow_ds_nodash",
         "yesterday_ds",
         "yesterday_ds_nodash",
     }
     PENDULUM_SERIALIZABLE_CONTEXT_KEYS = {
         "data_interval_end",
         "data_interval_start",
-        "execution_date",
         "logical_date",
-        "next_execution_date",
         "prev_data_interval_end_success",
         "prev_data_interval_start_success",
-        "prev_execution_date",
-        "prev_execution_date_success",
         "prev_start_date_success",
         "prev_end_date_success",
+        # The following should be removed when Airflow 2 support is dropped.
+        "execution_date",
+        "next_execution_date",
+        "prev_execution_date",
+        "prev_execution_date_success",
     }
 
     AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {
@@ -397,7 +395,9 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "dag_run",
         "task",
         "params",
-        "triggering_asset_events" if AIRFLOW_V_3_0_PLUS else "triggering_dataset_events",
+        "triggering_asset_events",
+        # The following should be removed when Airflow 2 support is dropped.
+        "triggering_dataset_events",
     }
 
     def __init__(
@@ -414,7 +414,6 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         skip_on_exit_code: int | Container[int] | None = None,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
-        use_dill: bool = False,
         use_airflow_context: bool = False,
         **kwargs,
     ):
@@ -436,18 +435,6 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         )
         self.string_args = string_args or []
 
-        if use_dill:
-            warnings.warn(
-                "`use_dill` is deprecated and will be removed in a future version. "
-                "Please provide serializer='dill' instead.",
-                RemovedInAirflow3Warning,
-                stacklevel=3,
-            )
-            if serializer:
-                raise AirflowException(
-                    "Both 'use_dill' and 'serializer' parameters are set. Please set only one of them"
-                )
-            serializer = "dill"
         serializer = serializer or "pickle"
         if serializer not in _SERIALIZERS:
             msg = (
@@ -520,10 +507,6 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
 
             self._write_args(input_path)
             self._write_string_args(string_args_path)
-
-            if self.use_airflow_context and not _ENABLE_AIP_44:
-                error_msg = "`get_current_context()` needs to be used with AIP-44 enabled."
-                raise AirflowException(error_msg)
 
             jinja_context = {
                 "op_args": self.op_args,
@@ -666,9 +649,6 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         environment. If set to ``True``, the virtual environment will inherit the environment variables
         of the parent process (``os.environ``). If set to ``False``, the virtual environment will be
         executed with a clean environment.
-    :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
-        the args and result (pickle is default). This allows more complex types
-        but requires you to include dill in your requirements.
     :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
     """
 
@@ -697,7 +677,6 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         venv_cache_path: None | os.PathLike[str] = None,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
-        use_dill: bool = False,
         use_airflow_context: bool = False,
         **kwargs,
     ):
@@ -752,7 +731,6 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             skip_on_exit_code=skip_on_exit_code,
             env_vars=env_vars,
             inherit_env=inherit_env,
-            use_dill=use_dill,
             use_airflow_context=use_airflow_context,
             **kwargs,
         )
@@ -969,9 +947,6 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         environment. If set to ``True``, the virtual environment will inherit the environment variables
         of the parent process (``os.environ``). If set to ``False``, the virtual environment will be
         executed with a clean environment.
-    :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
-        the args and result (pickle is default). This allows more complex types
-        but requires you to include dill in your requirements.
     :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
     """
 
@@ -993,7 +968,6 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         skip_on_exit_code: int | Container[int] | None = None,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
-        use_dill: bool = False,
         use_airflow_context: bool = False,
         **kwargs,
     ):
@@ -1021,7 +995,6 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             skip_on_exit_code=skip_on_exit_code,
             env_vars=env_vars,
             inherit_env=inherit_env,
-            use_dill=use_dill,
             use_airflow_context=use_airflow_context,
             **kwargs,
         )

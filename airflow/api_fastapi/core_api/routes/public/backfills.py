@@ -20,9 +20,12 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select, update
-from sqlalchemy.orm import Session
 
-from airflow.api_fastapi.common.db.common import get_session, paginated_select
+from airflow.api_fastapi.common.db.common import (
+    AsyncSessionDep,
+    SessionDep,
+    paginated_select_async,
+)
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.backfills import (
@@ -47,10 +50,9 @@ backfills_router = AirflowRouter(tags=["Backfill"], prefix="/backfills")
 
 
 @backfills_router.get(
-    path="/",
-    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
+    path="",
 )
-def list_backfills(
+async def list_backfills(
     dag_id: str,
     limit: QueryLimit,
     offset: QueryOffset,
@@ -58,37 +60,33 @@ def list_backfills(
         SortParam,
         Depends(SortParam(["id"], Backfill).dynamic_depends()),
     ],
-    session: Annotated[Session, Depends(get_session)],
-):
-    select_stmt, total_entries = paginated_select(
-        select(Backfill).where(Backfill.dag_id == dag_id),
-        [],
+    session: AsyncSessionDep,
+) -> BackfillCollectionResponse:
+    select_stmt, total_entries = await paginated_select_async(
+        statement=select(Backfill).where(Backfill.dag_id == dag_id),
         order_by=order_by,
         offset=offset,
         limit=limit,
         session=session,
     )
-    backfills = session.scalars(select_stmt).all()
-
+    backfills = await session.scalars(select_stmt)
     return BackfillCollectionResponse(
-        backfills=[BackfillResponse.model_validate(x, from_attributes=True) for x in backfills],
-        total_entries=len(backfills),
+        backfills=backfills,
+        total_entries=total_entries,
     )
 
 
 @backfills_router.get(
     path="/{backfill_id}",
-    responses=create_openapi_http_exception_doc(
-        [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND]
-    ),
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_backfill(
     backfill_id: str,
-    session: Annotated[Session, Depends(get_session)],
-):
+    session: SessionDep,
+) -> BackfillResponse:
     backfill = session.get(Backfill, backfill_id)
     if backfill:
-        return BackfillResponse.model_validate(backfill, from_attributes=True)
+        return backfill
     raise HTTPException(status.HTTP_404_NOT_FOUND, "Backfill not found")
 
 
@@ -96,14 +94,12 @@ def get_backfill(
     path="/{backfill_id}/pause",
     responses=create_openapi_http_exception_doc(
         [
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,
         ]
     ),
 )
-def pause_backfill(*, backfill_id, session: Annotated[Session, Depends(get_session)]):
+def pause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
     b = session.get(Backfill, backfill_id)
     if not b:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")
@@ -112,21 +108,19 @@ def pause_backfill(*, backfill_id, session: Annotated[Session, Depends(get_sessi
     if b.is_paused is False:
         b.is_paused = True
     session.commit()
-    return BackfillResponse.model_validate(b, from_attributes=True)
+    return b
 
 
 @backfills_router.put(
     path="/{backfill_id}/unpause",
     responses=create_openapi_http_exception_doc(
         [
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,
         ]
     ),
 )
-def unpause_backfill(*, backfill_id, session: Annotated[Session, Depends(get_session)]):
+def unpause_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
     b = session.get(Backfill, backfill_id)
     if not b:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")
@@ -134,21 +128,19 @@ def unpause_backfill(*, backfill_id, session: Annotated[Session, Depends(get_ses
         raise HTTPException(status.HTTP_409_CONFLICT, "Backfill is already completed.")
     if b.is_paused:
         b.is_paused = False
-    return BackfillResponse.model_validate(b, from_attributes=True)
+    return b
 
 
 @backfills_router.put(
     path="/{backfill_id}/cancel",
     responses=create_openapi_http_exception_doc(
         [
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,
         ]
     ),
 )
-def cancel_backfill(*, backfill_id, session: Annotated[Session, Depends(get_session)]):
+def cancel_backfill(backfill_id, session: SessionDep) -> BackfillResponse:
     b: Backfill = session.get(Backfill, backfill_id)
     if not b:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Could not find backfill with id {backfill_id}")
@@ -181,15 +173,13 @@ def cancel_backfill(*, backfill_id, session: Annotated[Session, Depends(get_sess
     # this is in separate transaction just to avoid potential conflicts
     session.refresh(b)
     b.completed_at = timezone.utcnow()
-    return BackfillResponse.model_validate(b, from_attributes=True)
+    return b
 
 
 @backfills_router.post(
-    path="/",
+    path="",
     responses=create_openapi_http_exception_doc(
         [
-            status.HTTP_401_UNAUTHORIZED,
-            status.HTTP_403_FORBIDDEN,
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,
         ]
@@ -197,7 +187,7 @@ def cancel_backfill(*, backfill_id, session: Annotated[Session, Depends(get_sess
 )
 def create_backfill(
     backfill_request: BackfillPostBody,
-):
+) -> BackfillResponse:
     from_date = timezone.coerce_datetime(backfill_request.from_date)
     to_date = timezone.coerce_datetime(backfill_request.to_date)
     try:
@@ -210,7 +200,7 @@ def create_backfill(
             dag_run_conf=backfill_request.dag_run_conf,
             reprocess_behavior=backfill_request.reprocess_behavior,
         )
-        return BackfillResponse.model_validate(backfill_obj, from_attributes=True)
+        return BackfillResponse.model_validate(backfill_obj)
     except AlreadyRunningBackfill:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

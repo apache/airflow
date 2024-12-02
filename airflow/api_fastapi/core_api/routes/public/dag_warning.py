@@ -19,12 +19,11 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, status
+from fastapi import Depends
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.common.db.common import (
-    get_session,
+    SessionDep,
     paginated_select,
 )
 from airflow.api_fastapi.common.parameters import (
@@ -37,9 +36,7 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dag_warning import (
     DAGWarningCollectionResponse,
-    DAGWarningResponse,
 )
-from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models import DagWarning
 
 dag_warning_router = AirflowRouter(tags=["DagWarning"])
@@ -47,7 +44,6 @@ dag_warning_router = AirflowRouter(tags=["DagWarning"])
 
 @dag_warning_router.get(
     "/dagWarnings",
-    responses=create_openapi_http_exception_doc([status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]),
 )
 def list_dag_warnings(
     dag_id: QueryDagIdInDagWarningFilter,
@@ -58,19 +54,20 @@ def list_dag_warnings(
         SortParam,
         Depends(SortParam(["dag_id", "warning_type", "message", "timestamp"], DagWarning).dynamic_depends()),
     ],
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> DAGWarningCollectionResponse:
     """Get a list of DAG warnings."""
     dag_warnings_select, total_entries = paginated_select(
-        select(DagWarning), [warning_type, dag_id], order_by, offset, limit, session
+        statement=select(DagWarning),
+        filters=[warning_type, dag_id],
+        order_by=order_by,
+        offset=offset,
+        limit=limit,
+        session=session,
     )
-
-    dag_warnings = session.scalars(dag_warnings_select).all()
+    dag_warnings = session.scalars(dag_warnings_select)
 
     return DAGWarningCollectionResponse(
-        dag_warnings=[
-            DAGWarningResponse.model_validate(dag_warning, from_attributes=True)
-            for dag_warning in dag_warnings
-        ],
+        dag_warnings=dag_warnings,
         total_entries=total_entries,
     )

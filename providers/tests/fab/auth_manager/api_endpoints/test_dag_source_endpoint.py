@@ -31,7 +31,6 @@ from tests_common.test_utils.db import clear_db_dag_code, clear_db_dags, clear_d
 
 pytestmark = [
     pytest.mark.db_test,
-    pytest.mark.skip_if_database_isolation_mode,
     pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0+"),
 ]
 
@@ -97,25 +96,13 @@ class TestGetSource:
         docstring = ast.get_docstring(module)
         return docstring
 
-    def test_should_respond_406(self, url_safe_serializer):
-        dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
-        dagbag.sync_to_db()
-        test_dag: DAG = dagbag.dags[TEST_DAG_ID]
-
-        url = f"/api/v1/dagSources/{url_safe_serializer.dumps(test_dag.fileloc)}"
-        response = self.client.get(
-            url, headers={"Accept": "image/webp"}, environ_overrides={"REMOTE_USER": "test"}
-        )
-
-        assert 406 == response.status_code
-
     def test_should_respond_403_not_readable(self, url_safe_serializer):
         dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
         dagbag.sync_to_db()
         dag: DAG = dagbag.dags[NOT_READABLE_DAG_ID]
 
         response = self.client.get(
-            f"/api/v1/dagSources/{url_safe_serializer.dumps(dag.fileloc)}",
+            f"/api/v1/dagSources/{dag.dag_id}",
             headers={"Accept": "text/plain"},
             environ_overrides={"REMOTE_USER": "test"},
         )
@@ -132,7 +119,7 @@ class TestGetSource:
         dag: DAG = dagbag.dags[TEST_MULTIPLE_DAGS_ID]
 
         response = self.client.get(
-            f"/api/v1/dagSources/{url_safe_serializer.dumps(dag.fileloc)}",
+            f"/api/v1/dagSources/{dag.dag_id}",
             headers={"Accept": "text/plain"},
             environ_overrides={"REMOTE_USER": "test"},
         )

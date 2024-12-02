@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import urllib
-from typing import Generator
+from collections.abc import Generator
 from unittest.mock import ANY
 
 import pytest
@@ -43,7 +43,7 @@ from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_assets, clear_db_runs
 from tests_common.test_utils.www import _check_last_log
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(scope="module")
@@ -80,6 +80,8 @@ class TestAssetEndpoint:
         asset_model = AssetModel(
             id=1,
             uri="s3://bucket/key",
+            name="asset-name",
+            group="asset",
             extra={"foo": "bar"},
             created_at=timezone.parse(self.default_time),
             updated_at=timezone.parse(self.default_time),
@@ -103,6 +105,8 @@ class TestGetAssetEndpoint(TestAssetEndpoint):
         assert response.json == {
             "id": 1,
             "uri": "s3://bucket/key",
+            "name": "asset-name",
+            "group": "asset",
             "extra": {"foo": "bar"},
             "created_at": self.default_time,
             "updated_at": self.default_time,
@@ -117,12 +121,12 @@ class TestGetAssetEndpoint(TestAssetEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "The Asset with uri: `s3://bucket/key` was not found",
             "status": 404,
             "title": "Asset not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     def test_should_raises_401_unauthenticated(self, session):
         self._create_asset(session)
@@ -136,6 +140,8 @@ class TestGetAssets(TestAssetEndpoint):
             AssetModel(
                 id=i,
                 uri=f"s3://bucket/key/{i}",
+                name=f"asset_{i}",
+                group="asset",
                 extra={"foo": "bar"},
                 created_at=timezone.parse(self.default_time),
                 updated_at=timezone.parse(self.default_time),
@@ -156,6 +162,8 @@ class TestGetAssets(TestAssetEndpoint):
                 {
                     "id": 1,
                     "uri": "s3://bucket/key/1",
+                    "name": "asset_1",
+                    "group": "asset",
                     "extra": {"foo": "bar"},
                     "created_at": self.default_time,
                     "updated_at": self.default_time,
@@ -166,6 +174,8 @@ class TestGetAssets(TestAssetEndpoint):
                 {
                     "id": 2,
                     "uri": "s3://bucket/key/2",
+                    "name": "asset_2",
+                    "group": "asset",
                     "extra": {"foo": "bar"},
                     "created_at": self.default_time,
                     "updated_at": self.default_time,
@@ -522,7 +532,7 @@ class TestGetAssetEvents(TestAssetEndpoint):
             dag_id="TEST_DAG_ID",
             run_id="TEST_DAG_RUN_ID",
             run_type=DagRunType.ASSET_TRIGGERED,
-            execution_date=timezone.parse(self.default_time),
+            logical_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             external_trigger=True,
             state="success",
@@ -604,7 +614,7 @@ class TestPostAssetEvents(TestAssetEndpoint):
             session,
             dag_id=None,
             event="api.create_asset_event",
-            execution_date=None,
+            logical_date=None,
             expected_extra=event_payload,
         )
 
@@ -622,7 +632,7 @@ class TestPostAssetEvents(TestAssetEndpoint):
             session,
             dag_id=None,
             event="api.create_asset_event",
-            execution_date=None,
+            logical_date=None,
             expected_extra=expected_extra,
         )
 

@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Dict
+from typing import TYPE_CHECKING, Any, Callable
 
 import requests
 from botocore import UNSIGNED
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from fsspec import AbstractFileSystem
 
 
-Properties = Dict[str, str]
+Properties = dict[str, str]
 
 S3_PROXY_URI = "proxy-uri"
 

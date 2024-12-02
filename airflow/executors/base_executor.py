@@ -22,13 +22,16 @@ import json
 import logging
 import sys
 from collections import defaultdict, deque
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Optional
 
 import pendulum
+from deprecated import deprecated
 
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
+from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
 from airflow.stats import Stats
@@ -48,6 +51,7 @@ if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.cli.cli_config import GroupCommand
+    from airflow.executors import workloads
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -55,20 +59,20 @@ if TYPE_CHECKING:
     # Command to execute - list of strings
     # the first element is always "airflow".
     # It should be result of TaskInstance.generate_command method.
-    CommandType = List[str]
+    CommandType = list[str]
 
     # Task that is queued. It contains all the information that is
     # needed to run the task.
     #
     # Tuple of: command, priority, queue name, TaskInstance
-    QueuedTaskInstanceType = Tuple[CommandType, int, Optional[str], TaskInstance]
+    QueuedTaskInstanceType = tuple[CommandType, int, Optional[str], TaskInstance]
 
     # Event_buffer dict value type
     # Tuple of: state, info
-    EventBufferValueType = Tuple[Optional[str], Any]
+    EventBufferValueType = tuple[Optional[str], Any]
 
     # Task tuple to send to be executed
-    TaskTuple = Tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
+    TaskTuple = tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
 
 log = logging.getLogger(__name__)
 
@@ -174,6 +178,9 @@ class BaseExecutor(LoggingMixin):
             self.queued_tasks[task_instance.key] = (command, priority, queue, task_instance)
         else:
             self.log.error("could not queue task %s", task_instance.key)
+
+    def queue_workload(self, workload: workloads.All) -> None:
+        raise ValueError(f"Un-handled workload kind {type(workload).__name__!r} in {type(self).__name__}")
 
     def queue_task_instance(
         self,
@@ -423,17 +430,24 @@ class BaseExecutor(LoggingMixin):
                 span_id=span_id,
                 links=links,
             ) as span:
-                span.set_attribute("dag_id", key.dag_id)
-                span.set_attribute("run_id", key.run_id)
-                span.set_attribute("task_id", key.task_id)
-                span.set_attribute("try_number", key.try_number)
-                span.set_attribute("command", str(command))
-                span.set_attribute("queue", str(queue))
-                span.set_attribute("executor_config", str(executor_config))
+                span.set_attributes(
+                    {
+                        "dag_id": key.dag_id,
+                        "run_id": key.run_id,
+                        "task_id": key.task_id,
+                        "try_number": key.try_number,
+                        "command": str(command),
+                        "queue": str(queue),
+                        "executor_config": str(executor_config),
+                    }
+                )
                 del self.queued_tasks[key]
                 self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
                 self.running.add(key)
 
+    # TODO: This should not be using `TaskInstanceState` here, this is just "did the process complete, or did
+    # it die". It is possible for the task itself to finish with success, but the state of the task to be set
+    # to FAILED. By using TaskInstanceState enum here it confuses matters!
     def change_state(
         self, key: TaskInstanceKey, state: TaskInstanceState, info=None, remove_running=True
     ) -> None:
@@ -468,11 +482,15 @@ class BaseExecutor(LoggingMixin):
                 component="BaseExecutor",
                 parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
             ) as span:
-                span.set_attribute("dag_id", key.dag_id)
-                span.set_attribute("run_id", key.run_id)
-                span.set_attribute("task_id", key.task_id)
-                span.set_attribute("try_number", key.try_number)
-                span.set_attribute("error", True)
+                span.set_attributes(
+                    {
+                        "dag_id": key.dag_id,
+                        "run_id": key.run_id,
+                        "task_id": key.task_id,
+                        "try_number": key.try_number,
+                        "error": True,
+                    }
+                )
 
         self.change_state(key, TaskInstanceState.FAILED, info)
 
@@ -491,10 +509,14 @@ class BaseExecutor(LoggingMixin):
                 component="BaseExecutor",
                 parent_sc=gen_context(trace_id=trace_id, span_id=span_id),
             ) as span:
-                span.set_attribute("dag_id", key.dag_id)
-                span.set_attribute("run_id", key.run_id)
-                span.set_attribute("task_id", key.task_id)
-                span.set_attribute("try_number", key.try_number)
+                span.set_attributes(
+                    {
+                        "dag_id": key.dag_id,
+                        "run_id": key.run_id,
+                        "task_id": key.task_id,
+                        "try_number": key.try_number,
+                    }
+                )
 
         self.change_state(key, TaskInstanceState.SUCCESS, info)
 
@@ -572,7 +594,12 @@ class BaseExecutor(LoggingMixin):
         """Get called when the daemon receives a SIGTERM."""
         raise NotImplementedError
 
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:  # pragma: no cover
+    @deprecated(
+        reason="Replaced by function `revoke_task`.",
+        category=RemovedInAirflow3Warning,
+        action="ignore",
+    )
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
 
@@ -583,7 +610,23 @@ class BaseExecutor(LoggingMixin):
         :param tis: List of Task Instances to clean up
         :return: List of readable task instances for a warning message
         """
-        raise NotImplementedError()
+        raise NotImplementedError
+
+    def revoke_task(self, *, ti: TaskInstance):
+        """
+        Attempt to remove task from executor.
+
+        It should attempt to ensure that the task is no longer running on the worker,
+        and ensure that it is cleared out from internal data structures.
+
+        It should *not* change the state of the task in airflow, or add any events
+        to the event buffer.
+
+        It should not raise any error.
+
+        :param ti: Task instance to remove
+        """
+        raise NotImplementedError
 
     def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """

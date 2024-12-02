@@ -898,6 +898,7 @@ Jupyter
 jupyter
 jupytercmd
 JWT
+jwt
 Kafka
 kafka
 Kalibrr
@@ -966,6 +967,7 @@ LineItem
 lineterminator
 linter
 linux
+ListDatasetsPager
 ListGenerator
 ListInfoTypesResponse
 ListSecretsPager
@@ -1375,6 +1377,7 @@ repos
 repr
 req
 reqs
+requeued
 Reserialize
 reserialize
 reserialized
@@ -1616,6 +1619,7 @@ symlinking
 symlinks
 sync'ed
 sys
+sysinfo
 syspath
 Systemd
 systemd
@@ -1700,6 +1704,7 @@ traceback
 tracebacks
 tracemalloc
 TrainingPipeline
+TranslationServiceClient
 travis
 triage
 triaging

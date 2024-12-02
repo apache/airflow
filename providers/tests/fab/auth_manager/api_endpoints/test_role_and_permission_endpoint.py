@@ -89,12 +89,12 @@ class TestGetRoleEndpoint(TestRoleEndpoint):
             "/auth/fab/v1/roles/invalid-role", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "Role with name 'invalid-role' was not found",
             "status": 404,
             "title": "Role not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get("/auth/fab/v1/roles/Admin")

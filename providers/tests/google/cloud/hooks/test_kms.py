@@ -21,7 +21,6 @@ from base64 import b64decode, b64encode
 from collections import namedtuple
 from unittest import mock
 
-import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.providers.google.cloud.hooks.kms import CloudKMSHook
@@ -57,10 +56,6 @@ def mock_init(
 
 
 class TestCloudKMSHook:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            CloudKMSHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
-
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
@@ -125,7 +120,7 @@ class TestCloudKMSHook:
             timeout=None,
             metadata=(),
         )
-        assert PLAINTEXT == result
+        assert result == PLAINTEXT
 
     @mock.patch("airflow.providers.google.cloud.hooks.kms.CloudKMSHook.get_conn")
     def test_decrypt_with_auth_data(self, mock_get_conn):
@@ -142,4 +137,4 @@ class TestCloudKMSHook:
             timeout=None,
             metadata=(),
         )
-        assert PLAINTEXT == result
+        assert result == PLAINTEXT

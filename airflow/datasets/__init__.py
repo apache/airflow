@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -27,19 +26,15 @@ from __future__ import annotations
 
 import warnings
 
-from airflow.assets import AssetAlias as DatasetAlias, Dataset
+from airflow.sdk.definitions.asset import AssetAlias as DatasetAlias, Dataset
 
 # TODO: Remove this module in Airflow 3.2
 
 warnings.warn(
     "Import from the airflow.dataset module is deprecated and "
-    "will be removed in the Airflow 3.2. Please import it from 'airflow.assets'.",
+    "will be removed in the Airflow 3.2. Please import it from 'airflow.sdk.definitions.asset'.",
     DeprecationWarning,
     stacklevel=2,
 )
 
-
-__all__ = [
-    "Dataset",
-    "DatasetAlias",
-]
+__all__ = ["Dataset", "DatasetAlias"]

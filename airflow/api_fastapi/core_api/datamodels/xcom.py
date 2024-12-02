@@ -19,7 +19,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, field_validator
+from pydantic import field_validator
+
+from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class XComResponse(BaseModel):
@@ -27,7 +29,7 @@ class XComResponse(BaseModel):
 
     key: str
     timestamp: datetime
-    execution_date: datetime
+    logical_date: datetime
     map_index: int
     task_id: str
     dag_id: str
@@ -47,3 +49,10 @@ class XComResponseString(XComResponse):
     @field_validator("value", mode="before")
     def value_to_string(cls, v):
         return str(v) if v is not None else None
+
+
+class XComCollection(BaseModel):
+    """List of XCom items."""
+
+    xcom_entries: list[XComResponse]
+    total_entries: int

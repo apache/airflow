@@ -104,10 +104,6 @@ def _with_name(body, job_name):
 
 
 class TestGCPTransferServiceHookWithPassedName:
-    def test_delegate_to_runtime_error(self):
-        with pytest.raises(RuntimeError):
-            CloudDataTransferServiceHook(gcp_conn_id="test", delegate_to="delegate_to")
-
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
@@ -214,7 +210,7 @@ class TestGCPTransferServiceHookWithPassedProjectId:
         execute_method.return_value = TEST_TRANSFER_JOB
         res = self.gct_hook.get_transfer_job(job_name=TEST_TRANSFER_JOB_NAME, project_id=TEST_PROJECT_ID)
         assert res is not None
-        assert TEST_TRANSFER_JOB_NAME == res[NAME]
+        assert res[NAME] == TEST_TRANSFER_JOB_NAME
         get_method.assert_called_once_with(jobName=TEST_TRANSFER_JOB_NAME, projectId=TEST_PROJECT_ID)
         execute_method.assert_called_once_with(num_retries=5)
 
@@ -607,7 +603,7 @@ class TestGCPTransferServiceHookWithProjectIdFromConnection:
         execute_method.return_value = TEST_TRANSFER_JOB
         res = self.gct_hook.get_transfer_job(job_name=TEST_TRANSFER_JOB_NAME)
         assert res is not None
-        assert TEST_TRANSFER_JOB_NAME == res[NAME]
+        assert res[NAME] == TEST_TRANSFER_JOB_NAME
         get_method.assert_called_once_with(jobName=TEST_TRANSFER_JOB_NAME, projectId="example-project")
         execute_method.assert_called_once_with(num_retries=5)
 
@@ -792,9 +788,9 @@ class TestGCPTransferServiceHookWithoutProjectId:
             self.gct_hook.create_transfer_job(body=_without_key(TEST_BODY, PROJECT_ID))
 
         assert (
-            "The project id must be passed either as `projectId` key in `body` "
+            str(ctx.value) == "The project id must be passed either as `projectId` key in `body` "
             "parameter or as project_id "
-            "extra in Google Cloud connection definition. Both are not set!" == str(ctx.value)
+            "extra in Google Cloud connection definition. Both are not set!"
         )
 
     @mock.patch(
@@ -813,9 +809,9 @@ class TestGCPTransferServiceHookWithoutProjectId:
         with pytest.raises(AirflowException) as ctx:
             self.gct_hook.get_transfer_job(job_name=TEST_TRANSFER_JOB_NAME)
         assert (
-            "The project id must be passed either as keyword project_id "
+            str(ctx.value) == "The project id must be passed either as keyword project_id "
             "parameter or as project_id extra in Google Cloud connection definition. "
-            "Both are not set!" == str(ctx.value)
+            "Both are not set!"
         )
 
     @mock.patch(
@@ -841,8 +837,9 @@ class TestGCPTransferServiceHookWithoutProjectId:
             )
 
         assert (
-            "The project id must be passed either as `project_id` key in `filter` parameter or as "
-            "project_id extra in Google Cloud connection definition. Both are not set!" == str(ctx.value)
+            str(ctx.value)
+            == "The project id must be passed either as `project_id` key in `filter` parameter or as "
+            "project_id extra in Google Cloud connection definition. Both are not set!"
         )
 
     @mock.patch(
@@ -886,8 +883,9 @@ class TestGCPTransferServiceHookWithoutProjectId:
             )
 
         assert (
-            "The project id must be passed either as `projectId` key in `body` parameter or as project_id "
-            "extra in Google Cloud connection definition. Both are not set!" == str(ctx.value)
+            str(ctx.value)
+            == "The project id must be passed either as `projectId` key in `body` parameter or as project_id "
+            "extra in Google Cloud connection definition. Both are not set!"
         )
 
     @mock.patch(
@@ -904,8 +902,9 @@ class TestGCPTransferServiceHookWithoutProjectId:
             self.gct_hook.delete_transfer_job(job_name=TEST_TRANSFER_JOB_NAME)
 
         assert (
-            "The project id must be passed either as keyword project_id parameter or as project_id extra in "
-            "Google Cloud connection definition. Both are not set!" == str(ctx.value)
+            str(ctx.value)
+            == "The project id must be passed either as keyword project_id parameter or as project_id extra in "
+            "Google Cloud connection definition. Both are not set!"
         )
 
     @mock.patch(
@@ -931,6 +930,7 @@ class TestGCPTransferServiceHookWithoutProjectId:
             )
 
         assert (
-            "The project id must be passed either as `project_id` key in `filter` parameter or as project_id "
-            "extra in Google Cloud connection definition. Both are not set!" == str(ctx.value)
+            str(ctx.value)
+            == "The project id must be passed either as `project_id` key in `filter` parameter or as project_id "
+            "extra in Google Cloud connection definition. Both are not set!"
         )

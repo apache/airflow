@@ -35,7 +35,7 @@ for Airflow Development.
 
 This package should never be installed in "production" mode. The `breeze` entrypoint will actually
 fail if you do so. It is supposed to be installed only in [editable/development mode](https://packaging.python.org/en/latest/guides/distributing-packages-using-setuptools/#working-in-development-mode)
-directly from Airflow sources using `uv tool``or ``pipx` - usually with `--force` flag to account
+directly from Airflow sources using `uv tool` or `pipx` - usually with `--force` flag to account
 for re-installation  that might often be needed if dependencies change during development.
 
 ```shell
@@ -128,6 +128,6 @@ PLEASE DO NOT MODIFY THE HASH BELOW! IT IS AUTOMATICALLY UPDATED BY PRE-COMMIT.
 
 ---------------------------------------------------------------------------------------------------------
 
-Package config hash: 1a6bdff24f910175038dbd62c1c18dd091958ee2ffbb55ac7d5c93cc43f8f9ad5176093c135ac72031574292397164402a2c17a7c4f7f5fdb3c02e3d576109bf
+Package config hash: d58974d3f120f707d02ad2594b03c96cdda42fe07621d940dbb357ef5eafce5a49dc9725a0e1a076800a126616196205ecb2a2a6e6f6541e12c1284aaf307df2
 
 ---------------------------------------------------------------------------------------------------------

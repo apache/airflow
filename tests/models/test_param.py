@@ -310,7 +310,6 @@ class TestDagParamRuntime:
     def teardown_method(self):
         self.clean_db()
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.db_test
     def test_dag_param_resolves(self, dag_maker):
         """Test dagparam resolves on operator execution"""
@@ -328,12 +327,11 @@ class TestDagParamRuntime:
             start_date=timezone.utcnow(),
         )
 
-        xcom_arg.operator.run(dr.execution_date, dr.execution_date)
+        xcom_arg.operator.run(dr.logical_date, dr.logical_date)
 
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == self.VALUE
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.db_test
     def test_dag_param_overwrite(self, dag_maker):
         """Test dag param is overwritten from dagrun config"""
@@ -354,12 +352,11 @@ class TestDagParamRuntime:
             conf={"value": new_value},
         )
 
-        xcom_arg.operator.run(dr.execution_date, dr.execution_date)
+        xcom_arg.operator.run(dr.logical_date, dr.logical_date)
 
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == new_value
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.db_test
     def test_dag_param_default(self, dag_maker):
         """Test dag param is retrieved from default config"""
@@ -374,7 +371,7 @@ class TestDagParamRuntime:
 
         dr = dag_maker.create_dagrun(run_id=DagRunType.MANUAL.value, start_date=timezone.utcnow())
 
-        xcom_arg.operator.run(dr.execution_date, dr.execution_date)
+        xcom_arg.operator.run(dr.logical_date, dr.logical_date)
 
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == "test"

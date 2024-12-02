@@ -26,13 +26,15 @@ import pytest
 from sqlalchemy import func, select
 
 import airflow.example_dags as example_dags_module
-from airflow.assets import Asset
+from airflow.decorators import task as task_decorator
 from airflow.models.dag import DAG
+from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DagBag
-from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk.definitions.asset import Asset
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import json
 from airflow.utils.hashlib_wrapper import md5
@@ -69,17 +71,12 @@ class TestSerializedDagModel:
             yield
         db.clear_db_serialized_dags()
 
-    def test_dag_fileloc_hash(self):
-        """Verifies the correctness of hashing file path."""
-        assert DagCode.dag_fileloc_hash("/airflow/dags/test_dag.py") == 33826252060516589
-
     def _write_example_dags(self):
         example_dags = make_example_dags(example_dags_module)
         for dag in example_dags.values():
             SDM.write_dag(dag)
         return example_dags
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_write_dag(self):
         """DAGs can be written into database"""
         example_dags = self._write_example_dags()
@@ -93,7 +90,39 @@ class TestSerializedDagModel:
                 # Verifies JSON schema.
                 SerializedDAG.validate_schema(result.data)
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
+    def test_write_dag_when_python_callable_name_changes(self, dag_maker, session):
+        def my_callable():
+            pass
+
+        with dag_maker("dag1") as dag:
+            PythonOperator(task_id="task1", python_callable=my_callable)
+        dag.sync_to_db()
+        SDM.write_dag(dag)
+        with dag_maker("dag1") as dag:
+            PythonOperator(task_id="task1", python_callable=lambda x: None)
+        SDM.write_dag(dag)
+        assert len(session.query(DagVersion).all()) == 2
+
+        with dag_maker("dag2") as dag:
+
+            @task_decorator
+            def my_callable():
+                pass
+
+            my_callable()
+        dag.sync_to_db()
+        SDM.write_dag(dag)
+        with dag_maker("dag2") as dag:
+
+            @task_decorator
+            def my_callable2():
+                pass
+
+            my_callable2()
+        SDM.write_dag(dag)
+
+        assert len(session.query(DagVersion).all()) == 4
+
     def test_serialized_dag_is_updated_if_dag_is_changed(self):
         """Test Serialized DAG is updated if DAG is changed"""
         example_dags = make_example_dags(example_dags_module)
@@ -109,7 +138,7 @@ class TestSerializedDagModel:
         s_dag_1 = SDM.get(example_bash_op_dag.dag_id)
 
         assert s_dag_1.dag_hash == s_dag.dag_hash
-        assert s_dag.last_updated == s_dag_1.last_updated
+        assert s_dag.created_at == s_dag_1.created_at
         assert dag_updated is False
 
         # Update DAG
@@ -119,12 +148,11 @@ class TestSerializedDagModel:
         dag_updated = SDM.write_dag(dag=example_bash_op_dag)
         s_dag_2 = SDM.get(example_bash_op_dag.dag_id)
 
-        assert s_dag.last_updated != s_dag_2.last_updated
+        assert s_dag.created_at != s_dag_2.created_at
         assert s_dag.dag_hash != s_dag_2.dag_hash
         assert s_dag_2.data["dag"]["tags"] == ["example", "example2", "new_tag"]
         assert dag_updated is True
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_serialized_dag_is_updated_if_processor_subdir_changed(self):
         """Test Serialized DAG is updated if processor_subdir is changed"""
         example_dags = make_example_dags(example_dags_module)
@@ -141,7 +169,7 @@ class TestSerializedDagModel:
             s_dag_1 = SDM.get(example_bash_op_dag.dag_id)
 
             assert s_dag_1.dag_hash == s_dag.dag_hash
-            assert s_dag.last_updated == s_dag_1.last_updated
+            assert s_dag.created_at == s_dag_1.created_at
             assert dag_updated is False
             session.flush()
 
@@ -152,7 +180,6 @@ class TestSerializedDagModel:
             assert s_dag.processor_subdir != s_dag_2.processor_subdir
             assert dag_updated is True
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_read_dags(self):
         """DAGs can be read from database."""
         example_dags = self._write_example_dags()
@@ -164,7 +191,6 @@ class TestSerializedDagModel:
             assert serialized_dag.dag_id == dag.dag_id
             assert set(serialized_dag.task_dict) == set(dag.task_dict)
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_read_all_dags_only_picks_the_latest_serdags(self, session):
         example_dags = self._write_example_dags()
         serialized_dags = SDM.read_all_dags()
@@ -177,28 +203,6 @@ class TestSerializedDagModel:
         # assert only the latest SDM is returned
         assert len(sdags) != len(serialized_dags2)
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_remove_dags_by_id(self):
-        """DAGs can be removed from database."""
-        example_dags_list = list(self._write_example_dags().values())
-        # Tests removing by dag_id.
-        dag_removed_by_id = example_dags_list[0]
-        SDM.remove_dag(dag_removed_by_id.dag_id)
-        assert not SDM.has_dag(dag_removed_by_id.dag_id)
-
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_remove_dags_by_filepath(self):
-        """DAGs can be removed from database."""
-        example_dags_list = list(self._write_example_dags().values())
-        # Tests removing by file path.
-        dag_removed_by_file = example_dags_list[0]
-        # remove repeated files for those DAGs that define multiple dags in the same file (set comprehension)
-        example_dag_files = list({dag.fileloc for dag in example_dags_list})
-        example_dag_files.remove(dag_removed_by_file.fileloc)
-        SDM.remove_deleted_dags(example_dag_files, processor_subdir="/tmp/test")
-        assert not SDM.has_dag(dag_removed_by_file.dag_id)
-
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_bulk_sync_to_db(self):
         dags = [
             DAG("dag_1", schedule=None),
@@ -207,11 +211,10 @@ class TestSerializedDagModel:
         ]
         DAG.bulk_write_to_db(dags)
         # we also write to dag_version and dag_code tables
-        # in dag_version, we search for unique version_name too
+        # in dag_version.
         with assert_queries_count(24):
             SDM.bulk_sync_to_db(dags)
 
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_order_of_dag_params_is_stable(self):
         """
         This asserts that we have logic in place which guarantees the order
@@ -240,16 +243,16 @@ class TestSerializedDagModel:
                 dag_id="example",
                 start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
                 schedule=[
-                    Asset("1"),
-                    Asset("2"),
-                    Asset("3"),
-                    Asset("4"),
-                    Asset("5"),
+                    Asset(uri="test://asset1", name="1"),
+                    Asset(uri="test://asset2", name="2"),
+                    Asset(uri="test://asset3", name="3"),
+                    Asset(uri="test://asset4", name="4"),
+                    Asset(uri="test://asset5", name="5"),
                 ],
             ) as dag6:
                 BashOperator(
                     task_id="any",
-                    outlets=[Asset("0*"), Asset("6*")],
+                    outlets=[Asset(uri="test://asset0", name="0*"), Asset(uri="test://asset6", name="6*")],
                     bash_command="sleep 5",
                 )
             deps_order = [x["dependency_id"] for x in SerializedDAG.serialize_dag(dag6)["dag_dependencies"]]

@@ -37,7 +37,14 @@ from airflow.providers.cncf.kubernetes.pod_generator import (
 )
 from airflow.providers.cncf.kubernetes.secret import Secret
 
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
 now = pendulum.now("UTC")
+
+if AIRFLOW_V_3_0_PLUS:
+    LOGICAL_DATE_KEY = "logical_date"
+else:
+    LOGICAL_DATE_KEY = "execution_date"
 
 
 class TestPodGenerator:
@@ -70,15 +77,15 @@ class TestPodGenerator:
             Secret("env", "TARGET", "secret_b", "source_b"),
         ]
 
-        self.execution_date = parser.parse("2020-08-24 00:00:00.000000")
-        self.execution_date_label = datetime_to_label_safe_datestring(self.execution_date)
+        self.logical_date = parser.parse("2020-08-24 00:00:00.000000")
+        self.logical_date_label = datetime_to_label_safe_datestring(self.logical_date)
         self.dag_id = "dag_id"
         self.task_id = "task_id"
         self.try_number = 3
         self.labels = {
             "airflow-worker": "uuid",
             "dag_id": self.dag_id,
-            "execution_date": self.execution_date_label,
+            LOGICAL_DATE_KEY: self.logical_date_label,
             "task_id": self.task_id,
             "try_number": str(self.try_number),
             "airflow_version": __version__.replace("+", "-"),
@@ -87,7 +94,7 @@ class TestPodGenerator:
         self.annotations = {
             "dag_id": self.dag_id,
             "task_id": self.task_id,
-            "execution_date": self.execution_date.isoformat(),
+            LOGICAL_DATE_KEY: self.logical_date.isoformat(),
             "try_number": str(self.try_number),
         }
         self.metadata = {
@@ -335,7 +342,7 @@ class TestPodGenerator:
             pod_id="pod_id",
             kube_image=config_image,
             try_number=self.try_number,
-            date=self.execution_date,
+            date=self.logical_date,
             args=["command"],
             pod_override_object=executor_config,
             base_worker_pod=worker_config,
@@ -372,7 +379,7 @@ class TestPodGenerator:
             try_number=self.try_number,
             kube_image="",
             map_index=0,
-            date=self.execution_date,
+            date=self.logical_date,
             args=["command"],
             pod_override_object=None,
             base_worker_pod=worker_config,
@@ -407,7 +414,7 @@ class TestPodGenerator:
             pod_id="pod_id",
             kube_image="test-image",
             try_number=3,
-            date=self.execution_date,
+            date=self.logical_date,
             args=["command"],
             pod_override_object=executor_config,
             base_worker_pod=worker_config,
@@ -447,7 +454,7 @@ class TestPodGenerator:
                 pod_id="pod_id",
                 kube_image="test-image",
                 try_number=3,
-                date=self.execution_date,
+                date=self.logical_date,
                 args=["command"],
                 pod_override_object=executor_config,
                 base_worker_pod=worker_config,
@@ -467,7 +474,7 @@ class TestPodGenerator:
             pod_id="a" * 512,
             kube_image="a" * 512,
             try_number=3,
-            date=self.execution_date,
+            date=self.logical_date,
             args=["command"],
             namespace="namespace",
             scheduler_job_id="a" * 512,
@@ -479,8 +486,8 @@ class TestPodGenerator:
         for v in result.metadata.labels.values():
             assert len(v) <= 63
 
-        assert "a" * 512 == result.metadata.annotations["dag_id"]
-        assert "a" * 512 == result.metadata.annotations["task_id"]
+        assert result.metadata.annotations["dag_id"] == "a" * 512
+        assert result.metadata.annotations["task_id"] == "a" * 512
 
     def test_merge_objects_empty(self):
         annotations = {"foo1": "bar1"}
@@ -699,17 +706,17 @@ class TestPodGenerator:
             pytest.param(dict(map_index=2), {"map_index": "2"}, id="map_index"),
             pytest.param(dict(run_id="2"), {"run_id": "2"}, id="run_id"),
             pytest.param(
-                dict(execution_date=now),
-                {"execution_date": datetime_to_label_safe_datestring(now)},
+                dict(logical_date=now),
+                {LOGICAL_DATE_KEY: datetime_to_label_safe_datestring(now)},
                 id="date",
             ),
             pytest.param(
-                dict(airflow_worker=2, map_index=2, run_id="2", execution_date=now),
+                dict(airflow_worker=2, map_index=2, run_id="2", logical_date=now),
                 {
                     "airflow-worker": "2",
                     "map_index": "2",
                     "run_id": "2",
-                    "execution_date": datetime_to_label_safe_datestring(now),
+                    LOGICAL_DATE_KEY: datetime_to_label_safe_datestring(now),
                 },
                 id="all",
             ),

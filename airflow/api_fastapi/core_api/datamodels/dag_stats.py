@@ -17,8 +17,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel
-
+from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.utils.state import DagRunState
 
 

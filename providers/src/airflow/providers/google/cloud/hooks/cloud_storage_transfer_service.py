@@ -31,9 +31,10 @@ import json
 import logging
 import time
 import warnings
+from collections.abc import Sequence
 from copy import deepcopy
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from google.cloud.storage_transfer_v1 import (
     ListTransferJobsRequest,
@@ -159,15 +160,10 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        if "delegate_to" in kwargs:
-            raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and "
-                "finally removed in this version of Google Provider. You MUST "
-                "convert it to `impersonate_chain`."
-            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
+            **kwargs,
         )
         self.api_version = api_version
         self._conn = None

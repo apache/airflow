@@ -29,6 +29,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.trino.hooks.trino import TrinoHook
 
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
 HOOK_GET_CONNECTION = "airflow.providers.trino.hooks.trino.TrinoHook.get_connection"
 BASIC_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.BasicAuthentication"
 KERBEROS_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.KerberosAuthentication"
@@ -68,10 +70,11 @@ class TestTrinoHookConn:
         mock_get_connection.return_value = Connection(
             login="login", password="password", host="host", schema="hive"
         )
+        date_key = "logical_date" if AIRFLOW_V_3_0_PLUS else "execution_date"
         client = json.dumps(
             {
                 "dag_id": "dag-id",
-                "execution_date": "2022-01-01T00:00:00",
+                date_key: "2022-01-01T00:00:00",
                 "task_id": "task-id",
                 "try_number": "1",
                 "dag_run_id": "dag-run-id",
@@ -345,6 +348,16 @@ class TestTrinoHook:
 
         self.cur.execute.assert_called_once_with(statement, None)
 
+    def test_split_sql_string(self):
+        statement = "SELECT 1; SELECT 2"
+        result_sets = ["SELECT 1", "SELECT 2"]
+        self.cur.fetchall.return_value = result_sets
+
+        assert result_sets == self.db_hook.split_sql_string(
+            sql=statement,
+            strip_semicolon=self.db_hook.strip_semicolon,
+        )
+
     @patch("airflow.providers.trino.hooks.trino.TrinoHook.run")
     def test_run(self, mock_run):
         sql = "SELECT 1"
@@ -368,5 +381,5 @@ class TestTrinoHook:
         assert msg == "Test"
 
     def test_serialize_cell(self):
-        assert "foo" == self.db_hook._serialize_cell("foo", None)
-        assert 1 == self.db_hook._serialize_cell(1, None)
+        assert self.db_hook._serialize_cell("foo", None) == "foo"
+        assert self.db_hook._serialize_cell(1, None) == 1
