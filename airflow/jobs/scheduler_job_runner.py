@@ -1053,6 +1053,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         for run_id, span in self.active_dagrun_spans.get_all().items():
             dag_run: DagRun = session.scalars(select(DagRun).where(DagRun.run_id == run_id)).one()
             if dag_run.state in State.finished_dr_states:
+                dagv = session.scalar(select(DagVersion).where(DagVersion.id == dag_run.dag_version_id))
+                DagRun.set_dagrun_span_attrs(span=span, dag_run=dag_run, dagv=dagv)
+
                 span.end(end_time=datetime_to_nano(dag_run.end_date))
                 dag_run.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
             else:
@@ -1076,6 +1079,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             ).one()
             if ti.state in State.finished:
+                self._set_span_attrs__process_executor_events(span=span, state=ti.state, ti=ti)
                 span.end(end_time=datetime_to_nano(ti.end_date))
                 ti.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
             else:

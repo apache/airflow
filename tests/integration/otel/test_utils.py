@@ -58,7 +58,7 @@ def dump_airflow_metadata_db(session):
 
 def extract_spans_from_output(output_lines: list):
     """
-    For a give list of ConsoleSpanExporter output lines, it extracts the json spans
+    For a given list of ConsoleSpanExporter output lines, it extracts the json spans
     and creates two dictionaries.
     :return: root spans dict (key: root_span_id - value: root_span), spans dict (key: span_id - value: span)
     """
@@ -278,7 +278,7 @@ class TestUtilsUnit:
     "attributes": {
         "airflow.category": "DAG runs",
         "airflow.dag_run.dag_id": "otel_test_dag_with_pause",
-        "airflow.dag_run.execution_date": "2024-11-30 14:01:15+00:00",
+        "airflow.dag_run.logical_date": "2024-11-30 14:01:15+00:00",
         "airflow.dag_run.run_id": "manual__2024-11-30T14:01:15.333003+00:00",
         "airflow.dag_run.queued_at": "2024-11-30 14:01:21.738052+00:00",
         "airflow.dag_run.run_start_date": "2024-11-30 14:01:22.192655+00:00",
@@ -344,7 +344,7 @@ class TestUtilsUnit:
         "airflow.task.end_date": "2024-11-30 14:01:34.339423+00:00",
         "airflow.task.duration": 10.871376,
         "airflow.task.executor_config": "{}",
-        "airflow.task.execution_date": "2024-11-30 14:01:15+00:00",
+        "airflow.task.logical_date": "2024-11-30 14:01:15+00:00",
         "airflow.task.hostname": "351295342ba2",
         "airflow.task.log_url": "http://localhost:8080/dags/otel_test_dag_with_pause/grid?dag_run_id=manual__2024-11-30T14%3A01%3A15.333003%2B00%3A00&task_id=task_1&base_date=2024-11-30T14%3A01%3A15%2B0000&tab=logs",
         "airflow.task.operator": "PythonOperator",
@@ -457,7 +457,7 @@ class TestUtilsUnit:
         "airflow.task.end_date": "2024-11-30 14:01:36.002687+00:00",
         "airflow.task.duration": 0.130369,
         "airflow.task.executor_config": "{}",
-        "airflow.task.execution_date": "2024-11-30 14:01:15+00:00",
+        "airflow.task.logical_date": "2024-11-30 14:01:15+00:00",
         "airflow.task.hostname": "351295342ba2",
         "airflow.task.log_url": "http://localhost:8080/dags/otel_test_dag_with_pause/grid?dag_run_id=manual__2024-11-30T14%3A01%3A15.333003%2B00%3A00&task_id=task_2&base_date=2024-11-30T14%3A01%3A15%2B0000&tab=logs",
         "airflow.task.operator": "PythonOperator",
