@@ -47,6 +47,7 @@ class AssetAliasSchema(BaseModel):
 
     id: int
     name: str
+    group: str
 
 
 class AssetResponse(BaseModel):

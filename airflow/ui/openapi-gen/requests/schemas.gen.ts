@@ -99,9 +99,13 @@ export const $AssetAliasSchema = {
       type: "string",
       title: "Name",
     },
+    group: {
+      type: "string",
+      title: "Group",
+    },
   },
   type: "object",
-  required: ["id", "name"],
+  required: ["id", "name", "group"],
   title: "AssetAliasSchema",
   description: "Asset alias serializer for assets.",
 } as const;
