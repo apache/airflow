@@ -23,7 +23,7 @@ from io import StringIO as StringBuffer
 import pytest
 
 from airflow.decorators import setup, task, teardown
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
 from airflow.utils import timezone
@@ -332,28 +332,6 @@ class TestDockerDecorator:
         last_line_of_docker_operator_log = log_content.splitlines()[-1]
         assert "ValueError: This task is expected to fail" in last_line_of_docker_operator_log
 
-    @pytest.mark.parametrize(
-        "serializer",
-        [
-            pytest.param("pickle", id="pickle"),
-            pytest.param("dill", marks=DILL_MARKER, id="dill"),
-            pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
-        ],
-    )
-    def test_ambiguous_serializer(self, dag_maker, serializer):
-        @task.docker(image="python:3.9-slim", auto_remove="force", use_dill=True, serializer=serializer)
-        def f():
-            pass
-
-        with dag_maker():
-            with pytest.warns(
-                AirflowProviderDeprecationWarning, match="`use_dill` is deprecated and will be removed"
-            ):
-                with pytest.raises(
-                    AirflowException, match="Both 'use_dill' and 'serializer' parameters are set"
-                ):
-                    f()
-
     def test_invalid_serializer(self, dag_maker):
         @task.docker(image="python:3.9-slim", auto_remove="force", serializer="airflow")
         def f():
@@ -413,16 +391,3 @@ class TestDockerDecorator:
 
         with dag_maker():
             f()
-
-    @DILL_MARKER
-    def test_add_dill_use_dill(self, dag_maker):
-        @task.docker(image="python:3.9-slim", auto_remove="force", use_dill=True)
-        def f():
-            """Ensure dill is correctly installed."""
-            import dill  # noqa: F401
-
-        with dag_maker():
-            with pytest.warns(
-                AirflowProviderDeprecationWarning, match="`use_dill` is deprecated and will be removed"
-            ):
-                f()

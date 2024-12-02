@@ -29,7 +29,6 @@ from docker.types import DeviceRequest, LogConfig, Mount, Ulimit
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.docker.exceptions import DockerContainerFailedException
 from airflow.providers.docker.operators.docker import DockerOperator, fetch_logs
-from airflow.utils.task_instance_session import set_current_task_instance_session
 
 TEST_CONN_ID = "docker_test_connection"
 TEST_DOCKER_URL = "unix://var/run/docker.test.sock"
@@ -750,49 +749,6 @@ class TestDockerOperator:
         with pytest.raises(ValueError, match="Invalid `auto_remove` value"):
             DockerOperator(task_id="test", image="test", auto_remove=auto_remove)
 
-    @pytest.mark.parametrize(
-        "skip_exit_code, skip_on_exit_code, expected",
-        [
-            pytest.param(101, None, [101], id="skip-on-exit-code-not-set"),
-            pytest.param(102, 102, [102], id="skip-on-exit-code-same"),
-        ],
-    )
-    def test_skip_exit_code_fallback(self, skip_exit_code, skip_on_exit_code, expected):
-        warning_match = "`skip_exit_code` is deprecated and will be removed in the future."
-
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
-            op = DockerOperator(
-                task_id="test",
-                image="test",
-                skip_exit_code=skip_exit_code,
-                skip_on_exit_code=skip_on_exit_code,
-            )
-            assert op.skip_on_exit_code == expected
-
-    @pytest.mark.parametrize(
-        "skip_exit_code, skip_on_exit_code",
-        [
-            pytest.param(103, 0, id="skip-on-exit-code-zero"),
-            pytest.param(104, 105, id="skip-on-exit-code-not-same"),
-        ],
-    )
-    def test_skip_exit_code_invalid(self, skip_exit_code, skip_on_exit_code):
-        warning_match = "`skip_exit_code` is deprecated and will be removed in the future."
-        error_match = "Conflicting `skip_on_exit_code` provided"
-
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
-            with pytest.raises(ValueError, match=error_match):
-                DockerOperator(task_id="test", image="test", skip_exit_code=103, skip_on_exit_code=104)
-
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
-            with pytest.raises(ValueError, match=error_match):
-                DockerOperator(
-                    task_id="test",
-                    image="test",
-                    skip_exit_code=skip_exit_code,
-                    skip_on_exit_code=skip_on_exit_code,
-                )
-
     def test_respect_docker_host_env(self, monkeypatch):
         monkeypatch.setenv("DOCKER_HOST", "tcp://docker-host-from-env:2375")
         operator = DockerOperator(task_id="test", image="test")
@@ -809,62 +765,6 @@ class TestDockerOperator:
         monkeypatch.delenv("DOCKER_HOST", raising=False)
         operator = DockerOperator(task_id="test", image="test")
         assert operator.docker_url == "unix://var/run/docker.sock"
-
-    @pytest.mark.db_test
-    @pytest.mark.parametrize(
-        "skip_exit_code, skip_on_exit_code, expected",
-        [
-            pytest.param(101, None, [101], id="skip-on-exit-code-not-set"),
-            pytest.param(102, 102, [102], id="skip-on-exit-code-same"),
-        ],
-    )
-    def test_partial_deprecated_skip_exit_code(
-        self, skip_exit_code, skip_on_exit_code, expected, dag_maker, session
-    ):
-        with dag_maker(dag_id="test_partial_deprecated_skip_exit_code", session=session):
-            DockerOperator.partial(
-                task_id="fake-task-id",
-                skip_exit_code=skip_exit_code,
-                skip_on_exit_code=skip_on_exit_code,
-            ).expand(image=["test", "apache/airflow"])
-
-        dr = dag_maker.create_dagrun()
-        tis = dr.get_task_instances(session=session)
-        with set_current_task_instance_session(session=session):
-            warning_match = r"`skip_exit_code` is deprecated and will be removed"
-            for ti in tis:
-                with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
-                    ti.render_templates()
-                assert ti.task.skip_on_exit_code == expected
-
-    @pytest.mark.db_test
-    @pytest.mark.parametrize(
-        "skip_exit_code, skip_on_exit_code",
-        [
-            pytest.param(103, 0, id="skip-on-exit-code-zero"),
-            pytest.param(104, 105, id="skip-on-exit-code-not-same"),
-        ],
-    )
-    def test_partial_deprecated_skip_exit_code_ambiguous(
-        self, skip_exit_code, skip_on_exit_code, dag_maker, session
-    ):
-        with dag_maker("test_partial_deprecated_skip_exit_code_ambiguous", session=session):
-            DockerOperator.partial(
-                task_id="fake-task-id",
-                skip_exit_code=skip_exit_code,
-                skip_on_exit_code=skip_on_exit_code,
-            ).expand(image=["test", "apache/airflow"])
-
-        dr = dag_maker.create_dagrun(session=session)
-        tis = dr.get_task_instances(session=session)
-        with set_current_task_instance_session(session=session):
-            warning_match = r"`skip_exit_code` is deprecated and will be removed"
-            for ti in tis:
-                with (
-                    pytest.warns(AirflowProviderDeprecationWarning, match=warning_match),
-                    pytest.raises(ValueError, match="Conflicting `skip_on_exit_code` provided"),
-                ):
-                    ti.render_templates()
 
     @pytest.mark.parametrize(
         "log_lines, expected_lines",
