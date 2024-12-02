@@ -206,12 +206,12 @@ class TestElasticsearchTaskHandler:
             ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
         )
 
-        assert 1 == len(logs)
+        assert len(logs) == 1
         assert len(logs) == len(metadatas)
         assert len(logs[0]) == 1
         assert self.test_message == logs[0][0][-1]
         assert not metadatas[0]["end_of_log"]
-        assert "1" == metadatas[0]["offset"]
+        assert metadatas[0]["offset"] == "1"
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
 
     def test_read_with_patterns(self, ti):
@@ -221,12 +221,12 @@ class TestElasticsearchTaskHandler:
                 ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
             )
 
-        assert 1 == len(logs)
+        assert len(logs) == 1
         assert len(logs) == len(metadatas)
         assert len(logs[0]) == 1
         assert self.test_message == logs[0][0][-1]
         assert not metadatas[0]["end_of_log"]
-        assert "1" == metadatas[0]["offset"]
+        assert metadatas[0]["offset"] == "1"
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
 
     def test_read_with_patterns_no_match(self, ti):
@@ -236,11 +236,11 @@ class TestElasticsearchTaskHandler:
                 ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
             )
 
-        assert 1 == len(logs)
+        assert len(logs) == 1
         assert len(logs) == len(metadatas)
-        assert [[]] == logs
+        assert logs == [[]]
         assert not metadatas[0]["end_of_log"]
-        assert "0" == metadatas[0]["offset"]
+        assert metadatas[0]["offset"] == "0"
         # last_log_timestamp won't change if no log lines read.
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
 
@@ -267,7 +267,7 @@ class TestElasticsearchTaskHandler:
         ts = pendulum.now().add(seconds=-seconds)
         logs, metadatas = self.es_task_handler.read(ti, 1, {"offset": 0, "last_log_timestamp": str(ts)})
 
-        assert 1 == len(logs)
+        assert len(logs) == 1
         if seconds > 5:
             # we expect a log not found message when checking began more than 5 seconds ago
             assert len(logs[0]) == 1
@@ -281,7 +281,7 @@ class TestElasticsearchTaskHandler:
             assert logs == [[]]
             assert metadatas[0]["end_of_log"] is False
         assert len(logs) == len(metadatas)
-        assert "0" == metadatas[0]["offset"]
+        assert metadatas[0]["offset"] == "0"
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
 
     def test_read_with_match_phrase_query(self, ti):
@@ -298,22 +298,22 @@ class TestElasticsearchTaskHandler:
         logs, metadatas = self.es_task_handler.read(
             ti, 1, {"offset": "0", "last_log_timestamp": str(ts), "end_of_log": False, "max_offset": 2}
         )
-        assert 1 == len(logs)
+        assert len(logs) == 1
         assert len(logs) == len(metadatas)
         assert self.test_message == logs[0][0][-1]
         assert another_test_message != logs[0]
 
         assert not metadatas[0]["end_of_log"]
-        assert "1" == metadatas[0]["offset"]
+        assert metadatas[0]["offset"] == "1"
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
 
     def test_read_with_none_metadata(self, ti):
         logs, metadatas = self.es_task_handler.read(ti, 1)
-        assert 1 == len(logs)
+        assert len(logs) == 1
         assert len(logs) == len(metadatas)
         assert self.test_message == logs[0][0][-1]
         assert not metadatas[0]["end_of_log"]
-        assert "1" == metadatas[0]["offset"]
+        assert metadatas[0]["offset"] == "1"
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) < pendulum.now()
 
     def test_read_nonexistent_log(self, ti):
@@ -325,23 +325,23 @@ class TestElasticsearchTaskHandler:
         logs, metadatas = self.es_task_handler.read(
             ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
         )
-        assert 1 == len(logs)
+        assert len(logs) == 1
         assert len(logs) == len(metadatas)
-        assert [[]] == logs
+        assert logs == [[]]
         assert not metadatas[0]["end_of_log"]
-        assert "0" == metadatas[0]["offset"]
+        assert metadatas[0]["offset"] == "0"
         # last_log_timestamp won't change if no log lines read.
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
 
     def test_read_with_empty_metadata(self, ti):
         ts = pendulum.now()
         logs, metadatas = self.es_task_handler.read(ti, 1, {})
-        assert 1 == len(logs)
+        assert len(logs) == 1
         assert len(logs) == len(metadatas)
         assert self.test_message == logs[0][0][-1]
         assert not metadatas[0]["end_of_log"]
         # offset should be initialized to 0 if not provided.
-        assert "1" == metadatas[0]["offset"]
+        assert metadatas[0]["offset"] == "1"
         # last_log_timestamp will be initialized using log reading time
         # if not last_log_timestamp is provided.
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
@@ -349,12 +349,12 @@ class TestElasticsearchTaskHandler:
         # case where offset is missing but metadata not empty.
         self.es.delete(index=self.index_name, doc_type=self.doc_type, id=1)
         logs, metadatas = self.es_task_handler.read(ti, 1, {"end_of_log": False})
-        assert 1 == len(logs)
+        assert len(logs) == 1
         assert len(logs) == len(metadatas)
-        assert [[]] == logs
+        assert logs == [[]]
         assert not metadatas[0]["end_of_log"]
         # offset should be initialized to 0 if not provided.
-        assert "0" == metadatas[0]["offset"]
+        assert metadatas[0]["offset"] == "0"
         # last_log_timestamp will be initialized using log reading time
         # if not last_log_timestamp is provided.
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
@@ -376,9 +376,9 @@ class TestElasticsearchTaskHandler:
                 "end_of_log": False,
             },
         )
-        assert 1 == len(logs)
+        assert len(logs) == 1
         assert len(logs) == len(metadatas)
-        assert [[]] == logs
+        assert logs == [[]]
         assert metadatas[0]["end_of_log"]
         assert str(offset) == metadatas[0]["offset"]
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) == ts
@@ -390,13 +390,13 @@ class TestElasticsearchTaskHandler:
             1,
             {"offset": 0, "last_log_timestamp": str(ts), "download_logs": True, "end_of_log": False},
         )
-        assert 1 == len(logs)
+        assert len(logs) == 1
         assert len(logs) == len(metadatas)
         assert len(logs[0]) == 1
         assert self.test_message == logs[0][0][-1]
         assert not metadatas[0]["end_of_log"]
         assert metadatas[0]["download_logs"]
-        assert "1" == metadatas[0]["offset"]
+        assert metadatas[0]["offset"] == "1"
         assert timezone.parse(metadatas[0]["last_log_timestamp"]) > ts
 
     def test_read_raises(self, ti):
@@ -407,11 +407,11 @@ class TestElasticsearchTaskHandler:
             assert mock_exception.call_count == 1
             args, kwargs = mock_exception.call_args
             assert "Could not read log with log_id:" in args[0]
-        assert 1 == len(logs)
+        assert len(logs) == 1
         assert len(logs) == len(metadatas)
-        assert [[]] == logs
+        assert logs == [[]]
         assert not metadatas[0]["end_of_log"]
-        assert "0" == metadatas[0]["offset"]
+        assert metadatas[0]["offset"] == "0"
 
     def test_set_context(self, ti):
         self.es_task_handler.set_context(ti)
@@ -447,7 +447,7 @@ class TestElasticsearchTaskHandler:
         logs, _ = self.es_task_handler.read(
             ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
         )
-        assert "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - " == logs[0][0][1]
+        assert logs[0][0][1] == "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - "
 
     def test_read_with_json_format_with_custom_offset_and_host_fields(self, ti):
         ts = pendulum.now()
@@ -475,7 +475,7 @@ class TestElasticsearchTaskHandler:
         logs, _ = self.es_task_handler.read(
             ti, 1, {"offset": 0, "last_log_timestamp": str(ts), "end_of_log": False}
         )
-        assert "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - " == logs[0][0][1]
+        assert logs[0][0][1] == "[2020-12-24 19:25:00,962] {taskinstance.py:851} INFO - some random stuff - "
 
     def test_read_with_custom_offset_and_host_fields(self, ti):
         ts = pendulum.now()
@@ -531,7 +531,7 @@ class TestElasticsearchTaskHandler:
         with open(
             os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
         ) as log_file:
-            assert 0 == len(log_file.read())
+            assert len(log_file.read()) == 0
 
     def test_close_with_no_handler(self, ti):
         self.es_task_handler.set_context(ti)
@@ -540,7 +540,7 @@ class TestElasticsearchTaskHandler:
         with open(
             os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
         ) as log_file:
-            assert 0 == len(log_file.read())
+            assert len(log_file.read()) == 0
         assert self.es_task_handler.closed
 
     def test_close_with_no_stream(self, ti):
@@ -563,14 +563,14 @@ class TestElasticsearchTaskHandler:
         assert self.es_task_handler.closed
 
     def test_render_log_id(self, ti):
-        assert self.LOG_ID == self.es_task_handler._render_log_id(ti, 1)
+        assert self.es_task_handler._render_log_id(ti, 1) == self.LOG_ID
 
         self.es_task_handler.json_format = True
-        assert self.JSON_LOG_ID == self.es_task_handler._render_log_id(ti, 1)
+        assert self.es_task_handler._render_log_id(ti, 1) == self.JSON_LOG_ID
 
     def test_clean_date(self):
         clean_logical_date = self.es_task_handler._clean_date(datetime(2016, 7, 8, 9, 10, 11, 12))
-        assert "2016_07_08T09_10_11_000012" == clean_logical_date
+        assert clean_logical_date == "2016_07_08T09_10_11_000012"
 
     @pytest.mark.parametrize(
         "json_format, es_frontend, expected_url",

@@ -180,3 +180,5 @@ def downgrade():
 
         with op.batch_alter_table("xcom", schema=None) as batch_op:
             batch_op.drop_column("value_old")
+
+    op.execute(sa.text("DROP TABLE IF EXISTS _xcom_archive"))

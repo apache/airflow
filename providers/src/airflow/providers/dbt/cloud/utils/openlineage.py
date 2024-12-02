@@ -39,14 +39,14 @@ _AIRFLOW_VERSION: Version = parse(parse(airflow_version).base_version)
 
 def _get_logical_date(task_instance):
     # todo: remove when min airflow version >= 3.0
-    if _AIRFLOW_VERSION < parse("3"):
+    if parse("3") > _AIRFLOW_VERSION:
         return task_instance.execution_date
     return task_instance.logical_date
 
 
 def _get_try_number(val):
     # todo: remove when min airflow version >= 2.10.0
-    if _AIRFLOW_VERSION < parse("2.10.0"):
+    if parse("2.10.0") > _AIRFLOW_VERSION:
         return val.try_number - 1
     else:
         return val.try_number

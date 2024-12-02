@@ -228,10 +228,13 @@ class TestJob:
         job.latest_heartbeat = timezone.utcnow() - datetime.timedelta(seconds=10)
         assert job.is_alive() is False, "Completed jobs even with recent heartbeat should not be alive"
 
-    def test_heartbeat_failed(self, caplog):
+    @patch("airflow.jobs.job.create_session")
+    def test_heartbeat_failed(self, mock_create_session, caplog):
         when = timezone.utcnow() - datetime.timedelta(seconds=60)
-        mock_session = Mock(name="MockSession")
-        mock_session.commit.side_effect = OperationalError("Force fail", {}, None)
+        with create_session() as session:
+            mock_session = Mock(spec_set=session, name="MockSession")
+            mock_create_session.return_value.__enter__.return_value = mock_session
+            mock_session.commit.side_effect = OperationalError("Force fail", {}, None)
         job = Job(heartrate=10, state=State.RUNNING)
         job.latest_heartbeat = when
         with caplog.at_level(logging.ERROR):

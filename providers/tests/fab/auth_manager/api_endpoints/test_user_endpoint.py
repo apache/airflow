@@ -211,12 +211,12 @@ class TestGetUser(TestUserEndpoint):
             "/auth/fab/v1/users/invalid-user", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "The User with username `invalid-user` was not found",
             "status": 404,
             "title": "User not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get("/auth/fab/v1/users/TEST_USER1")

@@ -241,7 +241,7 @@ class TestPatchVariable(TestVariableEndpoint):
         )
         assert response.status_code == 400
         body = response.json()
-        assert "Invalid body, key from request body doesn't match uri parameter" == body["detail"]
+        assert body["detail"] == "Invalid body, key from request body doesn't match uri parameter"
 
     def test_patch_should_respond_404(self, test_client):
         response = test_client.patch(

@@ -291,7 +291,6 @@ TEST_TYPE_MATCHES = HashableDict(
         SelectiveCoreTestType.API: [
             r"^airflow/api/",
             r"^airflow/api_connexion/",
-            r"^airflow/api_internal/",
             r"^airflow/api_fastapi/",
             r"^tests/api/",
             r"^tests/api_connexion/",
@@ -1326,10 +1325,10 @@ class SelectiveChecks:
         """
         return any(
             [
-                "amd" == label.lower()
-                or "amd64" == label.lower()
-                or "x64" == label.lower()
-                or "asf-runner" == label
+                label.lower() == "amd"
+                or label.lower() == "amd64"
+                or label.lower() == "x64"
+                or label == "asf-runner"
                 or ("ubuntu" in label and "arm" not in label.lower())
                 for label in json.loads(self.runs_on_as_json_public)
             ]
@@ -1346,7 +1345,7 @@ class SelectiveChecks:
         """
         return any(
             [
-                "arm" == label.lower() or "arm64" == label.lower() or "asf-arm" == label
+                label.lower() == "arm" or label.lower() == "arm64" or label == "asf-arm"
                 for label in json.loads(self.runs_on_as_json_public)
             ]
         )

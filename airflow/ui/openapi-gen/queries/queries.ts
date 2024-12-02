@@ -38,6 +38,7 @@ import {
   BackfillPostBody,
   ClearTaskInstancesBody,
   ConnectionBody,
+  ConnectionBulkBody,
   CreateAssetEventsBody,
   DAGPatchBody,
   DAGRunClearBody,
@@ -2533,7 +2534,7 @@ export const useVariableServiceGetVariables = <
   });
 /**
  * Get Health
- * @returns HealthInfoSchema Successful Response
+ * @returns HealthInfoResponse Successful Response
  * @throws ApiError
  */
 export const useMonitorServiceGetHealth = <
@@ -2680,6 +2681,45 @@ export const useConnectionServicePostConnection = <
   >({
     mutationFn: ({ requestBody }) =>
       ConnectionService.postConnection({
+        requestBody,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Post Connections
+ * Create connection entry.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns ConnectionCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useConnectionServicePostConnections = <
+  TData = Common.ConnectionServicePostConnectionsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: ConnectionBulkBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: ConnectionBulkBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      ConnectionService.postConnections({
         requestBody,
       }) as unknown as Promise<TData>,
     ...options,

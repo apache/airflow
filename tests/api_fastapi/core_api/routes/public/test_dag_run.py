@@ -1006,8 +1006,8 @@ class TestGetDagRunAssetTriggerEvents:
         )
         assert response.status_code == 404
         assert (
-            "The DagRun with dag_id: `invalid-id` and run_id: `invalid-run-id` was not found"
-            == response.json()["detail"]
+            response.json()["detail"]
+            == "The DagRun with dag_id: `invalid-id` and run_id: `invalid-run-id` was not found"
         )
 
 

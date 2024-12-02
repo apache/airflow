@@ -73,7 +73,12 @@ def initial_db_init():
     from airflow.www.extensions.init_appbuilder import init_appbuilder
     from airflow.www.extensions.init_auth_manager import get_auth_manager
 
+    from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
     db.resetdb()
+    if AIRFLOW_V_3_0_PLUS:
+        db.downgrade(to_revision="5f2621c13b39")
+        db.upgradedb(to_revision="head")
     _bootstrap_dagbag()
     # minimal app to add roles
     flask_app = Flask(__name__)

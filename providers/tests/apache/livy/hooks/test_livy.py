@@ -341,7 +341,7 @@ class TestLivyDbHook:
 
     def test_parse_post_response(self):
         res_id = LivyHook._parse_post_response({"id": BATCH_ID, "log": []})
-        assert BATCH_ID == res_id
+        assert res_id == BATCH_ID
 
     def test_delete_batch_success(self, requests_mock):
         requests_mock.register_uri(
@@ -749,7 +749,7 @@ class TestLivyAsyncHook:
     def test_parse_post_response(self):
         res_id = LivyAsyncHook._parse_post_response({"id": BATCH_ID, "log": []})
 
-        assert BATCH_ID == res_id
+        assert res_id == BATCH_ID
 
     @pytest.mark.parametrize("valid_size", ["1m", "1mb", "1G", "1GB", "1Gb", None])
     def test_validate_size_format_success(self, valid_size):
@@ -802,8 +802,9 @@ class TestLivyAsyncHook:
             LivyAsyncHook._validate_extra_conf(conf)
 
     def test_parse_request_response(self):
-        assert BATCH_ID == LivyAsyncHook._parse_request_response(
-            response={"id": BATCH_ID, "log": []}, parameter="id"
+        assert (
+            LivyAsyncHook._parse_request_response(response={"id": BATCH_ID, "log": []}, parameter="id")
+            == BATCH_ID
         )
 
     @pytest.mark.parametrize("conn_id", [100, 0])

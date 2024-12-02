@@ -34,7 +34,7 @@ class TestElasticsearchSecret:
             show_only=["templates/secrets/elasticsearch-secret.yaml"],
         )
 
-        assert 0 == len(docs)
+        assert len(docs) == 0
 
     def test_should_raise_error_when_connection_not_provided(self):
         with pytest.raises(CalledProcessError) as ex_ctx:
@@ -95,8 +95,9 @@ class TestElasticsearchSecret:
         )
 
         assert (
-            "http://username%21%40%23$%25%25%5E&%2A%28%29:password%21%40%23$%25%25%5E&%2A%28%29@"
-            "elastichostname:9200" == connection
+            connection
+            == "http://username%21%40%23$%25%25%5E&%2A%28%29:password%21%40%23$%25%25%5E&%2A%28%29@"
+            "elastichostname:9200"
         )
 
     def test_should_generate_secret_with_specified_port(self):
@@ -114,7 +115,7 @@ class TestElasticsearchSecret:
             }
         )
 
-        assert "http://username:password@elastichostname:2222" == connection
+        assert connection == "http://username:password@elastichostname:2222"
 
     @pytest.mark.parametrize("scheme", ["http", "https"])
     def test_should_generate_secret_with_specified_schemes(self, scheme):
@@ -158,6 +159,6 @@ class TestElasticsearchSecret:
         )
 
         if not expected_user_info:
-            assert "http://elastichostname:8080" == connection
+            assert connection == "http://elastichostname:8080"
         else:
             assert f"http://{expected_user_info}@elastichostname:8080" == connection
