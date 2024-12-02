@@ -56,7 +56,7 @@ class BaseDagBundle(ABC):
 
         This is the root path, shared by various bundles. Each bundle should have its own subdirectory.
         """
-        if configured_location := conf.get("core", "dag_bundle_storage_path"):
+        if configured_location := conf.get("core", "dag_bundle_storage_path", fallback=None):
             return Path(configured_location)
         return Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 

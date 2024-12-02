@@ -23,6 +23,7 @@ from pathlib import Path
 import pytest
 from git import Repo
 
+from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.git import GitDagBundle
 from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.exceptions import AirflowException
@@ -39,6 +40,22 @@ def bundle_temp_dir(tmp_path):
 def test_default_dag_storage_path():
     with conf_vars({("core", "dag_bundle_storage_path"): ""}):
         bundle = LocalDagBundle(name="test", local_folder="/hello")
+        assert bundle._dag_bundle_root_storage_path == Path(tempfile.gettempdir(), "airflow", "dag_bundles")
+
+
+def test_dag_bundle_root_storage_path():
+    class BasicBundle(BaseDagBundle):
+        def refresh(self):
+            pass
+
+        def get_current_version(self):
+            pass
+
+        def path(self):
+            pass
+
+    with conf_vars({("core", "dag_bundle_storage_path"): None}):
+        bundle = BasicBundle(name="test")
         assert bundle._dag_bundle_root_storage_path == Path(tempfile.gettempdir(), "airflow", "dag_bundles")
 
 
