@@ -1641,6 +1641,92 @@ class TestCloudSqlProxyRunner:
         )
         with pytest.raises(ValueError, match="The sql_proxy_version should match the regular expression"):
             runner._get_sql_proxy_download_url()
+    
+    @pytest.mark.parametrize(
+        ["impersonation_chain", "expected_params"],
+        [
+            (
+                "sa@project.iam.gserviceaccount.com",
+                ["--impersonate-service-account", "sa@project.iam.gserviceaccount.com"],
+            ),
+            (
+                ["sa1@proj.iam", "sa2@proj.iam"],
+                ["--impersonate-service-account", "sa2@proj.iam"],
+            ),
+            (None, []),
+        ],
+    )
+    def test_get_credential_parameters_impersonation(
+        self, impersonation_chain, expected_params
+    ):
+        """Test impersonation in credential parameters"""
+        runner = CloudSqlProxyRunner(
+            path_prefix="test",
+            instance_specification="proj:region:instance",
+            impersonation_chain=impersonation_chain,
+            sql_proxy_version="v2.0.0",
+        )
+        
+        cred_params = runner._get_credential_parameters()
+        print(f"Expected: {expected_params}")
+        print(f"Got: {cred_params}")
+        
+        if impersonation_chain:
+            assert all(param in cred_params for param in expected_params)
+        else:
+            assert not any("impersonate-service-account" in param for param in cred_params)
+
+    @pytest.mark.parametrize(
+        ["version", "auth_type", "expected_prefix"],
+        [
+            ("v2.0.0", "impersonation", "--impersonate-service-account"),
+            ("v2.0.0", "key_path", "--credential-file"),
+            ("v1.0.0", "impersonation", "-impersonate-service-account"),
+            ("v1.0.0", "key_path", "-credential-file"),
+        ],
+    )
+    def test_credential_params_versioning(
+        self, version, auth_type, expected_prefix
+    ):
+        """Test credential parameter formatting for different versions"""
+        runner = CloudSqlProxyRunner(
+            path_prefix="test",
+            instance_specification="proj:region:instance",
+            sql_proxy_version=version,
+            impersonation_chain="sa@project.iam" if auth_type == "impersonation" else None,
+        )
+        
+        with mock.patch("airflow.providers.google.cloud.hooks.cloud_sql.get_field") as mock_get_field:
+            mock_get_field.return_value = "/path/to/key.json" if auth_type == "key_path" else None
+            cred_params = runner._get_credential_parameters()
+            
+            assert expected_prefix in " ".join(cred_params)
+
+    def test_v2_command_parameters(self):
+        """Test v2 specific command parameters"""
+        runner = CloudSqlProxyRunner(
+            path_prefix="test",
+            instance_specification="proj:region:instance",
+            sql_proxy_version="v2.0.0",
+        )
+        runner._build_command_line_parameters()
+        params = runner.command_line_parameters
+        assert "--dir" in params
+        assert "--instance-connection-name" in params
+        assert "-instances" not in params
+
+    def test_v1_command_parameters(self):
+        """Test v1 backward compatibility"""
+        runner = CloudSqlProxyRunner(
+            path_prefix="test",
+            instance_specification="proj:region:instance",
+            sql_proxy_version="v1.0.0",
+        )
+        runner._build_command_line_parameters()
+        params = runner.command_line_parameters
+        assert "-dir" in params
+        assert "-instances" in params
+        assert "--instance-connection-name" not in params
 
 
 class TestCloudSQLAsyncHook:

@@ -715,6 +715,103 @@ class TestCloudSql:
             project_id=None, instance=INSTANCE_NAME, body=IMPORT_BODY
         )
         assert result
+    
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLHook")
+    def test_instance_impersonation(self, mock_hook):
+        """Test instance operations with impersonation"""
+        mock_hook.return_value.create_instance.return_value = True
+        op = CloudSQLCreateInstanceOperator(
+            project_id=PROJECT_ID, 
+            instance=INSTANCE_NAME, 
+            body=CREATE_BODY, 
+            task_id="id",
+            impersonation_chain="test-sa@project.iam.gserviceaccount.com",
+        )
+        op.execute(context=mock.MagicMock())
+        mock_hook.assert_called_once_with(
+            api_version="v1beta4",
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain="test-sa@project.iam.gserviceaccount.com",
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLHook")
+    def test_instance_impersonation_chain(self, mock_hook):
+        """Test instance operations with impersonation chain"""
+        mock_hook.return_value.create_instance.return_value = True
+        impersonation_chain = ["sa1@proj.iam", "sa2@proj.iam"]
+        op = CloudSQLCreateInstanceOperator(
+            project_id=PROJECT_ID, 
+            instance=INSTANCE_NAME, 
+            body=CREATE_BODY, 
+            task_id="id",
+            impersonation_chain=impersonation_chain,
+        )
+        op.execute(context=mock.MagicMock())
+        mock_hook.assert_called_once_with(
+            api_version="v1beta4",
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=impersonation_chain,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLCreateInstanceOperator._check_if_instance_exists")
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLHook")
+    def test_instance_with_proxy_version(self, mock_hook, mock_check_instance):
+        """Test hook creation with proxy version from connection"""
+        mock_check_instance.return_value = False  # Instance doesn't exist, so create will be called
+        
+        mock_hook_instance = mock_hook.return_value
+        mock_hook_instance.create_instance.return_value = True
+        mock_hook_instance.proxy_version = 'v2.0.0'
+
+        connection = Connection(
+            extra={
+                'proxy_version': 'v2.0.0'
+            }
+        )
+        
+        with mock.patch('airflow.hooks.base.BaseHook.get_connection', return_value=connection):
+            op = CloudSQLCreateInstanceOperator(
+                project_id=PROJECT_ID, 
+                instance=INSTANCE_NAME, 
+                body=CREATE_BODY, 
+                task_id="id",
+                impersonation_chain="test-sa@project.iam.gserviceaccount.com",
+            )
+            op.execute(context=mock.MagicMock())
+            
+            # Verify hook creation
+            mock_hook.assert_called_once_with(
+                api_version="v1beta4",
+                gcp_conn_id="google_cloud_default",
+                impersonation_chain="test-sa@project.iam.gserviceaccount.com",
+            )
+            
+            # Verify proxy version
+            assert mock_hook_instance.proxy_version == 'v2.0.0'
+
+            # Verify instance creation was called
+            mock_hook_instance.create_instance.assert_called_once_with(
+                project_id=PROJECT_ID,
+                body=CREATE_BODY
+            )
+
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLHook")
+    def test_execute_with_invalid_impersonation_chain(self, mock_hook):
+        """Test invalid impersonation chain handling"""
+        mock_hook.side_effect = TypeError("Impersonation chain must be either string or Sequence")
+        
+        op = CloudSQLCreateInstanceOperator(
+            project_id=PROJECT_ID,
+            instance=INSTANCE_NAME,
+            body=CREATE_BODY,
+            task_id="id",
+            impersonation_chain={},  # Invalid type
+        )
+        
+        with pytest.raises(TypeError) as ctx:
+            op.execute(context=mock.MagicMock())
+        
+        assert "Impersonation chain must be" in str(ctx.value)
 
 
 class TestCloudSqlQueryValidation:
