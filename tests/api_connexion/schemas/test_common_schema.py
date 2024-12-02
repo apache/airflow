@@ -33,7 +33,7 @@ class TestTimeDeltaSchema:
         instance = datetime.timedelta(days=12)
         schema_instance = TimeDeltaSchema()
         result = schema_instance.dump(instance)
-        assert {"__type": "TimeDelta", "days": 12, "seconds": 0, "microseconds": 0} == result
+        assert result == {"__type": "TimeDelta", "days": 12, "seconds": 0, "microseconds": 0}
 
     def test_should_deserialize(self):
         instance = {"__type": "TimeDelta", "days": 12, "seconds": 0, "microseconds": 0}
@@ -48,7 +48,7 @@ class TestRelativeDeltaSchema:
         instance = relativedelta.relativedelta(days=+12)
         schema_instance = RelativeDeltaSchema()
         result = schema_instance.dump(instance)
-        assert {
+        assert result == {
             "__type": "RelativeDelta",
             "day": None,
             "days": 12,
@@ -65,7 +65,7 @@ class TestRelativeDeltaSchema:
             "seconds": 0,
             "year": None,
             "years": 0,
-        } == result
+        }
 
     def test_should_deserialize(self):
         instance = {"__type": "RelativeDelta", "days": 12, "seconds": 0}

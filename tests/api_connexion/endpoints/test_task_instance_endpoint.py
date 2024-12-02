@@ -1325,7 +1325,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         )
 
         failed_dag_runs = session.query(DagRun).filter(DagRun.state == "failed").count()
-        assert 200 == response.status_code
+        assert response.status_code == 200
         expected_response = [
             {
                 "dag_id": "example_python_operator",
@@ -1366,8 +1366,8 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ]
         for task_instance in expected_response:
             assert task_instance in response.json["task_instances"]
-        assert 6 == len(response.json["task_instances"])
-        assert 0 == failed_dag_runs, 0
+        assert len(response.json["task_instances"]) == 6
+        assert failed_dag_runs == 0
         _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", logical_date=None)
 
     def test_should_respond_200_with_dag_run_id(self, session):
@@ -1415,7 +1415,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
             json=payload,
         )
-        assert 200 == response.status_code
+        assert response.status_code == 200
         expected_response = [
             {
                 "dag_id": "example_python_operator",
@@ -1425,7 +1425,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             },
         ]
         assert response.json["task_instances"] == expected_response
-        assert 1 == len(response.json["task_instances"])
+        assert len(response.json["task_instances"]) == 1
         _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", logical_date=None)
 
     def test_should_respond_200_with_include_past(self, session):
@@ -1473,7 +1473,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
             json=payload,
         )
-        assert 200 == response.status_code
+        assert response.status_code == 200
         expected_response = [
             {
                 "dag_id": "example_python_operator",
@@ -1514,7 +1514,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ]
         for task_instance in expected_response:
             assert task_instance in response.json["task_instances"]
-        assert 6 == len(response.json["task_instances"])
+        assert len(response.json["task_instances"]) == 6
         _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", logical_date=None)
 
     def test_should_respond_200_with_include_future(self, session):
@@ -1563,7 +1563,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             json=payload,
         )
 
-        assert 200 == response.status_code
+        assert response.status_code == 200
         expected_response = [
             {
                 "dag_id": "example_python_operator",
@@ -1604,7 +1604,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         ]
         for task_instance in expected_response:
             assert task_instance in response.json["task_instances"]
-        assert 6 == len(response.json["task_instances"])
+        assert len(response.json["task_instances"]) == 6
         _check_last_log(session, dag_id=dag_id, event="api.post_clear_task_instances", logical_date=None)
 
     def test_should_respond_404_for_nonexistent_dagrun_id(self, session):
@@ -1637,7 +1637,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             json=payload,
         )
 
-        assert 404 == response.status_code
+        assert response.status_code == 404
         assert (
             response.json["title"]
             == "Dag Run id TEST_DAG_RUN_ID_100 not found in dag example_python_operator"

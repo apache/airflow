@@ -630,7 +630,7 @@ def format_version_suffix(version_suffix: str) -> str:
 
     """
     if version_suffix:
-        if "." == version_suffix[0] or "+" == version_suffix[0]:
+        if version_suffix[0] == "." or version_suffix[0] == "+":
             return version_suffix
         else:
             return f".{version_suffix}"

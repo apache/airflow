@@ -34,47 +34,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /ui/dashboard/historical_metrics_data:
+  /ui/config:
     get:
       tags:
-      - Dashboard
-      summary: Historical Metrics
-      description: Return cluster activity historical metrics.
-      operationId: historical_metrics
-      parameters:
-      - name: start_date
-        in: query
-        required: true
-        schema:
-          type: string
-          title: Start Date
-      - name: end_date
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: End Date
+      - Config
+      summary: Get Configs
+      description: Get configs for UI.
+      operationId: get_configs
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HistoricalMetricDataResponse'
-        '400':
+                $ref: '#/components/schemas/ConfigResponse'
+        '404':
+          description: Not Found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
   /ui/dags/recent_dag_runs:
     get:
       tags:
@@ -174,26 +153,102 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /ui/config:
+  /ui/dashboard/historical_metrics_data:
     get:
       tags:
-      - Config
-      summary: Get Configs
-      description: Get configs for UI.
-      operationId: get_configs
+      - Dashboard
+      summary: Historical Metrics
+      description: Return cluster activity historical metrics.
+      operationId: historical_metrics
+      parameters:
+      - name: start_date
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Start Date
+      - name: end_date
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: End Date
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ConfigResponse'
-        '404':
-          description: Not Found
+                $ref: '#/components/schemas/HistoricalMetricDataResponse'
+        '400':
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /ui/structure/structure_data:
+    get:
+      tags:
+      - Structure
+      summary: Structure Data
+      description: Get Structure Data.
+      operationId: structure_data
+      parameters:
+      - name: dag_id
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: root
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Root
+      - name: include_upstream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Upstream
+      - name: include_downstream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Downstream
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StructureDataResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/assets:
     get:
       tags:
@@ -1338,6 +1393,50 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/connections/bulk:
+    post:
+      tags:
+      - Connection
+      summary: Post Connections
+      description: Create connection entry.
+      operationId: post_connections
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionBulkBody'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionCollectionResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
         '422':
           description: Validation Error
           content:
@@ -5557,6 +5656,52 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/parseDagFile/{file_token}:
+    put:
+      tags:
+      - DAG Parsing
+      summary: Reparse Dag File
+      description: Request re-parsing a DAG file.
+      operationId: reparse_dag_file
+      parameters:
+      - name: file_token
+        in: path
+        required: true
+        schema:
+          type: string
+          title: File Token
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: 'null'
+                title: Response Reparse Dag File
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /public/monitor/health:
     get:
       tags:
@@ -5569,7 +5714,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthInfoSchema'
+                $ref: '#/components/schemas/HealthInfoResponse'
   /public/version:
     get:
       tags:
@@ -5641,10 +5786,14 @@ components:
         name:
           type: string
           title: Name
+        group:
+          type: string
+          title: Group
       type: object
       required:
       - id
       - name
+      - group
       title: AssetAliasSchema
       description: Asset alias serializer for assets.
     AssetCollectionResponse:
@@ -5894,7 +6043,7 @@ components:
       - updated_at
       title: BackfillResponse
       description: Base serializer for Backfill.
-    BaseInfoSchema:
+    BaseInfoResponse:
       properties:
         status:
           anyOf:
@@ -5904,8 +6053,8 @@ components:
       type: object
       required:
       - status
-      title: BaseInfoSchema
-      description: Base status field for metadatabase and scheduler.
+      title: BaseInfoResponse
+      description: Base info serializer for responses.
     ClearTaskInstancesBody:
       properties:
         dry_run:
@@ -6106,6 +6255,8 @@ components:
       properties:
         connection_id:
           type: string
+          maxLength: 200
+          pattern: ^[\w.-]+$
           title: Connection Id
         conn_type:
           type: string
@@ -6151,6 +6302,18 @@ components:
       - conn_type
       title: ConnectionBody
       description: Connection Serializer for requests body.
+    ConnectionBulkBody:
+      properties:
+        connections:
+          items:
+            $ref: '#/components/schemas/ConnectionBody'
+          type: array
+          title: Connections
+      type: object
+      required:
+      - connections
+      title: ConnectionBulkBody
+      description: Connections Serializer for requests body.
     ConnectionCollectionResponse:
       properties:
         connections:
@@ -7103,7 +7266,7 @@ components:
       - file_token
       title: DAGWithLatestDagRunsResponse
       description: DAG with latest dag runs response serializer.
-    DagProcessorInfoSchema:
+    DagProcessorInfoResponse:
       properties:
         status:
           anyOf:
@@ -7119,8 +7282,8 @@ components:
       required:
       - status
       - latest_dag_processor_heartbeat
-      title: DagProcessorInfoSchema
-      description: Schema for DagProcessor info.
+      title: DagProcessorInfoResponse
+      description: DagProcessor info serializer for responses.
     DagRunAssetReference:
       properties:
         run_id:
@@ -7296,6 +7459,30 @@ components:
         This is the set of allowable values for the ``warning_type`` field
 
         in the DagWarning model.'
+    EdgeResponse:
+      properties:
+        is_setup_teardown:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Setup Teardown
+        label:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Label
+        source_id:
+          type: string
+          title: Source Id
+        target_id:
+          type: string
+          title: Target Id
+      type: object
+      required:
+      - source_id
+      - target_id
+      title: EdgeResponse
+      description: Edge serializer for responses.
     EventLogCollectionResponse:
       properties:
         event_logs:
@@ -7428,24 +7615,25 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
-    HealthInfoSchema:
+    HealthInfoResponse:
       properties:
         metadatabase:
-          $ref: '#/components/schemas/BaseInfoSchema'
+          $ref: '#/components/schemas/BaseInfoResponse'
         scheduler:
-          $ref: '#/components/schemas/SchedulerInfoSchema'
+          $ref: '#/components/schemas/SchedulerInfoResponse'
         triggerer:
-          $ref: '#/components/schemas/TriggererInfoSchema'
+          $ref: '#/components/schemas/TriggererInfoResponse'
         dag_processor:
-          $ref: '#/components/schemas/DagProcessorInfoSchema'
+          anyOf:
+          - $ref: '#/components/schemas/DagProcessorInfoResponse'
+          - type: 'null'
       type: object
       required:
       - metadatabase
       - scheduler
       - triggerer
-      - dag_processor
-      title: HealthInfoSchema
-      description: Schema for the Health endpoint.
+      title: HealthInfoResponse
+      description: Health serializer for responses.
     HistoricalMetricDataResponse:
       properties:
         dag_run_types:
@@ -7584,6 +7772,57 @@ components:
       - unixname
       title: JobResponse
       description: Job serializer for responses.
+    NodeResponse:
+      properties:
+        children:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/NodeResponse'
+            type: array
+          - type: 'null'
+          title: Children
+        id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Id
+        is_mapped:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Mapped
+        label:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Label
+        tooltip:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tooltip
+        setup_teardown_type:
+          anyOf:
+          - type: string
+            enum:
+            - setup
+            - teardown
+          - type: 'null'
+          title: Setup Teardown Type
+        type:
+          type: string
+          enum:
+          - join
+          - sensor
+          - task
+          - task_group
+          title: Type
+      type: object
+      required:
+      - id
+      - type
+      title: NodeResponse
+      description: Node serializer for responses.
     PatchTaskInstanceBody:
       properties:
         dry_run:
@@ -7915,7 +8154,7 @@ components:
 
 
         :meta private:'
-    SchedulerInfoSchema:
+    SchedulerInfoResponse:
       properties:
         status:
           anyOf:
@@ -7931,8 +8170,35 @@ components:
       required:
       - status
       - latest_scheduler_heartbeat
-      title: SchedulerInfoSchema
-      description: Schema for Scheduler info.
+      title: SchedulerInfoResponse
+      description: Scheduler info serializer for responses.
+    StructureDataResponse:
+      properties:
+        edges:
+          items:
+            $ref: '#/components/schemas/EdgeResponse'
+          type: array
+          title: Edges
+        nodes:
+          items:
+            $ref: '#/components/schemas/NodeResponse'
+          type: array
+          title: Nodes
+        arrange:
+          type: string
+          enum:
+          - BT
+          - LR
+          - RL
+          - TB
+          title: Arrange
+      type: object
+      required:
+      - edges
+      - nodes
+      - arrange
+      title: StructureDataResponse
+      description: Structure Data serializer for responses.
     TaskCollectionResponse:
       properties:
         tasks:
@@ -8800,7 +9066,7 @@ components:
       - triggerer_id
       title: TriggerResponse
       description: Trigger serializer for responses.
-    TriggererInfoSchema:
+    TriggererInfoResponse:
       properties:
         status:
           anyOf:
@@ -8816,8 +9082,8 @@ components:
       required:
       - status
       - latest_triggerer_heartbeat
-      title: TriggererInfoSchema
-      description: Schema for Triggerer info.
+      title: TriggererInfoResponse
+      description: Triggerer info serializer for responses.
     ValidationError:
       properties:
         loc:

@@ -48,6 +48,12 @@ __deprecated_classes = {
     "weekday": {
         "BranchDayOfWeekOperator": "airflow.providers.standard.operators.weekday.BranchDayOfWeekOperator",
     },
+    "trigger_dagrun": {
+        "TriggerDagRunOperator": "airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator",
+    },
+    "latest_only": {
+        "LatestOnlyOperator": "airflow.providers.standard.operators.latest_only.LatestOnlyOperator",
+    }
 
 }
 add_deprecated_classes(__deprecated_classes, __name__)

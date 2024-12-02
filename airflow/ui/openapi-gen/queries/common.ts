@@ -6,6 +6,7 @@ import {
   BackfillService,
   ConfigService,
   ConnectionService,
+  DagParsingService,
   DagRunService,
   DagService,
   DagSourceService,
@@ -21,6 +22,7 @@ import {
   PluginService,
   PoolService,
   ProviderService,
+  StructureService,
   TaskInstanceService,
   TaskService,
   VariableService,
@@ -200,78 +202,6 @@ export const UseAssetServiceGetDagAssetQueuedEventKeyFn = (
   useAssetServiceGetDagAssetQueuedEventKey,
   ...(queryKey ?? [{ before, dagId, uri }]),
 ];
-export type DashboardServiceHistoricalMetricsDefaultResponse = Awaited<
-  ReturnType<typeof DashboardService.historicalMetrics>
->;
-export type DashboardServiceHistoricalMetricsQueryResult<
-  TData = DashboardServiceHistoricalMetricsDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useDashboardServiceHistoricalMetricsKey =
-  "DashboardServiceHistoricalMetrics";
-export const UseDashboardServiceHistoricalMetricsKeyFn = (
-  {
-    endDate,
-    startDate,
-  }: {
-    endDate?: string;
-    startDate: string;
-  },
-  queryKey?: Array<unknown>,
-) => [
-  useDashboardServiceHistoricalMetricsKey,
-  ...(queryKey ?? [{ endDate, startDate }]),
-];
-export type DagsServiceRecentDagRunsDefaultResponse = Awaited<
-  ReturnType<typeof DagsService.recentDagRuns>
->;
-export type DagsServiceRecentDagRunsQueryResult<
-  TData = DagsServiceRecentDagRunsDefaultResponse,
-  TError = unknown,
-> = UseQueryResult<TData, TError>;
-export const useDagsServiceRecentDagRunsKey = "DagsServiceRecentDagRuns";
-export const UseDagsServiceRecentDagRunsKeyFn = (
-  {
-    dagDisplayNamePattern,
-    dagIdPattern,
-    dagRunsLimit,
-    lastDagRunState,
-    limit,
-    offset,
-    onlyActive,
-    owners,
-    paused,
-    tags,
-  }: {
-    dagDisplayNamePattern?: string;
-    dagIdPattern?: string;
-    dagRunsLimit?: number;
-    lastDagRunState?: DagRunState;
-    limit?: number;
-    offset?: number;
-    onlyActive?: boolean;
-    owners?: string[];
-    paused?: boolean;
-    tags?: string[];
-  } = {},
-  queryKey?: Array<unknown>,
-) => [
-  useDagsServiceRecentDagRunsKey,
-  ...(queryKey ?? [
-    {
-      dagDisplayNamePattern,
-      dagIdPattern,
-      dagRunsLimit,
-      lastDagRunState,
-      limit,
-      offset,
-      onlyActive,
-      owners,
-      paused,
-      tags,
-    },
-  ]),
-];
 export type ConfigServiceGetConfigsDefaultResponse = Awaited<
   ReturnType<typeof ConfigService.getConfigs>
 >;
@@ -324,6 +254,104 @@ export const UseConfigServiceGetConfigValueKeyFn = (
 ) => [
   useConfigServiceGetConfigValueKey,
   ...(queryKey ?? [{ accept, option, section }]),
+];
+export type DagsServiceRecentDagRunsDefaultResponse = Awaited<
+  ReturnType<typeof DagsService.recentDagRuns>
+>;
+export type DagsServiceRecentDagRunsQueryResult<
+  TData = DagsServiceRecentDagRunsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDagsServiceRecentDagRunsKey = "DagsServiceRecentDagRuns";
+export const UseDagsServiceRecentDagRunsKeyFn = (
+  {
+    dagDisplayNamePattern,
+    dagIdPattern,
+    dagRunsLimit,
+    lastDagRunState,
+    limit,
+    offset,
+    onlyActive,
+    owners,
+    paused,
+    tags,
+  }: {
+    dagDisplayNamePattern?: string;
+    dagIdPattern?: string;
+    dagRunsLimit?: number;
+    lastDagRunState?: DagRunState;
+    limit?: number;
+    offset?: number;
+    onlyActive?: boolean;
+    owners?: string[];
+    paused?: boolean;
+    tags?: string[];
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useDagsServiceRecentDagRunsKey,
+  ...(queryKey ?? [
+    {
+      dagDisplayNamePattern,
+      dagIdPattern,
+      dagRunsLimit,
+      lastDagRunState,
+      limit,
+      offset,
+      onlyActive,
+      owners,
+      paused,
+      tags,
+    },
+  ]),
+];
+export type DashboardServiceHistoricalMetricsDefaultResponse = Awaited<
+  ReturnType<typeof DashboardService.historicalMetrics>
+>;
+export type DashboardServiceHistoricalMetricsQueryResult<
+  TData = DashboardServiceHistoricalMetricsDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useDashboardServiceHistoricalMetricsKey =
+  "DashboardServiceHistoricalMetrics";
+export const UseDashboardServiceHistoricalMetricsKeyFn = (
+  {
+    endDate,
+    startDate,
+  }: {
+    endDate?: string;
+    startDate: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useDashboardServiceHistoricalMetricsKey,
+  ...(queryKey ?? [{ endDate, startDate }]),
+];
+export type StructureServiceStructureDataDefaultResponse = Awaited<
+  ReturnType<typeof StructureService.structureData>
+>;
+export type StructureServiceStructureDataQueryResult<
+  TData = StructureServiceStructureDataDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useStructureServiceStructureDataKey =
+  "StructureServiceStructureData";
+export const UseStructureServiceStructureDataKeyFn = (
+  {
+    dagId,
+    includeDownstream,
+    includeUpstream,
+    root,
+  }: {
+    dagId: string;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
+    root?: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useStructureServiceStructureDataKey,
+  ...(queryKey ?? [{ dagId, includeDownstream, includeUpstream, root }]),
 ];
 export type BackfillServiceListBackfillsDefaultResponse = Awaited<
   ReturnType<typeof BackfillService.listBackfills>
@@ -1567,6 +1595,9 @@ export type BackfillServiceCreateBackfillMutationResult = Awaited<
 export type ConnectionServicePostConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.postConnection>
 >;
+export type ConnectionServicePostConnectionsMutationResult = Awaited<
+  ReturnType<typeof ConnectionService.postConnections>
+>;
 export type ConnectionServiceTestConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.testConnection>
 >;
@@ -1602,6 +1633,9 @@ export type BackfillServiceUnpauseBackfillMutationResult = Awaited<
 >;
 export type BackfillServiceCancelBackfillMutationResult = Awaited<
   ReturnType<typeof BackfillService.cancelBackfill>
+>;
+export type DagParsingServiceReparseDagFileMutationResult = Awaited<
+  ReturnType<typeof DagParsingService.reparseDagFile>
 >;
 export type ConnectionServicePatchConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.patchConnection>

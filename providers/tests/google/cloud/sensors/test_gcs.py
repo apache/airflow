@@ -83,7 +83,7 @@ class TestGoogleCloudStorageObjectSensor:
         )
         mock_hook.return_value.list.return_value = True
         return_value = task.execute(mock.MagicMock())
-        assert return_value, True
+        assert return_value
 
     @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
     def test_should_pass_argument_to_hook(self, mock_hook):
@@ -198,7 +198,7 @@ class TestGoogleCloudStorageObjectSensor:
                 context=None, event={"status": "success", "message": "Job completed"}
             )
         mock_log_info.assert_called_with("File %s was found in bucket %s.", TEST_OBJECT, TEST_BUCKET)
-        assert return_value, True
+        assert return_value
 
 
 class TestGoogleCloudStorageObjectUpdatedSensor:

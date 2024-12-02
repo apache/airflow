@@ -607,7 +607,6 @@ repos:
           (?x)
           ^airflow/api_connexion/openapi/v1.yaml$|
           ^airflow/ui/openapi-gen/|
-          ^airflow/cli/commands/internal_api_command.py$|
           ^airflow/cli/commands/fastapi_api_command.py$|
           ^airflow/cli/commands/webserver_command.py$|
           ^airflow/config_templates/|

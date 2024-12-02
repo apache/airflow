@@ -21,6 +21,7 @@ import {
   PluginService,
   PoolService,
   ProviderService,
+  StructureService,
   TaskInstanceService,
   TaskService,
   VariableService,
@@ -248,30 +249,66 @@ export const prefetchUseAssetServiceGetDagAssetQueuedEvent = (
     queryFn: () => AssetService.getDagAssetQueuedEvent({ before, dagId, uri }),
   });
 /**
- * Historical Metrics
- * Return cluster activity historical metrics.
- * @param data The data for the request.
- * @param data.startDate
- * @param data.endDate
- * @returns HistoricalMetricDataResponse Successful Response
+ * Get Configs
+ * Get configs for UI.
+ * @returns ConfigResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDashboardServiceHistoricalMetrics = (
+export const prefetchUseConfigServiceGetConfigs = (queryClient: QueryClient) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseConfigServiceGetConfigsKeyFn(),
+    queryFn: () => ConfigService.getConfigs(),
+  });
+/**
+ * Get Config
+ * @param data The data for the request.
+ * @param data.section
+ * @param data.accept
+ * @returns Config Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseConfigServiceGetConfig = (
   queryClient: QueryClient,
   {
-    endDate,
-    startDate,
+    accept,
+    section,
   }: {
-    endDate?: string;
-    startDate: string;
+    accept?: "application/json" | "text/plain" | "*/*";
+    section?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseConfigServiceGetConfigKeyFn({ accept, section }),
+    queryFn: () => ConfigService.getConfig({ accept, section }),
+  });
+/**
+ * Get Config Value
+ * @param data The data for the request.
+ * @param data.section
+ * @param data.option
+ * @param data.accept
+ * @returns Config Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseConfigServiceGetConfigValue = (
+  queryClient: QueryClient,
+  {
+    accept,
+    option,
+    section,
+  }: {
+    accept?: "application/json" | "text/plain" | "*/*";
+    option: string;
+    section: string;
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({
-      endDate,
-      startDate,
+    queryKey: Common.UseConfigServiceGetConfigValueKeyFn({
+      accept,
+      option,
+      section,
     }),
-    queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }),
+    queryFn: () => ConfigService.getConfigValue({ accept, option, section }),
   });
 /**
  * Recent Dag Runs
@@ -344,66 +381,70 @@ export const prefetchUseDagsServiceRecentDagRuns = (
       }),
   });
 /**
- * Get Configs
- * Get configs for UI.
- * @returns ConfigResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseConfigServiceGetConfigs = (queryClient: QueryClient) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseConfigServiceGetConfigsKeyFn(),
-    queryFn: () => ConfigService.getConfigs(),
-  });
-/**
- * Get Config
+ * Historical Metrics
+ * Return cluster activity historical metrics.
  * @param data The data for the request.
- * @param data.section
- * @param data.accept
- * @returns Config Successful Response
+ * @param data.startDate
+ * @param data.endDate
+ * @returns HistoricalMetricDataResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseConfigServiceGetConfig = (
+export const prefetchUseDashboardServiceHistoricalMetrics = (
   queryClient: QueryClient,
   {
-    accept,
-    section,
+    endDate,
+    startDate,
   }: {
-    accept?: "application/json" | "text/plain" | "*/*";
-    section?: string;
-  } = {},
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseConfigServiceGetConfigKeyFn({ accept, section }),
-    queryFn: () => ConfigService.getConfig({ accept, section }),
-  });
-/**
- * Get Config Value
- * @param data The data for the request.
- * @param data.section
- * @param data.option
- * @param data.accept
- * @returns Config Successful Response
- * @throws ApiError
- */
-export const prefetchUseConfigServiceGetConfigValue = (
-  queryClient: QueryClient,
-  {
-    accept,
-    option,
-    section,
-  }: {
-    accept?: "application/json" | "text/plain" | "*/*";
-    option: string;
-    section: string;
+    endDate?: string;
+    startDate: string;
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseConfigServiceGetConfigValueKeyFn({
-      accept,
-      option,
-      section,
+    queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn({
+      endDate,
+      startDate,
     }),
-    queryFn: () => ConfigService.getConfigValue({ accept, option, section }),
+    queryFn: () => DashboardService.historicalMetrics({ endDate, startDate }),
+  });
+/**
+ * Structure Data
+ * Get Structure Data.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.root
+ * @param data.includeUpstream
+ * @param data.includeDownstream
+ * @returns StructureDataResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseStructureServiceStructureData = (
+  queryClient: QueryClient,
+  {
+    dagId,
+    includeDownstream,
+    includeUpstream,
+    root,
+  }: {
+    dagId: string;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
+    root?: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseStructureServiceStructureDataKeyFn({
+      dagId,
+      includeDownstream,
+      includeUpstream,
+      root,
+    }),
+    queryFn: () =>
+      StructureService.structureData({
+        dagId,
+        includeDownstream,
+        includeUpstream,
+        root,
+      }),
   });
 /**
  * List Backfills
@@ -2101,7 +2142,7 @@ export const prefetchUseVariableServiceGetVariables = (
   });
 /**
  * Get Health
- * @returns HealthInfoSchema Successful Response
+ * @returns HealthInfoResponse Successful Response
  * @throws ApiError
  */
 export const prefetchUseMonitorServiceGetHealth = (queryClient: QueryClient) =>

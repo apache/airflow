@@ -546,7 +546,7 @@ class TestSchedulerJob:
         self.job_runner._critical_section_enqueue_task_instances(session)
         session.flush()
         ti1.refresh_from_db(session=session)
-        assert State.SCHEDULED == ti1.state
+        assert ti1.state == State.SCHEDULED
         session.rollback()
 
     # @pytest.mark.usefixtures("mock_executor")
@@ -720,7 +720,7 @@ class TestSchedulerJob:
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
         session.flush()
-        assert 3 == len(res)
+        assert len(res) == 3
         res_keys = []
         for ti in res:
             res_keys.append(ti.key)
@@ -861,7 +861,7 @@ class TestSchedulerJob:
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
-        assert 5 == len(res)
+        assert len(res) == 5
         res_ti_keys = [res_ti.key for res_ti in res]
         for ti in tis_tuple:
             assert ti.key in res_ti_keys
@@ -900,7 +900,7 @@ class TestSchedulerJob:
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
-        assert 2 == len(res)
+        assert len(res) == 2
         assert ti3.key == res[0].key
         assert ti2.key == res[1].key
 
@@ -958,14 +958,14 @@ class TestSchedulerJob:
 
         # Two tasks w/o pool up for execution and our default pool size is 1
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
-        assert 1 == len(res)
+        assert len(res) == 1
 
         ti2.state = State.RUNNING
         session.flush()
 
         # One task w/o pool up for execution and one task running
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
-        assert 0 == len(res)
+        assert len(res) == 0
 
         session.rollback()
         session.close()
@@ -995,7 +995,7 @@ class TestSchedulerJob:
         session.flush()
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
         session.flush()
-        assert 0 == len(res)
+        assert len(res) == 0
         tis = dr.get_task_instances(session=session)
         assert len(tis) == 2
         assert all(ti.state == State.FAILED for ti in tis)
@@ -1018,7 +1018,7 @@ class TestSchedulerJob:
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
         session.flush()
-        assert 0 == len(res)
+        assert len(res) == 0
         session.rollback()
 
     def test_infinite_pool(self, dag_maker):
@@ -1045,7 +1045,7 @@ class TestSchedulerJob:
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
         session.flush()
-        assert 1 == len(res)
+        assert len(res) == 1
         session.rollback()
 
     def test_not_enough_pool_slots(self, caplog, dag_maker):
@@ -1102,7 +1102,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
         session = settings.Session()
 
-        assert 0 == len(self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session))
+        assert len(self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)) == 0
         session.rollback()
 
     def test_tis_for_queued_dagruns_are_not_run(self, dag_maker):
@@ -1128,7 +1128,7 @@ class TestSchedulerJob:
         session.flush()
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
-        assert 1 == len(res)
+        assert len(res) == 1
         assert ti2.key == res[0].key
         ti1.refresh_from_db()
         ti2.refresh_from_db()
@@ -1231,7 +1231,7 @@ class TestSchedulerJob:
             loader_mock.side_effect = executor.get_mock_loader_side_effect()
             res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
-            assert 2 == len(res)
+            assert len(res) == 2
 
             ti1_1.state = State.RUNNING
             ti2.state = State.RUNNING
@@ -1244,7 +1244,7 @@ class TestSchedulerJob:
 
             res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
-            assert 1 == len(res)
+            assert len(res) == 1
 
             ti1_2.state = State.RUNNING
             ti1_3 = dr3.get_task_instance(task1.task_id)
@@ -1255,7 +1255,7 @@ class TestSchedulerJob:
 
             res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
-            assert 0 == len(res)
+            assert len(res) == 0
 
             ti1_1.state = State.SCHEDULED
             ti1_2.state = State.SCHEDULED
@@ -1267,7 +1267,7 @@ class TestSchedulerJob:
 
             res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
-            assert 2 == len(res)
+            assert len(res) == 2
 
             ti1_1.state = State.RUNNING
             ti1_2.state = State.SCHEDULED
@@ -1279,7 +1279,7 @@ class TestSchedulerJob:
 
             res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
-            assert 1 == len(res)
+            assert len(res) == 1
             session.rollback()
 
     def test_change_state_for_executable_task_instances_no_tis_with_state(self, dag_maker):
@@ -1309,7 +1309,7 @@ class TestSchedulerJob:
         session.flush()
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=100, session=session)
-        assert 0 == len(res)
+        assert len(res) == 0
 
         session.rollback()
 
@@ -1336,7 +1336,7 @@ class TestSchedulerJob:
         # Schedule ti with lower priority,
         # because the one with higher priority is limited by a concurrency limit
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
-        assert 1 == len(res)
+        assert len(res) == 1
         assert res[0].key == ti2.key
 
         session.rollback()
@@ -1373,7 +1373,7 @@ class TestSchedulerJob:
         # Schedule ti with lower priority,
         # because the one with higher priority is limited by a concurrency limit
         res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
-        assert 1 == len(res)
+        assert len(res) == 1
         assert res[0].key == ti2.key
 
         session.rollback()
@@ -1402,7 +1402,7 @@ class TestSchedulerJob:
         # Schedule ti with lower priority,
         # because the one with higher priority is limited by a concurrency limit
         res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
-        assert 1 == len(res)
+        assert len(res) == 1
         assert res[0].key == ti1b.key
 
         session.rollback()
@@ -1431,7 +1431,7 @@ class TestSchedulerJob:
         # Schedule ti with higher priority,
         # because it's running in a different DAG run with 0 active tis
         res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
-        assert 1 == len(res)
+        assert len(res) == 1
         assert res[0].key == ti2a.key
 
         session.rollback()
@@ -1464,7 +1464,7 @@ class TestSchedulerJob:
         # Schedule ti with lower priority,
         # because the one with higher priority is limited by a concurrency limit
         res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
-        assert 1 == len(res)
+        assert len(res) == 1
         assert res[0].key == ti1b.key
 
         session.rollback()
@@ -1501,7 +1501,7 @@ class TestSchedulerJob:
         session.flush()
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
-        assert 1 == len(res)
+        assert len(res) == 1
         assert res[0].key == ti1.key
 
         session.rollback()
@@ -1525,7 +1525,7 @@ class TestSchedulerJob:
         session.flush()
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
-        assert 0 == len(res)
+        assert len(res) == 0
 
         mock_stats_gauge.assert_has_calls(
             [
@@ -1541,7 +1541,7 @@ class TestSchedulerJob:
         session.flush()
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
-        assert 1 == len(res)
+        assert len(res) == 1
 
         mock_stats_gauge.assert_has_calls(
             [
@@ -1733,7 +1733,7 @@ class TestSchedulerJob:
         scheduler_job.max_tis_per_query = 6
         # First pass we'll grab 6 of the 8 tasks (limited by max_tis_per_query)
         res = self.job_runner._critical_section_enqueue_task_instances(session)
-        assert 6 == res
+        assert res == 6
         for ti in tis1[:3] + tis2[:3]:
             ti.refresh_from_db()
             assert ti.state == TaskInstanceState.QUEUED
@@ -1743,11 +1743,11 @@ class TestSchedulerJob:
 
         # The remaining TIs are queued
         res = self.job_runner._critical_section_enqueue_task_instances(session)
-        assert 2 == res
+        assert res == 2
 
         for ti in tis1 + tis2:
             ti.refresh_from_db()
-            assert State.QUEUED == ti.state
+            assert ti.state == State.QUEUED
 
     @pytest.mark.parametrize(
         "task1_exec, task2_exec",
@@ -1796,7 +1796,7 @@ class TestSchedulerJob:
         scheduler_job.max_tis_per_query = 2
 
         total_enqueued = self.job_runner._critical_section_enqueue_task_instances(session)
-        assert 2 == total_enqueued
+        assert total_enqueued == 2
 
     def test_execute_task_instances_limit_slots(self, dag_maker, mock_executors):
         dag_id = "SchedulerJobTest.test_execute_task_instances_limit"
@@ -2872,7 +2872,7 @@ class TestSchedulerJob:
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
-        assert [] == res
+        assert res == []
 
     @pytest.mark.parametrize(
         "ti_states, run_state",
@@ -2956,7 +2956,7 @@ class TestSchedulerJob:
                 # zero tasks ran
                 assert len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()) == 0
                 session.commit()
-                assert [] == self.null_exec.sorted_tasks
+                assert self.null_exec.sorted_tasks == []
 
                 # previously, running this backfill would kick off the Scheduler
                 # because it would take the most recent run and start from there
@@ -2983,7 +2983,7 @@ class TestSchedulerJob:
                 # still one task
                 assert len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()) == 1
                 session.commit()
-                assert [] == self.null_exec.sorted_tasks
+                assert self.null_exec.sorted_tasks == []
 
     @pytest.mark.parametrize(
         "configs",
@@ -3587,7 +3587,7 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
         session = settings.Session()
-        assert 0 == self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+        assert self.job_runner.adopt_or_reset_orphaned_tasks(session=session) == 0
 
     @pytest.mark.parametrize(
         "adoptable_state",
@@ -3613,7 +3613,7 @@ class TestSchedulerJob:
         session.commit()
 
         num_reset_tis = self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
-        assert 1 == num_reset_tis
+        assert num_reset_tis == 1
 
     def test_adopt_or_reset_orphaned_tasks_external_triggered_dag(self, dag_maker, session):
         dag_id = "test_reset_orphaned_tasks_external_triggered_dag"
@@ -3660,7 +3660,7 @@ class TestSchedulerJob:
         session.flush()
 
         assert dr1.run_type == DagRunType.BACKFILL_JOB
-        assert 0 == self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+        assert self.job_runner.adopt_or_reset_orphaned_tasks(session=session) == 0
         session.rollback()
 
     def test_reset_orphaned_tasks_no_orphans(self, dag_maker):
@@ -3704,13 +3704,13 @@ class TestSchedulerJob:
         dr1 = dag_maker.create_dagrun()
         dr1.state = State.QUEUED
         tis = dr1.get_task_instances(session=session)
-        assert 1 == len(tis)
+        assert len(tis) == 1
         tis[0].state = State.SCHEDULED
         session.merge(dr1)
         session.merge(tis[0])
         session.flush()
 
-        assert 0 == self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+        assert self.job_runner.adopt_or_reset_orphaned_tasks(session=session) == 0
         session.rollback()
 
     def test_adopt_or_reset_orphaned_tasks_stale_scheduler_jobs(self, dag_maker):
@@ -3753,7 +3753,7 @@ class TestSchedulerJob:
 
         num_reset_tis = self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
 
-        assert 1 == num_reset_tis
+        assert num_reset_tis == 1
 
         session.refresh(ti1)
         assert ti1.state is None
@@ -3979,8 +3979,8 @@ class TestSchedulerJob:
         - That dag_model has next_dagrun
         """
 
-        asset1 = Asset(uri="ds1")
-        asset2 = Asset(uri="ds2")
+        asset1 = Asset(uri="test://asset1", name="test_asset", group="test_group")
+        asset2 = Asset(uri="test://asset2", name="test_asset_2", group="test_group")
 
         with dag_maker(dag_id="assets-1", start_date=timezone.utcnow(), session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset1])
@@ -4075,15 +4075,14 @@ class TestSchedulerJob:
         ],
     )
     def test_no_create_dag_runs_when_dag_disabled(self, session, dag_maker, disable, enable):
-        ds = Asset("ds")
-        with dag_maker(dag_id="consumer", schedule=[ds], session=session):
+        asset = Asset(uri="test://asset_1", name="test_asset_1", group="test_group")
+        with dag_maker(dag_id="consumer", schedule=[asset], session=session):
             pass
         with dag_maker(dag_id="producer", schedule="@daily", session=session):
-            BashOperator(task_id="task", bash_command="echo 1", outlets=ds)
+            BashOperator(task_id="task", bash_command="echo 1", outlets=asset)
         asset_manger = AssetManager()
 
-        asset_id = session.scalars(select(AssetModel.id).filter_by(uri=ds.uri)).one()
-
+        asset_id = session.scalars(select(AssetModel.id).filter_by(uri=asset.uri, name=asset.name)).one()
         ase_q = select(AssetEvent).where(AssetEvent.asset_id == asset_id).order_by(AssetEvent.timestamp)
         adrq_q = select(AssetDagRunQueue).where(
             AssetDagRunQueue.asset_id == asset_id, AssetDagRunQueue.target_dag_id == "consumer"
@@ -4096,7 +4095,7 @@ class TestSchedulerJob:
         dr1: DagRun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
         asset_manger.register_asset_change(
             task_instance=dr1.get_task_instance("task", session=session),
-            asset=ds,
+            asset=asset,
             session=session,
         )
         session.flush()
@@ -4110,7 +4109,7 @@ class TestSchedulerJob:
         dr2: DagRun = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
         asset_manger.register_asset_change(
             task_instance=dr2.get_task_instance("task", session=session),
-            asset=ds,
+            asset=asset,
             session=session,
         )
         session.flush()
@@ -6001,8 +6000,8 @@ class TestSchedulerJob:
             tis = session.query(TaskInstance).all()
 
         dags = self.job_runner.dagbag.dags.values()
-        assert ["test_only_empty_tasks"] == [dag.dag_id for dag in dags]
-        assert 6 == len(tis)
+        assert [dag.dag_id for dag in dags] == ["test_only_empty_tasks"]
+        assert len(tis) == 6
         assert {
             ("test_task_a", "success"),
             ("test_task_b", None),
@@ -6017,7 +6016,7 @@ class TestSchedulerJob:
             if state == "success":
                 assert start_date is not None
                 assert end_date is not None
-                assert 0.0 == duration
+                assert duration == 0.0
             else:
                 assert start_date is None
                 assert end_date is None
@@ -6027,7 +6026,7 @@ class TestSchedulerJob:
         with create_session() as session:
             tis = session.query(TaskInstance).all()
 
-        assert 6 == len(tis)
+        assert len(tis) == 6
         assert {
             ("test_task_a", "success"),
             ("test_task_b", "success"),
@@ -6042,7 +6041,7 @@ class TestSchedulerJob:
             if state == "success":
                 assert start_date is not None
                 assert end_date is not None
-                assert 0.0 == duration
+                assert duration == 0.0
             else:
                 assert start_date is None
                 assert end_date is None
@@ -6187,11 +6186,11 @@ class TestSchedulerJob:
     def test_asset_orphaning(self, dag_maker, session):
         self.job_runner = SchedulerJobRunner(job=Job(), subdir=os.devnull)
 
-        asset1 = Asset(uri="ds1")
-        asset2 = Asset(uri="ds2")
-        asset3 = Asset(uri="ds3")
-        asset4 = Asset(uri="ds4")
-        asset5 = Asset(uri="ds5")
+        asset1 = Asset(uri="test://asset_1", name="test_asset_1", group="test_group")
+        asset2 = Asset(uri="test://asset_2", name="test_asset_2", group="test_group")
+        asset3 = Asset(uri="test://asset_3", name="test_asset_3", group="test_group")
+        asset4 = Asset(uri="test://asset_4", name="test_asset_4", group="test_group")
+        asset5 = Asset(uri="test://asset_5", name="test_asset_5", group="test_group")
 
         with dag_maker(dag_id="assets-1", schedule=[asset1, asset2], session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset3, asset4])
@@ -6230,7 +6229,7 @@ class TestSchedulerJob:
     def test_asset_orphaning_ignore_orphaned_assets(self, dag_maker, session):
         self.job_runner = SchedulerJobRunner(job=Job(), subdir=os.devnull)
 
-        asset1 = Asset(uri="ds1")
+        asset1 = Asset(uri="test://asset_1", name="test_asset_1", group="test_group")
 
         with dag_maker(dag_id="assets-1", schedule=[asset1], session=session):
             BashOperator(task_id="task", bash_command="echo 1")
@@ -6303,11 +6302,13 @@ class TestSchedulerJob:
 
         asset1 = Asset(name=asset1_name, uri="s3://bucket/key/1", extra=asset_extra)
         asset1_1 = Asset(name=asset1_name, uri="it's duplicate", extra=asset_extra)
-        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=[asset1, asset1_1])
+        asset1_2 = Asset(name="it's also a duplicate", uri="s3://bucket/key/1", extra=asset_extra)
+        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=[asset1, asset1_1, asset1_2])
 
         DAG.bulk_write_to_db([dag1], session=session)
 
         asset_models = session.scalars(select(AssetModel)).all()
+        assert len(asset_models) == 3
 
         SchedulerJobRunner._activate_referenced_assets(asset_models, session=session)
         session.flush()
@@ -6318,8 +6319,10 @@ class TestSchedulerJob:
             )
         )
         assert dag_warning.message == (
-            "Cannot activate asset AssetModel(name='asset1', uri=\"it's duplicate\", extra={'foo': 'bar'}); "
-            "name is already associated to 's3://bucket/key/1'"
+            'Cannot activate asset AssetModel(name="it\'s also a duplicate",'
+            " uri='s3://bucket/key/1', extra={'foo': 'bar'}); uri is already associated to 'asset1'\n"
+            "Cannot activate asset AssetModel(name='asset1', uri"
+            "=\"it's duplicate\", extra={'foo': 'bar'}); name is already associated to 's3://bucket/key/1'"
         )
 
     def test_activate_referenced_assets_with_existing_warnings(self, session):

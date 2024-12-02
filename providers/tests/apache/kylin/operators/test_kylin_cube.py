@@ -188,8 +188,8 @@ class TestKylinCubeOperator:
         session.add(ti)
         session.commit()
         ti.render_templates()
-        assert "learn_kylin" == getattr(operator, "project")
-        assert "kylin_sales_cube" == getattr(operator, "cube")
-        assert "build" == getattr(operator, "command")
-        assert "1483200000000" == getattr(operator, "start_time")
-        assert "1483286400000" == getattr(operator, "end_time")
+        assert getattr(operator, "project") == "learn_kylin"
+        assert getattr(operator, "cube") == "kylin_sales_cube"
+        assert getattr(operator, "command") == "build"
+        assert getattr(operator, "start_time") == "1483200000000"
+        assert getattr(operator, "end_time") == "1483286400000"
