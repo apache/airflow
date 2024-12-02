@@ -17,9 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import base64
+import pickle
 from collections.abc import Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable
+
+from requests import Response
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -160,7 +164,7 @@ class HttpSensor(BaseSensorOperator):
         return True
 
     def execute(self, context: Context) -> None:
-        if not self.deferrable or self.response_check:
+        if not self.deferrable:
             super().execute(context=context)
         elif not self.poke(context):
             self.defer(
@@ -173,9 +177,49 @@ class HttpSensor(BaseSensorOperator):
                     method=self.method,
                     extra_options=self.extra_options,
                     poke_interval=self.poke_interval,
+                    response_check=self.response_check,
+                    context=context,
                 ),
                 method_name="execute_complete",
             )
 
-    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
-        self.log.info("%s completed successfully.", self.task_id)
+    @staticmethod
+    def _default_response_maker(response: Response | list[Response]) -> Callable:
+        """
+        Create a default response maker function based on the type of response.
+
+        :param response: The response object or list of response objects.
+        :return: A function that returns response text(s).
+        """
+        if isinstance(response, Response):
+            response_object = response  # Makes mypy happy
+            return lambda: response_object.text
+
+        response_list: list[Response] = response  # Makes mypy happy
+        return lambda: [entry.text for entry in response_list]
+
+    def process_response(self, context: Context, response: Response | list[Response]) -> Any:
+        """Process the response."""
+        from airflow.utils.operator_helpers import determine_kwargs
+
+        make_default_response: Callable = self._default_response_maker(response=response)
+
+        if self.response_check:
+            kwargs = determine_kwargs(self.response_check, [response], context)
+            if not self.response_check(response, **kwargs):
+                raise AirflowException("Response check returned False.")
+        return make_default_response()
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
+        if event["status"] == "success":
+            response = event["response"]
+            if self.response_check:
+                retrieved_data = pickle.loads(base64.standard_b64decode(response))
+                if self.process_response(context=context, response=retrieved_data):
+                    self.log.info("response_check condition is matched for %s", self.task_id)
+                else:
+                    raise AirflowException("response_check condition is not matched for %s", self.task_id)
+
+            self.log.info("%s completed successfully.", self.task_id)
+        else:
+            raise AirflowException(f"Unexpected error in the operation: {event['message']}")

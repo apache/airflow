@@ -20,7 +20,7 @@ import asyncio
 import base64
 import pickle
 from collections.abc import AsyncIterator
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 import requests
 from requests.cookies import RequestsCookieJar
@@ -32,6 +32,8 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
+
+    from airflow.utils.context import Context
 
 
 class HttpTrigger(BaseTrigger):
@@ -151,6 +153,8 @@ class HttpSensorTrigger(BaseTrigger):
         headers: dict[str, str] | None = None,
         extra_options: dict[str, Any] | None = None,
         poke_interval: float = 5.0,
+        response_check: Callable[..., bool] | None = None,
+        context: Context | None = None,
     ):
         super().__init__()
         self.endpoint = endpoint
@@ -160,6 +164,8 @@ class HttpSensorTrigger(BaseTrigger):
         self.extra_options = extra_options or {}
         self.http_conn_id = http_conn_id
         self.poke_interval = poke_interval
+        self.response_check = response_check
+        self.context = context
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize HttpTrigger arguments and classpath."""
@@ -176,18 +182,44 @@ class HttpSensorTrigger(BaseTrigger):
             },
         )
 
+    @staticmethod
+    async def _convert_response(client_response: ClientResponse) -> requests.Response:
+        """Convert aiohttp.client_reqrep.ClientResponse to requests.Response."""
+        response = requests.Response()
+        response._content = await client_response.read()
+        response.status_code = client_response.status
+        response.headers = CaseInsensitiveDict(client_response.headers)
+        response.url = str(client_response.url)
+        response.history = [await HttpTrigger._convert_response(h) for h in client_response.history]
+        response.encoding = client_response.get_encoding()
+        response.reason = str(client_response.reason)
+        cookies = RequestsCookieJar()
+        for k, v in client_response.cookies.items():
+            cookies.set(k, v)
+        response.cookies = cookies
+        return response
+
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make a series of asynchronous http calls via an http hook."""
-        hook = self._get_async_hook()
+        hook = HttpAsyncHook(
+            method=self.method,
+            http_conn_id=self.http_conn_id,
+        )
         while True:
             try:
-                await hook.run(
+                client_response = await hook.run(
                     endpoint=self.endpoint,
                     data=self.data,
                     headers=self.headers,
                     extra_options=self.extra_options,
                 )
-                yield TriggerEvent(True)
+                response = await self._convert_response(client_response)
+                yield TriggerEvent(
+                    {
+                        "status": "success",
+                        "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
+                    }
+                )
                 return
             except AirflowException as exc:
                 if str(exc).startswith("404"):
