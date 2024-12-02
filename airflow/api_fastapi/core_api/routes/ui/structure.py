@@ -20,35 +20,37 @@ from fastapi import Request, status
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.ui.graph import GraphDataResponse
+from airflow.api_fastapi.core_api.datamodels.ui.structure import StructureDataResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.task_group import task_group_to_dict
 
-graph_data_router = AirflowRouter(tags=["Graph"], prefix="/graph")
+structure_router = AirflowRouter(tags=["Structure"], prefix="/structure")
 
 
-@graph_data_router.get(
-    "/graph_data",
+@structure_router.get(
+    "/structure_data",
     include_in_schema=False,
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]),
 )
-def graph_data(
+def structure_data(
     session: SessionDep,
     dag_id: str,
     request: Request,
     root: str | None = None,
     include_upstream: bool = False,
     include_downstream: bool = False,
-) -> GraphDataResponse:
-    """Get Graph Data."""
+) -> StructureDataResponse:
+    """Get Structure Data."""
     dag = request.app.state.dag_bag.get_dag(dag_id)
     if root:
         dag = dag.partial_subset(
             task_ids_or_regex=root, include_upstream=include_upstream, include_downstream=include_downstream
         )
 
-    nodes = task_group_to_dict(dag.task_group)
+    nodes = [
+        task_group_to_dict(child) for child in sorted(dag.task_group.children.values(), key=lambda t: t.label)
+    ]
     edges = dag_edges(dag)
 
     data = {
@@ -57,4 +59,4 @@ def graph_data(
         "edges": edges,
     }
 
-    return GraphDataResponse(**data)
+    return StructureDataResponse(**data)
