@@ -22,10 +22,8 @@ from collections.abc import Container, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-from deprecated.classic import deprecated
-
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models import BaseOperator
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils.types import NOTSET, ArgNotSet
@@ -143,25 +141,9 @@ class SSHOperator(BaseOperator):
     def hook(self) -> SSHHook:
         return self.ssh_hook
 
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
-    def get_hook(self) -> SSHHook:
-        return self.ssh_hook
-
     def get_ssh_client(self) -> SSHClient:
         # Remember to use context manager or call .close() on this when done
         return self.hook.get_conn()
-
-    @deprecated(
-        reason=(
-            "exec_ssh_client_command method on SSHOperator is deprecated, call "
-            "`ssh_hook.exec_ssh_client_command` instead"
-        ),
-        category=AirflowProviderDeprecationWarning,
-    )
-    def exec_ssh_client_command(self, ssh_client: SSHClient, command: str) -> tuple[int, bytes, bytes]:
-        return self.hook.exec_ssh_client_command(
-            ssh_client, command, timeout=self.cmd_timeout, environment=self.environment, get_pty=self.get_pty
-        )
 
     def raise_for_status(self, exit_status: int, stderr: bytes, context=None) -> None:
         if context and self.do_xcom_push:
