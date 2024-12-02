@@ -27,6 +27,26 @@
 Changelog
 ---------
 
+4.0.0
+......
+
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  All deprecated classes, parameters and features have been removed from the SSH provider package.
+  The following breaking changes were introduced:
+
+  * Hooks
+     * Remove attribute ``timeout`` from ``airflow.providers.ssh.hooks.ssh.SSHHook``. Use parameter ``conn_timeout`` instead.
+     * The contextmanager of ``SSHHook`` is deprecated. Please use ``get_conn()`` as a contextmanager instead.
+     * ``SSHHook.create_tunnel()`` is deprecated, Please use ``get_tunnel()`` instead.
+       But please note that the order of the parameters have changed.
+  * operators
+     * The deprecated ``get_hook()`` method is removed in ``airflow.providers.ssh.operators.ssh.SSHOperator``. Please use ``hook`` attribute instead.
+     * Deprecated ``exec_ssh_client_command()`` method on SSHOperator is removed, call ``ssh_hook.exec_ssh_client_command()`` instead
+
 3.14.0
 ......
 
