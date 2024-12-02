@@ -30,31 +30,21 @@ class EdgeResponse(BaseModel):
     target_id: str
 
 
-class NodeValueResponse(BaseModel):
-    """Graph Node Value responses."""
-
-    isMapped: bool | None = None
-    label: str | None = None
-    labelStyle: str | None = None
-    style: str | None = None
-    tooltip: str | None = None
-    rx: int
-    ry: int
-    clusterLabelPos: str | None = None
-    setupTeardownType: Literal["setup", "teardown"] | None = None
-
-
 class NodeResponse(BaseModel):
     """Node serializer for responses."""
 
     children: list[NodeResponse] | None = None
     id: str | None
-    value: NodeValueResponse
+    is_mapped: bool | None = None
+    label: str | None = None
+    tooltip: str | None = None
+    setup_teardown_type: Literal["setup", "teardown"] | None = None
+    type: Literal["join", "sensor", "task", "task_group"]
 
 
-class GraphDataResponse(BaseModel):
-    """Graph Data serializer for responses."""
+class StructureDataResponse(BaseModel):
+    """Structure Data serializer for responses."""
 
     edges: list[EdgeResponse]
-    nodes: NodeResponse
+    nodes: list[NodeResponse]
     arrange: Literal["BT", "LR", "RL", "TB"]

@@ -681,17 +681,6 @@ export type FastAPIAppResponse = {
 };
 
 /**
- * Graph Data serializer for responses.
- */
-export type GraphDataResponse = {
-  edges: Array<EdgeResponse>;
-  nodes: NodeResponse;
-  arrange: "BT" | "LR" | "RL" | "TB";
-};
-
-export type arrange = "BT" | "LR" | "RL" | "TB";
-
-/**
  * HTTPException Model used for error response.
  */
 export type HTTPExceptionResponse = {
@@ -773,23 +762,14 @@ export type JobResponse = {
 export type NodeResponse = {
   children?: Array<NodeResponse> | null;
   id: string | null;
-  value: NodeValueResponse;
+  is_mapped?: boolean | null;
+  label?: string | null;
+  tooltip?: string | null;
+  setup_teardown_type?: "setup" | "teardown" | null;
+  type: "join" | "sensor" | "task" | "task_group";
 };
 
-/**
- * Graph Node Value responses.
- */
-export type NodeValueResponse = {
-  isMapped?: boolean | null;
-  label?: string | null;
-  labelStyle?: string | null;
-  style?: string | null;
-  tooltip?: string | null;
-  rx: number;
-  ry: number;
-  clusterLabelPos?: string | null;
-  setupTeardownType?: "setup" | "teardown" | null;
-};
+export type type = "join" | "sensor" | "task" | "task_group";
 
 /**
  * Request body for Clear Task Instances endpoint.
@@ -929,6 +909,17 @@ export type SchedulerInfoResponse = {
   status: string | null;
   latest_scheduler_heartbeat: string | null;
 };
+
+/**
+ * Structure Data serializer for responses.
+ */
+export type StructureDataResponse = {
+  edges: Array<EdgeResponse>;
+  nodes: Array<NodeResponse>;
+  arrange: "BT" | "LR" | "RL" | "TB";
+};
+
+export type arrange = "BT" | "LR" | "RL" | "TB";
 
 /**
  * Task collection serializer for responses.
@@ -1425,14 +1416,14 @@ export type HistoricalMetricsData = {
 
 export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
 
-export type GraphDataData = {
+export type StructureDataData = {
   dagId: string;
   includeDownstream?: boolean;
   includeUpstream?: boolean;
   root?: string | null;
 };
 
-export type GraphDataResponse2 = GraphDataResponse;
+export type StructureDataResponse2 = StructureDataResponse;
 
 export type ListBackfillsData = {
   dagId: string;
@@ -2456,14 +2447,14 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/ui/graph/graph_data": {
+  "/ui/structure/structure_data": {
     get: {
-      req: GraphDataData;
+      req: StructureDataData;
       res: {
         /**
          * Successful Response
          */
-        200: GraphDataResponse;
+        200: StructureDataResponse;
         /**
          * Bad Request
          */
