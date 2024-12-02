@@ -2761,7 +2761,7 @@ class TaskInstance(Base, LoggingMixin):
             )
         }
         if missing_assets := [
-            unique_key.to_asset() for unique_key, _ in asset_alias_names if unique_key not in asset_models
+            unique_key.to_obj() for unique_key, _ in asset_alias_names if unique_key not in asset_models
         ]:
             asset_models.update(
                 (AssetUniqueKey.from_asset(asset_obj), asset_obj)

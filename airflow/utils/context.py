@@ -51,6 +51,7 @@ from airflow.sdk.definitions.asset import (
     AssetRef,
     AssetUniqueKey,
     BaseAsset,
+    BaseAssetUniqueKey,
 )
 from airflow.sdk.definitions.asset.metadata import extract_event_key
 from airflow.utils.db import LazySelectSequence
@@ -176,7 +177,7 @@ class OutletEventAccessor:
     :meta private:
     """
 
-    key: AssetUniqueKey | AssetAliasUniqueKey
+    key: BaseAssetUniqueKey
     extra: dict[str, Any] = attrs.Factory(dict)
     asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
 
@@ -206,26 +207,25 @@ class OutletEventAccessors(Mapping[BaseAsset, OutletEventAccessor]):
     """
 
     def __init__(self) -> None:
-        self._dict: dict[BaseAsset, OutletEventAccessor] = {}
+        self._dict: dict[BaseAssetUniqueKey, OutletEventAccessor] = {}
 
     def __str__(self) -> str:
         return f"OutletEventAccessors(_dict={self._dict})"
 
     def __iter__(self) -> Iterator[BaseAsset]:
-        return iter(self._dict)
+        return iter(key.to_obj() for key in self._dict)
 
     def __len__(self) -> int:
         return len(self._dict)
 
     def __getitem__(self, key: BaseAsset) -> OutletEventAccessor:
-        hashable_key: AssetUniqueKey | AssetAliasUniqueKey
+        hashable_key: BaseAssetUniqueKey
         if isinstance(key, Asset):
             hashable_key = AssetUniqueKey.from_asset(key)
         elif isinstance(key, AssetAlias):
             hashable_key = AssetAliasUniqueKey.from_asset_alias(key)
         else:
-            # TODO
-            raise SystemExit()
+            raise KeyError("Key should be either an asset or an asset alias")
 
         if hashable_key not in self._dict:
             self._dict[hashable_key] = OutletEventAccessor(extra={}, key=hashable_key)
