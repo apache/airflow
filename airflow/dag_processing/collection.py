@@ -286,7 +286,7 @@ def _find_active_assets(name_uri_assets, session: Session):
         (asset_model.name, asset_model.uri)
         for asset_model in session.scalars(
             select(AssetModel)
-            .join(AssetActive, (AssetActive.name == AssetModel.name) & (AssetActive.name == AssetModel.name))
+            .join(AssetActive, (AssetActive.name == AssetModel.name) & (AssetActive.uri == AssetModel.uri))
             .where(tuple_(AssetActive.name, AssetActive.uri).in_(name_uri_assets))
             .where(AssetModel.consuming_dags.any(DagScheduleAssetReference.dag_id.in_(active_dags)))
             .options(
