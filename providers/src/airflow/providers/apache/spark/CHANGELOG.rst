@@ -29,13 +29,16 @@
 Changelog
 ---------
 
-4.11.4
-......
+Breaking changes
+~~~~~~~~~~~~~~~~
 
-Misc
-~~~~
+.. warning::
+  All deprecated classes, parameters and features have been removed from the {provider_name} provider package.
+  The following breaking changes were introduced:
 
-* ``Remove _sql() support for SparkSqlOperator. Please use sql attribute instead.``
+  * Operators
+    
+    * Removed ``_sql()`` support for SparkSqlOperator. Please use ``sql`` attribute instead
 
 
 4.11.3
