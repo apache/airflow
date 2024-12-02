@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-01T13:43:56.020314
+# This constraints file was automatically generated on 2024-12-02T07:43:14.984949
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -50,7 +50,7 @@ adlfs==2024.7.0
 aiobotocore==2.15.2
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.4
-aiohttp==3.11.8
+aiohttp==3.11.9
 aioitertools==0.12.0
 aiomysql==0.2.0
 aioresponses==0.7.7
@@ -353,7 +353,7 @@ microsoft-kiota-serialization-text==1.0.0
 mmh3==5.0.1
 mongomock==4.3.0
 more-itertools==10.5.0
-moto==5.0.21
+moto==5.0.22
 mpmath==1.3.0
 msal-extensions==1.2.0
 msal==1.31.1
@@ -364,9 +364,9 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.1.0
 mypy-boto3-appflow==1.35.39
-mypy-boto3-rds==1.35.66
+mypy-boto3-rds==1.35.72
 mypy-boto3-redshift-data==1.35.51
-mypy-boto3-s3==1.35.69
+mypy-boto3-s3==1.35.72
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.1.0
@@ -433,7 +433,7 @@ presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.21.0
 prompt_toolkit==3.0.48
-propcache==0.2.0
+propcache==0.2.1
 proto-plus==1.25.0
 protobuf==4.25.5
 psutil==6.1.0
@@ -479,7 +479,7 @@ pytest-timeouts==1.2.1
 pytest-xdist==3.6.1
 pytest==8.3.4
 python-arango==8.1.3
-python-daemon==3.1.0
+python-daemon==3.1.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 python-http-client==3.3.7
@@ -512,7 +512,7 @@ restructuredtext_lint==1.4.0
 rfc3339-validator==0.1.4
 rfc3986==2.0.0
 rich-argparse==1.6.0
-rich-click==1.8.4
+rich-click==1.8.5
 rich==13.9.4
 rpds-py==0.21.0
 rsa==4.9
@@ -638,7 +638,7 @@ xmltodict==0.14.2
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.325.0
-yarl==1.18.0
+yarl==1.18.3
 ydb-dbapi==0.1.5
 ydb==3.18.9
 zeep==4.3.1
