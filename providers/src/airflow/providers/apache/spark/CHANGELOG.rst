@@ -33,7 +33,7 @@ Breaking changes
 ~~~~~~~~~~~~~~~~
 
 .. warning::
-  All deprecated classes, parameters and features have been removed from the {provider_name} provider package.
+  All deprecated classes, parameters and features have been removed from the Apache Spark provider package.
   The following breaking changes were introduced:
 
   * Operators
