@@ -283,9 +283,10 @@ class TestWebHDFSHook:
             connection = mock_get_connection.return_value
 
             assert f"https://{connection.host}:{connection.port}" == mock_insecure_client.call_args.args[0]
-            assert ("/path/to/cert.pem", "/path/to/key.pem") == mock_insecure_client.call_args.kwargs[
-                "session"
-            ].cert
+            assert mock_insecure_client.call_args.kwargs["session"].cert == (
+                "/path/to/cert.pem",
+                "/path/to/key.pem",
+            )
 
     @patch("airflow.providers.apache.hdfs.hooks.webhdfs.InsecureClient")
     @patch("airflow.providers.apache.hdfs.hooks.webhdfs.socket")
@@ -307,4 +308,4 @@ class TestWebHDFSHook:
             connection = mock_get_connection.return_value
 
             assert f"https://{connection.host}:{connection.port}" == mock_insecure_client.call_args.args[0]
-            assert ("/path/to/combined.pem") == mock_insecure_client.call_args.kwargs["session"].cert
+            assert mock_insecure_client.call_args.kwargs["session"].cert == ("/path/to/combined.pem")
