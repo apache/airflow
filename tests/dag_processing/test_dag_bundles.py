@@ -175,3 +175,22 @@ class TestGitDagBundle:
 
         with pytest.raises(AirflowException, match="Version not_found not found in the repository"):
             GitDagBundle(name="test", version="not_found", repo_url=repo_path, head="master")
+
+    def test_subdir(self, git_repo):
+        repo_path, repo = git_repo
+
+        subdir = "somesubdir"
+        subdir_path = repo_path / subdir
+        subdir_path.mkdir()
+
+        file_path = subdir_path / "some_new_file.py"
+        with open(file_path, "w") as f:
+            f.write("hello world")
+        repo.index.add([file_path])
+        repo.index.commit("Initial commit")
+
+        bundle = GitDagBundle(name="test", repo_url=repo_path, head="master", subdir=subdir)
+
+        files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
+        assert str(bundle.path).endswith(subdir)
+        assert {"some_new_file.py"} == files_in_repo
