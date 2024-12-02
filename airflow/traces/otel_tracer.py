@@ -26,7 +26,7 @@ from opentelemetry import trace
 from opentelemetry.context import attach, create_key
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import HOST_NAME, SERVICE_NAME, Resource
-from opentelemetry.sdk.trace import Span, Tracer as OpenTelemetryTracer, TracerProvider
+from opentelemetry.sdk.trace import Span, SpanProcessor, Tracer as OpenTelemetryTracer, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter, SimpleSpanProcessor
 from opentelemetry.sdk.trace.id_generator import IdGenerator
 from opentelemetry.trace import Link, NonRecordingSpan, SpanContext, TraceFlags, Tracer
@@ -34,14 +34,7 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 from opentelemetry.trace.span import INVALID_SPAN_ID, INVALID_TRACE_ID
 
 from airflow.configuration import conf
-from airflow.traces import (
-    TRACEPARENT,
-    TRACESTATE,
-)
 from airflow.traces.utils import (
-    gen_dag_span_id,
-    gen_span_id,
-    gen_trace_id,
     parse_traceparent,
     parse_tracestate,
 )
@@ -78,7 +71,7 @@ class OtelTrace:
             # A task can run fast and finish before spans have enough time to get exported to the collector.
             # When creating spans from inside a task, a SimpleSpanProcessor needs to be used because
             # it exports the spans immediately after they are created.
-            self.span_processor = SimpleSpanProcessor(self.span_exporter)
+            self.span_processor: SpanProcessor = SimpleSpanProcessor(self.span_exporter)
         else:
             self.span_processor = BatchSpanProcessor(self.span_exporter)
         self.tag_string = tag_string
@@ -107,7 +100,7 @@ class OtelTrace:
         if debug is True:
             log.info("[ConsoleSpanExporter] is being used")
             if self.use_simple_processor:
-                span_processor_for_tracer_prov = SimpleSpanProcessor(ConsoleSpanExporter())
+                span_processor_for_tracer_prov: SpanProcessor = SimpleSpanProcessor(ConsoleSpanExporter())
             else:
                 span_processor_for_tracer_prov = BatchSpanProcessor(ConsoleSpanExporter())
         else:
@@ -170,107 +163,6 @@ class OtelTrace:
             )
         return span
 
-    def start_span_from_dagrun(
-        self, dagrun, span_name: str | None = None, component: str = "dagrun", links=None
-    ):
-        """Produce a span from dag run."""
-        # check if dagrun has configs
-        conf = dagrun.conf
-        trace_id = int(gen_trace_id(dag_run=dagrun, as_int=True))
-        span_id = int(gen_dag_span_id(dag_run=dagrun, as_int=True))
-
-        tracer = self.get_tracer(component=component, span_id=span_id, trace_id=trace_id)
-
-        tag_string = self.tag_string if self.tag_string else ""
-        tag_string = tag_string + ("," + conf.get(TRACESTATE) if (conf and conf.get(TRACESTATE)) else "")
-
-        if span_name is None:
-            span_name = dagrun.dag_id
-
-        _links = gen_links_from_kv_list(links) if links else []
-
-        _links.append(
-            Link(
-                context=trace.get_current_span().get_span_context(),
-                attributes={"meta.annotation_type": "link", "from": "parenttrace"},
-            )
-        )
-
-        if conf and conf.get(TRACEPARENT):
-            # add the trace parent as the link
-            _links.append(gen_link_from_traceparent(conf.get(TRACEPARENT)))
-
-        span_ctx = SpanContext(
-            trace_id=INVALID_TRACE_ID, span_id=INVALID_SPAN_ID, is_remote=True, trace_flags=TraceFlags(0x01)
-        )
-        ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
-        span = tracer.start_as_current_span(
-            name=span_name,
-            context=ctx,
-            links=_links,
-            start_time=datetime_to_nano(dagrun.queued_at),
-            attributes=parse_tracestate(tag_string),
-        )
-        return span
-
-    def start_span_from_taskinstance(
-        self,
-        ti,
-        span_name: str | None = None,
-        component: str = "taskinstance",
-        child: bool = False,
-        links=None,
-    ):
-        """
-        Create and start span from given task instance.
-
-        Essentially the span represents the ti itself if child == True, it will create a 'child' span under the given span.
-        """
-        dagrun = ti.dag_run
-        conf = dagrun.conf
-        trace_id = int(gen_trace_id(dag_run=dagrun, as_int=True))
-        span_id = int(gen_span_id(ti=ti, as_int=True))
-        if span_name is None:
-            span_name = ti.task_id
-
-        parent_id = span_id if child else int(gen_dag_span_id(dag_run=dagrun, as_int=True))
-
-        span_ctx = SpanContext(
-            trace_id=trace_id, span_id=parent_id, is_remote=True, trace_flags=TraceFlags(0x01)
-        )
-
-        _links = gen_links_from_kv_list(links) if links else []
-
-        _links.append(
-            Link(
-                context=SpanContext(
-                    trace_id=trace.get_current_span().get_span_context().trace_id,
-                    span_id=span_id,
-                    is_remote=True,
-                    trace_flags=TraceFlags(0x01),
-                ),
-                attributes={"meta.annotation_type": "link", "from": "parenttrace"},
-            )
-        )
-
-        if child is False:
-            tracer = self.get_tracer(component=component, span_id=span_id, trace_id=trace_id)
-        else:
-            tracer = self.get_tracer(component=component)
-
-        tag_string = self.tag_string if self.tag_string else ""
-        tag_string = tag_string + ("," + conf.get(TRACESTATE) if (conf and conf.get(TRACESTATE)) else "")
-
-        ctx = trace.set_span_in_context(NonRecordingSpan(span_ctx))
-        span = tracer.start_as_current_span(
-            name=span_name,
-            context=ctx,
-            links=_links,
-            start_time=datetime_to_nano(ti.queued_dttm),
-            attributes=parse_tracestate(tag_string),
-        )
-        return span
-
     def start_root_span(
         self,
         span_name: str,
@@ -327,12 +219,14 @@ class OtelTrace:
             _links = []
         else:
             _links = links
-        _links.append(
-            Link(
-                context=parent_span_context,
-                attributes={"meta.annotation_type": "link", "from": "parenttrace"},
+
+        if parent_span_context is not None:
+            _links.append(
+                Link(
+                    context=parent_span_context,
+                    attributes={"meta.annotation_type": "link", "from": "parenttrace"},
+                )
             )
-        )
 
         return self._new_span(
             span_name=span_name,
@@ -386,7 +280,7 @@ class OtelTrace:
 
     def inject(self) -> dict:
         """Inject the current span context into a carrier and return it."""
-        carrier = {}
+        carrier: dict[str, str] = {}
         TraceContextTextMapPropagator().inject(carrier)
         return carrier
 
@@ -428,7 +322,7 @@ def gen_link_from_traceparent(traceparent: str):
     return Link(context=span_ctx, attributes={"meta.annotation_type": "link", "from": "traceparent"})
 
 
-def get_otel_tracer(cls, use_simple_processor: bool | None = None) -> OtelTrace:
+def get_otel_tracer(cls, use_simple_processor: bool = False) -> OtelTrace:
     """Get OTEL tracer from airflow configuration."""
     host = conf.get("traces", "otel_host")
     port = conf.getint("traces", "otel_port")

@@ -160,30 +160,6 @@ class Tracer(Protocol):
         raise NotImplementedError()
 
     @classmethod
-    def start_span_from_dagrun(
-        cls,
-        dagrun,
-        span_name=None,
-        service_name=None,
-        component=None,
-        links=None,
-    ):
-        """Start a span from dagrun."""
-        raise NotImplementedError()
-
-    @classmethod
-    def start_span_from_taskinstance(
-        cls,
-        ti,
-        span_name=None,
-        component=None,
-        child=False,
-        links=None,
-    ):
-        """Start a span from taskinstance."""
-        raise NotImplementedError()
-
-    @classmethod
     def start_root_span(cls, span_name=None, component=None, start_time=None, start_as_current=True):
         """Start a root span."""
         raise NotImplementedError()
@@ -246,30 +222,6 @@ class EmptyTrace:
     @classmethod
     def get_current_span(self) -> EmptySpan:
         """Get the current span."""
-        return EMPTY_SPAN
-
-    @classmethod
-    def start_span_from_dagrun(
-        cls,
-        dagrun,
-        span_name=None,
-        service_name=None,
-        component=None,
-        links=None,
-    ) -> EmptySpan:
-        """Start a span from dagrun."""
-        return EMPTY_SPAN
-
-    @classmethod
-    def start_span_from_taskinstance(
-        cls,
-        ti,
-        span_name=None,
-        component=None,
-        child=False,
-        links=None,
-    ) -> EmptySpan:
-        """Start a span from taskinstance."""
         return EMPTY_SPAN
 
     @classmethod

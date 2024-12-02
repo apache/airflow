@@ -1216,10 +1216,6 @@ class DagRun(Base, LoggingMixin):
                                 self.state,
                             )
 
-            with Trace.start_span_from_dagrun(dagrun=self) as span:
-                if span is not None:  # To avoid a static-code check error.
-                    self.set_dagrun_span_attrs(span=span, dag_run=self, dagv=dagv)
-
             session.flush()
 
         self._emit_true_scheduling_delay_stats_for_finished_state(finished_tis)
