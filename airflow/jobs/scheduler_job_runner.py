@@ -806,13 +806,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ti.pid,
             )
 
-            # Each scheduler processes its own executor events.
-            # If the executor of the scheduler has run the task,
-            # then only that scheduler will mark the task as finished
-            # unless the process dies and the task has to be adopted by another scheduler.
-            # There is no point in notifying another scheduler that the task span has to be ended.
-            # But because the span might not be ended immediately,
-            # the task end time must be set as the span end time.
             active_ti_span = cls.active_ti_spans.get(ti.key)
             if conf.getboolean("traces", "otel_use_context_propagation"):
                 if active_ti_span is not None:
@@ -1066,8 +1059,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # This also means that the process that started them, is the only one that can end them.
         #
         # If another scheduler has finished processing a dag_run or a task and there is a reference
-        # on the active_spans dictionary, then that means that the current scheduler started
-        # the span, and therefore must end it.
+        # on the active_spans dictionary, then the current scheduler started the span,
+        # and therefore must end it.
         dag_runs_should_end: list[DagRun] = session.scalars(
             select(DagRun).where(DagRun.span_status == SpanStatus.SHOULD_END)
         ).all()
@@ -1172,7 +1165,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ti_span.end(end_time=datetime_to_nano(ti.end_date))
                         ti.set_span_status(status=SpanStatus.ENDED, session=session, with_commit=False)
                     else:
-                        # TODO: revisit this. Will the current scheduler end the span?
                         ti.set_span_status(status=SpanStatus.ACTIVE, session=session, with_commit=False)
                         self.active_ti_spans.set(ti.key, ti_span)
 

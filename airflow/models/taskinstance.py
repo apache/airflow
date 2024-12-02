@@ -901,7 +901,7 @@ def _refresh_from_db(
             if not inspector.detached and "task_instance" not in inspector.unloaded:
                 # If the scheduler that started the dag_run has exited (gracefully or forcefully),
                 # there will be changes to the dag_run span context_carrier.
-                # It's best to include the dag_run whenever possible, so that the ti contains the updates.
+                # It's best to include the dag_run whenever possible, so that the ti will contain the updates.
                 include_dag_run = True
 
         _set_ti_attrs(task_instance, ti, include_dag_run=include_dag_run)
@@ -2447,7 +2447,7 @@ class TaskInstance(Base, LoggingMixin):
         """
         Set TaskInstance span_status.
 
-        :param status: dict with the injected carrier to set for the dag_run
+        :param status: dict with the injected carrier to set for the ti
         :param session: SQLAlchemy ORM Session
         :param with_commit: should the status be committed?
         :return: has the span_status been changed?

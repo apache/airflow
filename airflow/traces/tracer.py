@@ -22,8 +22,6 @@ import logging
 import socket
 from typing import TYPE_CHECKING, Any, Callable
 
-from sqlalchemy.util.compat import contextmanager
-
 from airflow.configuration import conf
 from airflow.typing_compat import Protocol
 
@@ -277,27 +275,6 @@ class _Trace(type):
                 cls.__class__.factory = otel_tracer.get_otel_tracer
             else:
                 cls.__class__.factory = EmptyTrace
-
-    @classmethod
-    @contextmanager
-    def tracer_with_params(cls, *args, **kwargs):
-        """Context manager to temporarily set parameters for the tracer factory."""
-        initial_factory = cls.factory
-        initial_instance = cls.instance
-        try:
-            if conf.has_option("traces", "otel_on") and conf.getboolean("traces", "otel_on"):
-                from airflow.traces import otel_tracer
-
-                cls.factory = lambda: otel_tracer.get_otel_tracer(*args, **kwargs)
-            else:
-                cls.factory = EmptyTrace
-            # Reset the instance to ensure the new parameters are used
-            cls.instance = None
-            yield
-        finally:
-            # Restore the factory and the instance, to their initial values.
-            cls.factory = initial_factory
-            cls.instance = initial_instance
 
     @classmethod
     def get_constant_tags(cls) -> str | None:
