@@ -456,7 +456,10 @@ class AssetModelOperation(NamedTuple):
         refs_to_add: dict[tuple[str, str], set[str]] = {}
         refs_to_remove: dict[tuple[str, str], set[str]] = {}
         triggers: dict[str, BaseTrigger] = {}
-        active_assets = _find_active_assets(self.assets.keys(), session=session)
+
+        # Optimization: if no asset collected, skip fetching active assets
+        active_assets = _find_active_assets(self.assets.keys(), session=session) if self.assets else {}
+
         for name_uri, asset in self.assets.items():
             # If the asset belong to a DAG not active or paused, consider there is no watcher associated to it
             asset_watchers = asset.watchers if name_uri in active_assets else []

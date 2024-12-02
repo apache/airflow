@@ -116,7 +116,6 @@ class TestAssetModelOperation:
             for dag in dags:
                 dag.is_active = is_active
                 dag.is_paused = is_paused
-            session.commit()
 
             orm_assets = asset_op.add_assets(session=session)
             # Create AssetActive objects from assets. It is usually done in the scheduler
