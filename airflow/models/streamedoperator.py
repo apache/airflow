@@ -21,14 +21,15 @@ import asyncio
 import logging
 import os
 from abc import abstractmethod
-from asyncio import AbstractEventLoop, Future, ensure_future
+from asyncio import AbstractEventLoop, Future, Semaphore, ensure_future
+from collections.abc import Generator, Iterable, Sequence
 from contextlib import contextmanager, suppress
 from datetime import timedelta
 from math import ceil
 from multiprocessing import TimeoutError
 from multiprocessing.pool import ThreadPool
 from time import sleep
-from typing import TYPE_CHECKING, Any, Generator, Iterable, Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow import XComArg
 from airflow.exceptions import (
@@ -41,8 +42,8 @@ from airflow.models.abstractoperator import DEFAULT_TASK_EXECUTION_TIMEOUT
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.expandinput import (
     ExpandInput,
-    is_mappable,
     _needs_run_time_resolution,
+    is_mappable,
 )
 from airflow.models.taskinstance import TaskInstance
 from airflow.triggers.base import run_trigger
@@ -144,13 +145,12 @@ class OperatorExecutor(TaskExecutor):
         if self.task_instance.try_number == 0:
             self.operator.render_template_fields(context=self.context)
         self.operator.pre_execute(context=self.context)
-        self.task_instance._run_execute_callback(
-            context=self.context, task=self.operator
-        )
+        self.task_instance._run_execute_callback(context=self.context, task=self.operator)
         try:
             outlet_events = context_get_outlet_events(self.context)
+            # TODO: change back to operator.execute once ExecutorSafeguard is fixed
             callable_runner = ExecutionCallableRunner(
-                func=self.operator.execute,
+                func=self.operator.execute.__wrapped__,
                 outlet_events=outlet_events,
                 logger=self.log,
             )
@@ -169,9 +169,7 @@ class OperatorExecutor(TaskExecutor):
             self.task_instance.try_number += 1
             self.task_instance.end_date = timezone.utcnow()
 
-            raise AirflowRescheduleTaskInstanceException(
-                task=self.task_instance
-            )
+            raise AirflowRescheduleTaskInstanceException(task=self.task_instance)
 
 
 class TriggerExecutor(TaskExecutor):
@@ -205,6 +203,7 @@ class StreamedOperator(BaseOperator):
         "expand_input",
         "partial_kwargs",
         "_log",
+        "_semaphore",
     )
 
     def __init__(
@@ -220,12 +219,11 @@ class StreamedOperator(BaseOperator):
         self._operator_class = operator_class
         self.expand_input = expand_input
         self.partial_kwargs = partial_kwargs or {}
-        self.timeout = (
-            timeout.total_seconds() if isinstance(timeout, timedelta) else timeout
-        )
+        self.timeout = timeout.total_seconds() if isinstance(timeout, timedelta) else timeout
         self._mapped_kwargs: list[dict] = []
         if not self.max_active_tis_per_dag:
             self.max_active_tis_per_dag = os.cpu_count() or 1
+        self._semaphore = Semaphore(self.max_active_tis_per_dag)
         XComArg.apply_upstream_relationship(self, self.expand_input.value)
 
     @property
@@ -284,10 +282,7 @@ class StreamedOperator(BaseOperator):
         failed_tasks: list[TaskInstance] = []
 
         with ThreadPool(processes=self.max_active_tis_per_dag) as pool:
-            futures = [
-                (task, pool.apply_async(self._run_operator, (context, task)))
-                for task in tasks
-            ]
+            futures = [(task, pool.apply_async(self._run_operator, (context, task))) for task in tasks]
 
             for task, future in futures:
                 try:
@@ -295,7 +290,11 @@ class StreamedOperator(BaseOperator):
                     if isinstance(result, TaskDeferred):
                         deferred_tasks.append(
                             ensure_future(
-                                self._run_deferrable(context=context, task=task, task_deferred=result)
+                                self._run_deferrable(
+                                    context=context,
+                                    task=task,
+                                    task_deferred=result,
+                                )
                             )
                         )
                     else:
@@ -322,10 +321,11 @@ class StreamedOperator(BaseOperator):
                     asyncio.gather(*deferred_tasks, return_exceptions=True)
                 ):
                     if isinstance(result, Exception):
-                        if not isinstance(result, AirflowRescheduleTaskInstanceException):
+                        if isinstance(result, AirflowRescheduleTaskInstanceException):
+                            reschedule_date = result.reschedule_date
+                            failed_tasks.append(result.task)
+                        else:
                             exception = result
-                        reschedule_date = result.reschedule_date
-                        failed_tasks.append(result.task)
                     else:
                         results.append(result)
 
@@ -368,12 +368,12 @@ class StreamedOperator(BaseOperator):
         except TaskDeferred as task_deferred:
             return task_deferred
 
-    @classmethod
-    async def _run_deferrable(cls, context: Context, task: TaskInstance, task_deferred: TaskDeferred):
-        return await TriggerExecutor(
-            context=context,
-            task_instance=task,
-        ).run(task_deferred)
+    async def _run_deferrable(self, context: Context, task: TaskInstance, task_deferred: TaskDeferred):
+        async with self._semaphore:
+            return await TriggerExecutor(
+                context=context,
+                task_instance=task,
+            ).run(task_deferred)
 
     def _create_task(self, context: Context, index: int) -> TaskInstance:
         operator = self._unmap_operator(index)

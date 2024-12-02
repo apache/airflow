@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Union
 
 import attr
 import methodtools
+
 from airflow.exceptions import UnmappableOperator
 from airflow.models.abstractoperator import (
     DEFAULT_EXECUTOR,
@@ -40,7 +41,8 @@ from airflow.models.abstractoperator import (
     DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
-    NotMapped, )
+    NotMapped,
+)
 from airflow.models.expandinput import (
     DictOfListsExpandInput,
     ListOfDictsExpandInput,
@@ -244,9 +246,7 @@ class OperatorPartial:
         if not mapped_kwargs:
             raise TypeError("no arguments to expand against")
         validate_mapping_kwargs(self.operator_class, "stream", mapped_kwargs)
-        prevent_duplicates(
-            self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified"
-        )
+        prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified")
 
         expand_input = DictOfListsExpandInput(mapped_kwargs)
         ensure_xcomarg_return_value(expand_input.value)
