@@ -164,6 +164,7 @@ class AssetAliasEvent:
     """
 
     source_alias_name: str
+    dest_asset_name: str
     dest_asset_uri: str
     extra: dict[str, Any]
 
@@ -191,7 +192,10 @@ class OutletEventAccessor:
             return
 
         event = AssetAliasEvent(
-            source_alias_name=asset_alias_name, dest_asset_uri=asset.uri, extra=extra or {}
+            source_alias_name=asset_alias_name,
+            dest_asset_name=asset.name,
+            dest_asset_uri=asset.uri,
+            extra=extra or {},
         )
         self.asset_alias_events.append(event)
 

@@ -272,7 +272,8 @@ class MockLazySelectSequence(LazySelectSequence):
                 asset_alias_events=[
                     AssetAliasEvent(
                         source_alias_name="test_alias",
-                        dest_asset_uri="test_uri",
+                        dest_asset_name="test_name",
+                        dest_asset_uri="test://asset-uri",
                         extra={},
                     )
                 ],
