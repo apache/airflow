@@ -18,13 +18,12 @@ from __future__ import annotations
 
 import base64
 import os
-import warnings
 from collections.abc import Sequence
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Callable, Literal
 
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.common.compat.standard.utils import write_python_script
 from airflow.providers.docker.operators.docker import DockerOperator
 
@@ -110,9 +109,6 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
           this requires to include cloudpickle in your requirements.
         - ``"dill"``: Use dill for serialize more complex types,
           this requires to include dill in your requirements.
-    :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
-        the args and result (pickle is default). This allows more complex types
-        but requires you to include dill in your requirements.
     """
 
     custom_operator_name = "@task.docker"
@@ -121,24 +117,11 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
 
     def __init__(
         self,
-        use_dill=False,
         python_command="python3",
         expect_airflow: bool = True,
         serializer: Serializer | None = None,
         **kwargs,
     ) -> None:
-        if use_dill:
-            warnings.warn(
-                "`use_dill` is deprecated and will be removed in a future version. "
-                "Please provide serializer='dill' instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=3,
-            )
-            if serializer:
-                raise AirflowException(
-                    "Both 'use_dill' and 'serializer' parameters are set. Please set only one of them"
-                )
-            serializer = "dill"
         serializer = serializer or "pickle"
         if serializer not in _SERIALIZERS:
             msg = (
@@ -150,7 +133,6 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         command = "placeholder command"
         self.python_command = python_command
         self.expect_airflow = expect_airflow
-        self.use_dill = serializer == "dill"
         self.serializer: Serializer = serializer
 
         super().__init__(
