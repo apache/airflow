@@ -141,7 +141,7 @@ class TestVariableOperations:
             if request.url.path == "/variables/test_key":
                 return httpx.Response(
                     status_code=200,
-                    json={"message": "Variable successfully set"},
+                    json={"ok": True},
                 )
             return httpx.Response(status_code=400, json={"detail": "Bad Request"})
 
@@ -151,4 +151,4 @@ class TestVariableOperations:
             key="test_key", value="test_value", description="test_description", type="PutVariable"
         )
         result = client.variables.set(msg=msg)
-        assert result.json() == {"message": "Variable successfully set"}
+        assert result == {"ok": True}

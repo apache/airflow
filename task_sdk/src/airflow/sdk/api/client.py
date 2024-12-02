@@ -162,6 +162,7 @@ class VariableOperations:
         """Set an Airflow Variable via the API server."""
         key = msg.key
         self.client.put(f"variables/{key}", content=msg.model_dump_json())
+        return {"ok": True}
 
 
 class XComOperations:
