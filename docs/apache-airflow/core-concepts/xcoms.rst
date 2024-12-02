@@ -98,36 +98,15 @@ There is also an ``orm_deserialize_value`` method that is called whenever the XC
 
 You can also override the ``clear`` method and use it when clearing results for given DAGs and tasks. This allows the custom XCom backend to process the data lifecycle easier.
 
-Working with Custom XCom Backends in Containers
------------------------------------------------
+Verifying Custom XCom Backend usage in Containers
+-------------------------------------------------
 
 Depending on where Airflow is deployed i.e., local, Docker, K8s, etc. it can be useful to be assured that a custom XCom backend is actually being initialized. For example, the complexity of the container environment can make it more difficult to determine if your backend is being loaded correctly during container deployment. Luckily the following guidance can be used to assist you in building confidence in your custom XCom implementation.
 
-Firstly, if you can exec into a terminal in the container then you should be able to do:
+If you can exec into a terminal in an Airflow container, you can then print out the actual XCom class that is being used:
 
 .. code-block:: python
 
     from airflow.models.xcom import XCom
 
     print(XCom.__name__)
-
-which will print the actual class that is being used.
-
-You can also examine Airflow's configuration:
-
-.. code-block:: python
-
-    from airflow.settings import conf
-
-    conf.get("core", "xcom_backend")
-
-Working with Custom Backends in K8s via Helm
---------------------------------------------
-
-Running custom XCom backends in K8s will introduce even more complexity to your Airflow deployment. Put simply, sometimes things go wrong which can be difficult to debug.
-
-For example, if you define a custom XCom backend in the Chart ``values.yaml`` (via the ``xcom_backend`` configuration) and Airflow fails to load the class, the entire Chart deployment will fail with each pod container attempting to restart time and time again.
-
-When deploying in K8s your custom XCom backend needs to be reside in a ``config`` directory otherwise it cannot be located during Chart deployment.
-
-An observed problem is that it is very difficult to acquire logs from the container because there is a very small window of availability where the trace can be obtained. The only way you can determine the root cause is if you are fortunate enough to query and acquire the container logs at the right time. This in turn prevents the entire Helm chart from deploying successfully.
