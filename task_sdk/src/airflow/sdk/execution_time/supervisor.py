@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import atexit
 import io
+import json
 import logging
 import os
 import selectors
@@ -658,8 +659,8 @@ class WatchedSubprocess:
                 self.client.task_instances.defer(self.ti_id, msg)
                 resp = None
             elif isinstance(msg, PutVariable):
-                var = self.client.variables.put(msg)
-                resp = var.model_dump_json(exclude_unset=True).encode()
+                put_resp = self.client.variables.put(msg)
+                resp = json.dumps(put_resp).encode()
             else:
                 log.error("Unhandled request", msg=msg)
                 continue

@@ -160,7 +160,8 @@ class VariableOperations:
     def put(self, msg):
         """Put a variable through the API server."""
         key = msg.key
-        self.client.put(f"variables/{key}", content=msg.model_dump_json())
+        put_resp = self.client.put(f"variables/{key}", content=msg.model_dump_json())
+        return put_resp
 
 
 class XComOperations:

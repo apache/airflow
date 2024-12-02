@@ -43,6 +43,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetVariable,
     GetXCom,
+    PutVariable,
     VariableResult,
     XComResult,
 )
@@ -688,6 +689,18 @@ class TestHandleRequest:
                 (TI_ID, DeferTask(next_method="execute_callback", classpath="my-classpath")),
                 "",
                 id="patch_task_instance_to_deferred",
+            ),
+            pytest.param(
+                PutVariable(key="test_key", value="test_value", description="test_description"),
+                b'{"message": "Variable successfully set"}\n',
+                "variables.put",
+                (
+                    PutVariable(
+                        key="test_key", value="test_value", description="test_description", type="PutVariable"
+                    ),
+                ),
+                {"message": "Variable successfully set"},
+                id="put_variable",
             ),
         ],
     )
