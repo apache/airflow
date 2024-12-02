@@ -33,4 +33,4 @@ class TestPinotDbApiHookIntegration:
         hook = PinotDbApiHook()
         sql = "select playerName from baseballStats  ORDER BY playerName limit 5"
         records = hook.get_records(sql)
-        assert [["A. Harry"], ["A. Harry"], ["Aaron"], ["Aaron Albert"], ["Aaron Albert"]] == records
+        assert records == [["A. Harry"], ["A. Harry"], ["Aaron"], ["Aaron Albert"], ["Aaron Albert"]]

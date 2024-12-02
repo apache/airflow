@@ -14,34 +14,45 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
 import logging
 import os
 import platform
 import signal
+import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from subprocess import Popen
 from time import sleep
+from typing import TYPE_CHECKING
 
 import psutil
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile, write_pid_to_pidfile
+from packaging.version import Version
 
 from airflow import __version__ as airflow_version, settings
 from airflow.cli.cli_config import ARG_PID, ARG_VERBOSE, ActionCommand, Arg
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.edge import __version__ as edge_provider_version
-from airflow.providers.edge.models.edge_job import EdgeJob
-from airflow.providers.edge.models.edge_logs import EdgeLogs
-from airflow.providers.edge.models.edge_worker import EdgeWorker, EdgeWorkerState, EdgeWorkerVersionException
-from airflow.utils import cli as cli_utils
+from airflow.providers.edge.cli.api_client import (
+    jobs_fetch,
+    jobs_set_state,
+    logs_logfile_path,
+    logs_push,
+    worker_register,
+    worker_set_state,
+)
+from airflow.providers.edge.models.edge_worker import EdgeWorkerState, EdgeWorkerVersionException
+from airflow.utils import cli as cli_utils, timezone
 from airflow.utils.platform import IS_WINDOWS
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from airflow.providers.edge.worker_api.datamodels import EdgeJobFetched
 
 logger = logging.getLogger(__name__)
 EDGE_WORKER_PROCESS_NAME = "edge-worker"
@@ -55,6 +66,37 @@ EDGE_WORKER_HEADER = "\n".join(
         r"",
     ]
 )
+
+
+@providers_configuration_loaded
+def force_use_internal_api_on_edge_worker():
+    """
+    Ensure that the environment is configured for the internal API without needing to declare it outside.
+
+    This is only required for an Edge worker and must to be done before the Click CLI wrapper is initiated.
+    That is because the CLI wrapper will attempt to establish a DB connection, which will fail before the
+    function call can take effect. In an Edge worker, we need to "patch" the environment before starting.
+    """
+    # export Edge API to be used for internal API
+    os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
+    os.environ["AIRFLOW_ENABLE_AIP_44"] = "True"
+    if "airflow" in sys.argv[0] and sys.argv[1:3] == ["edge", "worker"]:
+        AIRFLOW_VERSION = Version(airflow_version)
+        AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
+        if AIRFLOW_V_3_0_PLUS:
+            # Obvious TODO Make EdgeWorker compatible with Airflow 3 (again)
+            raise SystemExit(
+                "Error: EdgeWorker is currently broken on Airflow 3/main due to removal of AIP-44, rework for AIP-72."
+            )
+
+        api_url = conf.get("edge", "api_url")
+        if not api_url:
+            raise SystemExit("Error: API URL is not configured, please correct configuration.")
+        logger.info("Starting worker with API endpoint %s", api_url)
+        os.environ["AIRFLOW__CORE__INTERNAL_API_URL"] = api_url
+
+
+force_use_internal_api_on_edge_worker()
 
 
 def _hostname() -> str:
@@ -96,7 +138,7 @@ def _write_pid_to_pidfile(pid_file_path: str):
 class _Job:
     """Holds all information for a task/job to be executed as bundle."""
 
-    edge_job: EdgeJob
+    edge_job: EdgeJobFetched
     process: Popen
     logfile: Path
     logsize: int
@@ -153,9 +195,9 @@ class _EdgeWorkerCli:
     def start(self):
         """Start the execution in a loop until terminated."""
         try:
-            self.last_hb = EdgeWorker.register_worker(
+            self.last_hb = worker_register(
                 self.hostname, EdgeWorkerState.STARTING, self.queues, self._get_sysinfo()
-            ).last_update
+            )
         except EdgeWorkerVersionException as e:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
             raise SystemExit(str(e))
@@ -172,7 +214,7 @@ class _EdgeWorkerCli:
 
             logger.info("Quitting worker, signal being offline.")
             try:
-                EdgeWorker.set_state(self.hostname, EdgeWorkerState.OFFLINE, 0, self._get_sysinfo())
+                worker_set_state(self.hostname, EdgeWorkerState.OFFLINE, 0, self.queues, self._get_sysinfo())
             except EdgeWorkerVersionException:
                 logger.info("Version mismatch of Edge worker and Core. Quitting worker anyway.")
         finally:
@@ -195,9 +237,7 @@ class _EdgeWorkerCli:
     def fetch_job(self) -> bool:
         """Fetch and start a new job from central site."""
         logger.debug("Attempting to fetch a new job...")
-        edge_job = EdgeJob.reserve_task(
-            worker_name=self.hostname, free_concurrency=self.free_concurrency, queues=self.queues
-        )
+        edge_job = jobs_fetch(self.hostname, self.queues, self.free_concurrency)
         if edge_job:
             logger.info("Received job: %s", edge_job)
             env = os.environ.copy()
@@ -205,9 +245,9 @@ class _EdgeWorkerCli:
             env["AIRFLOW__CORE__INTERNAL_API_URL"] = conf.get("edge", "api_url")
             env["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
             process = Popen(edge_job.command, close_fds=True, env=env, start_new_session=True)
-            logfile = EdgeLogs.logfile_path(edge_job.key)
+            logfile = logs_logfile_path(edge_job.key)
             self.jobs.append(_Job(edge_job, process, logfile, 0))
-            EdgeJob.set_state(edge_job.key, TaskInstanceState.RUNNING)
+            jobs_set_state(edge_job.key, TaskInstanceState.RUNNING)
             return True
 
         logger.info("No new job to process%s", f", {len(self.jobs)} still running" if self.jobs else "")
@@ -223,10 +263,10 @@ class _EdgeWorkerCli:
                 self.jobs.remove(job)
                 if job.process.returncode == 0:
                     logger.info("Job completed: %s", job.edge_job)
-                    EdgeJob.set_state(job.edge_job.key, TaskInstanceState.SUCCESS)
+                    jobs_set_state(job.edge_job.key, TaskInstanceState.SUCCESS)
                 else:
                     logger.error("Job failed: %s", job.edge_job)
-                    EdgeJob.set_state(job.edge_job.key, TaskInstanceState.FAILED)
+                    jobs_set_state(job.edge_job.key, TaskInstanceState.FAILED)
             else:
                 used_concurrency += job.edge_job.concurrency_slots
 
@@ -244,9 +284,9 @@ class _EdgeWorkerCli:
                         if not chunk_data:
                             break
 
-                        EdgeLogs.push_logs(
+                        logs_push(
                             task=job.edge_job.key,
-                            log_chunk_time=datetime.now(),
+                            log_chunk_time=timezone.utcnow(),
                             log_chunk_data=chunk_data,
                         )
 
@@ -261,7 +301,7 @@ class _EdgeWorkerCli:
         )
         sysinfo = self._get_sysinfo()
         try:
-            self.queues = EdgeWorker.set_state(self.hostname, state, len(self.jobs), sysinfo)
+            self.queues = worker_set_state(self.hostname, state, len(self.jobs), self.queues, sysinfo)
         except EdgeWorkerVersionException:
             logger.info("Version mismatch of Edge worker and Core. Shutting down worker.")
             _EdgeWorkerCli.drain = True

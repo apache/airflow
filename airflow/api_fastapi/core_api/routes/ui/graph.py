@@ -16,20 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated
+from fastapi import Request, status
 
-from fastapi import Depends, Request, status
-from sqlalchemy.orm import Session
-
+from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.ui.graph import GraphDataResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.task_group import task_group_to_dict
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-from airflow.api_fastapi.common.db.common import get_session
-from airflow.api_fastapi.common.router import AirflowRouter
 
 graph_data_router = AirflowRouter(tags=["Graph"], prefix="/graph")
 
@@ -40,7 +34,7 @@ graph_data_router = AirflowRouter(tags=["Graph"], prefix="/graph")
     responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]),
 )
 def graph_data(
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     dag_id: str,
     request: Request,
     root: str | None = None,

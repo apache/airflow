@@ -141,7 +141,7 @@ class TestGetXComEntries(TestXComEndpoint):
             environ_overrides={"REMOTE_USER": "test_granular_permissions"},
         )
 
-        assert 200 == response.status_code
+        assert response.status_code == 200
         response_data = response.json
         for xcom_entry in response_data["xcom_entries"]:
             xcom_entry["timestamp"] = "TIMESTAMP"

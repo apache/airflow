@@ -22,10 +22,10 @@ from typing import Annotated, Literal, cast
 from fastapi import Depends, HTTPException, Query, Request, status
 from sqlalchemy import or_, select
 from sqlalchemy.exc import MultipleResultsFound
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.selectable import Select
 
-from airflow.api_fastapi.common.db.common import get_session, paginated_select
+from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
     DagIdsFilter,
     DagRunIdsFilter,
@@ -81,7 +81,7 @@ task_instances_prefix = "/dagRuns/{dag_run_id}/taskInstances"
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
 )
 def get_task_instance(
-    dag_id: str, dag_run_id: str, task_id: str, session: Annotated[Session, Depends(get_session)]
+    dag_id: str, dag_run_id: str, task_id: str, session: SessionDep
 ) -> TaskInstanceResponse:
     """Get task instance."""
     query = (
@@ -134,7 +134,7 @@ def get_mapped_task_instances(
             ).dynamic_depends(default="map_index")
         ),
     ],
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> TaskInstanceCollectionResponse:
     """Get list of mapped task instances."""
     query = (
@@ -196,7 +196,7 @@ def get_task_instance_dependencies(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     request: Request,
     map_index: int = -1,
 ) -> TaskDependencyCollectionResponse:
@@ -246,7 +246,7 @@ def get_task_instance_tries(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     map_index: int = -1,
 ) -> TaskInstanceHistoryCollectionResponse:
     """Get list of task instances history."""
@@ -286,7 +286,7 @@ def get_mapped_task_instance_tries(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     map_index: int,
 ) -> TaskInstanceHistoryCollectionResponse:
     return get_task_instance_tries(
@@ -307,7 +307,7 @@ def get_mapped_task_instance(
     dag_run_id: str,
     task_id: str,
     map_index: int,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> TaskInstanceResponse:
     """Get task instance."""
     query = (
@@ -355,7 +355,7 @@ def get_task_instances(
             ).dynamic_depends(default="map_index")
         ),
     ],
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> TaskInstanceCollectionResponse:
     """
     Get list of task instances.
@@ -413,7 +413,7 @@ def get_task_instances_batch(
     dag_id: Literal["~"],
     dag_run_id: Literal["~"],
     body: TaskInstancesBatchBody,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> TaskInstanceCollectionResponse:
     """Get list of task instances."""
     dag_ids = DagIdsFilter(TI, body.dag_ids)
@@ -490,7 +490,7 @@ def get_task_instance_try_details(
     dag_run_id: str,
     task_id: str,
     task_try_number: int,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     map_index: int = -1,
 ) -> TaskInstanceHistoryResponse:
     """Get task instance details by try number."""
@@ -525,7 +525,7 @@ def get_mapped_task_instance_try_details(
     dag_run_id: str,
     task_id: str,
     task_try_number: int,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     map_index: int,
 ) -> TaskInstanceHistoryResponse:
     return get_task_instance_try_details(
@@ -546,7 +546,7 @@ def post_clear_task_instances(
     dag_id: str,
     request: Request,
     body: ClearTaskInstancesBody,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> TaskInstanceReferenceCollectionResponse:
     """Clear task instances."""
     dag = request.app.state.dag_bag.get_dag(dag_id)
@@ -638,7 +638,7 @@ def patch_task_instance(
     task_id: str,
     request: Request,
     body: PatchTaskInstanceBody,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     map_index: int = -1,
     update_mask: list[str] | None = Query(None),
 ) -> TaskInstanceResponse:

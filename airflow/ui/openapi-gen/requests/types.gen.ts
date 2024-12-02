@@ -124,9 +124,9 @@ export type BackfillResponse = {
 };
 
 /**
- * Base status field for metadatabase and scheduler.
+ * Base info serializer for responses.
  */
-export type BaseInfoSchema = {
+export type BaseInfoResponse = {
   status: string | null;
 };
 
@@ -212,6 +212,13 @@ export type ConnectionBody = {
   port?: number | null;
   password?: string | null;
   extra?: string | null;
+};
+
+/**
+ * Connections Serializer for requests body.
+ */
+export type ConnectionBulkBody = {
+  connections: Array<ConnectionBody>;
 };
 
 /**
@@ -519,9 +526,9 @@ export type DAGWithLatestDagRunsResponse = {
 };
 
 /**
- * Schema for DagProcessor info.
+ * DagProcessor info serializer for responses.
  */
-export type DagProcessorInfoSchema = {
+export type DagProcessorInfoResponse = {
   status: string | null;
   latest_dag_processor_heartbeat: string | null;
 };
@@ -699,13 +706,13 @@ export type HTTPValidationError = {
 };
 
 /**
- * Schema for the Health endpoint.
+ * Health serializer for responses.
  */
-export type HealthInfoSchema = {
-  metadatabase: BaseInfoSchema;
-  scheduler: SchedulerInfoSchema;
-  triggerer: TriggererInfoSchema;
-  dag_processor: DagProcessorInfoSchema;
+export type HealthInfoResponse = {
+  metadatabase: BaseInfoResponse;
+  scheduler: SchedulerInfoResponse;
+  triggerer: TriggererInfoResponse;
+  dag_processor?: DagProcessorInfoResponse | null;
 };
 
 /**
@@ -915,9 +922,9 @@ export type QueuedEventResponse = {
 export type ReprocessBehavior = "failed" | "completed" | "none";
 
 /**
- * Schema for Scheduler info.
+ * Scheduler info serializer for responses.
  */
-export type SchedulerInfoSchema = {
+export type SchedulerInfoResponse = {
   status: string | null;
   latest_scheduler_heartbeat: string | null;
 };
@@ -1198,9 +1205,9 @@ export type TriggerResponse = {
 };
 
 /**
- * Schema for Triggerer info.
+ * Triggerer info serializer for responses.
  */
-export type TriggererInfoSchema = {
+export type TriggererInfoResponse = {
   status: string | null;
   latest_triggerer_heartbeat: string | null;
 };
@@ -1498,6 +1505,12 @@ export type PostConnectionData = {
 };
 
 export type PostConnectionResponse = ConnectionResponse;
+
+export type PostConnectionsData = {
+  requestBody: ConnectionBulkBody;
+};
+
+export type PostConnectionsResponse = ConnectionCollectionResponse;
 
 export type TestConnectionData = {
   requestBody: ConnectionBody;
@@ -2040,7 +2053,7 @@ export type ReparseDagFileData = {
 
 export type ReparseDagFileResponse = null;
 
-export type GetHealthResponse = HealthInfoSchema;
+export type GetHealthResponse = HealthInfoResponse;
 
 export type GetVersionResponse = VersionInfo;
 
@@ -2747,6 +2760,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         201: ConnectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/connections/bulk": {
+    post: {
+      req: PostConnectionsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        201: ConnectionCollectionResponse;
         /**
          * Unauthorized
          */
@@ -4354,7 +4394,7 @@ export type $OpenApiTs = {
         /**
          * Successful Response
          */
-        200: HealthInfoSchema;
+        200: HealthInfoResponse;
       };
     };
   };

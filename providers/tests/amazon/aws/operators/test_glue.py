@@ -67,13 +67,13 @@ class TestGlueJobOperator:
         session.commit()
         rendered_template: GlueJobOperator = ti.render_templates()
 
-        assert DAG_ID == rendered_template.script_location
-        assert DAG_ID == rendered_template.script_args
-        assert DAG_ID == rendered_template.create_job_kwargs
-        assert DAG_ID == rendered_template.iam_role_name
-        assert DAG_ID == rendered_template.iam_role_arn
-        assert DAG_ID == rendered_template.s3_bucket
-        assert DAG_ID == rendered_template.job_name
+        assert rendered_template.script_location == DAG_ID
+        assert rendered_template.script_args == DAG_ID
+        assert rendered_template.create_job_kwargs == DAG_ID
+        assert rendered_template.iam_role_name == DAG_ID
+        assert rendered_template.iam_role_arn == DAG_ID
+        assert rendered_template.s3_bucket == DAG_ID
+        assert rendered_template.job_name == DAG_ID
 
     @pytest.mark.parametrize(
         "script_location",

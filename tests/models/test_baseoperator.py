@@ -350,12 +350,12 @@ class TestBaseOperator:
         assert [op5] == op3.get_direct_relatives(upstream=False)
         assert {op4, op5} == set(op6.get_direct_relatives(upstream=True))
 
-        assert {"label": "label1"} == dag.get_edge_info(
-            upstream_task_id=op1.task_id, downstream_task_id=op2.task_id
-        )
-        assert {"label": "label2"} == dag.get_edge_info(
-            upstream_task_id=op1.task_id, downstream_task_id=op3.task_id
-        )
+        assert dag.get_edge_info(upstream_task_id=op1.task_id, downstream_task_id=op2.task_id) == {
+            "label": "label1"
+        }
+        assert dag.get_edge_info(upstream_task_id=op1.task_id, downstream_task_id=op3.task_id) == {
+            "label": "label2"
+        }
 
         # Begin test for `XComArgs` with `EdgeModifiers`
         [xlabel1, xlabel2] = [Label(label=f"xcomarg_label{i}") for i in range(1, 3)]
@@ -370,12 +370,12 @@ class TestBaseOperator:
         assert [xop5.operator] == xop3.operator.get_direct_relatives(upstream=False)
         assert {xop4.operator, xop5.operator} == set(xop6.operator.get_direct_relatives(upstream=True))
 
-        assert {"label": "xcomarg_label1"} == dag.get_edge_info(
+        assert dag.get_edge_info(
             upstream_task_id=xop1.operator.task_id, downstream_task_id=xop2.operator.task_id
-        )
-        assert {"label": "xcomarg_label2"} == dag.get_edge_info(
+        ) == {"label": "xcomarg_label1"}
+        assert dag.get_edge_info(
             upstream_task_id=xop1.operator.task_id, downstream_task_id=xop3.operator.task_id
-        )
+        ) == {"label": "xcomarg_label2"}
 
         # Begin test for `TaskGroups`
         [tg1, tg2] = [TaskGroup(group_id=f"tg{i}", dag=dag) for i in range(1, 3)]
