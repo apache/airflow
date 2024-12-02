@@ -22,7 +22,7 @@ import operator
 import os
 import urllib.parse
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, NamedTuple, overload
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Union, overload
 
 import attrs
 
@@ -58,7 +58,7 @@ class AssetUniqueKey(NamedTuple):
     def from_asset(asset: Asset | AssetModel) -> AssetUniqueKey:
         return AssetUniqueKey(name=asset.name, uri=asset.uri)
 
-    def to_asset(self) -> Asset:
+    def to_obj(self) -> Asset:
         return Asset(name=self.name, uri=self.uri)
 
 
@@ -75,6 +75,12 @@ class AssetAliasUniqueKey:
     @staticmethod
     def from_asset_alias(asset_alias: AssetAlias) -> AssetAliasUniqueKey:
         return AssetAliasUniqueKey(name=asset_alias.name)
+
+    def to_obj(self) -> AssetAlias:
+        return AssetAlias(name=self.name)
+
+
+BaseAssetUniqueKey = Union[AssetUniqueKey, AssetAliasUniqueKey]
 
 
 def normalize_noop(parts: SplitResult) -> SplitResult:
