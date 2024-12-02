@@ -26,7 +26,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, Union
 
 import attr
 import methodtools
-
 from airflow.exceptions import UnmappableOperator
 from airflow.models.abstractoperator import (
     DEFAULT_EXECUTOR,
@@ -41,8 +40,7 @@ from airflow.models.abstractoperator import (
     DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
-    NotMapped, DEFAULT_TASK_EXECUTION_TIMEOUT,
-)
+    NotMapped, )
 from airflow.models.expandinput import (
     DictOfListsExpandInput,
     ListOfDictsExpandInput,
@@ -246,32 +244,30 @@ class OperatorPartial:
         if not mapped_kwargs:
             raise TypeError("no arguments to expand against")
         validate_mapping_kwargs(self.operator_class, "stream", mapped_kwargs)
-        prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified")
+        prevent_duplicates(
+            self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified"
+        )
 
         expand_input = DictOfListsExpandInput(mapped_kwargs)
         ensure_xcomarg_return_value(expand_input.value)
 
-        partial_kwargs = self.kwargs.copy()
-        task_id = partial_kwargs.pop("task_id")
-        dag = partial_kwargs.pop("dag")
-        task_group = partial_kwargs.pop("task_group")
-        start_date = partial_kwargs.pop("start_date")
-        end_date = partial_kwargs.pop("end_date")
-        max_active_tis_per_dag = partial_kwargs.pop("max_active_tis_per_dag", None)
-        execution_timeout = partial_kwargs.pop("execution_timeout", DEFAULT_TASK_EXECUTION_TIMEOUT)
+        kwargs = {}
+
+        for parameter_name in BaseOperator._comps:
+            parameter_value = self.kwargs.get(parameter_name)
+            if parameter_value:
+                kwargs[parameter_name] = parameter_value
+
+        # We don't retry the whole stream operator, we retry the individual tasks
+        kwargs["retries"] = 0
+        # We don't want to time out the whole stream operator, we only time out the individual tasks
+        kwargs["timeout"] = kwargs.pop("execution_timeout", None)
 
         return StreamedOperator(
-            task_id=task_id,
-            dag=dag,
-            task_group=task_group,
-            start_date=start_date,
-            end_date=end_date,
-            execution_timeout=execution_timeout,
-            max_active_tis_per_dag=max_active_tis_per_dag,
+            **kwargs,
             operator_class=self.operator_class,
             expand_input=expand_input,
-            retries=0,
-            partial_kwargs=self.kwargs.copy(),
+            partial_kwargs=self.kwargs,
         )
 
 

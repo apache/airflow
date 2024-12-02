@@ -91,9 +91,9 @@ class AirflowRescheduleTaskInstanceException(AirflowRescheduleException):
     :param task_instance: The task instance that should be rescheduled
     """
 
-    def __init__(self, task_instance: TaskInstance):
-        super().__init__(reschedule_date=task_instance.next_retry_datetime())
-        self.task_instance = task_instance
+    def __init__(self, task: TaskInstance):
+        super().__init__(reschedule_date=task.next_retry_datetime())
+        self.task = task
 
 
 class InvalidStatsNameException(AirflowException):

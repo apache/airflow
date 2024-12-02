@@ -20,33 +20,34 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from multiprocessing import TimeoutError
-from asyncio import iscoroutinefunction, wait_for, ensure_future
+from abc import abstractmethod
+from asyncio import AbstractEventLoop, Future, ensure_future
+from contextlib import contextmanager, suppress
 from datetime import timedelta
 from math import ceil
+from multiprocessing import TimeoutError
 from multiprocessing.pool import ThreadPool
 from time import sleep
-from typing import TYPE_CHECKING, Any, Callable, Sequence, cast, Iterable
+from typing import TYPE_CHECKING, Any, Generator, Iterable, Sequence
 
 from airflow import XComArg
 from airflow.exceptions import (
     AirflowException,
+    AirflowRescheduleTaskInstanceException,
     AirflowTaskTimeout,
-    TaskDeferred, AirflowRescheduleException,
+    TaskDeferred,
 )
 from airflow.models.abstractoperator import DEFAULT_TASK_EXECUTION_TIMEOUT
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.expandinput import (
     ExpandInput,
+    is_mappable,
     _needs_run_time_resolution,
-    is_mappable, OperatorExpandArgument, DictOfListsExpandInput,
 )
-from airflow.models.mappedoperator import validate_mapping_kwargs, ensure_xcomarg_return_value
 from airflow.models.taskinstance import TaskInstance
-from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.triggers.base import run_trigger
 from airflow.utils import timezone
 from airflow.utils.context import Context, context_get_outlet_events
-from airflow.utils.helpers import prevent_duplicates
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.task_instance_session import get_current_task_instance_session
@@ -56,47 +57,33 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 
-# TODO: Check _run_inline_trigger method from DAG, could be refactored so it uses this method
-async def run_trigger(trigger: BaseTrigger) -> TriggerEvent | None:
-    async for event in trigger.run():
-        return event
+@contextmanager
+def event_loop() -> Generator[AbstractEventLoop, None, None]:
+    new_event_loop = False
+    loop = None
+    try:
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            new_event_loop = True
+        yield loop
+    finally:
+        if new_event_loop and loop is not None:
+            with suppress(AttributeError):
+                loop.close()
 
 
-class AirflowRescheduleTaskInstanceException(AirflowRescheduleException):
-    """
-    Raise when the task should be re-scheduled for a specific TaskInstance at a later time.
-
-    :param task_instance: The task instance that should be rescheduled
-    """
-
-    def __init__(self, task: TaskInstance):
-        super().__init__(reschedule_date=task.next_retry_datetime())
-        self.task = task
-
-
-class OperatorExecutor(LoggingMixin):
-    """
-    Run an operator with given task context and task instance.
-
-    If the execute function raises a TaskDeferred exception, then the trigger instance within the
-    TaskDeferred exception will be executed with the given context and task instance. The operator
-    or trigger will always be executed in an async way.
-
-    :meta private:
-    """
-
+class TaskExecutor(LoggingMixin):
     def __init__(
         self,
-        operator: BaseOperator,
         context: Context,
         task_instance: TaskInstance,
-        timeout,
     ):
         super().__init__()
-        self.operator = operator
         self.__context = context
         self._task_instance = task_instance
-        self.timeout = timeout
 
     @property
     def task_instance(self) -> TaskInstance:
@@ -108,15 +95,67 @@ class OperatorExecutor(LoggingMixin):
     def context(self) -> Context:
         return {**self.__context, **{"ti": self.task_instance}}
 
-    async def _run_callable(self, method: Callable, *args, **kwargs):
+    @property
+    def operator(self) -> BaseOperator:
+        return self.task_instance.task
+
+    @abstractmethod
+    def run(self, *args, **kwargs):
+        raise NotImplementedError()
+
+    def _handle_result(self, result):
+        """
+        Common logic to handle result and post-execution tasks.
+        """
+        self.operator.post_execute(context=self.context)
+        if self.log.isEnabledFor(logging.INFO):
+            self.log.info(
+                "Task instance %s for %s finished successfully in %s attempts.",
+                self.task_instance.map_index,
+                type(self.operator).__name__,
+                self.task_instance.next_try_number,
+            )
+        if self.operator.do_xcom_push:
+            return result
+        return None
+
+
+class OperatorExecutor(TaskExecutor):
+    """
+    Run an operator with given task context and task instance.
+
+    If the execute function raises a TaskDeferred exception, then the trigger instance within the
+    TaskDeferred exception will be executed with the given context and task instance. The operator
+    or trigger will always be executed in an async way.
+
+    :meta private:
+    """
+
+    def run(self):
+        if self.log.isEnabledFor(logging.INFO):
+            self.log.info(
+                "Attempting running task %s of %s for %s with map_index %s.",
+                self.task_instance.try_number,
+                self.operator.retries,
+                type(self.operator).__name__,
+                self.task_instance.map_index,
+            )
+
+        if self.task_instance.try_number == 0:
+            self.operator.render_template_fields(context=self.context)
+        self.operator.pre_execute(context=self.context)
+        self.task_instance._run_execute_callback(
+            context=self.context, task=self.operator
+        )
         try:
             outlet_events = context_get_outlet_events(self.context)
             callable_runner = ExecutionCallableRunner(
-                func=method, outlet_events=outlet_events, logger=self.log
+                func=self.operator.execute,
+                outlet_events=outlet_events,
+                logger=self.log,
             )
-            if iscoroutinefunction(method):
-                return await callable_runner.run(*args, **kwargs)
-            return callable_runner.run(*args, **kwargs)
+            result = callable_runner.run(self.operator, self.context)
+            return self._handle_result(result)
         except AirflowException as e:
             if self.task_instance.next_try_number > self.operator.retries:
                 self.log.error(
@@ -134,7 +173,9 @@ class OperatorExecutor(LoggingMixin):
                 task=self.task_instance
             )
 
-    async def _run_deferrable(self, context: Context, task_deferred: TaskDeferred):
+
+class TriggerExecutor(TaskExecutor):
+    async def run(self, task_deferred: TaskDeferred):
         event = await run_trigger(task_deferred.trigger)
 
         self.log.debug("event: %s", event)
@@ -143,54 +184,14 @@ class OperatorExecutor(LoggingMixin):
             self.log.debug("next_method: %s", task_deferred.method_name)
 
             if task_deferred.method_name:
-                next_method = BaseOperator.next_callable(
-                    self.operator, task_deferred.method_name, task_deferred.kwargs
-                )
-                result = next_method(context, event.payload)
-                self.log.debug("result: %s", result)
-                return result
-
-    async def run(self, method: Callable, *args, **kwargs):
-        if self.log.isEnabledFor(logging.INFO):
-            self.log.info(
-                "Attempting running task %s of %s for %s with map_index %s.",
-                self.task_instance.try_number,
-                self.operator.retries,
-                type(self.operator).__name__,
-                self.task_instance.map_index,
-            )
-
-        if self.task_instance.try_number == 0:
-            self.operator.render_template_fields(context=self.context)
-        self.operator.pre_execute(context=self.context)
-        self.task_instance._run_execute_callback(
-            context=self.context, task=self.operator
-        )
-
-        try:
-            return await wait_for(
-                self._run_callable(
-                    method, *(list(args or ()) + [self.context]), **kwargs
-                ),
-                timeout=self.timeout,
-            )
-        except TaskDeferred as task_deferred:
-            return await wait_for(
-                self._run_callable(
-                    self._run_deferrable, *[self.context, task_deferred]
-                ),
-                timeout=self.timeout,
-            )
-        finally:
-            self.operator.post_execute(context=self.context)
-
-            if self.log.isEnabledFor(logging.INFO):
-                self.log.info(
-                    "Task instance %s for %s finished successfully in %s attempts.",
-                    self.task_instance.map_index,
-                    type(self.operator).__name__,
-                    self.task_instance.next_try_number,
-                )
+                try:
+                    next_method = BaseOperator.next_callable(
+                        self.operator, task_deferred.method_name, task_deferred.kwargs
+                    )
+                    result = next_method(self.context, event.payload)
+                    return self._handle_result(result)
+                except TaskDeferred as task_deferred:
+                    return await self.run(task_deferred=task_deferred)
 
 
 class StreamedOperator(BaseOperator):
@@ -204,7 +205,6 @@ class StreamedOperator(BaseOperator):
         "expand_input",
         "partial_kwargs",
         "_log",
-        "_semaphore",
     )
 
     def __init__(
@@ -271,14 +271,6 @@ class StreamedOperator(BaseOperator):
         session = get_current_task_instance_session()
         self._resolve_expand_input(context=context, session=session)
 
-    def _run_task(self, context: Context, task: TaskInstance):
-        # Always open new event loop as this is executed in multithreaded
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(ensure_future(self._run_operator(context, task), loop=loop))
-        finally:
-            loop.close()
-
     def _run_tasks(
         self,
         context: Context,
@@ -288,18 +280,26 @@ class StreamedOperator(BaseOperator):
         exception: BaseException | None = None
         results = results or []
         reschedule_date = timezone.utcnow()
+        deferred_tasks: list[Future] = []
         failed_tasks: list[TaskInstance] = []
 
         with ThreadPool(processes=self.max_active_tis_per_dag) as pool:
             futures = [
-                (task, pool.apply_async(self._run_task, (context, task)))
+                (task, pool.apply_async(self._run_operator, (context, task)))
                 for task in tasks
             ]
 
             for task, future in futures:
                 try:
                     result = future.get(timeout=self.timeout)
-                    results.append(result)
+                    if isinstance(result, TaskDeferred):
+                        deferred_tasks.append(
+                            ensure_future(
+                                self._run_deferrable(context=context, task=task, task_deferred=result)
+                            )
+                        )
+                    else:
+                        results.append(result)
                 except TimeoutError as e:
                     self.log.warning("A timeout occurred for task_id %s", task.task_id)
                     if task.next_try_number > self.retries:
@@ -313,6 +313,23 @@ class StreamedOperator(BaseOperator):
                 except AirflowException as e:
                     self.log.error("An exception occurred for task_id %s", task.task_id)
                     exception = e
+
+        if deferred_tasks:
+            self.log.info("Running %s deferred tasks", len(deferred_tasks))
+
+            with event_loop() as loop:
+                for result in loop.run_until_complete(
+                    asyncio.gather(*deferred_tasks, return_exceptions=True)
+                ):
+                    if isinstance(result, Exception):
+                        if not isinstance(result, AirflowRescheduleTaskInstanceException):
+                            exception = result
+                        reschedule_date = result.reschedule_date
+                        failed_tasks.append(result.task)
+                    else:
+                        results.append(result)
+
+            deferred_tasks.clear()
 
         if not failed_tasks:
             if exception:
@@ -341,23 +358,22 @@ class StreamedOperator(BaseOperator):
 
         return self._run_tasks(context, failed_tasks, results)
 
-    async def _run_operator(self, context: Context, task_instance: TaskInstance):
-        operator: BaseOperator = cast(BaseOperator, task_instance.task)
-        self.log.debug("operator: %s", operator)
-        result = await OperatorExecutor(
-            operator=operator,
+    @classmethod
+    def _run_operator(cls, context: Context, task_instance: TaskInstance):
+        try:
+            return OperatorExecutor(
+                context=context,
+                task_instance=task_instance,
+            ).run()
+        except TaskDeferred as task_deferred:
+            return task_deferred
+
+    @classmethod
+    async def _run_deferrable(cls, context: Context, task: TaskInstance, task_deferred: TaskDeferred):
+        return await TriggerExecutor(
             context=context,
-            task_instance=task_instance,
-            timeout=self.timeout,
-        ).run(
-            lambda _context: operator.execute.__wrapped__(
-                self=operator, context=_context
-            )
-        )  # TODO: change back to operator.execute once ExecutorSafeguard is fixed
-        self.log.debug("result: %s", result)
-        self.log.debug("do_xcom_push: %s", operator.do_xcom_push)
-        if operator.do_xcom_push:
-            return result
+            task_instance=task,
+        ).run(task_deferred)
 
     def _create_task(self, context: Context, index: int) -> TaskInstance:
         operator = self._unmap_operator(index)
@@ -388,34 +404,4 @@ class StreamedOperator(BaseOperator):
 
         if self.do_xcom_push:
             return results
-
-
-def stream(self, **mapped_kwargs: OperatorExpandArgument) -> StreamedOperator:
-    if not mapped_kwargs:
-        raise TypeError("no arguments to expand against")
-    validate_mapping_kwargs(self.operator_class, "stream", mapped_kwargs)
-    prevent_duplicates(
-        self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified"
-    )
-
-    expand_input = DictOfListsExpandInput(mapped_kwargs)
-    ensure_xcomarg_return_value(expand_input.value)
-
-    kwargs = {}
-
-    for parameter_name in BaseOperator._comps:
-        parameter_value = self.kwargs.get(parameter_name)
-        if parameter_value:
-            kwargs[parameter_name] = parameter_value
-
-    # We don't retry the whole stream operator, we retry the individual tasks
-    kwargs["retries"] = 0
-    # We don't want to time out the whole stream operator, we only time out the individual tasks
-    kwargs["timeout"] = kwargs.pop("execution_timeout", None)
-
-    return StreamedOperator(
-        **kwargs,
-        operator_class=self.operator_class,
-        expand_input=expand_input,
-        partial_kwargs=self.kwargs,
-    )
+        return None
