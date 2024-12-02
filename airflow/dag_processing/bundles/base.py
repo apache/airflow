@@ -70,7 +70,7 @@ class BaseDagBundle(ABC):
         """
 
     @abstractmethod
-    def get_current_version(self) -> str:
+    def get_current_version(self) -> str | None:
         """
         Retrieve a string that represents the version of the DAG bundle.
 
