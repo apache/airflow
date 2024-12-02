@@ -37,7 +37,7 @@ Breaking changes
   The following breaking changes were introduced:
 
   * Operators
-    
+
     * Removed ``_sql()`` support for SparkSqlOperator. Please use ``sql`` attribute instead
 
 
