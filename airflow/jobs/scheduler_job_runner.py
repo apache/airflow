@@ -63,7 +63,6 @@ from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.traces import utils as trace_utils
-from airflow.traces.otel_tracer import CTX_PROP_SUFFIX
 from airflow.traces.tracer import Trace, add_span
 from airflow.utils import timezone
 from airflow.utils.dates import datetime_to_nano
@@ -1137,7 +1136,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if not is_healthy:
                 # Start a new span for the dag_run.
                 dr_span = Trace.start_root_span(
-                    span_name=f"{dr.dag_id}_recreated{CTX_PROP_SUFFIX}",
+                    span_name=f"{dr.dag_id}_recreated",
                     component="dag",
                     start_time=dr.queued_at,
                     start_as_current=False,
@@ -1161,7 +1160,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dr_context = Trace.extract(dr.context_carrier)
                 for ti in tis_needing_spans:
                     ti_span = Trace.start_child_span(
-                        span_name=f"{ti.task_id}_recreated{CTX_PROP_SUFFIX}",
+                        span_name=f"{ti.task_id}_recreated",
                         parent_context=dr_context,
                         start_time=ti.queued_dttm,
                         start_as_current=False,

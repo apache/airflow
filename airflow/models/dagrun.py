@@ -79,7 +79,6 @@ from airflow.models.tasklog import LogTemplate
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
-from airflow.traces.otel_tracer import CTX_PROP_SUFFIX
 from airflow.traces.tracer import EmptySpan, Trace
 from airflow.utils import timezone
 from airflow.utils.dates import datetime_to_nano
@@ -1087,8 +1086,8 @@ class DagRun(Base, LoggingMixin):
                     continue_ti_spans = False
                     if self.span_status == SpanStatus.NOT_STARTED:
                         dr_span = Trace.start_root_span(
-                            span_name=f"{self.dag_id}{CTX_PROP_SUFFIX}",
-                            component=f"dag{CTX_PROP_SUFFIX}",
+                            span_name=f"{self.dag_id}",
+                            component="dag",
                             start_time=self.queued_at,  # This is later converted to nano.
                             start_as_current=False,
                         )
@@ -1101,9 +1100,9 @@ class DagRun(Base, LoggingMixin):
                             s.set_attribute("trace_status", "continued")
 
                         dr_span = Trace.start_child_span(
-                            span_name=f"{self.dag_id}_continued{CTX_PROP_SUFFIX}",
+                            span_name=f"{self.dag_id}_continued",
                             parent_context=parent_context,
-                            component=f"dag{CTX_PROP_SUFFIX}",
+                            component="dag",
                             # No start time
                             start_as_current=False,
                         )
@@ -1125,7 +1124,7 @@ class DagRun(Base, LoggingMixin):
                         for ti in tis:
                             if ti.span_status == SpanStatus.NEEDS_CONTINUANCE:
                                 ti_span = Trace.start_child_span(
-                                    span_name=f"{ti.task_id}_continued{CTX_PROP_SUFFIX}",
+                                    span_name=f"{ti.task_id}_continued",
                                     parent_context=new_dagrun_context,
                                     start_as_current=False,
                                 )

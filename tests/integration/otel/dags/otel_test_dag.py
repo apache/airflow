@@ -24,7 +24,6 @@ from opentelemetry import trace
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.traces import otel_tracer
-from airflow.traces.otel_tracer import CTX_PROP_SUFFIX
 from airflow.traces.tracer import Trace
 
 logger = logging.getLogger("airflow.otel_test_dag")
@@ -57,26 +56,26 @@ with DAG(
             logger.info("Extracting the span context from the context_carrier.")
             parent_context = Trace.extract(context_carrier)
             with otel_task_tracer.start_child_span(
-                span_name=f"{ti.task_id}_sub_span1{CTX_PROP_SUFFIX}",
+                span_name=f"{ti.task_id}_sub_span1",
                 parent_context=parent_context,
-                component=f"dag{CTX_PROP_SUFFIX}",
+                component="dag",
             ) as s1:
                 s1.set_attribute("attr1", "val1")
                 logger.info("From task sub_span1.")
 
-                with otel_task_tracer.start_child_span(f"{ti.task_id}_sub_span2{CTX_PROP_SUFFIX}") as s2:
+                with otel_task_tracer.start_child_span(f"{ti.task_id}_sub_span2") as s2:
                     s2.set_attribute("attr2", "val2")
                     logger.info("From task sub_span2.")
 
                     tracer = trace.get_tracer("trace_test.tracer", tracer_provider=tracer_provider)
-                    with tracer.start_as_current_span(name=f"{ti.task_id}_sub_span3{CTX_PROP_SUFFIX}") as s3:
+                    with tracer.start_as_current_span(name=f"{ti.task_id}_sub_span3") as s3:
                         s3.set_attribute("attr3", "val3")
                         logger.info("From task sub_span3.")
 
             with otel_task_tracer.start_child_span(
-                span_name=f"{ti.task_id}_sub_span4{CTX_PROP_SUFFIX}",
+                span_name=f"{ti.task_id}_sub_span4",
                 parent_context=parent_context,
-                component=f"dag{CTX_PROP_SUFFIX}",
+                component="dag",
             ) as s4:
                 s4.set_attribute("attr4", "val4")
                 logger.info("From task sub_span4.")

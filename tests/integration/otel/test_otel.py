@@ -30,7 +30,6 @@ from airflow.executors.executor_utils import ExecutorName
 from airflow.models import DAG, DagBag, DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
-from airflow.traces.otel_tracer import CTX_PROP_SUFFIX
 from airflow.utils.session import create_session
 from airflow.utils.span_status import SpanStatus
 from airflow.utils.state import State
@@ -188,33 +187,33 @@ def check_spans_with_continuance(output: str, dag: DAG, continuance_for_t1: bool
     task1_id = task_instance_ids[0]
     task2_id = task_instance_ids[1]
 
-    dag_root_span_name = f"{dag_id}{CTX_PROP_SUFFIX}"
+    dag_root_span_name = f"{dag_id}"
 
     dag_root_span_children_names = [
-        f"{task1_id}{CTX_PROP_SUFFIX}",
+        f"{task1_id}",
         "current_scheduler_exited",
         "new_scheduler",
-        f"{dag_id}_continued{CTX_PROP_SUFFIX}",
+        f"{dag_id}_continued",
     ]
 
     if continuance_for_t1:
         dag_continued_span_children_names = [
-            f"{task1_id}_continued{CTX_PROP_SUFFIX}",
-            f"{task2_id}{CTX_PROP_SUFFIX}",
+            f"{task1_id}_continued",
+            f"{task2_id}",
         ]
     else:
         dag_continued_span_children_names = [
-            f"{task2_id}{CTX_PROP_SUFFIX}",
+            f"{task2_id}",
         ]
 
     task1_span_children_names = [
-        f"{task1_id}_sub_span1{CTX_PROP_SUFFIX}",
-        f"{task1_id}_sub_span4{CTX_PROP_SUFFIX}",
+        f"{task1_id}_sub_span1",
+        f"{task1_id}_sub_span4",
     ]
 
     # Single element lists.
-    task1_sub_span1_children_span_names = [f"{task1_id}_sub_span2{CTX_PROP_SUFFIX}"]
-    task1_sub_span2_children_span_names = [f"{task1_id}_sub_span3{CTX_PROP_SUFFIX}"]
+    task1_sub_span1_children_span_names = [f"{task1_id}_sub_span2"]
+    task1_sub_span2_children_span_names = [f"{task1_id}_sub_span3"]
 
     assert_span_name_belongs_to_root_span(
         root_span_dict=root_span_dict, span_name=dag_root_span_name, should_succeed=True
@@ -234,7 +233,7 @@ def check_spans_with_continuance(output: str, dag: DAG, continuance_for_t1: bool
         root_span_dict=root_span_dict,
         span_dict=span_dict,
         parent_name=dag_root_span_name,
-        child_name=f"{task1_id}_continued{CTX_PROP_SUFFIX}",
+        child_name=f"{task1_id}_continued",
         span_exists=True,
     )
 
@@ -251,7 +250,7 @@ def check_spans_with_continuance(output: str, dag: DAG, continuance_for_t1: bool
     # Check children of the continued dag span.
     assert_parent_children_spans_for_non_root(
         span_dict=span_dict,
-        parent_name=f"{dag_id}_continued{CTX_PROP_SUFFIX}",
+        parent_name=f"{dag_id}_continued",
         children_names=dag_continued_span_children_names,
     )
 
@@ -259,28 +258,28 @@ def check_spans_with_continuance(output: str, dag: DAG, continuance_for_t1: bool
         # Check children of the continued task1 span.
         assert_parent_children_spans_for_non_root(
             span_dict=span_dict,
-            parent_name=f"{task1_id}_continued{CTX_PROP_SUFFIX}",
+            parent_name=f"{task1_id}_continued",
             children_names=task1_span_children_names,
         )
     else:
         # Check children of the task1 span.
         assert_parent_children_spans_for_non_root(
             span_dict=span_dict,
-            parent_name=f"{task1_id}{CTX_PROP_SUFFIX}",
+            parent_name=f"{task1_id}",
             children_names=task1_span_children_names,
         )
 
     # Check children of task1 sub span1.
     assert_parent_children_spans_for_non_root(
         span_dict=span_dict,
-        parent_name=f"{task1_id}_sub_span1{CTX_PROP_SUFFIX}",
+        parent_name=f"{task1_id}_sub_span1",
         children_names=task1_sub_span1_children_span_names,
     )
 
     # Check children of task1 sub span2.
     assert_parent_children_spans_for_non_root(
         span_dict=span_dict,
-        parent_name=f"{task1_id}_sub_span2{CTX_PROP_SUFFIX}",
+        parent_name=f"{task1_id}_sub_span2",
         children_names=task1_sub_span2_children_span_names,
     )
 
@@ -325,21 +324,21 @@ def check_spans_without_continuance(
     # Based on the current tests, only the root span and the task1 span will be recreated.
     # TODO: Adjust accordingly, if there are more tests in the future
     #  that require other spans to be recreated as well.
-    dag_root_span_name = f"{dag_id}{recreated_suffix}{CTX_PROP_SUFFIX}"
+    dag_root_span_name = f"{dag_id}{recreated_suffix}"
 
     dag_root_span_children_names = [
-        f"{task1_id}{recreated_suffix}{CTX_PROP_SUFFIX}",
-        f"{task2_id}{CTX_PROP_SUFFIX}",
+        f"{task1_id}{recreated_suffix}",
+        f"{task2_id}",
     ]
 
     task1_span_children_names = [
-        f"{task1_id}_sub_span1{CTX_PROP_SUFFIX}",
-        f"{task1_id}_sub_span4{CTX_PROP_SUFFIX}",
+        f"{task1_id}_sub_span1",
+        f"{task1_id}_sub_span4",
     ]
 
     # Single element lists.
-    task1_sub_span1_children_span_names = [f"{task1_id}_sub_span2{CTX_PROP_SUFFIX}"]
-    task1_sub_span2_children_span_names = [f"{task1_id}_sub_span3{CTX_PROP_SUFFIX}"]
+    task1_sub_span1_children_span_names = [f"{task1_id}_sub_span2"]
+    task1_sub_span2_children_span_names = [f"{task1_id}_sub_span3"]
 
     assert_span_name_belongs_to_root_span(
         root_span_dict=root_span_dict, span_name=dag_root_span_name, should_succeed=True
@@ -359,7 +358,7 @@ def check_spans_without_continuance(
         root_span_dict=root_span_dict,
         span_dict=span_dict,
         parent_name=dag_root_span_name,
-        child_name=f"{task1_id}_sub_span1{CTX_PROP_SUFFIX}",
+        child_name=f"{task1_id}_sub_span1",
         span_exists=True,
     )
 
@@ -377,21 +376,21 @@ def check_spans_without_continuance(
         # Check children of the task1 span.
         assert_parent_children_spans_for_non_root(
             span_dict=span_dict,
-            parent_name=f"{task1_id}{recreated_suffix}{CTX_PROP_SUFFIX}",
+            parent_name=f"{task1_id}{recreated_suffix}",
             children_names=task1_span_children_names,
         )
 
         # Check children of task1 sub span1.
         assert_parent_children_spans_for_non_root(
             span_dict=span_dict,
-            parent_name=f"{task1_id}_sub_span1{CTX_PROP_SUFFIX}",
+            parent_name=f"{task1_id}_sub_span1",
             children_names=task1_sub_span1_children_span_names,
         )
 
         # Check children of task1 sub span2.
         assert_parent_children_spans_for_non_root(
             span_dict=span_dict,
-            parent_name=f"{task1_id}_sub_span2{CTX_PROP_SUFFIX}",
+            parent_name=f"{task1_id}_sub_span2",
             children_names=task1_sub_span2_children_span_names,
         )
 

@@ -33,7 +33,6 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
 from airflow.stats import Stats
 from airflow.traces import NO_TRACE_ID
-from airflow.traces.otel_tracer import CTX_PROP_SUFFIX
 from airflow.traces.tracer import Trace, add_span, gen_context
 from airflow.traces.utils import gen_span_id_from_ti_key, gen_trace_id
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -349,9 +348,9 @@ class BaseExecutor(LoggingMixin):
                     # Attributes will be set once the task has finished so that all
                     # values will be available (end_time, duration, etc.).
                     span = Trace.start_child_span(
-                        span_name=f"{ti.task_id}{CTX_PROP_SUFFIX}",
+                        span_name=f"{ti.task_id}",
                         parent_context=parent_context,
-                        component=f"task{CTX_PROP_SUFFIX}",
+                        component="task",
                         start_time=ti.queued_dttm,
                         start_as_current=False,
                     )
