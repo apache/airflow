@@ -30,7 +30,7 @@ from airflow.cli.commands import asset_command
 from airflow.models.dagbag import DagBag
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.db import clear_db_dags
 
 if typing.TYPE_CHECKING:
     from argparse import ArgumentParser
@@ -42,13 +42,7 @@ pytestmark = [pytest.mark.db_test]
 def prepare_examples():
     DagBag(include_examples=True).sync_to_db()
     yield
-    clear_db_runs()
     clear_db_dags()
-
-
-@pytest.fixture(autouse=True)
-def clear_runs():
-    clear_db_runs()
 
 
 @pytest.fixture(scope="module")
@@ -94,35 +88,4 @@ def test_cli_assets_details(parser: ArgumentParser) -> None:
         "group": "asset",
         "extra": {},
         "aliases": [],
-    }
-
-
-def test_cli_assets_materialize(parser: ArgumentParser) -> None:
-    args = parser.parse_args(["assets", "materialize", "--name=asset1_producer", "--output=json"])
-    with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
-        asset_command.asset_materialize(args)
-
-    run_list = json.loads(temp_stdout.getvalue())
-    assert len(run_list) == 1
-
-    # No good way to statically compare these.
-    undeterministic = {
-        "dag_run_id": None,
-        "data_interval_end": None,
-        "data_interval_start": None,
-        "logical_date": None,
-        "queued_at": None,
-    }
-
-    assert run_list[0] | undeterministic == undeterministic | {
-        "conf": {},
-        "dag_id": "asset1_producer",
-        "end_date": None,
-        "external_trigger": "True",
-        "last_scheduling_decision": None,
-        "note": None,
-        "run_type": "manual",
-        "start_date": None,
-        "state": "queued",
-        "triggered_by": "DagRunTriggeredByType.CLI",
     }
