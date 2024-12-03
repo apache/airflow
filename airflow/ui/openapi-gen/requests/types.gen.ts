@@ -2456,9 +2456,9 @@ export type $OpenApiTs = {
          */
         200: StructureDataResponse;
         /**
-         * Bad Request
+         * Not Found
          */
-        400: HTTPExceptionResponse;
+        404: HTTPExceptionResponse;
         /**
          * Validation Error
          */
