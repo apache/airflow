@@ -66,10 +66,9 @@ export const Tasks = () => {
     dagId: dagId ?? "",
   });
 
-  // Only the latest dagrun id is needed with recent dag runs of 14 returned for filtering.
-  // This could be switched to the endpoint to get dag with only latest run once available.
+  // TODO: Replace dagIdPattern with dagId once supported for better matching
   const { data: runsData } = useDagsServiceRecentDagRuns(
-    { dagIdPattern: dagId ?? "" },
+    { dagIdPattern: dagId ?? "", dagRunsLimit: 1 },
     undefined,
     {
       enabled: Boolean(dagId),
