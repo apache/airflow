@@ -92,11 +92,6 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
       `${dayjs.duration(dayjs(original.end_date).diff(original.start_date)).asSeconds().toFixed(2)}s`,
     header: "Duration",
   },
-  {
-    accessorKey: "note",
-    enableSorting: false,
-    header: "Note",
-  },
 ];
 
 const stateOptions = createListCollection({
