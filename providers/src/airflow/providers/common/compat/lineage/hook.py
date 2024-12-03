@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.common.compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
-
 
 def _get_asset_compat_hook_lineage_collector():
     from airflow.lineage.hook import get_hook_lineage_collector
@@ -79,14 +77,20 @@ def _get_asset_compat_hook_lineage_collector():
 
 
 def get_hook_lineage_collector():
+    from packaging.version import Version
+
+    from airflow import __version__ as airflow_version
+
+    airflow_base_version = Version(Version(airflow_version).base_version)
+
     # Dataset has been renamed as Asset in 3.0
-    if AIRFLOW_V_3_0_PLUS:
+    if airflow_base_version >= Version("3.0.0"):
         from airflow.lineage.hook import get_hook_lineage_collector
 
         return get_hook_lineage_collector()
 
     # HookLineageCollector added in 2.10
-    if AIRFLOW_V_2_10_PLUS:
+    if airflow_base_version >= Version("2.10.0"):
         return _get_asset_compat_hook_lineage_collector()
 
     class NoOpCollector:
