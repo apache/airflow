@@ -179,6 +179,31 @@ class TestWatchedSubprocess:
 
         assert rc == -9
 
+    def test_supervisor_signal_handling(self, mocker):
+        """Verify that the supervisor correctly handles signals and terminates the task process."""
+        mock_logger = mocker.patch("airflow.sdk.execution_time.supervisor.log")
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+
+        proc = WatchedSubprocess(
+            ti_id=TI_ID, pid=12345, stdin=mocker.Mock(), process=mocker.Mock(), client=mocker.Mock()
+        )
+
+        # Send a SIGTERM signal to the supervisor
+        proc._setup_signal_handlers()
+        os.kill(os.getpid(), signal.SIGTERM)
+
+        # Verify task process termination and log messages
+        # Asserting that `proc.kill` is called with the correct signal is sufficient to verify the supervisor
+        # correctly handles the signal and terminates the task process
+        # The actual signal sent to the task process is tested in `TestWatchedSubprocessKill` class
+        mock_kill.assert_called_once_with(signal.SIGTERM, force=True)
+        mock_logger.error.assert_called_once_with(
+            "Received termination signal in supervisor. Terminating watched subprocess",
+            signal=signal.SIGTERM,
+            supervisor_pid=os.getpid(),
+            process_pid=proc.pid,
+        )
+
     def test_last_chance_exception_handling(self, capfd):
         def subprocess_main():
             # The real main() in task_runner catches exceptions! This is what would happen if we had a syntax
@@ -628,7 +653,7 @@ class TestWatchedSubprocessKill:
             ),
         ],
     )
-    def test_kill_escalation_path(self, signal_to_send, exit_after, mocker, captured_logs, monkeypatch):
+    def test_kill_escalation_path(self, signal_to_send, exit_after, captured_logs, monkeypatch):
         def subprocess_main():
             import signal
 
