@@ -2500,8 +2500,7 @@ export const useVariableServiceGetVariable = <
  * Get Variables
  * Get all Variables entries.
  * @param data The data for the request.
- * @param data.keyPatternType
- * @param data.variableKeyPattern
+ * @param data.filters
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
@@ -2514,33 +2513,30 @@ export const useVariableServiceGetVariables = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
-    keyPatternType,
+    filters,
     limit,
     offset,
     orderBy,
-    variableKeyPattern,
   }: {
-    keyPatternType?: SearchPatternType;
+    filters?: { field: string; pattern?: SearchPatternType; value: string }[];
     limit?: number;
     offset?: number;
     orderBy?: string;
-    variableKeyPattern?: string;
   } = {},
   queryKey?: TQueryKey,
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseVariableServiceGetVariablesKeyFn(
-      { keyPatternType, limit, offset, orderBy, variableKeyPattern },
+      { filters, limit, offset, orderBy },
       queryKey,
     ),
     queryFn: () =>
       VariableService.getVariables({
-        keyPatternType,
+        filters,
         limit,
         offset,
         orderBy,
-        variableKeyPattern,
       }) as TData,
     ...options,
   });

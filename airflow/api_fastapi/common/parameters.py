@@ -46,11 +46,10 @@ from airflow.models.dag import DagModel, DagTag
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning, DagWarningType
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.variable import Variable
 from airflow.typing_compat import Self
 from airflow.utils import timezone
+from airflow.utils.filter_pattern import Filter, FilterPatternType
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.variables import SearchPatternType
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import ColumnElement, Select
@@ -195,14 +194,14 @@ class _SearchParam(BaseParam[str]):
 
 
 class _AdvanceSearchParam(BaseParam[str]):
-    """Generic search class with support for advanced match types."""
+    """Advance search class with support for advanced match types."""
 
     def __init__(self, attribute: ColumnElement, skip_none: bool = True) -> None:
         super().__init__(skip_none=skip_none)
         self.attribute: ColumnElement = attribute
 
         # Default behaviour should be contains
-        self.pattern_type = SearchPatternType.CONTAINS
+        self.pattern_type = FilterPatternType.CONTAINS
 
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
@@ -210,20 +209,20 @@ class _AdvanceSearchParam(BaseParam[str]):
 
         # Map pattern types to SQLAlchemy expressions
         pattern_map = {
-            SearchPatternType.STARTS_WITH: f"{self.value}%",
-            SearchPatternType.ENDS_WITH: f"%{self.value}",
-            SearchPatternType.CONTAINS: f"%{self.value}%",
-            SearchPatternType.EQUALS: self.value,
-            SearchPatternType.NOT_STARTS_WITH: f"{self.value}%",
-            SearchPatternType.NOT_ENDS_WITH: f"%{self.value}",
-            SearchPatternType.NOT_CONTAINS: f"%{self.value}%",
+            FilterPatternType.STARTS_WITH: f"{self.value}%",
+            FilterPatternType.ENDS_WITH: f"%{self.value}",
+            FilterPatternType.CONTAINS: f"%{self.value}%",
+            FilterPatternType.EQUALS: self.value,
+            FilterPatternType.NOT_STARTS_WITH: f"{self.value}%",
+            FilterPatternType.NOT_ENDS_WITH: f"%{self.value}",
+            FilterPatternType.NOT_CONTAINS: f"%{self.value}%",
         }
 
-        pattern_value = pattern_map[SearchPatternType(self.pattern_type)]
+        pattern_value = pattern_map[FilterPatternType(self.pattern_type)]
         if self.pattern_type in [
-            SearchPatternType.NOT_STARTS_WITH,
-            SearchPatternType.NOT_ENDS_WITH,
-            SearchPatternType.NOT_CONTAINS,
+            FilterPatternType.NOT_STARTS_WITH,
+            FilterPatternType.NOT_ENDS_WITH,
+            FilterPatternType.NOT_CONTAINS,
         ]:
             return select.where(not_(self.attribute.ilike(pattern_value)))
         else:
@@ -235,9 +234,9 @@ class _AdvanceSearchParam(BaseParam[str]):
             value = "%"
         return value
 
-    def set_pattern_type(self, pattern_type: SearchPatternType):
+    def set_pattern_type(self, pattern_type: FilterPatternType):
         # Validate the key pattern type on initialization
-        SearchPatternType.validate(pattern_type)
+        FilterPatternType.validate(pattern_type)
 
         self.pattern_type = pattern_type
 
@@ -267,16 +266,16 @@ class _DagDisplayNamePatternSearch(_SearchParam):
 class _VariableKeyPatternSearch(_AdvanceSearchParam):
     """Search on key with dynamic match types."""
 
-    def __init__(self, skip_none: bool = True) -> None:
-        super().__init__(attribute=Variable.key, skip_none=skip_none)
+    def __init__(self, attribute: Column, skip_none: bool = True) -> None:
+        if attribute is None:
+            return
+        super().__init__(attribute=attribute, skip_none=skip_none)
 
-    def depends(
-        self, key_pattern_type: SearchPatternType | None = None, variable_key_pattern: str | None = None
-    ) -> _VariableKeyPatternSearch:
-        variable_key_pattern = super().transform_aliases(variable_key_pattern)
-        if key_pattern_type is not None:
-            super().set_pattern_type(key_pattern_type)
-        return self.set_value(variable_key_pattern)
+    def depends(self, filter: Filter) -> _VariableKeyPatternSearch:
+        filter.value = super().transform_aliases(filter.value)
+        if filter.pattern is not None:
+            super().set_pattern_type(filter.pattern)
+        return self.set_value(filter.value)
 
 
 class SortParam(BaseParam[str]):

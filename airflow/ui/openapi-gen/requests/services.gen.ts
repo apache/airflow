@@ -2916,8 +2916,7 @@ export class VariableService {
    * Get Variables
    * Get all Variables entries.
    * @param data The data for the request.
-   * @param data.keyPatternType
-   * @param data.variableKeyPattern
+   * @param data.filters
    * @param data.limit
    * @param data.offset
    * @param data.orderBy
@@ -2931,8 +2930,7 @@ export class VariableService {
       method: "GET",
       url: "/public/variables",
       query: {
-        key_pattern_type: data.keyPatternType,
-        variable_key_pattern: data.variableKeyPattern,
+        filters: data.filters,
         limit: data.limit,
         offset: data.offset,
         order_by: data.orderBy,

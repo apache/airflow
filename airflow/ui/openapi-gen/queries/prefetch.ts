@@ -2118,8 +2118,7 @@ export const prefetchUseVariableServiceGetVariable = (
  * Get Variables
  * Get all Variables entries.
  * @param data The data for the request.
- * @param data.keyPatternType
- * @param data.variableKeyPattern
+ * @param data.filters
  * @param data.limit
  * @param data.offset
  * @param data.orderBy
@@ -2129,35 +2128,26 @@ export const prefetchUseVariableServiceGetVariable = (
 export const prefetchUseVariableServiceGetVariables = (
   queryClient: QueryClient,
   {
-    keyPatternType,
+    filters,
     limit,
     offset,
     orderBy,
-    variableKeyPattern,
   }: {
-    keyPatternType?: SearchPatternType;
+    filters?: { field: string; pattern?: SearchPatternType; value: string }[];
     limit?: number;
     offset?: number;
     orderBy?: string;
-    variableKeyPattern?: string;
   } = {},
 ) =>
   queryClient.prefetchQuery({
     queryKey: Common.UseVariableServiceGetVariablesKeyFn({
-      keyPatternType,
+      filters,
       limit,
       offset,
       orderBy,
-      variableKeyPattern,
     }),
     queryFn: () =>
-      VariableService.getVariables({
-        keyPatternType,
-        limit,
-        offset,
-        orderBy,
-        variableKeyPattern,
-      }),
+      VariableService.getVariables({ filters, limit, offset, orderBy }),
   });
 /**
  * Get Health

@@ -19,9 +19,10 @@ from __future__ import annotations
 from enum import Enum
 
 from fastapi import HTTPException, status
+from pydantic import BaseModel
 
 
-class SearchPatternType(str, Enum):
+class FilterPatternType(str, Enum):
     """
     Enum representing the types of patterns that can be used for advanced search queries.
 
@@ -51,3 +52,17 @@ class SearchPatternType(str, Enum):
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Invalid value for pattern type. Valid values are {valid_types}",
             )
+
+
+class Filter(BaseModel):
+    """
+    Represents a filter used to match data based on specific criteria.
+
+    field (str): The field to filter by, e.g., 'key' or 'value'.
+    pattern (FilterPatternType): The type of pattern to apply (e.g., 'starts_with', 'equals').
+    value (str): The value to match in the filter.
+    """
+
+    field: str
+    pattern: FilterPatternType | None = FilterPatternType.CONTAINS
+    value: str | None

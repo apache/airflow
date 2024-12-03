@@ -2041,11 +2041,20 @@ export type PatchVariableData = {
 export type PatchVariableResponse = VariableResponse;
 
 export type GetVariablesData = {
-  keyPatternType?: SearchPatternType | null;
+  filters?: Array<{
+    /**
+     * The field to filter by, e.g., 'key', 'value'.
+     */
+    field: string;
+    pattern?: SearchPatternType;
+    /**
+     * The value to match in the filter.
+     */
+    value: string;
+  }>;
   limit?: number;
   offset?: number;
   orderBy?: string;
-  variableKeyPattern?: string | null;
 };
 
 export type GetVariablesResponse = VariableCollectionResponse;

@@ -5424,22 +5424,27 @@ paths:
       description: Get all Variables entries.
       operationId: get_variables
       parameters:
-      - name: key_pattern_type
+      - name: filters
         in: query
         required: false
         schema:
-          anyOf:
-          - $ref: '#/components/schemas/SearchPatternType'
-          - type: 'null'
-          title: Key Pattern Type
-      - name: variable_key_pattern
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Variable Key Pattern
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                description: "The field to filter by, e.g., 'key', 'value'."
+              pattern:
+                $ref: '#/components/schemas/SearchPatternType'
+              value:
+                type: string
+                description: "The value to match in the filter."
+            required:
+              - field
+              - value
+            description: "Optional list of filters to apply"
+        title: Filters
       - name: limit
         in: query
         required: false
