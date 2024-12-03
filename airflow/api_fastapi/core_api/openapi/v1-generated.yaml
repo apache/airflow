@@ -194,13 +194,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /ui/graph/graph_data:
+  /ui/structure/structure_data:
     get:
       tags:
-      - Graph
-      summary: Graph Data
-      description: Get Graph Data.
-      operationId: graph_data
+      - Structure
+      summary: Structure Data
+      description: Get Structure Data.
+      operationId: structure_data
       parameters:
       - name: dag_id
         in: query
@@ -236,7 +236,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GraphDataResponse'
+                $ref: '#/components/schemas/StructureDataResponse'
         '400':
           content:
             application/json:
@@ -1393,6 +1393,50 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
           description: Conflict
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /public/connections/bulk:
+    post:
+      tags:
+      - Connection
+      summary: Post Connections
+      description: Create connection entry.
+      operationId: post_connections
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionBulkBody'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionCollectionResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
         '422':
           description: Validation Error
           content:
@@ -5742,10 +5786,14 @@ components:
         name:
           type: string
           title: Name
+        group:
+          type: string
+          title: Group
       type: object
       required:
       - id
       - name
+      - group
       title: AssetAliasSchema
       description: Asset alias serializer for assets.
     AssetCollectionResponse:
@@ -6207,6 +6255,8 @@ components:
       properties:
         connection_id:
           type: string
+          maxLength: 200
+          pattern: ^[\w.-]+$
           title: Connection Id
         conn_type:
           type: string
@@ -6252,6 +6302,18 @@ components:
       - conn_type
       title: ConnectionBody
       description: Connection Serializer for requests body.
+    ConnectionBulkBody:
+      properties:
+        connections:
+          items:
+            $ref: '#/components/schemas/ConnectionBody'
+          type: array
+          title: Connections
+      type: object
+      required:
+      - connections
+      title: ConnectionBulkBody
+      description: Connections Serializer for requests body.
     ConnectionCollectionResponse:
       properties:
         connections:
@@ -7532,30 +7594,6 @@ components:
       - name
       title: FastAPIAppResponse
       description: Serializer for Plugin FastAPI App responses.
-    GraphDataResponse:
-      properties:
-        edges:
-          items:
-            $ref: '#/components/schemas/EdgeResponse'
-          type: array
-          title: Edges
-        nodes:
-          $ref: '#/components/schemas/NodeResponse'
-        arrange:
-          type: string
-          enum:
-          - BT
-          - LR
-          - RL
-          - TB
-          title: Arrange
-      type: object
-      required:
-      - edges
-      - nodes
-      - arrange
-      title: GraphDataResponse
-      description: Graph Data serializer for responses.
     HTTPExceptionResponse:
       properties:
         detail:
@@ -7748,66 +7786,43 @@ components:
           - type: string
           - type: 'null'
           title: Id
-        value:
-          $ref: '#/components/schemas/NodeValueResponse'
-      type: object
-      required:
-      - id
-      - value
-      title: NodeResponse
-      description: Node serializer for responses.
-    NodeValueResponse:
-      properties:
-        isMapped:
+        is_mapped:
           anyOf:
           - type: boolean
           - type: 'null'
-          title: Ismapped
+          title: Is Mapped
         label:
           anyOf:
           - type: string
           - type: 'null'
           title: Label
-        labelStyle:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Labelstyle
-        style:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Style
         tooltip:
           anyOf:
           - type: string
           - type: 'null'
           title: Tooltip
-        rx:
-          type: integer
-          title: Rx
-        ry:
-          type: integer
-          title: Ry
-        clusterLabelPos:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Clusterlabelpos
-        setupTeardownType:
+        setup_teardown_type:
           anyOf:
           - type: string
             enum:
             - setup
             - teardown
           - type: 'null'
-          title: Setupteardowntype
+          title: Setup Teardown Type
+        type:
+          type: string
+          enum:
+          - join
+          - sensor
+          - task
+          - task_group
+          title: Type
       type: object
       required:
-      - rx
-      - ry
-      title: NodeValueResponse
-      description: Graph Node Value responses.
+      - id
+      - type
+      title: NodeResponse
+      description: Node serializer for responses.
     PatchTaskInstanceBody:
       properties:
         dry_run:
@@ -8157,6 +8172,33 @@ components:
       - latest_scheduler_heartbeat
       title: SchedulerInfoResponse
       description: Scheduler info serializer for responses.
+    StructureDataResponse:
+      properties:
+        edges:
+          items:
+            $ref: '#/components/schemas/EdgeResponse'
+          type: array
+          title: Edges
+        nodes:
+          items:
+            $ref: '#/components/schemas/NodeResponse'
+          type: array
+          title: Nodes
+        arrange:
+          type: string
+          enum:
+          - BT
+          - LR
+          - RL
+          - TB
+          title: Arrange
+      type: object
+      required:
+      - edges
+      - nodes
+      - arrange
+      title: StructureDataResponse
+      description: Structure Data serializer for responses.
     TaskCollectionResponse:
       properties:
         tasks:

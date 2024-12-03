@@ -16,13 +16,13 @@ import {
   DashboardService,
   EventLogService,
   ExtraLinksService,
-  GraphService,
   ImportErrorService,
   JobService,
   MonitorService,
   PluginService,
   PoolService,
   ProviderService,
+  StructureService,
   TaskInstanceService,
   TaskService,
   VariableService,
@@ -327,15 +327,16 @@ export const UseDashboardServiceHistoricalMetricsKeyFn = (
   useDashboardServiceHistoricalMetricsKey,
   ...(queryKey ?? [{ endDate, startDate }]),
 ];
-export type GraphServiceGraphDataDefaultResponse = Awaited<
-  ReturnType<typeof GraphService.graphData>
+export type StructureServiceStructureDataDefaultResponse = Awaited<
+  ReturnType<typeof StructureService.structureData>
 >;
-export type GraphServiceGraphDataQueryResult<
-  TData = GraphServiceGraphDataDefaultResponse,
+export type StructureServiceStructureDataQueryResult<
+  TData = StructureServiceStructureDataDefaultResponse,
   TError = unknown,
 > = UseQueryResult<TData, TError>;
-export const useGraphServiceGraphDataKey = "GraphServiceGraphData";
-export const UseGraphServiceGraphDataKeyFn = (
+export const useStructureServiceStructureDataKey =
+  "StructureServiceStructureData";
+export const UseStructureServiceStructureDataKeyFn = (
   {
     dagId,
     includeDownstream,
@@ -349,7 +350,7 @@ export const UseGraphServiceGraphDataKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [
-  useGraphServiceGraphDataKey,
+  useStructureServiceStructureDataKey,
   ...(queryKey ?? [{ dagId, includeDownstream, includeUpstream, root }]),
 ];
 export type BackfillServiceListBackfillsDefaultResponse = Awaited<
@@ -1593,6 +1594,9 @@ export type BackfillServiceCreateBackfillMutationResult = Awaited<
 >;
 export type ConnectionServicePostConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.postConnection>
+>;
+export type ConnectionServicePostConnectionsMutationResult = Awaited<
+  ReturnType<typeof ConnectionService.postConnections>
 >;
 export type ConnectionServiceTestConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.testConnection>
