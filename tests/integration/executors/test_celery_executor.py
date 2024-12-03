@@ -218,7 +218,7 @@ class TestCeleryExecutor:
             )
             when = datetime.now()
             value_tuple = (
-                "command",
+                ["command"],
                 1,
                 None,
                 SimpleTaskInstance.from_ti(ti=TaskInstance(task=task, run_id=None)),
@@ -256,7 +256,7 @@ class TestCeleryExecutor:
             )
             when = datetime.now()
             value_tuple = (
-                "command",
+                ["command"],
                 1,
                 None,
                 SimpleTaskInstance.from_ti(ti=TaskInstance(task=task, run_id=None)),

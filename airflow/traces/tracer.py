@@ -61,6 +61,7 @@ class EmptyContext:
     """If no Tracer is configured, EmptyContext is used as a fallback."""
 
     trace_id = 1
+    span_id = 1
 
 
 class EmptySpan:

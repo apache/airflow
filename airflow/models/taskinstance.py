@@ -3743,6 +3743,7 @@ class SimpleTaskInstance:
         dag_id: str,
         task_id: str,
         run_id: str,
+        queued_dttm: datetime | None,
         start_date: datetime | None,
         end_date: datetime | None,
         try_number: int,
@@ -3755,6 +3756,7 @@ class SimpleTaskInstance:
         key: TaskInstanceKey,
         run_as_user: str | None = None,
         priority_weight: int | None = None,
+        parent_context_carrier: dict | None = None,
         context_carrier: dict | None = None,
         span_status: str | None = None,
     ):
@@ -3762,6 +3764,7 @@ class SimpleTaskInstance:
         self.task_id = task_id
         self.run_id = run_id
         self.map_index = map_index
+        self.queued_dttm = queued_dttm
         self.start_date = start_date
         self.end_date = end_date
         self.try_number = try_number
@@ -3773,6 +3776,7 @@ class SimpleTaskInstance:
         self.priority_weight = priority_weight
         self.queue = queue
         self.key = key
+        self.parent_context_carrier = parent_context_carrier
         self.context_carrier = context_carrier
         self.span_status = span_status
 
@@ -3792,6 +3796,7 @@ class SimpleTaskInstance:
             task_id=ti.task_id,
             run_id=ti.run_id,
             map_index=ti.map_index,
+            queued_dttm=ti.queued_dttm,
             start_date=ti.start_date,
             end_date=ti.end_date,
             try_number=ti.try_number,
@@ -3803,7 +3808,11 @@ class SimpleTaskInstance:
             key=ti.key,
             run_as_user=ti.run_as_user if hasattr(ti, "run_as_user") else None,
             priority_weight=ti.priority_weight if hasattr(ti, "priority_weight") else None,
+            parent_context_carrier=ti.dag_run.context_carrier
+            if (hasattr(ti, "dag_run") and hasattr(ti.dag_run, "context_carrier"))
+            else None,
             context_carrier=ti.context_carrier if hasattr(ti, "context_carrier") else None,
+            span_status=ti.span_status if hasattr(ti, "span_status") else None,
         )
 
 

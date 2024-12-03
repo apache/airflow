@@ -347,7 +347,12 @@ class BaseExecutor(LoggingMixin):
 
             # If it's None, then the span for the current TaskInstanceKey hasn't been started.
             if self.active_spans is not None and self.active_spans.get(key) is None:
-                parent_context = Trace.extract(ti.dag_run.context_carrier)
+                from airflow.models.taskinstance import SimpleTaskInstance
+
+                if isinstance(ti, SimpleTaskInstance):
+                    parent_context = Trace.extract(ti.parent_context_carrier)
+                else:
+                    parent_context = Trace.extract(ti.dag_run.context_carrier)
                 # Start a new span using the context from the parent.
                 # Attributes will be set once the task has finished so that all
                 # values will be available (end_time, duration, etc.).
