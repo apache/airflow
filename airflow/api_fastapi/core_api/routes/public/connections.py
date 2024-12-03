@@ -187,11 +187,11 @@ def patch_connection(
         fields_to_update = fields_to_update.intersection(update_mask)
         data = patch_body.model_dump(include=fields_to_update - non_update_fields)
     else:
-        data = patch_body.model_dump(exclude=non_update_fields)
         try:
-            ConnectionBody.model_validate(data)
+            ConnectionBody(**patch_body.model_dump())
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
+        data = patch_body.model_dump(exclude=non_update_fields)
 
     for key, val in data.items():
         setattr(connection, key, val)
