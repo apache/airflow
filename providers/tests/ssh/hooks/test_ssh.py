@@ -1128,3 +1128,19 @@ class TestSSHHook:
         client2 = hook.get_conn()
         assert client1 is not client2
         assert client2.get_transport().is_active()
+
+    @mock.patch("paramiko.SSHClient")
+    def test_ssh_hook_with_proxy_command(self, mock_ssh_client):
+        mock_transport = mock.MagicMock()
+        mock_ssh_client.return_value.get_transport.return_value = mock_transport
+
+        hook = SSHHook(
+            remote_host="example.com",
+            username="user",
+            host_proxy_cmd="ncat --proxy-auth proxy_user:**** --proxy proxy_host:port %h %p",
+        )
+        hook.get_conn()
+
+        mock_transport.set_proxy.assert_called_once()
+        proxy_command = mock_transport.set_proxy.call_args[0][0]
+        assert proxy_command.cmd == "ncat --proxy-auth proxy_user:**** --proxy proxy_host:port %h %p"
