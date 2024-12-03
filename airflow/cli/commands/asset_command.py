@@ -22,14 +22,11 @@ import typing
 
 from sqlalchemy import select
 
-from airflow.api.common.trigger_dag import trigger_dag
 from airflow.api_fastapi.core_api.datamodels.assets import AssetResponse
-from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.cli.simple_table import AirflowConsole
-from airflow.models.asset import AssetModel, TaskOutletAssetReference
+from airflow.models.asset import AssetModel
 from airflow.utils import cli as cli_utils
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.types import DagRunTriggeredByType
 
 if typing.TYPE_CHECKING:
     from typing import Any
@@ -84,42 +81,5 @@ def asset_details(args, *, session: Session = NEW_SESSION) -> None:
         data = [{"property_name": key, "property_value": value} for key, value in model_data.items()]
     else:
         data = [model_data]
-
-    AirflowConsole().print_as(data=data, output=args.output)
-
-
-@cli_utils.action_cli
-@provide_session
-def asset_materialize(args, *, session: Session = NEW_SESSION) -> None:
-    """
-    Materialize the specified asset.
-
-    This is done by finding the DAG with the asset defined as outlet, and create
-    a run for that DAG.
-    """
-    if not args.name and not args.uri:
-        raise SystemExit("Either --name or --uri is required")
-
-    stmt = select(TaskOutletAssetReference.dag_id).join(TaskOutletAssetReference.asset)
-    select_message_parts = []
-    if args.name:
-        stmt = stmt.where(AssetModel.name == args.name)
-        select_message_parts.append(f"name {args.name}")
-    if args.uri:
-        stmt = stmt.where(AssetModel.uri == args.uri)
-        select_message_parts.append(f"URI {args.uri}")
-    dag_id_it = iter(session.scalars(stmt.group_by(TaskOutletAssetReference.dag_id).limit(2)))
-    select_message = " and ".join(select_message_parts)
-
-    if (dag_id := next(dag_id_it, None)) is None:
-        raise SystemExit(f"Asset with {select_message} does not exist.")
-    if next(dag_id_it, None) is not None:
-        raise SystemExit(f"More than one DAG materializes asset with {select_message}.")
-
-    dagrun = trigger_dag(dag_id=dag_id, triggered_by=DagRunTriggeredByType.CLI, session=session)
-    if dagrun is not None:
-        data = [DAGRunResponse.model_validate(dagrun).model_dump()]
-    else:
-        data = []
 
     AirflowConsole().print_as(data=data, output=args.output)

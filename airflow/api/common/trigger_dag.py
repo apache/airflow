@@ -36,7 +36,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
 
-@provide_session
 def _trigger_dag(
     dag_id: str,
     dag_bag: DagBag,
@@ -46,7 +45,6 @@ def _trigger_dag(
     conf: dict | str | None = None,
     logical_date: datetime | None = None,
     replace_microseconds: bool = True,
-    session: Session = NEW_SESSION,
 ) -> DagRun | None:
     """
     Triggers DAG run.
@@ -60,7 +58,7 @@ def _trigger_dag(
     :param replace_microseconds: whether microseconds should be zeroed
     :return: list of triggered dags
     """
-    dag = dag_bag.get_dag(dag_id, session=session)  # prefetch dag if it is stored serialized
+    dag = dag_bag.get_dag(dag_id)  # prefetch dag if it is stored serialized
 
     if dag is None or dag_id not in dag_bag.dags:
         raise DagNotFound(f"Dag id {dag_id} not found")
@@ -86,7 +84,7 @@ def _trigger_dag(
     run_id = run_id or dag.timetable.generate_run_id(
         run_type=DagRunType.MANUAL, logical_date=coerced_logical_date, data_interval=data_interval
     )
-    dag_run = DagRun.find_duplicate(dag_id=dag_id, run_id=run_id, session=session)
+    dag_run = DagRun.find_duplicate(dag_id=dag_id, run_id=run_id)
 
     if dag_run:
         raise DagRunAlreadyExists(dag_run)
@@ -94,7 +92,7 @@ def _trigger_dag(
     run_conf = None
     if conf:
         run_conf = conf if isinstance(conf, dict) else json.loads(conf)
-    dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+    dag_version = DagVersion.get_latest_version(dag.dag_id)
     dag_run = dag.create_dagrun(
         run_id=run_id,
         logical_date=logical_date,
@@ -104,7 +102,6 @@ def _trigger_dag(
         dag_version=dag_version,
         data_interval=data_interval,
         triggered_by=triggered_by,
-        session=session,
     )
 
     return dag_run
@@ -133,7 +130,7 @@ def trigger_dag(
     :param session: Unused. Only added in compatibility with database isolation mode
     :return: first dag run triggered - even if more than one Dag Runs were triggered or None
     """
-    dag_model = DagModel.get_current(dag_id, session=session)
+    dag_model = DagModel.get_current(dag_id)
     if dag_model is None:
         raise DagNotFound(f"Dag id {dag_id} not found in DagModel")
 
@@ -146,7 +143,6 @@ def trigger_dag(
         logical_date=logical_date,
         replace_microseconds=replace_microseconds,
         triggered_by=triggered_by,
-        session=session,
     )
 
     return dr if dr else None
