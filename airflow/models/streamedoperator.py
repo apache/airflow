@@ -21,7 +21,7 @@ import asyncio
 import logging
 import os
 from abc import abstractmethod
-from asyncio import AbstractEventLoop, Future, Semaphore, ensure_future
+from asyncio import AbstractEventLoop, Future, Semaphore, ensure_future, gather
 from collections.abc import Generator, Iterable, Sequence
 from contextlib import contextmanager, suppress
 from datetime import timedelta
@@ -125,9 +125,8 @@ class OperatorExecutor(TaskExecutor):
     """
     Run an operator with given task context and task instance.
 
-    If the execute function raises a TaskDeferred exception, then the trigger instance within the
-    TaskDeferred exception will be executed with the given context and task instance. The operator
-    or trigger will always be executed in an async way.
+    If the execute function raises a TaskDeferred exception, then the trigger will be executed in an
+    async way using the TriggerExecutor.
 
     :meta private:
     """
@@ -173,6 +172,16 @@ class OperatorExecutor(TaskExecutor):
 
 
 class TriggerExecutor(TaskExecutor):
+    """
+    Run a trigger with given task deferred exception.
+
+    If the next method raises a TaskDeferred exception, then the trigger instance will be re-executed with
+    the given TaskDeferred exception until no more TaskDeferred exceptions occur. The trigger will always
+    be executed in an async way.
+
+    :meta private:
+    """
+
     async def run(self, task_deferred: TaskDeferred):
         event = await run_trigger(task_deferred.trigger)
 
@@ -318,7 +327,7 @@ class StreamedOperator(BaseOperator):
 
             with event_loop() as loop:
                 for result in loop.run_until_complete(
-                    asyncio.gather(*deferred_tasks, return_exceptions=True)
+                    gather(*deferred_tasks, return_exceptions=True)
                 ):
                     if isinstance(result, Exception):
                         if isinstance(result, AirflowRescheduleTaskInstanceException):
