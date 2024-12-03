@@ -4819,8 +4819,6 @@ class DagRunModelView(AirflowModelView):
 
     edit_form = DagRunEditForm
 
-    add_exclude_columns = edit_exclude_columns = ["conf"]
-
     def duration_f(self):
         """Duration calculation."""
         end_date = self.get("end_date")

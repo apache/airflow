@@ -217,3 +217,5 @@ def downgrade():
 
         if "_dag_run_archive" in inspector.get_table_names():
             conn.execute(insert_query)
+
+    op.execute(sa.text("DROP TABLE IF EXISTS _dag_run_archive"))
