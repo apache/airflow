@@ -86,9 +86,12 @@ def _trigger_dag(
     run_id = run_id or dag.timetable.generate_run_id(
         run_type=DagRunType.MANUAL, logical_date=coerced_logical_date, data_interval=data_interval
     )
-    dag_run = DagRun.find_duplicate(dag_id=dag_id, run_id=run_id, session=session)
 
-    if dag_run:
+    # This intentionally does not use 'session' in the current scope because it
+    # may be rolled back when this function exits with an exception (due to how
+    # provide_session is implemented). This would make the DagRun object in the
+    # DagRunAlreadyExists expire and unusable.
+    if dag_run := DagRun.find_duplicate(dag_id=dag_id, run_id=run_id):
         raise DagRunAlreadyExists(dag_run)
 
     run_conf = None
