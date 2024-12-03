@@ -14,19 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.routes.ui.assets import assets_router
-from airflow.api_fastapi.core_api.routes.ui.config import config_router
-from airflow.api_fastapi.core_api.routes.ui.dags import dags_router
-from airflow.api_fastapi.core_api.routes.ui.dashboard import dashboard_router
-from airflow.api_fastapi.core_api.routes.ui.structure import structure_router
+import warnings
 
-ui_router = AirflowRouter(prefix="/ui")
+from airflow.sdk.definitions.asset.metadata import Metadata
 
-ui_router.include_router(assets_router)
-ui_router.include_router(config_router)
-ui_router.include_router(dags_router)
-ui_router.include_router(dashboard_router)
-ui_router.include_router(structure_router)
+# TODO: Remove this module in Airflow 3.2
+
+warnings.warn(
+    "Import from the airflow.dataset module is deprecated and "
+    "will be removed in the Airflow 3.2. Please import it from 'airflow.sdk.definitions.asset.metadata'.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
+__all__ = ["Metadata"]
