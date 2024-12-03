@@ -1130,17 +1130,31 @@ class TestSSHHook:
         assert client2.get_transport().is_active()
 
     @mock.patch("paramiko.SSHClient")
-    def test_ssh_hook_with_proxy_command(self, mock_ssh_client):
+    @mock.patch("paramiko.ProxyCommand")
+    def test_ssh_hook_with_proxy_command(self, mock_proxy_command, mock_ssh_client):
+        # Mock transport and proxy command behavior
         mock_transport = mock.MagicMock()
         mock_ssh_client.return_value.get_transport.return_value = mock_transport
+        mock_proxy_command.return_value = mock.MagicMock()
 
+        # Create the SSHHook with the proxy command
+        host_proxy_cmd = "ncat --proxy-auth proxy_user:**** --proxy proxy_host:port %h %p"
         hook = SSHHook(
             remote_host="example.com",
             username="user",
-            host_proxy_cmd="ncat --proxy-auth proxy_user:**** --proxy proxy_host:port %h %p",
+            host_proxy_cmd=host_proxy_cmd,
         )
         hook.get_conn()
 
-        mock_transport.set_proxy.assert_called_once()
-        proxy_command = mock_transport.set_proxy.call_args[0][0]
-        assert proxy_command.cmd == "ncat --proxy-auth proxy_user:**** --proxy proxy_host:port %h %p"
+        mock_proxy_command.assert_called_once_with(host_proxy_cmd)
+        mock_ssh_client.return_value.connect.assert_called_once_with(
+            hostname="example.com",
+            username="user",
+            timeout=10,
+            compress=True,
+            port=22,
+            sock=mock_proxy_command.return_value,
+            look_for_keys=True,
+            banner_timeout=30.0,
+            auth_timeout=None,
+        )
