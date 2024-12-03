@@ -1636,15 +1636,6 @@ export type PatchDagsData = {
 
 export type PatchDagsResponse = DAGCollectionResponse;
 
-export type GetDagTagsData = {
-  limit?: number;
-  offset?: number;
-  orderBy?: string;
-  tagNamePattern?: string | null;
-};
-
-export type GetDagTagsResponse = DAGTagCollectionResponse;
-
 export type GetDagData = {
   dagId: string;
 };
@@ -1670,6 +1661,15 @@ export type GetDagDetailsData = {
 };
 
 export type GetDagDetailsResponse = DAGDetailsResponse;
+
+export type GetDagTagsData = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  tagNamePattern?: string | null;
+};
+
+export type GetDagTagsResponse = DAGTagCollectionResponse;
 
 export type GetEventLogData = {
   eventLogId: number;
@@ -3188,29 +3188,6 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/public/dags/tags": {
-    get: {
-      req: GetDagTagsData;
-      res: {
-        /**
-         * Successful Response
-         */
-        200: DAGTagCollectionResponse;
-        /**
-         * Unauthorized
-         */
-        401: HTTPExceptionResponse;
-        /**
-         * Forbidden
-         */
-        403: HTTPExceptionResponse;
-        /**
-         * Validation Error
-         */
-        422: HTTPValidationError;
-      };
-    };
-  };
   "/public/dags/{dag_id}": {
     get: {
       req: GetDagData;
@@ -3324,6 +3301,29 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dagTags": {
+    get: {
+      req: GetDagTagsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGTagCollectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
         /**
          * Validation Error
          */
