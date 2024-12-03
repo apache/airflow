@@ -22,6 +22,7 @@ import { useParams } from "react-router-dom";
 import {
   useTaskServiceGetTasks,
   useTaskInstanceServiceGetTaskInstances,
+  useDagsServiceRecentDagRuns,
 } from "openapi/queries";
 import type {
   TaskResponse,
@@ -65,12 +66,30 @@ export const Tasks = () => {
     dagId: dagId ?? "",
   });
 
-  // TODO : Get the latest dag run and then pass it to dagRunId for better querying
+  // Only the latest dagrun id is needed with recent dag runs of 14 returned for filtering.
+  // This could be switched to the endpoint to get dag with only latest run once available.
+  const { data: runsData } = useDagsServiceRecentDagRuns(
+    { dagIdPattern: dagId ?? "" },
+    undefined,
+    {
+      enabled: Boolean(dagId),
+    },
+  );
+
+  const runs =
+    runsData?.dags.find((dagWithRuns) => dagWithRuns.dag_id === dagId)
+      ?.latest_dag_runs ?? [];
+
+  // Fetch the latest dag run and get task instances since we only display last run
   const { data: TaskInstancesResponse } =
-    useTaskInstanceServiceGetTaskInstances({
-      dagId: dagId ?? "",
-      dagRunId: "~",
-    });
+    useTaskInstanceServiceGetTaskInstances(
+      {
+        dagId: dagId ?? "",
+        dagRunId: runs[0]?.dag_run_id ?? "~",
+      },
+      undefined,
+      { enabled: Boolean(runs[0]?.dag_run_id) },
+    );
 
   return (
     <Box>
@@ -86,8 +105,7 @@ export const Tasks = () => {
         isFetching={isFetching}
         isLoading={isLoading}
         modelName="Task"
-        skeletonCount={undefined}
-        total={data ? data.total_entries : 0}
+        total={data ? data.total_entries : 0} // Todo : Disable pagination?
       />
     </Box>
   );
