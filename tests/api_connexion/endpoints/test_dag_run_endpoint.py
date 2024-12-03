@@ -1738,7 +1738,7 @@ class TestClearDagRun(TestDagRunEndpoint):
 @pytest.mark.need_serialized_dag
 class TestGetDagRunAssetTriggerEvents(TestDagRunEndpoint):
     def test_should_respond_200(self, dag_maker, session):
-        asset1 = Asset(uri="ds1")
+        asset1 = Asset(uri="test://asset1", name="asset1")
 
         with dag_maker(dag_id="source_dag", start_date=timezone.utcnow(), session=session):
             EmptyOperator(task_id="task", outlets=[asset1])
