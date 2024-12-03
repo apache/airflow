@@ -71,7 +71,7 @@ def upgrade():
     condition_templates = {
         "postgresql": "get_byte(value, 0) = 128",
         "mysql": "HEX(SUBSTRING(value, 1, 1)) = '80'",
-        "sqlite": "substr(value, 1, 1) = char(128)",
+        "sqlite": "hex(substr(conf, 1, 1)) = '80'",
     }
 
     condition = condition_templates.get(dialect)
