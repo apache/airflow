@@ -887,7 +887,7 @@ class TestPatchDagRun:
                 {"note": "new_note2", "state": "failed"},
                 200,
             ),
-            ({"update_mask": ["note"]}, {}, {"state": "success", "note": None}, 200),
+            ({"update_mask": ["note"]}, {}, {"state": "success", "note": "test_note"}, 200),
             (
                 {"update_mask": ["random"]},
                 {"state": DagRunState.FAILED},

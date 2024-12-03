@@ -147,11 +147,11 @@ def patch_dag_run(
         fields_to_update = fields_to_update.intersection(update_mask)
         data = patch_body.model_dump(include=fields_to_update)
     else:
-        data = patch_body.model_dump()
         try:
-            DAGRunPatchBody.model_validate(data)
+            DAGRunPatchBody(**patch_body.model_dump())
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
+        data = patch_body.model_dump()
 
     for attr_name, attr_value in data.items():
         if attr_name == "state":
