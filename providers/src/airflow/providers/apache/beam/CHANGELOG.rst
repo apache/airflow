@@ -545,8 +545,7 @@ Breaking changes
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-Integration with the ``google`` provider
-````````````````````````````````````````
+Integration with the ``google`` provider.
 
 In 2.0.0 version of the provider we've changed the way of integrating with the ``google`` provider.
 The previous versions of both providers caused conflicts when trying to install them together
