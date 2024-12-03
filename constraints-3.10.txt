@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-02T19:48:08.597249
+# This constraints file was automatically generated on 2024-12-03T02:22:20.143146
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -187,7 +187,7 @@ apache-airflow-providers-yandex==3.12.0
 apache-airflow-providers-ydb==1.4.0
 apache-airflow-providers-zendesk==4.8.0
 apache-beam==2.61.0
-apispec==6.7.1
+apispec==6.8.0
 apprise==1.9.0
 argcomplete==3.5.1
 asana==3.2.3
@@ -246,7 +246,7 @@ cattrs==24.1.2
 celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
-cfn-lint==1.20.1
+cfn-lint==1.20.2
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.4.0
