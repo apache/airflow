@@ -405,7 +405,7 @@ class TestFs:
 
         p = "s3"
         f = "bucket/object"
-        i = Asset(uri=f"{p}://{f}", extra={"foo": "bar"})
+        i = Asset(uri=f"{p}://{f}", name="test-asset", extra={"foo": "bar"})
         o = ObjectStoragePath(i)
         assert o.protocol == p
         assert o.path == f

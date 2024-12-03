@@ -292,8 +292,6 @@ class BigQueryToGCSOperator(BaseOperator):
 
     def get_openlineage_facets_on_complete(self, task_instance):
         """Implement on_complete as we will include final BQ job id."""
-        from pathlib import Path
-
         from airflow.providers.common.compat.openlineage.facet import (
             BaseFacet,
             Dataset,
@@ -303,6 +301,8 @@ class BigQueryToGCSOperator(BaseOperator):
         )
         from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
         from airflow.providers.google.cloud.openlineage.utils import (
+            WILDCARD,
+            extract_ds_name_from_gcs_path,
             get_facets_from_bq_table,
             get_identity_column_lineage_facet,
         )
@@ -333,24 +333,19 @@ class BigQueryToGCSOperator(BaseOperator):
         output_datasets = []
         for uri in sorted(self.destination_cloud_storage_uris):
             bucket, blob = _parse_gcs_url(uri)
-            additional_facets = {}
 
-            if "*" in blob:
-                # If wildcard ("*") is used in gcs path, we want the name of dataset to be directory name,
-                # but we create a symlink to the full object path with wildcard.
+            additional_facets = {}
+            if WILDCARD in blob:
+                # For path with wildcard we attach a symlink with unmodified path.
                 additional_facets = {
                     "symlink": SymlinksDatasetFacet(
                         identifiers=[Identifier(namespace=f"gs://{bucket}", name=blob, type="file")]
                     ),
                 }
-                blob = Path(blob).parent.as_posix()
-                if blob == ".":
-                    # blob path does not have leading slash, but we need root dataset name to be "/"
-                    blob = "/"
 
             dataset = Dataset(
                 namespace=f"gs://{bucket}",
-                name=blob,
+                name=extract_ds_name_from_gcs_path(blob),
                 facets=merge_dicts(output_dataset_facets, additional_facets),
             )
             output_datasets.append(dataset)

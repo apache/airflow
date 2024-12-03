@@ -34,7 +34,7 @@ class TestGitSyncWebserver:
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert "dags" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
+        assert jmespath.search("spec.template.spec.volumes[1].name", docs[0]) == "dags"
 
     def test_should_add_dags_volume_to_the_webserver_if_git_sync_is_enabled_and_persistence_is_disabled(self):
         docs = render_chart(
@@ -45,7 +45,7 @@ class TestGitSyncWebserver:
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert "dags" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
+        assert jmespath.search("spec.template.spec.volumes[1].name", docs[0]) == "dags"
 
     def test_should_add_git_sync_container_to_webserver_if_persistence_is_not_enabled_but_git_sync_is(self):
         docs = render_chart(
@@ -59,7 +59,7 @@ class TestGitSyncWebserver:
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert "git-sync" == jmespath.search("spec.template.spec.containers[1].name", docs[0])
+        assert jmespath.search("spec.template.spec.containers[1].name", docs[0]) == "git-sync"
 
     def test_should_have_service_account_defined(self):
         docs = render_chart(
@@ -67,8 +67,9 @@ class TestGitSyncWebserver:
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert "release-name-airflow-webserver" == jmespath.search(
-            "spec.template.spec.serviceAccountName", docs[0]
+        assert (
+            jmespath.search("spec.template.spec.serviceAccountName", docs[0])
+            == "release-name-airflow-webserver"
         )
 
     @pytest.mark.parametrize(
@@ -149,11 +150,11 @@ class TestGitSyncWebserver:
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
-        assert "128Mi" == jmespath.search("spec.template.spec.containers[1].resources.limits.memory", docs[0])
-        assert "169Mi" == jmespath.search(
-            "spec.template.spec.containers[1].resources.requests.memory", docs[0]
+        assert jmespath.search("spec.template.spec.containers[1].resources.limits.memory", docs[0]) == "128Mi"
+        assert (
+            jmespath.search("spec.template.spec.containers[1].resources.requests.memory", docs[0]) == "169Mi"
         )
-        assert "300m" == jmespath.search("spec.template.spec.containers[1].resources.requests.cpu", docs[0])
+        assert jmespath.search("spec.template.spec.containers[1].resources.requests.cpu", docs[0]) == "300m"
 
     def test_validate_sshkeysecret_not_added_when_persistence_is_enabled(self):
         docs = render_chart(

@@ -21,21 +21,22 @@ import logging
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Body, Depends, HTTPException, status
+from fastapi import Body, HTTPException, status
 from sqlalchemy import update
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
-from sqlalchemy.orm import Session
 from sqlalchemy.sql import select
 
-from airflow.api_fastapi.common.db.common import get_session
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    TIDeferredStatePayload,
     TIEnterRunningPayload,
     TIHeartbeatInfo,
     TIStateUpdate,
     TITerminalStatePayload,
 )
 from airflow.models.taskinstance import TaskInstance as TI
+from airflow.models.trigger import Trigger
 from airflow.utils import timezone
 from airflow.utils.state import State
 
@@ -61,7 +62,7 @@ log = logging.getLogger(__name__)
 def ti_update_state(
     task_instance_id: UUID,
     ti_patch_payload: Annotated[TIStateUpdate, Body()],
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ):
     """
     Update the state of a TaskInstance.
@@ -122,6 +123,29 @@ def ti_update_state(
         )
     elif isinstance(ti_patch_payload, TITerminalStatePayload):
         query = TI.duration_expression_update(ti_patch_payload.end_date, query, session.bind)
+    elif isinstance(ti_patch_payload, TIDeferredStatePayload):
+        # Calculate timeout if it was passed
+        timeout = None
+        if ti_patch_payload.trigger_timeout is not None:
+            timeout = timezone.utcnow() + ti_patch_payload.trigger_timeout
+
+        trigger_row = Trigger(
+            classpath=ti_patch_payload.classpath,
+            kwargs=ti_patch_payload.trigger_kwargs,
+        )
+        session.add(trigger_row)
+
+        # TODO: HANDLE execution timeout later as it requires a call to the DB
+        # either get it from the serialised DAG or get it from the API
+
+        query = update(TI).where(TI.id == ti_id_str)
+        query = query.values(
+            state=State.DEFERRED,
+            trigger_id=trigger_row.id,
+            next_method=ti_patch_payload.next_method,
+            next_kwargs=ti_patch_payload.trigger_kwargs,
+            trigger_timeout=timeout,
+        )
 
     # TODO: Replace this with FastAPI's Custom Exception handling:
     # https://fastapi.tiangolo.com/tutorial/handling-errors/#install-custom-exception-handlers
@@ -149,7 +173,7 @@ def ti_update_state(
 def ti_heartbeat(
     task_instance_id: UUID,
     ti_payload: TIHeartbeatInfo,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ):
     """Update the heartbeat of a TaskInstance to mark it as alive & still running."""
     ti_id_str = str(task_instance_id)

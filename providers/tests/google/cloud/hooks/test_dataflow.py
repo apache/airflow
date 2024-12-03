@@ -1394,7 +1394,7 @@ class TestDataflowJob:
         )
         dataflow_job.wait_for_done()
 
-        assert 1 == mock_jobs_list.call_count
+        assert mock_jobs_list.call_count == 1
 
     def test_dataflow_job_wait_for_single_jobs(self):
         job = {

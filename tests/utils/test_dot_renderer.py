@@ -39,7 +39,7 @@ except ImportError:
 
 START_DATE = timezone.utcnow()
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestDotRenderer:

@@ -26,7 +26,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import JobState, State
 
 from tests_common.test_utils.db import clear_db_jobs
-from tests_common.test_utils.format_datetime import datetime_zulu_format
+from tests_common.test_utils.format_datetime import from_datetime_to_zulu
 
 pytestmark = pytest.mark.db_test
 
@@ -155,9 +155,9 @@ class TestGetJobs(TestJobEndpoint):
                 "dag_id": None,
                 "state": "running",
                 "job_type": "SchedulerJob",
-                "start_date": datetime_zulu_format(self.scheduler_jobs[idx].start_date),
+                "start_date": from_datetime_to_zulu(self.scheduler_jobs[idx].start_date),
                 "end_date": None,
-                "latest_heartbeat": datetime_zulu_format(self.scheduler_jobs[idx].latest_heartbeat),
+                "latest_heartbeat": from_datetime_to_zulu(self.scheduler_jobs[idx].latest_heartbeat),
                 "executor_class": None,
                 "hostname": self.scheduler_jobs[idx].hostname,
                 "unixname": self.scheduler_jobs[idx].unixname,

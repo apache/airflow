@@ -32,7 +32,7 @@ from airflow.providers.asana.operators.asana_tasks import (
 from airflow.utils import db, timezone
 
 # The tests do not create dag runs, so db isolation tests are skipped
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)

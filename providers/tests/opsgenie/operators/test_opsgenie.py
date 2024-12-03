@@ -94,7 +94,7 @@ class TestOpsgenieCreateAlertOperator:
         # Given / When
         operator = OpsgenieCreateAlertOperator(task_id="opsgenie_alert_job", dag=self.dag, **self._config)
 
-        assert "opsgenie_default" == operator.opsgenie_conn_id
+        assert operator.opsgenie_conn_id == "opsgenie_default"
         assert self._config["message"] == operator.message
         assert self._config["alias"] == operator.alias
         assert self._config["description"] == operator.description
@@ -138,7 +138,7 @@ class TestOpsgenieCloseAlertOperator:
             task_id="opsgenie_test_properties_job", identifier="id", dag=self.dag, **self._config
         )
 
-        assert "opsgenie_default" == operator.opsgenie_conn_id
+        assert operator.opsgenie_conn_id == "opsgenie_default"
         assert self._config["user"] == operator.user
         assert self._config["note"] == operator.note
         assert self._config["source"] == operator.source

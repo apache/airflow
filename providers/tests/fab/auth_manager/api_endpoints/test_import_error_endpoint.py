@@ -29,7 +29,6 @@ from tests_common.test_utils.permissions import _resource_name
 
 pytestmark = [
     pytest.mark.db_test,
-    pytest.mark.skip_if_database_isolation_mode,
     pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0+"),
 ]
 
@@ -121,12 +120,12 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         assert response.status_code == 200
         response_data = response.json
         response_data["import_error_id"] = 1
-        assert {
+        assert response_data == {
             "filename": "Lorem_ipsum.py",
             "import_error_id": 1,
             "stack_trace": "Lorem ipsum",
             "timestamp": "2020-06-10T12:00:00+00:00",
-        } == response_data
+        }
 
     def test_should_return_200_redacted_with_single_dag_read_in_dagfile(self, session):
         for dag_id in TEST_DAG_IDS:
@@ -147,12 +146,12 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         assert response.status_code == 200
         response_data = response.json
         response_data["import_error_id"] = 1
-        assert {
+        assert response_data == {
             "filename": "Lorem_ipsum.py",
             "import_error_id": 1,
             "stack_trace": "REDACTED - you do not have read permission on all DAGs in the file",
             "timestamp": "2020-06-10T12:00:00+00:00",
-        } == response_data
+        }
 
 
 class TestGetImportErrorsEndpoint(TestBaseImportError):
@@ -176,7 +175,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
         assert response.status_code == 200
         response_data = response.json
         self._normalize_import_errors(response_data["import_errors"])
-        assert {
+        assert response_data == {
             "import_errors": [
                 {
                     "filename": "/tmp/test_dag.py",
@@ -186,7 +185,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
                 },
             ],
             "total_entries": 1,
-        } == response_data
+        }
 
     def test_get_import_errors_single_dag_in_dagfile(self, session):
         for dag_id in TEST_DAG_IDS:
@@ -209,7 +208,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
         assert response.status_code == 200
         response_data = response.json
         self._normalize_import_errors(response_data["import_errors"])
-        assert {
+        assert response_data == {
             "import_errors": [
                 {
                     "filename": "/tmp/all_in_one.py",
@@ -219,4 +218,4 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
                 },
             ],
             "total_entries": 1,
-        } == response_data
+        }

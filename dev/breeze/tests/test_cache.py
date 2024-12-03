@@ -66,7 +66,7 @@ def test_check_if_cache_exists(path):
 def test_read_from_cache_file(param):
     param_value = read_from_cache_file(param.upper())
     if param_value is None:
-        assert None is param_value
+        assert param_value is None
     else:
         allowed, param_list = check_if_values_allowed(param, param_value)
         if allowed:

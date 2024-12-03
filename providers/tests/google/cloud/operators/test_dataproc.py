@@ -553,7 +553,7 @@ class TestsClusterGenerator:
             driver_pool_size=2,
         )
         cluster = generator.make()
-        assert CONFIG == cluster
+        assert cluster == CONFIG
 
     def test_build_with_custom_image_family(self):
         generator = ClusterGenerator(
@@ -592,7 +592,7 @@ class TestsClusterGenerator:
             enable_component_gateway=True,
         )
         cluster = generator.make()
-        assert CONFIG_WITH_CUSTOM_IMAGE_FAMILY == cluster
+        assert cluster == CONFIG_WITH_CUSTOM_IMAGE_FAMILY
 
     def test_build_with_flex_migs(self):
         generator = ClusterGenerator(
@@ -642,7 +642,7 @@ class TestsClusterGenerator:
             ),
         )
         cluster = generator.make()
-        assert CONFIG_WITH_FLEX_MIG == cluster
+        assert cluster == CONFIG_WITH_FLEX_MIG
 
     def test_build_with_gpu_accelerator(self):
         generator = ClusterGenerator(
@@ -687,7 +687,7 @@ class TestsClusterGenerator:
             customer_managed_key="customer_managed_key",
         )
         cluster = generator.make()
-        assert CONFIG_WITH_GPU_ACCELERATOR == cluster
+        assert cluster == CONFIG_WITH_GPU_ACCELERATOR
 
     def test_build_with_default_value_for_internal_ip_only(self):
         generator = ClusterGenerator(project_id="project_id")

@@ -45,6 +45,9 @@ class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
     :param mssql_table: target MsSQL table. It is deprecated: use target_table_name instead. (templated)
     :param target_table_name: target MsSQL table. It takes precedence over mssql_table. (templated)
     :param mssql_conn_id: reference to a specific mssql hook
+
+    .. warning::
+        The `mssql_table` parameter has been deprecated. Use `target_table_name` instead.
     """
 
     template_fields: Sequence[str] = (

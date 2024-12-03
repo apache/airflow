@@ -365,7 +365,7 @@ class TestSerDe:
         assert e["extra"] == {"hi": "bye"}
 
     def test_encode_asset(self):
-        asset = Asset("mytest://asset")
+        asset = Asset(uri="mytest://asset", name="test")
         obj = deserialize(serialize(asset))
         assert asset.uri == obj.uri
 

@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -38,8 +37,4 @@ warnings.warn(
     stacklevel=2,
 )
 
-
-__all__ = [
-    "Dataset",
-    "DatasetAlias",
-]
+__all__ = ["Dataset", "DatasetAlias"]

@@ -68,7 +68,7 @@ def test_render_template(dag_maker):
     dag_maker.session.add(dag_run.task_instances[0])
     dag_maker.session.commit()
     dag_run.task_instances[0].render_templates()
-    assert RENDERED_INDEX == json.loads(operator.json_index_file)
+    assert json.loads(operator.json_index_file) == RENDERED_INDEX
 
 
 @pytest.mark.need_serialized_dag
@@ -90,7 +90,7 @@ def test_render_template_from_file(tmp_path, dag_maker):
         )
 
     dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED).task_instances[0].render_templates()
-    assert RENDERED_INDEX == json.loads(operator.json_index_file)
+    assert json.loads(operator.json_index_file) == RENDERED_INDEX
 
 
 def test_init_with_timeout_and_max_ingestion_time():

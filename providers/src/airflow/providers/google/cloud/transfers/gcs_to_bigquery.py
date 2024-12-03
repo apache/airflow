@@ -756,8 +756,6 @@ class GCSToBigQueryOperator(BaseOperator):
 
     def get_openlineage_facets_on_complete(self, task_instance):
         """Implement on_complete as we will include final BQ job id."""
-        from pathlib import Path
-
         from airflow.providers.common.compat.openlineage.facet import (
             Dataset,
             ExternalQueryRunFacet,
@@ -765,6 +763,8 @@ class GCSToBigQueryOperator(BaseOperator):
             SymlinksDatasetFacet,
         )
         from airflow.providers.google.cloud.openlineage.utils import (
+            WILDCARD,
+            extract_ds_name_from_gcs_path,
             get_facets_from_bq_table,
             get_identity_column_lineage_facet,
         )
@@ -793,22 +793,17 @@ class GCSToBigQueryOperator(BaseOperator):
         for blob in sorted(source_objects):
             additional_facets = {}
 
-            if "*" in blob:
-                # If wildcard ("*") is used in gcs path, we want the name of dataset to be directory name,
-                # but we create a symlink to the full object path with wildcard.
+            if WILDCARD in blob:
+                # For path with wildcard we attach a symlink with unmodified path.
                 additional_facets = {
                     "symlink": SymlinksDatasetFacet(
                         identifiers=[Identifier(namespace=f"gs://{self.bucket}", name=blob, type="file")]
                     ),
                 }
-                blob = Path(blob).parent.as_posix()
-                if blob == ".":
-                    # blob path does not have leading slash, but we need root dataset name to be "/"
-                    blob = "/"
 
             dataset = Dataset(
                 namespace=f"gs://{self.bucket}",
-                name=blob,
+                name=extract_ds_name_from_gcs_path(blob),
                 facets=merge_dicts(input_dataset_facets, additional_facets),
             )
             input_datasets.append(dataset)

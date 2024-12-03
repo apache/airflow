@@ -145,12 +145,20 @@ class CloudBatchHook(GoogleBaseHook):
             try:
                 job = client.get_job(name=f"{job_name}")
                 status: JobStatus.State = job.status.state
-                if (
-                    status == JobStatus.State.SUCCEEDED
-                    or status == JobStatus.State.FAILED
-                    or status == JobStatus.State.DELETION_IN_PROGRESS
-                ):
+                if status == JobStatus.State.SUCCEEDED:
                     return job
+                elif status == JobStatus.State.FAILED:
+                    message = (
+                        "Unexpected error in the operation: "
+                        "Batch job with name {job_name} has failed its execution."
+                    )
+                    raise AirflowException(message)
+                elif status == JobStatus.State.DELETION_IN_PROGRESS:
+                    message = (
+                        "Unexpected error in the operation: "
+                        "Batch job with name {job_name} is being deleted."
+                    )
+                    raise AirflowException(message)
                 else:
                     time.sleep(polling_period_seconds)
             except Exception as e:

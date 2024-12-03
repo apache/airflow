@@ -37,7 +37,6 @@ TEST_DAG_ID = "unit_tests_file_sensor"
 DEFAULT_DATE = datetime(2015, 1, 1)
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 class TestFileSensor:
     def setup_method(self):
         from airflow.providers.standard.hooks.filesystem import FSHook

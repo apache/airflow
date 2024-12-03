@@ -36,7 +36,7 @@ from airflow.utils.session import create_session
 
 from tests_common.test_utils.db import clear_db_dag_code, clear_db_dags
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 def make_example_dags(module):

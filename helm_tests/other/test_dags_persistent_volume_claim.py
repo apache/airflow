@@ -30,7 +30,7 @@ class TestDagsPersistentVolumeClaim:
             show_only=["templates/dags-persistent-volume-claim.yaml"],
         )
 
-        assert 0 == len(docs)
+        assert len(docs) == 0
 
     def test_should_not_generate_a_document_when_using_an_existing_claim(self):
         docs = render_chart(
@@ -38,7 +38,7 @@ class TestDagsPersistentVolumeClaim:
             show_only=["templates/dags-persistent-volume-claim.yaml"],
         )
 
-        assert 0 == len(docs)
+        assert len(docs) == 0
 
     def test_should_generate_a_document_if_persistence_is_enabled_and_not_using_an_existing_claim(self):
         docs = render_chart(
@@ -46,7 +46,7 @@ class TestDagsPersistentVolumeClaim:
             show_only=["templates/dags-persistent-volume-claim.yaml"],
         )
 
-        assert 1 == len(docs)
+        assert len(docs) == 1
 
     def test_should_set_pvc_details_correctly(self):
         docs = render_chart(
@@ -64,11 +64,11 @@ class TestDagsPersistentVolumeClaim:
             show_only=["templates/dags-persistent-volume-claim.yaml"],
         )
 
-        assert {
+        assert jmespath.search("spec", docs[0]) == {
             "accessModes": ["ReadWriteMany"],
             "resources": {"requests": {"storage": "1G"}},
             "storageClassName": "MyStorageClass",
-        } == jmespath.search("spec", docs[0])
+        }
 
     def test_single_annotation(self):
         docs = render_chart(
@@ -88,7 +88,7 @@ class TestDagsPersistentVolumeClaim:
         )
 
         annotations = jmespath.search("metadata.annotations", docs[0])
-        assert "value" == annotations.get("key")
+        assert annotations.get("key") == "value"
 
     def test_multiple_annotations(self):
         docs = render_chart(
@@ -108,8 +108,8 @@ class TestDagsPersistentVolumeClaim:
         )
 
         annotations = jmespath.search("metadata.annotations", docs[0])
-        assert "value" == annotations.get("key")
-        assert "value-two" == annotations.get("key-two")
+        assert annotations.get("key") == "value"
+        assert annotations.get("key-two") == "value-two"
 
     def test_dags_persistent_volume_claim_template_storage_class_name(self):
         docs = render_chart(
@@ -124,4 +124,4 @@ class TestDagsPersistentVolumeClaim:
             },
             show_only=["templates/dags-persistent-volume-claim.yaml"],
         )
-        assert "release-name-storage-class" == jmespath.search("spec.storageClassName", docs[0])
+        assert jmespath.search("spec.storageClassName", docs[0]) == "release-name-storage-class"

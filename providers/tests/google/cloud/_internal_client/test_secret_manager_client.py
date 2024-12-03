@@ -86,7 +86,7 @@ class TestSecretManagerClient:
         secrets_client = _SecretManagerClient(credentials="credentials")
         secret = secrets_client.get_secret(secret_id="existing", project_id="project_id")
         mock_client.secret_version_path.assert_called_once_with("project_id", "existing", "latest")
-        assert "result" == secret
+        assert secret == "result"
         mock_client.access_secret_version.assert_called_once_with(request={"name": "full-path"})
 
     @mock.patch(INTERNAL_CLIENT_MODULE + ".SecretManagerServiceClient")
@@ -102,5 +102,5 @@ class TestSecretManagerClient:
             secret_id="existing", project_id="project_id", secret_version="test-version"
         )
         mock_client.secret_version_path.assert_called_once_with("project_id", "existing", "test-version")
-        assert "result" == secret
+        assert secret == "result"
         mock_client.access_secret_version.assert_called_once_with(request={"name": "full-path"})

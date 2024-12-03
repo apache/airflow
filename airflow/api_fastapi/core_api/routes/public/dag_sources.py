@@ -16,12 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Annotated
+from fastapi import HTTPException, Response, status
 
-from fastapi import Depends, HTTPException, Response, status
-from sqlalchemy.orm import Session
-
-from airflow.api_fastapi.common.db.common import get_session
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.headers import HeaderAcceptJsonOrText
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.common.types import Mimetype
@@ -54,7 +51,7 @@ dag_sources_router = AirflowRouter(tags=["DagSource"], prefix="/dagSources")
 def get_dag_source(
     accept: HeaderAcceptJsonOrText,
     dag_id: str,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     version_number: int | None = None,
 ):
     """Get source code using file token."""

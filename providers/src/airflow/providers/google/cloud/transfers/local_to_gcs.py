@@ -69,12 +69,12 @@ class LocalFilesystemToGCSOperator(BaseOperator):
     def __init__(
         self,
         *,
-        src,
-        dst,
-        bucket,
-        gcp_conn_id="google_cloud_default",
-        mime_type="application/octet-stream",
-        gzip=False,
+        src: str | list[str],
+        dst: str,
+        bucket: str,
+        gcp_conn_id: str = "google_cloud_default",
+        mime_type: str = "application/octet-stream",
+        gzip: bool = False,
         chunk_size: int | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -120,3 +120,38 @@ class LocalFilesystemToGCSOperator(BaseOperator):
                 gzip=self.gzip,
                 chunk_size=self.chunk_size,
             )
+
+    def get_openlineage_facets_on_start(self):
+        from airflow.providers.common.compat.openlineage.facet import (
+            Dataset,
+            Identifier,
+            SymlinksDatasetFacet,
+        )
+        from airflow.providers.google.cloud.openlineage.utils import WILDCARD, extract_ds_name_from_gcs_path
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        source_facets = {}
+        if isinstance(self.src, str):  # Single path provided, possibly relative or with wildcard
+            original_src = f"{self.src}"
+            absolute_src = os.path.abspath(self.src)
+            resolved_src = extract_ds_name_from_gcs_path(absolute_src)
+            if original_src.startswith("/") and not resolved_src.startswith("/"):
+                resolved_src = "/" + resolved_src
+            source_objects = [resolved_src]
+
+            if WILDCARD in original_src or absolute_src != resolved_src:
+                # We attach a symlink with unmodified path.
+                source_facets = {
+                    "symlink": SymlinksDatasetFacet(
+                        identifiers=[Identifier(namespace="file", name=original_src, type="file")]
+                    ),
+                }
+        else:
+            source_objects = self.src
+
+        dest_object = self.dst if os.path.basename(self.dst) else extract_ds_name_from_gcs_path(self.dst)
+
+        return OperatorLineage(
+            inputs=[Dataset(namespace="file", name=src, facets=source_facets) for src in source_objects],
+            outputs=[Dataset(namespace=f"gs://{self.bucket}", name=dest_object)],
+        )

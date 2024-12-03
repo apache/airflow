@@ -50,6 +50,8 @@ class SFTPToS3Operator(BaseOperator):
         uploading the file to S3.
     :param use_temp_file: If True, copies file first to local,
         if False streams file from SFTP to S3.
+    :param fail_on_file_not_exist: If True, operator fails when file does not exist,
+        if False, operator will not fail and skips transfer. Default is True.
     """
 
     template_fields: Sequence[str] = ("s3_key", "sftp_path", "s3_bucket")
@@ -63,6 +65,7 @@ class SFTPToS3Operator(BaseOperator):
         sftp_conn_id: str = "ssh_default",
         s3_conn_id: str = "aws_default",
         use_temp_file: bool = True,
+        fail_on_file_not_exist: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -72,6 +75,7 @@ class SFTPToS3Operator(BaseOperator):
         self.s3_key = s3_key
         self.s3_conn_id = s3_conn_id
         self.use_temp_file = use_temp_file
+        self.fail_on_file_not_exist = fail_on_file_not_exist
 
     @staticmethod
     def get_s3_key(s3_key: str) -> str:
@@ -85,6 +89,14 @@ class SFTPToS3Operator(BaseOperator):
         s3_hook = S3Hook(self.s3_conn_id)
 
         sftp_client = ssh_hook.get_conn().open_sftp()
+
+        try:
+            sftp_client.stat(self.sftp_path)
+        except FileNotFoundError:
+            if self.fail_on_file_not_exist:
+                raise
+            self.log.info("File %s not found on SFTP server. Skipping transfer.", self.sftp_path)
+            return
 
         if self.use_temp_file:
             with NamedTemporaryFile("w") as f:

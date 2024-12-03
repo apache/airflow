@@ -227,7 +227,7 @@ class TestCeleryExecutor:
             executor.queued_tasks[key] = value_tuple
             executor.task_publish_retries[key] = 1
             executor.heartbeat()
-        assert 0 == len(executor.queued_tasks), "Task should no longer be queued"
+        assert len(executor.queued_tasks) == 0, "Task should no longer be queued"
         assert executor.event_buffer[("fail", "fake_simple_ti", when, 0)][0] == State.FAILED
 
     def test_retry_on_error_sending_task(self, caplog):
@@ -267,25 +267,25 @@ class TestCeleryExecutor:
             # Test that when heartbeat is called again, task is published again to Celery Queue
             executor.heartbeat()
             assert dict(executor.task_publish_retries) == {key: 1}
-            assert 1 == len(executor.queued_tasks), "Task should remain in queue"
+            assert len(executor.queued_tasks) == 1, "Task should remain in queue"
             assert executor.event_buffer == {}
             assert f"[Try 1 of 3] Task Timeout Error for Task: ({key})." in caplog.text
 
             executor.heartbeat()
             assert dict(executor.task_publish_retries) == {key: 2}
-            assert 1 == len(executor.queued_tasks), "Task should remain in queue"
+            assert len(executor.queued_tasks) == 1, "Task should remain in queue"
             assert executor.event_buffer == {}
             assert f"[Try 2 of 3] Task Timeout Error for Task: ({key})." in caplog.text
 
             executor.heartbeat()
             assert dict(executor.task_publish_retries) == {key: 3}
-            assert 1 == len(executor.queued_tasks), "Task should remain in queue"
+            assert len(executor.queued_tasks) == 1, "Task should remain in queue"
             assert executor.event_buffer == {}
             assert f"[Try 3 of 3] Task Timeout Error for Task: ({key})." in caplog.text
 
             executor.heartbeat()
             assert dict(executor.task_publish_retries) == {}
-            assert 0 == len(executor.queued_tasks), "Task should no longer be in queue"
+            assert len(executor.queued_tasks) == 0, "Task should no longer be in queue"
             assert executor.event_buffer[("fail", "fake_simple_ti", when, 0)][0] == State.FAILED
 
 

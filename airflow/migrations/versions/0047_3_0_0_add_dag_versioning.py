@@ -132,6 +132,9 @@ def upgrade():
 
 def downgrade():
     """Unapply add dag versioning."""
+    # Going down from here, the way we serialize DAG changes, so we need to delete the dag_version table
+    # which in turn deletes the serialized dag and dag code tables.
+    op.execute(sa.text("DELETE FROM dag_version"))
     with op.batch_alter_table("task_instance_history", schema=None) as batch_op:
         batch_op.drop_column("dag_version_id")
 

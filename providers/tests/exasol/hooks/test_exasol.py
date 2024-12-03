@@ -150,7 +150,7 @@ class TestExasolHook:
             self.db_hook.bulk_dump("table", "/tmp/file")
 
     def test_serialize_cell(self):
-        assert "foo" == self.db_hook._serialize_cell("foo", None)
+        assert self.db_hook._serialize_cell("foo", None) == "foo"
 
     def test_export_to_file(self):
         file_name = "file_name"

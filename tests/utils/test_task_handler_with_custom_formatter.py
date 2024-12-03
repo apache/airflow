@@ -109,7 +109,6 @@ def test_custom_formatter_default_format(task_instance):
     assert_prefix_once(task_instance, "")
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @conf_vars({("logging", "task_log_prefix_template"): "{{ ti.dag_id }}-{{ ti.task_id }}"})
 def test_custom_formatter_custom_format_not_affected_by_config(task_instance):
     """Certifies that the prefix is only added once, even after repeated calls"""

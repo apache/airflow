@@ -24,7 +24,7 @@ from airflow.models.errors import ParseImportError
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.db import clear_db_import_errors
-from tests_common.test_utils.format_datetime import datetime_zulu_format_without_ms
+from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 
 pytestmark = pytest.mark.db_test
 
@@ -116,7 +116,7 @@ class TestGetImportError(TestImportErrorEndpoint):
             return
         expected_json = {
             "import_error_id": import_error_id,
-            "timestamp": datetime_zulu_format_without_ms(expected_body["timestamp"]),
+            "timestamp": from_datetime_to_zulu_without_ms(expected_body["timestamp"]),
             "filename": expected_body["filename"],
             "stack_trace": expected_body["stack_trace"],
         }

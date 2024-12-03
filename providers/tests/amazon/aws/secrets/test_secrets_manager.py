@@ -43,7 +43,7 @@ class TestSecretsManagerBackend:
         secrets_manager_backend.client.create_secret(**create_param)
 
         returned_uri = secrets_manager_backend.get_conn_value(conn_id="test_postgres")
-        assert "postgresql://airflow:airflow@host:5432/airflow" == returned_uri
+        assert returned_uri == "postgresql://airflow:airflow@host:5432/airflow"
 
     @mock_aws
     def test_get_conn_value_non_existent_key(self):
@@ -74,7 +74,7 @@ class TestSecretsManagerBackend:
         secrets_manager_backend.client.create_secret(**create_param)
 
         returned_uri = secrets_manager_backend.get_variable("hello")
-        assert "world" == returned_uri
+        assert returned_uri == "world"
 
     @mock_aws
     def test_get_variable_non_existent_key(self):

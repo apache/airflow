@@ -36,7 +36,7 @@ class LogGroomerTestBase:
             values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
         )
 
-        assert 2 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+        assert len(jmespath.search("spec.template.spec.containers", docs[0])) == 2
         assert f"{self.obj_name}-log-groomer" in [
             c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
         ]
@@ -72,7 +72,7 @@ class LogGroomerTestBase:
         )
 
         assert jmespath.search("spec.template.spec.containers[1].command", docs[0]) is None
-        assert ["bash", "/clean-logs"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
+        assert jmespath.search("spec.template.spec.containers[1].args", docs[0]) == ["bash", "/clean-logs"]
 
     def test_log_groomer_collector_default_retention_days(self):
         if self.obj_name == "dag-processor":
@@ -84,10 +84,11 @@ class LogGroomerTestBase:
             values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
         )
 
-        assert "AIRFLOW__LOG_RETENTION_DAYS" == jmespath.search(
-            "spec.template.spec.containers[1].env[0].name", docs[0]
+        assert (
+            jmespath.search("spec.template.spec.containers[1].env[0].name", docs[0])
+            == "AIRFLOW__LOG_RETENTION_DAYS"
         )
-        assert "15" == jmespath.search("spec.template.spec.containers[1].env[0].value", docs[0])
+        assert jmespath.search("spec.template.spec.containers[1].env[0].value", docs[0]) == "15"
 
     @pytest.mark.parametrize("command", [None, ["custom", "command"]])
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])
@@ -136,8 +137,8 @@ class LogGroomerTestBase:
             show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
         )
 
-        assert ["release-name"] == jmespath.search("spec.template.spec.containers[1].command", docs[0])
-        assert ["Helm"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
+        assert jmespath.search("spec.template.spec.containers[1].command", docs[0]) == ["release-name"]
+        assert jmespath.search("spec.template.spec.containers[1].args", docs[0]) == ["Helm"]
 
     @pytest.mark.parametrize("retention_days, retention_result", [(None, None), (30, "30")])
     def test_log_groomer_retention_days_overrides(self, retention_days, retention_result):
@@ -154,8 +155,9 @@ class LogGroomerTestBase:
         )
 
         if retention_result:
-            assert "AIRFLOW__LOG_RETENTION_DAYS" == jmespath.search(
-                "spec.template.spec.containers[1].env[0].name", docs[0]
+            assert (
+                jmespath.search("spec.template.spec.containers[1].env[0].name", docs[0])
+                == "AIRFLOW__LOG_RETENTION_DAYS"
             )
             assert retention_result == jmespath.search(
                 "spec.template.spec.containers[1].env[0].value", docs[0]
@@ -193,7 +195,7 @@ class LogGroomerTestBase:
             show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
         )
 
-        assert {
+        assert jmespath.search("spec.template.spec.containers[1].resources", docs[0]) == {
             "limits": {
                 "cpu": "2",
                 "memory": "3Gi",
@@ -202,7 +204,7 @@ class LogGroomerTestBase:
                 "cpu": "1",
                 "memory": "2Gi",
             },
-        } == jmespath.search("spec.template.spec.containers[1].resources", docs[0])
+        }
 
     def test_log_groomer_has_airflow_home(self):
         if self.obj_name == "dag-processor":
@@ -214,4 +216,4 @@ class LogGroomerTestBase:
             values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
         )
 
-        assert "AIRFLOW_HOME" == jmespath.search("spec.template.spec.containers[1].env[1].name", docs[0])
+        assert jmespath.search("spec.template.spec.containers[1].env[1].name", docs[0]) == "AIRFLOW_HOME"

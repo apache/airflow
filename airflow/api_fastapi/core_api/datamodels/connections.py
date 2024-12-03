@@ -79,7 +79,7 @@ class ConnectionTestResponse(BaseModel):
 class ConnectionBody(BaseModel):
     """Connection Serializer for requests body."""
 
-    connection_id: str = Field(serialization_alias="conn_id")
+    connection_id: str = Field(serialization_alias="conn_id", max_length=200, pattern=r"^[\w.-]+$")
     conn_type: str
     description: str | None = Field(default=None)
     host: str | None = Field(default=None)
@@ -88,3 +88,9 @@ class ConnectionBody(BaseModel):
     port: int | None = Field(default=None)
     password: str | None = Field(default=None)
     extra: str | None = Field(default=None)
+
+
+class ConnectionBulkBody(BaseModel):
+    """Connections Serializer for requests body."""
+
+    connections: list[ConnectionBody]

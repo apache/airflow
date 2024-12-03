@@ -551,28 +551,16 @@ class GCSToGCSOperator(BaseOperator):
         This means we won't have to normalize self.source_object and self.source_objects,
         destination bucket and so on.
         """
-        from pathlib import Path
-
         from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.google.cloud.openlineage.utils import extract_ds_name_from_gcs_path
         from airflow.providers.openlineage.extractors import OperatorLineage
 
-        def _process_prefix(pref):
-            if WILDCARD in pref:
-                pref = pref.split(WILDCARD)[0]
-            # Use parent if not a file (dot not in name) and not a dir (ends with slash)
-            if "." not in pref.split("/")[-1] and not pref.endswith("/"):
-                pref = Path(pref).parent.as_posix()
-            return ["/" if pref in ("", "/", ".") else pref.rstrip("/")]  # Adjust root path
-
-        inputs = []
-        for prefix in self.source_objects:
-            result = _process_prefix(prefix)
-            inputs.extend(result)
+        inputs = [extract_ds_name_from_gcs_path(path) for path in self.source_objects]
 
         if self.destination_object is None:
             outputs = inputs.copy()
         else:
-            outputs = _process_prefix(self.destination_object)
+            outputs = [extract_ds_name_from_gcs_path(self.destination_object)]
 
         return OperatorLineage(
             inputs=[

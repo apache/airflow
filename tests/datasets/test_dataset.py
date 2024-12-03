@@ -40,6 +40,15 @@ import pytest
                 "will be removed in the Airflow 3.2. Please import it from 'airflow.sdk.definitions.asset'."
             ),
         ),
+        (
+            "airflow.datasets.metadata",
+            "Metadata",
+            (
+                "Import from the airflow.dataset module is deprecated and "
+                "will be removed in the Airflow 3.2. Please import it from "
+                "'airflow.sdk.definitions.asset.metadata'."
+            ),
+        ),
     ),
 )
 def test_backward_compat_import_before_airflow_3_2(module_path, attr_name, warning_message):

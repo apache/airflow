@@ -105,17 +105,17 @@ class TestHelper:
     def test_build_gcp_conn_path(self):
         value = "test"
         conn = build_gcp_conn(key_file_path=value)
-        assert "google-cloud-platform://?key_path=test" == conn
+        assert conn == "google-cloud-platform://?key_path=test"
 
     def test_build_gcp_conn_scopes(self):
         value = ["test", "test2"]
         conn = build_gcp_conn(scopes=value)
-        assert "google-cloud-platform://?scope=test%2Ctest2" == conn
+        assert conn == "google-cloud-platform://?scope=test%2Ctest2"
 
     def test_build_gcp_conn_project(self):
         value = "test"
         conn = build_gcp_conn(project_id=value)
-        assert "google-cloud-platform://?projects=test" == conn
+        assert conn == "google-cloud-platform://?projects=test"
 
 
 class TestProvideGcpCredentials:
@@ -188,7 +188,7 @@ class TestGetGcpCredentialsAndProjectId:
             caplog.clear()
             result = get_credentials_and_project_id()
         mock_auth_default.assert_called_once_with(scopes=None)
-        assert ("CREDENTIALS", "PROJECT_ID") == result
+        assert result == ("CREDENTIALS", "PROJECT_ID")
         assert (
             "Getting connection using `google.auth.default()` since no explicit credentials are provided."
         ) in caplog.messages

@@ -208,5 +208,5 @@ class TestPapermillOperator:
         assert task.output_nb == "/tmp/out-test_render_template.ipynb"
 
         # Test render other templated attributes
-        assert "python3" == task.kernel_name
-        assert "python" == task.language_name
+        assert task.kernel_name == "python3"
+        assert task.language_name == "python"

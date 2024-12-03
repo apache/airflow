@@ -20,7 +20,6 @@ from __future__ import annotations
 import os
 import shutil
 import tempfile
-import warnings
 from collections.abc import Container, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, cast
@@ -29,9 +28,12 @@ from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.baseoperator import BaseOperator
 from airflow.providers.standard.hooks.subprocess import SubprocessHook, SubprocessResult, working_directory
 from airflow.utils.operator_helpers import context_to_airflow_vars
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.types import ArgNotSet
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session as SASession
+
     from airflow.models.taskinstance import TaskInstance
     from airflow.utils.context import Context
 
@@ -158,7 +160,6 @@ class BashOperator(BaseOperator):
         env: dict[str, str] | None = None,
         append_env: bool = False,
         output_encoding: str = "utf-8",
-        skip_exit_code: int | None = None,
         skip_on_exit_code: int | Container[int] | None = 99,
         cwd: str | None = None,
         output_processor: Callable[[str], Any] = lambda result: result,
@@ -168,11 +169,6 @@ class BashOperator(BaseOperator):
         self.bash_command = bash_command
         self.env = env
         self.output_encoding = output_encoding
-        if skip_exit_code is not None:
-            warnings.warn(
-                "skip_exit_code is deprecated. Please use skip_on_exit_code", DeprecationWarning, stacklevel=2
-            )
-            skip_on_exit_code = skip_exit_code
         self.skip_on_exit_code = (
             skip_on_exit_code
             if isinstance(skip_on_exit_code, Container)
@@ -199,8 +195,10 @@ class BashOperator(BaseOperator):
         """Returns hook for running the bash command."""
         return SubprocessHook()
 
+    # TODO: This should be replaced with Task SDK API call
     @staticmethod
-    def refresh_bash_command(ti: TaskInstance) -> None:
+    @provide_session
+    def refresh_bash_command(ti: TaskInstance, session: SASession = NEW_SESSION) -> None:
         """
         Rewrite the underlying rendered bash_command value for a task instance in the metadatabase.
 
@@ -212,7 +210,16 @@ class BashOperator(BaseOperator):
         """
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
-        RenderedTaskInstanceFields._update_runtime_evaluated_template_fields(ti)
+        """Update rendered task instance fields for cases where runtime evaluated, not templated."""
+        # Note: Need lazy import to break the partly loaded class loop
+        from airflow.models.taskinstance import TaskInstance
+
+        # If called via remote API the DAG needs to be re-loaded
+        TaskInstance.ensure_dag(ti, session=session)
+
+        rtif = RenderedTaskInstanceFields(ti)
+        RenderedTaskInstanceFields.write(rtif, session=session)
+        RenderedTaskInstanceFields.delete_old_records(ti.task_id, ti.dag_id, session=session)
 
     def get_env(self, context) -> dict:
         """Build the set of environment variables to be exposed for the bash command."""
@@ -249,7 +256,7 @@ class BashOperator(BaseOperator):
         # displays the executed command (otherwise it will display as an ArgNotSet type).
         if self._init_bash_command_not_set:
             is_inline_command = self._is_inline_command(bash_command=cast(str, self.bash_command))
-            ti = cast("TaskInstance", context["ti"])
+            ti = context["ti"]
             self.refresh_bash_command(ti)
         else:
             is_inline_command = self._is_inline_command(bash_command=cast(str, self._unrendered_bash_command))

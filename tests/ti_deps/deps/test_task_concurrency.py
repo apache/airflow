@@ -27,7 +27,7 @@ from airflow.models.dag import DAG
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestTaskConcurrencyDep:

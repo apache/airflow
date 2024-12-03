@@ -26,7 +26,6 @@ from typing import Any
 import pytest
 
 from airflow.decorators import setup, task, teardown
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils import timezone
 from airflow.utils.state import TaskInstanceState
 
@@ -67,20 +66,6 @@ class TestPythonVirtualenvDecorator:
         with dag_maker(serialized=True):
             ret = f()
         dag_maker.create_dagrun()
-
-        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-    @DILL_MARKER
-    def test_add_dill_use_dill(self, dag_maker):
-        @task.virtualenv(use_dill=True, system_site_packages=False)
-        def f():
-            """Ensure dill is correctly installed."""
-            import dill  # noqa: F401
-
-        with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
-            with dag_maker(serialized=True):
-                ret = f()
-            dag_maker.create_dagrun()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 

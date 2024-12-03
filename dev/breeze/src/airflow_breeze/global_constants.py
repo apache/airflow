@@ -208,7 +208,7 @@ if MYSQL_INNOVATION_RELEASE:
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb", "mysql"]
 
 PIP_VERSION = "24.3.1"
-UV_VERSION = "0.5.4"
+UV_VERSION = "0.5.5"
 
 DEFAULT_UV_HTTP_TIMEOUT = 300
 DEFAULT_WSL2_HTTP_TIMEOUT = 900
@@ -263,6 +263,7 @@ class GroupOfTests(Enum):
     INTEGRATION_CORE = "integration-core"
     INTEGRATION_PROVIDERS = "integration-providers"
     SYSTEM = "system"
+    PYTHON_API_CLIENT = "python-api-client"
 
 
 ALL_TEST_TYPE = "All"

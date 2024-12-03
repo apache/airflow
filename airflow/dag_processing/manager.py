@@ -42,7 +42,6 @@ from sqlalchemy import delete, select, update
 from tabulate import tabulate
 
 import airflow.models
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessorProcess
@@ -499,7 +498,6 @@ class DagFileProcessorManager(LoggingMixin):
             self.last_deactivate_stale_dags_time = timezone.utcnow()
 
     @classmethod
-    @internal_api_call
     @provide_session
     def deactivate_stale_dags(
         cls,
@@ -698,23 +696,14 @@ class DagFileProcessorManager(LoggingMixin):
                         poll_time = 0.0
 
     @classmethod
-    @internal_api_call
     @provide_session
+    @retry_db_transaction
     def _fetch_callbacks(
         cls,
         max_callbacks: int,
         standalone_dag_processor: bool,
         dag_directory: str,
         session: Session = NEW_SESSION,
-    ) -> list[CallbackRequest]:
-        return cls._fetch_callbacks_with_retries(
-            max_callbacks, standalone_dag_processor, dag_directory, session
-        )
-
-    @classmethod
-    @retry_db_transaction
-    def _fetch_callbacks_with_retries(
-        cls, max_callbacks: int, standalone_dag_processor: bool, dag_directory: str, session: Session
     ) -> list[CallbackRequest]:
         """Fetch callbacks from database and add them to the internal queue for execution."""
         cls.logger().debug("Fetching callbacks from the database.")
@@ -765,7 +754,6 @@ class DagFileProcessorManager(LoggingMixin):
             self._file_path_queue.appendleft(fileloc)
 
     @classmethod
-    @internal_api_call
     @provide_session
     def _get_priority_filelocs(cls, session: Session = NEW_SESSION):
         """Get filelocs from DB table."""
@@ -831,7 +819,6 @@ class DagFileProcessorManager(LoggingMixin):
             self.last_stat_print_time = time.monotonic()
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def clear_nonexistent_import_errors(
         file_paths: list[str] | None, processor_subdir: str | None, session=NEW_SESSION

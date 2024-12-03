@@ -408,10 +408,7 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     log.info("[Metric Exporter] Connecting to OpenTelemetry Collector at %s", endpoint)
     readers = [
         PeriodicExportingMetricReader(
-            OTLPMetricExporter(
-                endpoint=endpoint,
-                headers={"Content-Type": "application/json"},
-            ),
+            OTLPMetricExporter(endpoint=endpoint),
             export_interval_millis=interval,
         )
     ]

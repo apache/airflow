@@ -31,7 +31,7 @@ class TestGcpBodyFieldSanitizer:
         sanitizer = GcpBodyFieldSanitizer(fields_to_sanitize)
         sanitizer.sanitize(body)
 
-        assert {} == body
+        assert body == {}
 
     def test_sanitize_should_not_fail_with_none_body(self):
         body = None
@@ -58,7 +58,7 @@ class TestGcpBodyFieldSanitizer:
         sanitizer = GcpBodyFieldSanitizer(fields_to_sanitize)
         sanitizer.sanitize(body)
 
-        assert {} == body
+        assert body == {}
 
     def test_sanitize_should_not_remove_fields_for_incorrect_specification(self):
         actual_body = [
@@ -81,7 +81,7 @@ class TestGcpBodyFieldSanitizer:
         sanitizer = GcpBodyFieldSanitizer(fields_to_sanitize)
         sanitizer.sanitize(body)
 
-        assert {"name": "instance"} == body
+        assert body == {"name": "instance"}
 
     def test_sanitize_should_remove_for_multiple_fields_from_root_level(self):
         body = {"kind": "compute#instanceTemplate", "name": "instance"}
@@ -90,7 +90,7 @@ class TestGcpBodyFieldSanitizer:
         sanitizer = GcpBodyFieldSanitizer(fields_to_sanitize)
         sanitizer.sanitize(body)
 
-        assert {} == body
+        assert body == {}
 
     def test_sanitize_should_remove_all_fields_in_a_list_value(self):
         body = {
@@ -105,13 +105,13 @@ class TestGcpBodyFieldSanitizer:
         sanitizer = GcpBodyFieldSanitizer(fields_to_sanitize)
         sanitizer.sanitize(body)
 
-        assert {
+        assert body == {
             "fields": [
                 {"name": "instance"},
                 {"name": "instance1"},
                 {"name": "instance2"},
             ]
-        } == body
+        }
 
     def test_sanitize_should_remove_all_fields_in_any_nested_body(self):
         fields_to_sanitize = [
@@ -144,7 +144,7 @@ class TestGcpBodyFieldSanitizer:
         sanitizer = GcpBodyFieldSanitizer(fields_to_sanitize)
         sanitizer.sanitize(body)
 
-        assert {
+        assert body == {
             "name": "instance",
             "properties": {
                 "disks": [
@@ -153,7 +153,7 @@ class TestGcpBodyFieldSanitizer:
                 ],
                 "metadata": {"fingerprint": "GDPUYxlwHe4="},
             },
-        } == body
+        }
 
     def test_sanitize_should_not_fail_if_specification_has_none_value(self):
         fields_to_sanitize = [
@@ -167,7 +167,7 @@ class TestGcpBodyFieldSanitizer:
         sanitizer = GcpBodyFieldSanitizer(fields_to_sanitize)
         sanitizer.sanitize(body)
 
-        assert {"name": "instance", "properties": {"disks": None}} == body
+        assert body == {"name": "instance", "properties": {"disks": None}}
 
     def test_sanitize_should_not_fail_if_no_specification_matches(self):
         fields_to_sanitize = [
@@ -180,7 +180,7 @@ class TestGcpBodyFieldSanitizer:
         sanitizer = GcpBodyFieldSanitizer(fields_to_sanitize)
         sanitizer.sanitize(body)
 
-        assert {"name": "instance", "properties": {"disks": None}} == body
+        assert body == {"name": "instance", "properties": {"disks": None}}
 
     def test_sanitize_should_not_fail_if_type_in_body_do_not_match_with_specification(self):
         fields_to_sanitize = [
@@ -193,4 +193,4 @@ class TestGcpBodyFieldSanitizer:
         sanitizer = GcpBodyFieldSanitizer(fields_to_sanitize)
         sanitizer.sanitize(body)
 
-        assert {"name": "instance", "properties": {"disks": 1}} == body
+        assert body == {"name": "instance", "properties": {"disks": 1}}

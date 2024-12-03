@@ -41,7 +41,6 @@ from typing import (
 import attrs
 from sqlalchemy import (
     Table,
-    delete,
     exc,
     func,
     inspect,
@@ -924,9 +923,7 @@ def check_and_run_migrations():
 
 def _reserialize_dags(*, session: Session) -> None:
     from airflow.models.dagbag import DagBag
-    from airflow.models.serialized_dag import SerializedDagModel
 
-    session.execute(delete(SerializedDagModel).execution_options(synchronize_session=False))
     dagbag = DagBag(collect_dags=False)
     dagbag.collect_dags(only_if_updated=False)
     dagbag.sync_to_db(session=session)
@@ -1225,19 +1222,6 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
 
 
 @provide_session
-def bootstrap_dagbag(session: Session = NEW_SESSION):
-    from airflow.models.dag import DAG
-    from airflow.models.dagbag import DagBag
-
-    dagbag = DagBag()
-    # Save DAGs in the ORM
-    dagbag.sync_to_db(session=session)
-
-    # Deactivate the unknown ones
-    DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
-
-
-@provide_session
 def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: Session = NEW_SESSION):
     """
     Downgrade the airflow metastore schema to a prior version.
@@ -1474,7 +1458,8 @@ def check_query_exists(query_stmt: Select, *, session: Session) -> bool:
     :meta private:
     """
     count_stmt = select(literal(True)).select_from(query_stmt.order_by(None).subquery())
-    return session.scalar(count_stmt)
+    # we must cast to bool because scalar() can return None
+    return bool(session.scalar(count_stmt))
 
 
 def exists_query(*where: ClauseElement, session: Session) -> bool:

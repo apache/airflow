@@ -295,6 +295,7 @@ class TestLifeSciencesHookWithoutProjectId:
             self.hook.run_pipeline(body={}, location=TEST_LOCATION)
 
         assert (
-            "The project id must be passed either as keyword project_id parameter or as project_id extra in "
-            "Google Cloud connection definition. Both are not set!" == str(ctx.value)
+            str(ctx.value)
+            == "The project id must be passed either as keyword project_id parameter or as project_id extra in "
+            "Google Cloud connection definition. Both are not set!"
         )

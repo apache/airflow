@@ -26,7 +26,7 @@ from airflow.models.dagrun import DagRun
 from airflow.ti_deps.deps.dagrun_exists_dep import DagrunRunningDep
 from airflow.utils.state import State
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestDagrunRunningDep:

@@ -120,3 +120,40 @@ class TestSFTPToS3Operator:
         conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)
         conn.delete_bucket(Bucket=self.s3_bucket)
         assert not s3_hook.check_for_bucket(self.s3_bucket)
+
+    @pytest.mark.parametrize("fail_on_file_not_exist", [True, False])
+    @mock_aws
+    @conf_vars({("core", "enable_xcom_pickling"): "True"})
+    def test_sftp_to_s3_fail_on_file_not_exist(self, fail_on_file_not_exist):
+        s3_hook = S3Hook(aws_conn_id=None)
+        conn = boto3.client("s3")
+        conn.create_bucket(Bucket=self.s3_bucket)
+        assert s3_hook.check_for_bucket(self.s3_bucket)
+
+        if fail_on_file_not_exist:
+            with pytest.raises(FileNotFoundError):
+                SFTPToS3Operator(
+                    s3_bucket=self.s3_bucket,
+                    s3_key=self.s3_key,
+                    sftp_path="/tmp/wrong_path.txt",
+                    sftp_conn_id=SFTP_CONN_ID,
+                    s3_conn_id=S3_CONN_ID,
+                    fail_on_file_not_exist=fail_on_file_not_exist,
+                    task_id="test_sftp_to_s3",
+                    dag=self.dag,
+                ).execute(None)
+        else:
+            SFTPToS3Operator(
+                s3_bucket=self.s3_bucket,
+                s3_key=self.s3_key,
+                sftp_path=self.sftp_path,
+                sftp_conn_id=SFTP_CONN_ID,
+                s3_conn_id=S3_CONN_ID,
+                fail_on_file_not_exist=fail_on_file_not_exist,
+                task_id="test_sftp_to_s3",
+                dag=self.dag,
+            ).execute(None)
+
+        conn.delete_object(Bucket=self.s3_bucket, Key=self.s3_key)
+        conn.delete_bucket(Bucket=self.s3_bucket)
+        assert not s3_hook.check_for_bucket(self.s3_bucket)

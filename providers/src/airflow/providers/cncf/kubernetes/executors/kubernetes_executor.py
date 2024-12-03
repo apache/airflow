@@ -253,7 +253,7 @@ class KubernetesExecutor(BaseExecutor):
             )
             if self.kubernetes_queue:
                 query = query.where(TaskInstance.queue == self.kubernetes_queue)
-            elif hybrid_executor_enabled and KUBERNETES_EXECUTOR == default_executor:
+            elif hybrid_executor_enabled and default_executor == KUBERNETES_EXECUTOR:
                 query = query.where(
                     or_(
                         TaskInstance.executor == KUBERNETES_EXECUTOR,

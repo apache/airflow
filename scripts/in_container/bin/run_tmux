@@ -97,7 +97,6 @@ if [[ ${AIRFLOW__CORE__EXECUTOR} == "airflow.providers.edge.executors.edge_execu
     tmux send-keys 'unset POSTGRES_HOST_PORT' C-m
     tmux send-keys 'unset BACKEND' C-m
     tmux send-keys 'unset POSTGRES_VERSION' C-m
-    tmux send-keys 'unset DATABASE_ISOLATION' C-m
 
     # Ensure logs are smelling like Remote and are not visible to other components
     tmux send-keys 'export AIRFLOW__LOGGING__BASE_LOG_FOLDER=edge_logs' C-m
@@ -108,11 +107,6 @@ if [[ ${STANDALONE_DAG_PROCESSOR} == "true" ]]; then
     tmux select-pane -t 3
     tmux split-window -h
     tmux send-keys 'airflow dag-processor' C-m
-fi
-if [[ ${DATABASE_ISOLATION=} == "true" ]]; then
-    tmux select-pane -t 0
-    tmux split-window -h
-    tmux send-keys 'airflow internal-api' C-m
 fi
 
 # Attach Session, on the Main window

@@ -357,7 +357,7 @@ class DAG:
     :param dag_display_name: The display name of the DAG which appears on the UI.
     """
 
-    __serialized_fields: ClassVar[frozenset[str] | None] = None
+    __serialized_fields: ClassVar[frozenset[str]]
 
     # Note: mypy gets very confused about the use of `@${attr}.default` for attrs without init=False -- and it
     # doesn't correctly track/notice that they have default values (it gives errors about `Missing positional
@@ -964,34 +964,6 @@ class DAG:
     @classmethod
     def get_serialized_fields(cls):
         """Stringified DAGs and operators contain exactly these fields."""
-        if not cls.__serialized_fields:
-            exclusion_list = {
-                "schedule_asset_references",
-                "schedule_asset_alias_references",
-                "task_outlet_asset_references",
-                "_old_context_manager_dags",
-                "safe_dag_id",
-                "last_loaded",
-                "user_defined_filters",
-                "user_defined_macros",
-                "partial",
-                "params",
-                "_log",
-                "task_dict",
-                "template_searchpath",
-                # "sla_miss_callback",
-                "on_success_callback",
-                "on_failure_callback",
-                "template_undefined",
-                "jinja_environment_kwargs",
-                # has_on_*_callback are only stored if the value is True, as the default is False
-                "has_on_success_callback",
-                "has_on_failure_callback",
-                "auto_register",
-                "fail_stop",
-                "schedule",
-            }
-            cls.__serialized_fields = frozenset(vars(DAG(dag_id="test", schedule=None))) - exclusion_list
         return cls.__serialized_fields
 
     def get_edge_info(self, upstream_task_id: str, downstream_task_id: str) -> EdgeInfoType:
@@ -1029,6 +1001,34 @@ class DAG:
                 f"Bad formatted links are: {wrong_links}"
             )
 
+
+# Since we define all the attributes of the class with attrs, we can compute this statically at parse time
+DAG._DAG__serialized_fields = frozenset(a.name for a in attrs.fields(DAG)) - {  # type: ignore[attr-defined]
+    "schedule_asset_references",
+    "schedule_asset_alias_references",
+    "task_outlet_asset_references",
+    "_old_context_manager_dags",
+    "safe_dag_id",
+    "last_loaded",
+    "user_defined_filters",
+    "user_defined_macros",
+    "partial",
+    "params",
+    "_log",
+    "task_dict",
+    "template_searchpath",
+    # "sla_miss_callback",
+    "on_success_callback",
+    "on_failure_callback",
+    "template_undefined",
+    "jinja_environment_kwargs",
+    # has_on_*_callback are only stored if the value is True, as the default is False
+    "has_on_success_callback",
+    "has_on_failure_callback",
+    "auto_register",
+    "fail_stop",
+    "schedule",
+}
 
 if TYPE_CHECKING:
     # NOTE: Please keep the list of arguments in sync with DAG.__init__.

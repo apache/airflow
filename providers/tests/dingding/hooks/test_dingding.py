@@ -44,7 +44,7 @@ class TestDingdingHook:
     def test_get_endpoint_conn_id(self):
         hook = DingdingHook(dingding_conn_id=self.conn_id)
         endpoint = hook._get_endpoint()
-        assert "robot/send?access_token=you_token_here" == endpoint
+        assert endpoint == "robot/send?access_token=you_token_here"
 
     def test_build_text_message_not_remind(self):
         config = {

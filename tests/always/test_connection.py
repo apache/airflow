@@ -592,11 +592,11 @@ class TestConnection:
     )
     def test_using_env_var(self):
         conn = SqliteHook.get_connection(conn_id="test_uri")
-        assert "ec2.compute.com" == conn.host
-        assert "the_database" == conn.schema
-        assert "username" == conn.login
-        assert "password!" == conn.password
-        assert 5432 == conn.port
+        assert conn.host == "ec2.compute.com"
+        assert conn.schema == "the_database"
+        assert conn.login == "username"
+        assert conn.password == "password!"
+        assert conn.port == 5432
 
         self.mask_secret.assert_has_calls([mock.call("password!"), mock.call(quote("password!"))])
 
@@ -608,8 +608,8 @@ class TestConnection:
     )
     def test_using_unix_socket_env_var(self):
         conn = SqliteHook.get_connection(conn_id="test_uri_no_creds")
-        assert "ec2.compute.com" == conn.host
-        assert "the_database" == conn.schema
+        assert conn.host == "ec2.compute.com"
+        assert conn.schema == "the_database"
         assert conn.login is None
         assert conn.password is None
         assert conn.port is None
@@ -623,16 +623,16 @@ class TestConnection:
             password="airflow",
             schema="airflow",
         )
-        assert "localhost" == conn.host
-        assert "airflow" == conn.schema
-        assert "airflow" == conn.login
-        assert "airflow" == conn.password
+        assert conn.host == "localhost"
+        assert conn.schema == "airflow"
+        assert conn.login == "airflow"
+        assert conn.password == "airflow"
         assert conn.port is None
 
     @pytest.mark.db_test
     def test_env_var_priority(self):
         conn = SqliteHook.get_connection(conn_id="airflow_db")
-        assert "ec2.compute.com" != conn.host
+        assert conn.host != "ec2.compute.com"
 
         with mock.patch.dict(
             "os.environ",
@@ -641,11 +641,11 @@ class TestConnection:
             },
         ):
             conn = SqliteHook.get_connection(conn_id="airflow_db")
-            assert "ec2.compute.com" == conn.host
-            assert "the_database" == conn.schema
-            assert "username" == conn.login
-            assert "password" == conn.password
-            assert 5432 == conn.port
+            assert conn.host == "ec2.compute.com"
+            assert conn.schema == "the_database"
+            assert conn.login == "username"
+            assert conn.password == "password"
+            assert conn.port == 5432
 
     @mock.patch.dict(
         "os.environ",
@@ -657,10 +657,10 @@ class TestConnection:
     def test_dbapi_get_uri(self):
         conn = BaseHook.get_connection(conn_id="test_uri")
         hook = conn.get_hook()
-        assert "postgresql://username:password@ec2.compute.com:5432/the_database" == hook.get_uri()
+        assert hook.get_uri() == "postgresql://username:password@ec2.compute.com:5432/the_database"
         conn2 = BaseHook.get_connection(conn_id="test_uri_no_creds")
         hook2 = conn2.get_hook()
-        assert "postgresql://ec2.compute.com/the_database" == hook2.get_uri()
+        assert hook2.get_uri() == "postgresql://ec2.compute.com/the_database"
 
     @mock.patch.dict(
         "os.environ",
@@ -674,7 +674,7 @@ class TestConnection:
         hook = conn.get_hook()
         engine = hook.get_sqlalchemy_engine()
         assert isinstance(engine, sqlalchemy.engine.Engine)
-        assert "postgresql://username:password@ec2.compute.com:5432/the_database" == str(engine.url)
+        assert str(engine.url) == "postgresql://username:password@ec2.compute.com:5432/the_database"
 
     @mock.patch.dict(
         "os.environ",

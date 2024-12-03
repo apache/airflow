@@ -81,7 +81,7 @@ Sample usage for Airflow version 2.7.0 or greater:
    ``airflow db migrate -s --from-version "2.4.3" -n "2.7.3"``
    ``airflow db migrate --show-sql-only --from-version "2.4.3" --to-version "2.7.3"``
 
-.. note::
+.. warning::
     ``airflow db upgrade`` has been replaced by ``airflow db migrate`` since Airflow version 2.7.0
     and former has been deprecated.
 

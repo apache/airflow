@@ -48,7 +48,7 @@ class TestPodLauncher:
             for idx, suffix in enumerate(expected_accounts):
                 assert f"release-name-airflow-{suffix}" == jmespath.search(f"subjects[{idx}].name", docs[0])
         else:
-            assert [] == docs
+            assert docs == []
 
     @pytest.mark.parametrize(
         "multiNamespaceMode, namespace, expectedRole, expectedRoleBinding",

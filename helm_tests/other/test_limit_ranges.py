@@ -29,8 +29,8 @@ class TestLimitRanges:
             values={"limits": [{"max": {"cpu": "500m"}, "min": {"min": "200m"}, "type": "Container"}]},
             show_only=["templates/limitrange.yaml"],
         )
-        assert "LimitRange" == jmespath.search("kind", docs[0])
-        assert "500m" == jmespath.search("spec.limits[0].max.cpu", docs[0])
+        assert jmespath.search("kind", docs[0]) == "LimitRange"
+        assert jmespath.search("spec.limits[0].max.cpu", docs[0]) == "500m"
 
     def test_limit_ranges_are_not_added_by_default(self):
         docs = render_chart(show_only=["templates/limitrange.yaml"])

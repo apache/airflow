@@ -31,7 +31,6 @@ from airflow.utils.state import JobState, State
 from tests_common.test_utils.db import clear_db_jobs
 
 
-@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 class TestCliConfigList:
     @classmethod

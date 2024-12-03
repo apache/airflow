@@ -124,7 +124,7 @@ def test_health(request, admin_client, heartbeat):
     scheduler_status, last_scheduler_heartbeat = request.getfixturevalue(heartbeat)
     resp = admin_client.get("health", follow_redirects=True)
     resp_json = json.loads(resp.data.decode("utf-8"))
-    assert "healthy" == resp_json["metadatabase"]["status"]
+    assert resp_json["metadatabase"]["status"] == "healthy"
     assert scheduler_status == resp_json["scheduler"]["status"]
     assert last_scheduler_heartbeat == resp_json["scheduler"]["latest_scheduler_heartbeat"]
 

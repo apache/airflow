@@ -23,7 +23,7 @@ from sqlalchemy import select
 from airflow.models import Log
 from airflow.utils.session import provide_session
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestSession:

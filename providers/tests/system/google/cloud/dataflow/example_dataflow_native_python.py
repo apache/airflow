@@ -87,6 +87,21 @@ with DAG(
         py_system_site_packages=False,
     )
 
+    start_python_deferrable = BeamRunPythonPipelineOperator(
+        runner=BeamRunnerType.DataflowRunner,
+        task_id="start_python_job_deferrable",
+        py_file=GCS_PYTHON_SCRIPT,
+        py_options=[],
+        pipeline_options={
+            "output": GCS_OUTPUT,
+        },
+        py_requirements=["apache-beam[gcp]==2.59.0"],
+        py_interpreter="python3",
+        py_system_site_packages=False,
+        dataflow_config={"location": LOCATION, "job_name": "start_python_deferrable"},
+        deferrable=True,
+    )
+
     # [START howto_operator_stop_dataflow_job]
     stop_dataflow_job = DataflowStopJobOperator(
         task_id="stop_dataflow_job",
@@ -103,8 +118,7 @@ with DAG(
         # TEST SETUP
         create_bucket
         # TEST BODY
-        >> start_python_job
-        >> start_python_job_local
+        >> [start_python_job, start_python_job_local, start_python_deferrable]
         >> stop_dataflow_job
         # TEST TEARDOWN
         >> delete_bucket

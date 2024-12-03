@@ -232,7 +232,7 @@ class TestMLEngineStartBatchPredictionJobOperator:
         task_args["model_name"] = "fake_model"
         with pytest.raises(AirflowException) as ctx, pytest.warns(AirflowProviderDeprecationWarning):
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
-        assert "Ambiguous model origin: Both uri and model/version name are provided." == str(ctx.value)
+        assert str(ctx.value) == "Ambiguous model origin: Both uri and model/version name are provided."
 
         # Test that both uri and model/version is given
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
@@ -241,7 +241,7 @@ class TestMLEngineStartBatchPredictionJobOperator:
         task_args["version_name"] = "fake_version"
         with pytest.raises(AirflowException) as ctx, pytest.warns(AirflowProviderDeprecationWarning):
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
-        assert "Ambiguous model origin: Both uri and model/version name are provided." == str(ctx.value)
+        assert str(ctx.value) == "Ambiguous model origin: Both uri and model/version name are provided."
 
         # Test that a version is given without a model
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
@@ -249,8 +249,8 @@ class TestMLEngineStartBatchPredictionJobOperator:
         with pytest.raises(AirflowException) as ctx, pytest.warns(AirflowProviderDeprecationWarning):
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
         assert (
-            "Missing model: Batch prediction expects a model "
-            "name when a version name is provided." == str(ctx.value)
+            str(ctx.value) == "Missing model: Batch prediction expects a model "
+            "name when a version name is provided."
         )
 
         # Test that none of uri, model, model/version is given
@@ -258,8 +258,8 @@ class TestMLEngineStartBatchPredictionJobOperator:
         with pytest.raises(AirflowException) as ctx, pytest.warns(AirflowProviderDeprecationWarning):
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
         assert (
-            "Missing model origin: Batch prediction expects a "
-            "model, a model & version combination, or a URI to a savedModel." == str(ctx.value)
+            str(ctx.value) == "Missing model origin: Batch prediction expects a "
+            "model, a model & version combination, or a URI to a savedModel."
         )
 
     @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
@@ -301,7 +301,7 @@ class TestMLEngineStartBatchPredictionJobOperator:
         with pytest.raises(RuntimeError) as ctx, pytest.warns(AirflowProviderDeprecationWarning):
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
 
-        assert "A failure message" == str(ctx.value)
+        assert str(ctx.value) == "A failure message"
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator, session):
@@ -1209,7 +1209,7 @@ class TestMLEngineStartTrainingJobOperator:
         mock_hook.return_value.create_job_without_waiting_result.assert_called_once_with(
             project_id="test-project", body=self.TRAINING_INPUT
         )
-        assert "A failure message" == str(ctx.value)
+        assert str(ctx.value) == "A failure message"
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator, session):

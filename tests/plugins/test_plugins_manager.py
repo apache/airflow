@@ -73,7 +73,6 @@ def mock_metadata_distribution(mocker):
     return wrapper
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @pytest.mark.db_test
 class TestPluginsRBAC:
     @pytest.fixture(autouse=True)
@@ -143,10 +142,9 @@ class TestPluginsRBAC:
 
     def test_app_static_folder(self):
         # Blueprint static folder should be properly set
-        assert AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "static" == Path(self.app.static_folder).resolve()
+        assert Path(self.app.static_folder).resolve() == AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "static"
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @pytest.mark.db_test
 def test_flaskappbuilder_nomenu_views():
     from tests.plugins.test_plugin import v_nomenu_appbuilder_package
@@ -189,7 +187,7 @@ class TestPluginsManager:
             assert len(plugins_manager.plugins) == 9
             for plugin in plugins_manager.plugins:
                 if "AirflowTestOnLoadPlugin" in str(plugin):
-                    assert "postload" == plugin.name
+                    assert plugin.name == "postload"
                     break
             else:
                 pytest.fail("Wasn't able to find a registered `AirflowTestOnLoadPlugin`")
@@ -368,11 +366,11 @@ class TestPluginsManager:
             listeners = get_listener_manager().pm.get_plugins()
             listener_names = [el.__name__ if inspect.ismodule(el) else qualname(el) for el in listeners]
             # sort names as order of listeners is not guaranteed
-            assert [
+            assert sorted(listener_names) == [
                 "airflow.example_dags.plugins.event_listener",
                 "tests.listeners.class_listener.ClassBasedListener",
                 "tests.listeners.empty_listener",
-            ] == sorted(listener_names)
+            ]
 
     def test_should_import_plugin_from_providers(self):
         from airflow import plugins_manager
@@ -406,9 +404,9 @@ class TestPluginsDirectorySource:
         from airflow import plugins_manager
 
         source = plugins_manager.PluginsDirectorySource(__file__)
-        assert "test_plugins_manager.py" == source.path
-        assert "$PLUGINS_FOLDER/test_plugins_manager.py" == str(source)
-        assert "<em>$PLUGINS_FOLDER/</em>test_plugins_manager.py" == source.__html__()
+        assert source.path == "test_plugins_manager.py"
+        assert str(source) == "$PLUGINS_FOLDER/test_plugins_manager.py"
+        assert source.__html__() == "<em>$PLUGINS_FOLDER/</em>test_plugins_manager.py"
 
 
 class TestEntryPointSource:

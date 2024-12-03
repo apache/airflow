@@ -28,7 +28,6 @@ import json
 import logging
 from typing import TYPE_CHECKING, Callable
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -103,28 +102,8 @@ def on_post_execution(**kwargs):
             logger.exception("Failed on post-execution callback using %s", callback)
 
 
-def default_action_log(sub_command, user, task_id, dag_id, logical_date, host_name, full_command, **_):
-    """
-    Behave similar to ``action_logging``; default action logger callback.
-
-    The difference is this function uses the global ORM session, and pushes a
-    ``Log`` row into the database instead of actually logging.
-    """
-    _default_action_log_internal(
-        sub_command=sub_command,
-        user=user,
-        task_id=task_id,
-        dag_id=dag_id,
-        logical_date=logical_date,
-        host_name=host_name,
-        full_command=full_command,
-    )
-
-
-@internal_api_call
 @provide_session
-def _default_action_log_internal(
-    *,
+def default_action_log(
     sub_command,
     user,
     task_id,
@@ -133,14 +112,13 @@ def _default_action_log_internal(
     host_name,
     full_command,
     session: Session = NEW_SESSION,
+    **_,
 ):
     """
-    RPC portion of default_action_log.
+    Behave similar to ``action_logging``; default action logger callback.
 
-    To use RPC, we need to accept a session, which is provided by the RPC call handler.
-    But, the action log callback system may already be forwarding a session, so to avoid
-    a collision, I have made this internal function instead of making default_action_log
-    an RPC function.
+    The difference is this function uses the global ORM session, and pushes a
+    ``Log`` row into the database instead of actually logging.
     """
     from sqlalchemy.exc import OperationalError, ProgrammingError
 

@@ -29,7 +29,7 @@ from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.utils import db
 
 # those tests will not work with database isolation because they mock requests
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 @pytest.mark.db_test

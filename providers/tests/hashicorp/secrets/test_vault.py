@@ -63,7 +63,7 @@ class TestVaultSecrets:
             match="Method `VaultBackend.get_conn_uri` is deprecated and will be removed in a future release.",
         ):
             returned_uri = test_client.get_conn_uri(conn_id="test_postgres")
-        assert "postgresql://airflow:airflow@host:5432/airflow" == returned_uri
+        assert returned_uri == "postgresql://airflow:airflow@host:5432/airflow"
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_conn_uri_without_predefined_mount_point(self, mock_hvac):
@@ -102,7 +102,7 @@ class TestVaultSecrets:
             match="Method `VaultBackend.get_conn_uri` is deprecated and will be removed in a future release.",
         ):
             returned_uri = test_client.get_conn_uri(conn_id="airflow/test_postgres")
-        assert "postgresql://airflow:airflow@host:5432/airflow" == returned_uri
+        assert returned_uri == "postgresql://airflow:airflow@host:5432/airflow"
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_connection(self, mock_hvac):
@@ -145,7 +145,7 @@ class TestVaultSecrets:
 
         test_client = VaultBackend(**kwargs)
         connection = test_client.get_connection(conn_id="test_postgres")
-        assert "postgresql://airflow:airflow@host:5432/airflow?foo=bar&baz=taz" == connection.get_uri()
+        assert connection.get_uri() == "postgresql://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_connection_without_predefined_mount_point(self, mock_hvac):
@@ -188,7 +188,7 @@ class TestVaultSecrets:
 
         test_client = VaultBackend(**kwargs)
         connection = test_client.get_connection(conn_id="airflow/test_postgres")
-        assert "postgresql://airflow:airflow@host:5432/airflow?foo=bar&baz=taz" == connection.get_uri()
+        assert connection.get_uri() == "postgresql://airflow:airflow@host:5432/airflow?foo=bar&baz=taz"
 
     @pytest.mark.parametrize(
         "mount_point, connections_path, conn_id, expected_args",
@@ -252,7 +252,7 @@ class TestVaultSecrets:
         ):
             returned_uri = test_client.get_conn_uri(conn_id=conn_id)
         mock_client.secrets.kv.v1.read_secret.assert_called_once_with(**expected_args)
-        assert "postgresql://airflow:airflow@host:5432/airflow" == returned_uri
+        assert returned_uri == "postgresql://airflow:airflow@host:5432/airflow"
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_conn_uri_engine_version_1_custom_auth_mount_point(self, mock_hvac):
@@ -280,7 +280,7 @@ class TestVaultSecrets:
         }
 
         test_client = VaultBackend(**kwargs)
-        assert "custom" == test_client.vault_client.auth_mount_point
+        assert test_client.vault_client.auth_mount_point == "custom"
         with pytest.warns(
             AirflowProviderDeprecationWarning,
             match="Method `VaultBackend.get_conn_uri` is deprecated and will be removed in a future release.",
@@ -289,7 +289,7 @@ class TestVaultSecrets:
         mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
             mount_point="airflow", path="connections/test_postgres"
         )
-        assert "postgresql://airflow:airflow@host:5432/airflow" == returned_uri
+        assert returned_uri == "postgresql://airflow:airflow@host:5432/airflow"
 
     @mock.patch.dict(
         "os.environ",
@@ -360,7 +360,7 @@ class TestVaultSecrets:
 
         test_client = VaultBackend(**kwargs)
         returned_uri = test_client.get_variable("hello")
-        assert "world" == returned_uri
+        assert returned_uri == "world"
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_variable_value_without_predefined_mount_point(self, mock_hvac):
@@ -395,7 +395,7 @@ class TestVaultSecrets:
 
         test_client = VaultBackend(**kwargs)
         returned_uri = test_client.get_variable("airflow/hello")
-        assert "world" == returned_uri
+        assert returned_uri == "world"
 
     @pytest.mark.parametrize(
         "mount_point, variables_path, variable_key, expected_args",
@@ -445,7 +445,7 @@ class TestVaultSecrets:
         test_client = VaultBackend(**kwargs)
         returned_uri = test_client.get_variable(variable_key)
         mock_client.secrets.kv.v1.read_secret.assert_called_once_with(**expected_args)
-        assert "world" == returned_uri
+        assert returned_uri == "world"
 
     @mock.patch.dict(
         "os.environ",
@@ -541,7 +541,7 @@ class TestVaultSecrets:
 
         test_client = VaultBackend(**kwargs)
         returned_uri = test_client.get_config("sql_alchemy_conn")
-        assert "sqlite:////Users/airflow/airflow/airflow.db" == returned_uri
+        assert returned_uri == "sqlite:////Users/airflow/airflow/airflow.db"
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_config_value_without_predefined_mount_point(self, mock_hvac):
@@ -576,7 +576,7 @@ class TestVaultSecrets:
 
         test_client = VaultBackend(**kwargs)
         returned_uri = test_client.get_config("airflow/sql_alchemy_conn")
-        assert "sqlite:////Users/airflow/airflow/airflow.db" == returned_uri
+        assert returned_uri == "sqlite:////Users/airflow/airflow/airflow.db"
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_connections_path_none_value(self, mock_hvac):

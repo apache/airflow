@@ -83,6 +83,7 @@ class SFTPHook(SSHHook):
         self,
         ssh_conn_id: str | None = "sftp_default",
         ssh_hook: SSHHook | None = None,
+        host_proxy_cmd: str | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -115,6 +116,7 @@ class SFTPHook(SSHHook):
             ssh_conn_id = ftp_conn_id
 
         kwargs["ssh_conn_id"] = ssh_conn_id
+        kwargs["host_proxy_cmd"] = host_proxy_cmd
         self.ssh_conn_id = ssh_conn_id
 
         super().__init__(*args, **kwargs)

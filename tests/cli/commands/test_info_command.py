@@ -49,7 +49,7 @@ class TestPiiAnonymizer:
 
     def test_should_remove_pii_from_path(self):
         home_path = os.path.expanduser("~/airflow/config")
-        assert "${HOME}/airflow/config" == self.instance.process_path(home_path)
+        assert self.instance.process_path(home_path) == "${HOME}/airflow/config"
 
     @pytest.mark.parametrize(
         "before, after",

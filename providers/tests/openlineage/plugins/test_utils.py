@@ -334,9 +334,9 @@ def test_serialize_timetable():
     from airflow.timetables.simple import AssetTriggeredTimetable
 
     asset = AssetAny(
-        Asset("2"),
-        AssetAlias("example-alias"),
-        Asset("3"),
+        Asset(name="2", uri="test://2", group="test-group"),
+        AssetAlias(name="example-alias", group="test-group"),
+        Asset(name="3", uri="test://3", group="test-group"),
         AssetAll(AssetAlias("this-should-not-be-seen"), Asset("4")),
     )
     dag = MagicMock()
@@ -347,14 +347,32 @@ def test_serialize_timetable():
         "asset_condition": {
             "__type": DagAttributeTypes.ASSET_ANY,
             "objects": [
-                {"__type": DagAttributeTypes.ASSET, "extra": {}, "name": "2", "uri": "2"},
+                {
+                    "__type": DagAttributeTypes.ASSET,
+                    "extra": {},
+                    "uri": "test://2/",
+                    "name": "2",
+                    "group": "test-group",
+                },
                 {"__type": DagAttributeTypes.ASSET_ANY, "objects": []},
-                {"__type": DagAttributeTypes.ASSET, "extra": {}, "name": "3", "uri": "3"},
+                {
+                    "__type": DagAttributeTypes.ASSET,
+                    "extra": {},
+                    "uri": "test://3/",
+                    "name": "3",
+                    "group": "test-group",
+                },
                 {
                     "__type": DagAttributeTypes.ASSET_ALL,
                     "objects": [
                         {"__type": DagAttributeTypes.ASSET_ANY, "objects": []},
-                        {"__type": DagAttributeTypes.ASSET, "extra": {}, "name": "4", "uri": "4"},
+                        {
+                            "__type": DagAttributeTypes.ASSET,
+                            "extra": {},
+                            "uri": "4",
+                            "name": "4",
+                            "group": "asset",
+                        },
                     ],
                 },
             ],

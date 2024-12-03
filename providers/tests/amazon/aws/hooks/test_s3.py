@@ -273,12 +273,12 @@ class TestAwsS3Hook:
         bucket.put_object(Key="dir/b", Body=b"b")
         bucket.put_object(Key="dir/sub_dir/c", Body=b"c")
 
-        assert [] == hook.list_prefixes(s3_bucket, prefix="non-existent/")
-        assert [] == hook.list_prefixes(s3_bucket)
-        assert ["dir/"] == hook.list_prefixes(s3_bucket, delimiter="/")
-        assert [] == hook.list_prefixes(s3_bucket, prefix="dir/")
-        assert ["dir/sub_dir/"] == hook.list_prefixes(s3_bucket, delimiter="/", prefix="dir/")
-        assert [] == hook.list_prefixes(s3_bucket, prefix="dir/sub_dir/")
+        assert hook.list_prefixes(s3_bucket, prefix="non-existent/") == []
+        assert hook.list_prefixes(s3_bucket) == []
+        assert hook.list_prefixes(s3_bucket, delimiter="/") == ["dir/"]
+        assert hook.list_prefixes(s3_bucket, prefix="dir/") == []
+        assert hook.list_prefixes(s3_bucket, delimiter="/", prefix="dir/") == ["dir/sub_dir/"]
+        assert hook.list_prefixes(s3_bucket, prefix="dir/sub_dir/") == []
 
     def test_list_prefixes_paged(self, s3_bucket):
         hook = S3Hook()
@@ -307,21 +307,27 @@ class TestAwsS3Hook:
         def dummy_object_filter(keys, from_datetime=None, to_datetime=None):
             return []
 
-        assert [] == hook.list_keys(s3_bucket, prefix="non-existent/")
-        assert ["a", "ba", "bxa", "bxb", "dir/b"] == hook.list_keys(s3_bucket)
-        assert ["a", "ba", "bxa", "bxb"] == hook.list_keys(s3_bucket, delimiter="/")
-        assert ["dir/b"] == hook.list_keys(s3_bucket, prefix="dir/")
-        assert ["ba", "bxa", "bxb", "dir/b"] == hook.list_keys(s3_bucket, start_after_key="a")
-        assert [] == hook.list_keys(s3_bucket, from_datetime=from_datetime, to_datetime=to_datetime)
-        assert [] == hook.list_keys(
-            s3_bucket, from_datetime=from_datetime, to_datetime=to_datetime, object_filter=dummy_object_filter
+        assert hook.list_keys(s3_bucket, prefix="non-existent/") == []
+        assert hook.list_keys(s3_bucket) == ["a", "ba", "bxa", "bxb", "dir/b"]
+        assert hook.list_keys(s3_bucket, delimiter="/") == ["a", "ba", "bxa", "bxb"]
+        assert hook.list_keys(s3_bucket, prefix="dir/") == ["dir/b"]
+        assert hook.list_keys(s3_bucket, start_after_key="a") == ["ba", "bxa", "bxb", "dir/b"]
+        assert hook.list_keys(s3_bucket, from_datetime=from_datetime, to_datetime=to_datetime) == []
+        assert (
+            hook.list_keys(
+                s3_bucket,
+                from_datetime=from_datetime,
+                to_datetime=to_datetime,
+                object_filter=dummy_object_filter,
+            )
+            == []
         )
-        assert [] == hook.list_keys(s3_bucket, prefix="*a")
-        assert ["a", "ba", "bxa"] == hook.list_keys(s3_bucket, prefix="*a", apply_wildcard=True)
-        assert [] == hook.list_keys(s3_bucket, prefix="b*a")
-        assert ["ba", "bxa"] == hook.list_keys(s3_bucket, prefix="b*a", apply_wildcard=True)
-        assert [] == hook.list_keys(s3_bucket, prefix="b*")
-        assert ["ba", "bxa", "bxb"] == hook.list_keys(s3_bucket, prefix="b*", apply_wildcard=True)
+        assert hook.list_keys(s3_bucket, prefix="*a") == []
+        assert hook.list_keys(s3_bucket, prefix="*a", apply_wildcard=True) == ["a", "ba", "bxa"]
+        assert hook.list_keys(s3_bucket, prefix="b*a") == []
+        assert hook.list_keys(s3_bucket, prefix="b*a", apply_wildcard=True) == ["ba", "bxa"]
+        assert hook.list_keys(s3_bucket, prefix="b*") == []
+        assert hook.list_keys(s3_bucket, prefix="b*", apply_wildcard=True) == ["ba", "bxa", "bxb"]
 
     def test_list_keys_paged(self, s3_bucket):
         hook = S3Hook()
@@ -1209,10 +1215,10 @@ class TestAwsS3Hook:
         fake_s3_hook = FakeS3Hook()
 
         test_bucket_name_with_wildcard_key = fake_s3_hook.test_function_with_wildcard_key("s3://foo/bar*.csv")
-        assert ("foo", "bar*.csv") == test_bucket_name_with_wildcard_key
+        assert test_bucket_name_with_wildcard_key == ("foo", "bar*.csv")
 
         test_bucket_name_with_key = fake_s3_hook.test_function_with_key("s3://foo/bar.csv")
-        assert ("foo", "bar.csv") == test_bucket_name_with_key
+        assert test_bucket_name_with_key == ("foo", "bar.csv")
 
         with pytest.raises(ValueError) as ctx:
             fake_s3_hook.test_function_with_test_key("s3://foo/bar.csv")

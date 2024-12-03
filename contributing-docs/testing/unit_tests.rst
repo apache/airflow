@@ -691,40 +691,6 @@ You can also use fixture to create object that needs database just like this.
         conn = request.getfixturevalue(conn)
         ...
 
-Running tests with Database isolation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Running tests with DB isolation is a special case of tests that require ``internal-api`` component to be
-started in order to execute the tests. Only selected tests can be run with the database isolation
-(TODO: add the list) - they are simulating running untrusted components (dag file processor, triggerer,
-worker) running in an environment where there is no DB configuration and certain "internal_api" endpoints
-are used to communicate with the internal-api component (that can access the DB directly).
-
-In the ``database isolation mode`` the test code can access the DB and perform setup/teardown but the code
-directly from airflow package will fail if the database is accessed directly - all the DB calls should go
-through the internal API component.
-
-When you run ``breeze testing providers-tests --database-isolation`` - the internal API server will be started for
-you automatically:
-
-.. code-block:: shell
-
-   breeze testing providers-tests --database-isolation tests/dag_processing/
-
-However, when you want to run the tests interactively, you need to use ``breeze shell --database-isolation``
-command and either use ``tmux`` to split your terminal and run the internal API component in the second
-pane or run it after re-entering the shell with separate ``breeze exec`` command.
-
-.. code-block:: shell
-
-   breeze shell --database-isolation tests/dag_processing/
-   > tmux
-   > Ctrl-B "
-   > Panel 1: airflow internal-api
-   > Panel 2: pytest tests/dag_processing
-
-
-
 Running Unit tests
 ------------------
 

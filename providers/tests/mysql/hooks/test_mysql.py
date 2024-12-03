@@ -305,7 +305,7 @@ class TestMySqlHook:
         self.cur.execute.assert_called_once_with("SELECT * INTO OUTFILE %s FROM table", ("/tmp/file",))
 
     def test_serialize_cell(self):
-        assert "foo" == self.db_hook._serialize_cell("foo", None)
+        assert self.db_hook._serialize_cell("foo", None) == "foo"
 
     def test_bulk_load_custom(self):
         self.db_hook.bulk_load_custom(

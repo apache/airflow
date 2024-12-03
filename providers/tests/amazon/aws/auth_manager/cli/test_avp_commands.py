@@ -28,8 +28,6 @@ from tests_common.test_utils.config import conf_vars
 
 mock_boto3 = Mock()
 
-pytestmark = pytest.mark.skip_if_database_isolation_mode
-
 
 @pytest.mark.db_test
 class TestAvpCommands:

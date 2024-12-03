@@ -20,22 +20,19 @@ from typing import Annotated
 
 from fastapi import Depends, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.common.db.common import (
-    get_session,
+    SessionDep,
     paginated_select,
 )
 from airflow.api_fastapi.common.parameters import (
-    QueryJobExecutorClassFilter,
-    QueryJobHostnameFilter,
-    QueryJobStateFilter,
-    QueryJobTypeFilter,
+    FilterParam,
     QueryLimit,
     QueryOffset,
     RangeFilter,
     SortParam,
     datetime_range_filter_factory,
+    filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.job import (
@@ -84,16 +81,26 @@ def get_jobs(
             ).dynamic_depends(default="id")
         ),
     ],
-    session: Annotated[Session, Depends(get_session)],
-    state: QueryJobStateFilter,
-    job_type: QueryJobTypeFilter,
-    hostname: QueryJobHostnameFilter,
-    executor_class: QueryJobExecutorClassFilter,
+    session: SessionDep,
+    state: Annotated[
+        FilterParam[str | None], Depends(filter_param_factory(Job.state, str | None, filter_name="job_state"))
+    ],
+    job_type: Annotated[
+        FilterParam[str | None],
+        Depends(filter_param_factory(Job.job_type, str | None, filter_name="job_type")),
+    ],
+    hostname: Annotated[
+        FilterParam[str | None],
+        Depends(filter_param_factory(Job.hostname, str | None, filter_name="hostname")),
+    ],
+    executor_class: Annotated[
+        FilterParam[str | None],
+        Depends(filter_param_factory(Job.executor_class, str | None, filter_name="executor_class")),
+    ],
     is_alive: bool | None = None,
 ) -> JobCollectionResponse:
     """Get all jobs."""
     base_select = select(Job).where(Job.state == JobState.RUNNING).order_by(Job.latest_heartbeat.desc())
-    # TODO: Refactor using the `FilterParam` class in commit `574b72e41cc5ed175a2bbf4356522589b836bb11`
 
     jobs_select, total_entries = paginated_select(
         statement=base_select,

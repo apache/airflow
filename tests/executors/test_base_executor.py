@@ -37,8 +37,6 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 
-pytestmark = pytest.mark.skip_if_database_isolation_mode
-
 
 def test_supports_sentry():
     assert not BaseExecutor.supports_sentry

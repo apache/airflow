@@ -42,7 +42,10 @@ class TestAssetEndpoint:
     @pytest.fixture
     def create_assets(self, session):
         def create(indexes):
-            assets = [AssetModel(id=i, uri=f"s3://bucket/key/{i}") for i in indexes]
+            assets = [
+                AssetModel(id=i, uri=f"s3://bucket/key/{i}", name=f"asset-{i}", group="asset")
+                for i in indexes
+            ]
             session.add_all(assets)
             session.flush()
             session.add_all(AssetActive.for_asset(a) for a in assets)
@@ -220,7 +223,7 @@ class TestGetAssets(TestAssetEndpoint):
     @pytest.mark.need_serialized_dag
     def test_correct_counts_update(self, admin_client, session, dag_maker, app, monkeypatch):
         with monkeypatch.context() as m:
-            assets = [Asset(uri=f"s3://bucket/key/{i}") for i in [1, 2, 3, 4, 5]]
+            assets = [Asset(uri=f"s3://bucket/key/{i}", name=f"asset-{i}") for i in range(1, 6)]
 
             # DAG that produces asset #1
             with dag_maker(dag_id="upstream", schedule=None, serialized=True, session=session):
@@ -399,7 +402,9 @@ class TestGetAssetsEndpointPagination(TestAssetEndpoint):
 
 class TestGetAssetNextRunSummary(TestAssetEndpoint):
     def test_next_run_asset_summary(self, dag_maker, admin_client):
-        with dag_maker(dag_id="upstream", schedule=[Asset(uri="s3://bucket/key/1")], serialized=True):
+        with dag_maker(
+            dag_id="upstream", schedule=[Asset(uri="s3://bucket/key/1", name="asset-1")], serialized=True
+        ):
             EmptyOperator(task_id="task1")
 
         response = admin_client.post("/next_run_assets_summary", data={"dag_ids": ["upstream"]})

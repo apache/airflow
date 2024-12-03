@@ -32,7 +32,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.jobs.scheduler_job_runner import TI
-    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.utils.state import TaskInstanceState
 
 
@@ -89,7 +88,7 @@ class DagRunPydantic(BaseModelPydantic):
         session: Session,
         *,
         map_index: int = -1,
-    ) -> TI | TaskInstancePydantic | None:
+    ) -> TI | None:
         """
         Return the task instance specified by task_id for this dag run.
 

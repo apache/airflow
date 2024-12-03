@@ -36,11 +36,11 @@ class TestGetHostname:
     @mock.patch("airflow.utils.net.getfqdn", return_value="first")
     @conf_vars({("core", "hostname_callable"): None})
     def test_get_hostname_unset(self, mock_getfqdn):
-        assert "first" == net.get_hostname()
+        assert net.get_hostname() == "first"
 
     @conf_vars({("core", "hostname_callable"): "tests.utils.test_net.get_hostname"})
     def test_get_hostname_set(self):
-        assert "awesomehostname" == net.get_hostname()
+        assert net.get_hostname() == "awesomehostname"
 
     @conf_vars({("core", "hostname_callable"): "tests.utils.test_net"})
     def test_get_hostname_set_incorrect(self):

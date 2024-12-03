@@ -48,7 +48,7 @@ from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 TEST_POD = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]))
@@ -147,7 +147,7 @@ class TestSqlAlchemyUtils:
             returned_value = with_row_locks(query=query, session=session, nowait=True)
 
         if expected_use_row_level_lock:
-            query.with_for_update.assert_called_once_with(nowait=True)
+            query.with_for_update.assert_called_once_with(nowait=True, key_share=True)
         else:
             assert returned_value == query
             query.with_for_update.assert_not_called()

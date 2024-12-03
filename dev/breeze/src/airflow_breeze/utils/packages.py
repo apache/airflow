@@ -474,14 +474,36 @@ def get_package_extras(provider_id: str, version_suffix: str) -> dict[str, list[
 
     :param provider_id: id of the package
     """
+
     if provider_id == "providers":
         return {}
     if provider_id in get_removed_provider_ids():
         return {}
+
+    from packaging.requirements import Requirement
+
+    deps_list = list(
+        map(
+            lambda x: Requirement(x).name,
+            PROVIDER_DEPENDENCIES.get(provider_id)["deps"],
+        )
+    )
+    deps = list(filter(lambda x: x.startswith("apache-airflow-providers"), deps_list))
     extras_dict: dict[str, list[str]] = {
         module: [get_pip_package_name(module)]
         for module in PROVIDER_DEPENDENCIES.get(provider_id)["cross-providers-deps"]
     }
+
+    to_pop_extras = []
+    # remove the keys from extras_dict if the provider is already a required dependency
+    for k, v in extras_dict.items():
+        if v and v[0] in deps:
+            to_pop_extras.append(k)
+
+    for k in to_pop_extras:
+        get_console().print(f"[warning]Removing {k} from extras as it is already a required dependency")
+        del extras_dict[k]
+
     provider_yaml_dict = get_provider_packages_metadata().get(provider_id)
     additional_extras = provider_yaml_dict.get("additional-extras") if provider_yaml_dict else None
     if additional_extras:
@@ -608,7 +630,7 @@ def format_version_suffix(version_suffix: str) -> str:
 
     """
     if version_suffix:
-        if "." == version_suffix[0] or "+" == version_suffix[0]:
+        if version_suffix[0] == "." or version_suffix[0] == "+":
             return version_suffix
         else:
             return f".{version_suffix}"

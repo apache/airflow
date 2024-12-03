@@ -109,7 +109,7 @@ class TestGCSTaskHandler:
         )
         assert "*** Found remote logs:\n***   * gs://bucket/remote/log/location/1.log\n" in logs
         assert logs.endswith("CONTENT")
-        assert {"end_of_log": True, "log_pos": 7} == metadata
+        assert metadata == {"end_of_log": True, "log_pos": 7}
 
     @mock.patch(
         "airflow.providers.google.cloud.log.gcs_task_handler.get_credentials_and_project_id",

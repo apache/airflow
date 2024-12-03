@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from airflow.api_connexion.types import APIResponse
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.XCOM)
 @format_parameters({"limit": check_limit})
 @provide_session

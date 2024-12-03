@@ -53,7 +53,7 @@ Example:
       only_active: bool = True,
       paused: bool | None = None,
       order_by: str = "dag_id",
-      session: Annotated[Session, Depends(get_session)],
+      session: SessionDep,
   ) -> DAGCollectionResponse:
       pass
 

@@ -30,7 +30,6 @@ pytestmark = pytest.mark.db_test
 DEFAULT_DATE = datetime(2022, 8, 17)
 
 
-@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_short_circuit_decorator(dag_maker):
     with dag_maker(serialized=True):
 

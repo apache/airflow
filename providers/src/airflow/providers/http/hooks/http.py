@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 from typing import TYPE_CHECKING, Any, Callable
+from urllib.parse import urlparse
 
 import aiohttp
 import requests
@@ -34,6 +35,7 @@ from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
+    from requests.adapters import HTTPAdapter
 
     from airflow.models import Connection
 
@@ -54,6 +56,7 @@ class HttpHook(BaseHook):
         API url i.e https://www.google.com/ and optional authentication credentials. Default
         headers can also be specified in the Extra field in json format.
     :param auth_type: The auth type for the service
+    :param adapter: An optional instance of `requests.adapters.HTTPAdapter` to mount for the session.
     :param tcp_keep_alive: Enable TCP Keep Alive for the connection.
     :param tcp_keep_alive_idle: The TCP Keep Alive Idle parameter (corresponds to ``socket.TCP_KEEPIDLE``).
     :param tcp_keep_alive_count: The TCP Keep Alive count parameter (corresponds to ``socket.TCP_KEEPCNT``)
@@ -76,6 +79,7 @@ class HttpHook(BaseHook):
         tcp_keep_alive_idle: int = 120,
         tcp_keep_alive_count: int = 20,
         tcp_keep_alive_interval: int = 30,
+        adapter: HTTPAdapter | None = None,
     ) -> None:
         super().__init__()
         self.http_conn_id = http_conn_id
@@ -83,10 +87,17 @@ class HttpHook(BaseHook):
         self.base_url: str = ""
         self._retry_obj: Callable[..., Any]
         self._auth_type: Any = auth_type
-        self.tcp_keep_alive = tcp_keep_alive
-        self.keep_alive_idle = tcp_keep_alive_idle
-        self.keep_alive_count = tcp_keep_alive_count
-        self.keep_alive_interval = tcp_keep_alive_interval
+
+        # If no adapter is provided, use TCPKeepAliveAdapter (default behavior)
+        self.adapter = adapter
+        if tcp_keep_alive and adapter is None:
+            self.keep_alive_adapter = TCPKeepAliveAdapter(
+                idle=tcp_keep_alive_idle,
+                count=tcp_keep_alive_count,
+                interval=tcp_keep_alive_interval,
+            )
+        else:
+            self.keep_alive_adapter = None
 
     @property
     def auth_type(self):
@@ -102,47 +113,76 @@ class HttpHook(BaseHook):
         """
         Create a Requests HTTP session.
 
-        :param headers: additional headers to be passed through as a dictionary
+        :param headers: Additional headers to be passed through as a dictionary.
+        :return: A configured requests.Session object.
         """
         session = requests.Session()
-
-        if self.http_conn_id:
-            conn = self.get_connection(self.http_conn_id)
-
-            if conn.host and "://" in conn.host:
-                self.base_url = conn.host
-            else:
-                # schema defaults to HTTP
-                schema = conn.schema if conn.schema else "http"
-                host = conn.host if conn.host else ""
-                self.base_url = f"{schema}://{host}"
-
-            if conn.port:
-                self.base_url += f":{conn.port}"
-            if conn.login:
-                session.auth = self.auth_type(conn.login, conn.password)
-            elif self._auth_type:
-                session.auth = self.auth_type()
-            if conn.extra:
-                extra = conn.extra_dejson
-                extra.pop(
-                    "timeout", None
-                )  # ignore this as timeout is only accepted in request method of Session
-                extra.pop("allow_redirects", None)  # ignore this as only max_redirects is accepted in Session
-                session.proxies = extra.pop("proxies", extra.pop("proxy", {}))
-                session.stream = extra.pop("stream", False)
-                session.verify = extra.pop("verify", extra.pop("verify_ssl", True))
-                session.cert = extra.pop("cert", None)
-                session.max_redirects = extra.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
-                session.trust_env = extra.pop("trust_env", True)
-
-                try:
-                    session.headers.update(extra)
-                except TypeError:
-                    self.log.warning("Connection to %s has invalid extra field.", conn.host)
+        connection = self.get_connection(self.http_conn_id)
+        self._set_base_url(connection)
+        session = self._configure_session_from_auth(session, connection)
+        if connection.extra:
+            session = self._configure_session_from_extra(session, connection)
+        session = self._configure_session_from_mount_adapters(session)
         if headers:
             session.headers.update(headers)
+        return session
 
+    def _set_base_url(self, connection: Connection) -> None:
+        host = connection.host or ""
+        schema = connection.schema or "http"
+        # RFC 3986 (https://www.rfc-editor.org/rfc/rfc3986.html#page-16)
+        if "://" in host:
+            self.base_url = host
+        else:
+            self.base_url = f"{schema}://{host}" if host else f"{schema}://"
+            if connection.port:
+                self.base_url = f"{self.base_url}:{connection.port}"
+        parsed = urlparse(self.base_url)
+        if not parsed.scheme:
+            raise ValueError(f"Invalid base URL: Missing scheme in {self.base_url}")
+
+    def _configure_session_from_auth(
+        self, session: requests.Session, connection: Connection
+    ) -> requests.Session:
+        session.auth = self._extract_auth(connection)
+        return session
+
+    def _extract_auth(self, connection: Connection) -> Any | None:
+        if connection.login:
+            return self.auth_type(connection.login, connection.password)
+        elif self._auth_type:
+            return self.auth_type()
+        return None
+
+    def _configure_session_from_extra(
+        self, session: requests.Session, connection: Connection
+    ) -> requests.Session:
+        extra = connection.extra_dejson
+        extra.pop("timeout", None)
+        extra.pop("allow_redirects", None)
+        session.proxies = extra.pop("proxies", extra.pop("proxy", {}))
+        session.stream = extra.pop("stream", False)
+        session.verify = extra.pop("verify", extra.pop("verify_ssl", True))
+        session.cert = extra.pop("cert", None)
+        session.max_redirects = extra.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
+        session.trust_env = extra.pop("trust_env", True)
+        try:
+            session.headers.update(extra)
+        except TypeError:
+            self.log.warning("Connection to %s has invalid extra field.", connection.host)
+        return session
+
+    def _configure_session_from_mount_adapters(self, session: requests.Session) -> requests.Session:
+        scheme = urlparse(self.base_url).scheme
+        if not scheme:
+            raise ValueError(
+                f"Cannot mount adapters: {self.base_url} does not include a valid scheme (http or https)."
+            )
+        if self.adapter:
+            session.mount(f"{scheme}://", self.adapter)
+        elif self.keep_alive_adapter:
+            session.mount("http://", self.keep_alive_adapter)
+            session.mount("https://", self.keep_alive_adapter)
         return session
 
     def run(
@@ -171,11 +211,6 @@ class HttpHook(BaseHook):
 
         url = self.url_from_endpoint(endpoint)
 
-        if self.tcp_keep_alive:
-            keep_alive_adapter = TCPKeepAliveAdapter(
-                idle=self.keep_alive_idle, count=self.keep_alive_count, interval=self.keep_alive_interval
-            )
-            session.mount(url, keep_alive_adapter)
         if self.method == "GET":
             # GET uses params
             req = requests.Request(self.method, url, params=data, headers=headers, **request_kwargs)
@@ -467,5 +502,4 @@ class HttpAsyncHook(BaseHook):
         if exception.status == 413:
             # don't retry for payload Too Large
             return False
-
         return exception.status >= 500

@@ -85,4 +85,4 @@ class TestSalesforceToGcsOperator:
             bucket_name=GCS_BUCKET, object_name=GCS_OBJECT_PATH, filename=mock.ANY, gzip=False
         )
 
-        assert EXPECTED_GCS_URI == result
+        assert result == EXPECTED_GCS_URI

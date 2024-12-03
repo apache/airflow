@@ -27,3 +27,10 @@ class VariableResponse(BaseModel):
 
     key: str
     val: str | None = Field(alias="value")
+
+
+class VariablePostBody(BaseModel):
+    """Request body schema for creating variables."""
+
+    value: str | None = Field(serialization_alias="val")
+    description: str | None = Field(default=None)

@@ -102,7 +102,7 @@ def different_audience(secret_key):
 @pytest.mark.usefixtures("sample_log")
 class TestServeLogs:
     def test_forbidden_no_auth(self, client: FlaskClient):
-        assert 403 == client.get("/log/sample.log").status_code
+        assert client.get("/log/sample.log").status_code == 403
 
     def test_should_serve_file(self, client: FlaskClient, signer):
         response = client.get(

@@ -120,7 +120,7 @@ class TestCloudKMSHook:
             timeout=None,
             metadata=(),
         )
-        assert PLAINTEXT == result
+        assert result == PLAINTEXT
 
     @mock.patch("airflow.providers.google.cloud.hooks.kms.CloudKMSHook.get_conn")
     def test_decrypt_with_auth_data(self, mock_get_conn):
@@ -137,4 +137,4 @@ class TestCloudKMSHook:
             timeout=None,
             metadata=(),
         )
-        assert PLAINTEXT == result
+        assert result == PLAINTEXT

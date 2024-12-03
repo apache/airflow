@@ -120,23 +120,23 @@ class TestMlengineOperatorUtils:
         # at the top of the file.
         METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN, recurse=True)).decode()
 
-        assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
-        assert PROJECT_ID == evaluate_prediction.project_id
-        assert BATCH_PREDICTION_JOB_ID == evaluate_prediction.job_id
-        assert REGION == evaluate_prediction.region
-        assert DATA_FORMAT == evaluate_prediction._data_format
-        assert INPUT_PATHS == evaluate_prediction.input_paths
-        assert PREDICTION_PATH == evaluate_prediction.output_path
-        assert MODEL_URI == evaluate_prediction.uri
+        assert evaluate_prediction.task_id == TASK_PREFIX_PREDICTION
+        assert evaluate_prediction.project_id == PROJECT_ID
+        assert evaluate_prediction.job_id == BATCH_PREDICTION_JOB_ID
+        assert evaluate_prediction.region == REGION
+        assert evaluate_prediction._data_format == DATA_FORMAT
+        assert evaluate_prediction.input_paths == INPUT_PATHS
+        assert evaluate_prediction.output_path == PREDICTION_PATH
+        assert evaluate_prediction.uri == MODEL_URI
 
-        assert TASK_PREFIX_SUMMARY == evaluate_summary.task_id
-        assert DATAFLOW_OPTIONS == evaluate_summary.default_pipeline_options
-        assert PREDICTION_PATH == evaluate_summary.pipeline_options["prediction_path"]
-        assert METRIC_FN_ENCODED == evaluate_summary.pipeline_options["metric_fn_encoded"]
-        assert METRIC_KEYS_EXPECTED == evaluate_summary.pipeline_options["metric_keys"]
+        assert evaluate_summary.task_id == TASK_PREFIX_SUMMARY
+        assert evaluate_summary.default_pipeline_options == DATAFLOW_OPTIONS
+        assert evaluate_summary.pipeline_options["prediction_path"] == PREDICTION_PATH
+        assert evaluate_summary.pipeline_options["metric_fn_encoded"] == METRIC_FN_ENCODED
+        assert evaluate_summary.pipeline_options["metric_keys"] == METRIC_KEYS_EXPECTED
 
-        assert TASK_PREFIX_VALIDATION == evaluate_validation.task_id
-        assert PREDICTION_PATH == evaluate_validation.templates_dict["prediction_path"]
+        assert evaluate_validation.task_id == TASK_PREFIX_VALIDATION
+        assert evaluate_validation.templates_dict["prediction_path"] == PREDICTION_PATH
 
     @mock.patch.object(PythonOperator, "set_upstream")
     @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")
@@ -167,24 +167,24 @@ class TestMlengineOperatorUtils:
         # at the top of the file.
         METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN, recurse=True)).decode()
 
-        assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
-        assert PROJECT_ID == evaluate_prediction.project_id
-        assert BATCH_PREDICTION_JOB_ID == evaluate_prediction.job_id
-        assert REGION == evaluate_prediction.region
-        assert DATA_FORMAT == evaluate_prediction._data_format
-        assert INPUT_PATHS == evaluate_prediction.input_paths
-        assert PREDICTION_PATH == evaluate_prediction.output_path
-        assert MODEL_NAME == evaluate_prediction.model_name
-        assert VERSION_NAME == evaluate_prediction.version_name
+        assert evaluate_prediction.task_id == TASK_PREFIX_PREDICTION
+        assert evaluate_prediction.project_id == PROJECT_ID
+        assert evaluate_prediction.job_id == BATCH_PREDICTION_JOB_ID
+        assert evaluate_prediction.region == REGION
+        assert evaluate_prediction._data_format == DATA_FORMAT
+        assert evaluate_prediction.input_paths == INPUT_PATHS
+        assert evaluate_prediction.output_path == PREDICTION_PATH
+        assert evaluate_prediction.model_name == MODEL_NAME
+        assert evaluate_prediction.version_name == VERSION_NAME
 
-        assert TASK_PREFIX_SUMMARY == evaluate_summary.task_id
-        assert DATAFLOW_OPTIONS == evaluate_summary.default_pipeline_options
-        assert PREDICTION_PATH == evaluate_summary.pipeline_options["prediction_path"]
-        assert METRIC_FN_ENCODED == evaluate_summary.pipeline_options["metric_fn_encoded"]
-        assert METRIC_KEYS_EXPECTED == evaluate_summary.pipeline_options["metric_keys"]
+        assert evaluate_summary.task_id == TASK_PREFIX_SUMMARY
+        assert evaluate_summary.default_pipeline_options == DATAFLOW_OPTIONS
+        assert evaluate_summary.pipeline_options["prediction_path"] == PREDICTION_PATH
+        assert evaluate_summary.pipeline_options["metric_fn_encoded"] == METRIC_FN_ENCODED
+        assert evaluate_summary.pipeline_options["metric_keys"] == METRIC_KEYS_EXPECTED
 
-        assert TASK_PREFIX_VALIDATION == evaluate_validation.task_id
-        assert PREDICTION_PATH == evaluate_validation.templates_dict["prediction_path"]
+        assert evaluate_validation.task_id == TASK_PREFIX_VALIDATION
+        assert evaluate_validation.templates_dict["prediction_path"] == PREDICTION_PATH
 
     @mock.patch.object(PythonOperator, "set_upstream")
     @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")
@@ -211,24 +211,24 @@ class TestMlengineOperatorUtils:
         # at the top of the file.
         METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN, recurse=True)).decode()
 
-        assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
-        assert PROJECT_ID == evaluate_prediction.project_id
-        assert BATCH_PREDICTION_JOB_ID == evaluate_prediction.job_id
-        assert REGION == evaluate_prediction.region
-        assert DATA_FORMAT == evaluate_prediction._data_format
-        assert INPUT_PATHS == evaluate_prediction.input_paths
-        assert PREDICTION_PATH == evaluate_prediction.output_path
-        assert MODEL_NAME == evaluate_prediction.model_name
-        assert VERSION_NAME == evaluate_prediction.version_name
+        assert evaluate_prediction.task_id == TASK_PREFIX_PREDICTION
+        assert evaluate_prediction.project_id == PROJECT_ID
+        assert evaluate_prediction.job_id == BATCH_PREDICTION_JOB_ID
+        assert evaluate_prediction.region == REGION
+        assert evaluate_prediction._data_format == DATA_FORMAT
+        assert evaluate_prediction.input_paths == INPUT_PATHS
+        assert evaluate_prediction.output_path == PREDICTION_PATH
+        assert evaluate_prediction.model_name == MODEL_NAME
+        assert evaluate_prediction.version_name == VERSION_NAME
 
-        assert TASK_PREFIX_SUMMARY == evaluate_summary.task_id
-        assert DATAFLOW_OPTIONS == evaluate_summary.default_pipeline_options
-        assert PREDICTION_PATH == evaluate_summary.pipeline_options["prediction_path"]
-        assert METRIC_FN_ENCODED == evaluate_summary.pipeline_options["metric_fn_encoded"]
-        assert METRIC_KEYS_EXPECTED == evaluate_summary.pipeline_options["metric_keys"]
+        assert evaluate_summary.task_id == TASK_PREFIX_SUMMARY
+        assert evaluate_summary.default_pipeline_options == DATAFLOW_OPTIONS
+        assert evaluate_summary.pipeline_options["prediction_path"] == PREDICTION_PATH
+        assert evaluate_summary.pipeline_options["metric_fn_encoded"] == METRIC_FN_ENCODED
+        assert evaluate_summary.pipeline_options["metric_keys"] == METRIC_KEYS_EXPECTED
 
-        assert TASK_PREFIX_VALIDATION == evaluate_validation.task_id
-        assert PREDICTION_PATH == evaluate_validation.templates_dict["prediction_path"]
+        assert evaluate_validation.task_id == TASK_PREFIX_VALIDATION
+        assert evaluate_validation.templates_dict["prediction_path"] == PREDICTION_PATH
 
     @pytest.mark.db_test
     @mock.patch.object(GCSHook, "download")
@@ -257,7 +257,7 @@ class TestMlengineOperatorUtils:
         with pytest.raises(ValueError) as ctx:
             evaluate_validation.python_callable(templates_dict=templates_dict)
 
-        assert "Too high err>0.2; summary={'err': 0.3, 'mse': 0.04, 'count': 1100}" == str(ctx.value)
+        assert str(ctx.value) == "Too high err>0.2; summary={'err': 0.3, 'mse': 0.04, 'count': 1100}"
         mock_download.assert_called_once_with("path", "to/output/predictions.json/prediction.summary.json")
 
         invalid_prediction_paths = ["://path/to/output/predictions.json", "gs://", ""]
@@ -266,7 +266,7 @@ class TestMlengineOperatorUtils:
             templates_dict = {"prediction_path": path}
             with pytest.raises(ValueError) as ctx:
                 evaluate_validation.python_callable(templates_dict=templates_dict)
-            assert "Wrong format prediction_path:" == str(ctx.value)[:29]
+            assert str(ctx.value)[:29] == "Wrong format prediction_path:"
 
     def test_invalid_task_prefix(self):
         invalid_task_prefix_values = ["test-task-prefix&", "~test-task-prefix", "test-task(-prefix"]

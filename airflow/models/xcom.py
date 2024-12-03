@@ -39,7 +39,6 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Query, reconstructor, relationship
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.utils import timezone
@@ -128,7 +127,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         return f'<XCom "{self.key}" ({self.task_id}[{self.map_index}] @ {self.run_id})>'
 
     @classmethod
-    @internal_api_call
     @provide_session
     def set(
         cls,
@@ -217,7 +215,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
     @staticmethod
     @provide_session
-    @internal_api_call
     def get_value(
         *,
         ti_key: TaskInstanceKey,
@@ -251,7 +248,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
     @staticmethod
     @provide_session
-    @internal_api_call
     def get_one(
         *,
         key: str | None = None,
@@ -404,7 +400,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
     @staticmethod
     @provide_session
-    @internal_api_call
     def clear(
         *,
         dag_id: str,

@@ -30,32 +30,24 @@ import logging
 import multiprocessing
 import multiprocessing.sharedctypes
 import os
-import subprocess
 from multiprocessing import Queue, SimpleQueue
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Optional
 
 from setproctitle import setproctitle
 
 from airflow import settings
 from airflow.executors.base_executor import PARALLELISM, BaseExecutor
-from airflow.traces.tracer import add_span
-from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from airflow.executors.base_executor import CommandType
-    from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.executors import workloads
 
-    # This is a work to be executed by a worker.
-    # It can Key and Command - but it can also be None, None which is actually a
-    # "Poison Pill" - worker seeing Poison Pill should take the pill and ... die instantly.
-    ExecutorWorkType = Optional[tuple[TaskInstanceKey, CommandType]]
-    TaskInstanceStateType = tuple[TaskInstanceKey, TaskInstanceState, Optional[Exception]]
+    TaskInstanceStateType = tuple[workloads.TaskInstance, TaskInstanceState, Optional[Exception]]
 
 
 def _run_worker(
     logger_name: str,
-    input: SimpleQueue[ExecutorWorkType],
+    input: SimpleQueue[workloads.All | None],
     output: Queue[TaskInstanceStateType],
     unread_messages: multiprocessing.sharedctypes.Synchronized[int],
 ):
@@ -65,16 +57,16 @@ def _run_worker(
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
     log = logging.getLogger(logger_name)
+    log.info("Worker starting up pid=%d", os.getpid())
 
     # We know we've just started a new process, so lets disconnect from the metadata db now
     settings.engine.pool.dispose()
     settings.engine.dispose()
 
-    setproctitle("airflow worker -- LocalExecutor: <idle>")
-
     while True:
+        setproctitle("airflow worker -- LocalExecutor: <idle>")
         try:
-            item = input.get()
+            workload = input.get()
         except EOFError:
             log.info(
                 "Failed to read tasks from the task queue because the other "
@@ -83,88 +75,49 @@ def _run_worker(
             )
             break
 
-        if item is None:
+        if workload is None:
             # Received poison pill, no more tasks to run
             return
 
         # Decrement this as soon as we pick up a message off the queue
         with unread_messages:
             unread_messages.value -= 1
+        key = None
+        if ti := getattr(workload, "ti", None):
+            key = ti.key
+        else:
+            raise TypeError(f"Don't know how to get ti key from {type(workload).__name__}")
 
-        (key, command) = item
         try:
-            state = _execute_work(log, key, command)
+            _execute_work(log, workload)
 
-            output.put((key, state, None))
+            output.put((key, TaskInstanceState.SUCCESS, None))
         except Exception as e:
+            log.exception("uhoh")
             output.put((key, TaskInstanceState.FAILED, e))
 
 
-def _execute_work(log: logging.Logger, key: TaskInstanceKey, command: CommandType) -> TaskInstanceState:
+def _execute_work(log: logging.Logger, workload: workloads.ExecuteTask) -> None:
     """
     Execute command received and stores result state in queue.
 
     :param key: the key to identify the task instance
     :param command: the command to execute
     """
-    setproctitle(f"airflow worker -- LocalExecutor: {command}")
-    dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(command)
-    try:
-        with _airflow_parsing_context_manager(dag_id=dag_id, task_id=task_id):
-            if settings.EXECUTE_TASKS_NEW_PYTHON_INTERPRETER:
-                return _execute_work_in_subprocess(log, command)
-            else:
-                return _execute_work_in_fork(log, command)
-    finally:
-        # Remove the command since the worker is done executing the task
-        setproctitle("airflow worker -- LocalExecutor: <idle>")
+    from airflow.configuration import conf
+    from airflow.sdk.execution_time.supervisor import supervise
 
-
-def _execute_work_in_subprocess(log: logging.Logger, command: CommandType) -> TaskInstanceState:
-    try:
-        subprocess.check_call(command, close_fds=True)
-        return TaskInstanceState.SUCCESS
-    except subprocess.CalledProcessError as e:
-        log.error("Failed to execute task %s.", e)
-        return TaskInstanceState.FAILED
-
-
-def _execute_work_in_fork(log: logging.Logger, command: CommandType) -> TaskInstanceState:
-    pid = os.fork()
-    if pid:
-        # In parent, wait for the child
-        pid, ret = os.waitpid(pid, 0)
-        return TaskInstanceState.SUCCESS if ret == 0 else TaskInstanceState.FAILED
-
-    from airflow.sentry import Sentry
-
-    ret = 1
-    try:
-        import signal
-
-        from airflow.cli.cli_parser import get_parser
-
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
-        signal.signal(signal.SIGTERM, signal.SIG_DFL)
-        signal.signal(signal.SIGUSR2, signal.SIG_DFL)
-
-        parser = get_parser()
-        # [1:] - remove "airflow" from the start of the command
-        args = parser.parse_args(command[1:])
-        args.shut_down_logging = False
-
-        setproctitle(f"airflow task supervisor: {command}")
-
-        args.func(args)
-        ret = 0
-        return TaskInstanceState.SUCCESS
-    except Exception as e:
-        log.exception("Failed to execute task %s.", e)
-        return TaskInstanceState.FAILED
-    finally:
-        Sentry.flush()
-        logging.shutdown()
-        os._exit(ret)
+    setproctitle(f"airflow worker -- LocalExecutor: {workload.ti.id}")
+    # This will return the exit code of the task process, but we don't care about that, just if the
+    # _supervisor_ had an error reporting the state back (which will result in an exception.)
+    supervise(
+        # This is the "wrong" ti type, but it duck types the same. TODO: Create a protocol for this.
+        ti=workload.ti,  # type: ignore[arg-type]
+        dag_path=workload.dag_path,
+        token=workload.token,
+        server=conf.get("workers", "execution_api_server_url", fallback="http://localhost:9091/execution/"),
+        log_path=workload.log_path,
+    )
 
 
 class LocalExecutor(BaseExecutor):
@@ -180,7 +133,7 @@ class LocalExecutor(BaseExecutor):
 
     serve_logs: bool = True
 
-    activity_queue: SimpleQueue[ExecutorWorkType]
+    activity_queue: SimpleQueue[workloads.All | None]
     result_queue: SimpleQueue[TaskInstanceStateType]
     workers: dict[int, multiprocessing.Process]
     _unread_messages: multiprocessing.sharedctypes.Synchronized[int]
@@ -203,22 +156,7 @@ class LocalExecutor(BaseExecutor):
         # (it looks like an int to python)
         self._unread_messages = multiprocessing.Value(ctypes.c_uint)  # type: ignore[assignment]
 
-    @add_span
-    def execute_async(
-        self,
-        key: TaskInstanceKey,
-        command: CommandType,
-        queue: str | None = None,
-        executor_config: Any | None = None,
-    ) -> None:
-        """Execute asynchronously."""
-        self.validate_airflow_tasks_run_command(command)
-        self.activity_queue.put((key, command))
-        with self._unread_messages:
-            self._unread_messages.value += 1
-        self._check_workers(can_start=True)
-
-    def _check_workers(self, can_start: bool = True):
+    def _check_workers(self):
         # Reap any dead workers
         to_remove = set()
         for pid, proc in self.workers.items():
@@ -270,12 +208,6 @@ class LocalExecutor(BaseExecutor):
         while not self.result_queue.empty():
             key, state, exc = self.result_queue.get()
 
-            if exc:
-                # TODO: This needs a better stacktrace, it appears from here
-                if hasattr(exc, "add_note"):
-                    exc.add_note("(This stacktrace is incorrect -- the exception came from a subprocess)")
-                raise exc
-
             self.change_state(key, state)
 
     def end(self) -> None:
@@ -306,3 +238,9 @@ class LocalExecutor(BaseExecutor):
 
     def terminate(self):
         """Terminate the executor is not doing anything."""
+
+    def queue_workload(self, workload: workloads.All):
+        self.activity_queue.put(workload)
+        with self._unread_messages:
+            self._unread_messages.value += 1
+        self._check_workers()

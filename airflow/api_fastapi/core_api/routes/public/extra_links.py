@@ -17,21 +17,18 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING
 
-from fastapi import Depends, HTTPException, Request, status
-from sqlalchemy.orm import Session
+from fastapi import HTTPException, Request, status
 from sqlalchemy.sql import select
 
-from airflow.api_fastapi.common.db.common import get_session
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.extra_links import ExtraLinksResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.exceptions import TaskNotFound
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm.session import Session
-
     from airflow.models import DAG
 
 
@@ -49,7 +46,7 @@ def get_extra_links(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     request: Request,
 ) -> ExtraLinksResponse:
     """Get extra links for task instance."""

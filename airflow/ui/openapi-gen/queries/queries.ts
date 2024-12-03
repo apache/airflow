@@ -11,6 +11,7 @@ import {
   BackfillService,
   ConfigService,
   ConnectionService,
+  DagParsingService,
   DagRunService,
   DagService,
   DagSourceService,
@@ -26,6 +27,7 @@ import {
   PluginService,
   PoolService,
   ProviderService,
+  StructureService,
   TaskInstanceService,
   TaskService,
   VariableService,
@@ -36,16 +38,20 @@ import {
   BackfillPostBody,
   ClearTaskInstancesBody,
   ConnectionBody,
+  ConnectionBulkBody,
   CreateAssetEventsBody,
   DAGPatchBody,
   DAGRunClearBody,
   DAGRunPatchBody,
+  DAGRunsBatchBody,
   DagRunState,
   DagWarningType,
+  PatchTaskInstanceBody,
   PoolPatchBody,
   PoolPostBody,
   PoolPostBulkBody,
   TaskInstancesBatchBody,
+  TriggerDAGRunPostBody,
   VariableBody,
 } from "../requests/types.gen";
 import * as Common from "./common";
@@ -320,118 +326,6 @@ export const useAssetServiceGetDagAssetQueuedEvent = <
     ...options,
   });
 /**
- * Historical Metrics
- * Return cluster activity historical metrics.
- * @param data The data for the request.
- * @param data.startDate
- * @param data.endDate
- * @returns HistoricalMetricDataResponse Successful Response
- * @throws ApiError
- */
-export const useDashboardServiceHistoricalMetrics = <
-  TData = Common.DashboardServiceHistoricalMetricsDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    endDate,
-    startDate,
-  }: {
-    endDate?: string;
-    startDate: string;
-  },
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn(
-      { endDate, startDate },
-      queryKey,
-    ),
-    queryFn: () =>
-      DashboardService.historicalMetrics({ endDate, startDate }) as TData,
-    ...options,
-  });
-/**
- * Recent Dag Runs
- * Get recent DAG runs.
- * @param data The data for the request.
- * @param data.dagRunsLimit
- * @param data.limit
- * @param data.offset
- * @param data.tags
- * @param data.owners
- * @param data.dagIdPattern
- * @param data.dagDisplayNamePattern
- * @param data.onlyActive
- * @param data.paused
- * @param data.lastDagRunState
- * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
- * @throws ApiError
- */
-export const useDagsServiceRecentDagRuns = <
-  TData = Common.DagsServiceRecentDagRunsDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    dagDisplayNamePattern,
-    dagIdPattern,
-    dagRunsLimit,
-    lastDagRunState,
-    limit,
-    offset,
-    onlyActive,
-    owners,
-    paused,
-    tags,
-  }: {
-    dagDisplayNamePattern?: string;
-    dagIdPattern?: string;
-    dagRunsLimit?: number;
-    lastDagRunState?: DagRunState;
-    limit?: number;
-    offset?: number;
-    onlyActive?: boolean;
-    owners?: string[];
-    paused?: boolean;
-    tags?: string[];
-  } = {},
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseDagsServiceRecentDagRunsKeyFn(
-      {
-        dagDisplayNamePattern,
-        dagIdPattern,
-        dagRunsLimit,
-        lastDagRunState,
-        limit,
-        offset,
-        onlyActive,
-        owners,
-        paused,
-        tags,
-      },
-      queryKey,
-    ),
-    queryFn: () =>
-      DagsService.recentDagRuns({
-        dagDisplayNamePattern,
-        dagIdPattern,
-        dagRunsLimit,
-        lastDagRunState,
-        limit,
-        offset,
-        onlyActive,
-        owners,
-        paused,
-        tags,
-      }) as TData,
-    ...options,
-  });
-/**
  * Get Configs
  * Get configs for UI.
  * @returns ConfigResponse Successful Response
@@ -514,6 +408,162 @@ export const useConfigServiceGetConfigValue = <
     ),
     queryFn: () =>
       ConfigService.getConfigValue({ accept, option, section }) as TData,
+    ...options,
+  });
+/**
+ * Recent Dag Runs
+ * Get recent DAG runs.
+ * @param data The data for the request.
+ * @param data.dagRunsLimit
+ * @param data.limit
+ * @param data.offset
+ * @param data.tags
+ * @param data.owners
+ * @param data.dagIdPattern
+ * @param data.dagDisplayNamePattern
+ * @param data.onlyActive
+ * @param data.paused
+ * @param data.lastDagRunState
+ * @returns DAGWithLatestDagRunsCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagsServiceRecentDagRuns = <
+  TData = Common.DagsServiceRecentDagRunsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagDisplayNamePattern,
+    dagIdPattern,
+    dagRunsLimit,
+    lastDagRunState,
+    limit,
+    offset,
+    onlyActive,
+    owners,
+    paused,
+    tags,
+  }: {
+    dagDisplayNamePattern?: string;
+    dagIdPattern?: string;
+    dagRunsLimit?: number;
+    lastDagRunState?: DagRunState;
+    limit?: number;
+    offset?: number;
+    onlyActive?: boolean;
+    owners?: string[];
+    paused?: boolean;
+    tags?: string[];
+  } = {},
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDagsServiceRecentDagRunsKeyFn(
+      {
+        dagDisplayNamePattern,
+        dagIdPattern,
+        dagRunsLimit,
+        lastDagRunState,
+        limit,
+        offset,
+        onlyActive,
+        owners,
+        paused,
+        tags,
+      },
+      queryKey,
+    ),
+    queryFn: () =>
+      DagsService.recentDagRuns({
+        dagDisplayNamePattern,
+        dagIdPattern,
+        dagRunsLimit,
+        lastDagRunState,
+        limit,
+        offset,
+        onlyActive,
+        owners,
+        paused,
+        tags,
+      }) as TData,
+    ...options,
+  });
+/**
+ * Historical Metrics
+ * Return cluster activity historical metrics.
+ * @param data The data for the request.
+ * @param data.startDate
+ * @param data.endDate
+ * @returns HistoricalMetricDataResponse Successful Response
+ * @throws ApiError
+ */
+export const useDashboardServiceHistoricalMetrics = <
+  TData = Common.DashboardServiceHistoricalMetricsDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    endDate,
+    startDate,
+  }: {
+    endDate?: string;
+    startDate: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseDashboardServiceHistoricalMetricsKeyFn(
+      { endDate, startDate },
+      queryKey,
+    ),
+    queryFn: () =>
+      DashboardService.historicalMetrics({ endDate, startDate }) as TData,
+    ...options,
+  });
+/**
+ * Structure Data
+ * Get Structure Data.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.root
+ * @param data.includeUpstream
+ * @param data.includeDownstream
+ * @returns StructureDataResponse Successful Response
+ * @throws ApiError
+ */
+export const useStructureServiceStructureData = <
+  TData = Common.StructureServiceStructureDataDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    includeDownstream,
+    includeUpstream,
+    root,
+  }: {
+    dagId: string;
+    includeDownstream?: boolean;
+    includeUpstream?: boolean;
+    root?: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseStructureServiceStructureDataKeyFn(
+      { dagId, includeDownstream, includeUpstream, root },
+      queryKey,
+    ),
+    queryFn: () =>
+      StructureService.structureData({
+        dagId,
+        includeDownstream,
+        includeUpstream,
+        root,
+      }) as TData,
     ...options,
   });
 /**
@@ -1124,6 +1174,9 @@ export const useEventLogServiceGetEventLog = <
  * Get Event Logs
  * Get all Event Logs.
  * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
  * @param data.dagId
  * @param data.taskId
  * @param data.runId
@@ -1135,9 +1188,6 @@ export const useEventLogServiceGetEventLog = <
  * @param data.includedEvents
  * @param data.before
  * @param data.after
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
  * @returns EventLogCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -1551,6 +1601,7 @@ export const useTaskInstanceServiceGetTaskInstanceDependencies1 = <
  * @param data.dagId
  * @param data.dagRunId
  * @param data.taskId
+ * @param data.mapIndex
  * @returns TaskInstanceHistoryCollectionResponse Successful Response
  * @throws ApiError
  */
@@ -1562,10 +1613,12 @@ export const useTaskInstanceServiceGetTaskInstanceTries = <
   {
     dagId,
     dagRunId,
+    mapIndex,
     taskId,
   }: {
     dagId: string;
     dagRunId: string;
+    mapIndex?: number;
     taskId: string;
   },
   queryKey?: TQueryKey,
@@ -1573,13 +1626,57 @@ export const useTaskInstanceServiceGetTaskInstanceTries = <
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseTaskInstanceServiceGetTaskInstanceTriesKeyFn(
-      { dagId, dagRunId, taskId },
+      { dagId, dagRunId, mapIndex, taskId },
       queryKey,
     ),
     queryFn: () =>
       TaskInstanceService.getTaskInstanceTries({
         dagId,
         dagRunId,
+        mapIndex,
+        taskId,
+      }) as TData,
+    ...options,
+  });
+/**
+ * Get Mapped Task Instance Tries
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.mapIndex
+ * @returns TaskInstanceHistoryCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServiceGetMappedTaskInstanceTries = <
+  TData = Common.TaskInstanceServiceGetMappedTaskInstanceTriesDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    mapIndex,
+    taskId,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    mapIndex: number;
+    taskId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseTaskInstanceServiceGetMappedTaskInstanceTriesKeyFn(
+      { dagId, dagRunId, mapIndex, taskId },
+      queryKey,
+    ),
+    queryFn: () =>
+      TaskInstanceService.getMappedTaskInstanceTries({
+        dagId,
+        dagRunId,
+        mapIndex,
         taskId,
       }) as TData,
     ...options,
@@ -2199,6 +2296,120 @@ export const useProviderServiceGetProviders = <
     ...options,
   });
 /**
+ * Get Xcom Entry
+ * Get an XCom entry.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.taskId
+ * @param data.dagRunId
+ * @param data.xcomKey
+ * @param data.mapIndex
+ * @param data.deserialize
+ * @param data.stringify
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const useXcomServiceGetXcomEntry = <
+  TData = Common.XcomServiceGetXcomEntryDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    deserialize,
+    mapIndex,
+    stringify,
+    taskId,
+    xcomKey,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    deserialize?: boolean;
+    mapIndex?: number;
+    stringify?: boolean;
+    taskId: string;
+    xcomKey: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseXcomServiceGetXcomEntryKeyFn(
+      { dagId, dagRunId, deserialize, mapIndex, stringify, taskId, xcomKey },
+      queryKey,
+    ),
+    queryFn: () =>
+      XcomService.getXcomEntry({
+        dagId,
+        dagRunId,
+        deserialize,
+        mapIndex,
+        stringify,
+        taskId,
+        xcomKey,
+      }) as TData,
+    ...options,
+  });
+/**
+ * Get Xcom Entries
+ * Get all XCom entries.
+ *
+ * This endpoint allows specifying `~` as the dag_id, dag_run_id, task_id to retrieve XCom entries for all DAGs.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.xcomKey
+ * @param data.mapIndex
+ * @param data.limit
+ * @param data.offset
+ * @returns XComCollection Successful Response
+ * @throws ApiError
+ */
+export const useXcomServiceGetXcomEntries = <
+  TData = Common.XcomServiceGetXcomEntriesDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+    dagRunId,
+    limit,
+    mapIndex,
+    offset,
+    taskId,
+    xcomKey,
+  }: {
+    dagId: string;
+    dagRunId: string;
+    limit?: number;
+    mapIndex?: number;
+    offset?: number;
+    taskId: string;
+    xcomKey?: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useQuery<TData, TError>({
+    queryKey: Common.UseXcomServiceGetXcomEntriesKeyFn(
+      { dagId, dagRunId, limit, mapIndex, offset, taskId, xcomKey },
+      queryKey,
+    ),
+    queryFn: () =>
+      XcomService.getXcomEntries({
+        dagId,
+        dagRunId,
+        limit,
+        mapIndex,
+        offset,
+        taskId,
+        xcomKey,
+      }) as TData,
+    ...options,
+  });
+/**
  * Get Tasks
  * Get tasks for DAG.
  * @param data The data for the request.
@@ -2322,64 +2533,8 @@ export const useVariableServiceGetVariables = <
     ...options,
   });
 /**
- * Get Xcom Entry
- * Get an XCom entry.
- * @param data The data for the request.
- * @param data.dagId
- * @param data.taskId
- * @param data.dagRunId
- * @param data.xcomKey
- * @param data.mapIndex
- * @param data.deserialize
- * @param data.stringify
- * @returns unknown Successful Response
- * @throws ApiError
- */
-export const useXcomServiceGetXcomEntry = <
-  TData = Common.XcomServiceGetXcomEntryDefaultResponse,
-  TError = unknown,
-  TQueryKey extends Array<unknown> = unknown[],
->(
-  {
-    dagId,
-    dagRunId,
-    deserialize,
-    mapIndex,
-    stringify,
-    taskId,
-    xcomKey,
-  }: {
-    dagId: string;
-    dagRunId: string;
-    deserialize?: boolean;
-    mapIndex?: number;
-    stringify?: boolean;
-    taskId: string;
-    xcomKey: string;
-  },
-  queryKey?: TQueryKey,
-  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-) =>
-  useQuery<TData, TError>({
-    queryKey: Common.UseXcomServiceGetXcomEntryKeyFn(
-      { dagId, dagRunId, deserialize, mapIndex, stringify, taskId, xcomKey },
-      queryKey,
-    ),
-    queryFn: () =>
-      XcomService.getXcomEntry({
-        dagId,
-        dagRunId,
-        deserialize,
-        mapIndex,
-        stringify,
-        taskId,
-        xcomKey,
-      }) as TData,
-    ...options,
-  });
-/**
  * Get Health
- * @returns HealthInfoSchema Successful Response
+ * @returns HealthInfoResponse Successful Response
  * @throws ApiError
  */
 export const useMonitorServiceGetHealth = <
@@ -2531,6 +2686,45 @@ export const useConnectionServicePostConnection = <
     ...options,
   });
 /**
+ * Post Connections
+ * Create connection entry.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @returns ConnectionCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useConnectionServicePostConnections = <
+  TData = Common.ConnectionServicePostConnectionsMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        requestBody: ConnectionBulkBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      requestBody: ConnectionBulkBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ requestBody }) =>
+      ConnectionService.postConnections({
+        requestBody,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Test Connection
  * Test an API connection.
  *
@@ -2615,6 +2809,92 @@ export const useDagRunServiceClearDagRun = <
       DagRunService.clearDagRun({
         dagId,
         dagRunId,
+        requestBody,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Trigger Dag Run
+ * Trigger a DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.requestBody
+ * @returns DAGRunResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagRunServiceTriggerDagRun = <
+  TData = Common.DagRunServiceTriggerDagRunMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: unknown;
+        requestBody: TriggerDAGRunPostBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: unknown;
+      requestBody: TriggerDAGRunPostBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, requestBody }) =>
+      DagRunService.triggerDagRun({
+        dagId,
+        requestBody,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Get List Dag Runs Batch
+ * Get a list of DAG Runs.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.requestBody
+ * @returns DAGRunCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagRunServiceGetListDagRunsBatch = <
+  TData = Common.DagRunServiceGetListDagRunsBatchMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: "~";
+        requestBody: DAGRunsBatchBody;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: "~";
+      requestBody: DAGRunsBatchBody;
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, requestBody }) =>
+      DagRunService.getListDagRunsBatch({
+        dagId,
         requestBody,
       }) as unknown as Promise<TData>,
     ...options,
@@ -2937,6 +3217,45 @@ export const useBackfillServiceCancelBackfill = <
     ...options,
   });
 /**
+ * Reparse Dag File
+ * Request re-parsing a DAG file.
+ * @param data The data for the request.
+ * @param data.fileToken
+ * @returns null Successful Response
+ * @throws ApiError
+ */
+export const useDagParsingServiceReparseDagFile = <
+  TData = Common.DagParsingServiceReparseDagFileMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        fileToken: string;
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      fileToken: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ fileToken }) =>
+      DagParsingService.reparseDagFile({
+        fileToken,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Patch Connection
  * Update a connection entry.
  * @param data The data for the request.
@@ -3163,6 +3482,138 @@ export const useDagServicePatchDag = <
       DagService.patchDag({
         dagId,
         requestBody,
+        updateMask,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Patch Task Instance
+ * Update the state of a task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.requestBody
+ * @param data.mapIndex
+ * @param data.updateMask
+ * @returns TaskInstanceResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServicePatchTaskInstance = <
+  TData = Common.TaskInstanceServicePatchTaskInstanceMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+        mapIndex?: number;
+        requestBody: PatchTaskInstanceBody;
+        taskId: string;
+        updateMask?: string[];
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+      mapIndex?: number;
+      requestBody: PatchTaskInstanceBody;
+      taskId: string;
+      updateMask?: string[];
+    },
+    TContext
+  >({
+    mutationFn: ({
+      dagId,
+      dagRunId,
+      mapIndex,
+      requestBody,
+      taskId,
+      updateMask,
+    }) =>
+      TaskInstanceService.patchTaskInstance({
+        dagId,
+        dagRunId,
+        mapIndex,
+        requestBody,
+        taskId,
+        updateMask,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
+ * Patch Task Instance
+ * Update the state of a task instance.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.dagRunId
+ * @param data.taskId
+ * @param data.mapIndex
+ * @param data.requestBody
+ * @param data.updateMask
+ * @returns TaskInstanceResponse Successful Response
+ * @throws ApiError
+ */
+export const useTaskInstanceServicePatchTaskInstance1 = <
+  TData = Common.TaskInstanceServicePatchTaskInstance1MutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        dagRunId: string;
+        mapIndex: number;
+        requestBody: PatchTaskInstanceBody;
+        taskId: string;
+        updateMask?: string[];
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      dagRunId: string;
+      mapIndex: number;
+      requestBody: PatchTaskInstanceBody;
+      taskId: string;
+      updateMask?: string[];
+    },
+    TContext
+  >({
+    mutationFn: ({
+      dagId,
+      dagRunId,
+      mapIndex,
+      requestBody,
+      taskId,
+      updateMask,
+    }) =>
+      TaskInstanceService.patchTaskInstance1({
+        dagId,
+        dagRunId,
+        mapIndex,
+        requestBody,
+        taskId,
         updateMask,
       }) as unknown as Promise<TData>,
     ...options,

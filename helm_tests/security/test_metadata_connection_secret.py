@@ -40,7 +40,7 @@ class TestMetadataConnectionSecret:
             show_only=["templates/secrets/metadata-connection-secret.yaml"],
         )
 
-        assert 0 == len(docs)
+        assert len(docs) == 0
 
     def _get_connection(self, values: dict) -> str:
         docs = render_chart(
@@ -54,8 +54,8 @@ class TestMetadataConnectionSecret:
         connection = self._get_connection({})
 
         assert (
-            "postgresql://postgres:postgres@release-name-postgresql.default:5432/postgres?sslmode=disable"
-            == connection
+            connection
+            == "postgresql://postgres:postgres@release-name-postgresql.default:5432/postgres?sslmode=disable"
         )
 
     def test_should_set_pgbouncer_overrides_when_enabled(self):
@@ -64,8 +64,8 @@ class TestMetadataConnectionSecret:
 
         # host, port, dbname get overridden
         assert (
-            "postgresql://postgres:postgres@release-name-pgbouncer.default:6543"
-            "/release-name-metadata?sslmode=disable" == connection
+            connection == "postgresql://postgres:postgres@release-name-pgbouncer.default:6543"
+            "/release-name-metadata?sslmode=disable"
         )
 
     def test_should_set_pgbouncer_overrides_with_non_chart_database_when_enabled(self):
@@ -77,8 +77,8 @@ class TestMetadataConnectionSecret:
 
         # host, port, dbname still get overridden even with an non-chart db
         assert (
-            "postgresql://someuser:somepass@release-name-pgbouncer.default:6543"
-            "/release-name-metadata?sslmode=disable" == connection
+            connection == "postgresql://someuser:somepass@release-name-pgbouncer.default:6543"
+            "/release-name-metadata?sslmode=disable"
         )
 
     def test_should_correctly_use_non_chart_database(self):
@@ -92,7 +92,7 @@ class TestMetadataConnectionSecret:
         }
         connection = self._get_connection(values)
 
-        assert "postgresql://someuser:somepass@somehost:7777/somedb?sslmode=require" == connection
+        assert connection == "postgresql://someuser:somepass@somehost:7777/somedb?sslmode=require"
 
     def test_should_support_non_postgres_db(self):
         values = {
@@ -106,7 +106,7 @@ class TestMetadataConnectionSecret:
         connection = self._get_connection(values)
 
         # sslmode is only added for postgresql
-        assert "mysql://someuser:somepass@somehost:7777/somedb" == connection
+        assert connection == "mysql://someuser:somepass@somehost:7777/somedb"
 
     def test_should_correctly_handle_password_with_special_characters(self):
         values = {
@@ -122,6 +122,6 @@ class TestMetadataConnectionSecret:
 
         # sslmode is only added for postgresql
         assert (
-            "postgresql://username%40123123:password%40%21%40%23$%5E&%2A%28%29@somehost:7777/"
-            "somedb?sslmode=disable" == connection
+            connection == "postgresql://username%40123123:password%40%21%40%23$%5E&%2A%28%29@somehost:7777/"
+            "somedb?sslmode=disable"
         )

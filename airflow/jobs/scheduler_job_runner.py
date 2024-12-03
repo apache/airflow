@@ -43,7 +43,9 @@ from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning, UnknownExecutorException
+from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.executors import workloads
+from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
@@ -91,7 +93,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Query, Session
 
     from airflow.dag_processing.manager import DagFileProcessorAgent
-    from airflow.executors.base_executor import BaseExecutor
     from airflow.executors.executor_utils import ExecutorName
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.sqlalchemy import (
@@ -654,6 +655,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if ti.dag_run.state in State.finished_dr_states:
                 ti.set_state(None, session=session)
                 continue
+
+            # TODO: Task-SDK: This check is transitionary. Remove once all executors are ported over.
+            # Has a real queue_activity implemented
+            if executor.queue_workload.__func__ is not BaseExecutor.queue_workload:  # type: ignore[attr-defined]
+                workload = workloads.ExecuteTask.make(ti)
+                executor.queue_workload(workload)
+                continue
+
             command = ti.command_as_list(
                 local=True,
             )
@@ -2293,13 +2302,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         In this context, we don't want to fail if the executor does not exist. Catch the exception and
         log to the user.
         """
-        try:
-            return ExecutorLoader.load_executor(executor_name)
-        except UnknownExecutorException:
-            # This case should not happen unless some (as of now unknown) edge case occurs or direct DB
-            # modification, since the DAG parser will validate the tasks in the DAG and ensure the executor
-            # they request is available and if not, disallow the DAG to be scheduled.
-            # Keeping this exception handling because this is a critical issue if we do somehow find
-            # ourselves here and the user should get some feedback about that.
-            self.log.warning("Executor, %s, was not found but a Task was configured to use it", executor_name)
-            return None
+        if executor_name is None:
+            return self.job.executor
+
+        for e in self.job.executors:
+            if e.name.alias == executor_name or e.name.module_path == executor_name:
+                return e
+
+        # This case should not happen unless some (as of now unknown) edge case occurs or direct DB
+        # modification, since the DAG parser will validate the tasks in the DAG and ensure the executor
+        # they request is available and if not, disallow the DAG to be scheduled.
+        # Keeping this exception handling because this is a critical issue if we do somehow find
+        # ourselves here and the user should get some feedback about that.
+        self.log.warning("Executor, %s, was not found but a Task was configured to use it", executor_name)
+        return None

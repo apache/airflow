@@ -25,8 +25,8 @@ from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk.definitions.asset import Asset
 
-skip_task_dag_asset = Asset("s3://dag_with_skip_task/output_1.txt", extra={"hi": "bye"})
-fail_task_dag_asset = Asset("s3://dag_with_fail_task/output_1.txt", extra={"hi": "bye"})
+skip_task_dag_asset = Asset(uri="s3://dag_with_skip_task/output_1.txt", name="skip", extra={"hi": "bye"})
+fail_task_dag_asset = Asset(uri="s3://dag_with_fail_task/output_1.txt", name="fail", extra={"hi": "bye"})
 
 
 def raise_skip_exc():

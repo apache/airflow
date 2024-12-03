@@ -65,8 +65,6 @@ from airflow.utils.state import State, TaskInstanceState
 from tests_common.test_utils.compat import BashOperator
 from tests_common.test_utils.config import conf_vars
 
-pytestmark = pytest.mark.skip_if_database_isolation_mode
-
 if __version__.startswith("2."):
     LOGICAL_DATE_KEY = "execution_date"
 else:
@@ -122,12 +120,12 @@ class TestAirflowKubernetesScheduler:
         # so None will be passed to deserialize_model_dict().
         pod_template_file_path = "/bar/biz"
         get_base_pod_from_template(pod_template_file_path, None)
-        assert "deserialize_model_dict" == mock_generator.mock_calls[0][0]
+        assert mock_generator.mock_calls[0][0] == "deserialize_model_dict"
         assert mock_generator.mock_calls[0][1][0] is None
 
         mock_kubeconfig.pod_template_file = "/foo/bar"
         get_base_pod_from_template(None, mock_kubeconfig)
-        assert "deserialize_model_dict" == mock_generator.mock_calls[1][0]
+        assert mock_generator.mock_calls[1][0] == "deserialize_model_dict"
         assert mock_generator.mock_calls[1][1][0] is None
 
         # Provide existent file path,
@@ -138,12 +136,12 @@ class TestAirflowKubernetesScheduler:
 
         pod_template_file_path = pod_template_file.as_posix()
         get_base_pod_from_template(pod_template_file_path, None)
-        assert "deserialize_model_dict" == mock_generator.mock_calls[2][0]
+        assert mock_generator.mock_calls[2][0] == "deserialize_model_dict"
         assert mock_generator.mock_calls[2][1][0] == expected_pod_dict
 
         mock_kubeconfig.pod_template_file = pod_template_file.as_posix()
         get_base_pod_from_template(None, mock_kubeconfig)
-        assert "deserialize_model_dict" == mock_generator.mock_calls[3][0]
+        assert mock_generator.mock_calls[3][0] == "deserialize_model_dict"
         assert mock_generator.mock_calls[3][1][0] == expected_pod_dict
 
     def test_make_safe_label_value(self):
@@ -157,7 +155,7 @@ class TestAirflowKubernetesScheduler:
         dag_id = "my_dag_id"
         assert dag_id == pod_generator.make_safe_label_value(dag_id)
         dag_id = "my_dag_id_" + "a" * 64
-        assert "my_dag_id_" + "a" * 43 + "-0ce114c45" == pod_generator.make_safe_label_value(dag_id)
+        assert pod_generator.make_safe_label_value(dag_id) == "my_dag_id_" + "a" * 43 + "-0ce114c45"
 
     def test_execution_date_serialize_deserialize(self):
         datetime_obj = datetime.now()

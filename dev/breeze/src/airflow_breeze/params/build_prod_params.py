@@ -64,6 +64,18 @@ class BuildProdParams(CommonBuildParams):
             return self._get_version_with_suffix()
 
     @property
+    def airflow_semver_version(self) -> str:
+        """The airflow version in SemVer compatible form"""
+        from packaging.version import Version
+
+        pyVer = Version(self.airflow_version)
+
+        ver = pyVer.base_version
+        # if (dev := pyVer.dev) is not None:
+        #     ver += f"-dev.{dev}"
+        return ver
+
+    @property
     def image_type(self) -> str:
         return "PROD"
 

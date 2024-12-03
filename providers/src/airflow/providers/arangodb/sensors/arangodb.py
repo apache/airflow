@@ -52,4 +52,4 @@ class AQLSensor(BaseSensorOperator):
         hook = ArangoDBHook(self.arangodb_conn_id)
         records = hook.query(self.query, count=True).count()
         self.log.info("Total records found: %d", records)
-        return 0 != records
+        return records != 0

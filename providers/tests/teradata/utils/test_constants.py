@@ -54,52 +54,52 @@ def test_resume_db_status():
 
 def test_operation_success_message():
     expected_msg = "Compute Cluster %s  %s operation completed successfully."
-    assert Constants.CC_OPR_SUCCESS_STATUS_MSG == expected_msg
+    assert expected_msg == Constants.CC_OPR_SUCCESS_STATUS_MSG
 
 
 def test_operation_failure_message():
     expected_msg = "Compute Cluster %s  %s operation has failed."
-    assert Constants.CC_OPR_FAILURE_STATUS_MSG == expected_msg
+    assert expected_msg == Constants.CC_OPR_FAILURE_STATUS_MSG
 
 
 def test_initializing_status_message():
     expected_msg = "The environment is currently initializing. Please wait."
-    assert Constants.CC_OPR_INITIALIZING_STATUS_MSG == expected_msg
+    assert expected_msg == Constants.CC_OPR_INITIALIZING_STATUS_MSG
 
 
 def test_empty_profile_error_message():
     expected_msg = "Please provide a valid name for the compute cluster profile."
-    assert Constants.CC_OPR_EMPTY_PROFILE_ERROR_MSG == expected_msg
+    assert expected_msg == Constants.CC_OPR_EMPTY_PROFILE_ERROR_MSG
 
 
 def test_non_exists_message():
     expected_msg = "The specified Compute cluster is not present or The user doesn't have permission to access compute cluster."
-    assert Constants.CC_GRP_PRP_NON_EXISTS_MSG == expected_msg
+    assert expected_msg == Constants.CC_GRP_PRP_NON_EXISTS_MSG
 
 
 def test_unauthorized_message():
     expected_msg = "The %s operation is not authorized for the user."
-    assert Constants.CC_GRP_PRP_UN_AUTHORIZED_MSG == expected_msg
+    assert expected_msg == Constants.CC_GRP_PRP_UN_AUTHORIZED_MSG
 
 
 def test_lake_support_only_message():
     expected_msg = "Compute Groups is supported only on Vantage Cloud Lake."
-    assert Constants.CC_GRP_LAKE_SUPPORT_ONLY_MSG == expected_msg
+    assert expected_msg == Constants.CC_GRP_LAKE_SUPPORT_ONLY_MSG
 
 
 def test_timeout_error_message():
     expected_msg = "There is an issue with the %s operation. Kindly consult the administrator for assistance."
-    assert Constants.CC_OPR_TIMEOUT_ERROR == expected_msg
+    assert expected_msg == Constants.CC_OPR_TIMEOUT_ERROR
 
 
 def test_exists_message():
     expected_msg = "The specified Compute cluster is already exists."
-    assert Constants.CC_GRP_PRP_EXISTS_MSG == expected_msg
+    assert expected_msg == Constants.CC_GRP_PRP_EXISTS_MSG
 
 
 def test_empty_copy_profile_error_message():
     expected_msg = "Please provide a valid name for the source and target compute profile."
-    assert Constants.CC_OPR_EMPTY_COPY_PROFILE_ERROR_MSG == expected_msg
+    assert expected_msg == Constants.CC_OPR_EMPTY_COPY_PROFILE_ERROR_MSG
 
 
 def test_timeout_value():

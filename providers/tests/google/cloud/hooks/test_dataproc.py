@@ -1084,7 +1084,7 @@ class TestDataProcJobBuilder:
         labels = {"key": "value"}
         self.builder.add_labels(labels)
         assert "key" in self.builder.job["job"]["labels"]
-        assert "value" == self.builder.job["job"]["labels"]["key"]
+        assert self.builder.job["job"]["labels"]["key"] == "value"
 
     def test_add_variables(self):
         variables = ["variable"]
@@ -1099,7 +1099,7 @@ class TestDataProcJobBuilder:
     def test_add_query(self):
         query = ["query"]
         self.builder.add_query(query)
-        assert {"queries": [query]} == self.builder.job["job"][self.job_type]["query_list"]
+        assert self.builder.job["job"][self.job_type]["query_list"] == {"queries": [query]}
 
     def test_add_query_uri(self):
         query_uri = "query_uri"

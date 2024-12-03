@@ -124,7 +124,7 @@ class TestGCSToS3Operator:
             # we expect nothing to be uploaded
             # and all the MOCK_FILES to be present at the S3 bucket
             uploaded_files = operator.execute(None)
-            assert [] == uploaded_files
+            assert uploaded_files == []
             assert sorted(MOCK_FILES) == sorted(hook.list_keys("bucket", delimiter="/"))
 
     @pytest.mark.parametrize(
@@ -158,7 +158,7 @@ class TestGCSToS3Operator:
             # and all the MOCK_FILES to be present at the S3 bucket
             uploaded_files = operator.execute(None)
 
-            assert [] == uploaded_files
+            assert uploaded_files == []
             assert sorted(mock_files_s3) == sorted(hook.list_keys("bucket", prefix="test/"))
 
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")

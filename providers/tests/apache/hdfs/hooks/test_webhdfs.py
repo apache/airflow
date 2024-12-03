@@ -194,7 +194,7 @@ class TestWebHDFSHook:
 
     def test_init_proxy_user(self):
         hook = WebHDFSHook(proxy_user="someone")
-        assert "someone" == hook.proxy_user
+        assert hook.proxy_user == "someone"
 
     @patch("airflow.providers.apache.hdfs.hooks.webhdfs.KerberosClient", create=True)
     @patch("airflow.providers.apache.hdfs.hooks.webhdfs._kerberos_security_mode", return_value=True)
@@ -211,7 +211,7 @@ class TestWebHDFSHook:
             connection = mock_get_connection.return_value
 
             assert f"https://{connection.host}:{connection.port}" == mock_kerberos_client.call_args.args[0]
-            assert "/ssl/cert/path" == mock_kerberos_client.call_args.kwargs["session"].verify
+            assert mock_kerberos_client.call_args.kwargs["session"].verify == "/ssl/cert/path"
 
     @patch("airflow.providers.apache.hdfs.hooks.webhdfs.InsecureClient")
     @patch("airflow.providers.apache.hdfs.hooks.webhdfs.socket")
@@ -261,3 +261,51 @@ class TestWebHDFSHook:
 
             assert f"https://{connection.host}:{connection.port}" == mock_insecure_client.call_args.args[0]
             assert not mock_insecure_client.call_args.kwargs["session"].verify
+
+    @patch("airflow.providers.apache.hdfs.hooks.webhdfs.InsecureClient")
+    @patch("airflow.providers.apache.hdfs.hooks.webhdfs.socket")
+    def test_conn_mtls_cert_and_key(self, socket_mock, mock_insecure_client):
+        """Test mTLS configuration with client cert and key"""
+        with patch(
+            "airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_connection",
+            return_value=Connection(
+                host="host_1",
+                port=123,
+                extra={
+                    "use_ssl": "True",
+                    "cert": "/path/to/cert.pem",
+                    "key": "/path/to/key.pem",
+                },
+            ),
+        ) as mock_get_connection:
+            socket_mock.socket.return_value.connect_ex.return_value = 0
+            self.webhdfs_hook.get_conn()
+            connection = mock_get_connection.return_value
+
+            assert f"https://{connection.host}:{connection.port}" == mock_insecure_client.call_args.args[0]
+            assert mock_insecure_client.call_args.kwargs["session"].cert == (
+                "/path/to/cert.pem",
+                "/path/to/key.pem",
+            )
+
+    @patch("airflow.providers.apache.hdfs.hooks.webhdfs.InsecureClient")
+    @patch("airflow.providers.apache.hdfs.hooks.webhdfs.socket")
+    def test_conn_mtls_combined_cert(self, socket_mock, mock_insecure_client):
+        """Test mTLS configuration with combined client cert and key"""
+        with patch(
+            "airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_connection",
+            return_value=Connection(
+                host="host_1",
+                port=123,
+                extra={
+                    "use_ssl": "True",
+                    "cert": "/path/to/combined.pem",
+                },
+            ),
+        ) as mock_get_connection:
+            socket_mock.socket.return_value.connect_ex.return_value = 0
+            self.webhdfs_hook.get_conn()
+            connection = mock_get_connection.return_value
+
+            assert f"https://{connection.host}:{connection.port}" == mock_insecure_client.call_args.args[0]
+            assert mock_insecure_client.call_args.kwargs["session"].cert == ("/path/to/combined.pem")

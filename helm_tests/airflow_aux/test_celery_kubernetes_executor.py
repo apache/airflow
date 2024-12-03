@@ -33,8 +33,8 @@ class TestCeleryKubernetesExecutor:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert "config" == jmespath.search("spec.template.spec.volumes[0].name", docs[0])
-        assert "dags" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
+        assert jmespath.search("spec.template.spec.volumes[0].name", docs[0]) == "config"
+        assert jmespath.search("spec.template.spec.volumes[1].name", docs[0]) == "dags"
 
     def test_should_create_a_worker_deployment_with_the_celery_kubernetes_executor(self):
         docs = render_chart(
@@ -45,5 +45,5 @@ class TestCeleryKubernetesExecutor:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert "config" == jmespath.search("spec.template.spec.volumes[0].name", docs[0])
-        assert "dags" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
+        assert jmespath.search("spec.template.spec.volumes[0].name", docs[0]) == "config"
+        assert jmespath.search("spec.template.spec.volumes[1].name", docs[0]) == "dags"

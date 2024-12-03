@@ -167,6 +167,32 @@ def _get_type_id_column(dialect_name: str) -> sa.types.TypeEngine:
         return sa.String(36)
 
 
+def create_foreign_keys():
+    for fk in ti_fk_constraints:
+        if fk["table"] in ["task_instance_history", "task_map"]:
+            continue
+        with op.batch_alter_table(fk["table"]) as batch_op:
+            batch_op.create_foreign_key(
+                constraint_name=fk["fk"],
+                referent_table=ti_table,
+                local_cols=ti_fk_cols,
+                remote_cols=ti_fk_cols,
+                ondelete="CASCADE",
+            )
+    for fk in ti_fk_constraints:
+        if fk["table"] not in ["task_instance_history", "task_map"]:
+            continue
+        with op.batch_alter_table(fk["table"]) as batch_op:
+            batch_op.create_foreign_key(
+                constraint_name=fk["fk"],
+                referent_table=ti_table,
+                local_cols=ti_fk_cols,
+                remote_cols=ti_fk_cols,
+                ondelete="CASCADE",
+                onupdate="CASCADE",
+            )
+
+
 def upgrade():
     """Add UUID primary key to task instance table."""
     conn = op.get_bind()
@@ -232,15 +258,7 @@ def upgrade():
         batch_op.create_primary_key("task_instance_pkey", ["id"])
 
     # Create foreign key constraints
-    for fk in ti_fk_constraints:
-        with op.batch_alter_table(fk["table"]) as batch_op:
-            batch_op.create_foreign_key(
-                constraint_name=fk["fk"],
-                referent_table=ti_table,
-                local_cols=ti_fk_cols,
-                remote_cols=ti_fk_cols,
-                ondelete="CASCADE",
-            )
+    create_foreign_keys()
 
 
 def downgrade():
@@ -270,12 +288,4 @@ def downgrade():
         batch_op.create_primary_key("task_instance_pkey", ti_fk_cols)
 
     # Re-add foreign key constraints
-    for fk in ti_fk_constraints:
-        with op.batch_alter_table(fk["table"]) as batch_op:
-            batch_op.create_foreign_key(
-                constraint_name=fk["fk"],
-                referent_table=ti_table,
-                local_cols=ti_fk_cols,
-                remote_cols=ti_fk_cols,
-                ondelete="CASCADE",
-            )
+    create_foreign_keys()
