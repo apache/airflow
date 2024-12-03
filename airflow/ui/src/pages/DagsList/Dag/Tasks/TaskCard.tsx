@@ -52,13 +52,13 @@ export const TaskCard = ({ task, taskInstance }: Props) => (
         <Heading color="fg.muted" fontSize="xs">
           Operator
         </Heading>
-        {task.operator_name}
+        <Text fontSize="sm">{task.operator_name}</Text>
       </VStack>
       <VStack align="flex-start" gap={1}>
         <Heading color="fg.muted" fontSize="xs">
           Trigger Rule
         </Heading>
-        {task.trigger_rule}
+        <Text fontSize="sm">{task.trigger_rule}</Text>
       </VStack>
       <VStack align="flex-start" gap={1}>
         <Heading color="fg.muted" fontSize="xs">
