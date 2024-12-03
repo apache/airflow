@@ -47,7 +47,7 @@ ENVIRONMENT_ID_ASYNC = f"test-deferrable-{DAG_ID}-{ENV_ID}".replace("_", "-")
 
 ENVIRONMENT = {
     "config": {
-        "software_config": {"image_version": "composer-2.5.0-airflow-2.5.3"},
+        "software_config": {"image_version": "composer-2-airflow-2"},
     }
 }
 # [END howto_operator_composer_simple_environment]
