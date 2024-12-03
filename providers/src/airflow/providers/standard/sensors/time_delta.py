@@ -21,8 +21,6 @@ from datetime import timedelta
 from time import sleep
 from typing import TYPE_CHECKING, Any, NoReturn
 
-from packaging.version import Version
-
 from airflow.configuration import conf
 from airflow.exceptions import AirflowSkipException
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
@@ -35,6 +33,8 @@ if TYPE_CHECKING:
 
 
 def _get_airflow_version():
+    from packaging.version import Version
+
     from airflow import __version__ as airflow_version
 
     return Version(Version(airflow_version).base_version)
