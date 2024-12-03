@@ -808,7 +808,7 @@ class TestSFTPHookAsync:
         mock_ssh_client.return_value.connect.assert_called_once_with(
             hostname="example.com",
             username="user",
-            timeout=10,
+            timeout=None,
             compress=True,
             port=22,
             sock=mock_proxy_command.return_value,
