@@ -32,7 +32,6 @@ from aioresponses import aioresponses
 from requests.adapters import HTTPAdapter, Response
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.models import DEFAULT_REDIRECT_LIMIT
-from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -550,7 +549,7 @@ class TestHttpHook:
             assert isinstance(
                 session.adapters["https://"], type(custom_adapter)
             ), "Custom HTTPS adapter not correctly mounted"
-            
+
 
 class TestHttpAsyncHook:
     @pytest.mark.asyncio

@@ -26,7 +26,6 @@ import requests
 import tenacity
 from aiohttp import ClientResponseError
 from asgiref.sync import sync_to_async
-from requests.adapters import HTTPAdapter
 from requests.auth import HTTPBasicAuth
 from requests.models import DEFAULT_REDIRECT_LIMIT
 from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
@@ -36,6 +35,7 @@ from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
     from aiohttp.client_reqrep import ClientResponse
+    from requests.adapters import HTTPAdapter
 
     from airflow.models import Connection
 
