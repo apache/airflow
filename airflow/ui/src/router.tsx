@@ -18,17 +18,16 @@
  */
 import { createBrowserRouter } from "react-router-dom";
 
+import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsList } from "src/pages/DagsList";
+import { Dag } from "src/pages/DagsList/Dag";
+import { Code } from "src/pages/DagsList/Dag/Code";
+import { Overview } from "src/pages/DagsList/Dag/Overview";
+import { Runs } from "src/pages/DagsList/Dag/Runs";
+import { Run } from "src/pages/DagsList/Run";
 import { Dashboard } from "src/pages/Dashboard";
-
-import { BaseLayout } from "./layouts/BaseLayout";
-import { Dag } from "./pages/DagsList/Dag";
-import { Code } from "./pages/DagsList/Dag/Code";
-import { Overview } from "./pages/DagsList/Dag/Overview";
-import { Runs } from "./pages/DagsList/Dag/Runs";
-import { Run } from "./pages/DagsList/Run";
-import { ErrorPage } from "./pages/Error";
-import { Events } from "./pages/Events";
+import { ErrorPage } from "src/pages/Error";
+import { Events } from "src/pages/Events";
 
 export const router = createBrowserRouter(
   [
@@ -48,7 +47,7 @@ export const router = createBrowserRouter(
         },
         {
           children: [
-            { element: <Overview />, path: "" },
+            { element: <Overview />, index: true },
             { element: <Runs />, path: "runs" },
             { element: <div>Tasks</div>, path: "tasks" },
             { element: <Events />, path: "events" },

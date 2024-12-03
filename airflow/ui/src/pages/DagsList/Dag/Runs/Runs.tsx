@@ -18,7 +18,6 @@
  */
 import {
   Box,
-  Code,
   createListCollection,
   Flex,
   HStack,
@@ -27,6 +26,7 @@ import {
   Text,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
+import dayjs from "dayjs";
 import { useCallback } from "react";
 import {
   useParams,
@@ -49,8 +49,8 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
     accessorKey: "run_id",
     cell: ({ row: { original } }) => (
       <Link asChild color="fg.info" fontWeight="bold">
-        <RouterLink to={`/dags/${original.dag_id}/runs/${original.run_id}`}>
-          {original.run_id}
+        <RouterLink to={`/dags/${original.dag_id}/runs/${original.dag_run_id}`}>
+          {original.dag_run_id}
         </RouterLink>
       </Link>
     ),
@@ -88,12 +88,9 @@ const columns: Array<ColumnDef<DAGRunResponse>> = [
     header: "End Date",
   },
   {
-    accessorKey: "conf",
     cell: ({ row: { original } }) =>
-      Object.keys(original.conf).length > 0 ? (
-        <Code>{JSON.stringify(original.conf)}</Code>
-      ) : undefined,
-    header: "Config",
+      `${dayjs.duration(dayjs(original.end_date).diff(original.start_date)).asSeconds().toFixed(2)}s`,
+    header: "Duration",
   },
   {
     accessorKey: "note",
@@ -116,6 +113,7 @@ const STATE_PARAM = "state";
 
 export const Runs = () => {
   const { dagId } = useParams();
+
   const [searchParams, setSearchParams] = useSearchParams();
 
   const { setTableURLState, tableURLState } = useTableURLState();

@@ -79,7 +79,10 @@ export const Overview = () => {
           }))}
           isLoading={isLoading}
           label="Failed Task"
-          route={`${location.pathname}/tasks`}
+          route={{
+            pathname: "tasks",
+            search: "state=failed",
+          }}
           startDate={startDate}
         />
         <TrendCountButton
