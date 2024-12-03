@@ -31,12 +31,13 @@ from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.runtime.environment import EnvironmentContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import MetaData, Table
+from sqlalchemy import Column, Integer, MetaData, Table, select
 from sqlalchemy.sql import Select
 
 from airflow.models import Base as airflow_base
 from airflow.settings import engine
 from airflow.utils.db import (
+    LazySelectSequence,
     _get_alembic_config,
     check_bad_references,
     check_migrations,
@@ -326,3 +327,16 @@ class TestDb:
             mock_session, task_fail_table, mock_select, dangling_task_fail_table_name
         )
         mock_session.rollback.assert_called_once()
+
+    def test_bool_lazy_select_sequence(self):
+        class MockSession:
+            def __init__(self):
+                pass
+
+            def scalar(self, stmt):
+                return None
+
+        t = Table("t", MetaData(), Column("id", Integer, primary_key=True))
+        lss = LazySelectSequence.from_select(select(t.c.id), order_by=[], session=MockSession())
+
+        assert bool(lss) is False
