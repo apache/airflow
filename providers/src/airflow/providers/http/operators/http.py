@@ -22,11 +22,10 @@ import pickle
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, Callable
 
-from deprecated import deprecated
 from requests import Response
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
 from airflow.providers.http.triggers.http import HttpTrigger
@@ -321,67 +320,3 @@ class HttpOperator(BaseOperator):
             extra_options=merge_dicts(self.extra_options, next_page_params.get("extra_options", {})),
             **self.request_kwargs,
         )
-
-
-@deprecated(
-    reason=(
-        "Class `SimpleHttpOperator` is deprecated and "
-        "will be removed in a future release. Please use `HttpOperator` instead."
-    ),
-    category=AirflowProviderDeprecationWarning,
-)
-class SimpleHttpOperator(HttpOperator):
-    """
-    Calls an endpoint on an HTTP system to execute an action.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:HttpOperator`
-
-    :param http_conn_id: The :ref:`http connection<howto/connection:http>` to run
-        the operator against
-    :param endpoint: The relative part of the full url. (templated)
-    :param method: The HTTP method to use, default = "POST"
-    :param data: The data to pass. POST-data in POST/PUT and params
-        in the URL for a GET request. (templated)
-    :param headers: The HTTP headers to be added to the GET request
-    :param pagination_function: A callable that generates the parameters used to call the API again,
-        based on the previous response. Typically used when the API is paginated and returns for e.g a
-        cursor, a 'next page id', or a 'next page URL'. When provided, the Operator will call the API
-        repeatedly until this callable returns None. The result of the Operator will become by default a
-        list of Response.text objects (instead of a single response object). Same with the other injected
-        functions (like response_check, response_filter, ...) which will also receive a list of Response
-        objects. This function receives a Response object form previous call, and should return a nested
-        dictionary with the following optional keys: `endpoint`, `data`, `headers` and `extra_options.
-        Those keys will be merged and/or override the parameters provided into the HttpOperator declaration.
-        Parameters are merged when they are both a dictionary (e.g.: HttpOperator.headers will be merged
-        with the `headers` dict provided by this function). When merging, dict items returned by this
-        function will override initial ones (e.g: if both HttpOperator.headers and `headers` have a 'cookie'
-        item, the one provided by `headers` is kept). Parameters are simply overridden when any of them are
-        string (e.g.: HttpOperator.endpoint is overridden by `endpoint`).
-    :param response_check: A check against the 'requests' response object.
-        The callable takes the response object as the first positional argument
-        and optionally any number of keyword arguments available in the context dictionary.
-        It should return True for 'pass' and False otherwise. If a pagination_function
-        is provided, this function will receive a list of response objects instead of a
-        single response object.
-    :param response_filter: A function allowing you to manipulate the response
-        text. e.g response_filter=lambda response: json.loads(response.text).
-        The callable takes the response object as the first positional argument
-        and optionally any number of keyword arguments available in the context dictionary.
-        If a pagination_function is provided, this function will receive a list of response
-        object instead of a single response object.
-    :param extra_options: Extra options for the 'requests' library, see the
-        'requests' documentation (options to modify timeout, ssl, etc.)
-    :param log_response: Log the response (default: False)
-    :param auth_type: The auth type for the service
-    :param tcp_keep_alive: Enable TCP Keep Alive for the connection.
-    :param tcp_keep_alive_idle: The TCP Keep Alive Idle parameter (corresponds to ``socket.TCP_KEEPIDLE``).
-    :param tcp_keep_alive_count: The TCP Keep Alive count parameter (corresponds to ``socket.TCP_KEEPCNT``)
-    :param tcp_keep_alive_interval: The TCP Keep Alive interval parameter (corresponds to
-        ``socket.TCP_KEEPINTVL``)
-    :param deferrable: Run operator in the deferrable mode
-    """
-
-    def __init__(self, **kwargs: Any):
-        super().__init__(**kwargs)

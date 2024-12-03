@@ -168,13 +168,11 @@ def run(ti: RuntimeTaskInstance, log: Logger):
         next_method = defer.method_name
         timeout = defer.timeout
         msg = DeferTask(
-            state="deferred",
             classpath=classpath,
             trigger_kwargs=trigger_kwargs,
             next_method=next_method,
             trigger_timeout=timeout,
         )
-        global SUPERVISOR_COMMS
         SUPERVISOR_COMMS.send_request(msg=msg, log=log)
     except AirflowSkipException:
         ...
