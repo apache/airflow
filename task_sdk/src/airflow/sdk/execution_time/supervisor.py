@@ -50,6 +50,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetVariable,
     GetXCom,
+    SetXCom,
     StartupDetails,
     ToSupervisor,
 )
@@ -655,6 +656,9 @@ class WatchedSubprocess:
             elif isinstance(msg, DeferTask):
                 self.final_state = IntermediateTIState.DEFERRED
                 self.client.task_instances.defer(self.ti_id, msg)
+                resp = None
+            elif isinstance(msg, SetXCom):
+                self.client.xcoms.set(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.value, msg.map_index)
                 resp = None
             else:
                 log.error("Unhandled request", msg=msg)

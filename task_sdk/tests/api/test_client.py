@@ -133,3 +133,33 @@ class TestVariableOperations:
                 "reason": "not_found",
             }
         }
+
+
+class TestXCOMOperations:
+    """
+    Test that the XComOperations class works as expected. While the operations are simple, it
+    still catches the basic functionality of the client for xcoms including endpoint and
+    response parsing.
+    """
+
+    # TODO: Add tests for get xcom in a follow up
+
+    def test_xcom_set_success(self):
+        # Simulate a successful response from the server when setting an xcom
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/xcoms/dag_id/run_id/task_id/key":
+                return httpx.Response(
+                    status_code=200,
+                    json={"ok": True},
+                )
+            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+        result = client.xcoms.set(
+            dag_id="dag_id",
+            run_id="run_id",
+            task_id="task_id",
+            key="key",
+            value={"key": "test_key", "value": {"key2": "value2"}},
+        )
+        assert result == {"ok": True}

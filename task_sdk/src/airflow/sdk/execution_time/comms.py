@@ -45,7 +45,8 @@ from __future__ import annotations
 
 from typing import Annotated, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Field
+from fastapi import Body
+from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 from airflow.sdk.api.datamodels._generated import (
     ConnectionResponse,
@@ -119,6 +120,37 @@ class GetXCom(BaseModel):
     type: Literal["GetXCom"] = "GetXCom"
 
 
+class SetXCom(BaseModel):
+    key: str
+    value: Annotated[
+        # JsonValue can handle non JSON stringified dicts, lists and strings, which is better
+        # for the task intuitibe to send to the supervisor
+        JsonValue,
+        Body(
+            description="A JSON-formatted string representing the value to set for the XCom.",
+            openapi_examples={
+                "simple_value": {
+                    "summary": "Simple value",
+                    "value": "value1",
+                },
+                "dict_value": {
+                    "summary": "Dictionary value",
+                    "value": {"key2": "value2"},
+                },
+                "list_value": {
+                    "summary": "List value",
+                    "value": ["value1"],
+                },
+            },
+        ),
+    ]
+    dag_id: str
+    run_id: str
+    task_id: str
+    map_index: int = -1
+    type: Literal["SetXCom"] = "SetXCom"
+
+
 class GetConnection(BaseModel):
     conn_id: str
     type: Literal["GetConnection"] = "GetConnection"
@@ -130,6 +162,6 @@ class GetVariable(BaseModel):
 
 
 ToSupervisor = Annotated[
-    Union[TaskState, GetXCom, GetConnection, GetVariable, DeferTask],
+    Union[TaskState, GetXCom, GetConnection, GetVariable, DeferTask, SetXCom],
     Field(discriminator="type"),
 ]

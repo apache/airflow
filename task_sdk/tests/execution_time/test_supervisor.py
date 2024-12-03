@@ -43,6 +43,7 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetVariable,
     GetXCom,
+    SetXCom,
     VariableResult,
     XComResult,
 )
@@ -688,6 +689,27 @@ class TestHandleRequest:
                 (TI_ID, DeferTask(next_method="execute_callback", classpath="my-classpath")),
                 "",
                 id="patch_task_instance_to_deferred",
+            ),
+            pytest.param(
+                SetXCom(
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    task_id="test_task",
+                    key="test_key",
+                    value={"key": "test_key", "value": {"key2": "value2"}},
+                ),
+                b"",
+                "xcoms.set",
+                (
+                    "test_dag",
+                    "test_run",
+                    "test_task",
+                    "test_key",
+                    {"key": "test_key", "value": {"key2": "value2"}},
+                    -1,
+                ),
+                {"message": "XCom successfully set"},
+                id="set_xcom",
             ),
         ],
     )

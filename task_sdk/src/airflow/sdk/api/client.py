@@ -169,6 +169,13 @@ class XComOperations:
         resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params={"map_index": map_index})
         return XComResponse.model_validate_json(resp.read())
 
+    def set(self, dag_id: str, run_id: str, task_id: str, key: str, value, map_index: int = -1):
+        """Set a XCom value via the API server."""
+        self.client.post(
+            f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params={"map_index": map_index}, json=value
+        )
+        return {"ok": True}
+
 
 class BearerAuth(httpx.Auth):
     def __init__(self, token: str):
