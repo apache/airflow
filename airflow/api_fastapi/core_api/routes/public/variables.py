@@ -140,11 +140,11 @@ def patch_variable(
             include=fields_to_update - non_update_fields, by_alias=True, exclude_none=True
         )
     else:
+        data = patch_body.model_dump(exclude=non_update_fields, by_alias=True, exclude_none=True)
         try:
-            VariableBody.model_validate(patch_body)
+            VariableBody.model_validate(data)
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
-        data = patch_body.model_dump(exclude=non_update_fields, by_alias=True, exclude_none=True)
 
     for key, val in data.items():
         setattr(variable, key, val)

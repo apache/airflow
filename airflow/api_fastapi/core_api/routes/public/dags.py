@@ -225,11 +225,11 @@ def patch_dag(
 
         data = patch_body.model_dump(include=fields_to_update)
     else:
+        data = patch_body.model_dump()
         try:
-            DAGPatchBody.model_validate(patch_body)
+            DAGPatchBody.model_validate(data)
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
-        data = patch_body.model_dump()
 
     for key, val in data.items():
         setattr(dag, key, val)
