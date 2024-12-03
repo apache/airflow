@@ -369,6 +369,32 @@ export const UseBackfillServiceListBackfillsKeyFn = (
     offset,
     orderBy,
   }: {
+    dagId?: string;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+  } = {},
+  queryKey?: Array<unknown>,
+) => [
+  useBackfillServiceListBackfillsKey,
+  ...(queryKey ?? [{ dagId, limit, offset, orderBy }]),
+];
+export type BackfillServiceListBackfills1DefaultResponse = Awaited<
+  ReturnType<typeof BackfillService.listBackfills1>
+>;
+export type BackfillServiceListBackfills1QueryResult<
+  TData = BackfillServiceListBackfills1DefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useBackfillServiceListBackfills1Key =
+  "BackfillServiceListBackfills1";
+export const UseBackfillServiceListBackfills1KeyFn = (
+  {
+    dagId,
+    limit,
+    offset,
+    orderBy,
+  }: {
     dagId: string;
     limit?: number;
     offset?: number;
@@ -376,7 +402,7 @@ export const UseBackfillServiceListBackfillsKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [
-  useBackfillServiceListBackfillsKey,
+  useBackfillServiceListBackfills1Key,
   ...(queryKey ?? [{ dagId, limit, offset, orderBy }]),
 ];
 export type BackfillServiceGetBackfillDefaultResponse = Awaited<

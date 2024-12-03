@@ -14,21 +14,33 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.routes.ui.assets import assets_router
-from airflow.api_fastapi.core_api.routes.ui.backfills import backfills_router
-from airflow.api_fastapi.core_api.routes.ui.config import config_router
-from airflow.api_fastapi.core_api.routes.ui.dags import dags_router
-from airflow.api_fastapi.core_api.routes.ui.dashboard import dashboard_router
-from airflow.api_fastapi.core_api.routes.ui.structure import structure_router
+from datetime import datetime
 
-ui_router = AirflowRouter(prefix="/ui")
+from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.models.backfill import ReprocessBehavior
 
-ui_router.include_router(assets_router)
-ui_router.include_router(config_router)
-ui_router.include_router(dags_router)
-ui_router.include_router(dashboard_router)
-ui_router.include_router(structure_router)
-ui_router.include_router(backfills_router)
+
+class BackfillResponse(BaseModel):
+    """Base serializer for Backfill."""
+
+    id: int
+    dag_id: str
+    from_date: datetime
+    to_date: datetime
+    dag_run_conf: dict
+    is_paused: bool
+    reprocess_behavior: ReprocessBehavior
+    max_active_runs: int
+    created_at: datetime
+    completed_at: datetime | None
+    updated_at: datetime
+
+
+class BackfillCollectionResponse(BaseModel):
+    """Backfill Collection serializer for responses."""
+
+    backfills: list[BackfillResponse]
+    total_entries: int
