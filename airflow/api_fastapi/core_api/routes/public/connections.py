@@ -20,6 +20,8 @@ import os
 from typing import Annotated, cast
 
 from fastapi import Depends, HTTPException, Query, status
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from sqlalchemy import select
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
@@ -179,13 +181,22 @@ def patch_connection(
             status.HTTP_404_NOT_FOUND, f"The Connection with connection_id: `{connection_id}` was not found"
         )
 
+    fields_to_update = patch_body.model_fields_set
+
     if update_mask:
-        data = patch_body.model_dump(include=set(update_mask) - non_update_fields)
+        fields_to_update = fields_to_update.intersection(update_mask)
+        data = patch_body.model_dump(include=fields_to_update - non_update_fields)
     else:
+        try:
+            ConnectionBody.model_validate(patch_body)
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
         data = patch_body.model_dump(exclude=non_update_fields)
 
     for key, val in data.items():
         setattr(connection, key, val)
+
+    session.commit()
     return connection
 
 

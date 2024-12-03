@@ -20,6 +20,8 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, Request, Response, status
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from sqlalchemy import select, update
 
 from airflow.api.common import delete_dag as delete_dag_module
@@ -213,19 +215,26 @@ def patch_dag(
     if dag is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Dag with id: {dag_id} was not found")
 
+    fields_to_update = patch_body.model_fields_set
     if update_mask:
-        if update_mask != ["is_paused"]:
+        fields_to_update = fields_to_update.intersection(update_mask)
+        if not set(fields_to_update).issubset({"is_paused"}):
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST, "Only `is_paused` field can be updated through the REST API"
             )
 
-        data = patch_body.model_dump(include=set(update_mask))
+        data = patch_body.model_dump(include=fields_to_update)
     else:
+        try:
+            DAGPatchBody.model_validate(patch_body)
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
         data = patch_body.model_dump()
 
     for key, val in data.items():
         setattr(dag, key, val)
 
+    session.commit()
     return dag
 
 
@@ -258,6 +267,11 @@ def patch_dags(
                 status.HTTP_400_BAD_REQUEST, "Only `is_paused` field can be updated through the REST API"
             )
     else:
+        try:
+            DAGPatchBody.model_validate(patch_body)
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
+
         # todo: this is not used?
         update_mask = ["is_paused"]
 

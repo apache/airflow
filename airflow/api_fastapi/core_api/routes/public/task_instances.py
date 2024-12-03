@@ -20,6 +20,8 @@ from __future__ import annotations
 from typing import Annotated, Literal, cast
 
 from fastapi import Depends, HTTPException, Query, Request, status
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from sqlalchemy import or_, select
 from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import joinedload
@@ -676,6 +678,11 @@ def patch_task_instance(
     fields_to_update = body.model_fields_set
     if update_mask:
         fields_to_update = fields_to_update.intersection(update_mask)
+    else:
+        try:
+            PatchTaskInstanceBody.model_validate(body)
+        except ValidationError as e:
+            raise RequestValidationError(errors=e.errors())
 
     for field in fields_to_update:
         if field == "new_state":
