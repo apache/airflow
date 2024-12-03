@@ -32,11 +32,12 @@ from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.runtime.environment import EnvironmentContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import MetaData
+from sqlalchemy import Column, Integer, MetaData, Table, select
 
 from airflow.models import Base as airflow_base
 from airflow.settings import engine
 from airflow.utils.db import (
+    LazySelectSequence,
     _get_alembic_config,
     check_migrations,
     compare_server_default,
@@ -96,6 +97,8 @@ class TestDb:
             lambda t: (t[0] == "remove_table" and t[1].name == "sqlite_sequence"),
             # fab version table
             lambda t: (t[0] == "remove_table" and t[1].name == "alembic_version_fab"),
+            # Ignore _xcom_archive table
+            lambda t: (t[0] == "remove_table" and t[1].name == "_xcom_archive"),
         ]
 
         for ignore in ignores:
@@ -251,3 +254,16 @@ class TestDb:
         import airflow
 
         assert config.config_file_name == os.path.join(os.path.dirname(airflow.__file__), "alembic.ini")
+
+    def test_bool_lazy_select_sequence(self):
+        class MockSession:
+            def __init__(self):
+                pass
+
+            def scalar(self, stmt):
+                return None
+
+        t = Table("t", MetaData(), Column("id", Integer, primary_key=True))
+        lss = LazySelectSequence.from_select(select(t.c.id), order_by=[], session=MockSession())
+
+        assert bool(lss) is False

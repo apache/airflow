@@ -76,14 +76,14 @@ class TestCloudTranslate:
             source_language=None,
             model="base",
         )
-        assert [
+        assert return_value == [
             {
                 "translatedText": "Yellowing self Gęśle",
                 "detectedSourceLanguage": "pl",
                 "model": "base",
                 "input": "zażółć gęślą jaźń",
             }
-        ] == return_value
+        ]
 
 
 class TestTranslateText:

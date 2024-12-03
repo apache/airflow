@@ -292,5 +292,5 @@ class TestPrestoHook:
         )
 
     def test_serialize_cell(self):
-        assert "foo" == self.db_hook._serialize_cell("foo", None)
-        assert 1 == self.db_hook._serialize_cell(1, None)
+        assert self.db_hook._serialize_cell("foo", None) == "foo"
+        assert self.db_hook._serialize_cell(1, None) == 1

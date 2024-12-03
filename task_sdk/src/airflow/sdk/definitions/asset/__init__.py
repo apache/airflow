@@ -27,6 +27,7 @@ from typing import (
     Any,
     Callable,
     ClassVar,
+    NamedTuple,
     cast,
     overload,
 )
@@ -34,7 +35,6 @@ from typing import (
 import attrs
 from sqlalchemy import select
 
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.typing_compat import TypedDict
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -61,6 +61,15 @@ __all__ = [
 
 
 log = logging.getLogger(__name__)
+
+
+class AssetUniqueKey(NamedTuple):
+    name: str
+    uri: str
+
+    @staticmethod
+    def from_asset(asset: Asset) -> AssetUniqueKey:
+        return AssetUniqueKey(name=asset.name, uri=asset.uri)
 
 
 def normalize_noop(parts: SplitResult) -> SplitResult:
@@ -203,7 +212,7 @@ class BaseAsset:
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         raise NotImplementedError
 
-    def iter_assets(self) -> Iterator[tuple[str, Asset]]:
+    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
         raise NotImplementedError
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
@@ -350,10 +359,10 @@ class Asset(os.PathLike, BaseAsset):
 
         :meta private:
         """
-        return self.uri
+        return {"asset": {"uri": self.uri, "name": self.name, "group": self.group}}
 
-    def iter_assets(self) -> Iterator[tuple[str, Asset]]:
-        yield self.uri, self
+    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
+        yield AssetUniqueKey.from_asset(self), self
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         return iter(())
@@ -371,7 +380,7 @@ class Asset(os.PathLike, BaseAsset):
             source=source or "asset",
             target=target or "asset",
             dependency_type="asset",
-            dependency_id=self.uri,
+            dependency_id=self.name,
         )
 
 
@@ -401,7 +410,7 @@ class AssetAlias(BaseAsset):
     name: str = attrs.field(validator=_validate_non_empty_identifier)
     group: str = attrs.field(kw_only=True, default="", validator=_validate_identifier)
 
-    def iter_assets(self) -> Iterator[tuple[str, Asset]]:
+    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
         return iter(())
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
@@ -439,13 +448,14 @@ class _AssetBooleanCondition(BaseAsset):
             raise TypeError("expect asset expressions in condition")
 
         self.objects = [
-            AssetAliasCondition(obj.name) if isinstance(obj, AssetAlias) else obj for obj in objects
+            AssetAliasCondition.from_asset_alias(obj) if isinstance(obj, AssetAlias) else obj
+            for obj in objects
         ]
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return self.agg_func(x.evaluate(statuses=statuses) for x in self.objects)
 
-    def iter_assets(self) -> Iterator[tuple[str, Asset]]:
+    def iter_assets(self) -> Iterator[tuple[AssetUniqueKey, Asset]]:
         seen = set()  # We want to keep the first instance.
         for o in self.objects:
             for k, v in o.iter_assets():
@@ -492,7 +502,6 @@ class AssetAny(_AssetBooleanCondition):
         return {"any": [o.as_expression() for o in self.objects]}
 
 
-@internal_api_call
 @provide_session
 def expand_alias_to_assets(alias: str | AssetAlias, *, session: Session = NEW_SESSION) -> list[BaseAsset]:
     """Expand asset alias to resolved assets."""
@@ -515,8 +524,9 @@ class AssetAliasCondition(AssetAny):
     :meta private:
     """
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, group: str) -> None:
         self.name = name
+        self.group = group
         self.objects = expand_alias_to_assets(name)
 
     def __repr__(self) -> str:
@@ -528,7 +538,7 @@ class AssetAliasCondition(AssetAny):
 
         :meta private:
         """
-        return {"alias": self.name}
+        return {"alias": {"name": self.name, "group": self.group}}
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         yield self.name, AssetAlias(self.name)
@@ -542,18 +552,18 @@ class AssetAliasCondition(AssetAny):
         if self.objects:
             for obj in self.objects:
                 asset = cast(Asset, obj)
-                uri = asset.uri
+                asset_name = asset.name
                 # asset
                 yield DagDependency(
                     source=f"asset-alias:{self.name}" if source else "asset",
                     target="asset" if source else f"asset-alias:{self.name}",
                     dependency_type="asset",
-                    dependency_id=uri,
+                    dependency_id=asset_name,
                 )
                 # asset alias
                 yield DagDependency(
-                    source=source or f"asset:{uri}",
-                    target=target or f"asset:{uri}",
+                    source=source or f"asset:{asset_name}",
+                    target=target or f"asset:{asset_name}",
                     dependency_type="asset-alias",
                     dependency_id=self.name,
                 )
@@ -564,6 +574,10 @@ class AssetAliasCondition(AssetAny):
                 dependency_type="asset-alias",
                 dependency_id=self.name,
             )
+
+    @staticmethod
+    def from_asset_alias(asset_alias: AssetAlias) -> AssetAliasCondition:
+        return AssetAliasCondition(name=asset_alias.name, group=asset_alias.group)
 
 
 class AssetAll(_AssetBooleanCondition):

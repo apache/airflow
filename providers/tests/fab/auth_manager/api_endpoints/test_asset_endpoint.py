@@ -138,12 +138,12 @@ class TestGetDagAssetQueuedEvent(TestQueuedEventEndpoint):
         )
 
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "Queue event with dag_id: `not_exists` and asset uri: `not_exists` was not found",
             "status": 404,
             "title": "Queue event not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
 
 class TestDeleteDagAssetQueuedEvent(TestAssetEndpoint):
@@ -179,12 +179,12 @@ class TestDeleteDagAssetQueuedEvent(TestAssetEndpoint):
         )
 
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "Queue event with dag_id: `not_exists` and asset uri: `not_exists` was not found",
             "status": 404,
             "title": "Queue event not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
 
 class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
@@ -221,12 +221,12 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
         )
 
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "Queue event with dag_id: `not_exists` was not found",
             "status": 404,
             "title": "Queue event not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
 
 class TestDeleteDagDatasetQueuedEvents(TestAssetEndpoint):
@@ -239,12 +239,12 @@ class TestDeleteDagDatasetQueuedEvents(TestAssetEndpoint):
         )
 
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "Queue event with dag_id: `not_exists` was not found",
             "status": 404,
             "title": "Queue event not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
 
 class TestGetDatasetQueuedEvents(TestQueuedEventEndpoint):
@@ -282,12 +282,12 @@ class TestGetDatasetQueuedEvents(TestQueuedEventEndpoint):
         )
 
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "Queue event with asset uri: `not_exists` was not found",
             "status": 404,
             "title": "Queue event not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
 
 class TestDeleteDatasetQueuedEvents(TestQueuedEventEndpoint):
@@ -317,9 +317,9 @@ class TestDeleteDatasetQueuedEvents(TestQueuedEventEndpoint):
         )
 
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "Queue event with asset uri: `not_exists` was not found",
             "status": 404,
             "title": "Queue event not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }

@@ -99,7 +99,7 @@ class TestVariable:
 
     def test_variable_set_get_round_trip(self):
         Variable.set("tested_var_set_id", "Monday morning breakfast")
-        assert "Monday morning breakfast" == Variable.get("tested_var_set_id")
+        assert Variable.get("tested_var_set_id") == "Monday morning breakfast"
 
     def test_variable_set_with_env_variable(self, caplog, session):
         caplog.set_level(logging.WARNING, logger=variable.log.name)
@@ -108,11 +108,11 @@ class TestVariable:
             # setting value while shadowed by an env variable will generate a warning
             Variable.set(key="key", value="new-db-value", session=session)
             # value set above is not returned because the env variable value takes priority
-            assert "env-value" == Variable.get("key")
+            assert Variable.get("key") == "env-value"
         # invalidate the cache to re-evaluate value
         SecretCache.invalidate_variable("key")
         # now that env var is not here anymore, we see the value we set before.
-        assert "new-db-value" == Variable.get("key")
+        assert Variable.get("key") == "new-db-value"
 
         assert caplog.messages[0] == (
             "The variable key is defined in the EnvironmentVariablesBackend secrets backend, "
@@ -147,9 +147,9 @@ class TestVariable:
 
     def test_variable_update(self, session):
         Variable.set(key="test_key", value="value1", session=session)
-        assert "value1" == Variable.get(key="test_key")
+        assert Variable.get(key="test_key") == "value1"
         Variable.update(key="test_key", value="value2", session=session)
-        assert "value2" == Variable.get("test_key")
+        assert Variable.get("test_key") == "value2"
 
     def test_variable_update_fails_on_non_metastore_variable(self, session):
         with mock.patch.dict("os.environ", AIRFLOW_VAR_KEY="env-value"):
@@ -175,7 +175,7 @@ class TestVariable:
         test_key = "test_key"
         Variable.set(key=test_key, value=test_value, session=session)
         Variable.set(key=test_key, value="", session=session)
-        assert "" == Variable.get("test_key")
+        assert Variable.get("test_key") == ""
 
     def test_get_non_existing_var_should_return_default(self):
         default_value = "some default val"

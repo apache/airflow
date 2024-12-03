@@ -387,7 +387,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         with self.dag_non_serialized:
             do_run()
-            assert ["some_name"] == self.dag_non_serialized.task_ids
+            assert self.dag_non_serialized.task_ids == ["some_name"]
 
     def test_multiple_calls(self):
         """Test calling task multiple times in a DAG"""
@@ -398,10 +398,10 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         with self.dag_non_serialized:
             do_run()
-            assert ["do_run"] == self.dag_non_serialized.task_ids
+            assert self.dag_non_serialized.task_ids == ["do_run"]
             do_run_1 = do_run()
             do_run_2 = do_run()
-            assert ["do_run", "do_run__1", "do_run__2"] == self.dag_non_serialized.task_ids
+            assert self.dag_non_serialized.task_ids == ["do_run", "do_run__1", "do_run__2"]
 
         assert do_run_1.operator.task_id == "do_run__1"
         assert do_run_2.operator.task_id == "do_run__2"
@@ -975,12 +975,13 @@ def test_task_decorator_asset(dag_maker, session):
 
     result = None
     uri = "s3://bucket/name"
+    asset_name = "test_asset"
 
     with dag_maker(session=session) as dag:
 
         @dag.task()
         def up1() -> Asset:
-            return Asset(uri)
+            return Asset(uri=uri, name=asset_name)
 
         @dag.task()
         def up2(src: Asset) -> str:

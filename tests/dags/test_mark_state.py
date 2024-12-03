@@ -79,7 +79,7 @@ def check_failure(context):
 
 
 def test_mark_failure_externally(ti):
-    assert State.RUNNING == ti.state
+    assert ti.state == State.RUNNING
     with create_session() as session:
         ti.log.info("Marking TI as failed 'externally'")
         ti.state = State.FAILED
@@ -100,7 +100,7 @@ PythonOperator(
 
 
 def test_mark_skipped_externally(ti):
-    assert State.RUNNING == ti.state
+    assert ti.state == State.RUNNING
     sleep(0.1)  # for timeout
     with create_session() as session:
         ti.log.info("Marking TI as failed 'externally'")

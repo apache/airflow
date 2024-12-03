@@ -160,12 +160,12 @@ class TestGetConnection(TestConnectionEndpoint):
             "/api/v1/connections/invalid-connection", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "The Connection with connection_id: `invalid-connection` was not found",
             "status": 404,
             "title": "Connection not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get("/api/v1/connections/test-connection-id")
@@ -506,12 +506,12 @@ class TestPatchConnection(TestConnectionEndpoint):
             "/api/v1/connections/test-connection-id", json=payload, environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 404
-        assert {
+        assert response.json == {
             "detail": "The Connection with connection_id: `test-connection-id` was not found",
             "status": 404,
             "title": "Connection not found",
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     def test_should_raises_401_unauthenticated(self, session):
         self._create_connection(session)

@@ -89,13 +89,13 @@ class TestOperatorHelpers:
             mock_method.return_value = {"airflow_cluster": [1, 2]}
             with pytest.raises(TypeError) as error:
                 operator_helpers.context_to_airflow_vars(self.context)
-            assert "value of key <airflow_cluster> must be string, not <class 'list'>" == str(error.value)
+            assert str(error.value) == "value of key <airflow_cluster> must be string, not <class 'list'>"
 
         with mock.patch("airflow.settings.get_airflow_context_vars") as mock_method:
             mock_method.return_value = {1: "value"}
             with pytest.raises(TypeError) as error:
                 operator_helpers.context_to_airflow_vars(self.context)
-            assert "key <1> must be string" == str(error.value)
+            assert str(error.value) == "key <1> must be string"
 
 
 def callable1(ds_nodash):

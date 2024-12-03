@@ -38,5 +38,5 @@ class TestGitSSHKeySecret:
             show_only=["templates/secrets/git-ssh-key-secret.yaml"],
         )
 
-        assert "release-name-ssh-secret" == jmespath.search("metadata.name", docs[0])
-        assert "Y205dElHbHpJSFJvWlNCcmFXNW4=" == jmespath.search("data.gitSshKey", docs[0])
+        assert jmespath.search("metadata.name", docs[0]) == "release-name-ssh-secret"
+        assert jmespath.search("data.gitSshKey", docs[0]) == "Y205dElHbHpJSFJvWlNCcmFXNW4="

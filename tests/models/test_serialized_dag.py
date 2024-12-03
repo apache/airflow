@@ -243,16 +243,16 @@ class TestSerializedDagModel:
                 dag_id="example",
                 start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
                 schedule=[
-                    Asset("1"),
-                    Asset("2"),
-                    Asset("3"),
-                    Asset("4"),
-                    Asset("5"),
+                    Asset(uri="test://asset1", name="1"),
+                    Asset(uri="test://asset2", name="2"),
+                    Asset(uri="test://asset3", name="3"),
+                    Asset(uri="test://asset4", name="4"),
+                    Asset(uri="test://asset5", name="5"),
                 ],
             ) as dag6:
                 BashOperator(
                     task_id="any",
-                    outlets=[Asset("0*"), Asset("6*")],
+                    outlets=[Asset(uri="test://asset0", name="0*"), Asset(uri="test://asset6", name="6*")],
                     bash_command="sleep 5",
                 )
             deps_order = [x["dependency_id"] for x in SerializedDAG.serialize_dag(dag6)["dag_dependencies"]]
