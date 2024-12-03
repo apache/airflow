@@ -98,25 +98,25 @@ def test_home_dags_count(render_template_mock, admin_client, _working_dags, sess
 def test_home_status_filter_cookie(admin_client):
     with admin_client:
         admin_client.get("home", follow_redirects=True)
-        assert "all" == flask.session[FILTER_STATUS_COOKIE]
+        assert flask.session[FILTER_STATUS_COOKIE] == "all"
 
         admin_client.get("home?status=active", follow_redirects=True)
-        assert "active" == flask.session[FILTER_STATUS_COOKIE]
+        assert flask.session[FILTER_STATUS_COOKIE] == "active"
 
         admin_client.get("home?status=paused", follow_redirects=True)
-        assert "paused" == flask.session[FILTER_STATUS_COOKIE]
+        assert flask.session[FILTER_STATUS_COOKIE] == "paused"
 
         admin_client.get("home?status=all", follow_redirects=True)
-        assert "all" == flask.session[FILTER_STATUS_COOKIE]
+        assert flask.session[FILTER_STATUS_COOKIE] == "all"
 
         admin_client.get("home?lastrun=running", follow_redirects=True)
-        assert "running" == flask.session[FILTER_LASTRUN_COOKIE]
+        assert flask.session[FILTER_LASTRUN_COOKIE] == "running"
 
         admin_client.get("home?lastrun=failed", follow_redirects=True)
-        assert "failed" == flask.session[FILTER_LASTRUN_COOKIE]
+        assert flask.session[FILTER_LASTRUN_COOKIE] == "failed"
 
         admin_client.get("home?lastrun=all_states", follow_redirects=True)
-        assert "all_states" == flask.session[FILTER_LASTRUN_COOKIE]
+        assert flask.session[FILTER_LASTRUN_COOKIE] == "all_states"
 
 
 @pytest.fixture(scope="module")
@@ -283,7 +283,7 @@ def _broken_dags_after_working(tmp_path):
 def test_home_filter_tags(_working_dags, admin_client):
     with admin_client:
         admin_client.get("home?tags=example&tags=data", follow_redirects=True)
-        assert "example,data" == flask.session[FILTER_TAGS_COOKIE]
+        assert flask.session[FILTER_TAGS_COOKIE] == "example,data"
 
         admin_client.get("home?reset_tags", follow_redirects=True)
         assert flask.session[FILTER_TAGS_COOKIE] is None

@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
-from typing import TYPE_CHECKING, Iterable, List, Optional
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 from pydantic import BaseModel as BaseModelPydantic, ConfigDict
@@ -31,7 +32,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.jobs.scheduler_job_runner import TI
-    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.utils.state import TaskInstanceState
 
 
@@ -56,7 +56,7 @@ class DagRunPydantic(BaseModelPydantic):
     dag_version_id: Optional[UUID]
     updated_at: Optional[datetime]
     dag: Optional[PydanticDag]
-    consumed_asset_events: List[AssetEventPydantic]  # noqa: UP006
+    consumed_asset_events: list[AssetEventPydantic]
     log_template_id: Optional[int]
     triggered_by: Optional[DagRunTriggeredByType]
 
@@ -88,7 +88,7 @@ class DagRunPydantic(BaseModelPydantic):
         session: Session,
         *,
         map_index: int = -1,
-    ) -> TI | TaskInstancePydantic | None:
+    ) -> TI | None:
         """
         Return the task instance specified by task_id for this dag run.
 

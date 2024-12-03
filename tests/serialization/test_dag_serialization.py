@@ -24,16 +24,19 @@ import dataclasses
 import importlib
 import importlib.util
 import json
+import logging
+import logging.config
 import multiprocessing
 import os
 import pickle
 import re
 import sys
+from collections.abc import Generator
 from datetime import datetime, timedelta, timezone as dt_timezone
 from glob import glob
 from pathlib import Path
 from textwrap import dedent
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING
 from unittest import mock
 
 import attr
@@ -43,6 +46,7 @@ from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
 
 import airflow
+from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.decorators import teardown
 from airflow.decorators.base import DecoratedOperator
 from airflow.exceptions import (
@@ -84,7 +88,12 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 from tests_common.test_utils.compat import BaseOperatorLink
-from tests_common.test_utils.mock_operators import AirflowLink2, CustomOperator, GoogleLink, MockOperator
+from tests_common.test_utils.mock_operators import (
+    AirflowLink2,
+    CustomOperator,
+    GoogleLink,
+    MockOperator,
+)
 from tests_common.test_utils.timetables import (
     CustomSerializationTimetable,
     cron_timetable,
@@ -101,7 +110,10 @@ executor_config_pod = k8s.V1Pod(
     metadata=k8s.V1ObjectMeta(name="my-name"),
     spec=k8s.V1PodSpec(
         containers=[
-            k8s.V1Container(name="base", volume_mounts=[k8s.V1VolumeMount(name="my-vol", mount_path="/vol/")])
+            k8s.V1Container(
+                name="base",
+                volume_mounts=[k8s.V1VolumeMount(name="my-vol", mount_path="/vol/")],
+            )
         ]
     ),
 )
@@ -129,7 +141,10 @@ serialized_simple_dag_ground_truth = {
         "task_group": {
             "_group_id": None,
             "prefix_group_id": True,
-            "children": {"bash_task": ("operator", "bash_task"), "custom_task": ("operator", "custom_task")},
+            "children": {
+                "bash_task": ("operator", "bash_task"),
+                "custom_task": ("operator", "custom_task"),
+            },
             "tooltip": "",
             "ui_color": "CornflowerBlue",
             "ui_fgcolor": "#000",
@@ -157,7 +172,10 @@ serialized_simple_dag_ground_truth = {
                     "ui_fgcolor": "#000",
                     "template_ext": [".sh", ".bash"],
                     "template_fields": ["bash_command", "env", "cwd"],
-                    "template_fields_renderers": {"bash_command": "bash", "env": "json"},
+                    "template_fields_renderers": {
+                        "bash_command": "bash",
+                        "env": "json",
+                    },
                     "bash_command": "echo {{ task.task_id }}",
                     "task_type": "BashOperator",
                     "_task_module": "airflow.providers.standard.operators.bash",
@@ -219,7 +237,10 @@ serialized_simple_dag_ground_truth = {
                     "__var": {
                         "DAGs": {
                             "__type": "set",
-                            "__var": [permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT],
+                            "__var": [
+                                permissions.ACTION_CAN_READ,
+                                permissions.ACTION_CAN_EDIT,
+                            ],
                         }
                     },
                 }
@@ -377,6 +398,9 @@ def timetable_plugin(monkeypatch):
 class TestStringifiedDAGs:
     """Unit tests for stringified DAGs."""
 
+    def setup_method(self):
+        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
+
     @pytest.fixture(autouse=True)
     def setup_test_cases(self):
         with mock.patch.object(BaseHook, "get_connection") as m:
@@ -455,7 +479,10 @@ class TestStringifiedDAGs:
         serialized_dag = SerializedDAG.to_dict(dag)
         SerializedDAG.validate_schema(serialized_dag)
 
-        assert serialized_dag["dag"]["access_control"] == {"__type": "dict", "__var": {}}
+        assert serialized_dag["dag"]["access_control"] == {
+            "__type": "dict",
+            "__var": {},
+        }
 
     @pytest.mark.db_test
     def test_dag_serialization_unregistered_custom_timetable(self):
@@ -683,14 +710,21 @@ class TestStringifiedDAGs:
             default_partial_kwargs = (
                 BaseOperator.partial(task_id="_")._expand(EXPAND_INPUT_EMPTY, strict=False).partial_kwargs
             )
-            serialized_partial_kwargs = {**default_partial_kwargs, **serialized_task.partial_kwargs}
+            serialized_partial_kwargs = {
+                **default_partial_kwargs,
+                **serialized_task.partial_kwargs,
+            }
             original_partial_kwargs = {**default_partial_kwargs, **task.partial_kwargs}
             assert serialized_partial_kwargs == original_partial_kwargs
 
     @pytest.mark.parametrize(
         "dag_start_date, task_start_date, expected_task_start_date",
         [
-            (datetime(2019, 8, 1, tzinfo=timezone.utc), None, datetime(2019, 8, 1, tzinfo=timezone.utc)),
+            (
+                datetime(2019, 8, 1, tzinfo=timezone.utc),
+                None,
+                datetime(2019, 8, 1, tzinfo=timezone.utc),
+            ),
             (
                 datetime(2019, 8, 1, tzinfo=timezone.utc),
                 datetime(2019, 8, 2, tzinfo=timezone.utc),
@@ -742,7 +776,11 @@ class TestStringifiedDAGs:
     @pytest.mark.parametrize(
         "dag_end_date, task_end_date, expected_task_end_date",
         [
-            (datetime(2019, 8, 1, tzinfo=timezone.utc), None, datetime(2019, 8, 1, tzinfo=timezone.utc)),
+            (
+                datetime(2019, 8, 1, tzinfo=timezone.utc),
+                None,
+                datetime(2019, 8, 1, tzinfo=timezone.utc),
+            ),
             (
                 datetime(2019, 8, 1, tzinfo=timezone.utc),
                 datetime(2019, 8, 2, tzinfo=timezone.utc),
@@ -756,7 +794,12 @@ class TestStringifiedDAGs:
         ],
     )
     def test_deserialization_end_date(self, dag_end_date, task_end_date, expected_task_end_date):
-        dag = DAG(dag_id="simple_dag", schedule=None, start_date=datetime(2019, 8, 1), end_date=dag_end_date)
+        dag = DAG(
+            dag_id="simple_dag",
+            schedule=None,
+            start_date=datetime(2019, 8, 1),
+            end_date=dag_end_date,
+        )
         BaseOperator(task_id="simple_task", dag=dag, end_date=task_end_date)
 
         serialized_dag = SerializedDAG.to_dict(dag)
@@ -774,7 +817,10 @@ class TestStringifiedDAGs:
     @pytest.mark.parametrize(
         "serialized_timetable, expected_timetable",
         [
-            ({"__type": "airflow.timetables.simple.NullTimetable", "__var": {}}, NullTimetable()),
+            (
+                {"__type": "airflow.timetables.simple.NullTimetable", "__var": {}},
+                NullTimetable(),
+            ),
             (
                 {
                     "__type": "airflow.timetables.interval.CronDataIntervalTimetable",
@@ -782,7 +828,10 @@ class TestStringifiedDAGs:
                 },
                 cron_timetable("0 0 * * 0"),
             ),
-            ({"__type": "airflow.timetables.simple.OnceTimetable", "__var": {}}, OnceTimetable()),
+            (
+                {"__type": "airflow.timetables.simple.OnceTimetable", "__var": {}},
+                OnceTimetable(),
+            ),
             (
                 {
                     "__type": "airflow.timetables.interval.DeltaDataIntervalTimetable",
@@ -841,12 +890,24 @@ class TestStringifiedDAGs:
     @pytest.mark.parametrize(
         "val, expected",
         [
-            (relativedelta(days=-1), {"__type": "relativedelta", "__var": {"days": -1}}),
-            (relativedelta(month=1, days=-1), {"__type": "relativedelta", "__var": {"month": 1, "days": -1}}),
+            (
+                relativedelta(days=-1),
+                {"__type": "relativedelta", "__var": {"days": -1}},
+            ),
+            (
+                relativedelta(month=1, days=-1),
+                {"__type": "relativedelta", "__var": {"month": 1, "days": -1}},
+            ),
             # Every friday
-            (relativedelta(weekday=FR), {"__type": "relativedelta", "__var": {"weekday": [4]}}),
+            (
+                relativedelta(weekday=FR),
+                {"__type": "relativedelta", "__var": {"weekday": [4]}},
+            ),
             # Every second friday
-            (relativedelta(weekday=FR(2)), {"__type": "relativedelta", "__var": {"weekday": [4, 2]}}),
+            (
+                relativedelta(weekday=FR(2)),
+                {"__type": "relativedelta", "__var": {"weekday": [4, 2]}},
+            ),
         ],
     )
     def test_roundtrip_relativedelta(self, val, expected):
@@ -906,7 +967,11 @@ class TestStringifiedDAGs:
                 schema = {"type": "string", "pattern": r"s3:\/\/(.+?)\/(.+)"}
                 super().__init__(default=path, schema=schema)
 
-        dag = DAG(dag_id="simple_dag", schedule=None, params={"path": S3Param("s3://my_bucket/my_path")})
+        dag = DAG(
+            dag_id="simple_dag",
+            schedule=None,
+            params={"path": S3Param("s3://my_bucket/my_path")},
+        )
 
         with pytest.raises(SerializationError):
             SerializedDAG.to_dict(dag)
@@ -961,11 +1026,21 @@ class TestStringifiedDAGs:
         dag = DAG(dag_id="simple_dag", schedule=None)
         if expected_val == ParamValidationError:
             with pytest.raises(ParamValidationError):
-                BaseOperator(task_id="simple_task", dag=dag, params=val, start_date=datetime(2019, 8, 1))
+                BaseOperator(
+                    task_id="simple_task",
+                    dag=dag,
+                    params=val,
+                    start_date=datetime(2019, 8, 1),
+                )
             # further tests not relevant
             return
         else:
-            BaseOperator(task_id="simple_task", dag=dag, params=val, start_date=datetime(2019, 8, 1))
+            BaseOperator(
+                task_id="simple_task",
+                dag=dag,
+                params=val,
+                start_date=datetime(2019, 8, 1),
+            )
             serialized_dag = SerializedDAG.to_dict(dag)
             deserialized_dag = SerializedDAG.from_dict(serialized_dag)
 
@@ -1057,13 +1132,16 @@ class TestStringifiedDAGs:
 
         # Test Deserialized link registered via Airflow Plugin
         link = simple_task.get_extra_links(ti, GoogleLink.name)
-        assert "https://www.google.com" == link
+        assert link == "https://www.google.com"
 
     @pytest.mark.usefixtures("clear_all_logger_handlers")
-    def test_extra_operator_links_logs_error_for_non_registered_extra_links(self, caplog):
+    def test_extra_operator_links_logs_error_for_non_registered_extra_links(self):
         """
         Assert OperatorLinks not registered via Plugins and if it is not an inbuilt Operator Link,
-        it can still deserialize the DAG (does not error) but just logs an error
+        it can still deserialize the DAG (does not error) but just logs an error.
+
+        We test NOT using caplog as this is flaky, we check that the task after deserialize
+        is missing the extra links.
         """
 
         class TaskStateLink(BaseOperatorLink):
@@ -1087,13 +1165,8 @@ class TestStringifiedDAGs:
 
         serialized_dag = SerializedDAG.to_dict(dag)
 
-        with caplog.at_level("ERROR", logger="airflow.serialization.serialized_objects"):
-            SerializedDAG.from_dict(serialized_dag)
-
-        expected_err_msg = (
-            "Operator Link class 'tests.serialization.test_dag_serialization.TaskStateLink' not registered"
-        )
-        assert expected_err_msg in caplog.text
+        sdag = SerializedDAG.from_dict(serialized_dag)
+        assert sdag.task_dict["blah"].operator_extra_links == []
 
     class ClassWithCustomAttributes:
         """
@@ -1125,10 +1198,19 @@ class TestStringifiedDAGs:
             ("{{ task.task_id }}", "{{ task.task_id }}"),
             (["{{ task.task_id }}", "{{ task.task_id }}"]),
             ({"foo": "{{ task.task_id }}"}, {"foo": "{{ task.task_id }}"}),
-            ({"foo": {"bar": "{{ task.task_id }}"}}, {"foo": {"bar": "{{ task.task_id }}"}}),
             (
-                [{"foo1": {"bar": "{{ task.task_id }}"}}, {"foo2": {"bar": "{{ task.task_id }}"}}],
-                [{"foo1": {"bar": "{{ task.task_id }}"}}, {"foo2": {"bar": "{{ task.task_id }}"}}],
+                {"foo": {"bar": "{{ task.task_id }}"}},
+                {"foo": {"bar": "{{ task.task_id }}"}},
+            ),
+            (
+                [
+                    {"foo1": {"bar": "{{ task.task_id }}"}},
+                    {"foo2": {"bar": "{{ task.task_id }}"}},
+                ],
+                [
+                    {"foo1": {"bar": "{{ task.task_id }}"}},
+                    {"foo2": {"bar": "{{ task.task_id }}"}},
+                ],
             ),
             (
                 {"foo": {"bar": {"{{ task.task_id }}": ["sar"]}}},
@@ -1136,7 +1218,9 @@ class TestStringifiedDAGs:
             ),
             (
                 ClassWithCustomAttributes(
-                    att1="{{ task.task_id }}", att2="{{ task.task_id }}", template_fields=["att1"]
+                    att1="{{ task.task_id }}",
+                    att2="{{ task.task_id }}",
+                    template_fields=["att1"],
                 ),
                 "ClassWithCustomAttributes("
                 "{'att1': '{{ task.task_id }}', 'att2': '{{ task.task_id }}', 'template_fields': ['att1']})",
@@ -1144,10 +1228,14 @@ class TestStringifiedDAGs:
             (
                 ClassWithCustomAttributes(
                     nested1=ClassWithCustomAttributes(
-                        att1="{{ task.task_id }}", att2="{{ task.task_id }}", template_fields=["att1"]
+                        att1="{{ task.task_id }}",
+                        att2="{{ task.task_id }}",
+                        template_fields=["att1"],
                     ),
                     nested2=ClassWithCustomAttributes(
-                        att3="{{ task.task_id }}", att4="{{ task.task_id }}", template_fields=["att3"]
+                        att3="{{ task.task_id }}",
+                        att4="{{ task.task_id }}",
+                        template_fields=["att3"],
                     ),
                     template_fields=["nested1"],
                 ),
@@ -1167,7 +1255,11 @@ class TestStringifiedDAGs:
         we want check that non-"basic" objects are turned in to strings after deserializing.
         """
 
-        dag = DAG("test_serialized_template_fields", schedule=None, start_date=datetime(2019, 8, 1))
+        dag = DAG(
+            "test_serialized_template_fields",
+            schedule=None,
+            start_date=datetime(2019, 8, 1),
+        )
         with dag:
             BashOperator(task_id="test", bash_command=templated_field)
 
@@ -1405,7 +1497,11 @@ class TestStringifiedDAGs:
         """
 
         logical_date = datetime(2020, 1, 1)
-        with DAG("test_task_group_setup_teardown_tasks", schedule=None, start_date=logical_date) as dag:
+        with DAG(
+            "test_task_group_setup_teardown_tasks",
+            schedule=None,
+            start_date=logical_date,
+        ) as dag:
             EmptyOperator(task_id="setup").as_setup()
             EmptyOperator(task_id="teardown").as_teardown()
 
@@ -1506,7 +1602,7 @@ class TestStringifiedDAGs:
         Tests serialize_operator, make sure the deps is in order
         """
         from airflow.operators.empty import EmptyOperator
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
         logical_date = datetime(2020, 1, 1)
         with DAG(dag_id="test_deps_sorted", schedule=None, start_date=logical_date) as dag:
@@ -1575,7 +1671,11 @@ class TestStringifiedDAGs:
             deps = frozenset([*BaseOperator.deps, CustomTestTriggerRule()])
 
         logical_date = datetime(2020, 1, 1)
-        with DAG(dag_id="test_serialize_custom_ti_deps", schedule=None, start_date=logical_date) as dag:
+        with DAG(
+            dag_id="test_serialize_custom_ti_deps",
+            schedule=None,
+            start_date=logical_date,
+        ) as dag:
             DummyTask(task_id="task1")
 
         serialize_op = SerializedBaseOperator.serialize_operator(dag.task_dict["task1"])
@@ -1616,12 +1716,13 @@ class TestStringifiedDAGs:
         assert round_tripped.outlets == []
 
     @pytest.mark.db_test
-    def test_derived_dag_deps_sensor(self):
+    @pytest.mark.parametrize("mapped", [False, True])
+    def test_derived_dag_deps_sensor(self, mapped):
         """
         Tests DAG dependency detection for sensors, including derived classes
         """
         from airflow.operators.empty import EmptyOperator
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
         class DerivedSensor(ExternalTaskSensor):
             pass
@@ -1629,11 +1730,19 @@ class TestStringifiedDAGs:
         logical_date = datetime(2020, 1, 1)
         for class_ in [ExternalTaskSensor, DerivedSensor]:
             with DAG(dag_id="test_derived_dag_deps_sensor", schedule=None, start_date=logical_date) as dag:
-                task1 = class_(
-                    task_id="task1",
-                    external_dag_id="external_dag_id",
-                    mode="reschedule",
-                )
+                if mapped:
+                    task1 = class_.partial(
+                        task_id="task1",
+                        external_dag_id="external_dag_id",
+                        mode="reschedule",
+                    ).expand(external_task_id=["some_task", "some_other_task"])
+                else:
+                    task1 = class_(
+                        task_id="task1",
+                        external_dag_id="external_dag_id",
+                        mode="reschedule",
+                    )
+
                 task2 = EmptyOperator(task_id="task2")
                 task1 >> task2
 
@@ -1652,22 +1761,28 @@ class TestStringifiedDAGs:
         """
         Check that dag_dependencies node is populated correctly for a DAG with duplicate assets.
         """
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
-        d1 = Asset("d1")
-        d2 = Asset("d2")
-        d3 = Asset("d3")
-        d4 = Asset("d4")
+        asset1 = Asset(name="asset1", uri="test://asset1")
+        asset2 = Asset(name="asset2", uri="test://asset2")
+        asset3 = Asset(name="asset3", uri="test://asset3")
+        asset4 = Asset(name="asset4", uri="test://asset4")
         logical_date = datetime(2020, 1, 1)
-        with DAG(dag_id="test", start_date=logical_date, schedule=[d1, d1, d1, d1, d1]) as dag:
+        with DAG(
+            dag_id="test", start_date=logical_date, schedule=[asset1, asset1, asset1, asset1, asset1]
+        ) as dag:
             ExternalTaskSensor(
                 task_id="task1",
                 external_dag_id="external_dag_id",
                 mode="reschedule",
             )
-            BashOperator(task_id="asset_writer", bash_command="echo hello", outlets=[d2, d2, d2, d3])
+            BashOperator(
+                task_id="asset_writer",
+                bash_command="echo hello",
+                outlets=[asset2, asset2, asset2, asset3],
+            )
 
-            @dag.task(outlets=[d4])
+            @dag.task(outlets=[asset4])
             def other_asset_writer(x):
                 pass
 
@@ -1681,7 +1796,7 @@ class TestStringifiedDAGs:
                     "source": "test",
                     "target": "asset",
                     "dependency_type": "asset",
-                    "dependency_id": "d4",
+                    "dependency_id": "asset4",
                 },
                 {
                     "source": "external_dag_id",
@@ -1693,40 +1808,40 @@ class TestStringifiedDAGs:
                     "source": "test",
                     "target": "asset",
                     "dependency_type": "asset",
-                    "dependency_id": "d3",
+                    "dependency_id": "asset3",
                 },
                 {
                     "source": "test",
                     "target": "asset",
                     "dependency_type": "asset",
-                    "dependency_id": "d2",
+                    "dependency_id": "asset2",
                 },
                 {
                     "source": "asset",
                     "target": "test",
                     "dependency_type": "asset",
-                    "dependency_id": "d1",
+                    "dependency_id": "asset1",
                 },
                 {
-                    "dependency_id": "d1",
+                    "dependency_id": "asset1",
                     "dependency_type": "asset",
                     "source": "asset",
                     "target": "test",
                 },
                 {
-                    "dependency_id": "d1",
+                    "dependency_id": "asset1",
                     "dependency_type": "asset",
                     "source": "asset",
                     "target": "test",
                 },
                 {
-                    "dependency_id": "d1",
+                    "dependency_id": "asset1",
                     "dependency_type": "asset",
                     "source": "asset",
                     "target": "test",
                 },
                 {
-                    "dependency_id": "d1",
+                    "dependency_id": "asset1",
                     "dependency_type": "asset",
                     "source": "asset",
                     "target": "test",
@@ -1741,22 +1856,22 @@ class TestStringifiedDAGs:
         """
         Check that dag_dependencies node is populated correctly for a DAG with assets.
         """
-        from airflow.sensors.external_task import ExternalTaskSensor
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 
-        d1 = Asset("d1")
-        d2 = Asset("d2")
-        d3 = Asset("d3")
-        d4 = Asset("d4")
+        asset1 = Asset(name="asset1", uri="test://asset1")
+        asset2 = Asset(name="asset2", uri="test://asset2")
+        asset3 = Asset(name="asset3", uri="test://asset3")
+        asset4 = Asset(name="asset4", uri="test://asset4")
         logical_date = datetime(2020, 1, 1)
-        with DAG(dag_id="test", start_date=logical_date, schedule=[d1]) as dag:
+        with DAG(dag_id="test", start_date=logical_date, schedule=[asset1]) as dag:
             ExternalTaskSensor(
                 task_id="task1",
                 external_dag_id="external_dag_id",
                 mode="reschedule",
             )
-            BashOperator(task_id="asset_writer", bash_command="echo hello", outlets=[d2, d3])
+            BashOperator(task_id="asset_writer", bash_command="echo hello", outlets=[asset2, asset3])
 
-            @dag.task(outlets=[d4])
+            @dag.task(outlets=[asset4])
             def other_asset_writer(x):
                 pass
 
@@ -1770,7 +1885,7 @@ class TestStringifiedDAGs:
                     "source": "test",
                     "target": "asset",
                     "dependency_type": "asset",
-                    "dependency_id": "d4",
+                    "dependency_id": "asset4",
                 },
                 {
                     "source": "external_dag_id",
@@ -1782,43 +1897,56 @@ class TestStringifiedDAGs:
                     "source": "test",
                     "target": "asset",
                     "dependency_type": "asset",
-                    "dependency_id": "d3",
+                    "dependency_id": "asset3",
                 },
                 {
                     "source": "test",
                     "target": "asset",
                     "dependency_type": "asset",
-                    "dependency_id": "d2",
+                    "dependency_id": "asset2",
                 },
                 {
                     "source": "asset",
                     "target": "test",
                     "dependency_type": "asset",
-                    "dependency_id": "d1",
+                    "dependency_id": "asset1",
                 },
             ],
             key=lambda x: tuple(x.values()),
         )
         assert actual == expected
 
-    def test_derived_dag_deps_operator(self):
+    @pytest.mark.parametrize("mapped", [False, True])
+    def test_derived_dag_deps_operator(self, mapped):
         """
         Tests DAG dependency detection for operators, including derived classes
         """
         from airflow.operators.empty import EmptyOperator
-        from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
+        from airflow.providers.standard.operators.trigger_dagrun import (
+            TriggerDagRunOperator,
+        )
 
         class DerivedOperator(TriggerDagRunOperator):
             pass
 
         logical_date = datetime(2020, 1, 1)
         for class_ in [TriggerDagRunOperator, DerivedOperator]:
-            with DAG(dag_id="test_derived_dag_deps_trigger", schedule=None, start_date=logical_date) as dag:
+            with DAG(
+                dag_id="test_derived_dag_deps_trigger",
+                schedule=None,
+                start_date=logical_date,
+            ) as dag:
                 task1 = EmptyOperator(task_id="task1")
-                task2 = class_(
-                    task_id="task2",
-                    trigger_dag_id="trigger_dag_id",
-                )
+                if mapped:
+                    task2 = class_.partial(
+                        task_id="task2",
+                        trigger_dag_id="trigger_dag_id",
+                    ).expand(trigger_run_id=["one", "two"])
+                else:
+                    task2 = class_(
+                        task_id="task2",
+                        trigger_dag_id="trigger_dag_id",
+                    )
                 task1 >> task2
 
             dag = SerializedDAG.to_dict(dag)
@@ -1891,7 +2019,10 @@ class TestStringifiedDAGs:
         assert upstream_group_ids == ["task_group_up1", "task_group_up2"]
 
         upstream_task_ids = task_group_middle_dict["upstream_task_ids"]
-        assert upstream_task_ids == ["task_group_up1.task_up1", "task_group_up2.task_up2"]
+        assert upstream_task_ids == [
+            "task_group_up1.task_up1",
+            "task_group_up2.task_up2",
+        ]
 
         downstream_group_ids = task_group_middle_dict["downstream_group_ids"]
         assert downstream_group_ids == ["task_group_down1", "task_group_down2"]
@@ -1909,7 +2040,11 @@ class TestStringifiedDAGs:
         from airflow.operators.empty import EmptyOperator
         from airflow.utils.edgemodifier import Label
 
-        with DAG("test_edge_info_serialization", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
+        with DAG(
+            "test_edge_info_serialization",
+            schedule=None,
+            start_date=datetime(2020, 1, 1),
+        ) as dag:
             task1 = EmptyOperator(task_id="task1")
             task2 = EmptyOperator(task_id="task2")
             task1 >> Label("test label") >> task2
@@ -2003,7 +2138,11 @@ class TestStringifiedDAGs:
         When the callback is not set, has_on_failure_callback should not be stored in Serialized blob
         and so default to False on de-serialization
         """
-        dag = DAG(dag_id="test_dag_on_failure_callback_roundtrip", schedule=None, **passed_failure_callback)
+        dag = DAG(
+            dag_id="test_dag_on_failure_callback_roundtrip",
+            schedule=None,
+            **passed_failure_callback,
+        )
         BaseOperator(task_id="simple_task", dag=dag, start_date=datetime(2019, 8, 1))
 
         serialized_dag = SerializedDAG.to_dict(dag)
@@ -2095,7 +2234,12 @@ class TestStringifiedDAGs:
                 "fileloc": "/path/to/file.py",
                 "tasks": [],
                 "timezone": "UTC",
-                "params": {"my_param": {"__class": "airflow.models.param.Param", "default": "str"}},
+                "params": {
+                    "my_param": {
+                        "__class": "airflow.models.param.Param",
+                        "default": "str",
+                    }
+                },
             },
         }
         dag = SerializedDAG.from_dict(serialized)
@@ -2199,7 +2343,7 @@ class TestStringifiedDAGs:
 
         class TestOperator(BaseOperator):
             start_trigger_args = StartTriggerArgs(
-                trigger_cls="airflow.triggers.temporal.TimeDeltaTrigger",
+                trigger_cls="airflow.providers.standard.triggers.temporal.TimeDeltaTrigger",
                 trigger_kwargs={"delta": timedelta(seconds=1)},
                 next_method="execute_complete",
                 next_kwargs=None,
@@ -2242,9 +2386,12 @@ class TestStringifiedDAGs:
 
         assert tasks[0]["__var"]["start_trigger_args"] == {
             "__type": "START_TRIGGER_ARGS",
-            "trigger_cls": "airflow.triggers.temporal.TimeDeltaTrigger",
+            "trigger_cls": "airflow.providers.standard.triggers.temporal.TimeDeltaTrigger",
             # "trigger_kwargs": {"__type": "dict", "__var": {"delta": {"__type": "timedelta", "__var": 2.0}}},
-            "trigger_kwargs": {"__type": "dict", "__var": {"delta": {"__type": "timedelta", "__var": 2.0}}},
+            "trigger_kwargs": {
+                "__type": "dict",
+                "__var": {"delta": {"__type": "timedelta", "__var": 2.0}},
+            },
             "next_method": "execute_complete",
             "next_kwargs": None,
             "timeout": None,
@@ -2379,7 +2526,12 @@ def test_operator_expand_xcomarg_serde():
             "type": "dict-of-lists",
             "value": {
                 "__type": "dict",
-                "__var": {"arg2": {"__type": "xcomref", "__var": {"task_id": "op1", "key": "return_value"}}},
+                "__var": {
+                    "arg2": {
+                        "__type": "xcomref",
+                        "__var": {"task_id": "op1", "key": "return_value"},
+                    }
+                },
             },
         },
         "partial_kwargs": {},
@@ -2436,7 +2588,12 @@ def test_operator_expand_kwargs_literal_serde(strict):
                 {"__type": "dict", "__var": {"a": "x"}},
                 {
                     "__type": "dict",
-                    "__var": {"a": {"__type": "xcomref", "__var": {"task_id": "op1", "key": "return_value"}}},
+                    "__var": {
+                        "a": {
+                            "__type": "xcomref",
+                            "__var": {"task_id": "op1", "key": "return_value"},
+                        }
+                    },
                 },
             ],
         },
@@ -2460,12 +2617,18 @@ def test_operator_expand_kwargs_literal_serde(strict):
 
     # The XComArg can't be deserialized before the DAG is.
     expand_value = op.expand_input.value
-    assert expand_value == [{"a": "x"}, {"a": _XComRef({"task_id": "op1", "key": XCOM_RETURN_KEY})}]
+    assert expand_value == [
+        {"a": "x"},
+        {"a": _XComRef({"task_id": "op1", "key": XCOM_RETURN_KEY})},
+    ]
 
     serialized_dag: DAG = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
     resolved_expand_value = serialized_dag.task_dict["task_2"].expand_input.value
-    resolved_expand_value == [{"a": "x"}, {"a": PlainXComArg(serialized_dag.task_dict["op1"])}]
+    resolved_expand_value == [
+        {"a": "x"},
+        {"a": PlainXComArg(serialized_dag.task_dict["op1"])},
+    ]
 
 
 @pytest.mark.parametrize("strict", [True, False])
@@ -2487,7 +2650,10 @@ def test_operator_expand_kwargs_xcomarg_serde(strict):
         "downstream_task_ids": [],
         "expand_input": {
             "type": "list-of-dicts",
-            "value": {"__type": "xcomref", "__var": {"task_id": "op1", "key": "return_value"}},
+            "value": {
+                "__type": "xcomref",
+                "__var": {"task_id": "op1", "key": "return_value"},
+            },
         },
         "partial_kwargs": {},
         "task_id": "task_2",
@@ -2619,7 +2785,10 @@ def test_taskflow_expand_serde():
                 "__type": "dict",
                 "__var": {
                     "arg2": {"__type": "dict", "__var": {"a": 1, "b": 2}},
-                    "arg3": {"__type": "xcomref", "__var": {"task_id": "op1", "key": "return_value"}},
+                    "arg3": {
+                        "__type": "xcomref",
+                        "__var": {"task_id": "op1", "key": "return_value"},
+                    },
                 },
             },
         },
@@ -2629,7 +2798,11 @@ def test_taskflow_expand_serde():
         "task_id": "x",
         "template_ext": [],
         "template_fields": ["templates_dict", "op_args", "op_kwargs"],
-        "template_fields_renderers": {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"},
+        "template_fields_renderers": {
+            "templates_dict": "json",
+            "op_args": "py",
+            "op_kwargs": "py",
+        },
         "_disallow_kwargs_override": False,
         "_expand_input_attr": "op_kwargs_expand_input",
         "python_callable_name": qualname(x),
@@ -2645,7 +2818,10 @@ def test_taskflow_expand_serde():
 
     assert deserialized.op_kwargs_expand_input == _ExpandInputRef(
         key="dict-of-lists",
-        value={"arg2": {"a": 1, "b": 2}, "arg3": _XComRef({"task_id": "op1", "key": XCOM_RETURN_KEY})},
+        value={
+            "arg2": {"a": 1, "b": 2},
+            "arg3": _XComRef({"task_id": "op1", "key": XCOM_RETURN_KEY}),
+        },
     )
     assert deserialized.partial_kwargs == {
         "is_setup": False,
@@ -2667,7 +2843,10 @@ def test_taskflow_expand_serde():
     pickled = pickle.loads(pickle.dumps(deserialized))
     assert pickled.op_kwargs_expand_input == _ExpandInputRef(
         key="dict-of-lists",
-        value={"arg2": {"a": 1, "b": 2}, "arg3": _XComRef({"task_id": "op1", "key": XCOM_RETURN_KEY})},
+        value={
+            "arg2": {"a": 1, "b": 2},
+            "arg3": _XComRef({"task_id": "op1", "key": XCOM_RETURN_KEY}),
+        },
     )
     assert pickled.partial_kwargs == {
         "is_setup": False,
@@ -2732,7 +2911,11 @@ def test_taskflow_expand_kwargs_serde(strict):
         "task_id": "x",
         "template_ext": [],
         "template_fields": ["templates_dict", "op_args", "op_kwargs"],
-        "template_fields_renderers": {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"},
+        "template_fields_renderers": {
+            "templates_dict": "json",
+            "op_args": "py",
+            "op_kwargs": "py",
+        },
         "_disallow_kwargs_override": strict,
         "_expand_input_attr": "op_kwargs_expand_input",
     }

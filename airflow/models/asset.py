@@ -42,7 +42,7 @@ from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
-    from typing import Sequence
+    from collections.abc import Sequence
 
     from sqlalchemy.orm import Session
 
@@ -119,7 +119,7 @@ class AssetAliasModel(Base):
             ),
             "mysql",
         ),
-        default=str,
+        default="",
         nullable=False,
     )
 

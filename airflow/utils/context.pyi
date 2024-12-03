@@ -26,7 +26,8 @@
 # declare "these are defined, but don't error if others are accessed" someday.
 from __future__ import annotations
 
-from typing import Any, Collection, Container, Iterable, Iterator, Mapping, Sequence, overload
+from collections.abc import Collection, Container, Iterable, Iterator, Mapping, Sequence
+from typing import Any, overload
 
 from pendulum import DateTime
 from sqlalchemy.orm import Session
@@ -41,7 +42,6 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetAliasEvent
 from airflow.serialization.pydantic.asset import AssetEventPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
-from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.typing_compat import TypedDict
 
 KNOWN_CONTEXT_KEYS: set[str]
@@ -117,11 +117,11 @@ class Context(TypedDict, total=False):
     reason: str | None
     run_id: str
     task: BaseOperator
-    task_instance: TaskInstance | TaskInstancePydantic
+    task_instance: TaskInstance
     task_instance_key_str: str
     test_mode: bool
     templates_dict: Mapping[str, Any] | None
-    ti: TaskInstance | TaskInstancePydantic
+    ti: TaskInstance
     triggering_asset_events: Mapping[str, Collection[AssetEvent | AssetEventPydantic]]
     ts: str
     ts_nodash: str

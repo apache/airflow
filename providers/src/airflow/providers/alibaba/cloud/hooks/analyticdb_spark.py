@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from enum import Enum
-from typing import Any, Sequence
+from typing import Any
 
 from alibabacloud_adb20211201.client import Client
 from alibabacloud_adb20211201.models import (

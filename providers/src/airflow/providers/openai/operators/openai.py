@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Literal, Sequence
+from typing import TYPE_CHECKING, Any, Literal
 
 from airflow.configuration import conf
 from airflow.models import BaseOperator

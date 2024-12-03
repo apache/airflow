@@ -45,6 +45,10 @@ TEST_CONN_PORT_2 = 8081
 TEST_CONN_LOGIN_2 = "some_login_b"
 
 
+TEST_CONN_ID_3 = "test_connection_id_3"
+TEST_CONN_TYPE_3 = "test_type_3"
+
+
 @provide_session
 def _create_connection(session) -> None:
     connection_model = Connection(
@@ -171,7 +175,7 @@ class TestGetConnections(TestConnectionEndpoint):
         self, test_client, session, query_params, expected_total_entries, expected_ids
     ):
         self.create_connections()
-        response = test_client.get("/public/connections/", params=query_params)
+        response = test_client.get("/public/connections", params=query_params)
         assert response.status_code == 200
 
         body = response.json()
@@ -199,8 +203,8 @@ class TestPostConnection(TestConnectionEndpoint):
             },
         ],
     )
-    def test_post_should_respond_200(self, test_client, session, body):
-        response = test_client.post("/public/connections/", json=body)
+    def test_post_should_respond_201(self, test_client, session, body):
+        response = test_client.post("/public/connections", json=body)
         assert response.status_code == 201
         connection = session.query(Connection).all()
         assert len(connection) == 1
@@ -214,13 +218,20 @@ class TestPostConnection(TestConnectionEndpoint):
             {"connection_id": "iam_not@#$_connection_id", "conn_type": TEST_CONN_TYPE},
         ],
     )
-    def test_post_should_respond_400_for_invalid_conn_id(self, test_client, body):
-        response = test_client.post("/public/connections/", json=body)
-        assert response.status_code == 400
-        connection_id = body["connection_id"]
+    def test_post_should_respond_422_for_invalid_conn_id(self, test_client, body):
+        response = test_client.post("/public/connections", json=body)
+        assert response.status_code == 422
+        # This regex is used for validation in ConnectionBody
         assert response.json() == {
-            "detail": f"The key '{connection_id}' has to be made of "
-            "alphanumeric characters, dashes, dots and underscores exclusively",
+            "detail": [
+                {
+                    "ctx": {"pattern": r"^[\w.-]+$"},
+                    "input": f"{body['connection_id']}",
+                    "loc": ["body", "connection_id"],
+                    "msg": "String should match pattern '^[\\w.-]+$'",
+                    "type": "string_pattern_mismatch",
+                }
+            ]
         }
 
     @pytest.mark.parametrize(
@@ -230,13 +241,13 @@ class TestPostConnection(TestConnectionEndpoint):
         ],
     )
     def test_post_should_respond_already_exist(self, test_client, body):
-        response = test_client.post("/public/connections/", json=body)
+        response = test_client.post("/public/connections", json=body)
         assert response.status_code == 201
         # Another request
-        response = test_client.post("/public/connections/", json=body)
+        response = test_client.post("/public/connections", json=body)
         assert response.status_code == 409
         assert response.json() == {
-            "detail": f"Connection with connection_id: `{TEST_CONN_ID}` already exists",
+            "detail": "Unique constraint violation",
         }
 
     @pytest.mark.enable_redact
@@ -293,7 +304,181 @@ class TestPostConnection(TestConnectionEndpoint):
         ],
     )
     def test_post_should_response_201_redacted_password(self, test_client, body, expected_response):
-        response = test_client.post("/public/connections/", json=body)
+        response = test_client.post("/public/connections", json=body)
+        assert response.status_code == 201
+        assert response.json() == expected_response
+
+
+class TestPostConnections(TestConnectionEndpoint):
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {
+                "connections": [
+                    {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE},
+                    {"connection_id": TEST_CONN_ID_2, "conn_type": TEST_CONN_TYPE_2, "extra": None},
+                ]
+            },
+            {
+                "connections": [
+                    {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE, "extra": "{}"},
+                    {
+                        "connection_id": TEST_CONN_ID_2,
+                        "conn_type": TEST_CONN_TYPE_2,
+                        "extra": '{"key": "value"}',
+                    },
+                    {
+                        "connection_id": TEST_CONN_ID_3,
+                        "conn_type": TEST_CONN_ID_3,
+                        "description": "test_description",
+                        "host": "test_host",
+                        "login": "test_login",
+                        "schema": "test_schema",
+                        "port": 8080,
+                        "extra": '{"key": "value"}',
+                    },
+                ]
+            },
+        ],
+    )
+    def test_post_should_respond_201(self, test_client, session, body):
+        response = test_client.post("/public/connections/bulk", json=body)
+        assert response.status_code == 201
+        connection = session.query(Connection).all()
+        assert len(connection) == len(body["connections"])
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {
+                "connections": [
+                    {"connection_id": "****", "conn_type": TEST_CONN_TYPE},
+                    {"connection_id": "test()", "conn_type": TEST_CONN_TYPE},
+                ]
+            },
+            {
+                "connections": [
+                    {"connection_id": "this_^$#is_invalid", "conn_type": TEST_CONN_TYPE},
+                    {"connection_id": "iam_not@#$_connection_id", "conn_type": TEST_CONN_TYPE},
+                ]
+            },
+        ],
+    )
+    def test_post_should_respond_422_for_invalid_conn_id(self, test_client, body):
+        response = test_client.post("/public/connections/bulk", json=body)
+        assert response.status_code == 422
+        expected_response_detail = [
+            {
+                "ctx": {"pattern": r"^[\w.-]+$"},
+                "input": f"{body['connections'][conn_index]['connection_id']}",
+                "loc": ["body", "connections", conn_index, "connection_id"],
+                "msg": "String should match pattern '^[\\w.-]+$'",
+                "type": "string_pattern_mismatch",
+            }
+            for conn_index in range(len(body["connections"]))
+        ]
+        assert response.json() == {"detail": expected_response_detail}
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {
+                "connections": [
+                    {"connection_id": TEST_CONN_ID, "conn_type": TEST_CONN_TYPE},
+                    {"connection_id": TEST_CONN_ID_2, "conn_type": TEST_CONN_TYPE_2, "extra": None},
+                ]
+            },
+        ],
+    )
+    def test_post_should_respond_already_exist(self, test_client, body):
+        response = test_client.post("/public/connections/bulk", json=body)
+        assert response.status_code == 201
+        # Another request
+        response = test_client.post("/public/connections/bulk", json=body)
+        assert response.status_code == 409
+        assert response.json() == {
+            "detail": "Unique constraint violation",
+        }
+
+    @pytest.mark.enable_redact
+    @pytest.mark.parametrize(
+        "body, expected_response",
+        [
+            (
+                {
+                    "connections": [
+                        {
+                            "connection_id": TEST_CONN_ID,
+                            "conn_type": TEST_CONN_TYPE,
+                            "password": "test-password",
+                        },
+                        {
+                            "connection_id": TEST_CONN_ID_2,
+                            "conn_type": TEST_CONN_TYPE_2,
+                            "password": "?>@#+!_%()#",
+                        },
+                    ]
+                },
+                {
+                    "connections": [
+                        {
+                            "connection_id": TEST_CONN_ID,
+                            "conn_type": TEST_CONN_TYPE,
+                            "description": None,
+                            "extra": None,
+                            "host": None,
+                            "login": None,
+                            "password": "***",
+                            "port": None,
+                            "schema": None,
+                        },
+                        {
+                            "connection_id": TEST_CONN_ID_2,
+                            "conn_type": TEST_CONN_TYPE_2,
+                            "description": None,
+                            "extra": None,
+                            "host": None,
+                            "login": None,
+                            "password": "***",
+                            "port": None,
+                            "schema": None,
+                        },
+                    ],
+                    "total_entries": 2,
+                },
+            ),
+            (
+                {
+                    "connections": [
+                        {
+                            "connection_id": TEST_CONN_ID,
+                            "conn_type": TEST_CONN_TYPE,
+                            "password": "A!rF|0wi$aw3s0m3",
+                            "extra": '{"password": "test-password"}',
+                        }
+                    ]
+                },
+                {
+                    "connections": [
+                        {
+                            "connection_id": TEST_CONN_ID,
+                            "conn_type": TEST_CONN_TYPE,
+                            "description": None,
+                            "extra": '{"password": "***"}',
+                            "host": None,
+                            "login": None,
+                            "password": "***",
+                            "port": None,
+                            "schema": None,
+                        },
+                    ],
+                    "total_entries": 1,
+                },
+            ),
+        ],
+    )
+    def test_post_should_response_201_redacted_password(self, test_client, body, expected_response):
+        response = test_client.post("/public/connections/bulk", json=body)
         assert response.status_code == 201
         assert response.json() == expected_response
 
@@ -465,9 +650,9 @@ class TestPatchConnection(TestConnectionEndpoint):
         response = test_client.patch(f"/public/connections/{TEST_CONN_ID}", json=body)
         assert response.status_code == 400
         print(response.json())
-        assert {
+        assert response.json() == {
             "detail": "The connection_id in the request body does not match the URL parameter",
-        } == response.json()
+        }
 
     @pytest.mark.parametrize(
         "body",
@@ -505,9 +690,9 @@ class TestPatchConnection(TestConnectionEndpoint):
     def test_patch_should_respond_404(self, test_client, body):
         response = test_client.patch(f"/public/connections/{body['connection_id']}", json=body)
         assert response.status_code == 404
-        assert {
+        assert response.json() == {
             "detail": f"The Connection with connection_id: `{body['connection_id']}` was not found",
-        } == response.json()
+        }
 
     @pytest.mark.enable_redact
     @pytest.mark.parametrize(

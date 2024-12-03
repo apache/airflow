@@ -23,6 +23,7 @@ import datetime
 import os
 import stat
 import warnings
+from collections.abc import Sequence
 from fnmatch import fnmatch
 from io import BytesIO
 from typing import TYPE_CHECKING, Any, Callable, Sequence

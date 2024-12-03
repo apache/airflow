@@ -31,7 +31,6 @@ from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONST
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
-    BASE_PROVIDERS_COMPATIBILITY_CHECKS,
     CHICKEN_EGG_PROVIDERS,
     COMMITTERS,
     CURRENT_KUBERNETES_VERSIONS,
@@ -45,6 +44,7 @@ from airflow_breeze.global_constants import (
     DISABLE_TESTABLE_INTEGRATIONS_FROM_CI,
     HELM_VERSION,
     KIND_VERSION,
+    PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     RUNS_ON_PUBLIC_RUNNER,
     RUNS_ON_SELF_HOSTED_ASF_RUNNER,
     RUNS_ON_SELF_HOSTED_RUNNER,
@@ -119,6 +119,7 @@ class FileGroupForCi(Enum):
     ALL_PROVIDER_YAML_FILES = "all_provider_yaml_files"
     ALL_DOCS_PYTHON_FILES = "all_docs_python_files"
     TESTS_UTILS_FILES = "test_utils_files"
+    ASSET_FILES = "asset_files"
 
 
 class AllProvidersSentinel:
@@ -253,6 +254,12 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^task_sdk/src/airflow/sdk/.*\.py$",
             r"^task_sdk/tests/.*\.py$",
         ],
+        FileGroupForCi.ASSET_FILES: [
+            r"^airflow/assets/",
+            r"^airflow/models/assets/",
+            r"^task_sdk/src/airflow/sdk/definitions/asset/",
+            r"^airflow/datasets/",
+        ],
     }
 )
 
@@ -284,11 +291,9 @@ TEST_TYPE_MATCHES = HashableDict(
         SelectiveCoreTestType.API: [
             r"^airflow/api/",
             r"^airflow/api_connexion/",
-            r"^airflow/api_internal/",
             r"^airflow/api_fastapi/",
             r"^tests/api/",
             r"^tests/api_connexion/",
-            r"^tests/api_internal/",
             r"^tests/api_fastapi/",
         ],
         SelectiveCoreTestType.CLI: [
@@ -697,6 +702,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.API_TEST_FILES)
 
     @cached_property
+    def needs_ol_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.ASSET_FILES)
+
+    @cached_property
     def needs_api_codegen(self) -> bool:
         return self._should_be_run(FileGroupForCi.API_CODEGEN_FILES)
 
@@ -860,7 +869,15 @@ class SelectiveChecks:
             all_providers_source_files = self._matching_files(
                 FileGroupForCi.ALL_PROVIDERS_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
             )
-            if len(all_providers_source_files) == 0 and not self.needs_api_tests:
+            assets_source_files = self._matching_files(
+                FileGroupForCi.ASSET_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            )
+
+            if (
+                len(all_providers_source_files) == 0
+                and len(assets_source_files) == 0
+                and not self.needs_api_tests
+            ):
                 # IF API tests are needed, that will trigger extra provider checks
                 return []
             else:
@@ -1308,10 +1325,10 @@ class SelectiveChecks:
         """
         return any(
             [
-                "amd" == label.lower()
-                or "amd64" == label.lower()
-                or "x64" == label.lower()
-                or "asf-runner" == label
+                label.lower() == "amd"
+                or label.lower() == "amd64"
+                or label.lower() == "x64"
+                or label == "asf-runner"
                 or ("ubuntu" in label and "arm" not in label.lower())
                 for label in json.loads(self.runs_on_as_json_public)
             ]
@@ -1328,7 +1345,7 @@ class SelectiveChecks:
         """
         return any(
             [
-                "arm" == label.lower() or "arm64" == label.lower() or "asf-arm" == label
+                label.lower() == "arm" or label.lower() == "arm64" or label == "asf-arm"
                 for label in json.loads(self.runs_on_as_json_public)
             ]
         )
@@ -1357,12 +1374,12 @@ class SelectiveChecks:
         return CHICKEN_EGG_PROVIDERS
 
     @cached_property
-    def providers_compatibility_checks(self) -> str:
-        """Provider compatibility input checks for the current run. Filter out python versions not built"""
+    def providers_compatibility_tests_matrix(self) -> str:
+        """Provider compatibility input matrix for the current run. Filter out python versions not built"""
         return json.dumps(
             [
                 check
-                for check in BASE_PROVIDERS_COMPATIBILITY_CHECKS
+                for check in PROVIDERS_COMPATIBILITY_TESTS_MATRIX
                 if check["python-version"] in self.python_versions
             ]
         )
@@ -1440,6 +1457,8 @@ class SelectiveChecks:
                     all_providers.add(provider)
         if self.needs_api_tests:
             all_providers.add("fab")
+        if self.needs_ol_tests:
+            all_providers.add("openlineage")
         if all_providers_affected:
             return ALL_PROVIDERS_SENTINEL
         if suspended_providers:
@@ -1473,6 +1492,7 @@ class SelectiveChecks:
                 )
         if not all_providers:
             return None
+
         for provider in list(all_providers):
             all_providers.update(
                 get_related_providers(provider, upstream_dependencies=True, downstream_dependencies=True)

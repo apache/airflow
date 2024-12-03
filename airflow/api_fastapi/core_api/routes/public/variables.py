@@ -20,9 +20,8 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
-from airflow.api_fastapi.common.db.common import get_session, paginated_select
+from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.variables import (
@@ -43,7 +42,7 @@ variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
 )
 def delete_variable(
     variable_key: str,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ):
     """Delete a variable entry."""
     if Variable.delete(variable_key, session) == 0:
@@ -58,7 +57,7 @@ def delete_variable(
 )
 def get_variable(
     variable_key: str,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> VariableResponse:
     """Get a variable entry."""
     variable = session.scalar(select(Variable).where(Variable.key == variable_key).limit(1))
@@ -68,7 +67,7 @@ def get_variable(
             status.HTTP_404_NOT_FOUND, f"The Variable with key: `{variable_key}` was not found"
         )
 
-    return VariableResponse.model_validate(variable, from_attributes=True)
+    return variable
 
 
 @variables_router.get(
@@ -86,11 +85,11 @@ def get_variables(
             ).dynamic_depends()
         ),
     ],
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> VariableCollectionResponse:
     """Get all Variables entries."""
     variable_select, total_entries = paginated_select(
-        select=select(Variable),
+        statement=select(Variable),
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -100,7 +99,7 @@ def get_variables(
     variables = session.scalars(variable_select)
 
     return VariableCollectionResponse(
-        variables=[VariableResponse.model_validate(variable, from_attributes=True) for variable in variables],
+        variables=variables,
         total_entries=total_entries,
     )
 
@@ -117,7 +116,7 @@ def get_variables(
 def patch_variable(
     variable_key: str,
     patch_body: VariableBody,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     update_mask: list[str] | None = Query(None),
 ) -> VariableResponse:
     """Update a variable by key."""
@@ -139,7 +138,7 @@ def patch_variable(
         data = patch_body.model_dump(exclude=non_update_fields, by_alias=True, exclude_none=True)
     for key, val in data.items():
         setattr(variable, key, val)
-    return VariableResponse.model_validate(variable, from_attributes=True)
+    return variable
 
 
 @variables_router.post(
@@ -148,11 +147,11 @@ def patch_variable(
 )
 def post_variable(
     post_body: VariableBody,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> VariableResponse:
     """Create a variable."""
     Variable.set(**post_body.model_dump(), session=session)
 
     variable = session.scalar(select(Variable).where(Variable.key == post_body.key).limit(1))
 
-    return VariableResponse.model_validate(variable, from_attributes=True)
+    return variable

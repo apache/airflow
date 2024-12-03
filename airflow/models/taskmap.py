@@ -21,7 +21,8 @@ from __future__ import annotations
 
 import collections.abc
 import enum
-from typing import TYPE_CHECKING, Any, Collection
+from collections.abc import Collection
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, String
 
@@ -30,7 +31,6 @@ from airflow.utils.sqlalchemy import ExtendedJSON
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
-    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 
 class TaskMapVariant(enum.Enum):
@@ -97,7 +97,7 @@ class TaskMap(TaskInstanceDependencies):
         self.keys = keys
 
     @classmethod
-    def from_task_instance_xcom(cls, ti: TaskInstance | TaskInstancePydantic, value: Collection) -> TaskMap:
+    def from_task_instance_xcom(cls, ti: TaskInstance, value: Collection) -> TaskMap:
         if ti.run_id is None:
             raise ValueError("cannot record task map for unrun task instance")
         return cls(

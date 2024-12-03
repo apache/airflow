@@ -967,6 +967,7 @@ LineItem
 lineterminator
 linter
 linux
+ListDatasetsPager
 ListGenerator
 ListInfoTypesResponse
 ListSecretsPager
@@ -1057,6 +1058,8 @@ moto
 mouseover
 msg
 mssql
+mTLS
+mtls
 muldelete
 Multinamespace
 mutex
@@ -1618,6 +1621,7 @@ symlinking
 symlinks
 sync'ed
 sys
+sysinfo
 syspath
 Systemd
 systemd

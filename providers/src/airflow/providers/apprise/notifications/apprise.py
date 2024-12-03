@@ -18,8 +18,8 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Iterable
 from functools import cached_property
-from typing import Iterable
 
 from apprise import AppriseConfig, NotifyFormat, NotifyType
 

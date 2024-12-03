@@ -431,8 +431,8 @@ def test_has_outlet_asset_flag(admin_client, dag_maker, session, app, monkeypatc
             lineagefile = File("/tmp/does_not_exist")
             EmptyOperator(task_id="task1")
             EmptyOperator(task_id="task2", outlets=[lineagefile])
-            EmptyOperator(task_id="task3", outlets=[Asset("foo"), lineagefile])
-            EmptyOperator(task_id="task4", outlets=[Asset("foo")])
+            EmptyOperator(task_id="task3", outlets=[Asset(name="foo", uri="s3://bucket/key"), lineagefile])
+            EmptyOperator(task_id="task4", outlets=[Asset(name="foo", uri="s3://bucket/key")])
 
         m.setattr(app, "dag_bag", dag_maker.dagbag)
         resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}", follow_redirects=True)
@@ -471,7 +471,7 @@ def test_has_outlet_asset_flag(admin_client, dag_maker, session, app, monkeypatc
 @pytest.mark.need_serialized_dag
 def test_next_run_assets(admin_client, dag_maker, session, app, monkeypatch):
     with monkeypatch.context() as m:
-        assets = [Asset(uri=f"s3://bucket/key/{i}") for i in [1, 2]]
+        assets = [Asset(uri=f"s3://bucket/key/{i}", name=f"name_{i}", group="test-group") for i in [1, 2]]
 
         with dag_maker(dag_id=DAG_ID, schedule=assets, serialized=True, session=session):
             EmptyOperator(task_id="task1")
@@ -508,7 +508,12 @@ def test_next_run_assets(admin_client, dag_maker, session, app, monkeypatch):
 
     assert resp.status_code == 200, resp.json
     assert resp.json == {
-        "asset_expression": {"all": ["s3://bucket/key/1", "s3://bucket/key/2"]},
+        "asset_expression": {
+            "all": [
+                {"asset": {"uri": "s3://bucket/key/1", "name": "name_1", "group": "test-group"}},
+                {"asset": {"uri": "s3://bucket/key/2", "name": "name_2", "group": "test-group"}},
+            ]
+        },
         "events": [
             {"id": asset1_id, "uri": "s3://bucket/key/1", "lastUpdate": "2022-08-02T02:00:00+00:00"},
             {"id": asset2_id, "uri": "s3://bucket/key/2", "lastUpdate": None},
@@ -520,3 +525,47 @@ def test_next_run_assets_404(admin_client):
     resp = admin_client.get("/object/next_run_assets/missingdag", follow_redirects=True)
     assert resp.status_code == 404, resp.json
     assert resp.json == {"error": "can't find dag missingdag"}
+
+
+@pytest.mark.usefixtures("_freeze_time_for_dagruns")
+def test_dynamic_mapped_task_with_retries(admin_client, dag_with_runs: list[DagRun], session):
+    """
+    Test a DAG with a dynamic mapped task with retries
+    """
+    run1, run2 = dag_with_runs
+
+    for ti in run1.task_instances:
+        ti.state = TaskInstanceState.SUCCESS
+    for ti in sorted(run2.task_instances, key=lambda ti: (ti.task_id, ti.map_index)):
+        if ti.task_id == "task1":
+            ti.state = TaskInstanceState.SUCCESS
+        elif ti.task_id == "group.mapped":
+            if ti.map_index == 0:
+                ti.state = TaskInstanceState.FAILED
+                ti.start_date = pendulum.DateTime(2021, 7, 1, 1, 0, 0, tzinfo=pendulum.UTC)
+                ti.end_date = pendulum.DateTime(2021, 7, 1, 1, 2, 3, tzinfo=pendulum.UTC)
+            elif ti.map_index == 1:
+                ti.try_number = 1
+                ti.state = TaskInstanceState.SUCCESS
+                ti.start_date = pendulum.DateTime(2021, 7, 1, 2, 3, 4, tzinfo=pendulum.UTC)
+                ti.end_date = None
+            elif ti.map_index == 2:
+                ti.try_number = 2
+                ti.state = TaskInstanceState.FAILED
+                ti.start_date = pendulum.DateTime(2021, 7, 1, 2, 3, 4, tzinfo=pendulum.UTC)
+                ti.end_date = None
+            elif ti.map_index == 3:
+                ti.try_number = 3
+                ti.state = TaskInstanceState.SUCCESS
+                ti.start_date = pendulum.DateTime(2021, 7, 1, 2, 3, 4, tzinfo=pendulum.UTC)
+                ti.end_date = None
+    session.flush()
+
+    resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}", follow_redirects=True)
+
+    assert resp.status_code == 200, resp.json
+
+    assert resp.json["groups"]["children"][-1]["children"][-1]["instances"][-1]["mapped_states"] == {
+        "failed": 2,
+        "success": 2,
+    }

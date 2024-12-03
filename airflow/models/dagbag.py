@@ -50,6 +50,7 @@ from airflow.exceptions import (
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base
+from airflow.models.dagcode import DagCode
 from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
@@ -626,6 +627,9 @@ class DagBag(LoggingMixin):
                 )
                 if dag_was_updated:
                     DagBag._sync_perm_for_dag(dag, session=session)
+                else:
+                    # Check and update DagCode
+                    DagCode.update_source_code(dag)
                 return []
             except OperationalError:
                 raise

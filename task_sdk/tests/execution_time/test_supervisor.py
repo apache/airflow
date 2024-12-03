@@ -20,6 +20,7 @@ from __future__ import annotations
 import inspect
 import logging
 import os
+import selectors
 import signal
 import sys
 from io import BytesIO
@@ -28,19 +29,32 @@ from time import sleep
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
+import httpx
+import psutil
 import pytest
-import structlog
 from uuid6 import uuid7
 
 from airflow.sdk.api import client as sdk_client
+from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import TaskInstance
-from airflow.sdk.api.datamodels.activities import ExecuteTaskActivity
-from airflow.sdk.execution_time.comms import ConnectionResult, GetConnection, GetVariable, VariableResult
+from airflow.sdk.execution_time.comms import (
+    ConnectionResult,
+    DeferTask,
+    GetConnection,
+    GetVariable,
+    GetXCom,
+    VariableResult,
+    XComResult,
+)
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, supervise
 from airflow.utils import timezone as tz
 
+from task_sdk.tests.api.test_client import make_client
+
 if TYPE_CHECKING:
     import kgb
+
+TI_ID = uuid7()
 
 
 def lineno():
@@ -51,9 +65,6 @@ def lineno():
 @pytest.mark.usefixtures("disable_capturing")
 class TestWatchedSubprocess:
     def test_reading_from_pipes(self, captured_logs, time_machine):
-        # Ignore anything lower than INFO for this test. Captured_logs resets things for us afterwards
-        structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
-
         def subprocess_main():
             # This is run in the subprocess!
 
@@ -66,7 +77,7 @@ class TestWatchedSubprocess:
             print("I'm a short message")
             sys.stdout.write("Message ")
             print("stderr message", file=sys.stderr)
-            # We need a short sleep for the main process to process things. I worry this timining will be
+            # We need a short sleep for the main process to process things. I worry this timing will be
             # fragile, but I can't think of a better way. This lets the stdout be read (partial line) and the
             # stderr full line be read
             sleep(0.1)
@@ -164,9 +175,6 @@ class TestWatchedSubprocess:
         assert rc == -9
 
     def test_last_chance_exception_handling(self, capfd):
-        # Ignore anything lower than INFO for this test. Captured_logs resets things for us afterwards
-        structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
-
         def subprocess_main():
             # The real main() in task_runner catches exceptions! This is what would happen if we had a syntax
             # or import error for instance - a very early exception
@@ -197,7 +205,7 @@ class TestWatchedSubprocess:
         """Test that the WatchedSubprocess class regularly sends heartbeat requests, up to a certain frequency"""
         import airflow.sdk.execution_time.supervisor
 
-        monkeypatch.setattr(airflow.sdk.execution_time.supervisor, "FASTEST_HEARTBEAT_INTERVAL", 0.1)
+        monkeypatch.setattr(airflow.sdk.execution_time.supervisor, "MIN_HEARTBEAT_INTERVAL", 0.1)
 
         def subprocess_main():
             sys.stdin.readline()
@@ -228,26 +236,19 @@ class TestWatchedSubprocess:
     def test_run_simple_dag(self, test_dags_dir, captured_logs, time_machine):
         """Test running a simple DAG in a subprocess and capturing the output."""
 
-        # Ignore anything lower than INFO for this test.
-        structlog.configure(wrapper_class=structlog.make_filtering_bound_logger(logging.INFO))
-
         instant = tz.datetime(2024, 11, 7, 12, 34, 56, 78901)
         time_machine.move_to(instant, tick=False)
 
         dagfile_path = test_dags_dir / "super_basic_run.py"
-        task_activity = ExecuteTaskActivity(
-            ti=TaskInstance(
-                id=uuid7(),
-                task_id="hello",
-                dag_id="super_basic_run",
-                run_id="c",
-                try_number=1,
-            ),
-            path=dagfile_path,
-            token="",
+        ti = TaskInstance(
+            id=uuid7(),
+            task_id="hello",
+            dag_id="super_basic_run",
+            run_id="c",
+            try_number=1,
         )
         # Assert Exit Code is 0
-        assert supervise(activity=task_activity, server="", dry_run=True) == 0
+        assert supervise(ti=ti, dag_path=dagfile_path, token="", server="", dry_run=True) == 0
 
         # We should have a log from the task!
         assert {
@@ -258,13 +259,442 @@ class TestWatchedSubprocess:
             "timestamp": "2024-11-07T12:34:56.078901Z",
         } in captured_logs
 
+    def test_supervise_handles_deferred_task(self, test_dags_dir, captured_logs, time_machine, mocker):
+        """
+        Test that the supervisor handles a deferred task correctly.
+
+        This includes ensuring the task starts and executes successfully, and that the task is deferred (via
+        the API client) with the expected parameters.
+        """
+
+        ti = TaskInstance(
+            id=uuid7(), task_id="async", dag_id="super_basic_deferred_run", run_id="d", try_number=1
+        )
+        dagfile_path = test_dags_dir / "super_basic_deferred_run.py"
+
+        # Create a mock client to assert calls to the client
+        # We assume the implementation of the client is correct and only need to check the calls
+        mock_client = mocker.Mock(spec=sdk_client.Client)
+
+        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 0)
+        time_machine.move_to(instant, tick=False)
+
+        # Assert supervisor runs the task successfully
+        assert supervise(ti=ti, dag_path=dagfile_path, token="", client=mock_client) == 0
+
+        # Validate calls to the client
+        mock_client.task_instances.start.assert_called_once_with(ti.id, mocker.ANY, mocker.ANY)
+        mock_client.task_instances.heartbeat.assert_called_once_with(ti.id, pid=mocker.ANY)
+        mock_client.task_instances.defer.assert_called_once_with(
+            ti.id,
+            DeferTask(
+                classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
+                trigger_kwargs={"moment": "2024-11-07T12:34:59Z", "end_from_trigger": False},
+                next_method="execute_complete",
+            ),
+        )
+
+        # We are asserting the log messages here to ensure the task ran successfully
+        # and mainly to get the final state of the task matches one in the DB.
+        assert {
+            "exit_code": 0,
+            "duration": 0.0,
+            "final_state": "deferred",
+            "event": "Task finished",
+            "timestamp": mocker.ANY,
+            "level": "info",
+            "logger": "supervisor",
+        } in captured_logs
+
+    def test_supervisor_handles_already_running_task(self):
+        """Test that Supervisor prevents starting a Task Instance that is already running."""
+        ti = TaskInstance(id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1)
+
+        # Mock API Server response indicating the TI is already running
+        # The API Server would return a 409 Conflict status code if the TI is not
+        # in a "queued" state.
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti.id}/state":
+                return httpx.Response(
+                    409,
+                    json={
+                        "reason": "invalid_state",
+                        "message": "TI was not in a state where it could be marked as running",
+                        "previous_state": "running",
+                    },
+                )
+
+            return httpx.Response(status_code=204)
+
+        client = make_client(transport=httpx.MockTransport(handle_request))
+
+        with pytest.raises(ServerResponseError, match="Server returned error") as err:
+            WatchedSubprocess.start(path=os.devnull, ti=ti, client=client)
+
+        assert err.value.response.status_code == 409
+        assert err.value.detail == {
+            "reason": "invalid_state",
+            "message": "TI was not in a state where it could be marked as running",
+            "previous_state": "running",
+        }
+
+    @pytest.mark.parametrize("captured_logs", [logging.ERROR], indirect=True, ids=["log_level=error"])
+    def test_state_conflict_on_heartbeat(self, captured_logs, monkeypatch, mocker):
+        """
+        Test that ensures that the Supervisor does not cause the task to fail if the Task Instance is no longer
+        in the running state. Instead, it logs the error and terminates the task process if it
+        might be running in a different state or has already completed -- or running on a different worker.
+        """
+        import airflow.sdk.execution_time.supervisor
+
+        monkeypatch.setattr(airflow.sdk.execution_time.supervisor, "MIN_HEARTBEAT_INTERVAL", 0.1)
+
+        def subprocess_main():
+            sys.stdin.readline()
+            sleep(5)
+
+        ti_id = uuid7()
+
+        # Track the number of requests to simulate mixed responses
+        request_count = {"count": 0}
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            if request.url.path == f"/task-instances/{ti_id}/heartbeat":
+                request_count["count"] += 1
+                if request_count["count"] == 1:
+                    # First request succeeds
+                    return httpx.Response(status_code=204)
+                else:
+                    # Second request returns a conflict status code
+                    return httpx.Response(
+                        409,
+                        json={
+                            "reason": "not_running",
+                            "message": "TI is no longer in the running state and task should terminate",
+                            "current_state": "success",
+                        },
+                    )
+            # Return a 204 for all other requests like the initial call to mark the task as running
+            return httpx.Response(status_code=204)
+
+        proc = WatchedSubprocess.start(
+            path=os.devnull,
+            ti=TaskInstance(id=ti_id, task_id="b", dag_id="c", run_id="d", try_number=1),
+            client=make_client(transport=httpx.MockTransport(handle_request)),
+            target=subprocess_main,
+        )
+
+        # Wait for the subprocess to finish -- it should have been terminated
+        assert proc.wait() == -signal.SIGTERM
+
+        # Verify the number of requests made
+        assert request_count["count"] == 2
+        assert captured_logs == [
+            {
+                "detail": {
+                    "current_state": "success",
+                    "message": "TI is no longer in the running state and task should terminate",
+                    "reason": "not_running",
+                },
+                "event": "Server indicated the task shouldn't be running anymore",
+                "level": "error",
+                "status_code": 409,
+                "logger": "supervisor",
+                "timestamp": mocker.ANY,
+            }
+        ]
+
+    @pytest.mark.parametrize("captured_logs", [logging.WARNING], indirect=True)
+    def test_heartbeat_failures_handling(self, monkeypatch, mocker, captured_logs, time_machine):
+        """
+        Test that ensures the WatchedSubprocess kills the process after
+        MAX_FAILED_HEARTBEATS are exceeded.
+        """
+        max_failed_heartbeats = 3
+        min_heartbeat_interval = 5
+        monkeypatch.setattr(
+            "airflow.sdk.execution_time.supervisor.MAX_FAILED_HEARTBEATS", max_failed_heartbeats
+        )
+        monkeypatch.setattr(
+            "airflow.sdk.execution_time.supervisor.MIN_HEARTBEAT_INTERVAL", min_heartbeat_interval
+        )
+
+        mock_process = mocker.Mock()
+        mock_process.pid = 12345
+
+        # Mock the client heartbeat method to raise an exception
+        mock_client_heartbeat = mocker.Mock(side_effect=Exception("Simulated heartbeat failure"))
+        client = mocker.Mock()
+        client.task_instances.heartbeat = mock_client_heartbeat
+
+        # Patch the kill method at the class level so we can assert it was called with the correct signal
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+
+        proc = WatchedSubprocess(
+            ti_id=TI_ID,
+            pid=mock_process.pid,
+            stdin=mocker.MagicMock(),
+            client=client,
+            process=mock_process,
+        )
+
+        time_now = tz.datetime(2024, 11, 28, 12, 0, 0)
+        time_machine.move_to(time_now, tick=False)
+
+        # Simulate sending heartbeats and ensure the process gets killed after max retries
+        for i in range(1, max_failed_heartbeats):
+            proc._send_heartbeat_if_needed()
+            assert proc.failed_heartbeats == i  # Increment happens after failure
+            mock_client_heartbeat.assert_called_with(TI_ID, pid=mock_process.pid)
+
+            # Ensure the retry log is present
+            expected_log = {
+                "event": "Failed to send heartbeat. Will be retried",
+                "failed_heartbeats": i,
+                "ti_id": TI_ID,
+                "max_retries": max_failed_heartbeats,
+                "level": "warning",
+                "logger": "supervisor",
+                "timestamp": mocker.ANY,
+                "exception": mocker.ANY,
+            }
+
+            assert expected_log in captured_logs
+
+            # Advance time by `min_heartbeat_interval` to allow the next heartbeat
+            time_machine.shift(min_heartbeat_interval)
+
+        # On the final failure, the process should be killed
+        proc._send_heartbeat_if_needed()
+
+        assert proc.failed_heartbeats == max_failed_heartbeats
+        mock_kill.assert_called_once_with(signal.SIGTERM, force=True)
+        mock_client_heartbeat.assert_called_with(TI_ID, pid=mock_process.pid)
+        assert {
+            "event": "Too many failed heartbeats; terminating process",
+            "level": "error",
+            "failed_heartbeats": max_failed_heartbeats,
+            "logger": "supervisor",
+            "timestamp": mocker.ANY,
+        } in captured_logs
+
+
+class TestWatchedSubprocessKill:
+    @pytest.fixture
+    def mock_process(self, mocker):
+        process = mocker.Mock(spec=psutil.Process)
+        process.pid = 12345
+        return process
+
+    @pytest.fixture
+    def watched_subprocess(self, mocker, mock_process):
+        proc = WatchedSubprocess(
+            ti_id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            client=mocker.Mock(),
+            process=mock_process,
+        )
+        # Mock the selector
+        mock_selector = mocker.Mock(spec=selectors.DefaultSelector)
+        mock_selector.select.return_value = []
+
+        # Set the selector on the process
+        proc.selector = mock_selector
+        return proc
+
+    @pytest.mark.parametrize(
+        ["signal_to_send", "wait_side_effect", "expected_signals"],
+        [
+            pytest.param(
+                signal.SIGINT,
+                [0],
+                [signal.SIGINT],
+                id="SIGINT-success-without-escalation",
+            ),
+            pytest.param(
+                signal.SIGINT,
+                [psutil.TimeoutExpired(0.1), 0],
+                [signal.SIGINT, signal.SIGTERM],
+                id="SIGINT-escalates-to-SIGTERM",
+            ),
+            pytest.param(
+                signal.SIGINT,
+                [
+                    psutil.TimeoutExpired(0.1),  # SIGINT times out
+                    psutil.TimeoutExpired(0.1),  # SIGTERM times out
+                    0,  # SIGKILL succeeds
+                ],
+                [signal.SIGINT, signal.SIGTERM, signal.SIGKILL],
+                id="SIGINT-escalates-to-SIGTERM-then-SIGKILL",
+            ),
+            pytest.param(
+                signal.SIGTERM,
+                [
+                    psutil.TimeoutExpired(0.1),  # SIGTERM times out
+                    0,  # SIGKILL succeeds
+                ],
+                [signal.SIGTERM, signal.SIGKILL],
+                id="SIGTERM-escalates-to-SIGKILL",
+            ),
+            pytest.param(
+                signal.SIGKILL,
+                [0],
+                [signal.SIGKILL],
+                id="SIGKILL-success-without-escalation",
+            ),
+        ],
+    )
+    def test_force_kill_escalation(
+        self,
+        watched_subprocess,
+        mock_process,
+        mocker,
+        signal_to_send,
+        wait_side_effect,
+        expected_signals,
+        captured_logs,
+    ):
+        """Test escalation path for SIGINT, SIGTERM, and SIGKILL when force=True."""
+        # Mock the process wait method to return the exit code or raise an exception
+        mock_process.wait.side_effect = wait_side_effect
+
+        watched_subprocess.kill(signal_to_send=signal_to_send, escalation_delay=0.1, force=True)
+
+        # Check that the correct signals were sent
+        mock_process.send_signal.assert_has_calls([mocker.call(sig) for sig in expected_signals])
+
+        # Check that the process was waited on for each signal
+        mock_process.wait.assert_has_calls([mocker.call(timeout=0)] * len(expected_signals))
+
+        ## Validate log messages
+        # If escalation occurred, we should see a warning log for each signal sent
+        if len(expected_signals) > 1:
+            assert {
+                "event": "Process did not terminate in time; escalating",
+                "level": "warning",
+                "logger": "supervisor",
+                "pid": 12345,
+                "signal": expected_signals[-2].name,
+                "timestamp": mocker.ANY,
+            } in captured_logs
+
+        # Regardless of escalation, we should see an info log for the final signal sent
+        assert {
+            "event": "Process exited",
+            "level": "info",
+            "logger": "supervisor",
+            "pid": 12345,
+            "signal": expected_signals[-1].name,
+            "exit_code": 0,
+            "timestamp": mocker.ANY,
+        } in captured_logs
+
+        # Validate `selector.select` calls
+        assert watched_subprocess.selector.select.call_count == len(expected_signals)
+        watched_subprocess.selector.select.assert_has_calls(
+            [mocker.call(timeout=0.1)] * len(expected_signals)
+        )
+
+        assert watched_subprocess._exit_code == 0
+
+    def test_force_kill_with_selector_events(self, watched_subprocess, mock_process, mocker):
+        """Test force escalation with selector events handled during wait."""
+        # Mock selector to return events during escalation
+        mock_key = mocker.Mock()
+        mock_key.fileobj = mocker.Mock()
+
+        # Simulate EOF
+        mock_key.data = mocker.Mock(return_value=False)
+
+        watched_subprocess.selector.select.side_effect = [
+            [(mock_key, None)],  # Event during SIGINT
+            [],  # No event during SIGTERM
+            [(mock_key, None)],  # Event during SIGKILL
+        ]
+
+        mock_process.wait.side_effect = [
+            psutil.TimeoutExpired(0.1),  # SIGINT times out
+            psutil.TimeoutExpired(0.1),  # SIGTERM times out
+            0,  # SIGKILL succeeds
+        ]
+
+        watched_subprocess.kill(signal.SIGINT, escalation_delay=0.1, force=True)
+
+        # Validate selector interactions
+        assert watched_subprocess.selector.select.call_count == 3
+        mock_key.data.assert_has_calls([mocker.call(mock_key.fileobj), mocker.call(mock_key.fileobj)])
+
+        # Validate signal escalation
+        mock_process.send_signal.assert_has_calls(
+            [mocker.call(signal.SIGINT), mocker.call(signal.SIGTERM), mocker.call(signal.SIGKILL)]
+        )
+
+    def test_kill_process_already_exited(self, watched_subprocess, mock_process):
+        """Test behavior when the process has already exited."""
+        mock_process.wait.side_effect = psutil.NoSuchProcess(pid=1234)
+
+        watched_subprocess.kill(signal.SIGINT, force=True)
+
+        mock_process.send_signal.assert_called_once_with(signal.SIGINT)
+        mock_process.wait.assert_called_once()
+        assert watched_subprocess._exit_code == -1
+
+    def test_kill_process_custom_signal(self, watched_subprocess, mock_process):
+        """Test that the process is killed with the correct signal."""
+        mock_process.wait.return_value = 0
+
+        signal_to_send = signal.SIGUSR1
+        watched_subprocess.kill(signal_to_send, force=False)
+
+        mock_process.send_signal.assert_called_once_with(signal_to_send)
+        mock_process.wait.assert_called_once_with(timeout=0)
+
+    def test_service_subprocess(self, watched_subprocess, mock_process, mocker):
+        """Test `_service_subprocess` processes selector events and handles subprocess exit."""
+        ## Given
+
+        # Mock file objects and handlers
+        mock_stdout = mocker.Mock()
+        mock_stderr = mocker.Mock()
+
+        # Handlers for stdout and stderr
+        mock_stdout_handler = mocker.Mock(return_value=False)  # Simulate EOF for stdout
+        mock_stderr_handler = mocker.Mock(return_value=True)  # Continue processing for stderr
+
+        # Mock selector to return events
+        mock_key_stdout = mocker.Mock(fileobj=mock_stdout, data=mock_stdout_handler)
+        mock_key_stderr = mocker.Mock(fileobj=mock_stderr, data=mock_stderr_handler)
+        watched_subprocess.selector.select.return_value = [(mock_key_stdout, None), (mock_key_stderr, None)]
+
+        # Mock to simulate process exited successfully
+        mock_process.wait.return_value = 0
+
+        ## Our actual test
+        watched_subprocess._service_subprocess(max_wait_time=1.0)
+
+        ## Validations!
+        # Validate selector interactions
+        watched_subprocess.selector.select.assert_called_once_with(timeout=1.0)
+
+        # Validate handler calls
+        mock_stdout_handler.assert_called_once_with(mock_stdout)
+        mock_stderr_handler.assert_called_once_with(mock_stderr)
+
+        # Validate unregistering and closing of EOF file object
+        watched_subprocess.selector.unregister.assert_called_once_with(mock_stdout)
+        mock_stdout.close.assert_called_once()
+
+        # Validate that `_check_subprocess_exit` is called
+        mock_process.wait.assert_called_once_with(timeout=0)
+
 
 class TestHandleRequest:
     @pytest.fixture
     def watched_subprocess(self, mocker):
         """Fixture to provide a WatchedSubprocess instance."""
         return WatchedSubprocess(
-            ti_id=uuid7(),
+            ti_id=TI_ID,
             pid=12345,
             stdin=BytesIO(),
             client=mocker.Mock(),
@@ -276,19 +706,35 @@ class TestHandleRequest:
         [
             pytest.param(
                 GetConnection(conn_id="test_conn"),
-                b'{"conn_id":"test_conn","conn_type":"mysql"}',
+                b'{"conn_id":"test_conn","conn_type":"mysql"}\n',
                 "connections.get",
-                "test_conn",
+                ("test_conn",),
                 ConnectionResult(conn_id="test_conn", conn_type="mysql"),
                 id="get_connection",
             ),
             pytest.param(
                 GetVariable(key="test_key"),
-                b'{"key":"test_key","value":"test_value"}',
+                b'{"key":"test_key","value":"test_value"}\n',
                 "variables.get",
-                "test_key",
+                ("test_key",),
                 VariableResult(key="test_key", value="test_value"),
                 id="get_variable",
+            ),
+            pytest.param(
+                GetXCom(dag_id="test_dag", run_id="test_run", task_id="test_task", key="test_key"),
+                b'{"key":"test_key","value":"test_value"}\n',
+                "xcoms.get",
+                ("test_dag", "test_run", "test_task", "test_key", -1),
+                XComResult(key="test_key", value="test_value"),
+                id="get_xcom",
+            ),
+            pytest.param(
+                DeferTask(next_method="execute_callback", classpath="my-classpath"),
+                b"",
+                "task_instances.defer",
+                (TI_ID, DeferTask(next_method="execute_callback", classpath="my-classpath")),
+                "",
+                id="patch_task_instance_to_deferred",
             ),
         ],
     )
@@ -325,7 +771,7 @@ class TestHandleRequest:
         generator.send(msg)
 
         # Verify the correct client method was called
-        mock_client_method.assert_called_once_with(method_arg)
+        mock_client_method.assert_called_once_with(*method_arg)
 
         # Verify the response was added to the buffer
-        assert watched_subprocess.stdin.getvalue() == expected_buffer + b"\n"
+        assert watched_subprocess.stdin.getvalue() == expected_buffer

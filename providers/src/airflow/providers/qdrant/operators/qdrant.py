@@ -17,8 +17,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Iterable, Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.models import BaseOperator
 from airflow.providers.qdrant.hooks.qdrant import QdrantHook

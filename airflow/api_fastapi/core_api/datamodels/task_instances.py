@@ -22,15 +22,17 @@ from typing import Annotated, Any
 from pydantic import (
     AliasPath,
     AwareDatetime,
-    BaseModel,
     BeforeValidator,
     ConfigDict,
     Field,
     NonNegativeInt,
+    StringConstraints,
     ValidationError,
+    field_validator,
     model_validator,
 )
 
+from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.datamodels.job import JobResponse
 from airflow.api_fastapi.core_api.datamodels.trigger import TriggerResponse
 from airflow.utils.state import TaskInstanceState
@@ -39,7 +41,7 @@ from airflow.utils.state import TaskInstanceState
 class TaskInstanceResponse(BaseModel):
     """TaskInstance serializer for responses."""
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
     id: str
     task_id: str
@@ -121,11 +123,14 @@ class TaskInstancesBatchBody(BaseModel):
 class TaskInstanceHistoryResponse(BaseModel):
     """TaskInstanceHistory serializer for responses."""
 
-    model_config = ConfigDict(populate_by_name=True)
+    model_config = ConfigDict(populate_by_name=True, from_attributes=True)
 
     task_id: str
     dag_id: str
+
+    # todo: this should not be aliased; it's ambiguous with dag run's "id" - airflow 3.0
     run_id: str = Field(alias="dag_run_id")
+
     map_index: int
     start_date: datetime | None
     end_date: datetime | None
@@ -188,6 +193,33 @@ class ClearTaskInstancesBody(BaseModel):
         if isinstance(data.get("task_ids"), list) and len(data.get("task_ids")) < 1:
             raise ValidationError("task_ids list should have at least 1 element.")
         return data
+
+
+class PatchTaskInstanceBody(BaseModel):
+    """Request body for Clear Task Instances endpoint."""
+
+    dry_run: bool = True
+    new_state: str | None = None
+    note: Annotated[str, StringConstraints(max_length=1000)] | None = None
+    include_upstream: bool = False
+    include_downstream: bool = False
+    include_future: bool = False
+    include_past: bool = False
+
+    @field_validator("new_state", mode="before")
+    @classmethod
+    def validate_new_state(cls, ns: str | None) -> str:
+        """Validate new_state."""
+        valid_states = [
+            vs.name.lower()
+            for vs in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED)
+        ]
+        if ns is None:
+            raise ValueError("'new_state' should not be empty")
+        ns = ns.lower()
+        if ns not in valid_states:
+            raise ValueError(f"'{ns}' is not one of {valid_states}")
+        return ns
 
 
 class TaskInstanceReferenceResponse(BaseModel):

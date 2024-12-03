@@ -138,7 +138,9 @@ class TestPytestSnowflakeHook:
                         "extra__snowflake__region": "af_region",
                         "extra__snowflake__role": "af_role",
                         "extra__snowflake__insecure_mode": "True",
+                        "extra__snowflake__json_result_force_utf8_decoding": "True",
                         "extra__snowflake__client_request_mfa_token": "True",
+                        "extra__snowflake__client_store_temporary_credential": "True",
                     },
                 },
                 (
@@ -158,7 +160,9 @@ class TestPytestSnowflakeHook:
                     "user": "user",
                     "warehouse": "af_wh",
                     "insecure_mode": True,
+                    "json_result_force_utf8_decoding": True,
                     "client_request_mfa_token": True,
+                    "client_store_temporary_credential": True,
                 },
             ),
             (
@@ -171,7 +175,9 @@ class TestPytestSnowflakeHook:
                         "extra__snowflake__region": "af_region",
                         "extra__snowflake__role": "af_role",
                         "extra__snowflake__insecure_mode": "False",
+                        "extra__snowflake__json_result_force_utf8_decoding": "False",
                         "extra__snowflake__client_request_mfa_token": "False",
+                        "extra__snowflake__client_store_temporary_credential": "False",
                     },
                 },
                 (
@@ -247,7 +253,9 @@ class TestPytestSnowflakeHook:
                     "extra": {
                         **BASE_CONNECTION_KWARGS["extra"],
                         "extra__snowflake__insecure_mode": False,
+                        "extra__snowflake__json_result_force_utf8_decoding": True,
                         "extra__snowflake__client_request_mfa_token": False,
+                        "extra__snowflake__client_store_temporary_credential": False,
                     },
                 },
                 (
@@ -266,6 +274,7 @@ class TestPytestSnowflakeHook:
                     "session_parameters": None,
                     "user": "user",
                     "warehouse": "af_wh",
+                    "json_result_force_utf8_decoding": True,
                 },
             ),
         ],
@@ -473,6 +482,23 @@ class TestPytestSnowflakeHook:
             )
             assert mock_create_engine.return_value == conn
 
+    def test_get_sqlalchemy_engine_should_support_json_result_force_utf8_decoding(self):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["extra__snowflake__json_result_force_utf8_decoding"] = "True"
+
+        with (
+            mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()),
+            mock.patch("airflow.providers.snowflake.hooks.snowflake.create_engine") as mock_create_engine,
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            conn = hook.get_sqlalchemy_engine()
+            mock_create_engine.assert_called_once_with(
+                "snowflake://user:pw@airflow.af_region/db/public"
+                "?application=AIRFLOW&authenticator=snowflake&role=af_role&warehouse=af_wh",
+                connect_args={"json_result_force_utf8_decoding": True},
+            )
+            assert mock_create_engine.return_value == conn
+
     def test_get_sqlalchemy_engine_should_support_session_parameters(self):
         connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
         connection_kwargs["extra"]["session_parameters"] = {"TEST_PARAM": "AA", "TEST_PARAM_B": 123}
@@ -519,7 +545,7 @@ class TestPytestSnowflakeHook:
                 authenticator="TEST_AUTH",
                 session_parameters={"AA": "AAA"},
             )
-            assert {
+            assert hook._get_conn_params == {
                 "account": "TEST_ACCOUNT",
                 "application": "AIRFLOW",
                 "authenticator": "TEST_AUTH",
@@ -531,11 +557,11 @@ class TestPytestSnowflakeHook:
                 "session_parameters": {"AA": "AAA"},
                 "user": "user",
                 "warehouse": "TEST_WAREHOUSE",
-            } == hook._get_conn_params
-            assert (
+            }
+            assert hook.get_uri() == (
                 "snowflake://user:pw@TEST_ACCOUNT.TEST_REGION/TEST_DATABASE/TEST_SCHEMA"
                 "?application=AIRFLOW&authenticator=TEST_AUTH&role=TEST_ROLE&warehouse=TEST_WAREHOUSE"
-            ) == hook.get_uri()
+            )
 
     @pytest.mark.parametrize(
         "sql,expected_sql,expected_query_ids",

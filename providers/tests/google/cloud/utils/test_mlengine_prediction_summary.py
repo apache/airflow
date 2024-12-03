@@ -34,10 +34,10 @@ else:
 
 class TestJsonCode:
     def test_encode(self):
-        assert b'{"a": 1}' == mlengine_prediction_summary.JsonCoder.encode({"a": 1})
+        assert mlengine_prediction_summary.JsonCoder.encode({"a": 1}) == b'{"a": 1}'
 
     def test_decode(self):
-        assert {"a": 1} == mlengine_prediction_summary.JsonCoder.decode('{"a": 1}')
+        assert mlengine_prediction_summary.JsonCoder.decode('{"a": 1}') == {"a": 1}
 
 
 class TestMakeSummary:

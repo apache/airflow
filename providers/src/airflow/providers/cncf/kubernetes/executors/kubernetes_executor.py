@@ -30,10 +30,11 @@ import logging
 import multiprocessing
 import time
 from collections import Counter, defaultdict
+from collections.abc import Sequence
 from contextlib import suppress
 from datetime import datetime
 from queue import Empty, Queue
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from deprecated import deprecated
 from kubernetes.dynamic import DynamicClient
@@ -252,7 +253,7 @@ class KubernetesExecutor(BaseExecutor):
             )
             if self.kubernetes_queue:
                 query = query.where(TaskInstance.queue == self.kubernetes_queue)
-            elif hybrid_executor_enabled and KUBERNETES_EXECUTOR == default_executor:
+            elif hybrid_executor_enabled and default_executor == KUBERNETES_EXECUTOR:
                 query = query.where(
                     or_(
                         TaskInstance.executor == KUBERNETES_EXECUTOR,

@@ -17,9 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime, timezone
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -343,4 +344,19 @@ class S3ToGCSOperator(S3ListOperator):
         return CloudDataTransferServiceHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.google_impersonation_chain,
+        )
+
+    def get_openlineage_facets_on_start(self):
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+        from airflow.providers.google.cloud.hooks.gcs import _parse_gcs_url
+        from airflow.providers.google.cloud.openlineage.utils import extract_ds_name_from_gcs_path
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        gcs_bucket, gcs_blob = _parse_gcs_url(self.dest_gcs)
+        if not self.apply_gcs_prefix:
+            gcs_blob += self.prefix
+
+        return OperatorLineage(
+            inputs=[Dataset(namespace=f"s3://{self.bucket}", name=self.prefix.strip("/") or "/")],
+            outputs=[Dataset(namespace=f"gs://{gcs_bucket}", name=extract_ds_name_from_gcs_path(gcs_blob))],
         )

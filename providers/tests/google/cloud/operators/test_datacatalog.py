@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 from unittest import mock
 
 from google.api_core.exceptions import AlreadyExists
@@ -184,7 +185,7 @@ class TestCloudDataCatalogCreateEntryOperator:
             },
         )
 
-        assert TEST_ENTRY_DICT == result
+        assert result == TEST_ENTRY_DICT
 
     @mock.patch("airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook")
     @mock.patch(BASE_PATH.format("CloudDataCatalogCreateEntryOperator.xcom_push"))
@@ -239,7 +240,7 @@ class TestCloudDataCatalogCreateEntryOperator:
                 "project_id": TEST_PROJECT_ID,
             },
         )
-        assert TEST_ENTRY_DICT == result
+        assert result == TEST_ENTRY_DICT
 
 
 class TestCloudDataCatalogCreateEntryGroupOperator:
@@ -336,7 +337,7 @@ class TestCloudDataCatalogCreateTagOperator:
                 "project_id": TEST_PROJECT_ID,
             },
         )
-        assert TEST_TAG_DICT == result
+        assert result == TEST_TAG_DICT
 
 
 class TestCloudDataCatalogCreateTagTemplateOperator:
@@ -382,7 +383,7 @@ class TestCloudDataCatalogCreateTagTemplateOperator:
                 "project_id": TEST_PROJECT_ID,
             },
         )
-        assert {**result, **TEST_TAG_TEMPLATE_DICT} == result
+        assert result == {**result, **TEST_TAG_TEMPLATE_DICT}
 
 
 class TestCloudDataCatalogCreateTagTemplateFieldOperator:
@@ -430,7 +431,7 @@ class TestCloudDataCatalogCreateTagTemplateFieldOperator:
                 "project_id": TEST_PROJECT_ID,
             },
         )
-        assert {**result, **TEST_TAG_TEMPLATE_FIELD_DICT} == result
+        assert result == {**result, **TEST_TAG_TEMPLATE_FIELD_DICT}
 
 
 class TestCloudDataCatalogDeleteEntryOperator:

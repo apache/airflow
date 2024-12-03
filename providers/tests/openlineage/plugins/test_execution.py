@@ -42,7 +42,6 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
 # TODO(potiuk): Document that openlineage is not supported in DB isolation mode
-pytestmark = pytest.mark.skip_if_database_isolation_mode
 
 TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -63,7 +62,6 @@ def get_sorted_events(event_dir: str) -> list[str]:
 
 def has_value_in_events(events, chain, value):
     x = [get_from_nullable_chain(event, chain) for event in events]
-    log.error(x)
     y = [z == value for z in x]
     return any(y)
 
@@ -177,7 +175,9 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             }
         )
         @pytest.mark.db_test
-        def test_long_stalled_task_is_killed_by_listener_overtime_if_ol_timeout_long_enough(self):
+        def test_success_overtime_kills_tasks(self):
+            # This test checks whether LocalTaskJobRunner kills OL listener which take
+            # longer time than permitted by core.task_success_overtime setting
             dirpath = Path(tmp_dir)
             if dirpath.exists():
                 shutil.rmtree(dirpath)
@@ -204,7 +204,7 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
                 task=task,
                 run_id="test_long_stalled_task_is_killed_by_listener_overtime_if_ol_timeout_long_enough",
             )
-            job = Job(id="1", dag_id=ti.dag_id)
+            job = Job(dag_id=ti.dag_id)
             job_runner = LocalTaskJobRunner(job=job, task_instance=ti, ignore_ti_state=True)
             job_runner._execute()
 

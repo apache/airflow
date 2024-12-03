@@ -215,8 +215,8 @@ class TestStackdriverLoggingHandlerTask:
                 page_token=None,
             )
         )
-        assert [(("default-hostname", "MSG1\nMSG2"),)] == logs
-        assert [{"end_of_log": True}] == metadata
+        assert logs == [(("default-hostname", "MSG1\nMSG2"),)]
+        assert metadata == [{"end_of_log": True}]
 
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.LoggingServiceV2Client")
@@ -247,8 +247,8 @@ class TestStackdriverLoggingHandlerTask:
                 page_token=None,
             )
         )
-        assert [(("default-hostname", "MSG1\nMSG2"),)] == logs
-        assert [{"end_of_log": True}] == metadata
+        assert logs == [(("default-hostname", "MSG1\nMSG2"),)]
+        assert metadata == [{"end_of_log": True}]
 
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.LoggingServiceV2Client")
@@ -278,8 +278,8 @@ class TestStackdriverLoggingHandlerTask:
                 page_token=None,
             )
         )
-        assert [(("default-hostname", "MSG1\nMSG2"),)] == logs
-        assert [{"end_of_log": True}] == metadata
+        assert logs == [(("default-hostname", "MSG1\nMSG2"),)]
+        assert metadata == [{"end_of_log": True}]
 
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.LoggingServiceV2Client")
@@ -310,8 +310,8 @@ class TestStackdriverLoggingHandlerTask:
                 page_token=None,
             )
         )
-        assert [(("default-hostname", "MSG1\nMSG2"),)] == logs
-        assert [{"end_of_log": False, "next_page_token": "TOKEN1"}] == metadata1
+        assert logs == [(("default-hostname", "MSG1\nMSG2"),)]
+        assert metadata1 == [{"end_of_log": False, "next_page_token": "TOKEN1"}]
 
         mock_client.return_value.list_log_entries.return_value.next_page_token = None
         logs, metadata2 = stackdriver_task_handler.read(self.ti, 3, metadata1[0])
@@ -332,8 +332,8 @@ class TestStackdriverLoggingHandlerTask:
                 page_token="TOKEN1",
             )
         )
-        assert [(("default-hostname", "MSG3\nMSG4"),)] == logs
-        assert [{"end_of_log": True}] == metadata2
+        assert logs == [(("default-hostname", "MSG3\nMSG4"),)]
+        assert metadata2 == [{"end_of_log": True}]
 
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.LoggingServiceV2Client")
@@ -347,8 +347,8 @@ class TestStackdriverLoggingHandlerTask:
         stackdriver_task_handler = self._setup_handler()
         logs, metadata1 = stackdriver_task_handler.read(self.ti, 3, {"download_logs": True})
 
-        assert [(("default-hostname", "MSG1\nMSG2\nMSG3\nMSG4"),)] == logs
-        assert [{"end_of_log": True}] == metadata1
+        assert logs == [(("default-hostname", "MSG1\nMSG2\nMSG3\nMSG4"),)]
+        assert metadata1 == [{"end_of_log": True}]
 
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.LoggingServiceV2Client")
@@ -389,8 +389,8 @@ class TestStackdriverLoggingHandlerTask:
                 page_token=None,
             )
         )
-        assert [(("default-hostname", "TEXT\nTEXT"),)] == logs
-        assert [{"end_of_log": True}] == metadata
+        assert logs == [(("default-hostname", "TEXT\nTEXT"),)]
+        assert metadata == [{"end_of_log": True}]
 
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.get_credentials_and_project_id")
     @mock.patch("airflow.providers.google.cloud.log.stackdriver_task_handler.gcp_logging.Client")
@@ -423,9 +423,9 @@ class TestStackdriverLoggingHandlerTask:
 
         parsed_url = urlsplit(url)
         parsed_qs = parse_qs(parsed_url.query)
-        assert "https" == parsed_url.scheme
-        assert "console.cloud.google.com" == parsed_url.netloc
-        assert "/logs/viewer" == parsed_url.path
+        assert parsed_url.scheme == "https"
+        assert parsed_url.netloc == "console.cloud.google.com"
+        assert parsed_url.path == "/logs/viewer"
         assert {"project", "interval", "resource", "advancedFilter"} == set(parsed_qs.keys())
         assert "global" in parsed_qs["resource"]
 

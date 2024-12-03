@@ -23,9 +23,8 @@ import logging
 import os
 import sys
 from collections import Counter, deque
+from collections.abc import Generator
 from datetime import timedelta
-from importlib import reload
-from typing import Generator
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock, patch
 from uuid import uuid4
@@ -49,6 +48,7 @@ from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.executors.executor_utils import ExecutorName
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models.asset import AssetActive, AssetDagRunQueue, AssetEvent, AssetModel
@@ -98,7 +98,7 @@ from tests_common.test_utils.mock_operators import CustomOperator
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
@@ -177,59 +177,26 @@ class TestSchedulerJob:
 
     @pytest.fixture
     def mock_executors(self):
-        default_executor = mock.MagicMock(slots_available=8, slots_occupied=0)
-        default_executor.name = MagicMock(alias="default_exec", module_path="default.exec.module.path")
-        second_executor = mock.MagicMock(slots_available=8, slots_occupied=0)
-        second_executor.name = MagicMock(alias="secondary_exec", module_path="secondary.exec.module.path")
+        default_executor = mock.MagicMock(name="DefaultExecutor", slots_available=8, slots_occupied=0)
+        default_executor.name = ExecutorName(alias="default_exec", module_path="default.exec.module.path")
+        second_executor = mock.MagicMock(name="SeconadaryExecutor", slots_available=8, slots_occupied=0)
+        second_executor.name = ExecutorName(alias="secondary_exec", module_path="secondary.exec.module.path")
+
+        # TODO: Task-SDK Make it look like a bound method. Needed until we remove the old queue_command
+        # interface from executors
+        default_executor.queue_workload.__func__ = BaseExecutor.queue_workload
+        second_executor.queue_workload.__func__ = BaseExecutor.queue_workload
+
         with mock.patch("airflow.jobs.job.Job.executors", new_callable=PropertyMock) as executors_mock:
-            with mock.patch("airflow.jobs.job.Job.executor", new_callable=PropertyMock) as executor_mock:
-                with mock.patch(
-                    "airflow.executors.executor_loader.ExecutorLoader.load_executor"
-                ) as loader_mock:
-                    # The executors are mocked, so cannot be loaded/imported. Mock load_executor and return
-                    # the correct object for the given input executor name.
-                    loader_mock.side_effect = lambda *x: {
-                        (None,): default_executor,
-                        ("default_exec",): default_executor,
-                        ("default.exec.module.path",): default_executor,
-                        ("secondary_exec",): second_executor,
-                        ("secondary.exec.module.path",): second_executor,
-                    }[x]
-
-                    from airflow.jobs import scheduler_job_runner
-
-                    # Reload the scheduler job runner so that it gets a fresh mocked copy of the exec loader
-                    reload(scheduler_job_runner)
-
-                    executor_mock.return_value = default_executor
-                    executors_mock.return_value = [default_executor, second_executor]
-                    yield [default_executor, second_executor]
+            executors_mock.return_value = [default_executor, second_executor]
+            yield [default_executor, second_executor]
 
     @pytest.fixture
-    def mock_executor(self):
-        default_executor = mock.MagicMock(slots_available=8, slots_occupied=0)
-        default_executor.name = MagicMock(alias="default_exec", module_path="default.exec.module.path")
+    def mock_executor(self, mock_executors):
+        default_executor = mock_executors[0]
         with mock.patch("airflow.jobs.job.Job.executors", new_callable=PropertyMock) as executors_mock:
-            with mock.patch("airflow.jobs.job.Job.executor", new_callable=PropertyMock) as executor_mock:
-                with mock.patch(
-                    "airflow.executors.executor_loader.ExecutorLoader.load_executor"
-                ) as loader_mock:
-                    executor_mock.return_value = default_executor
-                    executors_mock.return_value = [default_executor]
-                    # The executor is mocked, so cannot be loaded/imported. Mock load_executor and return the
-                    # correct object for the given input executor name.
-                    loader_mock.side_effect = lambda *x: {
-                        ("default_exec",): default_executor,
-                        ("default.exec.module.path",): default_executor,
-                        (None,): default_executor,
-                    }[x]
-
-                    from airflow.jobs import scheduler_job_runner
-
-                    # Reload the scheduler job runner so that it gets a fresh mocked copy of the exec loader
-                    reload(scheduler_job_runner)
-
-                    yield default_executor
+            executors_mock.return_value = [default_executor]
+            yield default_executor
 
     @pytest.mark.parametrize(
         "configs",
@@ -430,11 +397,10 @@ class TestSchedulerJob:
 
         mock_stats_incr.reset_mock()
 
-        executor = MockExecutor(do_update=False)
         task_callback = mock.MagicMock()
         mock_task_callback.return_value = task_callback
+        executor = MockExecutor(do_update=False)
         scheduler_job = Job(executor=executor)
-        scheduler_job.executors = [executor]
         self.job_runner = SchedulerJobRunner(scheduler_job)
         self.job_runner.processor_agent = mock.MagicMock()
         session = settings.Session()
@@ -580,9 +546,10 @@ class TestSchedulerJob:
         self.job_runner._critical_section_enqueue_task_instances(session)
         session.flush()
         ti1.refresh_from_db(session=session)
-        assert State.SCHEDULED == ti1.state
+        assert ti1.state == State.SCHEDULED
         session.rollback()
 
+    # @pytest.mark.usefixtures("mock_executor")
     def test_execute_task_instances_backfill_tasks_will_execute(self, dag_maker):
         """
         Tests that backfill tasks won't get executed.
@@ -593,7 +560,7 @@ class TestSchedulerJob:
         with dag_maker(dag_id=dag_id):
             task1 = EmptyOperator(task_id=task_id_1)
 
-        scheduler_job = Job()
+        scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
         session = settings.Session()
 
@@ -613,7 +580,7 @@ class TestSchedulerJob:
         session.rollback()
 
     @conf_vars({("scheduler", "standalone_dag_processor"): "False"})
-    def test_setup_callback_sink_not_standalone_dag_processor(self):
+    def test_setup_callback_sink_not_standalone_dag_processor(self, mock_executors):
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull, num_runs=1)
         self.job_runner._execute()
@@ -630,7 +597,7 @@ class TestSchedulerJob:
             assert isinstance(executor.callback_sink, PipeCallbackSink)
 
     @conf_vars({("scheduler", "standalone_dag_processor"): "True"})
-    def test_setup_callback_sink_standalone_dag_processor(self):
+    def test_setup_callback_sink_standalone_dag_processor(self, mock_executors):
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull, num_runs=1)
         self.job_runner._execute()
@@ -753,7 +720,7 @@ class TestSchedulerJob:
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
         session.flush()
-        assert 3 == len(res)
+        assert len(res) == 3
         res_keys = []
         for ti in res:
             res_keys.append(ti.key)
@@ -894,7 +861,7 @@ class TestSchedulerJob:
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
-        assert 5 == len(res)
+        assert len(res) == 5
         res_ti_keys = [res_ti.key for res_ti in res]
         for ti in tis_tuple:
             assert ti.key in res_ti_keys
@@ -933,7 +900,7 @@ class TestSchedulerJob:
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
-        assert 2 == len(res)
+        assert len(res) == 2
         assert ti3.key == res[0].key
         assert ti2.key == res[1].key
 
@@ -991,14 +958,14 @@ class TestSchedulerJob:
 
         # Two tasks w/o pool up for execution and our default pool size is 1
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
-        assert 1 == len(res)
+        assert len(res) == 1
 
         ti2.state = State.RUNNING
         session.flush()
 
         # One task w/o pool up for execution and one task running
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
-        assert 0 == len(res)
+        assert len(res) == 0
 
         session.rollback()
         session.close()
@@ -1028,7 +995,7 @@ class TestSchedulerJob:
         session.flush()
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
         session.flush()
-        assert 0 == len(res)
+        assert len(res) == 0
         tis = dr.get_task_instances(session=session)
         assert len(tis) == 2
         assert all(ti.state == State.FAILED for ti in tis)
@@ -1051,7 +1018,7 @@ class TestSchedulerJob:
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
         session.flush()
-        assert 0 == len(res)
+        assert len(res) == 0
         session.rollback()
 
     def test_infinite_pool(self, dag_maker):
@@ -1078,7 +1045,7 @@ class TestSchedulerJob:
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
         session.flush()
-        assert 1 == len(res)
+        assert len(res) == 1
         session.rollback()
 
     def test_not_enough_pool_slots(self, caplog, dag_maker):
@@ -1135,7 +1102,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
         session = settings.Session()
 
-        assert 0 == len(self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session))
+        assert len(self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)) == 0
         session.rollback()
 
     def test_tis_for_queued_dagruns_are_not_run(self, dag_maker):
@@ -1161,7 +1128,7 @@ class TestSchedulerJob:
         session.flush()
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
-        assert 1 == len(res)
+        assert len(res) == 1
         assert ti2.key == res[0].key
         ti1.refresh_from_db()
         ti2.refresh_from_db()
@@ -1264,7 +1231,7 @@ class TestSchedulerJob:
             loader_mock.side_effect = executor.get_mock_loader_side_effect()
             res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
-            assert 2 == len(res)
+            assert len(res) == 2
 
             ti1_1.state = State.RUNNING
             ti2.state = State.RUNNING
@@ -1277,7 +1244,7 @@ class TestSchedulerJob:
 
             res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
-            assert 1 == len(res)
+            assert len(res) == 1
 
             ti1_2.state = State.RUNNING
             ti1_3 = dr3.get_task_instance(task1.task_id)
@@ -1288,7 +1255,7 @@ class TestSchedulerJob:
 
             res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
-            assert 0 == len(res)
+            assert len(res) == 0
 
             ti1_1.state = State.SCHEDULED
             ti1_2.state = State.SCHEDULED
@@ -1300,7 +1267,7 @@ class TestSchedulerJob:
 
             res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
-            assert 2 == len(res)
+            assert len(res) == 2
 
             ti1_1.state = State.RUNNING
             ti1_2.state = State.SCHEDULED
@@ -1312,7 +1279,7 @@ class TestSchedulerJob:
 
             res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
-            assert 1 == len(res)
+            assert len(res) == 1
             session.rollback()
 
     def test_change_state_for_executable_task_instances_no_tis_with_state(self, dag_maker):
@@ -1342,7 +1309,7 @@ class TestSchedulerJob:
         session.flush()
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=100, session=session)
-        assert 0 == len(res)
+        assert len(res) == 0
 
         session.rollback()
 
@@ -1369,7 +1336,7 @@ class TestSchedulerJob:
         # Schedule ti with lower priority,
         # because the one with higher priority is limited by a concurrency limit
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
-        assert 1 == len(res)
+        assert len(res) == 1
         assert res[0].key == ti2.key
 
         session.rollback()
@@ -1406,7 +1373,7 @@ class TestSchedulerJob:
         # Schedule ti with lower priority,
         # because the one with higher priority is limited by a concurrency limit
         res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
-        assert 1 == len(res)
+        assert len(res) == 1
         assert res[0].key == ti2.key
 
         session.rollback()
@@ -1435,7 +1402,7 @@ class TestSchedulerJob:
         # Schedule ti with lower priority,
         # because the one with higher priority is limited by a concurrency limit
         res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
-        assert 1 == len(res)
+        assert len(res) == 1
         assert res[0].key == ti1b.key
 
         session.rollback()
@@ -1464,7 +1431,7 @@ class TestSchedulerJob:
         # Schedule ti with higher priority,
         # because it's running in a different DAG run with 0 active tis
         res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
-        assert 1 == len(res)
+        assert len(res) == 1
         assert res[0].key == ti2a.key
 
         session.rollback()
@@ -1497,7 +1464,7 @@ class TestSchedulerJob:
         # Schedule ti with lower priority,
         # because the one with higher priority is limited by a concurrency limit
         res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
-        assert 1 == len(res)
+        assert len(res) == 1
         assert res[0].key == ti1b.key
 
         session.rollback()
@@ -1534,7 +1501,7 @@ class TestSchedulerJob:
         session.flush()
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=1, session=session)
-        assert 1 == len(res)
+        assert len(res) == 1
         assert res[0].key == ti1.key
 
         session.rollback()
@@ -1558,7 +1525,7 @@ class TestSchedulerJob:
         session.flush()
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
-        assert 0 == len(res)
+        assert len(res) == 0
 
         mock_stats_gauge.assert_has_calls(
             [
@@ -1574,7 +1541,7 @@ class TestSchedulerJob:
         session.flush()
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
-        assert 1 == len(res)
+        assert len(res) == 1
 
         mock_stats_gauge.assert_has_calls(
             [
@@ -1595,7 +1562,7 @@ class TestSchedulerJob:
         with dag_maker(dag_id=dag_id, start_date=DEFAULT_DATE, session=session):
             task1 = EmptyOperator(task_id=task_id_1)
 
-        scheduler_job = Job()
+        scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
         dr1 = dag_maker.create_dagrun()
@@ -1644,9 +1611,8 @@ class TestSchedulerJob:
             ("secondary_exec", "secondary_exec"),
         ],
     )
-    def test_critical_section_enqueue_task_instances(
-        self, task1_exec, task2_exec, dag_maker, mock_executors, session
-    ):
+    @pytest.mark.usefixtures("mock_executors")
+    def test_critical_section_enqueue_task_instances(self, task1_exec, task2_exec, dag_maker, session):
         dag_id = "SchedulerJobTest.test_execute_task_instances"
         # important that len(tasks) is less than max_active_tasks
         # because before scheduler._execute_task_instances would only
@@ -1767,7 +1733,7 @@ class TestSchedulerJob:
         scheduler_job.max_tis_per_query = 6
         # First pass we'll grab 6 of the 8 tasks (limited by max_tis_per_query)
         res = self.job_runner._critical_section_enqueue_task_instances(session)
-        assert 6 == res
+        assert res == 6
         for ti in tis1[:3] + tis2[:3]:
             ti.refresh_from_db()
             assert ti.state == TaskInstanceState.QUEUED
@@ -1777,11 +1743,11 @@ class TestSchedulerJob:
 
         # The remaining TIs are queued
         res = self.job_runner._critical_section_enqueue_task_instances(session)
-        assert 2 == res
+        assert res == 2
 
         for ti in tis1 + tis2:
             ti.refresh_from_db()
-            assert State.QUEUED == ti.state
+            assert ti.state == State.QUEUED
 
     @pytest.mark.parametrize(
         "task1_exec, task2_exec",
@@ -1830,7 +1796,7 @@ class TestSchedulerJob:
         scheduler_job.max_tis_per_query = 2
 
         total_enqueued = self.job_runner._critical_section_enqueue_task_instances(session)
-        assert 2 == total_enqueued
+        assert total_enqueued == 2
 
     def test_execute_task_instances_limit_slots(self, dag_maker, mock_executors):
         dag_id = "SchedulerJobTest.test_execute_task_instances_limit"
@@ -2167,27 +2133,13 @@ class TestSchedulerJob:
             ti.queued_by_job_id = scheduler_job.id
         session.commit()
 
-        with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
-            # reload the scheduler_job_runner module so that it loads a fresh executor_loader module which
-            # contains the mocked load_executor method.
-            from airflow.jobs import scheduler_job_runner
+        processor = mock.MagicMock()
 
-            reload(scheduler_job_runner)
+        new_scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=new_scheduler_job, num_runs=0)
+        self.job_runner.processor_agent = processor
 
-            processor = mock.MagicMock()
-
-            new_scheduler_job = Job()
-            self.job_runner = SchedulerJobRunner(job=new_scheduler_job, num_runs=0)
-            self.job_runner.processor_agent = processor
-            # The executors are mocked, so cannot be loaded/imported. Mock load_executor and return the
-            # correct object for the given input executor name.
-            loader_mock.side_effect = lambda *x: {
-                ("default_exec",): mock_executors[0],
-                (None,): mock_executors[0],
-                ("secondary_exec",): mock_executors[1],
-            }[x]
-
-            self.job_runner.adopt_or_reset_orphaned_tasks()
+        self.job_runner.adopt_or_reset_orphaned_tasks()
 
         # Default executor is called for ti1 (no explicit executor override uses default) and ti2 (where we
         # explicitly marked that for execution by the default executor)
@@ -2410,10 +2362,9 @@ class TestSchedulerJob:
             EmptyOperator(task_id="mytask")
 
         session = settings.Session()
-        scheduler_job = Job()
+        scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        scheduler_job.executor = MockExecutor()
         self.job_runner.processor_agent = mock.MagicMock()
 
         self.job_runner.dagbag = dag_maker.dagbag
@@ -2442,10 +2393,9 @@ class TestSchedulerJob:
         """
         Test that when creating runs once max_active_runs is reached the runs does not stick
         """
-        scheduler_job = Job()
+        scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        scheduler_job.executor = MockExecutor(do_update=True)
         self.job_runner.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
 
         with dag_maker(max_active_runs=1, session=session) as dag:
@@ -2603,11 +2553,10 @@ class TestSchedulerJob:
         dr = dag_maker.create_dagrun(start_date=timezone.utcnow() - datetime.timedelta(days=1))
         # check that next_dagrun is dr.logical_date
         dag_maker.dag_model.next_dagrun == dr.logical_date
-        scheduler_job = Job()
+        scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
         self.job_runner.dagbag = dag_maker.dagbag
-        scheduler_job.executor = MockExecutor()
 
         # Mock that processor_agent is started
         self.job_runner.processor_agent = mock.Mock()
@@ -2639,10 +2588,9 @@ class TestSchedulerJob:
         ) as dag:
             EmptyOperator(task_id="dummy")
 
-        scheduler_job = Job()
+        scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        scheduler_job.executor = MockExecutor()
         self.job_runner.dagbag = dag_maker.dagbag
         self.job_runner.processor_agent = mock.Mock()
 
@@ -2687,10 +2635,9 @@ class TestSchedulerJob:
         dag_listener.clear()
         get_listener_manager().add_listener(dag_listener)
 
-        scheduler_job = Job()
+        scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        scheduler_job.executor = MockExecutor()
         self.job_runner.dagbag = dag_maker.dagbag
         self.job_runner.processor_agent = mock.Mock()
 
@@ -2719,10 +2666,9 @@ class TestSchedulerJob:
         ) as dag:
             EmptyOperator(task_id="empty")
 
-        scheduler_job = Job()
+        scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        scheduler_job.executor = MockExecutor()
         scheduler_job.executor.callback_sink = DatabaseCallbackSink()
         self.job_runner.dagbag = dag_maker.dagbag
         self.job_runner.processor_agent = mock.Mock()
@@ -2771,9 +2717,10 @@ class TestSchedulerJob:
         ti = dr.get_task_instance("dummy")
         ti.set_state(State.SUCCESS, session)
 
-        with mock.patch.object(settings, "USE_JOB_SCHEDULE", False), mock.patch(
-            "airflow.jobs.scheduler_job_runner.prohibit_commit"
-        ) as mock_guard:
+        with (
+            mock.patch.object(settings, "USE_JOB_SCHEDULE", False),
+            mock.patch("airflow.jobs.scheduler_job_runner.prohibit_commit") as mock_guard,
+        ):
             mock_guard.return_value.__enter__.return_value.commit.side_effect = session.commit
 
             def mock_schedule_dag_run(*args, **kwargs):
@@ -2925,7 +2872,7 @@ class TestSchedulerJob:
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
-        assert [] == res
+        assert res == []
 
     @pytest.mark.parametrize(
         "ti_states, run_state",
@@ -3009,7 +2956,7 @@ class TestSchedulerJob:
                 # zero tasks ran
                 assert len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()) == 0
                 session.commit()
-                assert [] == self.null_exec.sorted_tasks
+                assert self.null_exec.sorted_tasks == []
 
                 # previously, running this backfill would kick off the Scheduler
                 # because it would take the most recent run and start from there
@@ -3036,7 +2983,7 @@ class TestSchedulerJob:
                 # still one task
                 assert len(session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).all()) == 1
                 session.commit()
-                assert [] == self.null_exec.sorted_tasks
+                assert self.null_exec.sorted_tasks == []
 
     @pytest.mark.parametrize(
         "configs",
@@ -3554,31 +3501,6 @@ class TestSchedulerJob:
         assert ti.try_number == 1
         assert ti.state == State.SUCCESS
 
-    def test_retry_handling_job(self):
-        """
-        Integration test of the scheduler not accidentally resetting
-        the try_numbers for a task
-        """
-        dagbag = DagBag(TEST_DAG_FOLDER, include_examples=False)
-        dagbag.sync_to_db()
-        dag = dagbag.get_dag("test_retry_handling_job")
-        dag_task1 = dag.get_task("test_retry_handling_op")
-        dag.clear()
-        dag.sync_to_db()
-
-        scheduler_job = Job(job_type=SchedulerJobRunner.job_type, heartrate=0)
-        self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1)
-        self.job_runner.processor_agent = mock.MagicMock()
-        run_job(scheduler_job, execute_callable=self.job_runner._execute)
-
-        session = settings.Session()
-        ti = (
-            session.query(TaskInstance)
-            .filter(TaskInstance.dag_id == dag.dag_id, TaskInstance.task_id == dag_task1.task_id)
-            .first()
-        )
-        assert ti.state == State.UP_FOR_RETRY
-
     def test_dag_get_active_runs(self, dag_maker):
         """
         Test to check that a DAG returns its active runs
@@ -3665,7 +3587,7 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
         session = settings.Session()
-        assert 0 == self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+        assert self.job_runner.adopt_or_reset_orphaned_tasks(session=session) == 0
 
     @pytest.mark.parametrize(
         "adoptable_state",
@@ -3691,7 +3613,7 @@ class TestSchedulerJob:
         session.commit()
 
         num_reset_tis = self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
-        assert 1 == num_reset_tis
+        assert num_reset_tis == 1
 
     def test_adopt_or_reset_orphaned_tasks_external_triggered_dag(self, dag_maker, session):
         dag_id = "test_reset_orphaned_tasks_external_triggered_dag"
@@ -3738,7 +3660,7 @@ class TestSchedulerJob:
         session.flush()
 
         assert dr1.run_type == DagRunType.BACKFILL_JOB
-        assert 0 == self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+        assert self.job_runner.adopt_or_reset_orphaned_tasks(session=session) == 0
         session.rollback()
 
     def test_reset_orphaned_tasks_no_orphans(self, dag_maker):
@@ -3782,13 +3704,13 @@ class TestSchedulerJob:
         dr1 = dag_maker.create_dagrun()
         dr1.state = State.QUEUED
         tis = dr1.get_task_instances(session=session)
-        assert 1 == len(tis)
+        assert len(tis) == 1
         tis[0].state = State.SCHEDULED
         session.merge(dr1)
         session.merge(tis[0])
         session.flush()
 
-        assert 0 == self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+        assert self.job_runner.adopt_or_reset_orphaned_tasks(session=session) == 0
         session.rollback()
 
     def test_adopt_or_reset_orphaned_tasks_stale_scheduler_jobs(self, dag_maker):
@@ -3831,7 +3753,7 @@ class TestSchedulerJob:
 
         num_reset_tis = self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
 
-        assert 1 == num_reset_tis
+        assert num_reset_tis == 1
 
         session.refresh(ti1)
         assert ti1.state is None
@@ -4057,8 +3979,8 @@ class TestSchedulerJob:
         - That dag_model has next_dagrun
         """
 
-        asset1 = Asset(uri="ds1")
-        asset2 = Asset(uri="ds2")
+        asset1 = Asset(uri="test://asset1", name="test_asset", group="test_group")
+        asset2 = Asset(uri="test://asset2", name="test_asset_2", group="test_group")
 
         with dag_maker(dag_id="assets-1", start_date=timezone.utcnow(), session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset1])
@@ -4153,15 +4075,14 @@ class TestSchedulerJob:
         ],
     )
     def test_no_create_dag_runs_when_dag_disabled(self, session, dag_maker, disable, enable):
-        ds = Asset("ds")
-        with dag_maker(dag_id="consumer", schedule=[ds], session=session):
+        asset = Asset(uri="test://asset_1", name="test_asset_1", group="test_group")
+        with dag_maker(dag_id="consumer", schedule=[asset], session=session):
             pass
         with dag_maker(dag_id="producer", schedule="@daily", session=session):
-            BashOperator(task_id="task", bash_command="echo 1", outlets=ds)
+            BashOperator(task_id="task", bash_command="echo 1", outlets=asset)
         asset_manger = AssetManager()
 
-        asset_id = session.scalars(select(AssetModel.id).filter_by(uri=ds.uri)).one()
-
+        asset_id = session.scalars(select(AssetModel.id).filter_by(uri=asset.uri, name=asset.name)).one()
         ase_q = select(AssetEvent).where(AssetEvent.asset_id == asset_id).order_by(AssetEvent.timestamp)
         adrq_q = select(AssetDagRunQueue).where(
             AssetDagRunQueue.asset_id == asset_id, AssetDagRunQueue.target_dag_id == "consumer"
@@ -4174,7 +4095,7 @@ class TestSchedulerJob:
         dr1: DagRun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
         asset_manger.register_asset_change(
             task_instance=dr1.get_task_instance("task", session=session),
-            asset=ds,
+            asset=asset,
             session=session,
         )
         session.flush()
@@ -4188,7 +4109,7 @@ class TestSchedulerJob:
         dr2: DagRun = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
         asset_manger.register_asset_change(
             task_instance=dr2.get_task_instance("task", session=session),
-            asset=ds,
+            asset=asset,
             session=session,
         )
         session.flush()
@@ -4285,9 +4206,12 @@ class TestSchedulerJob:
 
         caplog.set_level("FATAL")
         caplog.clear()
-        with create_session() as session, caplog.at_level(
-            "ERROR",
-            logger="airflow.jobs.scheduler_job_runner",
+        with (
+            create_session() as session,
+            caplog.at_level(
+                "ERROR",
+                logger="airflow.jobs.scheduler_job_runner",
+            ),
         ):
             self.job_runner._create_dag_runs([dag_maker.dag_model], session)
             assert caplog.messages == [
@@ -4315,10 +4239,9 @@ class TestSchedulerJob:
         assert dag_model.next_dagrun_data_interval_start == DEFAULT_DATE
         assert dag_model.next_dagrun_data_interval_end == DEFAULT_DATE + timedelta(minutes=1)
 
-        scheduler_job = Job()
+        scheduler_job = Job(executor=MockExecutor(do_update=False))
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        scheduler_job.executor = MockExecutor(do_update=False)
         self.job_runner.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
 
         # Verify a DagRun is created with the correct dates
@@ -4454,10 +4377,9 @@ class TestSchedulerJob:
             **triggered_by_kwargs,
         )
 
-        scheduler_job = Job()
+        scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        scheduler_job.executor = MockExecutor()
         self.job_runner.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
 
         my_dag = session.get(DagModel, dag.dag_id)
@@ -4497,12 +4419,10 @@ class TestSchedulerJob:
             state=State.RUNNING,
         )
 
-        scheduler_job = Job()
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job(executor=executor)
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        executor = MockExecutor(do_update=False)
-        scheduler_job.executor = executor
-        scheduler_job.executors = [executor]
         with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
             # The executor is mocked, so cannot be loaded/imported. Mock load_executor and return the
             # correct object for the given input executor name.
@@ -4524,10 +4444,9 @@ class TestSchedulerJob:
         """
         with dag_maker(max_active_runs=1):
             EmptyOperator(task_id="task")
-        scheduler_job = Job()
+        scheduler_job = Job(executor=MockExecutor(do_update=False))
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        scheduler_job.executor = MockExecutor(do_update=False)
         self.job_runner.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
         session = settings.Session()
         assert session.query(DagRun).count() == 0
@@ -4591,10 +4510,9 @@ class TestSchedulerJob:
             # Need to use something that doesn't immediately get marked as success by the scheduler
             BashOperator(task_id="task", bash_command="true")
 
-        scheduler_job = Job()
+        scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        scheduler_job.executor = MockExecutor(do_update=True)
         self.job_runner.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
 
         query, _ = DagModel.dags_needing_dagruns(session)
@@ -4717,10 +4635,9 @@ class TestSchedulerJob:
                 dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
             )
 
-        scheduler_job = Job()
+        scheduler_job = Job(executor=MockExecutor(do_update=False))
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        scheduler_job.executor = MockExecutor(do_update=False)
         self.job_runner.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
 
         self.job_runner._start_queued_dagruns(session)
@@ -4771,10 +4688,9 @@ class TestSchedulerJob:
                 dr, run_type=DagRunType.SCHEDULED, state=State.QUEUED, dag_version=dag_version
             )
 
-        scheduler_job = Job()
+        scheduler_job = Job(executor=MockExecutor(do_update=False))
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        scheduler_job.executor = MockExecutor(do_update=False)
         self.job_runner.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
 
         self.job_runner._start_queued_dagruns(session)
@@ -4886,9 +4802,8 @@ class TestSchedulerJob:
             )
             return dag1_non_b_running, dag1_b_running, total_running_count
 
-        scheduler_job = Job()
+        scheduler_job = Job(executor=MockExecutor(do_update=False))
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
-        scheduler_job.executor = MockExecutor(do_update=False)
         self.job_runner.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
 
         from_date = pendulum.parse("2021-01-01")
@@ -5008,10 +4923,9 @@ class TestSchedulerJob:
             )
             return dag1_non_b_running, dag1_b_running, total_running_count
 
-        scheduler_job = Job()
+        scheduler_job = Job(executor=MockExecutor(do_update=False))
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        scheduler_job.executor = MockExecutor(do_update=False)
         self.job_runner.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
 
         from_date = pendulum.parse("2021-01-01")
@@ -5166,9 +5080,8 @@ class TestSchedulerJob:
             )
             return dag1_non_b_running, dag1_b_running, total_running_count
 
-        scheduler_job = Job()
+        scheduler_job = Job(executor=MockExecutor(do_update=False))
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
-        scheduler_job.executor = MockExecutor(do_update=False)
         self.job_runner.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
 
         from_date = pendulum.parse("2021-01-01")
@@ -5223,10 +5136,9 @@ class TestSchedulerJob:
                 dag_version=dag_version,
             )
             date = dr.logical_date + timedelta(hours=1)
-        scheduler_job = Job()
+        scheduler_job = Job(executor=MockExecutor(do_update=False))
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        scheduler_job.executor = MockExecutor(do_update=False)
         self.job_runner.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
 
         self.job_runner._start_queued_dagruns(session)
@@ -5322,10 +5234,9 @@ class TestSchedulerJob:
             )
             date = dr.logical_date + timedelta(hours=1)
 
-        scheduler_job = Job()
+        scheduler_job = Job(executor=MockExecutor(do_update=False))
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        scheduler_job.executor = MockExecutor(do_update=False)
         self.job_runner.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
 
         ti = TaskInstance(task=task1, run_id=dr1_running.run_id)
@@ -5906,10 +5817,9 @@ class TestSchedulerJob:
             session.add(ti)
             session.flush()
 
-        scheduler_job = Job()
+        scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        scheduler_job.executor = MockExecutor()
         self.job_runner.processor_agent = mock.MagicMock()
 
         self.job_runner._find_and_purge_zombies()
@@ -6039,6 +5949,8 @@ class TestSchedulerJob:
         assert dag
         logical_date = timezone.coerce_datetime(timezone.utcnow() - datetime.timedelta(days=2))
         data_interval = dag.infer_automated_data_interval(logical_date)
+
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_id=f"{dag_id}_1",
             run_type=DagRunType.MANUAL,
@@ -6046,6 +5958,7 @@ class TestSchedulerJob:
             state=State.RUNNING,
             session=session,
             data_interval=data_interval,
+            **triggered_by_kwargs,
         )
 
         executor = SequentialExecutor()
@@ -6087,8 +6000,8 @@ class TestSchedulerJob:
             tis = session.query(TaskInstance).all()
 
         dags = self.job_runner.dagbag.dags.values()
-        assert ["test_only_empty_tasks"] == [dag.dag_id for dag in dags]
-        assert 6 == len(tis)
+        assert [dag.dag_id for dag in dags] == ["test_only_empty_tasks"]
+        assert len(tis) == 6
         assert {
             ("test_task_a", "success"),
             ("test_task_b", None),
@@ -6103,7 +6016,7 @@ class TestSchedulerJob:
             if state == "success":
                 assert start_date is not None
                 assert end_date is not None
-                assert 0.0 == duration
+                assert duration == 0.0
             else:
                 assert start_date is None
                 assert end_date is None
@@ -6113,7 +6026,7 @@ class TestSchedulerJob:
         with create_session() as session:
             tis = session.query(TaskInstance).all()
 
-        assert 6 == len(tis)
+        assert len(tis) == 6
         assert {
             ("test_task_a", "success"),
             ("test_task_b", "success"),
@@ -6128,7 +6041,7 @@ class TestSchedulerJob:
             if state == "success":
                 assert start_date is not None
                 assert end_date is not None
-                assert 0.0 == duration
+                assert duration == 0.0
             else:
                 assert start_date is None
                 assert end_date is None
@@ -6148,10 +6061,9 @@ class TestSchedulerJob:
         ) as dag:
             EmptyOperator(task_id="dummy")
 
-        scheduler_job = Job()
+        scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        scheduler_job.executor = MockExecutor()
         self.job_runner.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
 
         self.job_runner._create_dag_runs([dag_maker.dag_model], session)
@@ -6206,10 +6118,9 @@ class TestSchedulerJob:
 
         assert scheduled_run.state == State.RUNNING
 
-        scheduler_job = Job()
+        scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        scheduler_job.executor = MockExecutor()
         self.job_runner._update_dag_run_state_for_paused_dags(session=session)
         session.flush()
 
@@ -6250,10 +6161,9 @@ class TestSchedulerJob:
 
         assert backfill_run.state == State.RUNNING
 
-        scheduler_job = Job()
+        scheduler_job = Job(executor=self.null_exec)
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        scheduler_job.executor = MockExecutor()
         self.job_runner._update_dag_run_state_for_paused_dags()
         session.flush()
 
@@ -6276,11 +6186,11 @@ class TestSchedulerJob:
     def test_asset_orphaning(self, dag_maker, session):
         self.job_runner = SchedulerJobRunner(job=Job(), subdir=os.devnull)
 
-        asset1 = Asset(uri="ds1")
-        asset2 = Asset(uri="ds2")
-        asset3 = Asset(uri="ds3")
-        asset4 = Asset(uri="ds4")
-        asset5 = Asset(uri="ds5")
+        asset1 = Asset(uri="test://asset_1", name="test_asset_1", group="test_group")
+        asset2 = Asset(uri="test://asset_2", name="test_asset_2", group="test_group")
+        asset3 = Asset(uri="test://asset_3", name="test_asset_3", group="test_group")
+        asset4 = Asset(uri="test://asset_4", name="test_asset_4", group="test_group")
+        asset5 = Asset(uri="test://asset_5", name="test_asset_5", group="test_group")
 
         with dag_maker(dag_id="assets-1", schedule=[asset1, asset2], session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[asset3, asset4])
@@ -6319,7 +6229,7 @@ class TestSchedulerJob:
     def test_asset_orphaning_ignore_orphaned_assets(self, dag_maker, session):
         self.job_runner = SchedulerJobRunner(job=Job(), subdir=os.devnull)
 
-        asset1 = Asset(uri="ds1")
+        asset1 = Asset(uri="test://asset_1", name="test_asset_1", group="test_group")
 
         with dag_maker(dag_id="assets-1", schedule=[asset1], session=session):
             BashOperator(task_id="task", bash_command="echo 1")
@@ -6392,11 +6302,13 @@ class TestSchedulerJob:
 
         asset1 = Asset(name=asset1_name, uri="s3://bucket/key/1", extra=asset_extra)
         asset1_1 = Asset(name=asset1_name, uri="it's duplicate", extra=asset_extra)
-        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=[asset1, asset1_1])
+        asset1_2 = Asset(name="it's also a duplicate", uri="s3://bucket/key/1", extra=asset_extra)
+        dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=[asset1, asset1_1, asset1_2])
 
         DAG.bulk_write_to_db([dag1], session=session)
 
         asset_models = session.scalars(select(AssetModel)).all()
+        assert len(asset_models) == 3
 
         SchedulerJobRunner._activate_referenced_assets(asset_models, session=session)
         session.flush()
@@ -6407,8 +6319,10 @@ class TestSchedulerJob:
             )
         )
         assert dag_warning.message == (
-            "Cannot activate asset AssetModel(name='asset1', uri=\"it's duplicate\", extra={'foo': 'bar'}); "
-            "name is already associated to 's3://bucket/key/1'"
+            'Cannot activate asset AssetModel(name="it\'s also a duplicate",'
+            " uri='s3://bucket/key/1', extra={'foo': 'bar'}); uri is already associated to 'asset1'\n"
+            "Cannot activate asset AssetModel(name='asset1', uri"
+            "=\"it's duplicate\", extra={'foo': 'bar'}); name is already associated to 's3://bucket/key/1'"
         )
 
     def test_activate_referenced_assets_with_existing_warnings(self, session):
@@ -6568,26 +6482,29 @@ class TestSchedulerJobQueriesCount:
         ],
     )
     def test_execute_queries_count_with_harvested_dags(self, expected_query_count, dag_count, task_count):
-        with mock.patch.dict(
-            "os.environ",
-            {
-                "PERF_DAGS_COUNT": str(dag_count),
-                "PERF_TASKS_COUNT": str(task_count),
-                "PERF_START_AGO": "1d",
-                "PERF_SCHEDULE_INTERVAL": "30m",
-                "PERF_SHAPE": "no_structure",
-            },
-        ), conf_vars(
-            {
-                ("scheduler", "use_job_schedule"): "True",
-                ("core", "load_examples"): "False",
-                # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
-                # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
-                # This will increase the count of serliazied_dag.py.get() count.
-                # That's why we keep the values high
-                ("core", "min_serialized_dag_update_interval"): "100",
-                ("core", "min_serialized_dag_fetch_interval"): "100",
-            }
+        with (
+            mock.patch.dict(
+                "os.environ",
+                {
+                    "PERF_DAGS_COUNT": str(dag_count),
+                    "PERF_TASKS_COUNT": str(task_count),
+                    "PERF_START_AGO": "1d",
+                    "PERF_SCHEDULE_INTERVAL": "30m",
+                    "PERF_SHAPE": "no_structure",
+                },
+            ),
+            conf_vars(
+                {
+                    ("scheduler", "use_job_schedule"): "True",
+                    ("core", "load_examples"): "False",
+                    # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
+                    # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
+                    # This will increase the count of serliazied_dag.py.get() count.
+                    # That's why we keep the values high
+                    ("core", "min_serialized_dag_update_interval"): "100",
+                    ("core", "min_serialized_dag_fetch_interval"): "100",
+                }
+            ),
         ):
             dagruns = []
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False, read_dags_from_db=False)
@@ -6663,25 +6580,28 @@ class TestSchedulerJobQueriesCount:
     def test_process_dags_queries_count(
         self, expected_query_counts, dag_count, task_count, start_ago, schedule, shape
     ):
-        with mock.patch.dict(
-            "os.environ",
-            {
-                "PERF_DAGS_COUNT": str(dag_count),
-                "PERF_TASKS_COUNT": str(task_count),
-                "PERF_START_AGO": start_ago,
-                "PERF_SCHEDULE_INTERVAL": schedule,
-                "PERF_SHAPE": shape,
-            },
-        ), conf_vars(
-            {
-                ("scheduler", "use_job_schedule"): "True",
-                # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
-                # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
-                # This will increase the count of serliazied_dag.py.get() count.
-                # That's why we keep the values high
-                ("core", "min_serialized_dag_update_interval"): "100",
-                ("core", "min_serialized_dag_fetch_interval"): "100",
-            }
+        with (
+            mock.patch.dict(
+                "os.environ",
+                {
+                    "PERF_DAGS_COUNT": str(dag_count),
+                    "PERF_TASKS_COUNT": str(task_count),
+                    "PERF_START_AGO": start_ago,
+                    "PERF_SCHEDULE_INTERVAL": schedule,
+                    "PERF_SHAPE": shape,
+                },
+            ),
+            conf_vars(
+                {
+                    ("scheduler", "use_job_schedule"): "True",
+                    # For longer running tests under heavy load, the min_serialized_dag_fetch_interval
+                    # and min_serialized_dag_update_interval might kick-in and re-retrieve the record.
+                    # This will increase the count of serliazied_dag.py.get() count.
+                    # That's why we keep the values high
+                    ("core", "min_serialized_dag_update_interval"): "100",
+                    ("core", "min_serialized_dag_fetch_interval"): "100",
+                }
+            ),
         ):
             dagbag = DagBag(dag_folder=ELASTIC_DAG_FILE, include_examples=False)
             dagbag.sync_to_db()

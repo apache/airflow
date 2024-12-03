@@ -56,7 +56,7 @@ from tests_common.test_utils.db import (
     drop_tables_with_prefix,
 )
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(autouse=True)
@@ -277,11 +277,13 @@ class TestDBCleanup:
 
     @pytest.mark.parametrize(
         "skip_archive, expected_archives",
-        [pytest.param(True, 0, id="skip_archive"), pytest.param(False, 1, id="do_archive")],
+        [pytest.param(True, 1, id="skip_archive"), pytest.param(False, 2, id="do_archive")],
     )
     def test__skip_archive(self, skip_archive, expected_archives):
         """
         Verify that running cleanup_table with drops the archives when requested.
+
+        Archived tables from DB migration should be kept when skip_archive is True.
         """
         base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
         num_tis = 10
@@ -352,7 +354,6 @@ class TestDBCleanup:
             "rendered_task_instance_fields",  # foreign key with TI
             "dag_priority_parsing_request",  # Records are purged once per DAG Processing loop, not a
             # significant source of data.
-            "dag_version",  # self-maintaining
         }
 
         from airflow.utils.db_cleanup import config_dict
@@ -421,8 +422,9 @@ class TestDBCleanup:
                 expected += f"\n  {table}"
 
         mock_ask_yesno.return_value = True
-        with patch("sys.stdout", new=StringIO()) as fake_out, patch(
-            "builtins.input", side_effect=["drop archived tables"]
+        with (
+            patch("sys.stdout", new=StringIO()) as fake_out,
+            patch("builtins.input", side_effect=["drop archived tables"]),
         ):
             _confirm_drop_archives(tables=tables)
             output = fake_out.getvalue().strip()
@@ -431,8 +433,9 @@ class TestDBCleanup:
 
     def test_user_did_not_confirm(self):
         tables = ["table1", "table2"]
-        with pytest.raises(SystemExit) as cm, patch(
-            "builtins.input", side_effect=["not drop archived tables"]
+        with (
+            pytest.raises(SystemExit) as cm,
+            patch("builtins.input", side_effect=["not drop archived tables"]),
         ):
             _confirm_drop_archives(tables=tables)
         assert str(cm.value) == "User did not confirm; exiting."

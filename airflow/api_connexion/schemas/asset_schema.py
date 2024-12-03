@@ -70,6 +70,7 @@ class AssetAliasSchema(SQLAlchemySchema):
 
     id = auto_field()
     name = auto_field()
+    group = auto_field()
 
 
 class AssetSchema(SQLAlchemySchema):
@@ -82,6 +83,8 @@ class AssetSchema(SQLAlchemySchema):
 
     id = auto_field()
     uri = auto_field()
+    name = auto_field()
+    group = auto_field()
     extra = JsonObjectField()
     created_at = auto_field()
     updated_at = auto_field()

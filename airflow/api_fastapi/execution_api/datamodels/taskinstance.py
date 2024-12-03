@@ -18,18 +18,18 @@
 from __future__ import annotations
 
 import uuid
-from typing import Annotated, Literal, Union
+from datetime import timedelta
+from typing import Annotated, Any, Literal, Union
 
-from pydantic import BaseModel, ConfigDict, Discriminator, Tag, WithJsonSchema
+from pydantic import Discriminator, Field, Tag, WithJsonSchema
 
 from airflow.api_fastapi.common.types import UtcDateTime
+from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.utils.state import IntermediateTIState, TaskInstanceState as TIState, TerminalTIState
 
 
 class TIEnterRunningPayload(BaseModel):
     """Schema for updating TaskInstance to 'RUNNING' state with minimal required fields."""
-
-    model_config = ConfigDict(from_attributes=True)
 
     state: Annotated[
         Literal[TIState.RUNNING],
@@ -61,6 +61,26 @@ class TITargetStatePayload(BaseModel):
     state: IntermediateTIState
 
 
+class TIDeferredStatePayload(BaseModel):
+    """Schema for updating TaskInstance to a deferred state."""
+
+    state: Annotated[
+        Literal[IntermediateTIState.DEFERRED],
+        # Specify a default in the schema, but not in code, so Pydantic marks it as required.
+        WithJsonSchema(
+            {
+                "type": "string",
+                "enum": [IntermediateTIState.DEFERRED],
+                "default": IntermediateTIState.DEFERRED,
+            }
+        ),
+    ]
+    classpath: str
+    trigger_kwargs: Annotated[dict[str, Any], Field(default_factory=dict)]
+    next_method: str
+    trigger_timeout: timedelta | None = None
+
+
 def ti_state_discriminator(v: dict[str, str] | BaseModel) -> str:
     """
     Determine the discriminator key for TaskInstance state transitions.
@@ -78,6 +98,8 @@ def ti_state_discriminator(v: dict[str, str] | BaseModel) -> str:
         return str(state)
     elif state in set(TerminalTIState):
         return "_terminal_"
+    elif state == TIState.DEFERRED:
+        return "deferred"
     return "_other_"
 
 
@@ -88,6 +110,7 @@ TIStateUpdate = Annotated[
         Annotated[TIEnterRunningPayload, Tag("running")],
         Annotated[TITerminalStatePayload, Tag("_terminal_")],
         Annotated[TITargetStatePayload, Tag("_other_")],
+        Annotated[TIDeferredStatePayload, Tag("deferred")],
     ],
     Discriminator(ti_state_discriminator),
 ]

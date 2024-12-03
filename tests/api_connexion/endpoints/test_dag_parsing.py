@@ -28,7 +28,7 @@ from airflow.models.dagbag import DagPriorityParsingRequest
 from tests_common.test_utils.api_connexion_utils import create_user, delete_user
 from tests_common.test_utils.db import clear_db_dag_parsing_requests
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
@@ -80,7 +80,7 @@ class TestDagParsingRequest:
         response = self.client.put(
             url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
         )
-        assert 201 == response.status_code
+        assert response.status_code == 201
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert parsing_requests[0].fileloc == test_dag.fileloc
 
@@ -88,7 +88,7 @@ class TestDagParsingRequest:
         response = self.client.put(
             url, headers={"Accept": "application/json"}, environ_overrides={"REMOTE_USER": "test"}
         )
-        assert 201 == response.status_code
+        assert response.status_code == 201
         parsing_requests = session.scalars(select(DagPriorityParsingRequest)).all()
         assert parsing_requests[0].fileloc == test_dag.fileloc
 

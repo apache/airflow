@@ -17,14 +17,10 @@
 
 from __future__ import annotations
 
-from typing import Annotated
-
-from fastapi import Depends
 from sqlalchemy import and_, func, select
-from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.common.db.common import (
-    get_session,
+    SessionDep,
     paginated_select,
 )
 from airflow.api_fastapi.common.parameters import (
@@ -61,7 +57,7 @@ def recent_dag_runs(
     only_active: QueryOnlyActiveFilter,
     paused: QueryPausedFilter,
     last_dag_run_state: QueryLastDagRunStateFilter,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     dag_runs_limit: int = 10,
 ) -> DAGWithLatestDagRunsCollectionResponse:
     """Get recent DAG runs."""
@@ -103,7 +99,7 @@ def recent_dag_runs(
         .order_by(recent_runs_subquery.c.logical_date.desc())
     )
     dags_with_recent_dag_runs_select_filter, _ = paginated_select(
-        select=dags_with_recent_dag_runs_select,
+        statement=dags_with_recent_dag_runs_select,
         filters=[
             only_active,
             paused,
@@ -124,9 +120,9 @@ def recent_dag_runs(
     for row in dags_with_recent_dag_runs:
         dag_run, dag, *_ = row
         dag_id = dag.dag_id
-        dag_run_response = DAGRunResponse.model_validate(dag_run, from_attributes=True)
+        dag_run_response = DAGRunResponse.model_validate(dag_run)
         if dag_id not in dag_runs_by_dag_id:
-            dag_response = DAGResponse.model_validate(dag, from_attributes=True)
+            dag_response = DAGResponse.model_validate(dag)
             dag_runs_by_dag_id[dag_id] = DAGWithLatestDagRunsResponse.model_validate(
                 {
                     **dag_response.dict(),

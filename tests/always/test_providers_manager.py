@@ -71,7 +71,7 @@ class TestProviderManager:
             # just a coherence check - no exact number as otherwise we would have to update
             # several tests if we add new connections/provider which is not ideal
             assert len(provider_list) > 65
-            assert [] == self._caplog.records
+            assert self._caplog.records == []
 
     def test_hooks_deprecation_warnings_generated(self):
         with pytest.warns(expected_warning=DeprecationWarning, match="hook-class-names") as warning_records:
@@ -101,7 +101,7 @@ class TestProviderManager:
                 package_or_source="package",
             )
             providers_manager._discover_hooks()
-        assert [] == [w.message for w in warning_records if "hook-class-names" in str(w.message)]
+        assert [w.message for w in warning_records if "hook-class-names" in str(w.message)] == []
 
     def test_warning_logs_generated(self):
         providers_manager = ProvidersManager()
@@ -235,7 +235,7 @@ class TestProviderManager:
                 print(record.message, file=sys.stderr)
                 print(record.exc_info, file=sys.stderr)
             raise AssertionError("There are warnings generated during hook imports. Please fix them")
-        assert [] == [w.message for w in warning_records if "hook-class-names" in str(w.message)]
+        assert [w.message for w in warning_records if "hook-class-names" in str(w.message)] == []
 
     @pytest.mark.execution_timeout(150)
     def test_hook_values(self):
@@ -264,7 +264,7 @@ class TestProviderManager:
                     real_warning_count += 1
             if real_warning_count:
                 raise AssertionError("There are warnings generated during hook imports. Please fix them")
-        assert [] == [w.message for w in warning_records if "hook-class-names" in str(w.message)]
+        assert [w.message for w in warning_records if "hook-class-names" in str(w.message)] == []
 
     def test_connection_form_widgets(self):
         provider_manager = ProvidersManager()
@@ -459,7 +459,7 @@ class TestProviderManager:
             providers_manager._import_hook(
                 hook_class_name=None, provider_info=None, package_name=None, connection_type="test_connection"
             )
-            assert [] == self._caplog.messages
+            assert self._caplog.messages == []
 
     @patch("airflow.providers_manager.import_string")
     def test_optional_feature_debug(self, mock_importlib_import_string):
@@ -472,9 +472,9 @@ class TestProviderManager:
             providers_manager._import_hook(
                 hook_class_name=None, provider_info=None, package_name=None, connection_type="test_connection"
             )
-            assert [
+            assert self._caplog.messages == [
                 "Optional provider feature disabled when importing 'HookClass' from 'test_package' package"
-            ] == self._caplog.messages
+            ]
 
 
 @pytest.mark.parametrize(

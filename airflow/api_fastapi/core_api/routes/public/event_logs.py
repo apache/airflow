@@ -21,10 +21,9 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.common.db.common import (
-    get_session,
+    SessionDep,
     paginated_select,
 )
 from airflow.api_fastapi.common.parameters import (
@@ -49,15 +48,12 @@ event_logs_router = AirflowRouter(tags=["Event Log"], prefix="/eventLogs")
 )
 def get_event_log(
     event_log_id: int,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> EventLogResponse:
     event_log = session.scalar(select(Log).where(Log.id == event_log_id))
     if event_log is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Event Log with id: `{event_log_id}` not found")
-    return EventLogResponse.model_validate(
-        event_log,
-        from_attributes=True,
-    )
+    return event_log
 
 
 @event_logs_router.get(
@@ -66,7 +62,7 @@ def get_event_log(
 def get_event_logs(
     limit: QueryLimit,
     offset: QueryOffset,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     order_by: Annotated[
         SortParam,
         Depends(
@@ -100,32 +96,32 @@ def get_event_logs(
     after: datetime | None = None,
 ) -> EventLogCollectionResponse:
     """Get all Event Logs."""
-    base_select = select(Log).group_by(Log.id)
+    query = select(Log).group_by(Log.id)
     # TODO: Refactor using the `FilterParam` class in commit `574b72e41cc5ed175a2bbf4356522589b836bb11`
     if dag_id is not None:
-        base_select = base_select.where(Log.dag_id == dag_id)
+        query = query.where(Log.dag_id == dag_id)
     if task_id is not None:
-        base_select = base_select.where(Log.task_id == task_id)
+        query = query.where(Log.task_id == task_id)
     if run_id is not None:
-        base_select = base_select.where(Log.run_id == run_id)
+        query = query.where(Log.run_id == run_id)
     if map_index is not None:
-        base_select = base_select.where(Log.map_index == map_index)
+        query = query.where(Log.map_index == map_index)
     if try_number is not None:
-        base_select = base_select.where(Log.try_number == try_number)
+        query = query.where(Log.try_number == try_number)
     if owner is not None:
-        base_select = base_select.where(Log.owner == owner)
+        query = query.where(Log.owner == owner)
     if event is not None:
-        base_select = base_select.where(Log.event == event)
+        query = query.where(Log.event == event)
     if excluded_events is not None:
-        base_select = base_select.where(Log.event.notin_(excluded_events))
+        query = query.where(Log.event.notin_(excluded_events))
     if included_events is not None:
-        base_select = base_select.where(Log.event.in_(included_events))
+        query = query.where(Log.event.in_(included_events))
     if before is not None:
-        base_select = base_select.where(Log.dttm < before)
+        query = query.where(Log.dttm < before)
     if after is not None:
-        base_select = base_select.where(Log.dttm > after)
+        query = query.where(Log.dttm > after)
     event_logs_select, total_entries = paginated_select(
-        select=base_select,
+        statement=query,
         order_by=order_by,
         offset=offset,
         limit=limit,
@@ -134,6 +130,6 @@ def get_event_logs(
     event_logs = session.scalars(event_logs_select)
 
     return EventLogCollectionResponse(
-        event_logs=[EventLogResponse.model_validate(e, from_attributes=True) for e in event_logs],
+        event_logs=event_logs,
         total_entries=total_entries,
     )

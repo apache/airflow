@@ -17,8 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import os
-
 from airflow.jobs.job import Job
 from airflow.models import (
     Connection,
@@ -54,6 +52,19 @@ from tests_common.test_utils.compat import (
 )
 
 
+def _bootstrap_dagbag():
+    from airflow.models.dag import DAG
+    from airflow.models.dagbag import DagBag
+
+    with create_session() as session:
+        dagbag = DagBag()
+        # Save DAGs in the ORM
+        dagbag.sync_to_db(session=session)
+
+        # Deactivate the unknown ones
+        DAG.deactivate_unknown_dags(dagbag.dags.keys(), session=session)
+
+
 def initial_db_init():
     from flask import Flask
 
@@ -62,8 +73,13 @@ def initial_db_init():
     from airflow.www.extensions.init_appbuilder import init_appbuilder
     from airflow.www.extensions.init_auth_manager import get_auth_manager
 
+    from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
     db.resetdb()
-    db.bootstrap_dagbag()
+    if AIRFLOW_V_3_0_PLUS:
+        db.downgrade(to_revision="5f2621c13b39")
+        db.upgradedb(to_revision="head")
+    _bootstrap_dagbag()
     # minimal app to add roles
     flask_app = Flask(__name__)
     flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
@@ -256,7 +272,3 @@ def clear_all():
     clear_db_pools()
     clear_db_connections(add_default_connections_back=True)
     clear_dag_specific_permissions()
-
-
-def is_db_isolation_mode():
-    return os.environ.get("RUN_TESTS_WITH_DATABASE_ISOLATION", "false").lower() == "true"

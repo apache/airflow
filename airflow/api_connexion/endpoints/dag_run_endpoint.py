@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Collection
 from http import HTTPStatus
-from typing import TYPE_CHECKING, Collection
+from typing import TYPE_CHECKING
 
 import pendulum
 from connexion import NoContent
@@ -264,6 +265,7 @@ def get_dag_runs(
         raise BadRequest("DAGRunCollectionSchema error", detail=str(e))
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
 @provide_session
 def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
@@ -303,6 +305,7 @@ def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
     return dagrun_collection_schema.dump(DAGRunCollection(dag_runs=dag_runs, total_entries=total_entries))
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("POST", DagAccessEntity.RUN)
 @action_logging
 @provide_session

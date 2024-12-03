@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import urllib
-from typing import Generator
+from collections.abc import Generator
+from datetime import datetime
 from unittest import mock
 
 import pytest
@@ -39,19 +40,23 @@ from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.db import clear_db_assets, clear_db_runs
+from tests_common.test_utils.format_datetime import from_datetime_to_zulu_without_ms
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+DEFAULT_DATE = datetime(2020, 6, 11, 18, 0, 0, tzinfo=timezone.utc)
+
+pytestmark = pytest.mark.db_test
 
 
 def _create_assets(session, num: int = 2) -> None:
-    default_time = "2020-06-11T18:00:00+00:00"
     assets = [
         AssetModel(
             id=i,
+            name=f"simple{i}",
             uri=f"s3://bucket/key/{i}",
+            group="asset",
             extra={"foo": "bar"},
-            created_at=timezone.parse(default_time),
-            updated_at=timezone.parse(default_time),
+            created_at=DEFAULT_DATE,
+            updated_at=DEFAULT_DATE,
         )
         for i in range(1, 1 + num)
     ]
@@ -60,14 +65,15 @@ def _create_assets(session, num: int = 2) -> None:
 
 
 def _create_assets_with_sensitive_extra(session, num: int = 2) -> None:
-    default_time = "2020-06-11T18:00:00+00:00"
     assets = [
         AssetModel(
             id=i,
+            name=f"sensitive{i}",
             uri=f"s3://bucket/key/{i}",
+            group="asset",
             extra={"password": "bar"},
-            created_at=timezone.parse(default_time),
-            updated_at=timezone.parse(default_time),
+            created_at=DEFAULT_DATE,
+            updated_at=DEFAULT_DATE,
         )
         for i in range(1, 1 + num)
     ]
@@ -81,7 +87,6 @@ def _create_provided_asset(session, asset: AssetModel) -> None:
 
 
 def _create_assets_events(session, num: int = 2) -> None:
-    default_time = "2020-06-11T18:00:00+00:00"
     assets_events = [
         AssetEvent(
             id=i,
@@ -90,7 +95,7 @@ def _create_assets_events(session, num: int = 2) -> None:
             source_task_id="source_task_id",
             source_dag_id="source_dag_id",
             source_run_id=f"source_run_id_{i}",
-            timestamp=timezone.parse(default_time),
+            timestamp=DEFAULT_DATE,
         )
         for i in range(1, 1 + num)
     ]
@@ -99,7 +104,6 @@ def _create_assets_events(session, num: int = 2) -> None:
 
 
 def _create_assets_events_with_sensitive_extra(session, num: int = 2) -> None:
-    default_time = "2020-06-11T18:00:00+00:00"
     assets_events = [
         AssetEvent(
             id=i,
@@ -108,7 +112,7 @@ def _create_assets_events_with_sensitive_extra(session, num: int = 2) -> None:
             source_task_id="source_task_id",
             source_dag_id="source_dag_id",
             source_run_id=f"source_run_id_{i}",
-            timestamp=timezone.parse(default_time),
+            timestamp=DEFAULT_DATE,
         )
         for i in range(1, 1 + num)
     ]
@@ -122,22 +126,21 @@ def _create_provided_asset_event(session, asset_event: AssetEvent) -> None:
 
 
 def _create_dag_run(session, num: int = 2):
-    default_time = "2020-06-11T18:00:00+00:00"
     dag_runs = [
         DagRun(
             dag_id="source_dag_id",
             run_id=f"source_run_id_{i}",
             run_type=DagRunType.MANUAL,
-            logical_date=timezone.parse(default_time),
-            start_date=timezone.parse(default_time),
-            data_interval=(timezone.parse(default_time), timezone.parse(default_time)),
+            logical_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             external_trigger=True,
             state=DagRunState.SUCCESS,
         )
         for i in range(1, 1 + num)
     ]
     for dag_run in dag_runs:
-        dag_run.end_date = timezone.parse(default_time)
+        dag_run.end_date = DEFAULT_DATE
     session.add_all(dag_runs)
     session.commit()
 
@@ -152,11 +155,9 @@ def _create_asset_dag_run(session, num: int = 2):
 
 
 class TestAssets:
-    default_time = "2020-06-11T18:00:00+00:00"
-
     @pytest.fixture
     def time_freezer(self) -> Generator:
-        freezer = time_machine.travel(self.default_time, tick=False)
+        freezer = time_machine.travel(DEFAULT_DATE, tick=False)
         freezer.start()
 
         yield
@@ -214,12 +215,14 @@ class TestGetAssets(TestAssets):
         response = test_client.get("/public/assets")
         assert response.status_code == 200
         response_data = response.json()
-        tz_datetime_format = self.default_time.replace("+00:00", "Z")
+        tz_datetime_format = from_datetime_to_zulu_without_ms(DEFAULT_DATE)
         assert response_data == {
             "assets": [
                 {
                     "id": 1,
+                    "name": "simple1",
                     "uri": "s3://bucket/key/1",
+                    "group": "asset",
                     "extra": {"foo": "bar"},
                     "created_at": tz_datetime_format,
                     "updated_at": tz_datetime_format,
@@ -229,7 +232,9 @@ class TestGetAssets(TestAssets):
                 },
                 {
                     "id": 2,
+                    "name": "simple2",
                     "uri": "s3://bucket/key/2",
+                    "group": "asset",
                     "extra": {"foo": "bar"},
                     "created_at": tz_datetime_format,
                     "updated_at": tz_datetime_format,
@@ -394,15 +399,15 @@ class TestGetAssetEvents(TestAssets):
                         {
                             "run_id": "source_run_id_1",
                             "dag_id": "source_dag_id",
-                            "logical_date": "2020-06-11T18:00:00Z",
-                            "start_date": "2020-06-11T18:00:00Z",
-                            "end_date": "2020-06-11T18:00:00Z",
+                            "logical_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                            "start_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                            "end_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "state": "success",
-                            "data_interval_start": "2020-06-11T18:00:00Z",
-                            "data_interval_end": "2020-06-11T18:00:00Z",
+                            "data_interval_start": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                            "data_interval_end": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                         }
                     ],
-                    "timestamp": "2020-06-11T18:00:00Z",
+                    "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                 },
                 {
                     "id": 2,
@@ -417,15 +422,15 @@ class TestGetAssetEvents(TestAssets):
                         {
                             "run_id": "source_run_id_2",
                             "dag_id": "source_dag_id",
-                            "logical_date": "2020-06-11T18:00:00Z",
-                            "start_date": "2020-06-11T18:00:00Z",
-                            "end_date": "2020-06-11T18:00:00Z",
+                            "logical_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                            "start_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                            "end_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "state": "success",
-                            "data_interval_start": "2020-06-11T18:00:00Z",
-                            "data_interval_end": "2020-06-11T18:00:00Z",
+                            "data_interval_start": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                            "data_interval_end": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                         }
                     ],
-                    "timestamp": "2020-06-11T18:00:00Z",
+                    "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                 },
             ],
             "total_entries": 2,
@@ -506,15 +511,15 @@ class TestGetAssetEvents(TestAssets):
                         {
                             "run_id": "source_run_id_1",
                             "dag_id": "source_dag_id",
-                            "logical_date": "2020-06-11T18:00:00Z",
-                            "start_date": "2020-06-11T18:00:00Z",
-                            "end_date": "2020-06-11T18:00:00Z",
+                            "logical_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                            "start_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                            "end_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "state": "success",
-                            "data_interval_start": "2020-06-11T18:00:00Z",
-                            "data_interval_end": "2020-06-11T18:00:00Z",
+                            "data_interval_start": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                            "data_interval_end": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                         }
                     ],
-                    "timestamp": "2020-06-11T18:00:00Z",
+                    "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                 },
                 {
                     "id": 2,
@@ -529,15 +534,15 @@ class TestGetAssetEvents(TestAssets):
                         {
                             "run_id": "source_run_id_2",
                             "dag_id": "source_dag_id",
-                            "logical_date": "2020-06-11T18:00:00Z",
-                            "start_date": "2020-06-11T18:00:00Z",
-                            "end_date": "2020-06-11T18:00:00Z",
+                            "logical_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                            "start_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                            "end_date": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                             "state": "success",
-                            "data_interval_start": "2020-06-11T18:00:00Z",
-                            "data_interval_end": "2020-06-11T18:00:00Z",
+                            "data_interval_start": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
+                            "data_interval_end": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                         }
                     ],
-                    "timestamp": "2020-06-11T18:00:00Z",
+                    "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                 },
             ],
             "total_entries": 2,
@@ -558,7 +563,7 @@ class TestGetAssetEndpoint(TestAssets):
     def test_should_respond_200(self, test_client, url, session):
         self.create_assets(num=1)
         assert session.query(AssetModel).count() == 1
-        tz_datetime_format = self.default_time.replace("+00:00", "Z")
+        tz_datetime_format = from_datetime_to_zulu_without_ms(DEFAULT_DATE)
         with assert_queries_count(6):
             response = test_client.get(
                 f"/public/assets/{url}",
@@ -566,7 +571,9 @@ class TestGetAssetEndpoint(TestAssets):
         assert response.status_code == 200
         assert response.json() == {
             "id": 1,
+            "name": "simple1",
             "uri": "s3://bucket/key/1",
+            "group": "asset",
             "extra": {"foo": "bar"},
             "created_at": tz_datetime_format,
             "updated_at": tz_datetime_format,
@@ -586,7 +593,7 @@ class TestGetAssetEndpoint(TestAssets):
     @pytest.mark.enable_redact
     def test_should_mask_sensitive_extra(self, test_client, session):
         self.create_assets_with_sensitive_extra()
-        tz_datetime_format = self.default_time.replace("+00:00", "Z")
+        tz_datetime_format = from_datetime_to_zulu_without_ms(DEFAULT_DATE)
         uri = "s3://bucket/key/1"
         response = test_client.get(
             f"/public/assets/{uri}",
@@ -594,7 +601,9 @@ class TestGetAssetEndpoint(TestAssets):
         assert response.status_code == 200
         assert response.json() == {
             "id": 1,
+            "name": "sensitive1",
             "uri": "s3://bucket/key/1",
+            "group": "asset",
             "extra": {"password": "***"},
             "created_at": tz_datetime_format,
             "updated_at": tz_datetime_format,
@@ -629,7 +638,7 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
         assert response.json() == {
             "queued_events": [
                 {
-                    "created_at": self.default_time.replace("+00:00", "Z"),
+                    "created_at": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                     "uri": "s3://bucket/key/1",
                     "dag_id": "dag",
                 }
@@ -709,11 +718,11 @@ class TestPostAssetEvents(TestAssets):
             "source_run_id": None,
             "source_map_index": -1,
             "created_dagruns": [],
-            "timestamp": self.default_time.replace("+00:00", "Z"),
+            "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
         }
 
     def test_invalid_attr_not_allowed(self, test_client, session):
-        self.create_assets()
+        self.create_assets(session)
         event_invalid_payload = {"asset_uri": "s3://bucket/key/1", "extra": {"foo": "bar"}, "fake": {}}
         response = test_client.post("/public/assets/events", json=event_invalid_payload)
 
@@ -722,7 +731,7 @@ class TestPostAssetEvents(TestAssets):
     @pytest.mark.usefixtures("time_freezer")
     @pytest.mark.enable_redact
     def test_should_mask_sensitive_extra(self, test_client, session):
-        self.create_assets()
+        self.create_assets(session)
         event_payload = {"uri": "s3://bucket/key/1", "extra": {"password": "bar"}}
         response = test_client.post("/public/assets/events", json=event_payload)
         assert response.status_code == 200
@@ -736,7 +745,7 @@ class TestPostAssetEvents(TestAssets):
             "source_run_id": None,
             "source_map_index": -1,
             "created_dagruns": [],
-            "timestamp": self.default_time.replace("+00:00", "Z"),
+            "timestamp": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
         }
 
 
@@ -757,7 +766,7 @@ class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
         assert response.json() == {
             "queued_events": [
                 {
-                    "created_at": self.default_time.replace("+00:00", "Z"),
+                    "created_at": from_datetime_to_zulu_without_ms(DEFAULT_DATE),
                     "uri": "s3://bucket/key/1",
                     "dag_id": "dag",
                 }

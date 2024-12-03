@@ -25,18 +25,15 @@ import pathlib
 import sys
 import time
 from collections import defaultdict
+from collections.abc import Collection, Container, Iterable, Sequence
 from contextlib import ExitStack
 from datetime import datetime, timedelta
 from functools import cache
+from re import Pattern
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Collection,
-    Container,
-    Iterable,
-    Pattern,
-    Sequence,
     Union,
     cast,
     overload,
@@ -71,7 +68,6 @@ from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql import Select, expression
 
 from airflow import settings, utils
-from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
 from airflow.exceptions import (
     AirflowException,
@@ -122,8 +118,6 @@ if TYPE_CHECKING:
     from airflow.models.abstractoperator import TaskStateChangeCallback
     from airflow.models.dagbag import DagBag
     from airflow.models.operator import Operator
-    from airflow.serialization.pydantic.dag import DagModelPydantic
-    from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.typing_compat import Literal
 
 log = logging.getLogger(__name__)
@@ -517,7 +511,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         # infer from the logical date.
         return self.infer_automated_data_interval(dag_model.next_dagrun)
 
-    def get_run_data_interval(self, run: DagRun | DagRunPydantic) -> DataInterval:
+    def get_run_data_interval(self, run: DagRun) -> DataInterval:
         """
         Get the data interval of this run.
 
@@ -779,7 +773,6 @@ class DAG(TaskSDKDag, LoggingMixin):
         return TaskSDKDag.get_serialized_fields() | {"_processor_dags_folder"}
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def fetch_callback(
         dag: DAG,
@@ -877,9 +870,8 @@ class DAG(TaskSDKDag, LoggingMixin):
         return active_dates
 
     @staticmethod
-    @internal_api_call
     @provide_session
-    def fetch_dagrun(dag_id: str, run_id: str, session: Session = NEW_SESSION) -> DagRun | DagRunPydantic:
+    def fetch_dagrun(dag_id: str, run_id: str, session: Session = NEW_SESSION) -> DagRun:
         """
         Return the dag run for a given run_id if it exists, otherwise none.
 
@@ -891,7 +883,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         return session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
 
     @provide_session
-    def get_dagrun(self, run_id: str, session: Session = NEW_SESSION) -> DagRun | DagRunPydantic:
+    def get_dagrun(self, run_id: str, session: Session = NEW_SESSION) -> DagRun:
         return DAG.fetch_dagrun(dag_id=self.dag_id, run_id=run_id, session=session)
 
     @provide_session
@@ -1089,7 +1081,7 @@ class DAG(TaskSDKDag, LoggingMixin):
 
         if include_dependent_dags:
             # Recursively find external tasks indicated by ExternalTaskMarker
-            from airflow.sensors.external_task import ExternalTaskMarker
+            from airflow.providers.standard.sensors.external_task import ExternalTaskMarker
 
             query = tis
             if as_pk_tuple:
@@ -1866,6 +1858,7 @@ class DAG(TaskSDKDag, LoggingMixin):
         asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
         asset_op.add_dag_asset_alias_references(orm_dags, orm_asset_aliases, session=session)
         asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
+        asset_op.add_asset_trigger_references(orm_assets, session=session)
         session.flush()
 
     @provide_session
@@ -2143,9 +2136,8 @@ class DagModel(Base):
         )
 
     @classmethod
-    @internal_api_call
     @provide_session
-    def get_current(cls, dag_id: str, session=NEW_SESSION) -> DagModel | DagModelPydantic:
+    def get_current(cls, dag_id: str, session=NEW_SESSION) -> DagModel:
         return session.scalar(select(cls).where(cls.dag_id == dag_id))
 
     @provide_session
@@ -2163,7 +2155,6 @@ class DagModel(Base):
         return self.is_active
 
     @staticmethod
-    @internal_api_call
     @provide_session
     def get_paused_dag_ids(dag_ids: list[str], session: Session = NEW_SESSION) -> set[str]:
         """
@@ -2240,7 +2231,6 @@ class DagModel(Base):
         )
 
     @classmethod
-    @internal_api_call
     @provide_session
     def deactivate_deleted_dags(
         cls,

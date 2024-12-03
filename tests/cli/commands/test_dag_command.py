@@ -39,9 +39,10 @@ from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import _run_inline_trigger
+from airflow.models.dag_version import DagVersion
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.triggers.base import TriggerEvent
-from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
@@ -59,7 +60,7 @@ else:
 
 # TODO: Check if tests needs side effects - locally there's missing DAG
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = pytest.mark.db_test
 
 
 class TestCliDags:
@@ -79,34 +80,31 @@ class TestCliDags:
     def setup_method(self):
         clear_db_runs()  # clean-up all dag run before start each test
 
-    def test_reserialize(self):
+    def test_reserialize(self, session):
         # Assert that there are serialized Dags
-        with create_session() as session:
-            serialized_dags_before_command = session.query(SerializedDagModel).all()
+        serialized_dags_before_command = session.query(SerializedDagModel).all()
         assert len(serialized_dags_before_command)  # There are serialized DAGs to delete
+        # delete all versioning
+        session.query(DagVersion).delete()
 
-        # Run clear of serialized dags
-        dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize", "--clear-only"]))
-        # Assert no serialized Dags
-        with create_session() as session:
-            serialized_dags_after_clear = session.query(SerializedDagModel).all()
-        assert not len(serialized_dags_after_clear)
-
-        # Serialize manually
+        serialized_dags_before_command = session.query(SerializedDagModel).all()
+        assert not len(serialized_dags_before_command)  # There are no more serialized dag
+        dag_version_before_command = session.query(DagVersion).all()
+        assert not len(dag_version_before_command)
+        # Serialize the dags
         dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize"]))
+        # Assert serialized Dags
+        serialized_dags_after_clear = session.query(SerializedDagModel).all()
+        assert len(serialized_dags_after_clear)
+        dag_version_after_command = session.query(DagVersion).all()
+        assert len(dag_version_after_command)
 
-        # Check serialized DAGs are back
-        with create_session() as session:
-            serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
-        assert len(serialized_dags_after_reserialize) >= 40  # Serialized DAGs back
-
-    def test_reserialize_should_support_subdir_argument(self):
+    def test_reserialize_should_support_subdir_argument(self, session):
         # Run clear of serialized dags
-        dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize", "--clear-only"]))
+        session.query(DagVersion).delete()
 
         # Assert no serialized Dags
-        with create_session() as session:
-            serialized_dags_after_clear = session.query(SerializedDagModel).all()
+        serialized_dags_after_clear = session.query(SerializedDagModel).all()
         assert len(serialized_dags_after_clear) == 0
 
         # Serialize manually
@@ -120,8 +118,7 @@ class TestCliDags:
             dag_command.dag_reserialize(self.parser.parse_args(["dags", "reserialize", "--subdir", dag_path]))
 
         # Check serialized DAG are back
-        with create_session() as session:
-            serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
+        serialized_dags_after_reserialize = session.query(SerializedDagModel).all()
         assert len(serialized_dags_after_reserialize) == 1  # Serialized DAG back
 
     def test_show_dag_dependencies_print(self):
@@ -554,10 +551,10 @@ class TestCliDags:
             out = temp_stdout.getvalue().strip().splitlines()[-1]
         parsed_out = json.loads(out)
 
-        assert 1 == len(parsed_out)
-        assert "example_bash_operator" == parsed_out[0]["dag_id"]
-        assert "trigger_dag_xxx" == parsed_out[0]["dag_run_id"]
-        assert {"conf1": "val1", "conf2": "val2"} == parsed_out[0]["conf"]
+        assert len(parsed_out) == 1
+        assert parsed_out[0]["dag_id"] == "example_bash_operator"
+        assert parsed_out[0]["dag_run_id"] == "trigger_dag_xxx"
+        assert parsed_out[0]["conf"] == {"conf1": "val1", "conf2": "val2"}
 
     def test_delete_dag(self):
         DM = DagModel
