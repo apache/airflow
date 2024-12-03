@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+main
+.....
+
+.. warning::
+   All deprecated classes, parameters and features have been removed from the hashicorp provider package.
+   The following breaking changes were introduced:
+
+   * The usage of role_id for AppRole authentication has been deprecated from airflow.providers.hashicorp.hook.vault .Please use connection login
+   * The usage of role_id in connection extra for AppRole authentication has been deprecated from airflow.providers.hashicorp.hook.vault. Please use connection login
+   * Removed role_id from get_connection_form_widgets method
+
 3.8.0
 .....
 

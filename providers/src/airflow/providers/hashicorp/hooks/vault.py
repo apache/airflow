@@ -19,12 +19,10 @@
 from __future__ import annotations
 
 import json
-import warnings
 from typing import TYPE_CHECKING, Any
 
 from hvac.exceptions import VaultError
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.hashicorp._internal_client.vault_client import (
     DEFAULT_KUBERNETES_JWT_PATH,
@@ -70,7 +68,7 @@ class VaultHook(BaseHook):
 
     Login/Password are used as credentials:
 
-        * approle: login -> role_id,  password -> secret_id
+        * approle: login -> connection.login
         * github: password -> token
         * token: password -> token
         * aws_iam: login -> key_id, password -> secret_id
@@ -148,22 +146,7 @@ class VaultHook(BaseHook):
             client_kwargs = merge_dicts(client_kwargs, kwargs)
 
         if auth_type == "approle":
-            if role_id:
-                warnings.warn(
-                    """The usage of role_id for AppRole authentication has been deprecated.
-                    Please use connection login.""",
-                    AirflowProviderDeprecationWarning,
-                    stacklevel=2,
-                )
-            elif self.connection.extra_dejson.get("role_id"):
-                role_id = self.connection.extra_dejson.get("role_id")
-                warnings.warn(
-                    """The usage of role_id in connection extra for AppRole authentication has been
-                    deprecated. Please use connection login.""",
-                    AirflowProviderDeprecationWarning,
-                    stacklevel=2,
-                )
-            elif self.connection.login:
+            if self.connection.login:
                 role_id = self.connection.login
 
         if auth_type == "aws_iam":
@@ -385,7 +368,6 @@ class VaultHook(BaseHook):
                 description="Must be 1 or 2.",
                 default=DEFAULT_KV_ENGINE_VERSION,
             ),
-            "role_id": StringField(lazy_gettext("Role ID (deprecated)"), widget=BS3TextFieldWidget()),
             "kubernetes_role": StringField(lazy_gettext("Kubernetes role"), widget=BS3TextFieldWidget()),
             "kubernetes_jwt_path": StringField(
                 lazy_gettext("Kubernetes jwt path"), widget=BS3TextFieldWidget()
