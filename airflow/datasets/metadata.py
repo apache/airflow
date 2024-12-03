@@ -14,3 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from __future__ import annotations
+
+import warnings
+
+from airflow.sdk.definitions.asset.metadata import Metadata
+
+# TODO: Remove this module in Airflow 3.2
+
+warnings.warn(
+    "Import from the airflow.dataset module is deprecated and "
+    "will be removed in the Airflow 3.2. Please import it from 'airflow.sdk.definitions.asset.metadata'.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
+__all__ = ["Metadata"]

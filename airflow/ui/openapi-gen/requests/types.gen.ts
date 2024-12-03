@@ -27,6 +27,7 @@ export type AppBuilderViewResponse = {
 export type AssetAliasSchema = {
   id: number;
   name: string;
+  group: string;
 };
 
 /**
@@ -124,9 +125,9 @@ export type BackfillResponse = {
 };
 
 /**
- * Base status field for metadatabase and scheduler.
+ * Base info serializer for responses.
  */
-export type BaseInfoSchema = {
+export type BaseInfoResponse = {
   status: string | null;
 };
 
@@ -212,6 +213,13 @@ export type ConnectionBody = {
   port?: number | null;
   password?: string | null;
   extra?: string | null;
+};
+
+/**
+ * Connections Serializer for requests body.
+ */
+export type ConnectionBulkBody = {
+  connections: Array<ConnectionBody>;
 };
 
 /**
@@ -519,9 +527,9 @@ export type DAGWithLatestDagRunsResponse = {
 };
 
 /**
- * Schema for DagProcessor info.
+ * DagProcessor info serializer for responses.
  */
-export type DagProcessorInfoSchema = {
+export type DagProcessorInfoResponse = {
   status: string | null;
   latest_dag_processor_heartbeat: string | null;
 };
@@ -673,17 +681,6 @@ export type FastAPIAppResponse = {
 };
 
 /**
- * Graph Data serializer for responses.
- */
-export type GraphDataResponse = {
-  edges: Array<EdgeResponse>;
-  nodes: NodeResponse;
-  arrange: "BT" | "LR" | "RL" | "TB";
-};
-
-export type arrange = "BT" | "LR" | "RL" | "TB";
-
-/**
  * HTTPException Model used for error response.
  */
 export type HTTPExceptionResponse = {
@@ -699,13 +696,13 @@ export type HTTPValidationError = {
 };
 
 /**
- * Schema for the Health endpoint.
+ * Health serializer for responses.
  */
-export type HealthInfoSchema = {
-  metadatabase: BaseInfoSchema;
-  scheduler: SchedulerInfoSchema;
-  triggerer: TriggererInfoSchema;
-  dag_processor: DagProcessorInfoSchema;
+export type HealthInfoResponse = {
+  metadatabase: BaseInfoResponse;
+  scheduler: SchedulerInfoResponse;
+  triggerer: TriggererInfoResponse;
+  dag_processor?: DagProcessorInfoResponse | null;
 };
 
 /**
@@ -765,23 +762,14 @@ export type JobResponse = {
 export type NodeResponse = {
   children?: Array<NodeResponse> | null;
   id: string | null;
-  value: NodeValueResponse;
+  is_mapped?: boolean | null;
+  label?: string | null;
+  tooltip?: string | null;
+  setup_teardown_type?: "setup" | "teardown" | null;
+  type: "join" | "sensor" | "task" | "task_group";
 };
 
-/**
- * Graph Node Value responses.
- */
-export type NodeValueResponse = {
-  isMapped?: boolean | null;
-  label?: string | null;
-  labelStyle?: string | null;
-  style?: string | null;
-  tooltip?: string | null;
-  rx: number;
-  ry: number;
-  clusterLabelPos?: string | null;
-  setupTeardownType?: "setup" | "teardown" | null;
-};
+export type type = "join" | "sensor" | "task" | "task_group";
 
 /**
  * Request body for Clear Task Instances endpoint.
@@ -915,12 +903,23 @@ export type QueuedEventResponse = {
 export type ReprocessBehavior = "failed" | "completed" | "none";
 
 /**
- * Schema for Scheduler info.
+ * Scheduler info serializer for responses.
  */
-export type SchedulerInfoSchema = {
+export type SchedulerInfoResponse = {
   status: string | null;
   latest_scheduler_heartbeat: string | null;
 };
+
+/**
+ * Structure Data serializer for responses.
+ */
+export type StructureDataResponse = {
+  edges: Array<EdgeResponse>;
+  nodes: Array<NodeResponse>;
+  arrange: "BT" | "LR" | "RL" | "TB";
+};
+
+export type arrange = "BT" | "LR" | "RL" | "TB";
 
 /**
  * Task collection serializer for responses.
@@ -1198,9 +1197,9 @@ export type TriggerResponse = {
 };
 
 /**
- * Schema for Triggerer info.
+ * Triggerer info serializer for responses.
  */
-export type TriggererInfoSchema = {
+export type TriggererInfoResponse = {
   status: string | null;
   latest_triggerer_heartbeat: string | null;
 };
@@ -1417,14 +1416,14 @@ export type HistoricalMetricsData = {
 
 export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
 
-export type GraphDataData = {
+export type StructureDataData = {
   dagId: string;
   includeDownstream?: boolean;
   includeUpstream?: boolean;
   root?: string | null;
 };
 
-export type GraphDataResponse2 = GraphDataResponse;
+export type StructureDataResponse2 = StructureDataResponse;
 
 export type ListBackfillsData = {
   dagId: string;
@@ -1498,6 +1497,12 @@ export type PostConnectionData = {
 };
 
 export type PostConnectionResponse = ConnectionResponse;
+
+export type PostConnectionsData = {
+  requestBody: ConnectionBulkBody;
+};
+
+export type PostConnectionsResponse = ConnectionCollectionResponse;
 
 export type TestConnectionData = {
   requestBody: ConnectionBody;
@@ -2034,7 +2039,13 @@ export type PostVariableData = {
 
 export type PostVariableResponse = VariableResponse;
 
-export type GetHealthResponse = HealthInfoSchema;
+export type ReparseDagFileData = {
+  fileToken: string;
+};
+
+export type ReparseDagFileResponse = null;
+
+export type GetHealthResponse = HealthInfoResponse;
 
 export type GetVersionResponse = VersionInfo;
 
@@ -2436,14 +2447,14 @@ export type $OpenApiTs = {
       };
     };
   };
-  "/ui/graph/graph_data": {
+  "/ui/structure/structure_data": {
     get: {
-      req: GraphDataData;
+      req: StructureDataData;
       res: {
         /**
          * Successful Response
          */
-        200: GraphDataResponse;
+        200: StructureDataResponse;
         /**
          * Bad Request
          */
@@ -2741,6 +2752,33 @@ export type $OpenApiTs = {
          * Successful Response
          */
         201: ConnectionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Conflict
+         */
+        409: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/connections/bulk": {
+    post: {
+      req: PostConnectionsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        201: ConnectionCollectionResponse;
         /**
          * Unauthorized
          */
@@ -4315,13 +4353,40 @@ export type $OpenApiTs = {
       };
     };
   };
+  "/public/parseDagFile/{file_token}": {
+    put: {
+      req: ReparseDagFileData;
+      res: {
+        /**
+         * Successful Response
+         */
+        201: null;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
   "/public/monitor/health": {
     get: {
       res: {
         /**
          * Successful Response
          */
-        200: HealthInfoSchema;
+        200: HealthInfoResponse;
       };
     };
   };

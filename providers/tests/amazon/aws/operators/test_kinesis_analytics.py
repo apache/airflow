@@ -323,7 +323,7 @@ class TestKinesisAnalyticsV2StartApplicationOperator:
 
         response = self.operator.execute_complete(context=None, event=event)
 
-        assert {"ApplicationARN": self.APPLICATION_ARN} == response
+        assert response == {"ApplicationARN": self.APPLICATION_ARN}
 
     @mock.patch.object(KinesisAnalyticsV2Hook, "conn")
     def test_execute_complete_failure(self, kinesis_analytics_mock_conn):
@@ -485,7 +485,7 @@ class TestKinesisAnalyticsV2StopApplicationOperator:
 
         response = self.operator.execute_complete(context=None, event=event)
 
-        assert {"ApplicationARN": self.APPLICATION_ARN} == response
+        assert response == {"ApplicationARN": self.APPLICATION_ARN}
 
     @mock.patch.object(KinesisAnalyticsV2Hook, "conn")
     def test_execute_complete_failure(self, kinesis_analytics_mock_conn):

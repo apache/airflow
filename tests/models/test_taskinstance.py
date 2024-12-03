@@ -80,7 +80,6 @@ from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.sdk.definitions.asset import AssetAlias
 from airflow.sensors.base import BaseSensorOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
-from airflow.settings import TracebackSessionForTests
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
@@ -440,7 +439,7 @@ class TestTaskInstance:
 
         ti.run(session=session)
         tis = dag.get_task_instances()
-        assert {"foo": "bar"} == tis[0].executor_config
+        assert tis[0].executor_config == {"foo": "bar"}
         task2 = EmptyOperator(
             task_id="test_run_pooling_task_op2",
             executor_config={"bar": "baz"},
@@ -456,7 +455,7 @@ class TestTaskInstance:
         # Ensure it's reloaded
         ti2.executor_config = None
         ti2.refresh_from_db(session)
-        assert {"bar": "baz"} == ti2.executor_config
+        assert ti2.executor_config == {"bar": "baz"}
         session.rollback()
 
     def test_run_pooling_task_with_mark_success(self, create_task_instance):
@@ -493,7 +492,7 @@ class TestTaskInstance:
         ti = dr.task_instances[0]
         ti.task = task
         ti.run()
-        assert State.SKIPPED == ti.state
+        assert ti.state == State.SKIPPED
 
     def test_task_sigterm_calls_on_failure_callback(self, dag_maker, caplog):
         """
@@ -1544,9 +1543,7 @@ class TestTaskInstance:
             dep_context=DepContext(flag_upstream_failed=flag_upstream_failed),
             session=session,
         )
-        TracebackSessionForTests.set_allow_db_access(session, True)
         completed = all(dep.passed for dep in dep_results)
-        TracebackSessionForTests.set_allow_db_access(session, False)
         ti = dr.get_task_instance(task_id="do_something_else", map_index=3, session=session)
 
         assert completed == expect_completed
@@ -2023,9 +2020,9 @@ class TestTaskInstance:
         assert ti3 in session
         session.commit()
 
-        assert 1 == ti1.get_num_running_task_instances(session=session)
-        assert 1 == ti2.get_num_running_task_instances(session=session)
-        assert 1 == ti3.get_num_running_task_instances(session=session)
+        assert ti1.get_num_running_task_instances(session=session) == 1
+        assert ti2.get_num_running_task_instances(session=session) == 1
+        assert ti3.get_num_running_task_instances(session=session) == 1
 
     def test_get_num_running_task_instances_per_dagrun(self, create_task_instance, dag_maker):
         session = settings.Session()
@@ -2066,15 +2063,15 @@ class TestTaskInstance:
 
         session.commit()
 
-        assert 1 == tis1[("task_1", 0)].get_num_running_task_instances(session=session, same_dagrun=True)
-        assert 1 == tis1[("task_1", 1)].get_num_running_task_instances(session=session, same_dagrun=True)
-        assert 2 == tis1[("task_2", 0)].get_num_running_task_instances(session=session)
-        assert 1 == tis1[("task_3", 0)].get_num_running_task_instances(session=session, same_dagrun=True)
+        assert tis1[("task_1", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
+        assert tis1[("task_1", 1)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
+        assert tis1[("task_2", 0)].get_num_running_task_instances(session=session) == 2
+        assert tis1[("task_3", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
 
-        assert 1 == tis2[("task_1", 0)].get_num_running_task_instances(session=session, same_dagrun=True)
-        assert 1 == tis2[("task_1", 1)].get_num_running_task_instances(session=session, same_dagrun=True)
-        assert 2 == tis2[("task_2", 0)].get_num_running_task_instances(session=session)
-        assert 1 == tis2[("task_3", 0)].get_num_running_task_instances(session=session, same_dagrun=True)
+        assert tis2[("task_1", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
+        assert tis2[("task_1", 1)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
+        assert tis2[("task_2", 0)].get_num_running_task_instances(session=session) == 2
+        assert tis2[("task_3", 0)].get_num_running_task_instances(session=session, same_dagrun=True) == 1
 
     def test_log_url(self, create_task_instance):
         ti = create_task_instance(dag_id="my_dag", task_id="op", logical_date=timezone.datetime(2018, 1, 1))
@@ -2165,8 +2162,8 @@ class TestTaskInstance:
 
         (email, title, body), _ = mock_send_email.call_args
         assert email == "to"
-        assert "template: test_email_alert_with_config" == title
-        assert "template: test_email_alert_with_config" == body
+        assert title == "template: test_email_alert_with_config"
+        assert body == "template: test_email_alert_with_config"
 
     @patch("airflow.models.taskinstance.send_email")
     def test_email_alert_with_filenotfound_config(self, mock_send_email, dag_maker):
@@ -3626,7 +3623,7 @@ class TestTaskInstance:
         ti.task = task
         with contextlib.suppress(AirflowException):
             ti.run()
-        assert State.FAILED == ti.state
+        assert ti.state == State.FAILED
 
     def test_retries_on_other_exceptions(self, dag_maker):
         def fail():
@@ -3642,7 +3639,7 @@ class TestTaskInstance:
         ti.task = task
         with contextlib.suppress(AirflowException):
             ti.run()
-        assert State.UP_FOR_RETRY == ti.state
+        assert ti.state == State.UP_FOR_RETRY
 
     @patch.object(TaskInstance, "logger")
     def test_stacktrace_on_failure_starts_with_task_execute_method(self, mock_get_log, dag_maker):
@@ -3669,8 +3666,8 @@ class TestTaskInstance:
         assert sys.modules[TaskInstance.__module__].__file__ == filename, "".join(formatted_exc)
 
     def _env_var_check_callback(self):
-        assert "test_echo_env_variables" == os.environ["AIRFLOW_CTX_DAG_ID"]
-        assert "hive_in_python_op" == os.environ["AIRFLOW_CTX_TASK_ID"]
+        assert os.environ["AIRFLOW_CTX_DAG_ID"] == "test_echo_env_variables"
+        assert os.environ["AIRFLOW_CTX_TASK_ID"] == "hive_in_python_op"
         assert DEFAULT_DATE.isoformat() == os.environ["AIRFLOW_CTX_LOGICAL_DATE"]
         assert DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE) == os.environ["AIRFLOW_CTX_DAG_RUN_ID"]
 
@@ -3859,7 +3856,7 @@ class TestTaskInstance:
         new_ti = TI(task=new_task, run_id=ti.run_id)
         new_ti.get_rendered_template_fields(session=session)
 
-        assert "op1" == ti.task.bash_command
+        assert ti.task.bash_command == "op1"
 
         # CleanUp
         with create_session() as session:
@@ -4010,7 +4007,7 @@ class TestTaskInstance:
         ti = dr.task_instances[0]
         ti.task = task
         ti.run()
-        assert State.SKIPPED == ti.state
+        assert ti.state == State.SKIPPED
         on_skipped_callback_function.assert_called_once()
         on_success_callback_function.assert_not_called()
 

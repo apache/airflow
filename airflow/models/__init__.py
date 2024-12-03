@@ -63,7 +63,6 @@ def import_all_models():
     import airflow.models.serialized_dag
     import airflow.models.taskinstancehistory
     import airflow.models.tasklog
-    import airflow.providers.fab.auth_manager.models
 
 
 def __getattr__(name):

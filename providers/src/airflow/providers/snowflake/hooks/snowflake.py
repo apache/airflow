@@ -134,6 +134,7 @@ class SnowflakeHook(DbApiHook):
                         "private_key_file": "private key",
                         "session_parameters": "session parameters",
                         "client_request_mfa_token": "client request mfa token",
+                        "client_store_temporary_credential": "client store temporary credential (externalbrowser mode)",
                     },
                     indent=1,
                 ),
@@ -162,6 +163,7 @@ class SnowflakeHook(DbApiHook):
         self.authenticator = kwargs.pop("authenticator", None)
         self.session_parameters = kwargs.pop("session_parameters", None)
         self.client_request_mfa_token = kwargs.pop("client_request_mfa_token", None)
+        self.client_store_temporary_credential = kwargs.pop("client_store_temporary_credential", None)
         self.query_ids: list[str] = []
 
     def _get_field(self, extra_dict, field_name):
@@ -206,6 +208,9 @@ class SnowflakeHook(DbApiHook):
         )
         schema = conn.schema or ""
         client_request_mfa_token = _try_to_boolean(self._get_field(extra_dict, "client_request_mfa_token"))
+        client_store_temporary_credential = _try_to_boolean(
+            self._get_field(extra_dict, "client_store_temporary_credential")
+        )
 
         # authenticator and session_parameters never supported long name so we don't use _get_field
         authenticator = extra_dict.get("authenticator", "snowflake")
@@ -233,6 +238,9 @@ class SnowflakeHook(DbApiHook):
 
         if client_request_mfa_token:
             conn_config["client_request_mfa_token"] = client_request_mfa_token
+
+        if client_store_temporary_credential:
+            conn_config["client_store_temporary_credential"] = client_store_temporary_credential
 
         # If private_key_file is specified in the extra json, load the contents of the file as a private key.
         # If private_key_content is specified in the extra json, use it as a private key.
@@ -308,13 +316,14 @@ class SnowflakeHook(DbApiHook):
                 for k, v in conn_params.items()
                 if v
                 and k
-                not in {
+                not in [
                     "session_parameters",
                     "insecure_mode",
                     "private_key",
                     "client_request_mfa_token",
+                    "client_store_temporary_credential",
                     "json_result_force_utf8_decoding",
-                }
+                ]
             }
         )
 

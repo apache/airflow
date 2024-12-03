@@ -2593,10 +2593,16 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryOpenLineageMix
             nowait=True,
         )
 
-    @staticmethod
-    def _handle_job_error(job: BigQueryJob | UnknownJob) -> None:
+    def _handle_job_error(self, job: BigQueryJob | UnknownJob) -> None:
+        self.log.info("Job %s is completed. Checking the job status", self.job_id)
+        # Log any transient errors encountered during the job execution
+        for error in job.errors or []:
+            self.log.error("BigQuery Job Error: %s", error)
         if job.error_result:
             raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
+        # Check the final state.
+        if job.state != "DONE":
+            raise AirflowException(f"Job failed with state: {job.state}")
 
     def execute(self, context: Any):
         hook = BigQueryHook(

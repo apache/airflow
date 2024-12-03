@@ -128,13 +128,13 @@ class TestDruidSubmitHook:
             self.db_hook.submit_indexing_job("Long json file")
 
         assert task_post.call_count == 1
-        assert False is task_post.request_history[0].verify
+        assert task_post.request_history[0].verify is False
 
         assert status_check.call_count > 1
-        assert False is status_check.request_history[0].verify
+        assert status_check.request_history[0].verify is False
 
         assert shutdown_post.call_count == 1
-        assert False is shutdown_post.request_history[0].verify
+        assert shutdown_post.request_history[0].verify is False
 
     def test_submit_with_true_ssl_arg(self, requests_mock):
         # Timeout so that all three requests are sent
@@ -160,13 +160,13 @@ class TestDruidSubmitHook:
             self.db_hook.submit_indexing_job("Long json file")
 
         assert task_post.call_count == 1
-        assert True is task_post.request_history[0].verify
+        assert task_post.request_history[0].verify is True
 
         assert status_check.call_count > 1
-        assert True is status_check.request_history[0].verify
+        assert status_check.request_history[0].verify is True
 
         assert shutdown_post.call_count == 1
-        assert True is shutdown_post.request_history[0].verify
+        assert shutdown_post.request_history[0].verify is True
 
     def test_submit_correct_json_body(self, requests_mock):
         task_post = requests_mock.post(
@@ -421,7 +421,7 @@ class TestDruidDbApiHook:
 
     def test_get_uri(self):
         db_hook = self.db_hook()
-        assert "druid://host:1000/druid/v2/sql" == db_hook.get_uri()
+        assert db_hook.get_uri() == "druid://host:1000/druid/v2/sql"
 
     def test_get_first_record(self):
         statement = "SQL"

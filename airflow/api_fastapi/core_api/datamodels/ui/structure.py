@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -18,16 +16,35 @@
 # under the License.
 from __future__ import annotations
 
-import setproctitle
+from typing import Literal
 
-from airflow import settings
+from airflow.api_fastapi.core_api.base import BaseModel
 
 
-def post_worker_init(_):
-    """
-    Set process title.
+class EdgeResponse(BaseModel):
+    """Edge serializer for responses."""
 
-    This is used by airflow.cli.commands.internal_api_command to track the status of the worker.
-    """
-    old_title = setproctitle.getproctitle()
-    setproctitle.setproctitle(settings.GUNICORN_WORKER_READY_PREFIX + old_title)
+    is_setup_teardown: bool | None = None
+    label: str | None = None
+    source_id: str
+    target_id: str
+
+
+class NodeResponse(BaseModel):
+    """Node serializer for responses."""
+
+    children: list[NodeResponse] | None = None
+    id: str | None
+    is_mapped: bool | None = None
+    label: str | None = None
+    tooltip: str | None = None
+    setup_teardown_type: Literal["setup", "teardown"] | None = None
+    type: Literal["join", "sensor", "task", "task_group"]
+
+
+class StructureDataResponse(BaseModel):
+    """Structure Data serializer for responses."""
+
+    edges: list[EdgeResponse]
+    nodes: list[NodeResponse]
+    arrange: Literal["BT", "LR", "RL", "TB"]

@@ -25,7 +25,7 @@ import time_machine
 from airflow import settings
 from airflow.models import DagRun, TaskInstance
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.latest_only import LatestOnlyOperator
+from airflow.providers.standard.operators.latest_only import LatestOnlyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
@@ -48,11 +48,12 @@ FROZEN_NOW = timezone.datetime(2016, 1, 2, 12, 1, 1)
 
 def get_task_instances(task_id):
     session = settings.Session()
+    logical_date = DagRun.logical_date if AIRFLOW_V_3_0_PLUS else DagRun.execution_date
     return (
         session.query(TaskInstance)
         .join(TaskInstance.dag_run)
         .filter(TaskInstance.task_id == task_id)
-        .order_by(DagRun.logical_date)
+        .order_by(logical_date)
         .all()
     )
 
@@ -130,36 +131,48 @@ class TestLatestOnlyOperator:
         downstream_task3.run(start_date=DEFAULT_DATE, end_date=END_DATE)
 
         latest_instances = get_task_instances("latest")
-        exec_date_to_latest_state = {ti.logical_date: ti.state for ti in latest_instances}
-        assert {
+        if AIRFLOW_V_3_0_PLUS:
+            exec_date_to_latest_state = {ti.logical_date: ti.state for ti in latest_instances}
+        else:
+            exec_date_to_latest_state = {ti.execution_date: ti.state for ti in latest_instances}
+        assert exec_date_to_latest_state == {
             timezone.datetime(2016, 1, 1): "success",
             timezone.datetime(2016, 1, 1, 12): "success",
             timezone.datetime(2016, 1, 2): "success",
-        } == exec_date_to_latest_state
+        }
 
         downstream_instances = get_task_instances("downstream")
-        exec_date_to_downstream_state = {ti.logical_date: ti.state for ti in downstream_instances}
-        assert {
+        if AIRFLOW_V_3_0_PLUS:
+            exec_date_to_downstream_state = {ti.logical_date: ti.state for ti in downstream_instances}
+        else:
+            exec_date_to_downstream_state = {ti.execution_date: ti.state for ti in downstream_instances}
+        assert exec_date_to_downstream_state == {
             timezone.datetime(2016, 1, 1): "skipped",
             timezone.datetime(2016, 1, 1, 12): "skipped",
             timezone.datetime(2016, 1, 2): "success",
-        } == exec_date_to_downstream_state
+        }
 
         downstream_instances = get_task_instances("downstream_2")
-        exec_date_to_downstream_state = {ti.logical_date: ti.state for ti in downstream_instances}
-        assert {
+        if AIRFLOW_V_3_0_PLUS:
+            exec_date_to_downstream_state = {ti.logical_date: ti.state for ti in downstream_instances}
+        else:
+            exec_date_to_downstream_state = {ti.execution_date: ti.state for ti in downstream_instances}
+        assert exec_date_to_downstream_state == {
             timezone.datetime(2016, 1, 1): None,
             timezone.datetime(2016, 1, 1, 12): None,
             timezone.datetime(2016, 1, 2): "success",
-        } == exec_date_to_downstream_state
+        }
 
         downstream_instances = get_task_instances("downstream_3")
-        exec_date_to_downstream_state = {ti.logical_date: ti.state for ti in downstream_instances}
-        assert {
+        if AIRFLOW_V_3_0_PLUS:
+            exec_date_to_downstream_state = {ti.logical_date: ti.state for ti in downstream_instances}
+        else:
+            exec_date_to_downstream_state = {ti.execution_date: ti.state for ti in downstream_instances}
+        assert exec_date_to_downstream_state == {
             timezone.datetime(2016, 1, 1): "success",
             timezone.datetime(2016, 1, 1, 12): "success",
             timezone.datetime(2016, 1, 2): "success",
-        } == exec_date_to_downstream_state
+        }
 
     def test_not_skipping_external(self, dag_maker):
         with dag_maker(
@@ -210,25 +223,34 @@ class TestLatestOnlyOperator:
         downstream_task2.run(start_date=DEFAULT_DATE, end_date=END_DATE)
 
         latest_instances = get_task_instances("latest")
-        exec_date_to_latest_state = {ti.logical_date: ti.state for ti in latest_instances}
-        assert {
+        if AIRFLOW_V_3_0_PLUS:
+            exec_date_to_latest_state = {ti.logical_date: ti.state for ti in latest_instances}
+        else:
+            exec_date_to_latest_state = {ti.execution_date: ti.state for ti in latest_instances}
+        assert exec_date_to_latest_state == {
             timezone.datetime(2016, 1, 1): "success",
             timezone.datetime(2016, 1, 1, 12): "success",
             timezone.datetime(2016, 1, 2): "success",
-        } == exec_date_to_latest_state
+        }
 
         downstream_instances = get_task_instances("downstream")
-        exec_date_to_downstream_state = {ti.logical_date: ti.state for ti in downstream_instances}
-        assert {
+        if AIRFLOW_V_3_0_PLUS:
+            exec_date_to_downstream_state = {ti.logical_date: ti.state for ti in downstream_instances}
+        else:
+            exec_date_to_downstream_state = {ti.execution_date: ti.state for ti in downstream_instances}
+        assert exec_date_to_downstream_state == {
             timezone.datetime(2016, 1, 1): "success",
             timezone.datetime(2016, 1, 1, 12): "success",
             timezone.datetime(2016, 1, 2): "success",
-        } == exec_date_to_downstream_state
+        }
 
         downstream_instances = get_task_instances("downstream_2")
-        exec_date_to_downstream_state = {ti.logical_date: ti.state for ti in downstream_instances}
-        assert {
+        if AIRFLOW_V_3_0_PLUS:
+            exec_date_to_downstream_state = {ti.logical_date: ti.state for ti in downstream_instances}
+        else:
+            exec_date_to_downstream_state = {ti.execution_date: ti.state for ti in downstream_instances}
+        assert exec_date_to_downstream_state == {
             timezone.datetime(2016, 1, 1): "success",
             timezone.datetime(2016, 1, 1, 12): "success",
             timezone.datetime(2016, 1, 2): "success",
-        } == exec_date_to_downstream_state
+        }

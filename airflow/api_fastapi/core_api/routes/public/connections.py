@@ -17,17 +17,17 @@
 from __future__ import annotations
 
 import os
-from typing import Annotated
+from typing import Annotated, cast
 
 from fastapi import Depends, HTTPException, Query, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
 
-from airflow.api_fastapi.common.db.common import get_session, paginated_select
+from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.connections import (
     ConnectionBody,
+    ConnectionBulkBody,
     ConnectionCollectionResponse,
     ConnectionResponse,
     ConnectionTestResponse,
@@ -36,7 +36,6 @@ from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_
 from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
-from airflow.utils import helpers
 from airflow.utils.strings import get_random_string
 
 connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
@@ -49,7 +48,7 @@ connections_router = AirflowRouter(tags=["Connection"], prefix="/connections")
 )
 def delete_connection(
     connection_id: str,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ):
     """Delete a connection entry."""
     connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
@@ -68,7 +67,7 @@ def delete_connection(
 )
 def get_connection(
     connection_id: str,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> ConnectionResponse:
     """Get a connection entry."""
     connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
@@ -98,7 +97,7 @@ def get_connections(
             ).dynamic_depends()
         ),
     ],
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> ConnectionCollectionResponse:
     """Get all connection entries."""
     connection_select, total_entries = paginated_select(
@@ -124,25 +123,30 @@ def get_connections(
 )
 def post_connection(
     post_body: ConnectionBody,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
 ) -> ConnectionResponse:
     """Create connection entry."""
-    try:
-        helpers.validate_key(post_body.connection_id, max_length=200)
-    except Exception as e:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"{e}")
-
-    connection = session.scalar(select(Connection).filter_by(conn_id=post_body.connection_id))
-    if connection is not None:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"Connection with connection_id: `{post_body.connection_id}` already exists",
-        )
-
     connection = Connection(**post_body.model_dump(by_alias=True))
     session.add(connection)
-
     return connection
+
+
+@connections_router.post(
+    "/bulk",
+    status_code=status.HTTP_201_CREATED,
+    responses=create_openapi_http_exception_doc([status.HTTP_409_CONFLICT]),
+)
+def post_connections(
+    post_body: ConnectionBulkBody,
+    session: SessionDep,
+) -> ConnectionCollectionResponse:
+    """Create connection entry."""
+    connections = [Connection(**body.model_dump(by_alias=True)) for body in post_body.connections]
+    session.add_all(connections)
+    return ConnectionCollectionResponse(
+        connections=cast(list[ConnectionResponse], connections),
+        total_entries=len(connections),
+    )
 
 
 @connections_router.patch(
@@ -157,7 +161,7 @@ def post_connection(
 def patch_connection(
     connection_id: str,
     patch_body: ConnectionBody,
-    session: Annotated[Session, Depends(get_session)],
+    session: SessionDep,
     update_mask: list[str] | None = Query(None),
 ) -> ConnectionResponse:
     """Update a connection entry."""

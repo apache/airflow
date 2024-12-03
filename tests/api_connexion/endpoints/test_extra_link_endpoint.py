@@ -128,13 +128,13 @@ class TestGetExtraLinks:
     def test_should_respond_404(self, url, expected_title, expected_detail):
         response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
 
-        assert 404 == response.status_code
-        assert {
+        assert response.status_code == 404
+        assert response.json == {
             "detail": expected_detail,
             "status": 404,
             "title": expected_title,
             "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
+        }
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
@@ -157,8 +157,8 @@ class TestGetExtraLinks:
             environ_overrides={"REMOTE_USER": "test"},
         )
 
-        assert 200 == response.status_code, response.data
-        assert {"Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE"} == response.json
+        assert response.status_code == 200, response.data
+        assert response.json == {"Google Custom": "http://google.com/custom_base_link?search=TEST_LINK_VALUE"}
 
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200_missing_xcom(self):
@@ -167,8 +167,8 @@ class TestGetExtraLinks:
             environ_overrides={"REMOTE_USER": "test"},
         )
 
-        assert 200 == response.status_code, response.data
-        assert {"Google Custom": None} == response.json
+        assert response.status_code == 200, response.data
+        assert response.json == {"Google Custom": None}
 
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200_multiple_links(self):
@@ -184,11 +184,11 @@ class TestGetExtraLinks:
             environ_overrides={"REMOTE_USER": "test"},
         )
 
-        assert 200 == response.status_code, response.data
-        assert {
+        assert response.status_code == 200, response.data
+        assert response.json == {
             "BigQuery Console #1": "https://console.cloud.google.com/bigquery?j=TEST_LINK_VALUE_1",
             "BigQuery Console #2": "https://console.cloud.google.com/bigquery?j=TEST_LINK_VALUE_2",
-        } == response.json
+        }
 
     @mock_plugin_manager(plugins=[])
     def test_should_respond_200_multiple_links_missing_xcom(self):
@@ -197,8 +197,8 @@ class TestGetExtraLinks:
             environ_overrides={"REMOTE_USER": "test"},
         )
 
-        assert 200 == response.status_code, response.data
-        assert {"BigQuery Console #1": None, "BigQuery Console #2": None} == response.json
+        assert response.status_code == 200, response.data
+        assert response.json == {"BigQuery Console #1": None, "BigQuery Console #2": None}
 
     def test_should_respond_200_support_plugins(self):
         class GoogleLink(BaseOperatorLink):
@@ -232,12 +232,12 @@ class TestGetExtraLinks:
                 environ_overrides={"REMOTE_USER": "test"},
             )
 
-            assert 200 == response.status_code, response.data
-            assert {
+            assert response.status_code == 200, response.data
+            assert response.json == {
                 "Google Custom": None,
                 "Google": "https://www.google.com",
                 "S3": (
                     "https://s3.amazonaws.com/airflow-logs/"
                     "TEST_DAG_ID/TEST_SINGLE_LINK/2020-01-01T00%3A00%3A00%2B00%3A00"
                 ),
-            } == response.json
+            }

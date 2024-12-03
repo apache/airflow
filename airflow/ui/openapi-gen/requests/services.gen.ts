@@ -34,8 +34,8 @@ import type {
   RecentDagRunsResponse,
   HistoricalMetricsData,
   HistoricalMetricsResponse,
-  GraphDataData,
-  GraphDataResponse2,
+  StructureDataData,
+  StructureDataResponse2,
   ListBackfillsData,
   ListBackfillsResponse,
   CreateBackfillData,
@@ -58,6 +58,8 @@ import type {
   GetConnectionsResponse,
   PostConnectionData,
   PostConnectionResponse,
+  PostConnectionsData,
+  PostConnectionsResponse,
   TestConnectionData,
   TestConnectionResponse,
   GetDagRunData,
@@ -172,6 +174,8 @@ import type {
   GetVariablesResponse,
   PostVariableData,
   PostVariableResponse,
+  ReparseDagFileData,
+  ReparseDagFileResponse,
   GetHealthResponse,
   GetVersionResponse,
 } from "./types.gen";
@@ -661,24 +665,24 @@ export class DashboardService {
   }
 }
 
-export class GraphService {
+export class StructureService {
   /**
-   * Graph Data
-   * Get Graph Data.
+   * Structure Data
+   * Get Structure Data.
    * @param data The data for the request.
    * @param data.dagId
    * @param data.root
    * @param data.includeUpstream
    * @param data.includeDownstream
-   * @returns GraphDataResponse Successful Response
+   * @returns StructureDataResponse Successful Response
    * @throws ApiError
    */
-  public static graphData(
-    data: GraphDataData,
-  ): CancelablePromise<GraphDataResponse2> {
+  public static structureData(
+    data: StructureDataData,
+  ): CancelablePromise<StructureDataResponse2> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/ui/graph/graph_data",
+      url: "/ui/structure/structure_data",
       query: {
         dag_id: data.dagId,
         root: data.root,
@@ -984,6 +988,31 @@ export class ConnectionService {
     return __request(OpenAPI, {
       method: "POST",
       url: "/public/connections",
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        409: "Conflict",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Post Connections
+   * Create connection entry.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @returns ConnectionCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static postConnections(
+    data: PostConnectionsData,
+  ): CancelablePromise<PostConnectionsResponse> {
+    return __request(OpenAPI, {
+      method: "POST",
+      url: "/public/connections/bulk",
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
@@ -2964,10 +2993,38 @@ export class VariableService {
   }
 }
 
+export class DagParsingService {
+  /**
+   * Reparse Dag File
+   * Request re-parsing a DAG file.
+   * @param data The data for the request.
+   * @param data.fileToken
+   * @returns null Successful Response
+   * @throws ApiError
+   */
+  public static reparseDagFile(
+    data: ReparseDagFileData,
+  ): CancelablePromise<ReparseDagFileResponse> {
+    return __request(OpenAPI, {
+      method: "PUT",
+      url: "/public/parseDagFile/{file_token}",
+      path: {
+        file_token: data.fileToken,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
 export class MonitorService {
   /**
    * Get Health
-   * @returns HealthInfoSchema Successful Response
+   * @returns HealthInfoResponse Successful Response
    * @throws ApiError
    */
   public static getHealth(): CancelablePromise<GetHealthResponse> {

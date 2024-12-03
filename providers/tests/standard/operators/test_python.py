@@ -45,7 +45,6 @@ from airflow.decorators import task_group
 from airflow.exceptions import (
     AirflowException,
     DeserializingResultError,
-    RemovedInAirflow3Warning,
 )
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
@@ -64,7 +63,6 @@ from airflow.providers.standard.operators.python import (
     get_current_context,
 )
 from airflow.providers.standard.utils.python_virtualenv import prepare_virtualenv
-from airflow.settings import _ENABLE_AIP_44
 from airflow.utils import timezone
 from airflow.utils.context import AirflowContextDeprecationWarning, Context
 from airflow.utils.session import create_session
@@ -91,8 +89,6 @@ DILL_INSTALLED = find_spec("dill") is not None
 DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not installed")
 CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
 CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
-
-USE_AIRFLOW_CONTEXT_MARKER = pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is not enabled")
 
 AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE = (
     r"The `use_airflow_context=True` is only supported in Airflow 3.0.0 and later."
@@ -295,7 +291,7 @@ class TestPythonOperator(BasePythonTest):
         """Ensures that provide_context doesn't break dags in 2.0."""
 
         def func(custom, dag):
-            assert 1 == custom, "custom should be 1"
+            assert custom == 1, "custom should be 1"
             assert dag is not None, "dag should be set"
 
         error_message = "Invalid arguments were passed to PythonOperator \\(task_id: task_test-provide-context-does-not-fail\\). Invalid arguments were:\n\\*\\*kwargs: {'provide_context': True}"
@@ -305,7 +301,7 @@ class TestPythonOperator(BasePythonTest):
 
     def test_context_with_conflicting_op_args(self):
         def func(custom, dag):
-            assert 1 == custom, "custom should be 1"
+            assert custom == 1, "custom should be 1"
             assert dag is not None, "dag should be set"
 
         self.run_as_task(func, op_kwargs={"custom": 1})
@@ -1046,7 +1042,6 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         task = self.run_as_task(f, env_vars={"MY_ENV_VAR": "EFGHI"}, inherit_env=True)
         assert task.execute_callable() == "EFGHI"
 
-    @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context(self):
         def f():
             from airflow.providers.standard.operators.python import get_current_context
@@ -1066,7 +1061,6 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE):
                 self.run_as_task(f, return_ti=True, use_airflow_context=True)
 
-    @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_not_found_error(self):
         def f():
             from airflow.providers.standard.operators.python import get_current_context
@@ -1089,7 +1083,6 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             ):
                 self.run_as_task(f, return_ti=True, use_airflow_context=False)
 
-    @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_airflow_not_found_error(self):
         airflow_flag: dict[str, bool] = {"expect_airflow": False}
         error_msg = r"The `use_airflow_context` parameter is set to True, but expect_airflow is set to False."
@@ -1116,7 +1109,6 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE):
                 self.run_as_task(f, return_ti=True, use_airflow_context=True, **airflow_flag)
 
-    @USE_AIRFLOW_CONTEXT_MARKER
     def test_use_airflow_context_touch_other_variables(self):
         def f():
             from airflow.providers.standard.operators.python import get_current_context
@@ -1134,22 +1126,6 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             assert ti.state == TaskInstanceState.SUCCESS
         else:
             with pytest.raises(AirflowException, match=AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE):
-                self.run_as_task(f, return_ti=True, use_airflow_context=True)
-
-    @pytest.mark.skipif(_ENABLE_AIP_44, reason="AIP-44 is enabled")
-    def test_use_airflow_context_without_aip_44_error(self):
-        def f():
-            from airflow.providers.standard.operators.python import get_current_context
-
-            get_current_context()
-            return []
-
-        error_msg = "`get_current_context()` needs to be used with AIP-44 enabled."
-        if AIRFLOW_V_3_0_PLUS:
-            with pytest.raises(AirflowException, match=re.escape(error_msg)):
-                self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
-        else:
-            with pytest.raises(AirflowException, match=re.escape(AIRFLOW_CONTEXT_BEFORE_V3_0_MESSAGE)):
                 self.run_as_task(f, return_ti=True, use_airflow_context=True)
 
 
@@ -1190,23 +1166,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             import dill  # noqa: F401
 
         self.run_as_task(f, serializer="dill", system_site_packages=False)
-
-    @DILL_MARKER
-    def test_add_dill_use_dill(self):
-        def f():
-            """Ensure dill is correctly installed."""
-            import dill  # noqa: F401
-
-        with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
-            self.run_as_task(f, use_dill=True, system_site_packages=False)
-
-    def test_ambiguous_serializer(self):
-        def f():
-            pass
-
-        with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
-            with pytest.raises(AirflowException, match="Both 'use_dill' and 'serializer' parameters are set"):
-                self.run_as_task(f, use_dill=True, serializer="dill")
 
     def test_invalid_serializer(self):
         def f():
@@ -1528,7 +1487,6 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_task(f, serializer=serializer, system_site_packages=False, requirements=None)
 
-    @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_system_site_packages(self, session):
         def f():
             from airflow.providers.standard.operators.python import get_current_context
@@ -1892,7 +1850,6 @@ class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator)
                 kwargs["venv_cache_path"] = venv_cache_path
         return kwargs
 
-    @USE_AIRFLOW_CONTEXT_MARKER
     def test_current_context_system_site_packages(self, session):
         def f():
             from airflow.providers.standard.operators.python import get_current_context
