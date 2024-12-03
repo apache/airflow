@@ -20,7 +20,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
-from airflow.exceptions import AirflowException
 
 
 class LocalDagBundle(BaseDagBundle):
@@ -36,8 +35,8 @@ class LocalDagBundle(BaseDagBundle):
         super().__init__(**kwargs)
         self._path = Path(local_folder)
 
-    def get_current_version(self) -> str:
-        raise AirflowException("Not versioned!")
+    def get_current_version(self) -> None:
+        return None
 
     def refresh(self) -> None:
         """Nothing to refresh - it's just a local directory."""
