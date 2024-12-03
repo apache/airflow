@@ -23,7 +23,6 @@ from typing import TYPE_CHECKING, Any, NoReturn
 
 from packaging.version import Version
 
-from airflow import __version__ as airflow_version
 from airflow.configuration import conf
 from airflow.exceptions import AirflowSkipException
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
@@ -34,14 +33,11 @@ from airflow.utils import timezone
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-AIRFLOW_V_2_11_PLUS = Version(Version(airflow_version).base_version) >= Version("2.11.0")
-"""
-Whether airflow version is 2.11 or greater.
 
-todo: remove backcompat when min airflow version greater than 2.11
+def _get_airflow_version():
+    from airflow import __version__ as airflow_version
 
-:meta private:
-"""
+    return Version(Version(airflow_version).base_version)
 
 
 class TimeDeltaSensor(BaseSensorOperator):
@@ -105,7 +101,7 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
 
         # todo: remove backcompat when min airflow version greater than 2.11
         timeout: int | float | timedelta
-        if AIRFLOW_V_2_11_PLUS:
+        if _get_airflow_version() >= Version("2.11.0"):
             timeout = self.timeout
         else:
             timeout = timedelta(seconds=self.timeout)
