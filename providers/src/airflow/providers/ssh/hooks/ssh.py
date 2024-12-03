@@ -124,7 +124,6 @@ class SSHHook(BaseHook):
         disabled_algorithms: dict | None = None,
         ciphers: list[str] | None = None,
         auth_timeout: int | None = None,
-        host_proxy_cmd: str | None = None,
     ) -> None:
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
@@ -141,7 +140,7 @@ class SSHHook(BaseHook):
         self.banner_timeout = banner_timeout
         self.disabled_algorithms = disabled_algorithms
         self.ciphers = ciphers
-        self.host_proxy_cmd = host_proxy_cmd
+        self.host_proxy_cmd = None
         self.auth_timeout = auth_timeout
 
         # Default values, overridable from Connection
@@ -275,7 +274,7 @@ class SSHHook(BaseHook):
             with open(user_ssh_config_filename) as config_fd:
                 ssh_conf.parse(config_fd)
             host_info = ssh_conf.lookup(self.remote_host)
-            if host_info and host_info.get("proxycommand") and not self.host_proxy_cmd:
+            if host_info and host_info.get("proxycommand"):
                 self.host_proxy_cmd = host_info["proxycommand"]
 
             if not (self.password or self.key_file):
