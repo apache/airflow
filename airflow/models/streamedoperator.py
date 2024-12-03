@@ -22,14 +22,13 @@ import logging
 import os
 from abc import abstractmethod
 from asyncio import AbstractEventLoop, Future, Semaphore, ensure_future, gather
-from collections.abc import Generator, Iterable, Sequence
 from contextlib import contextmanager, suppress
 from datetime import timedelta
 from math import ceil
 from multiprocessing import TimeoutError
 from multiprocessing.pool import ThreadPool
 from time import sleep
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Generator, Iterable, Sequence
 
 from airflow import XComArg
 from airflow.exceptions import (
@@ -42,16 +41,17 @@ from airflow.models.abstractoperator import DEFAULT_TASK_EXECUTION_TIMEOUT
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.expandinput import (
     ExpandInput,
-    _needs_run_time_resolution,
     is_mappable,
+    _needs_run_time_resolution,
 )
 from airflow.models.taskinstance import TaskInstance
-from airflow.triggers.base import run_trigger
 from airflow.utils import timezone
 from airflow.utils.context import Context, context_get_outlet_events
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.task_instance_session import get_current_task_instance_session
+
+from airflow.triggers.base import run_trigger
 
 if TYPE_CHECKING:
     import jinja2
@@ -104,10 +104,43 @@ class TaskExecutor(LoggingMixin):
     def run(self, *args, **kwargs):
         raise NotImplementedError()
 
-    def _handle_result(self, result):
-        """
-        Common logic to handle result and post-execution tasks.
-        """
+    def __enter__(self):
+        if self.log.isEnabledFor(logging.INFO):
+            self.log.info(
+                "Attempting running task %s of %s for %s with map_index %s.",
+                self.task_instance.try_number,
+                self.operator.retries,
+                type(self.operator).__name__,
+                self.task_instance.map_index,
+            )
+
+        if self.task_instance.try_number == 0:
+            self.operator.render_template_fields(context=self.context)
+            self.operator.pre_execute(context=self.context)
+            self.task_instance._run_execute_callback(
+                context=self.context, task=self.operator
+            )
+
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if exc_value:
+            if isinstance(exc_value, AirflowException):
+                if self.task_instance.next_try_number > self.operator.retries:
+                    self.log.error(
+                        "Max number of attempts for %s with map_index %s failed due to: %s",
+                        type(self.operator).__name__,
+                        self.task_instance.map_index,
+                        exc_value,
+                    )
+                    raise exc_value
+
+                self.task_instance.try_number += 1
+                self.task_instance.end_date = timezone.utcnow()
+
+                raise AirflowRescheduleTaskInstanceException(task=self.task_instance)
+            raise exc_value
+
         self.operator.post_execute(context=self.context)
         if self.log.isEnabledFor(logging.INFO):
             self.log.info(
@@ -116,9 +149,6 @@ class TaskExecutor(LoggingMixin):
                 type(self.operator).__name__,
                 self.task_instance.next_try_number,
             )
-        if self.operator.do_xcom_push:
-            return result
-        return None
 
 
 class OperatorExecutor(TaskExecutor):
@@ -131,44 +161,14 @@ class OperatorExecutor(TaskExecutor):
     :meta private:
     """
 
-    def run(self):
-        if self.log.isEnabledFor(logging.INFO):
-            self.log.info(
-                "Attempting running task %s of %s for %s with map_index %s.",
-                self.task_instance.try_number,
-                self.operator.retries,
-                type(self.operator).__name__,
-                self.task_instance.map_index,
-            )
-
-        if self.task_instance.try_number == 0:
-            self.operator.render_template_fields(context=self.context)
-        self.operator.pre_execute(context=self.context)
-        self.task_instance._run_execute_callback(context=self.context, task=self.operator)
-        try:
-            outlet_events = context_get_outlet_events(self.context)
-            # TODO: change back to operator.execute once ExecutorSafeguard is fixed
-            callable_runner = ExecutionCallableRunner(
-                func=self.operator.execute.__wrapped__,
-                outlet_events=outlet_events,
-                logger=self.log,
-            )
-            result = callable_runner.run(self.operator, self.context)
-            return self._handle_result(result)
-        except AirflowException as e:
-            if self.task_instance.next_try_number > self.operator.retries:
-                self.log.error(
-                    "Max number of attempts for %s with map_index %s failed due to: %s",
-                    type(self.operator).__name__,
-                    self.task_instance.map_index,
-                    e,
-                )
-                raise e
-
-            self.task_instance.try_number += 1
-            self.task_instance.end_date = timezone.utcnow()
-
-            raise AirflowRescheduleTaskInstanceException(task=self.task_instance)
+    def run(self, *args, **kwargs):
+        outlet_events = context_get_outlet_events(self.context)
+        # TODO: change back to operator.execute once ExecutorSafeguard is fixed
+        return ExecutionCallableRunner(
+            func=self.operator.execute.__wrapped__,
+            outlet_events=outlet_events,
+            logger=self.log,
+        ).run(self.operator, self.context)
 
 
 class TriggerExecutor(TaskExecutor):
@@ -195,8 +195,12 @@ class TriggerExecutor(TaskExecutor):
                     next_method = BaseOperator.next_callable(
                         self.operator, task_deferred.method_name, task_deferred.kwargs
                     )
-                    result = next_method(self.context, event.payload)
-                    return self._handle_result(result)
+                    outlet_events = context_get_outlet_events(self.context)
+                    return ExecutionCallableRunner(
+                        func=next_method,
+                        outlet_events=outlet_events,
+                        logger=self.log,
+                    ).run(self.context, event.payload)
                 except TaskDeferred as task_deferred:
                     return await self.run(task_deferred=task_deferred)
 
@@ -228,7 +232,9 @@ class StreamedOperator(BaseOperator):
         self._operator_class = operator_class
         self.expand_input = expand_input
         self.partial_kwargs = partial_kwargs or {}
-        self.timeout = timeout.total_seconds() if isinstance(timeout, timedelta) else timeout
+        self.timeout = (
+            timeout.total_seconds() if isinstance(timeout, timedelta) else timeout
+        )
         self._mapped_kwargs: list[dict] = []
         if not self.max_active_tis_per_dag:
             self.max_active_tis_per_dag = os.cpu_count() or 1
@@ -291,7 +297,10 @@ class StreamedOperator(BaseOperator):
         failed_tasks: list[TaskInstance] = []
 
         with ThreadPool(processes=self.max_active_tis_per_dag) as pool:
-            futures = [(task, pool.apply_async(self._run_operator, (context, task))) for task in tasks]
+            futures = [
+                (task, pool.apply_async(self._run_operator, (context, task)))
+                for task in tasks
+            ]
 
             for task, future in futures:
                 try:
@@ -306,7 +315,7 @@ class StreamedOperator(BaseOperator):
                                 )
                             )
                         )
-                    else:
+                    elif result:
                         results.append(result)
                 except TimeoutError as e:
                     self.log.warning("A timeout occurred for task_id %s", task.task_id)
@@ -329,13 +338,15 @@ class StreamedOperator(BaseOperator):
                 for result in loop.run_until_complete(
                     gather(*deferred_tasks, return_exceptions=True)
                 ):
+                    self.log.debug("result: %s", result)
+
                     if isinstance(result, Exception):
                         if isinstance(result, AirflowRescheduleTaskInstanceException):
                             reschedule_date = result.reschedule_date
                             failed_tasks.append(result.task)
                         else:
                             exception = result
-                    else:
+                    elif result:
                         results.append(result)
 
             deferred_tasks.clear()
@@ -343,7 +354,7 @@ class StreamedOperator(BaseOperator):
         if not failed_tasks:
             if exception:
                 raise exception
-            return list(filter(None, results))
+            return results
 
         # session = get_current_task_instance_session()
         # TaskInstance._set_state(context["ti"], TaskInstanceState.UP_FOR_RETRY, session)
@@ -369,20 +380,17 @@ class StreamedOperator(BaseOperator):
 
     @classmethod
     def _run_operator(cls, context: Context, task_instance: TaskInstance):
-        try:
-            return OperatorExecutor(
-                context=context,
-                task_instance=task_instance,
-            ).run()
-        except TaskDeferred as task_deferred:
-            return task_deferred
+        with OperatorExecutor(context=context, task_instance=task_instance) as executor:
+            try:
+                return executor.run()
+            except TaskDeferred as task_deferred:
+                return task_deferred
 
-    async def _run_deferrable(self, context: Context, task: TaskInstance, task_deferred: TaskDeferred):
-        async with self._semaphore:
-            return await TriggerExecutor(
-                context=context,
-                task_instance=task,
-            ).run(task_deferred)
+    async def _run_deferrable(
+        self, context: Context, task: TaskInstance, task_deferred: TaskDeferred
+    ):
+        with TriggerExecutor(context=context, task_instance=task) as executor:
+            return await executor.run(task_deferred)
 
     def _create_task(self, context: Context, index: int) -> TaskInstance:
         operator = self._unmap_operator(index)
