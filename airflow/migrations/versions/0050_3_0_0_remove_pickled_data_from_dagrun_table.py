@@ -86,7 +86,7 @@ def upgrade():
     condition_templates = {
         "postgresql": "get_byte(conf, 0) = 128",
         "mysql": "HEX(SUBSTRING(conf, 1, 1)) = '80'",
-        "sqlite": "substr(conf, 1, 1) = char(128)",
+        "sqlite": "hex(substr(conf, 1, 1)) = '80'",
     }
 
     condition = condition_templates.get(dialect)
@@ -155,9 +155,24 @@ def downgrade():
     """Unapply Remove pickled data from dagrun table."""
     conn = op.get_bind()
     dialect = conn.dialect.name
+    inspector = sa.inspect(conn)
+
+    insert_query = text(
+        """
+                       INSERT INTO dag_run (dag_id, run_id, queued_at, logical_date, start_date, end_date, state, creating_job_id, external_trigger, run_type, triggered_by, conf, data_interval_start, data_interval_end, last_scheduling_decision, log_template_id, updated_at, clear_number, backfill_id, dag_version_id)
+              SELECT dag_id, run_id, queued_at, logical_date, start_date, end_date, state, creating_job_id, external_trigger, run_type, triggered_by, conf, data_interval_start, data_interval_end, last_scheduling_decision, log_template_id, updated_at, clear_number, backfill_id, dag_version_id
+              FROM  _dag_run_archive
+              WHERE conf IS NOT NULL;
+
+                          """
+    )
+
+    conn.execute(text("DELETE FROM dag_run WHERE conf IS NOT NULL"))
 
     # Revert the conf column back to LargeBinary
     if dialect == "postgresql":
+        # Delete the pickled data from the dag_run table so that we can update the column type
+
         op.execute(
             """
             ALTER TABLE dag_run
@@ -168,11 +183,17 @@ def downgrade():
             END
             """
         )
+
+        if "_dag_run_archive" in inspector.get_table_names():
+            conn.execute(insert_query)
+
     elif dialect == "mysql":
         op.add_column("dag_run", sa.Column("conf_blob", LONGBLOB, nullable=True))
         op.execute("UPDATE dag_run SET conf_blob = CAST(conf AS BINARY);")
         op.drop_column("dag_run", "conf")
         op.alter_column("dag_run", "conf_blob", existing_type=LONGBLOB, new_column_name="conf")
+        if "_dag_run_archive" in inspector.get_table_names():
+            conn.execute(insert_query)
 
     elif dialect == "sqlite":
         with op.batch_alter_table("dag_run", schema=None) as batch_op:
@@ -193,3 +214,6 @@ def downgrade():
 
         with op.batch_alter_table("dag_run", schema=None) as batch_op:
             batch_op.drop_column("conf_old")
+
+        if "_dag_run_archive" in inspector.get_table_names():
+            conn.execute(insert_query)
