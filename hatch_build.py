@@ -438,8 +438,6 @@ DEPENDENCIES = [
     "dill>=0.2.2",
     # Required for python 3.8 and 3.9 to work with new annotations styles. Check package
     # description on PyPI for more details: https://pypi.org/project/eval-type-backport/
-    # NOTE! THIS MIGHT BE REMOVED BEFORE WE RELEASE 2.10.4 if
-    # Pydantic 2.10.2 will add eval-type-backport as dependency for Python 3.8/3.9
     # see https://github.com/pydantic/pydantic/issues/10958
     'eval-type-backport>=0.2.0;python_version<"3.10"',
     "flask-caching>=2.0.0",
