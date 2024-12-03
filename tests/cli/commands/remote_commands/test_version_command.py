@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -18,26 +16,20 @@
 # under the License.
 from __future__ import annotations
 
-import setproctitle
+from contextlib import redirect_stdout
+from io import StringIO
 
-from airflow import settings
-
-
-def post_worker_init(_):
-    """
-    Set process title.
-
-    This is used by airflow.cli.commands.local_commands.webserver_command to track the status of the worker.
-    """
-    old_title = setproctitle.getproctitle()
-    setproctitle.setproctitle(settings.GUNICORN_WORKER_READY_PREFIX + old_title)
+import airflow.cli.commands.remote_commands.version_command
+from airflow.cli import cli_parser
+from airflow.version import version
 
 
-def on_starting(server):
-    from airflow.providers_manager import ProvidersManager
+class TestCliVersion:
+    @classmethod
+    def setup_class(cls):
+        cls.parser = cli_parser.get_parser()
 
-    providers_manager = ProvidersManager()
-    # Load providers configuration before forking workers
-    providers_manager.initialize_providers_configuration()
-    # Load providers before forking workers
-    providers_manager.connection_form_widgets
+    def test_cli_version(self):
+        with redirect_stdout(StringIO()) as stdout:
+            airflow.cli.commands.remote_commands.version_command.version(self.parser.parse_args(["version"]))
+        assert version in stdout.getvalue()

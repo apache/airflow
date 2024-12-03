@@ -607,8 +607,8 @@ repos:
           (?x)
           ^airflow/api_connexion/openapi/v1.yaml$|
           ^airflow/ui/openapi-gen/|
-          ^airflow/cli/commands/fastapi_api_command.py$|
-          ^airflow/cli/commands/webserver_command.py$|
+          ^airflow/cli/commands/local_commands/fastapi_api_command.py$|
+          ^airflow/cli/commands/local_commands/webserver_command.py$|
           ^airflow/config_templates/|
           ^airflow/models/baseoperator.py$|
           ^airflow/operators/__init__.py$|

@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,28 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Kerberos command."""
+
 from __future__ import annotations
 
-import setproctitle
-
 from airflow import settings
+from airflow.cli.commands.local_commands.daemon_utils import run_command_with_daemon_option
+from airflow.security import kerberos as krb
+from airflow.security.kerberos import KerberosMode
+from airflow.utils import cli as cli_utils
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 
-def post_worker_init(_):
-    """
-    Set process title.
+@cli_utils.action_cli
+@providers_configuration_loaded
+def kerberos(args):
+    """Start a kerberos ticket renewer."""
+    print(settings.HEADER)
 
-    This is used by airflow.cli.commands.local_commands.webserver_command to track the status of the worker.
-    """
-    old_title = setproctitle.getproctitle()
-    setproctitle.setproctitle(settings.GUNICORN_WORKER_READY_PREFIX + old_title)
+    mode = KerberosMode.STANDARD
+    if args.one_time:
+        mode = KerberosMode.ONE_TIME
 
-
-def on_starting(server):
-    from airflow.providers_manager import ProvidersManager
-
-    providers_manager = ProvidersManager()
-    # Load providers configuration before forking workers
-    providers_manager.initialize_providers_configuration()
-    # Load providers before forking workers
-    providers_manager.connection_form_widgets
+    run_command_with_daemon_option(
+        args=args,
+        process_name="kerberos",
+        callback=lambda: krb.run(principal=args.principal, keytab=args.keytab, mode=mode),
+    )
