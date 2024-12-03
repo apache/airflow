@@ -36,7 +36,7 @@ from uuid6 import uuid7
 
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
-from airflow.sdk.api.datamodels._generated import TaskInstance
+from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeferTask,
@@ -259,6 +259,53 @@ class TestWatchedSubprocess:
             "timestamp": "2024-11-07T12:34:56.078901Z",
         } in captured_logs
 
+    def test_supervise_handles_deferred_task(self, test_dags_dir, captured_logs, time_machine, mocker):
+        """
+        Test that the supervisor handles a deferred task correctly.
+
+        This includes ensuring the task starts and executes successfully, and that the task is deferred (via
+        the API client) with the expected parameters.
+        """
+
+        ti = TaskInstance(
+            id=uuid7(), task_id="async", dag_id="super_basic_deferred_run", run_id="d", try_number=1
+        )
+        dagfile_path = test_dags_dir / "super_basic_deferred_run.py"
+
+        # Create a mock client to assert calls to the client
+        # We assume the implementation of the client is correct and only need to check the calls
+        mock_client = mocker.Mock(spec=sdk_client.Client)
+
+        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 0)
+        time_machine.move_to(instant, tick=False)
+
+        # Assert supervisor runs the task successfully
+        assert supervise(ti=ti, dag_path=dagfile_path, token="", client=mock_client) == 0
+
+        # Validate calls to the client
+        mock_client.task_instances.start.assert_called_once_with(ti.id, mocker.ANY, mocker.ANY)
+        mock_client.task_instances.heartbeat.assert_called_once_with(ti.id, pid=mocker.ANY)
+        mock_client.task_instances.defer.assert_called_once_with(
+            ti.id,
+            DeferTask(
+                classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
+                trigger_kwargs={"moment": "2024-11-07T12:34:59Z", "end_from_trigger": False},
+                next_method="execute_complete",
+            ),
+        )
+
+        # We are asserting the log messages here to ensure the task ran successfully
+        # and mainly to get the final state of the task matches one in the DB.
+        assert {
+            "exit_code": 0,
+            "duration": 0.0,
+            "final_state": "deferred",
+            "event": "Task finished",
+            "timestamp": mocker.ANY,
+            "level": "info",
+            "logger": "supervisor",
+        } in captured_logs
+
     def test_supervisor_handles_already_running_task(self):
         """Test that Supervisor prevents starting a Task Instance that is already running."""
         ti = TaskInstance(id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1)
@@ -430,6 +477,73 @@ class TestWatchedSubprocess:
             "logger": "supervisor",
             "timestamp": mocker.ANY,
         } in captured_logs
+
+    @pytest.mark.parametrize(
+        ["terminal_state", "task_end_time_monotonic", "overtime_threshold", "expected_kill"],
+        [
+            pytest.param(
+                None,
+                15.0,
+                10,
+                False,
+                id="no_terminal_state",
+            ),
+            pytest.param(TerminalTIState.SUCCESS, 15.0, 10, False, id="below_threshold"),
+            pytest.param(TerminalTIState.SUCCESS, 9.0, 10, True, id="above_threshold"),
+            pytest.param(TerminalTIState.FAILED, 9.0, 10, True, id="above_threshold_failed_state"),
+            pytest.param(TerminalTIState.SKIPPED, 9.0, 10, True, id="above_threshold_skipped_state"),
+            pytest.param(TerminalTIState.SUCCESS, None, 20, False, id="task_end_datetime_none"),
+        ],
+    )
+    def test_overtime_handling(
+        self,
+        mocker,
+        terminal_state,
+        task_end_time_monotonic,
+        overtime_threshold,
+        expected_kill,
+        monkeypatch,
+    ):
+        """Test handling of overtime under various conditions."""
+        # Mocking logger since we are only interested that it is called with the expected message
+        # and not the actual log output
+        mock_logger = mocker.patch("airflow.sdk.execution_time.supervisor.log")
+
+        # Mock the kill method at the class level so we can assert it was called with the correct signal
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+
+        # Mock the current monotonic time
+        mocker.patch("time.monotonic", return_value=20.0)
+
+        # Patch the task overtime threshold
+        monkeypatch.setattr(WatchedSubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
+
+        mock_watched_subprocess = WatchedSubprocess(
+            ti_id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+
+        # Set the terminal state and task end datetime
+        mock_watched_subprocess._terminal_state = terminal_state
+        mock_watched_subprocess._task_end_time_monotonic = task_end_time_monotonic
+
+        # Call `wait` to trigger the overtime handling
+        # This will call the `kill` method if the task has been running for too long
+        mock_watched_subprocess._handle_task_overtime_if_needed()
+
+        # Validate process kill behavior and log messages
+        if expected_kill:
+            mock_kill.assert_called_once_with(signal.SIGTERM, force=True)
+            mock_logger.warning.assert_called_once_with(
+                "Task success overtime reached; terminating process",
+                ti_id=TI_ID,
+            )
+        else:
+            mock_kill.assert_not_called()
+            mock_logger.warning.assert_not_called()
 
 
 class TestWatchedSubprocessKill:
