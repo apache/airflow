@@ -259,6 +259,53 @@ class TestWatchedSubprocess:
             "timestamp": "2024-11-07T12:34:56.078901Z",
         } in captured_logs
 
+    def test_supervise_handles_deferred_task(self, test_dags_dir, captured_logs, time_machine, mocker):
+        """
+        Test that the supervisor handles a deferred task correctly.
+
+        This includes ensuring the task starts and executes successfully, and that the task is deferred (via
+        the API client) with the expected parameters.
+        """
+
+        ti = TaskInstance(
+            id=uuid7(), task_id="async", dag_id="super_basic_deferred_run", run_id="d", try_number=1
+        )
+        dagfile_path = test_dags_dir / "super_basic_deferred_run.py"
+
+        # Create a mock client to assert calls to the client
+        # We assume the implementation of the client is correct and only need to check the calls
+        mock_client = mocker.Mock(spec=sdk_client.Client)
+
+        instant = tz.datetime(2024, 11, 7, 12, 34, 56, 0)
+        time_machine.move_to(instant, tick=False)
+
+        # Assert supervisor runs the task successfully
+        assert supervise(ti=ti, dag_path=dagfile_path, token="", client=mock_client) == 0
+
+        # Validate calls to the client
+        mock_client.task_instances.start.assert_called_once_with(ti.id, mocker.ANY, mocker.ANY)
+        mock_client.task_instances.heartbeat.assert_called_once_with(ti.id, pid=mocker.ANY)
+        mock_client.task_instances.defer.assert_called_once_with(
+            ti.id,
+            DeferTask(
+                classpath="airflow.providers.standard.triggers.temporal.DateTimeTrigger",
+                trigger_kwargs={"moment": "2024-11-07T12:34:59Z", "end_from_trigger": False},
+                next_method="execute_complete",
+            ),
+        )
+
+        # We are asserting the log messages here to ensure the task ran successfully
+        # and mainly to get the final state of the task matches one in the DB.
+        assert {
+            "exit_code": 0,
+            "duration": 0.0,
+            "final_state": "deferred",
+            "event": "Task finished",
+            "timestamp": mocker.ANY,
+            "level": "info",
+            "logger": "supervisor",
+        } in captured_logs
+
     def test_supervisor_handles_already_running_task(self):
         """Test that Supervisor prevents starting a Task Instance that is already running."""
         ti = TaskInstance(id=uuid7(), task_id="b", dag_id="c", run_id="d", try_number=1)
