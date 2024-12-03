@@ -147,7 +147,7 @@ class SetXCom(BaseModel):
     dag_id: str
     run_id: str
     task_id: str
-    map_index: int = -1
+    map_index: int | None = None
     type: Literal["SetXCom"] = "SetXCom"
 
 

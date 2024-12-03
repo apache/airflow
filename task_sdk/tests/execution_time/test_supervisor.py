@@ -706,7 +706,7 @@ class TestHandleRequest:
                     "test_task",
                     "test_key",
                     '{"key": "test_key", "value": {"key2": "value2"}}',
-                    -1,
+                    None,
                 ),
                 {"message": "XCom successfully set"},
                 id="set_xcom",
