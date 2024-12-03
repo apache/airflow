@@ -29,8 +29,8 @@
 Changelog
 ---------
 
-Breaking changes
-~~~~~~~~~~~~~~~~
+main
+.....
 
 .. warning::
   All deprecated classes, parameters and features have been removed from the Apache Spark provider package.
