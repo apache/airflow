@@ -51,6 +51,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetXCom,
     StartupDetails,
+    TaskState,
     ToSupervisor,
 )
 
@@ -265,9 +266,9 @@ class WatchedSubprocess:
     client: Client
 
     _process: psutil.Process
-    _exit_code: int | None = None
-    _terminal_state: str | None = None
-    _final_state: str | None = None
+    _exit_code: int | None = attrs.field(default=None, init=False)
+    _terminal_state: str | None = attrs.field(default=None, init=False)
+    _final_state: str | None = attrs.field(default=None, init=False)
 
     _last_successful_heartbeat: float = attrs.field(default=0, init=False)
     _last_heartbeat_attempt: float = attrs.field(default=0, init=False)
@@ -276,6 +277,12 @@ class WatchedSubprocess:
     # will kill the process. This is to handle temporary network issues etc. ensuring that the process
     # does not hang around forever.
     failed_heartbeats: int = attrs.field(default=0, init=False)
+
+    # Maximum possible time (in seconds) that task will have for execution of auxiliary processes
+    # like listeners after task is complete.
+    # TODO: This should come from airflow.cfg: [core] task_success_overtime
+    TASK_OVERTIME_THRESHOLD: ClassVar[float] = 20.0
+    _task_end_time_monotonic: float | None = attrs.field(default=None, init=False)
 
     selector: selectors.BaseSelector = attrs.field(factory=selectors.DefaultSelector)
 
@@ -500,6 +507,21 @@ class WatchedSubprocess:
 
             self._send_heartbeat_if_needed()
 
+            self._handle_task_overtime_if_needed()
+
+    def _handle_task_overtime_if_needed(self):
+        """Handle termination of auxiliary processes if the task exceeds the configured overtime."""
+        # If the task has reached a terminal state, we can start monitoring the overtime
+        if not self._terminal_state:
+            return
+
+        if (
+            self._task_end_time_monotonic
+            and (time.monotonic() - self._task_end_time_monotonic) > self.TASK_OVERTIME_THRESHOLD
+        ):
+            log.warning("Task success overtime reached; terminating process", ti_id=self.ti_id)
+            self.kill(signal.SIGTERM, force=True)
+
     def _service_subprocess(self, max_wait_time: float, raise_on_timeout: bool = False):
         """
         Service subprocess events by processing socket activity and checking for process exit.
@@ -631,9 +653,11 @@ class WatchedSubprocess:
                 log.exception("Unable to decode message", line=line)
                 continue
 
-            # if isinstance(msg, TaskState):
-            #     self._terminal_state = msg.state
-            if isinstance(msg, GetConnection):
+            resp = None
+            if isinstance(msg, TaskState):
+                self._terminal_state = msg.state
+                self._task_end_time_monotonic = time.monotonic()
+            elif isinstance(msg, GetConnection):
                 conn = self.client.connections.get(msg.conn_id)
                 resp = conn.model_dump_json(exclude_unset=True).encode()
             elif isinstance(msg, GetVariable):
@@ -645,7 +669,6 @@ class WatchedSubprocess:
             elif isinstance(msg, DeferTask):
                 self._terminal_state = IntermediateTIState.DEFERRED
                 self.client.task_instances.defer(self.ti_id, msg)
-                resp = None
             else:
                 log.error("Unhandled request", msg=msg)
                 continue

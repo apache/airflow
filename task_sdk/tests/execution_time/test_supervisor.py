@@ -36,7 +36,7 @@ from uuid6 import uuid7
 
 from airflow.sdk.api import client as sdk_client
 from airflow.sdk.api.client import ServerResponseError
-from airflow.sdk.api.datamodels._generated import TaskInstance
+from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
 from airflow.sdk.execution_time.comms import (
     ConnectionResult,
     DeferTask,
@@ -477,6 +477,73 @@ class TestWatchedSubprocess:
             "logger": "supervisor",
             "timestamp": mocker.ANY,
         } in captured_logs
+
+    @pytest.mark.parametrize(
+        ["terminal_state", "task_end_time_monotonic", "overtime_threshold", "expected_kill"],
+        [
+            pytest.param(
+                None,
+                15.0,
+                10,
+                False,
+                id="no_terminal_state",
+            ),
+            pytest.param(TerminalTIState.SUCCESS, 15.0, 10, False, id="below_threshold"),
+            pytest.param(TerminalTIState.SUCCESS, 9.0, 10, True, id="above_threshold"),
+            pytest.param(TerminalTIState.FAILED, 9.0, 10, True, id="above_threshold_failed_state"),
+            pytest.param(TerminalTIState.SKIPPED, 9.0, 10, True, id="above_threshold_skipped_state"),
+            pytest.param(TerminalTIState.SUCCESS, None, 20, False, id="task_end_datetime_none"),
+        ],
+    )
+    def test_overtime_handling(
+        self,
+        mocker,
+        terminal_state,
+        task_end_time_monotonic,
+        overtime_threshold,
+        expected_kill,
+        monkeypatch,
+    ):
+        """Test handling of overtime under various conditions."""
+        # Mocking logger since we are only interested that it is called with the expected message
+        # and not the actual log output
+        mock_logger = mocker.patch("airflow.sdk.execution_time.supervisor.log")
+
+        # Mock the kill method at the class level so we can assert it was called with the correct signal
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+
+        # Mock the current monotonic time
+        mocker.patch("time.monotonic", return_value=20.0)
+
+        # Patch the task overtime threshold
+        monkeypatch.setattr(WatchedSubprocess, "TASK_OVERTIME_THRESHOLD", overtime_threshold)
+
+        mock_watched_subprocess = WatchedSubprocess(
+            ti_id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=mocker.Mock(),
+        )
+
+        # Set the terminal state and task end datetime
+        mock_watched_subprocess._terminal_state = terminal_state
+        mock_watched_subprocess._task_end_time_monotonic = task_end_time_monotonic
+
+        # Call `wait` to trigger the overtime handling
+        # This will call the `kill` method if the task has been running for too long
+        mock_watched_subprocess._handle_task_overtime_if_needed()
+
+        # Validate process kill behavior and log messages
+        if expected_kill:
+            mock_kill.assert_called_once_with(signal.SIGTERM, force=True)
+            mock_logger.warning.assert_called_once_with(
+                "Task success overtime reached; terminating process",
+                ti_id=TI_ID,
+            )
+        else:
+            mock_kill.assert_not_called()
+            mock_logger.warning.assert_not_called()
 
 
 class TestWatchedSubprocessKill:

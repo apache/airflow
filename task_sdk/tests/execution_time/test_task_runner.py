@@ -27,8 +27,8 @@ import pytest
 from uuid6 import uuid7
 
 from airflow.sdk import DAG, BaseOperator
-from airflow.sdk.api.datamodels._generated import TaskInstance
-from airflow.sdk.execution_time.comms import DeferTask, StartupDetails
+from airflow.sdk.api.datamodels._generated import TaskInstance, TerminalTIState
+from airflow.sdk.execution_time.comms import DeferTask, StartupDetails, TaskState
 from airflow.sdk.execution_time.task_runner import CommsDecoder, parse, run
 from airflow.utils import timezone
 
@@ -78,7 +78,7 @@ def test_parse(test_dags_dir: Path):
     assert isinstance(ti.task.dag, DAG)
 
 
-def test_run_basic(test_dags_dir: Path):
+def test_run_basic(test_dags_dir: Path, time_machine):
     """Test running a basic task."""
     what = StartupDetails(
         ti=TaskInstance(id=uuid7(), task_id="hello", dag_id="super_basic_run", run_id="c", try_number=1),
@@ -87,7 +87,19 @@ def test_run_basic(test_dags_dir: Path):
     )
 
     ti = parse(what)
-    run(ti, log=mock.MagicMock())
+
+    instant = timezone.datetime(2024, 12, 3, 10, 0)
+    time_machine.move_to(instant, tick=False)
+
+    with mock.patch(
+        "airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True
+    ) as mock_supervisor_comms:
+        mock_supervisor_comms.send_request = mock.Mock()
+        run(ti, log=mock.MagicMock())
+
+        mock_supervisor_comms.send_request.assert_called_once_with(
+            msg=TaskState(state=TerminalTIState.SUCCESS, end_date=instant), log=mock.ANY
+        )
 
 
 def test_run_deferred_basic(test_dags_dir: Path, time_machine):
