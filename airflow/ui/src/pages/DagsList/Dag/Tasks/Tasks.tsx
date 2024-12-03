@@ -17,7 +17,6 @@
  * under the License.
  */
 import { Heading, Skeleton, Box } from "@chakra-ui/react";
-import type { ColumnDef } from "@tanstack/react-table";
 import { useParams } from "react-router-dom";
 
 import {
@@ -55,39 +54,6 @@ const cardDef = (
   },
 });
 
-const tasksColumn = (): Array<ColumnDef<TaskResponse>> => [
-  {
-    accessorKey: "task_id",
-    header: "Task ID",
-    meta: {
-      skeletonWidth: 10,
-    },
-  },
-  {
-    accessorKey: "operator_name",
-    header: "Dag ID",
-    meta: {
-      skeletonWidth: 10,
-    },
-  },
-  {
-    accessorKey: "operator_name",
-    enableSorting: true,
-    header: "Operator",
-    meta: {
-      skeletonWidth: 10,
-    },
-  },
-  {
-    accessorKey: "trigger_rule",
-    enableSorting: true,
-    header: "Trigger Rule",
-    meta: {
-      skeletonWidth: 10,
-    },
-  },
-];
-
 export const Tasks = () => {
   const { dagId } = useParams();
   const {
@@ -114,7 +80,7 @@ export const Tasks = () => {
       </Heading>
       <DataTable
         cardDef={cardDef(TaskInstancesResponse?.task_instances)}
-        columns={tasksColumn()}
+        columns={[]}
         data={data ? data.tasks : []}
         displayMode="card"
         isFetching={isFetching}
