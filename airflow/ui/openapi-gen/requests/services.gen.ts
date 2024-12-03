@@ -1686,6 +1686,9 @@ export class EventLogService {
    * Get Event Logs
    * Get all Event Logs.
    * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
    * @param data.dagId
    * @param data.taskId
    * @param data.runId
@@ -1697,9 +1700,6 @@ export class EventLogService {
    * @param data.includedEvents
    * @param data.before
    * @param data.after
-   * @param data.limit
-   * @param data.offset
-   * @param data.orderBy
    * @returns EventLogCollectionResponse Successful Response
    * @throws ApiError
    */
@@ -1710,6 +1710,9 @@ export class EventLogService {
       method: "GET",
       url: "/public/eventLogs",
       query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
         dag_id: data.dagId,
         task_id: data.taskId,
         run_id: data.runId,
@@ -1721,9 +1724,6 @@ export class EventLogService {
         included_events: data.includedEvents,
         before: data.before,
         after: data.after,
-        limit: data.limit,
-        offset: data.offset,
-        order_by: data.orderBy,
       },
       errors: {
         401: "Unauthorized",

@@ -26,17 +26,14 @@ from sqlalchemy.orm import joinedload, subqueryload
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.parameters import (
+    FilterParam,
     OptionalDateTimeQuery,
     QueryAssetDagIdPatternSearch,
-    QueryAssetIdFilter,
     QueryLimit,
     QueryOffset,
-    QuerySourceDagIdFilter,
-    QuerySourceMapIndexFilter,
-    QuerySourceRunIdFilter,
-    QuerySourceTaskIdFilter,
     QueryUriPatternSearch,
     SortParam,
+    filter_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.assets import (
@@ -135,11 +132,21 @@ def get_asset_events(
             ).dynamic_depends("timestamp")
         ),
     ],
-    asset_id: QueryAssetIdFilter,
-    source_dag_id: QuerySourceDagIdFilter,
-    source_task_id: QuerySourceTaskIdFilter,
-    source_run_id: QuerySourceRunIdFilter,
-    source_map_index: QuerySourceMapIndexFilter,
+    asset_id: Annotated[
+        FilterParam[int | None], Depends(filter_param_factory(AssetEvent.asset_id, int | None))
+    ],
+    source_dag_id: Annotated[
+        FilterParam[str | None], Depends(filter_param_factory(AssetEvent.source_dag_id, str | None))
+    ],
+    source_task_id: Annotated[
+        FilterParam[str | None], Depends(filter_param_factory(AssetEvent.source_task_id, str | None))
+    ],
+    source_run_id: Annotated[
+        FilterParam[str | None], Depends(filter_param_factory(AssetEvent.source_run_id, str | None))
+    ],
+    source_map_index: Annotated[
+        FilterParam[int | None], Depends(filter_param_factory(AssetEvent.source_map_index, int | None))
+    ],
     session: SessionDep,
 ) -> AssetEventCollectionResponse:
     """Get asset events."""
