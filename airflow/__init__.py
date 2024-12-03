@@ -58,10 +58,20 @@ if sys.platform == "win32":
 # very easily cause import cycles in the conf init/validate code (since downstream code from
 # those functions likely import settings).
 # configuration is therefore initted early here, simply by importing it.
+
+from packaging.version import Version
+
 from airflow import configuration, settings
+
+
+def get_airflow_version() -> Version:
+    """Return packaging Version object representing the base version."""
+    return Version(Version(__version__).base_version)
+
 
 __all__ = [
     "__version__",
+    "get_airflow_version",
     "DAG",
     "Asset",
     "XComArg",
