@@ -66,6 +66,7 @@ from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql import Select, expression
+from sqlalchemy_utils import UUIDType
 
 from airflow import settings, utils
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
@@ -2026,6 +2027,9 @@ class DagModel(Base):
     fileloc = Column(String(2000))
     # The base directory used by Dag Processor that parsed this dag.
     processor_subdir = Column(String(2000), nullable=True)
+    bundle_id = Column(UUIDType(binary=False), ForeignKey("dag_bundle.id"), nullable=True)
+    # The version of the bundle the last time the DAG was parsed
+    latest_bundle_version = Column(String(200), nullable=True)
     # String representing the owners
     owners = Column(String(2000))
     # Display name of the dag
