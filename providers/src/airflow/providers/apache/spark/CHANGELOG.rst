@@ -38,7 +38,9 @@ main
 
   * Operators
 
-    * Removed ``_sql()`` support for SparkSqlOperator. Please use ``sql`` attribute instead
+    * Removed ``_sql()`` support for SparkSqlOperator. Please use ``sql`` attribute instead. ``_sql`` was
+      introduced in 2016 and since it was listed as templated field, which is no longer the case, we
+      handled it as public api despite the ``_`` prefix that marked it as private.
 
 
 4.11.3
