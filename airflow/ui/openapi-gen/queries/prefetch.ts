@@ -851,41 +851,6 @@ export const prefetchUseDagServiceGetDags = (
       }),
   });
 /**
- * Get Dag Tags
- * Get all DAG tags.
- * @param data The data for the request.
- * @param data.limit
- * @param data.offset
- * @param data.orderBy
- * @param data.tagNamePattern
- * @returns DAGTagCollectionResponse Successful Response
- * @throws ApiError
- */
-export const prefetchUseDagServiceGetDagTags = (
-  queryClient: QueryClient,
-  {
-    limit,
-    offset,
-    orderBy,
-    tagNamePattern,
-  }: {
-    limit?: number;
-    offset?: number;
-    orderBy?: string;
-    tagNamePattern?: string;
-  } = {},
-) =>
-  queryClient.prefetchQuery({
-    queryKey: Common.UseDagServiceGetDagTagsKeyFn({
-      limit,
-      offset,
-      orderBy,
-      tagNamePattern,
-    }),
-    queryFn: () =>
-      DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }),
-  });
-/**
  * Get Dag
  * Get basic information about a DAG.
  * @param data The data for the request.
@@ -924,6 +889,41 @@ export const prefetchUseDagServiceGetDagDetails = (
   queryClient.prefetchQuery({
     queryKey: Common.UseDagServiceGetDagDetailsKeyFn({ dagId }),
     queryFn: () => DagService.getDagDetails({ dagId }),
+  });
+/**
+ * Get Dag Tags
+ * Get all DAG tags.
+ * @param data The data for the request.
+ * @param data.limit
+ * @param data.offset
+ * @param data.orderBy
+ * @param data.tagNamePattern
+ * @returns DAGTagCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseDagServiceGetDagTags = (
+  queryClient: QueryClient,
+  {
+    limit,
+    offset,
+    orderBy,
+    tagNamePattern,
+  }: {
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    tagNamePattern?: string;
+  } = {},
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseDagServiceGetDagTagsKeyFn({
+      limit,
+      offset,
+      orderBy,
+      tagNamePattern,
+    }),
+    queryFn: () =>
+      DagService.getDagTags({ limit, offset, orderBy, tagNamePattern }),
   });
 /**
  * Get Event Log
