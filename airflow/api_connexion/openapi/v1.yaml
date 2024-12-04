@@ -2399,6 +2399,8 @@ paths:
         - $ref: "#/components/parameters/FilterSourceTaskID"
         - $ref: "#/components/parameters/FilterSourceRunID"
         - $ref: "#/components/parameters/FilterSourceMapIndex"
+        - $ref: "#/components/parameters/FilterTimestampGTE"
+        - $ref: "#/components/parameters/FilterTimestampLTE"
       responses:
         "200":
           description: Success.
@@ -6012,6 +6014,34 @@ components:
         type: string
       required: false
       description: Returns objects matched by the Run ID.
+
+    FilterTimestampGTE:
+      in: query
+      name: timestamp_gte
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: |
+        Returns objects greater or equal the specified date.
+
+        This can be combined with timestamp_lte parameter to receive only the selected period.
+
+        *New in version 2.11.0*
+
+    FilterTimestampLTE:
+      in: query
+      name: timestamp_lte
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: |
+        Returns objects less or equal the specified date.
+
+        This can be combined with timestamp_gte parameter to receive only the selected period.
+
+        *New in version 2.11.0*
 
     # Other parameters
     FileToken:
