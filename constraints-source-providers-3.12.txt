@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-12-04T13:47:20.146649
+# This constraints file was automatically generated on 2024-12-04T19:41:29.409619
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -185,7 +185,7 @@ eventlet==0.38.0
 execnet==2.1.1
 executing==2.1.0
 facebook_business==21.0.5
-fastapi-cli==0.0.5
+fastapi-cli==0.0.6
 fastapi==0.115.6
 fastavro==1.9.7
 fastjsonschema==2.21.1
@@ -503,8 +503,9 @@ rfc3339-validator==0.1.4
 rfc3986==2.0.0
 rich-argparse==1.6.0
 rich-click==1.8.5
+rich-toolkit==0.11.3
 rich==13.9.4
-rpds-py==0.22.1
+rpds-py==0.22.3
 rsa==4.9
 ruff==0.8.1
 s3fs==2024.10.0
@@ -520,13 +521,13 @@ setuptools==75.6.0
 shapely==2.0.6
 shellingham==1.5.4
 simple-salesforce==1.12.6
-six==1.16.0
+six==1.17.0
 slack_sdk==3.33.4
 smbprotocol==1.15.0
 smmap==5.0.1
 sniffio==1.3.1
 snowballstemmer==2.2.0
-snowflake-connector-python==3.12.3
+snowflake-connector-python==3.12.4
 snowflake-sqlalchemy==1.7.1
 sortedcontainers==2.4.0
 soupsieve==2.6
@@ -578,7 +579,7 @@ tqdm==4.67.1
 traitlets==5.14.3
 trino==0.330.0
 twine==6.0.1
-typer==0.15.0
+typer==0.15.1
 types-Deprecated==1.2.15.20241117
 types-Markdown==3.7.0.20241204
 types-PyMySQL==1.1.0.20241103
@@ -627,7 +628,7 @@ xmlsec==1.3.14
 xmltodict==0.14.2
 yamllint==1.35.1
 yandex-query-client==0.1.4
-yandexcloud==0.326.0
+yandexcloud==0.327.0
 yarl==1.18.3
 ydb-dbapi==0.1.5
 ydb==3.18.10
