@@ -18,8 +18,8 @@
  */
 import { FiRefreshCw } from "react-icons/fi";
 
-import { Button } from "src/components/ui/button.tsx";
-import { useDagParsing } from "src/queries/useDagParsing.tsx";
+import { Button } from "src/components/ui";
+import { useDagParsing } from "src/queries/useDagParsing.ts";
 
 type Props = {
   readonly dagId: string;

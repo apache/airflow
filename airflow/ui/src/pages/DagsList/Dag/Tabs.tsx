@@ -39,7 +39,6 @@ export const DagTabs = ({
   readonly isDocsOpen: boolean;
   readonly setIsDocsOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }) => {
-  const { dagId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const modal = searchParams.get(MODAL);

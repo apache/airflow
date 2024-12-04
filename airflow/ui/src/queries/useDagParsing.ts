@@ -23,7 +23,7 @@ import {
   UseDagServiceGetDagDetailsKeyFn,
   UseDagSourceServiceGetDagSourceKeyFn,
 } from "openapi/queries";
-import { toaster } from "src/components/ui/toaster.tsx";
+import { toaster } from "src/components/ui";
 
 const onError = () => {
   toaster.create({

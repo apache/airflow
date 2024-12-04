@@ -16,8 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-/* eslint-disable @typescript-eslint/strict-boolean-expressions */
 import type { ButtonProps as ChakraButtonProps } from "@chakra-ui/react";
 import {
   AbsoluteCenter,
@@ -40,14 +38,14 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
     return (
       <ChakraButton disabled={loading ?? disabled} ref={ref} {...rest}>
-        {loading && !loadingText ? (
+        {loading && !Boolean(loadingText) ? (
           <>
             <AbsoluteCenter display="inline-flex">
               <Spinner color="inherit" size="inherit" />
             </AbsoluteCenter>
             <Span opacity={0}>{children}</Span>
           </>
-        ) : loading && loadingText ? (
+        ) : loading && Boolean(loadingText) ? (
           <>
             <Spinner color="inherit" size="inherit" />
             {loadingText}

@@ -27,7 +27,7 @@ import {
 } from "openapi/queries";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ProgressBar } from "src/components/ui";
-import { Toaster } from "src/components/ui/toaster.tsx";
+import { Toaster } from "src/components/ui";
 import { OpenGroupsProvider } from "src/context/openGroups";
 
 import { Header } from "./Header";
